@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Keep startup resume interaction tests with their existing component setup. */
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -40,7 +41,11 @@ import {
 import { GridListComponent } from '@iptvnator/portal/shared/ui';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    PlaybackResumeService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { liveHistoryTestCases } from './live-stream-layout-history.spec-data';
 
@@ -120,6 +125,7 @@ describe('LiveStreamLayoutComponent', () => {
         openExternalPlayback: jest.fn(),
     };
     const settingsStore = {
+        updateSettings: jest.fn().mockResolvedValue(undefined),
         openStreamOnDoubleClick: signal(false),
         // Reset in beforeEach: the store is module-scoped, so a test failure
         // before an in-test restore must not leak 'list' into siblings.
@@ -298,6 +304,25 @@ describe('LiveStreamLayoutComponent', () => {
         fixture.detectChanges();
         expect(component.activePlayback()).toBeNull();
         expect(component.playbackSessionKey()).toBe('');
+    });
+
+    it('reselects the saved Xtream live channel by stable id', () => {
+        const resume = TestBed.inject(PlaybackResumeService);
+        resume.setPendingResume(
+            playlist.id,
+            'https://example.com/old-url',
+            true,
+            String(sampleChannel.xtream_id)
+        );
+        liveStreams.set([sampleChannel]);
+        const play = jest
+            .spyOn(component, 'playLive')
+            .mockImplementation(() => undefined);
+
+        fixture.detectChanges();
+
+        expect(play).toHaveBeenCalledWith(sampleChannel, true);
+        expect(resume.peekPendingResumeStreamUrl(playlist.id)).toBeNull();
     });
 
     it('renders the controlled epg list for electron playback', () => {

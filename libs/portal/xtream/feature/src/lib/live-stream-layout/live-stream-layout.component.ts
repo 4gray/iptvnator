@@ -102,6 +102,7 @@ import {
     DatabaseService,
     ParentalLockService,
     RecordingsService,
+    PlaybackResumeService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -181,6 +182,7 @@ export class LiveStreamLayoutComponent
     private readonly parentalLock = inject(ParentalLockService);
     private readonly databaseService = inject(DatabaseService);
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
+    private readonly playbackResumeService = inject(PlaybackResumeService);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
@@ -445,9 +447,89 @@ export class LiveStreamLayoutComponent
     readonly activeStreamUrl = computed(
         () => this.activePlayback()?.streamUrl ?? ''
     );
+    private pendingResumeConsumed = false;
+    private readonly isActivelyPlaying = signal(true);
+    private readonly resumeTargetStreamUrl = signal<string | null>(null);
+    readonly startPaused = computed(
+        () =>
+            this.resumeTargetStreamUrl() !== null &&
+            this.resumeTargetStreamUrl() === this.activeStreamUrl()
+    );
     favorites = new Map<number, boolean>();
 
+    onPlayingStateChanged(playing: boolean | undefined): void {
+        if (playing !== undefined) this.isActivelyPlaying.set(playing);
+    }
+
     constructor() {
+        effect(() => {
+            const playback = this.activePlayback();
+            const playlist = this.xtreamStore.currentPlaylist();
+            if (!playback?.isLive || !playlist) return;
+            if (!this.isActivelyPlaying()) {
+                void this.playbackResumeService.recordPlaybackStopped();
+            } else {
+                void this.playbackResumeService.recordPlaybackStarted(
+                    'xtream',
+                    playlist.id,
+                    playback.streamUrl,
+                    String(this.selectedLiveItem()?.xtream_id ?? '')
+                );
+            }
+        });
+
+        effect(() => {
+            if (
+                this.pendingResumeConsumed ||
+                this.xtreamStore.selectedContentType() !== 'live'
+            )
+                return;
+            const playlist = this.xtreamStore.currentPlaylist();
+            if (!playlist) return;
+            const url = this.playbackResumeService.peekPendingResumeStreamUrl(
+                playlist.id
+            );
+            if (url === null) return;
+            const channels = this.getAllLiveStreams();
+            if (!channels.length) return;
+            const credentials = {
+                serverUrl: playlist.serverUrl,
+                username: playlist.username,
+                password: playlist.password,
+            };
+            const channelId =
+                this.playbackResumeService.peekPendingResumeChannelId(
+                    playlist.id
+                );
+            const target = channels.find((item) =>
+                channelId
+                    ? String(item.xtream_id) === channelId
+                    : this.xtreamUrlService.constructLiveUrl(
+                          credentials,
+                          item.xtream_id
+                      ) === url
+            );
+            this.pendingResumeConsumed = true;
+            const shouldAutoplay =
+                this.playbackResumeService.peekPendingResumeShouldAutoplay(
+                    playlist.id
+                );
+            this.playbackResumeService.clearPendingResume();
+            if (!target) return;
+            if (!shouldAutoplay) this.resumeTargetStreamUrl.set(url);
+            this.playLive(target, true);
+            this.xtreamStore.setSelectedItem(
+                target as unknown as Record<string, unknown>
+            );
+        });
+
+        effect(() => {
+            const target = this.resumeTargetStreamUrl();
+            const active = this.activeStreamUrl();
+            if (target && active && active !== target)
+                this.resumeTargetStreamUrl.set(null);
+        });
+
         effect(() => {
             const playlistId = this.xtreamStore.currentPlaylist()?.id ?? null;
             if (this.activePlaylistId && this.activePlaylistId !== playlistId) {
@@ -814,6 +896,7 @@ export class LiveStreamLayoutComponent
         this.playbackRequestId += 1;
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
+        void this.playbackResumeService.recordPlaybackStopped();
         // Leaving the live view would otherwise keep the last channel
         // advertised as live on the remote forever.
         this.remoteControlBridge?.updateRemoteControlStatus?.(

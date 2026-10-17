@@ -142,6 +142,17 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(option?.textContent).toContain('auto');
     });
 
+    it('shows autoplay only when remembering the last channel', () => {
+        const form = createForm();
+        fixture.componentRef.setInput('form', form);
+        fixture.detectChanges();
+        expect(queryByTestId('autoplay-on-relaunch-setting')).toBeNull();
+
+        form.get('rememberLastChannel')?.setValue(true);
+        fixture.detectChanges();
+        expect(queryByTestId('autoplay-on-relaunch-setting')).not.toBeNull();
+    });
+
     it.each([
         VideoPlayer.VideoJs,
         VideoPlayer.Html5Player,
@@ -464,6 +475,8 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         fullscreenChannelPanel: new FormControl(true),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
+        rememberLastChannel: new FormControl(false),
+        autoplayOnRelaunch: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
         embeddedMpvFrameCopy: new FormControl(false),
         mpvPlayerPath: new FormControl(''),

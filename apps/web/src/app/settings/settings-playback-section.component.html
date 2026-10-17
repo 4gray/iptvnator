@@ -74,7 +74,10 @@
                 >
                     <div class="setting-item__meta">
                         <h4>
-                            {{ 'SETTINGS.WEB_PLAYER_SHARED_CONTROLS' | translate }}
+                            {{
+                                'SETTINGS.WEB_PLAYER_SHARED_CONTROLS'
+                                    | translate
+                            }}
                         </h4>
                         <p>
                             {{
@@ -86,7 +89,8 @@
                     <div class="setting-item__control setting-item__toggle">
                         <mat-slide-toggle
                             [aria-label]="
-                                'SETTINGS.WEB_PLAYER_SHARED_CONTROLS' | translate
+                                'SETTINGS.WEB_PLAYER_SHARED_CONTROLS'
+                                    | translate
                             "
                             formControlName="webPlayerSharedControls"
                             data-test-id="web-player-shared-controls-toggle"
@@ -122,7 +126,9 @@
                 </div>
             }
 
-            @if (supportsManagedExternalPlayers() && isExternalPlayerSelected()) {
+            @if (
+                supportsManagedExternalPlayers() && isExternalPlayerSelected()
+            ) {
                 <div
                     class="setting-item"
                     data-setting-id="external-player-double-click"
@@ -152,8 +158,53 @@
                 </div>
             }
 
+            <div
+                class="setting-item"
+                data-test-id="remember-last-channel-setting"
+            >
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.REMEMBER_LAST_CHANNEL' | translate }}</h4>
+                    <p>
+                        {{
+                            'SETTINGS.REMEMBER_LAST_CHANNEL_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-slide-toggle
+                        formControlName="rememberLastChannel"
+                    ></mat-slide-toggle>
+                </div>
+            </div>
+            @if (form().value.rememberLastChannel) {
+                <div
+                    class="setting-item"
+                    data-test-id="autoplay-on-relaunch-setting"
+                >
+                    <div class="setting-item__meta">
+                        <h4>
+                            {{ 'SETTINGS.AUTOPLAY_ON_RELAUNCH' | translate }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.AUTOPLAY_ON_RELAUNCH_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control setting-item__toggle">
+                        <mat-slide-toggle
+                            formControlName="autoplayOnRelaunch"
+                        ></mat-slide-toggle>
+                    </div>
+                </div>
+            }
+
             @if (isDesktop()) {
-                @if (frameCopyAvailable() || form().value.embeddedMpvFrameCopy) {
+                @if (
+                    frameCopyAvailable() || form().value.embeddedMpvFrameCopy
+                ) {
                     <div
                         class="setting-item"
                         data-setting-id="embedded-mpv-frame-copy"
@@ -161,7 +212,10 @@
                     >
                         <div class="setting-item__meta">
                             <h4 id="embedded-mpv-frame-copy-label">
-                                {{ 'SETTINGS.EMBEDDED_MPV_FRAME_COPY' | translate }}
+                                {{
+                                    'SETTINGS.EMBEDDED_MPV_FRAME_COPY'
+                                        | translate
+                                }}
                                 @if (
                                     form().value.embeddedMpvFrameCopy !==
                                     frameCopyActive()
@@ -308,12 +362,19 @@
             ) {
                 <div class="setting-item" data-setting-id="mpv-player-path">
                     <div class="setting-item__meta">
-                        <h4>{{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}</h4>
+                        <h4>
+                            {{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}
+                        </h4>
                         <p>
-                            {{ 'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION' | translate }}
+                            {{
+                                'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION'
+                                    | translate
+                            }}
                         </p>
                         <p data-test-id="mpv-compatible-player-tip">
-                            {{ 'SETTINGS.MPV_COMPATIBLE_PLAYER_TIP' | translate }}
+                            {{
+                                'SETTINGS.MPV_COMPATIBLE_PLAYER_TIP' | translate
+                            }}
                         </p>
                     </div>
                     <div class="setting-item__control">
@@ -342,7 +403,10 @@
                 >
                     <div class="setting-item__meta">
                         <h4>
-                            {{ 'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL' | translate }}
+                            {{
+                                'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL'
+                                    | translate
+                            }}
                         </h4>
                         <p>
                             {{
@@ -379,7 +443,9 @@
                 <div class="setting-item" data-setting-id="mpv-reuse-instance">
                     <div class="setting-item__meta">
                         <h4 id="mpv-reuse-instance-label">
-                            {{ 'SETTINGS.MPV_REUSE_INSTANCE_LABEL' | translate }}
+                            {{
+                                'SETTINGS.MPV_REUSE_INSTANCE_LABEL' | translate
+                            }}
                         </h4>
                         <p>
                             {{
@@ -404,9 +470,14 @@
             ) {
                 <div class="setting-item" data-setting-id="vlc-player-path">
                     <div class="setting-item__meta">
-                        <h4>{{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}</h4>
+                        <h4>
+                            {{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}
+                        </h4>
                         <p>
-                            {{ 'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION' | translate }}
+                            {{
+                                'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION'
+                                    | translate
+                            }}
                         </p>
                     </div>
                     <div class="setting-item__control">
@@ -435,7 +506,10 @@
                 >
                     <div class="setting-item__meta">
                         <h4>
-                            {{ 'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL' | translate }}
+                            {{
+                                'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL'
+                                    | translate
+                            }}
                         </h4>
                         <p>
                             {{
@@ -472,7 +546,9 @@
                 <div class="setting-item" data-setting-id="vlc-reuse-instance">
                     <div class="setting-item__meta">
                         <h4 id="vlc-reuse-instance-label">
-                            {{ 'SETTINGS.VLC_REUSE_INSTANCE_LABEL' | translate }}
+                            {{
+                                'SETTINGS.VLC_REUSE_INSTANCE_LABEL' | translate
+                            }}
                         </h4>
                         <p>
                             {{
@@ -610,7 +686,9 @@
                 >
                     <div class="setting-item__meta">
                         <h4>
-                            {{ 'SETTINGS.FULLSCREEN_CHANNEL_PANEL' | translate }}
+                            {{
+                                'SETTINGS.FULLSCREEN_CHANNEL_PANEL' | translate
+                            }}
                         </h4>
                         <p>
                             {{
@@ -644,12 +722,17 @@
                             {{ 'SETTINGS.VOD_AUTO_FAILOVER' | translate }}
                         </h4>
                         <p>
-                            {{ 'SETTINGS.VOD_AUTO_FAILOVER_DESCRIPTION' | translate }}
+                            {{
+                                'SETTINGS.VOD_AUTO_FAILOVER_DESCRIPTION'
+                                    | translate
+                            }}
                         </p>
                     </div>
                     <div class="setting-item__control setting-item__toggle">
                         <mat-slide-toggle
-                            [aria-label]="'SETTINGS.VOD_AUTO_FAILOVER' | translate"
+                            [aria-label]="
+                                'SETTINGS.VOD_AUTO_FAILOVER' | translate
+                            "
                             formControlName="vodAutoFailover"
                             data-test-id="vod-auto-failover-toggle"
                         ></mat-slide-toggle>
@@ -669,7 +752,9 @@
                     <h4 id="stream-format-label">
                         {{ 'SETTINGS.STREAM_FORMAT' | translate }}
                     </h4>
-                    <p>{{ 'SETTINGS.STREAM_FORMAT_DESCRIPTION' | translate }}</p>
+                    <p>
+                        {{ 'SETTINGS.STREAM_FORMAT_DESCRIPTION' | translate }}
+                    </p>
                 </div>
                 <div class="setting-item__control">
                     <mat-form-field
@@ -711,7 +796,10 @@
                 >
                     <div class="setting-item__meta">
                         <h4 id="show-external-playback-bar-label">
-                            {{ 'SETTINGS.SHOW_EXTERNAL_PLAYBACK_BAR' | translate }}
+                            {{
+                                'SETTINGS.SHOW_EXTERNAL_PLAYBACK_BAR'
+                                    | translate
+                            }}
                         </h4>
                         <p>
                             {{
@@ -735,9 +823,14 @@
                     data-test-id="recording-folder-setting"
                 >
                     <div class="setting-item__meta">
-                        <h4>{{ 'SETTINGS.RECORDING_FOLDER_LABEL' | translate }}</h4>
+                        <h4>
+                            {{ 'SETTINGS.RECORDING_FOLDER_LABEL' | translate }}
+                        </h4>
                         <p>
-                            {{ 'SETTINGS.RECORDING_FOLDER_DESCRIPTION' | translate }}
+                            {{
+                                'SETTINGS.RECORDING_FOLDER_DESCRIPTION'
+                                    | translate
+                            }}
                         </p>
                     </div>
                     <div class="setting-item__control">
@@ -760,7 +853,8 @@
                                 matSuffix
                                 type="button"
                                 [attr.aria-label]="
-                                    'SETTINGS.RECORDING_FOLDER_SELECT' | translate
+                                    'SETTINGS.RECORDING_FOLDER_SELECT'
+                                        | translate
                                 "
                                 (click)="selectRecordingFolder.emit()"
                             >

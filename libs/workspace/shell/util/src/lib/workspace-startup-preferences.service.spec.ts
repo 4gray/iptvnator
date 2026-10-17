@@ -1,8 +1,15 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { PlaylistsService, SettingsStore } from '@iptvnator/services';
-import { StartupBehavior } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackResumeService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
+import {
+    LastPlayingChannel,
+    StartupBehavior,
+} from '@iptvnator/shared/interfaces';
 import { WorkspaceStartupPreferencesService } from './workspace-startup-preferences.service';
 
 describe('WorkspaceStartupPreferencesService', () => {
@@ -12,20 +19,30 @@ describe('WorkspaceStartupPreferencesService', () => {
         loadSettings: jest.Mock;
         showDashboard: ReturnType<typeof signal<boolean>>;
         startupBehavior: ReturnType<typeof signal<StartupBehavior>>;
+        rememberLastChannel: ReturnType<typeof signal<boolean>>;
+        autoplayOnRelaunch: ReturnType<typeof signal<boolean>>;
+        resumePlaybackOnStartup: ReturnType<typeof signal<boolean>>;
+        lastPlayingChannel: ReturnType<
+            typeof signal<LastPlayingChannel | null>
+        >;
     };
 
     beforeEach(() => {
         localStorage.clear();
 
         playlistsService = {
-            getAllPlaylists: jest.fn().mockReturnValue(
-                of([{ _id: 'playlist-1' }])
-            ),
+            getAllPlaylists: jest
+                .fn()
+                .mockReturnValue(of([{ _id: 'playlist-1' }])),
         };
         settingsStore = {
             loadSettings: jest.fn().mockResolvedValue(undefined),
             showDashboard: signal(true),
             startupBehavior: signal(StartupBehavior.FirstView),
+            rememberLastChannel: signal(false),
+            autoplayOnRelaunch: signal(false),
+            resumePlaybackOnStartup: signal(false),
+            lastPlayingChannel: signal<LastPlayingChannel | null>(null),
         };
 
         TestBed.configureTestingModule({
@@ -43,6 +60,47 @@ describe('WorkspaceStartupPreferencesService', () => {
         });
 
         service = TestBed.inject(WorkspaceStartupPreferencesService);
+    });
+
+    it('routes to the remembered live channel and carries its autoplay state', async () => {
+        settingsStore.rememberLastChannel.set(true);
+        settingsStore.autoplayOnRelaunch.set(true);
+        settingsStore.resumePlaybackOnStartup.set(true);
+        settingsStore.lastPlayingChannel.set({
+            sourceType: 'stalker',
+            playlistId: 'playlist-1',
+            streamUrl: 'https://example.com/session-stream',
+            channelId: 'stalker-channel-9',
+        });
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/stalker/playlist-1/itv'
+        );
+        const pending = TestBed.inject(PlaybackResumeService);
+        expect(pending.peekPendingResumeChannelId('playlist-1')).toBe(
+            'stalker-channel-9'
+        );
+        expect(pending.peekPendingResumeShouldAutoplay('playlist-1')).toBe(
+            true
+        );
+    });
+
+    it('does not route to a removed playlist', async () => {
+        settingsStore.rememberLastChannel.set(true);
+        settingsStore.lastPlayingChannel.set({
+            sourceType: 'm3u',
+            playlistId: 'missing',
+            streamUrl: 'https://example.com/channel',
+        });
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/dashboard'
+        );
+        expect(
+            TestBed.inject(PlaybackResumeService).peekPendingResumeStreamUrl(
+                'missing'
+            )
+        ).toBeNull();
     });
 
     it('resolves the first view to dashboard when dashboard is enabled', async () => {
