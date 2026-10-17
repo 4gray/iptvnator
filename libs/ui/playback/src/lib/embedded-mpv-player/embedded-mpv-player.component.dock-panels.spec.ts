@@ -487,6 +487,32 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         expect(setSubtitleTrack).toHaveBeenCalledWith(32);
     });
 
+    it('restores subtitles when a same-URL reload skips the loading snapshot', async () => {
+        const setSubtitleTrack = jest
+            .spyOn(controller, 'setSubtitleTrack')
+            .mockResolvedValue(undefined);
+        await player.selectSubtitleTrack(22);
+        setSubtitleTrack.mockClear();
+
+        const currentSession = controller.session();
+        if (!currentSession) {
+            throw new Error('Expected a ready embedded MPV session');
+        }
+        controller.session.set({
+            ...currentSession,
+            loadRevision: 2,
+            subtitleTracks: [
+                { id: 31, language: 'eng', selected: true },
+                { id: 32, language: 'deu', selected: false },
+            ],
+            selectedSubtitleTrackId: 31,
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setSubtitleTrack).toHaveBeenCalledWith(32);
+    });
+
     it('leaves external subtitle restoration to the native reconnect service', async () => {
         const setSubtitleTrack = jest
             .spyOn(controller, 'setSubtitleTrack')

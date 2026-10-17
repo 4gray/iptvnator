@@ -134,6 +134,7 @@ interface EmbeddedMpvRuntimeSession {
     id: string;
     title: string;
     streamUrl: string;
+    loadRevision: number;
     startedAt: string;
     updatedAt: string;
     lastPayloadKey: string;
@@ -213,6 +214,9 @@ export class EmbeddedMpvNativeService {
                 session.restoreSubtitleAfterReconnect = true;
             }
             addon.loadPlayback(sessionId, playback);
+            if (session) {
+                session.loadRevision += 1;
+            }
             // Sessions run with keep-open=yes, so EOF on a live stream leaves
             // mpv paused at the end of the old file and a plain loadfile
             // inherits that pause: the reload then buffers, reports
@@ -652,6 +656,7 @@ export class EmbeddedMpvNativeService {
             id: sessionId,
             title,
             streamUrl: '',
+            loadRevision: 0,
             startedAt,
             updatedAt: startedAt,
             lastPayloadKey: '',
@@ -710,6 +715,7 @@ export class EmbeddedMpvNativeService {
         session.externalSubtitlePath = null;
         session.restoreSubtitleAfterReconnect = false;
         addon.loadPlayback(sessionId, playback);
+        session.loadRevision += 1;
         this.refreshSession(sessionId);
     }
 
@@ -1274,6 +1280,7 @@ export class EmbeddedMpvNativeService {
             id: session.id,
             title: session.title,
             streamUrl: snapshot.streamUrl || session.streamUrl,
+            loadRevision: session.loadRevision,
             status: snapshot.status,
             positionSeconds: Math.max(0, Math.floor(snapshot.positionSeconds)),
             durationSeconds:

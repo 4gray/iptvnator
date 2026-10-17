@@ -146,6 +146,8 @@ export interface EmbeddedMpvSession {
     id: string;
     title: string;
     streamUrl: string;
+    /** Increments when the native service loads or reloads this session's media. */
+    loadRevision?: number;
     status: EmbeddedMpvSessionStatus;
     positionSeconds: number;
     durationSeconds: number | null;
