@@ -103,6 +103,7 @@
             [timelineSegments]="timelineSegments()"
             [recordingFolder]="recordingFolder()"
             [recordingMetadata]="recordingMetadata()"
+            [startPaused]="startPaused()"
             [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="handleTimeUpdate($event, application)"
             (playbackEnded)="playbackEnded.emit()"

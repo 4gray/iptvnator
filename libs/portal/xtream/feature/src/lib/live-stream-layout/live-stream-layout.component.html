@@ -168,6 +168,8 @@
                     [playback]="activePlayback()"
                     [timelineSegments]="catchupTimelineSegments()"
                     [recordingMetadata]="recordingMetadata()"
+                    [startPaused]="startPaused()"
+                    (timeUpdate)="onPlayingStateChanged($event.playing)"
                     (externalFallbackRequested)="
                         handleExternalFallbackRequest($event)
                     "

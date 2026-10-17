@@ -70,6 +70,16 @@ export function normalizeStartupWindowMode(value: unknown): StartupWindowMode {
 
 export type CoverSize = 'small' | 'medium' | 'large';
 
+export type ResumePlaybackSourceType = 'm3u' | 'xtream' | 'stalker';
+
+export interface LastPlayingChannel {
+    sourceType: ResumePlaybackSourceType;
+    playlistId: string;
+    streamUrl: string;
+    /** Provider channel id when stream URLs change between sessions. */
+    channelId?: string;
+}
+
 /** Rendering of the live EPG panel under the player. */
 export type EpgViewMode = 'timeline' | 'list';
 
@@ -194,6 +204,13 @@ export interface Settings {
     showCaptions: boolean;
     showDashboard: boolean;
     startupBehavior: StartupBehavior;
+    /** Reselect the last active channel when the app opens. */
+    rememberLastChannel?: boolean;
+    /** Play that channel when it was playing at the previous shutdown. */
+    autoplayOnRelaunch?: boolean;
+    /** Internal record of whether the previous channel was playing. */
+    resumePlaybackOnStartup?: boolean;
+    lastPlayingChannel?: LastPlayingChannel | null;
     /**
      * Desktop window presentation at launch: normal (last size), maximized,
      * or fullscreen. Electron only and applied on the next launch; a missing
