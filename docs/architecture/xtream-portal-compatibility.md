@@ -324,6 +324,12 @@ Refresh supplies the source's enabled types. Disabled catalog rows remain intact
 restore still sees the complete source's user state. Import completion and progress
 exclude intentionally skipped types.
 
+Fresh desktop backup restores separate dormant catalog-dependent history and
+hidden choices from the active import snapshot. Enabled types initialize normally;
+unloaded types retain durable restore data for re-export and later re-enabling.
+Replay merges with current source history and does not overwrite later progress,
+favorite removals or source-pin edits. See [backup restoration](./playlist-backup-restore.md).
+
 See [isolated Linux testing](../development/xtream-content-selection-testing.md)
 for the development build and manual validation checklist.
 

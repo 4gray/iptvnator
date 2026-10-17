@@ -8,6 +8,7 @@ import type {
  */
 
 import { Injectable } from '@angular/core';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import type {
     ContentMetadataPatch,
@@ -153,6 +154,8 @@ export interface GlobalRecentlyAddedItem extends XtreamContent {
     providedIn: 'root',
 })
 export class DatabaseService {
+    private readonly deferredCatalogRestore =
+        new XtreamDeferredCatalogRestoreService();
     private buildXtreamImportStateKey(
         playlistId: string,
         type: 'live' | 'movie' | 'series'
@@ -798,6 +801,7 @@ export class DatabaseService {
         }
 
         try {
+            this.deferredCatalogRestore.clearHistory();
             await window.electron.dbClearRecentlyViewed();
         } catch (error) {
             console.error('Error clearing recently viewed:', error);
@@ -1021,6 +1025,7 @@ export class DatabaseService {
         }
 
         try {
+            this.deferredCatalogRestore.clearHistory(playlistId);
             await window.electron.dbClearPlaylistRecentItems(playlistId);
             return true;
         } catch (error) {

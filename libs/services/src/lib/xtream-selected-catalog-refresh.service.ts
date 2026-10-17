@@ -14,6 +14,7 @@ import { ParentalLockService } from './parental-lock';
 import { PlaybackPositionService } from './playback-position.service';
 import { SourceActivityService } from './source-activity.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 
 const actions = {
     live: ['get_live_categories', 'get_live_streams'],
@@ -43,6 +44,7 @@ export class XtreamSelectedCatalogRefreshService {
     private readonly locks = inject(ParentalLockService);
     private readonly positions = inject(PlaybackPositionService);
     private readonly pending = inject(XtreamPendingRestoreService);
+    private readonly deferred = inject(XtreamDeferredCatalogRestoreService);
     private readonly activity = inject(SourceActivityService);
     private readonly progressState =
         signal<XtreamSelectedCatalogProgress | null>(null);
@@ -104,7 +106,7 @@ export class XtreamSelectedCatalogRefreshService {
                         )
                     ),
                 ]);
-            const saved: XtreamPendingRestoreState = {
+            let saved: XtreamPendingRestoreState = {
                 favorites: [],
                 playbackPositions,
                 hiddenCategories: ([] as XCategoryFromDb[])
@@ -124,6 +126,16 @@ export class XtreamSelectedCatalogRefreshService {
                         viewedAt: item.viewed_at ?? new Date().toISOString(),
                     })),
             };
+            // Replay dormant state only for catalogs fetched by this refresh.
+            // All current SQLite snapshot rows already have retained identities.
+            const available = types;
+            const prepared = this.deferred.prepare(
+                playlist._id,
+                saved,
+                available,
+                true
+            );
+            saved = prepared.state;
             if (!this.pending.set(playlist._id, saved)) {
                 throw new Error('Could not retain source restore state.');
             }
@@ -182,6 +194,11 @@ export class XtreamSelectedCatalogRefreshService {
                         playlist._id,
                         [],
                         state.recentlyViewed
+                    );
+                    this.deferred.complete(
+                        playlist._id,
+                        prepared.snapshot,
+                        available
                     );
                 }
             );

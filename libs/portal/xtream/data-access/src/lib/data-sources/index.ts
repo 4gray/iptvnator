@@ -2,6 +2,7 @@ import { inject, Provider } from '@angular/core';
 import {
     PLAYLIST_DELETE_CLEANUP,
     RuntimeCapabilitiesService,
+    XtreamDeferredCatalogRestoreService,
 } from '@iptvnator/services';
 import { ElectronXtreamDataSource } from './electron-xtream-data-source';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
@@ -36,6 +37,7 @@ export function xtreamDataSourceFactory(): IXtreamDataSource {
  */
 export function provideXtreamDataSource(): Provider[] {
     return [
+        XtreamDeferredCatalogRestoreService,
         ElectronXtreamDataSource,
         PwaXtreamDataSource,
         {
@@ -48,12 +50,13 @@ export function provideXtreamDataSource(): Provider[] {
             useFactory: () => {
                 const dataSource = inject(XTREAM_DATA_SOURCE);
                 const runtime = inject(RuntimeCapabilitiesService);
+                const deferred = inject(XtreamDeferredCatalogRestoreService);
 
                 return (playlistId: string) => {
                     if (runtime.supportsXtreamSqliteDataSource) {
-                        // Electron playlist deletion must use DatabaseService so
-                        // SQLite content and sidecars are cleaned together; do
-                        // not invoke this cleanup path through PlaylistsService.
+                        // Authoritative playlist deletion already removed SQLite rows.
+                        // Remove only the dormant renderer-side restore record here.
+                        deferred.clear(playlistId);
                         return Promise.resolve();
                     }
 
