@@ -600,6 +600,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             ) {
                 return;
             }
+            if (this.sharedControls.externalSubtitleSource() === source) {
+                this.subtitlePreferenceApplied = true;
+                return;
+            }
             const preference = this.subtitlePreference.current;
             if (preference === undefined) {
                 this.subtitlePreferenceApplied = true;
@@ -618,14 +622,14 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             const tracks = session.subtitleTracks;
             const preferredLanguage = subtitleLanguage(preference.language);
             const preferredBaseLanguage = preferredLanguage?.split('-')[0];
+            const exactMatch = tracks.find(
+                (track) =>
+                    preferredLanguage &&
+                    preference.title &&
+                    subtitleLanguage(track.language) === preferredLanguage &&
+                    track.title === preference.title
+            );
             const languageMatch =
-                tracks.find(
-                    (track) =>
-                        preferredLanguage &&
-                        preference.title &&
-                        subtitleLanguage(track.language) === preferredLanguage &&
-                        track.title === preference.title
-                ) ??
                 tracks.find(
                     (track) =>
                         preferredLanguage &&
@@ -650,6 +654,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                     preference.title && track.title === preference.title
             );
             const match =
+                exactMatch ??
                 languageMatch ??
                 titleMatch ??
                 tracks.find(
@@ -662,9 +667,17 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 );
             }
             this.subtitlePreferenceApplied =
-                languageMatch !== undefined ||
-                (!preferredLanguage &&
-                    (titleMatch !== undefined || !preference.title));
+                preference.title && preferredLanguage
+                    ? exactMatch !== undefined
+                    : preference.title
+                      ? titleMatch !== undefined
+                      : preferredLanguage
+                        ? tracks.some(
+                              (track) =>
+                                  subtitleLanguage(track.language) ===
+                                  preferredLanguage
+                          )
+                        : true;
         });
 
         effect(() => {

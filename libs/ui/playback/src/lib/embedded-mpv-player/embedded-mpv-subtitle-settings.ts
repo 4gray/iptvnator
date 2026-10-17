@@ -50,7 +50,7 @@ export class EmbeddedMpvSubtitleSettings {
         void this.controller.setSubtitleStyle(normalized);
     }
 
-    addExternalSubtitle(): void {
-        void this.controller.addExternalSubtitle();
+    addExternalSubtitle(): Promise<boolean> {
+        return this.controller.addExternalSubtitle();
     }
 }
