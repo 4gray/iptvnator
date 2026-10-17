@@ -9,6 +9,7 @@ import {
 import { HIDDEN_BOUNDS } from './embedded-mpv-format.utils';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvPlayerComponent } from './embedded-mpv-player.component';
+import { EmbeddedMpvSubtitlePreferenceService } from './embedded-mpv-subtitle-preference.service';
 import {
     EmbeddedMpvBoundsProvider,
     EmbeddedMpvSessionController,
@@ -226,6 +227,65 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         queryAll('.embedded-mpv-dock-panel__chip')[2].nativeElement.click();
         await fixture.whenStable();
         expect(setSubtitleTrack).toHaveBeenCalledWith(22);
+    });
+
+    it('reselects the chosen subtitle language when the next file has new track ids', async () => {
+        const setSubtitleTrack = jest
+            .spyOn(controller, 'setSubtitleTrack')
+            .mockResolvedValue(undefined);
+        await player.selectSubtitleTrack(22);
+        expect(
+            TestBed.inject(EmbeddedMpvSubtitlePreferenceService).current
+        ).toEqual({ language: 'deu', title: undefined });
+        setSubtitleTrack.mockClear();
+
+        const currentSession = controller.session();
+        if (!currentSession) {
+            throw new Error('Expected a ready embedded MPV session');
+        }
+        controller.session.set({
+            ...currentSession,
+            streamUrl: 'https://example.test/movie/43.mp4',
+            subtitleTracks: [
+                { id: 31, language: 'eng', selected: false },
+                { id: 32, language: 'deu', selected: false },
+            ],
+            selectedSubtitleTrackId: null,
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setSubtitleTrack).toHaveBeenCalledWith(32);
+    });
+
+    it('respects an explicit subtitles-off choice on the next file', async () => {
+        const setSubtitleTrack = jest
+            .spyOn(controller, 'setSubtitleTrack')
+            .mockResolvedValue(undefined);
+        await player.selectSubtitleTrack(-1);
+        setSubtitleTrack.mockClear();
+
+        const currentSession = controller.session();
+        if (!currentSession) {
+            throw new Error('Expected a ready embedded MPV session');
+        }
+        controller.session.set({
+            ...currentSession,
+            streamUrl: 'https://example.test/movie/43.mp4',
+            subtitleTracks: [
+                {
+                    id: 31,
+                    language: 'eng',
+                    selected: false,
+                    defaultTrack: true,
+                },
+            ],
+            selectedSubtitleTrackId: null,
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setSubtitleTrack).not.toHaveBeenCalled();
     });
 
     it('selects speed and aspect presets from horizontal chip rows', async () => {

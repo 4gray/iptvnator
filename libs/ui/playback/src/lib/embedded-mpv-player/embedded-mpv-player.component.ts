@@ -39,6 +39,7 @@ import { EmbeddedMpvDockPanelState } from './embedded-mpv-dock-panels';
 import { EmbeddedMpvLegacyInteractions } from './embedded-mpv-legacy-interactions';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
+import { EmbeddedMpvSubtitlePreferenceService } from './embedded-mpv-subtitle-preference.service';
 import { EmbeddedMpvShortcuts } from './embedded-mpv-shortcuts';
 import {
     EmbeddedMpvFeedback,
@@ -140,7 +141,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     /** Catch-up programmes first, else the file's chapters; see the helper. */
     readonly controlsTimelineSegments = computed(
         () =>
-            embeddedMpvTimelineSegments(this.timelineSegments(), this.session()),
+            embeddedMpvTimelineSegments(
+                this.timelineSegments(),
+                this.session()
+            ),
         { equal: sameTimelineSegments }
     );
     readonly stalled = this.controller.stalled;
@@ -265,6 +269,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     );
     readonly selectedSubtitleTrackId = computed(
         () => this.session()?.selectedSubtitleTrackId ?? null
+    );
+    private readonly subtitlePreference = inject(
+        EmbeddedMpvSubtitlePreferenceService
     );
     readonly playbackSpeed = computed(() => this.session()?.playbackSpeed ?? 1);
     readonly aspectOverride = computed(
@@ -546,6 +553,39 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         });
 
         effect(() => {
+            const tracks = this.subtitleTracks();
+            const preference = this.subtitlePreference.current;
+            if (preference === undefined || tracks.length === 0) {
+                return;
+            }
+            if (
+                this.selectedSubtitleTrackId() !== null ||
+                preference === null
+            ) {
+                return;
+            }
+            const match =
+                tracks.find(
+                    (track) =>
+                        preference.language &&
+                        track.language === preference.language
+                ) ??
+                tracks.find(
+                    (track) =>
+                        preference.title && track.title === preference.title
+                ) ??
+                tracks.find(
+                    (track) => track.defaultTrack && track.language !== 'zxx'
+                ) ??
+                tracks.find((track) => track.language !== 'zxx');
+            if (match) {
+                untracked(
+                    () => void this.controller.setSubtitleTrack(match.id)
+                );
+            }
+        });
+
+        effect(() => {
             this.overlayVisibility.overlayActive();
             this.controller.triggerBoundsSync();
         });
@@ -766,6 +806,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     async selectSubtitleTrack(trackId: number): Promise<void> {
         this.legacyInteractions.revealControls(false);
+        const chosen = this.subtitleTracks().find(
+            (track) => track.id === trackId
+        );
+        this.subtitlePreference.current =
+            trackId < 0 || !chosen
+                ? null
+                : { language: chosen.language, title: chosen.title };
         await this.controller.setSubtitleTrack(trackId);
         this.menus.close('subtitle');
         this.legacyInteractions.scheduleControlsHide();
