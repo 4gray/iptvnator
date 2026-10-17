@@ -299,6 +299,27 @@
                             ></mat-slide-toggle>
                         </div>
                     </div>
+
+                    <div
+                        class="setting-item"
+                        data-setting-id="embedded-mpv-keep-controls-visible"
+                    >
+                        <div class="setting-item__meta">
+                            <h4 id="embedded-mpv-keep-controls-visible-label">
+                                {{
+                                    'SETTINGS.EMBEDDED_MPV_KEEP_CONTROLS_VISIBLE'
+                                        | translate
+                                }}
+                            </h4>
+                        </div>
+                        <div class="setting-item__control setting-item__toggle">
+                            <mat-slide-toggle
+                                formControlName="embeddedMpvKeepControlsVisible"
+                                aria-labelledby="embedded-mpv-keep-controls-visible-label"
+                                data-test-id="embedded-mpv-keep-controls-visible-toggle"
+                            ></mat-slide-toggle>
+                        </div>
+                    </div>
                 }
             }
 

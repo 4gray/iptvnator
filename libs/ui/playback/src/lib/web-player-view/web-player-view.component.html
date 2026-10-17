@@ -97,6 +97,7 @@
         <app-embedded-mpv-player
             #embeddedMpvPlayer
             [playback]="resolvedPlayback()"
+            [keepControlsVisible]="keepEmbeddedControlsVisible()"
             [fullscreenTarget]="fullscreenSurface"
             [mediaTitle]="resolvedMediaTitle()"
             [upNext]="upNext()"

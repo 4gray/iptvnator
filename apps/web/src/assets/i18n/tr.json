@@ -633,6 +633,7 @@
         "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "Bu seçenekler gömülü oynatıcı için değiştirilemez: {{keys}}",
         "EMBEDDED_MPV_AUTO_RECONNECT": "Kesilen yayınlara otomatik yeniden bağlan",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Oynatılan bir yayın kesildiğinde gömülü oynatıcı, vazgeçmeden önce yayını giderek artan gecikmelerle en fazla 6 kez yeniden yüklemeyi dener. Hiç başlamamış bir yayın için yine de Tekrar dene’ye el ile basmanız gerekir.",
+        "EMBEDDED_MPV_KEEP_CONTROLS_VISIBLE": "Gömülü MPV denetimlerini görünür tut",
         "VOD_AUTO_FAILOVER": "Oynatma hatasında kaynağı otomatik değiştir",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Bir film oynatılamadığında ve aynı film başka bir oynatma listesinde de varsa, otomatik olarak o listeye geçilir ve oynatma konumu korunur. Varsayılan olarak kapalıdır; başka bir kaynakta dublaj farklı olabileceği için geçiş her zaman bildirilir.",
         "NAV_PARENTAL": "Ebeveyn kilidi",

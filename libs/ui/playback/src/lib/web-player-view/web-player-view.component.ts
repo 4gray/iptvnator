@@ -174,6 +174,9 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly showCaptions = computed(
         () => this.settingsStore.showCaptions?.() ?? false
     );
+    readonly keepEmbeddedControlsVisible = computed(
+        () => this.settingsStore.embeddedMpvKeepControlsVisible?.() ?? false
+    );
     readonly reloadToken = signal(0);
     readonly externalRecoveryState = this.externalRecovery.states;
     readonly externalRecoveryPending = this.externalRecovery.pending;

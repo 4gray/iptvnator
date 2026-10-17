@@ -633,6 +633,7 @@
         "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "內嵌播放器無法變更這些選項：{{keys}}",
         "EMBEDDED_MPV_AUTO_RECONNECT": "自動重新連線中斷的串流",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "播放中的串流中斷時，內嵌播放器會以逐漸拉長的間隔重新載入，最多嘗試 6 次後放棄。從未成功啟動的串流仍需手動重試。",
+        "EMBEDDED_MPV_KEEP_CONTROLS_VISIBLE": "持續顯示內嵌 MPV 控制項",
         "VOD_AUTO_FAILOVER": "播放發生錯誤時自動切換來源",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "當電影無法播放，且其他播放清單中也有同一部影片時，會自動切換過去並保留播放進度。預設為關閉；由於其他來源可能使用不同的配音，每次切換都會提示您。",
         "NAV_PARENTAL": "家長監護",

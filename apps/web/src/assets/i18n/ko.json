@@ -633,6 +633,7 @@
         "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "내장 플레이어에서는 다음 옵션을 변경할 수 없습니다: {{keys}}",
         "EMBEDDED_MPV_AUTO_RECONNECT": "끊긴 스트림 자동 재연결",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "재생 중인 스트림이 끊기면 내장 플레이어가 점점 길어지는 간격으로 최대 6회까지 다시 불러온 뒤 포기합니다. 한 번도 시작되지 않은 스트림은 여전히 수동으로 다시 시도해야 합니다.",
+        "EMBEDDED_MPV_KEEP_CONTROLS_VISIBLE": "내장 MPV 컨트롤 항상 표시",
         "VOD_AUTO_FAILOVER": "재생 오류 시 소스 자동 전환",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "영화 재생에 실패했을 때 같은 작품이 다른 재생목록에 있으면 재생 위치를 유지한 채 자동으로 전환합니다. 기본값은 꺼짐이며, 다른 소스는 더빙이 다를 수 있으므로 전환 시 항상 알려 드립니다.",
         "NAV_PARENTAL": "자녀 보호",

@@ -633,6 +633,7 @@
         "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "These options cannot be changed for the embedded player: {{keys}}",
         "EMBEDDED_MPV_AUTO_RECONNECT": "Reconnect dropped streams automatically",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "When a playing stream drops, the embedded player reloads it with increasing delays, up to 6 attempts, before giving up. A stream that never started still needs a manual Retry.",
+        "EMBEDDED_MPV_KEEP_CONTROLS_VISIBLE": "Keep embedded MPV controls visible",
         "VOD_AUTO_FAILOVER": "Auto-switch source on playback error",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "When a movie fails to play and the same film exists in another playlist, switch to it automatically and keep the timecode. Off by default; the switch is always announced because another source can carry a different dub.",
         "NAV_PARENTAL": "Parental lock",

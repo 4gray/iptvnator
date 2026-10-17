@@ -633,6 +633,7 @@
         "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "Ces options ne peuvent pas être modifiées pour le lecteur intégré : {{keys}}",
         "EMBEDDED_MPV_AUTO_RECONNECT": "Reconnecter automatiquement les flux interrompus",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Lorsqu'un flux en cours de lecture est interrompu, le lecteur intégré le recharge avec des délais croissants, jusqu'à 6 tentatives, avant d'abandonner. Un flux qui n'a jamais démarré doit toujours être relancé manuellement avec « Réessayer ».",
+        "EMBEDDED_MPV_KEEP_CONTROLS_VISIBLE": "Garder les commandes du MPV intégré visibles",
         "VOD_AUTO_FAILOVER": "Changer de source automatiquement en cas d'erreur de lecture",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Lorsqu'un film ne parvient pas à démarrer et que le même film existe dans une autre liste de lecture, bascule automatiquement vers celle-ci en conservant la position de lecture. Désactivé par défaut ; le changement est toujours annoncé, car une autre source peut proposer un doublage différent.",
         "NAV_PARENTAL": "Contrôle parental",

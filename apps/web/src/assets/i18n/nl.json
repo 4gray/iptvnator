@@ -633,6 +633,7 @@
         "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "Deze opties kunnen niet worden gewijzigd voor de ingebedde speler: {{keys}}",
         "EMBEDDED_MPV_AUTO_RECONNECT": "Weggevallen streams automatisch opnieuw verbinden",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Wanneer een stream tijdens het afspelen wegvalt, laadt de ingebedde speler deze opnieuw met steeds langere tussenpozen, tot maximaal 6 pogingen, voordat hij het opgeeft. Voor een stream die nooit is gestart, blijft handmatig Opnieuw proberen nodig.",
+        "EMBEDDED_MPV_KEEP_CONTROLS_VISIBLE": "Bediening van ingebouwde MPV zichtbaar houden",
         "VOD_AUTO_FAILOVER": "Automatisch van bron wisselen bij een afspeelfout",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Als een film niet kan worden afgespeeld en dezelfde film in een andere afspeellijst staat, wordt daar automatisch naar overgeschakeld met behoud van de afspeelpositie. Standaard uitgeschakeld; de wissel wordt altijd gemeld, omdat een andere bron een andere nasynchronisatie kan hebben.",
         "NAV_PARENTAL": "Ouderlijk toezicht",
