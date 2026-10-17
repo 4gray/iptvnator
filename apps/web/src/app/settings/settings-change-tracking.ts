@@ -18,6 +18,8 @@ export const SETTINGS_CONTROL_SECTIONS: Readonly<Record<string, string>> = {
     playerAmbientMode: 'playback',
     playerUpNextRail: 'playback',
     playerUpNextCard: 'playback',
+    playerSkipIntro: 'playback',
+    playerAutoSkipIntro: 'playback',
     detailTrailerBackdrop: 'playback',
     fullscreenChannelPanel: 'playback',
     vodAutoFailover: 'playback',

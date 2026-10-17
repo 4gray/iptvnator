@@ -39,6 +39,7 @@ import {
     createEpisodePanelHost,
     type SeasonLoadStates,
 } from './portal-inline-player-episode-panel.host';
+import { createSkipSegments } from './portal-inline-player-skip-segments';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
 import type {
     SeriesEpisodeMetadata,
@@ -95,6 +96,8 @@ export class PortalInlinePlayerComponent {
     /** Series name for the fullscreen title overlay. Xtream episode playback
      * carries the episode title, so the series name must come from the host. */
     readonly seriesTitle = input<string | null>(null);
+    /** TMDB id of the series, when enrichment matched it (IntroDB lookup). */
+    readonly seriesTmdbId = input<number | null>(null);
     /** "Up Next" entries built by the series host; null for movies/live. */
     readonly upNextEpisodes = input<UpNextRailItem[] | null>(null);
     /**
@@ -245,6 +248,22 @@ export class PortalInlinePlayerComponent {
             thumbnailUrl: next.thumbnailUrl,
             progressPercent: next.progressPercent,
         };
+    });
+    /** IntroDB intro / recap of the playing episode, for "Skip intro". */
+    readonly skipSegments = createSkipSegments({
+        playback: this.playback,
+        episodeMetadata: this.episodeMetadata,
+        seriesTitle: this.seriesTitle,
+        seriesTmdbId: this.seriesTmdbId,
+        seasonCount: computed(
+            () => Object.keys(this.seriesEpisodes() ?? {}).length
+        ),
+        enabled: computed(
+            () => this.settingsStore.playerSkipIntro?.() !== false
+        ),
+        autoSkip: computed(
+            () => this.settingsStore.playerAutoSkipIntro?.() === true
+        ),
     });
 
     private readonly fullscreenEpisodePanelTemplate = viewChild<

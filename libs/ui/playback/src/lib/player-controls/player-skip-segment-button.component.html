@@ -1,0 +1,14 @@
+<!-- No chrome hover/focus bindings: the button leaves the DOM the moment it
+     seeks, and a pointerleave or focusout that never fires would pin the dock
+     open. A click on a <button> never reaches the surface's click-to-pause. -->
+@if (segment()) {
+    <button
+        type="button"
+        class="player-skip__button"
+        data-test-id="player-controls-skip-segment"
+        (click)="skip()"
+    >
+        <span>{{ labelKey() | translate }}</span>
+        <mat-icon aria-hidden="true">skip_next</mat-icon>
+    </button>
+}

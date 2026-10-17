@@ -505,6 +505,52 @@ derives the item after the playing one from its `upNextEpisodes` input
 (episodes only, and only while `playerUpNextCard` is not `false`) → `WebPlayerViewComponent.upNext` → the four engine hosts →
 `app-player-controls`. Movie and live hosts pass nothing.
 
+### Skip intro button
+
+While the playback position is inside an episode's opening titles or recap,
+the dock shows a **"Skip intro" / "Skip recap" button**
+(`app-player-skip-segment-button`, `data-test-id="player-controls-skip-segment"`)
+in the bottom-right corner. The host supplies the segments through the
+optional `skipSegments` input (`PlayerSkipSegment { kind: 'intro' | 'recap',
+startSeconds, endSeconds }`); `ControlsSkipSegment` decides when it shows — a
+segment contains the position (until 1.5 s before its end), `seek`
+capability and `canSeek`, not live, controls shown, settings panel closed —
+and a press calls `seekTo(endSeconds)`, clamped to the duration. Like the Up
+next card it does not fade with idle controls: it sits low over the video and
+moves above the dock while the dock is shown. It binds no chrome hover/focus
+handlers, because it leaves the DOM the moment it seeks and a `pointerleave`
+that never fires would pin the dock open.
+
+The producer is `createSkipSegments()`
+(`portal-inline-player-skip-segments.ts`), owned by
+`PortalInlinePlayerComponent`: for episode playback it asks `IntroDbService`
+(`@iptvnator/services`) for the playing episode, keyed by the series' IMDb id —
+TMDB's `external_ids` when enrichment is enabled and matched the show
+(`seriesTmdbId`, from `info.tmdb_id` in the Xtream and Stalker series hosts),
+else a TVmaze title search that only accepts an exact title match whose
+premiere year does not contradict the title's year tag. A one-season provider
+slice is renumbered with `resolveEnrichmentSeasonNumber`, as TMDB enrichment
+does. IntroDB only admits its own web origin, so the segments are fetched in
+the Electron main process (`INTRODB:GET_SEGMENTS`, fixed host, validated
+`{ imdbId, seasonNumber, episodeNumber }` payload); the PWA has no bridge and
+never shows the button. Plumbing mirrors `upNext`:
+`PortalInlinePlayerComponent.skipSegments` → `WebPlayerViewComponent` → the
+four engine hosts → `app-player-controls`; under Embedded MPV only the
+frame-copy engine mounts it.
+
+Two settings (Settings → Playback, desktop only and only where the shared
+controls render — the `supportsUpNextCard` gate) shape it.
+`Settings.playerSkipIntro` (default on; absent means on, coerced with
+`!== false`) turns the feature off at the producer: `createSkipSegments`
+then builds no lookup, so no TMDB, TVmaze or IntroDB request is sent.
+`Settings.playerAutoSkipIntro` (default off, shown only while the button is
+on) makes the producer flag every segment `autoSkip`: the button component's
+effect calls `ControlsSkipSegment.autoSkip()`, which seeks past a flagged
+segment the first time playback enters it and never again for that segment
+object, and `buttonSegment` offers no button for it — a viewer who seeks back
+into the intro chose to watch it. The flag is applied after the lookup, so
+switching it never asks IntroDB again.
+
 ### Settings panel
 
 Every track, quality, speed and aspect choice lives behind one **`tune`**

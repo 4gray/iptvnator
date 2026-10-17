@@ -425,6 +425,41 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(queryByTestId('player-up-next-card-setting')).not.toBeNull();
     });
 
+    it('offers the skip intro toggles only on desktop with the shared controls', () => {
+        const form = createForm(VideoPlayer.VideoJs);
+        form.get('webPlayerSharedControls')?.setValue(true);
+        fixture.componentRef.setInput('form', form);
+        fixture.detectChanges();
+        // The PWA has no IntroDB bridge, so the button never shows there.
+        expect(queryByTestId('player-skip-intro-setting')).toBeNull();
+
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.detectChanges();
+        expect(queryByTestId('player-skip-intro-toggle')).not.toBeNull();
+        expect(queryByTestId('player-auto-skip-intro-toggle')).not.toBeNull();
+
+        // The legacy vendor chrome never mounts the button.
+        form.get('webPlayerSharedControls')?.setValue(false);
+        fixture.detectChanges();
+        expect(queryByTestId('player-skip-intro-setting')).toBeNull();
+    });
+
+    it('hides the auto-skip toggle while the skip intro button is off', () => {
+        const form = createForm(VideoPlayer.VideoJs);
+        form.get('webPlayerSharedControls')?.setValue(true);
+        form.get('playerSkipIntro')?.setValue(false);
+        fixture.componentRef.setInput('form', form);
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.detectChanges();
+
+        expect(queryByTestId('player-skip-intro-setting')).not.toBeNull();
+        expect(queryByTestId('player-auto-skip-intro-setting')).toBeNull();
+
+        form.get('playerSkipIntro')?.setValue(true);
+        fixture.detectChanges();
+        expect(queryByTestId('player-auto-skip-intro-setting')).not.toBeNull();
+    });
+
     it('hides the fullscreen channel panel toggle for a web player on the legacy vendor chrome', () => {
         // The vendor chrome fullscreens the engine's own element, outside
         // which the panel cannot render, so the toggle would do nothing.
@@ -461,6 +496,8 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         showCaptions: new FormControl(false),
         playerUpNextRail: new FormControl(true),
         playerUpNextCard: new FormControl(true),
+        playerSkipIntro: new FormControl(true),
+        playerAutoSkipIntro: new FormControl(false),
         fullscreenChannelPanel: new FormControl(true),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),

@@ -89,6 +89,8 @@ export const DEFAULT_SETTINGS = {
     detailTrailerBackdrop: false,
     playerUpNextRail: true,
     playerUpNextCard: true,
+    playerSkipIntro: true,
+    playerAutoSkipIntro: false,
     fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,

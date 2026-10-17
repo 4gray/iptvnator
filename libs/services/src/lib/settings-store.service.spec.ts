@@ -463,6 +463,26 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().playerUpNextCard).toBe(false);
     });
 
+    it('turns skip intro on and auto-skip off when the stored fields are missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().playerSkipIntro).toBe(true);
+        expect(store.getSettings().playerAutoSkipIntro).toBe(false);
+    });
+
+    it('restores persisted skip intro preferences', async () => {
+        storedSettings = { playerSkipIntro: false, playerAutoSkipIntro: true };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().playerSkipIntro).toBe(false);
+        expect(store.getSettings().playerAutoSkipIntro).toBe(true);
+    });
+
     it('defaults the fullscreen channel panel to true when the stored field is missing', async () => {
         storedSettings = {};
         const store = injector.get(SettingsStore);

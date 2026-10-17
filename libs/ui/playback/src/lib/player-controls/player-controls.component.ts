@@ -15,6 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ControlsChromeInteractions } from './controls-chrome-interactions';
+import { bindSurfaceCursor } from './controls-cursor';
 import { ControlsFeedback } from './controls-feedback';
 import { ControlsFullscreen } from './controls-fullscreen';
 import { ControlsLayout } from './controls-layout';
@@ -36,10 +37,12 @@ import { formatRemainingTime } from './controls-format.utils';
 import type {
     PlayerController,
     PlayerMediaTitle,
+    PlayerSkipSegment,
     PlayerTimelineSegment,
     PlayerUpNextItem,
 } from './player-controls.model';
 import { PlayerSettingsPanelComponent } from './player-settings-panel.component';
+import { PlayerSkipSegmentButtonComponent } from './player-skip-segment-button.component';
 import { PlayerTimelineComponent } from './player-timeline.component';
 import { PlayerUpNextCardComponent } from './player-up-next-card.component';
 
@@ -53,6 +56,7 @@ import { PlayerUpNextCardComponent } from './player-up-next-card.component';
         MatTooltipModule,
         TranslatePipe,
         PlayerSettingsPanelComponent,
+        PlayerSkipSegmentButtonComponent,
         PlayerTimelineComponent,
         PlayerUpNextCardComponent,
     ],
@@ -85,6 +89,8 @@ export class PlayerControlsComponent implements OnDestroy {
     );
     /** The next episode, for the "Up next" card near the end of this one. */
     readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Intro / recap of this episode, for the "Skip intro" button. */
+    readonly skipSegments = input<readonly PlayerSkipSegment[] | null>(null);
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     readonly menus = new ControlsMenuState();
@@ -285,19 +291,7 @@ export class PlayerControlsComponent implements OnDestroy {
             untracked(() => this.streamStats.start());
             onCleanup(() => this.streamStats.stop());
         });
-        effect((onCleanup) => {
-            const surface = this.playerSurface();
-            if (!surface || !this.hideCursor()) {
-                return;
-            }
-            const previousCursor = surface.style.cursor;
-            surface.style.cursor = 'none';
-            onCleanup(() => {
-                if (surface.style.cursor === 'none') {
-                    surface.style.cursor = previousCursor;
-                }
-            });
-        });
+        bindSurfaceCursor(this.playerSurface, this.hideCursor);
         effect(() => {
             const state = this.state();
             const showControls = this.showControls();
