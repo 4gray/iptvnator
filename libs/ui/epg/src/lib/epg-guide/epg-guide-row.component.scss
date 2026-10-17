@@ -177,11 +177,8 @@
         border-color 120ms,
         transform 120ms;
 
-    &.has-watch {
-        padding-right: 52px;
-    }
     &.is-now.has-watch {
-        padding-right: 112px;
+        padding-right: 52px;
     }
 
     &:hover {
@@ -221,9 +218,6 @@
         .epg-guide-row__tag {
             display: none;
         }
-        &.has-watch {
-            padding-right: 48px;
-        }
     }
     &[data-tier='micro'] {
         padding: 0;
@@ -254,11 +248,8 @@
         border-radius: 6px;
         padding: 0 9px;
 
-        &.has-watch {
-            padding-right: 52px;
-        }
         &.is-now.has-watch {
-            padding-right: 112px;
+            padding-right: 52px;
         }
     }
 }

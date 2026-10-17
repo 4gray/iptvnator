@@ -177,6 +177,29 @@ describe('EpgGuideRowComponent', () => {
         }
     );
 
+    it('starts one archive playback for a double-clicked programme', () => {
+        render([program('earlier', -180, -120)], {
+            catchUp: { canWatch: () => true, watch: jest.fn() },
+        });
+        const watch = jest.fn();
+        component.watchRequested.subscribe(watch);
+        const card = fixture.debugElement.query(
+            By.css('.epg-guide-row__block')
+        ).nativeElement;
+
+        card.dispatchEvent(
+            new MouseEvent('click', { bubbles: true, detail: 1 })
+        );
+        card.dispatchEvent(
+            new MouseEvent('click', { bubbles: true, detail: 2 })
+        );
+        card.dispatchEvent(
+            new MouseEvent('dblclick', { bubbles: true, detail: 2 })
+        );
+
+        expect(watch).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps the play action beside ON NOW in the status area', () => {
         render([program('on now', -20, 40)], {
             catchUp: { canWatch: () => true, watch: jest.fn() },

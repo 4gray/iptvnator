@@ -124,6 +124,9 @@ export class EpgGuideRowComponent {
         event: MouseEvent
     ): void {
         this.focusRequested.emit(index);
+        if (event.detail > 1) {
+            return;
+        }
         if (event.altKey) {
             this.detailsRequested.emit(item);
             return;
