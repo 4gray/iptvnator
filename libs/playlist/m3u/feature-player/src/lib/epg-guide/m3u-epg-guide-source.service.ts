@@ -1,18 +1,31 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { filter, firstValueFrom, take } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
+import {
+    ChannelActions,
+    EpgActions,
+    resolveChannelEpgLookupKey,
+    selectActive,
+} from '@iptvnator/m3u-state';
 import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
-import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import {
+    applyChannelNameStrip,
+    getM3uArchiveDays,
+    resolveM3uCatchupUrl,
+} from '@iptvnator/shared/m3u-utils';
 import { Channel } from '@iptvnator/shared/interfaces';
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
+    EpgArchiveCopyService,
     EpgGuideChannel,
     EpgGuideScope,
     EpgGuideSearchHit,
     EpgGuideSource,
     EpgGuideWindow,
+    getProgramTimeMs,
+    isWithinArchiveWindow,
 } from '@iptvnator/ui/epg';
 import { createM3uChannelPlaybackRequest } from '../video-player/m3u-channel-playback-actions';
 import { isSameChannelEntry } from './channel-entry-identity.util';
@@ -54,6 +67,7 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly translate = inject(TranslateService);
+    private readonly archiveCopy = inject(EpgArchiveCopyService);
 
     private readonly inputs = signal<M3uEpgGuideInputs | null>(null);
     private readonly scope = signal(SCOPE_ALL);
@@ -180,6 +194,15 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
     /** Live unless the host plays a catch-up URL for the active channel. */
     readonly livePlayback = computed(() => !this.inputs()?.activePlaybackUrl());
 
+    readonly catchUp = {
+        canWatch: (row: EpgGuideChannel, program: EpgProgram) =>
+            this.canWatch(row, program),
+        watch: (row: EpgGuideChannel, program: EpgProgram) =>
+            this.watch(row, program),
+        copyUrl: (row: EpgGuideChannel, program: EpgProgram) =>
+            this.copyCatchupUrl(row, program),
+    };
+
     bind(inputs: M3uEpgGuideInputs): void {
         this.inputs.set(inputs);
     }
@@ -281,6 +304,68 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
         if (channel) {
             this.store.dispatch(createM3uChannelPlaybackRequest(channel));
         }
+    }
+
+    private canWatch(row: EpgGuideChannel, program: EpgProgram): boolean {
+        const channel = this.channelsByRowId().get(row.id);
+        if (!channel || !resolveM3uCatchupUrl(channel, program)) {
+            return false;
+        }
+        const startMs = getProgramTimeMs(
+            program.start,
+            program.startTimestamp
+        );
+        const nowMs = Date.now();
+        return (
+            startMs >= nowMs ||
+            isWithinArchiveWindow(
+                startMs,
+                getM3uArchiveDays(channel),
+                nowMs
+            )
+        );
+    }
+
+    private watch(row: EpgGuideChannel, program: EpgProgram): void {
+        const channel = this.channelsByRowId().get(row.id);
+        if (!channel || !this.canWatch(row, program)) {
+            return;
+        }
+        const active = this.inputs()?.activeChannel();
+        if (active && isSameChannelEntry(active, channel)) {
+            this.store.dispatch(EpgActions.setActiveEpgProgram({ program }));
+            return;
+        }
+
+        const selected = firstValueFrom(
+            this.store.select(selectActive).pipe(
+                filter(
+                    (current): current is Channel =>
+                        current !== undefined &&
+                        isSameChannelEntry(current, channel)
+                ),
+                take(1)
+            )
+        );
+        this.store.dispatch(
+            ChannelActions.setActiveChannel({
+                channel,
+                startPlayback: false,
+            })
+        );
+        void selected.then(() =>
+            this.store.dispatch(EpgActions.setActiveEpgProgram({ program }))
+        );
+    }
+
+    private copyCatchupUrl(row: EpgGuideChannel, program: EpgProgram): void {
+        const channel = this.channelsByRowId().get(row.id);
+        if (!channel || !this.canWatch(row, program)) {
+            return;
+        }
+        void this.archiveCopy.copy(() =>
+            resolveM3uCatchupUrl(channel, program)
+        );
     }
 
     /** Hits carry the row id only when an exact `epgKey` match exists in scope. */
