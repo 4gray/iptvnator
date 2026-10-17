@@ -39,6 +39,7 @@ import { EmbeddedMpvDockPanelState } from './embedded-mpv-dock-panels';
 import { EmbeddedMpvLegacyInteractions } from './embedded-mpv-legacy-interactions';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
+import { EmbeddedMpvSubtitlePreferenceService } from './embedded-mpv-subtitle-preference.service';
 import { EmbeddedMpvShortcuts } from './embedded-mpv-shortcuts';
 import {
     EmbeddedMpvFeedback,
@@ -62,6 +63,15 @@ import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 
+function subtitleLanguage(language?: string): string | undefined {
+    if (!language) return undefined;
+    try {
+        return Intl.getCanonicalLocales(language)[0]?.toLowerCase();
+    } catch {
+        return language.toLowerCase();
+    }
+}
+
 @Component({
     selector: 'app-embedded-mpv-player',
     templateUrl: './embedded-mpv-player.component.html',
@@ -84,6 +94,8 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly showControls = input(true);
+    /** Selects a readable default only until the viewer makes a choice. */
+    readonly showCaptions = input(false);
     readonly recordingFolder = input('');
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
@@ -140,7 +152,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     /** Catch-up programmes first, else the file's chapters; see the helper. */
     readonly controlsTimelineSegments = computed(
         () =>
-            embeddedMpvTimelineSegments(this.timelineSegments(), this.session()),
+            embeddedMpvTimelineSegments(
+                this.timelineSegments(),
+                this.session()
+            ),
         { equal: sameTimelineSegments }
     );
     readonly stalled = this.controller.stalled;
@@ -266,6 +281,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly selectedSubtitleTrackId = computed(
         () => this.session()?.selectedSubtitleTrackId ?? null
     );
+    private readonly subtitlePreference = inject(
+        EmbeddedMpvSubtitlePreferenceService
+    );
+    private restoredSubtitleSource: string | null = null;
+    private subtitlePreferenceApplied = false;
+    private subtitleFileLoading = false;
+    private subtitlePreferenceRevision = this.subtitlePreference.revision;
     readonly playbackSpeed = computed(() => this.session()?.playbackSpeed ?? 1);
     readonly aspectOverride = computed(
         () => this.session()?.aspectOverride ?? 'no'
@@ -546,6 +568,153 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         });
 
         effect(() => {
+            const session = this.session();
+            if (!session) {
+                return;
+            }
+            const source = JSON.stringify([
+                session.id,
+                session.streamUrl,
+                session.loadRevision,
+            ]);
+            if (source !== this.restoredSubtitleSource) {
+                this.restoredSubtitleSource = source;
+                this.subtitlePreferenceApplied = false;
+                this.subtitleFileLoading = false;
+                this.subtitlePreferenceRevision = this.subtitlePreference.revision;
+            }
+            if (session.status === 'loading') {
+                if (!this.subtitleFileLoading) {
+                    this.subtitlePreferenceApplied = false;
+                    this.subtitleFileLoading = true;
+                    this.subtitlePreferenceRevision =
+                        this.subtitlePreference.revision;
+                }
+                return;
+            }
+            this.subtitleFileLoading = false;
+            if (
+                this.subtitlePreferenceRevision !==
+                this.subtitlePreference.revision
+            ) {
+                this.subtitlePreferenceRevision = this.subtitlePreference.revision;
+                this.subtitlePreferenceApplied = true;
+            }
+            if (
+                this.subtitlePreferenceApplied ||
+                session.subtitleTracks.length === 0
+            ) {
+                return;
+            }
+            if (this.sharedControls.externalSubtitlePending()) {
+                return;
+            }
+            if (session.externalSubtitleActive) {
+                this.subtitlePreferenceApplied = true;
+                return;
+            }
+            const preference = this.subtitlePreference.current;
+            if (preference === undefined) {
+                this.subtitlePreferenceApplied = true;
+                return;
+            }
+            if (preference === null) {
+                if (
+                    session.selectedSubtitleTrackId !== null &&
+                    session.selectedSubtitleTrackId !== -1
+                ) {
+                    untracked(() => void this.controller.setSubtitleTrack(-1));
+                }
+                this.subtitlePreferenceApplied = true;
+                return;
+            }
+            const tracks = session.subtitleTracks;
+            const preferredLanguage = subtitleLanguage(preference.language);
+            const preferredBaseLanguage = preferredLanguage?.split('-')[0];
+            const exactMatch = tracks.find(
+                (track) =>
+                    preferredLanguage &&
+                    preference.title &&
+                    subtitleLanguage(track.language) === preferredLanguage &&
+                    track.title === preference.title
+            );
+            const languageMatch =
+                tracks.find(
+                    (track) =>
+                        preferredLanguage &&
+                        subtitleLanguage(track.language) === preferredLanguage
+                ) ??
+                tracks.find(
+                    (track) =>
+                        preferredBaseLanguage &&
+                        preference.title &&
+                        subtitleLanguage(track.language)?.split('-')[0] ===
+                            preferredBaseLanguage &&
+                        track.title === preference.title
+                ) ??
+                tracks.find(
+                    (track) =>
+                        preferredBaseLanguage &&
+                        subtitleLanguage(track.language)?.split('-')[0] ===
+                            preferredBaseLanguage
+                );
+            const titleMatch = tracks.find(
+                (track) =>
+                    preference.title && track.title === preference.title
+            );
+            const match =
+                exactMatch ??
+                languageMatch ??
+                titleMatch ??
+                tracks.find(
+                    (track) => track.defaultTrack && track.language !== 'zxx'
+                ) ??
+                tracks.find((track) => track.language !== 'zxx');
+            if (match && match.id !== session.selectedSubtitleTrackId) {
+                untracked(
+                    () => void this.controller.setSubtitleTrack(match.id)
+                );
+            }
+            this.subtitlePreferenceApplied =
+                preference.title && preferredLanguage
+                    ? exactMatch !== undefined
+                    : preference.title
+                      ? titleMatch !== undefined
+                      : preferredLanguage
+                        ? tracks.some(
+                              (track) =>
+                                  subtitleLanguage(track.language) ===
+                                  preferredLanguage
+                          )
+                        : true;
+        });
+
+        effect(() => {
+            const enabled = this.showCaptions();
+            const sessionId = this.controller.sessionId();
+            const tracks = this.subtitleTracks();
+            if (!sessionId || !enabled || tracks.length === 0) {
+                return;
+            }
+            if (
+                this.subtitlePreference.current !== undefined ||
+                this.selectedSubtitleTrackId() !== null
+            ) {
+                return;
+            }
+            const track =
+                tracks.find(
+                    (candidate) =>
+                        candidate.defaultTrack && candidate.language !== 'zxx'
+                ) ?? tracks.find((candidate) => candidate.language !== 'zxx');
+            if (track) {
+                untracked(
+                    () => void this.controller.setSubtitleTrack(track.id)
+                );
+            }
+        });
+
+        effect(() => {
             this.overlayVisibility.overlayActive();
             this.controller.triggerBoundsSync();
         });
@@ -766,6 +935,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     async selectSubtitleTrack(trackId: number): Promise<void> {
         this.legacyInteractions.revealControls(false);
+        this.subtitlePreference.record(trackId, this.subtitleTracks());
         await this.controller.setSubtitleTrack(trackId);
         this.menus.close('subtitle');
         this.legacyInteractions.scheduleControlsHide();

@@ -100,6 +100,7 @@ export class StubFullscreenChannelPanelComponent {
 export class StubEmbeddedMpvPlayerComponent {
     readonly support = signal<EmbeddedMpvSupport | null>(null);
     readonly playback = input.required<unknown>();
+    readonly showCaptions = input(false);
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
     readonly upNext = input<unknown>(null);
