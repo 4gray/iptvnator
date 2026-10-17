@@ -145,8 +145,12 @@ export class EpgGuideRowComponent {
         }
     }
 
-    onWatchClick(event: Event, item: TimelineRenderBlock): void {
+    onWatchClick(event: MouseEvent, item: TimelineRenderBlock): void {
         event.stopPropagation();
+        if (event.altKey) {
+            this.detailsRequested.emit(item);
+            return;
+        }
         this.watchRequested.emit(item);
     }
 }

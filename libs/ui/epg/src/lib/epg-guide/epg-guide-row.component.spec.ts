@@ -208,6 +208,17 @@ describe('EpgGuideRowComponent', () => {
             expect.objectContaining({ kind: 'block' })
         );
         expect(watch).not.toHaveBeenCalled();
+
+        details.mockClear();
+        fixture.debugElement
+            .query(By.css('.epg-guide-row__watch'))
+            .nativeElement.dispatchEvent(
+                new MouseEvent('click', { bubbles: true, altKey: true })
+            );
+        expect(details).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'block' })
+        );
+        expect(watch).not.toHaveBeenCalled();
     });
 
     it('shows the archive affordance only when the channel can play it', () => {

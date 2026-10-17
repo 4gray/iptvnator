@@ -241,23 +241,8 @@
         .epg-guide-row__status {
             top: 0;
             right: 0;
-            width: 100%;
-            height: 100%;
-            justify-content: flex-end;
             align-items: flex-start;
             transform: none;
-        }
-        .epg-guide-row__watch {
-            position: relative;
-            flex-basis: 100%;
-            width: 100%;
-            height: 100%;
-
-            mat-icon {
-                position: absolute;
-                top: 0;
-                right: 0;
-            }
         }
     }
     :host(.is-compact) & {

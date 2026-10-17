@@ -49,11 +49,7 @@ export class EpgGuideDialogController {
                 channelLogo: channel.logoUrl,
                 archiveUrlAvailable: canWatch && !!catchUp?.copyUrl,
                 primaryAction:
-                    when === 'now'
-                        ? 'live'
-                        : canWatch
-                          ? 'timeshift'
-                          : null,
+                    when === 'now' ? 'live' : canWatch ? 'timeshift' : null,
                 archiveUnavailableNote: when !== 'now' && !canWatch,
             })
             .subscribe((result: EpgItemDialogAction | undefined) => {
@@ -88,9 +84,7 @@ export class EpgGuideDialogController {
         }
         const catchUp = channel ? this.host.catchUp() : undefined;
         const canWatch =
-            channel && catchUp
-                ? catchUp.canWatch(channel, hit.program)
-                : false;
+            channel && catchUp ? catchUp.canWatch(channel, hit.program) : false;
         const startMs = this.searchHitStartMs(hit);
         const stopMs = getProgramTimeMs(
             hit.program.stop,
@@ -104,11 +98,8 @@ export class EpgGuideDialogController {
                 channelName: channel?.name ?? hit.channelName ?? null,
                 channelLogo: channel?.logoUrl,
                 archiveUrlAvailable: canWatch && !!catchUp?.copyUrl,
-                primaryAction: isNow
-                    ? 'live'
-                    : canWatch
-                      ? 'timeshift'
-                      : null,
+                primaryAction:
+                    isNow && channel ? 'live' : canWatch ? 'timeshift' : null,
                 archiveUnavailableNote: !!channel && !isNow && !canWatch,
             })
             .subscribe((result: EpgItemDialogAction | undefined) => {

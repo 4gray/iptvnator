@@ -222,6 +222,27 @@ describe('EpgGuideDialogController', () => {
         expect(test.open).toHaveBeenCalledWith(
             expect.not.objectContaining({ channelName: expect.anything() })
         );
+        expect(test.open).toHaveBeenCalledWith(
+            expect.objectContaining({ primaryAction: null })
+        );
+    });
+
+    it('does not offer live playback for an unresolved current search hit', () => {
+        const test = harness();
+        const now = Date.now();
+
+        test.controller.openSearchResult({
+            channelId: null,
+            program: program({
+                channel: 'unmatched',
+                start: new Date(now - MINUTE_MS).toISOString(),
+                stop: new Date(now + MINUTE_MS).toISOString(),
+            }),
+        });
+
+        expect(test.open).toHaveBeenCalledWith(
+            expect.objectContaining({ primaryAction: null })
+        );
     });
 
     it('shifts a search hit start by the EPG display offset', () => {
