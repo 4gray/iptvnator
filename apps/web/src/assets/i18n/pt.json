@@ -633,6 +633,7 @@
         "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "Estas opções não podem ser alteradas para o reprodutor integrado: {{keys}}",
         "EMBEDDED_MPV_AUTO_RECONNECT": "Reconectar streams interrompidos automaticamente",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Quando um stream em reprodução é interrompido, o reprodutor integrado o recarrega com intervalos crescentes, em até 6 tentativas, antes de desistir. Um stream que nunca chegou a iniciar ainda precisa de um \"Tentar novamente\" manual.",
+        "EMBEDDED_MPV_KEEP_CONTROLS_VISIBLE": "Manter os controles do MPV integrado visíveis",
         "VOD_AUTO_FAILOVER": "Trocar de fonte automaticamente ao falhar a reprodução",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Quando um filme não consegue ser reproduzido e o mesmo filme existe em outra playlist, troca para ela automaticamente e mantém a posição de reprodução. Desativado por padrão; a troca é sempre avisada, porque outra fonte pode ter uma dublagem diferente.",
         "NAV_PARENTAL": "Controle parental",

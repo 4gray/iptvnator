@@ -170,6 +170,7 @@ describe('settings form utils — embedded MPV session options', () => {
 
         expect(form.getRawValue().embeddedMpvExtraOptions).toBe('');
         expect(form.getRawValue().embeddedMpvAutoReconnect).toBe(true);
+        expect(form.getRawValue().embeddedMpvKeepControlsVisible).toBe(false);
         expect(form.valid).toBe(true);
     });
 
@@ -233,6 +234,19 @@ describe('settings form utils — embedded MPV session options', () => {
         const settings = createSettingsFromFormValue(form, {} as Settings);
 
         expect(settings.embeddedMpvAutoReconnect).toBe(true);
+    });
+
+    it('saves pinned embedded controls independently of the external footer', () => {
+        const form = createSettingsForm(formBuilder, true);
+        form.patchValue({
+            showExternalPlaybackBar: false,
+            embeddedMpvKeepControlsVisible: true,
+        });
+
+        const settings = createSettingsFromFormValue(form, {} as Settings);
+
+        expect(settings.showExternalPlaybackBar).toBe(false);
+        expect(settings.embeddedMpvKeepControlsVisible).toBe(true);
     });
 });
 

@@ -10,6 +10,7 @@ export interface EmbeddedMpvLegacyInteractionsDeps {
     readonly playerRoot: () => HTMLElement | null;
     readonly menus: EmbeddedMpvMenuState;
     readonly controlsVisible: WritableSignal<boolean>;
+    readonly keepControlsVisible: () => boolean;
     readonly isLoading: () => boolean;
     readonly isErrored: () => boolean;
     readonly isStalled: () => boolean;
@@ -183,7 +184,7 @@ export class EmbeddedMpvLegacyInteractions {
     }
 
     scheduleControlsHide(): void {
-        if (!this.deps.isAvailable()) {
+        if (!this.deps.isAvailable() || this.deps.keepControlsVisible()) {
             this.clearControlsHideTimer();
             return;
         }
@@ -201,6 +202,7 @@ export class EmbeddedMpvLegacyInteractions {
         this.controlsHideTimer = window.setTimeout(() => {
             if (
                 this.deps.isPlaying() &&
+                !this.deps.keepControlsVisible() &&
                 !this.deps.menus.anyOpen() &&
                 !this.deps.statusLabel()
             ) {
