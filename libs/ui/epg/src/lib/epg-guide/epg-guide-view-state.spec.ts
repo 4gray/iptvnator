@@ -47,8 +47,8 @@ describe('EpgGuideViewState', () => {
         state.density.set('comfortable');
         TestBed.tick();
 
-        expect(state.zoom()).toBe(480);
-        expect(localStorage.getItem(EPG_GUIDE_ZOOM_KEY)).toBe('480');
+        expect(state.zoom()).toBe(1920);
+        expect(localStorage.getItem(EPG_GUIDE_ZOOM_KEY)).toBe('1920');
         expect(localStorage.getItem(EPG_GUIDE_DENSITY_KEY)).toBe('comfortable');
     });
 

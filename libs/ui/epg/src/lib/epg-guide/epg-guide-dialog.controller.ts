@@ -39,24 +39,26 @@ export class EpgGuideDialogController {
             return;
         }
         const when = item.block.when;
+        const catchUp = this.host.catchUp();
+        const canWatch =
+            catchUp?.canWatch(channel, item.block.program) ?? false;
         this.programmeDialog
             .open({
                 ...item.block.program,
                 channelName: channel.name,
                 channelLogo: channel.logoUrl,
+                archiveUrlAvailable: canWatch && !!catchUp?.copyUrl,
                 primaryAction:
-                    when === 'now'
-                        ? 'live'
-                        : item.canCatchUp
-                          ? 'timeshift'
-                          : null,
-                archiveUnavailableNote: when === 'past' && !item.canCatchUp,
+                    when === 'now' ? 'live' : canWatch ? 'timeshift' : null,
+                archiveUnavailableNote: when !== 'now' && !canWatch,
             })
             .subscribe((result: EpgItemDialogAction | undefined) => {
                 if (result === 'live') {
                     this.host.activate(channel);
                 } else if (result === 'timeshift') {
-                    this.host.catchUp()?.watch(channel, item.block.program);
+                    catchUp?.watch(channel, item.block.program);
+                } else if (result === 'copy-catchup-url') {
+                    catchUp?.copyUrl?.(channel, item.block.program);
                 }
             });
     }
@@ -80,20 +82,38 @@ export class EpgGuideDialogController {
         if (channel) {
             this.host.focusRow(rowIndex);
         }
+        const catchUp = channel ? this.host.catchUp() : undefined;
+        const canWatch =
+            channel && catchUp ? catchUp.canWatch(channel, hit.program) : false;
+        const startMs = this.searchHitStartMs(hit);
+        const stopMs = getProgramTimeMs(
+            hit.program.stop,
+            hit.program.stopTimestamp,
+            this.host.offsetMinutes()
+        );
+        const isNow = startMs <= Date.now() && stopMs > Date.now();
         this.programmeDialog
-            .open(
-                channel
-                    ? {
-                          ...hit.program,
-                          channelName: channel.name,
-                          channelLogo: channel.logoUrl,
-                      }
-                    : {
-                          ...hit.program,
-                          channelName: hit.channelName ?? null,
-                      }
-            )
-            .subscribe();
+            .open({
+                ...hit.program,
+                channelName: channel?.name ?? hit.channelName ?? null,
+                channelLogo: channel?.logoUrl,
+                archiveUrlAvailable: canWatch && !!catchUp?.copyUrl,
+                primaryAction:
+                    isNow && channel ? 'live' : canWatch ? 'timeshift' : null,
+                archiveUnavailableNote: !!channel && !isNow && !canWatch,
+            })
+            .subscribe((result: EpgItemDialogAction | undefined) => {
+                if (!channel) {
+                    return;
+                }
+                if (result === 'live') {
+                    this.host.activate(channel);
+                } else if (result === 'timeshift') {
+                    catchUp?.watch(channel, hit.program);
+                } else if (result === 'copy-catchup-url') {
+                    catchUp?.copyUrl?.(channel, hit.program);
+                }
+            });
     }
 
     /**

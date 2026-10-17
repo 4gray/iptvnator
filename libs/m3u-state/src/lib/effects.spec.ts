@@ -228,6 +228,17 @@ describe('buildExternalPlayerPayload', () => {
                 )
             ).toBe(false);
         });
+
+        it('does not launch the live stream for an explicit selection without playback', () => {
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    mpvSettings,
+                    false,
+                    activeChannel,
+                    VideoPlayer.MPV
+                )
+            ).toBe(false);
+        });
     });
 });
 

@@ -107,6 +107,29 @@ describe('catchup.utils', () => {
             );
     });
 
+    it('uses a future programme stop as the end of its archive URL', () => {
+        const futureProgram = {
+            ...archivedProgram,
+            start: '2026-04-10T12:00:00.000Z',
+            stop: '2026-04-10T13:00:00.000Z',
+            startTimestamp: 1_775_822_400,
+            stopTimestamp: 1_775_826_000,
+        };
+
+        expect(
+            resolveM3uCatchupUrl(baseChannel, futureProgram, 1_775_820_000)
+        ).toBe(
+            'https://streams.example.com/live/channel-1.m3u8?utc=1775822400&lutc=1775826000'
+        );
+        expect(
+            resolveM3uCatchupUrl(
+                baseChannel,
+                { ...futureProgram, stopTimestamp: 1_775_822_400 },
+                1_775_820_000
+            )
+        ).toBeNull();
+    });
+
     it('rewrites utc and lutc query params on catchup-source urls', () => {
         const playbackUrl = resolveM3uCatchupUrl(
             {

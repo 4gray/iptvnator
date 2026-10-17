@@ -30,12 +30,12 @@ describe('epg-guide-preferences', () => {
         });
         persistEpgGuideDockCollapsed(true);
         expect(localStorage.getItem(EPG_GUIDE_DENSITY_KEY)).toBe('compact');
-        expect(localStorage.getItem(EPG_GUIDE_ZOOM_KEY)).toBe('480');
+        expect(localStorage.getItem(EPG_GUIDE_ZOOM_KEY)).toBe('1920');
         expect(localStorage.getItem(EPG_GUIDE_ONLY_WITH_EPG_KEY)).toBe('1');
         expect(localStorage.getItem(EPG_GUIDE_DOCK_COLLAPSED_KEY)).toBe('1');
         expect(restoreEpgGuidePreferences()).toEqual({
             density: 'compact',
-            zoom: 480,
+            zoom: 1920,
             onlyWithEpg: true,
         });
         expect(restoreEpgGuideDockCollapsed()).toBe(true);

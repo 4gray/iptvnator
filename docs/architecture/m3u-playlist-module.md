@@ -1308,7 +1308,9 @@ class EpgService {
   that the selected M3U channel has a playable replay scheme. Archive days
   alone are not enough.
 - M3U catch-up support is resolved in `@iptvnator/shared/m3u-utils` from channel metadata and
-  the archived program start time.
+  the programme start time. Past and current URLs end at the current time;
+  future URL-backed programmes use the programme stop time, since ending a
+  future interval at the current time would put `lutc` before `utc`.
 - Supported replay precedence:
     1. `catchup.source` if it is an HTTP(S) URL. IPTVNator rewrites or appends
        standard `utc` and `lutc` query params on that URL.
@@ -1347,8 +1349,12 @@ Programme details opened from the EPG timeline or list offer **Copy archive
 URL** when catch-up is available. Xtream Live TV, M3U playback and their
 Favorites/Recent live tabs resolve the same URL as archive playback without
 selecting a programme or changing the player. Stalker and unsupported/expired
-archive entries expose no copy action. The full M3U guide currently has no
-catch-up capability and therefore does not expose this action.
+archive entries expose no copy action. The multi-channel M3U guide uses the
+same catch-up resolver: clicking the current programme switches to its live
+channel, while clicking a past or future programme starts its M3U catch-up URL
+when one can be resolved. Option-click opens programme details, where the
+archive URL can be copied. Details show the archive-unavailable note for either
+a past or future programme when its channel has no usable catch-up URL.
 
 The URL can contain account credentials; the dialog explains that external
 players may also need the source's HTTP headers. Copy is explicit, errors use

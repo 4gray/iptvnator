@@ -2,11 +2,12 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { EMPTY, Subject } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { ChannelActions } from '@iptvnator/m3u-state';
+import { ChannelActions, EpgActions } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
 import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
+import { EpgArchiveCopyService } from '@iptvnator/ui/epg';
 import { M3uEpgGuideSourceService } from './m3u-epg-guide-source.service';
 
 function makeChannel(
@@ -30,6 +31,8 @@ function makeChannel(
         },
         http: { referrer: '', 'user-agent': '', origin: '' },
         radio: overrides.radio ?? 'false',
+        timeshift: overrides.timeshift,
+        catchup: overrides.catchup,
     } as Channel;
 }
 
@@ -51,6 +54,10 @@ describe('M3uEpgGuideSourceService', () => {
     const activePlaybackUrl = signal<string | null>(null);
     const selectedGroup = signal<string | null>(null);
     const dispatch = jest.fn();
+    const selectedChannel = new BehaviorSubject<Channel | undefined>(
+        undefined
+    );
+    const archiveCopy = { copy: jest.fn() };
     const getProgramsForChannels = jest.fn();
     const getProgramCoverage = jest.fn();
     const searchPrograms = jest.fn();
@@ -60,6 +67,12 @@ describe('M3uEpgGuideSourceService', () => {
 
     beforeEach(() => {
         dispatch.mockReset();
+        dispatch.mockImplementation((action) => {
+            if (action.type === ChannelActions.setActiveChannel.type) {
+                selectedChannel.next(action.channel);
+            }
+        });
+        archiveCopy.copy.mockReset();
         getProgramsForChannels.mockReset();
         getProgramCoverage.mockReset();
         searchPrograms.mockReset();
@@ -72,11 +85,22 @@ describe('M3uEpgGuideSourceService', () => {
         ]);
         favoriteKeys.set(['https://example.com/b.m3u8']);
         activeChannel.set(channels()[0]);
+        selectedChannel.next(channels()[0]);
         selectedGroup.set(null);
         TestBed.configureTestingModule({
             providers: [
                 M3uEpgGuideSourceService,
-                { provide: Store, useValue: { dispatch } },
+                {
+                    provide: Store,
+                    useValue: {
+                        dispatch,
+                        select: () => selectedChannel.asObservable(),
+                    },
+                },
+                {
+                    provide: EpgArchiveCopyService,
+                    useValue: archiveCopy,
+                },
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: {
@@ -219,6 +243,108 @@ describe('M3uEpgGuideSourceService', () => {
         expect(service.livePlayback()).toBe(true);
         activePlaybackUrl.set('https://example.com/archive.m3u8');
         expect(service.livePlayback()).toBe(false);
+    });
+
+    it('resolves eligible past and future programme URLs from M3U catch-up metadata', () => {
+        const channel = makeChannel('archive', {
+            catchup: {
+                type: 'default',
+                source: 'https://archive.example.com/channel?utc=1&lutc=2',
+                days: '7',
+            },
+        });
+        channels.set([channel]);
+        activeChannel.set(channel);
+        selectedChannel.next(channel);
+        const row = service.channels()[0];
+        const nowMs = Date.now();
+        const scheduled = (startMs: number) => ({
+            ...program('archive'),
+            start: new Date(startMs).toISOString(),
+            stop: new Date(startMs + 60 * 60_000).toISOString(),
+            startTimestamp: Math.floor(startMs / 1000),
+        });
+
+        expect(
+            service.catchUp.canWatch(row, scheduled(nowMs - 60 * 60_000))
+        ).toBe(true);
+        expect(
+            service.catchUp.canWatch(row, scheduled(nowMs + 60 * 60_000))
+        ).toBe(true);
+        expect(
+            service.catchUp.canWatch(
+                row,
+                scheduled(nowMs - 8 * 24 * 60 * 60_000)
+            )
+        ).toBe(false);
+    });
+
+    it('copies the resolved archive URL from programme details', () => {
+        const channel = makeChannel('archive', {
+            catchup: {
+                type: 'default',
+                source: 'https://archive.example.com/channel?utc=1&lutc=2',
+                days: '7',
+            },
+        });
+        channels.set([channel]);
+        activeChannel.set(channel);
+        const row = service.channels()[0];
+        const selected = {
+            ...program('archive'),
+            start: new Date(Date.now() - 60 * 60_000).toISOString(),
+            startTimestamp: Math.floor(Date.now() / 1000) - 60 * 60,
+        };
+
+        service.catchUp.copyUrl?.(row, selected);
+
+        expect(archiveCopy.copy).toHaveBeenCalledTimes(1);
+        const resolveUrl = archiveCopy.copy.mock.calls[0][0] as () =>
+            | string
+            | null;
+        const url = new URL(resolveUrl() as string);
+        expect(url.origin + url.pathname).toBe(
+            'https://archive.example.com/channel'
+        );
+        expect(url.searchParams.get('utc')).toBe(
+            String(selected.startTimestamp)
+        );
+        expect(url.searchParams.get('lutc')).toBeTruthy();
+    });
+
+    it('starts the archive after selecting the programme channel', async () => {
+        const current = makeChannel('current');
+        const archive = makeChannel('archive', {
+            catchup: {
+                type: 'default',
+                source: 'https://archive.example.com/channel',
+                days: '7',
+            },
+        });
+        channels.set([current, archive]);
+        activeChannel.set(current);
+        selectedChannel.next(current);
+        const row = service.channels()[1];
+        const selected = {
+            ...program('archive'),
+            start: new Date(Date.now() - 60 * 60_000).toISOString(),
+            startTimestamp: Math.floor(Date.now() / 1000) - 60 * 60,
+        };
+
+        service.catchUp.watch(row, selected);
+        await Promise.resolve();
+
+        expect(dispatch).toHaveBeenNthCalledWith(
+            1,
+            ChannelActions.setActiveChannel({
+                channel: archive,
+                startPlayback: false,
+            })
+        );
+        expect(dispatch).toHaveBeenNthCalledWith(
+            2,
+            EpgActions.setActiveEpgProgram({ program: selected })
+        );
     });
 
     it('propagates a coverage failure so the guide keeps coverage unknown', async () => {

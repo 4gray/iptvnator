@@ -546,6 +546,9 @@ test('@epg @xtream @electron reaches programmes beyond the rendered range with T
             // The previous walk moved the window away from now.
             await timeline.locator('.epg-timeline__jump').click();
             await expect(nowBlock).toBeVisible();
+            if (key === 'Shift+Tab') {
+                await expect(timeline.locator('.epg-timeline__block.is-past').last()).toBeVisible();
+            }
             await nowBlock.focus();
             const reached = new Set<string>();
             for (let press = 0; press < 400 && reached.size < 10; press++) {
