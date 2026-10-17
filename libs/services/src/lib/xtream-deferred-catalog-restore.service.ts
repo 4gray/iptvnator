@@ -66,7 +66,7 @@ export class XtreamDeferredCatalogRestoreService {
     }
 
     private combined(
-        parked: XtreamPendingRestoreState,
+        parked: CatalogState,
         current: CatalogState
     ): CatalogState {
         return {
@@ -79,6 +79,22 @@ export class XtreamDeferredCatalogRestoreService {
                 parked.recentlyViewed,
                 current.recentlyViewed,
                 (row) => `${row.contentType}:${row.xtreamId}`
+            ),
+        };
+    }
+
+    private filterCatalogs(
+        state: CatalogState,
+        available: readonly XtreamContentType[],
+        include = true
+    ): CatalogState {
+        const types = new Set<string>(available);
+        return {
+            hiddenCategories: state.hiddenCategories.filter(
+                (row) => types.has(categoryType(row.categoryType)) === include
+            ),
+            recentlyViewed: state.recentlyViewed.filter(
+                (row) => types.has(row.contentType) === include
             ),
         };
     }
@@ -106,47 +122,17 @@ export class XtreamDeferredCatalogRestoreService {
                           previous.favoritesRestoreId,
                   }
                 : {}),
-            ...this.combined(previous, {
-                hiddenCategories: state.hiddenCategories.filter(
-                    (row) =>
-                        !currentIsResolved &&
-                        !available.some(
-                            (type) => type === categoryType(row.categoryType)
-                        )
-                ),
-                recentlyViewed: state.recentlyViewed.filter(
-                    (row) =>
-                        !currentIsResolved &&
-                        !available.includes(row.contentType)
-                ),
-            }),
+            ...this.combined(
+                previous,
+                currentIsResolved
+                    ? empty()
+                    : this.filterCatalogs(state, available, false)
+            ),
         };
         this.write(playlistId, parked);
         const ready = this.combined(
-            {
-                ...parked,
-                hiddenCategories: parked.hiddenCategories.filter((row) =>
-                    available.some(
-                        (type) => type === categoryType(row.categoryType)
-                    )
-                ),
-                recentlyViewed: parked.recentlyViewed.filter((row) =>
-                    available.includes(row.contentType)
-                ),
-            },
-            {
-                hiddenCategories: state.hiddenCategories.filter(
-                    (row) =>
-                        currentIsResolved ||
-                        available.some(
-                            (type) => type === categoryType(row.categoryType)
-                        )
-                ),
-                recentlyViewed: state.recentlyViewed.filter(
-                    (row) =>
-                        currentIsResolved || available.includes(row.contentType)
-                ),
-            }
+            this.filterCatalogs(parked, available),
+            currentIsResolved ? state : this.filterCatalogs(state, available)
         );
         return {
             state: { ...state, ...ready },
@@ -163,15 +149,7 @@ export class XtreamDeferredCatalogRestoreService {
         if (this.read(playlistId).raw !== snapshot.raw) return;
         this.write(playlistId, {
             ...snapshot.state,
-            hiddenCategories: snapshot.state.hiddenCategories.filter(
-                (row) =>
-                    !available.some(
-                        (type) => type === categoryType(row.categoryType)
-                    )
-            ),
-            recentlyViewed: snapshot.state.recentlyViewed.filter(
-                (row) => !available.includes(row.contentType)
-            ),
+            ...this.filterCatalogs(snapshot.state, available, false),
         });
     }
 
