@@ -208,6 +208,8 @@ export const SettingsStore = signalStore(
                     playerUpNextCard:
                         store.playerUpNextCard?.() ??
                         DEFAULT_SETTINGS.playerUpNextCard,
+                    playerSkipIntro: store.playerSkipIntro?.() !== false,
+                    playerAutoSkipIntro: store.playerAutoSkipIntro?.() === true,
                     fullscreenChannelPanel:
                         store.fullscreenChannelPanel?.() ??
                         DEFAULT_SETTINGS.fullscreenChannelPanel,

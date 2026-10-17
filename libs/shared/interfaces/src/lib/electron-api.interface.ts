@@ -16,6 +16,10 @@ import {
     EmbeddedMpvSupport,
 } from './embedded-mpv-session.interface';
 import { ContentMetadataPatch } from './content-metadata.interface';
+import type {
+    IntroDbEpisodeSegments,
+    IntroDbSegmentsRequest,
+} from './introdb.interface';
 import { DownloadMetadataSnapshot } from './download-metadata.interface';
 import { EpgChannelMetadata } from './epg-channel-metadata.model';
 import { EpgProgram } from './epg-program.model';
@@ -996,6 +1000,10 @@ export interface ElectronBridgeApi {
         /** Playback headers the owning playlist requires, when it has any. */
         headers?: StreamProbeHeaders
     ) => Promise<ElectronBridgeXtreamProbeResult>;
+    /** IntroDB intro/recap/outro of one episode; null when none or unreachable. */
+    getIntroDbSegments: (
+        request: IntroDbSegmentsRequest
+    ) => Promise<IntroDbEpisodeSegments | null>;
     refreshPlaylist: (
         payload: PlaylistRefreshPayload
     ) => Promise<Playlist | PlaylistRefreshCancelledResult>;

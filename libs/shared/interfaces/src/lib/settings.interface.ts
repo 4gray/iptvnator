@@ -162,6 +162,19 @@ export interface Settings {
      */
     playerUpNextCard?: boolean;
     /**
+     * Show the "Skip intro" / "Skip recap" button in the shared player
+     * controls while a series episode's opening titles or recap play. The
+     * timestamps come from IntroDB; turning this off also stops every IntroDB
+     * and TVmaze lookup. On by default; missing values mean enabled.
+     */
+    playerSkipIntro?: boolean;
+    /**
+     * Jump past the intro / recap automatically, once per episode, instead of
+     * only offering the button. Off by default; only applies while
+     * `playerSkipIntro` is on.
+     */
+    playerAutoSkipIntro?: boolean;
+    /**
      * Slide the live channel list over the video in fullscreen — resting the
      * mouse on the left edge, tapping that edge on touch, or pressing `C` —
      * so a channel can be switched without leaving fullscreen. On by

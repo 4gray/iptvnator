@@ -77,6 +77,8 @@ function createForm(player: VideoPlayer): FormGroup {
         showCaptions: new FormControl(false),
         playerUpNextRail: new FormControl(true),
         playerUpNextCard: new FormControl(true),
+        playerSkipIntro: new FormControl(true),
+        playerAutoSkipIntro: new FormControl(false),
         fullscreenChannelPanel: new FormControl(true),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),

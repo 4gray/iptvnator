@@ -69,6 +69,7 @@ export * from './lib/season-marker.util';
 export * from './lib/search-text-fold.util';
 export * from './lib/stalker-account-info-dialog-data.interface';
 export * from './lib/title-normalization.util';
+export * from './lib/introdb.interface';
 export * from './lib/tmdb.interface';
 export * from './lib/vod-source.interface';
 export * from './lib/vod-source-language.util';

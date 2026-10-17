@@ -28,6 +28,7 @@ import { sameTimelineSegments } from '../player-controls/chapter-timeline-segmen
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type {
     PlayerMediaTitle,
+    PlayerSkipSegment,
     PlayerUpNextItem,
     PlayerTimelineSegment,
 } from '../player-controls/player-controls.model';
@@ -89,6 +90,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Intro / recap of this episode, for the "Skip intro" button. */
+    readonly skipSegments = input<readonly PlayerSkipSegment[] | null>(null);
     /** Catch-up programmes drawn as track segments; they outrank chapters. */
     readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
         null

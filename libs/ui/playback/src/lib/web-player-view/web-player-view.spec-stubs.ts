@@ -22,6 +22,7 @@ export class StubVjsPlayerComponent {
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
     readonly upNext = input<unknown>(null);
+    readonly skipSegments = input<unknown>(null);
     readonly timelineSegments = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
@@ -45,6 +46,7 @@ export class StubHtmlVideoPlayerComponent {
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
     readonly upNext = input<unknown>(null);
+    readonly skipSegments = input<unknown>(null);
     readonly timelineSegments = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
@@ -69,6 +71,7 @@ export class StubArtPlayerComponent {
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
     readonly upNext = input<unknown>(null);
+    readonly skipSegments = input<unknown>(null);
     readonly timelineSegments = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
@@ -103,6 +106,7 @@ export class StubEmbeddedMpvPlayerComponent {
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
     readonly upNext = input<unknown>(null);
+    readonly skipSegments = input<unknown>(null);
     readonly timelineSegments = input<unknown>(null);
     readonly recordingFolder = input('');
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);

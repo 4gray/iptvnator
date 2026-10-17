@@ -159,6 +159,22 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             fallbackId: 'video-player',
         },
         {
+            id: 'player-skip-intro',
+            section: 'playback',
+            labelKey: 'SETTINGS.PLAYER_SKIP_INTRO',
+            descriptionKey: 'SETTINGS.PLAYER_SKIP_INTRO_DESCRIPTION',
+            keywords: ['skip intro', 'opening', 'recap', 'introdb'],
+            fallbackId: 'video-player',
+        },
+        {
+            id: 'player-auto-skip-intro',
+            section: 'playback',
+            labelKey: 'SETTINGS.PLAYER_AUTO_SKIP_INTRO',
+            descriptionKey: 'SETTINGS.PLAYER_AUTO_SKIP_INTRO_DESCRIPTION',
+            keywords: ['skip intro', 'automatic', 'opening', 'recap'],
+            fallbackId: 'video-player',
+        },
+        {
             id: 'fullscreen-channel-panel',
             section: 'playback',
             labelKey: 'SETTINGS.FULLSCREEN_CHANNEL_PANEL',

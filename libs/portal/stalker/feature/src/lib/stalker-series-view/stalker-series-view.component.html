@@ -144,6 +144,7 @@
                 [playback]="playback"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="serial.info.name"
+                [seriesTmdbId]="serial.info.tmdb_id ?? null"
                 [seriesNavigation]="inlineSeriesNavigation()"
                 [upNextEpisodes]="upNextEpisodes()"
                 [seriesEpisodes]="mappedSeasons()"
