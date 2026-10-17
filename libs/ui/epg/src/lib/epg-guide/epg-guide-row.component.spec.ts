@@ -221,6 +221,25 @@ describe('EpgGuideRowComponent', () => {
         expect(watch).not.toHaveBeenCalled();
     });
 
+    it('opens details from the playable programme control without starting playback', () => {
+        render([program('earlier', -180, -120)], {
+            catchUp: { canWatch: () => true, watch: jest.fn() },
+        });
+        const details = jest.fn();
+        const watch = jest.fn();
+        component.detailsRequested.subscribe(details);
+        component.watchRequested.subscribe(watch);
+
+        fixture.debugElement
+            .query(By.css('.epg-guide-row__details'))
+            .nativeElement.click();
+
+        expect(details).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'block' })
+        );
+        expect(watch).not.toHaveBeenCalled();
+    });
+
     it('shows the archive affordance only when the channel can play it', () => {
         render([program('earlier', -180, -120)], {
             catchUp: { canWatch: () => false, watch: jest.fn() },

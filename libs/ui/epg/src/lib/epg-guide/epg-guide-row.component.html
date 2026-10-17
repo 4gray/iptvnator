@@ -109,6 +109,17 @@
                     @if (item.canCatchUp) {
                         <button
                             type="button"
+                            class="epg-guide-row__details"
+                            (click)="onDetailsClick($event, item)"
+                            [attr.aria-label]="
+                                'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS'
+                                    | translate
+                            "
+                        >
+                            <mat-icon>info_outline</mat-icon>
+                        </button>
+                        <button
+                            type="button"
                             class="epg-guide-row__watch"
                             (click)="onWatchClick($event, item)"
                             [attr.aria-label]="'EPG.TIMELINE.WATCH' | translate"
