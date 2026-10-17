@@ -379,6 +379,31 @@ describe('XtreamRefreshFlowService', () => {
         );
     });
 
+    it.each<{
+        types: PlaylistMeta['xtreamContentTypes'];
+        section: string | null;
+    }>([
+        { types: ['live'], section: 'live' },
+        { types: ['series'], section: 'series' },
+        { types: ['series', 'live'], section: 'live' },
+        { types: ['series', 'movie', 'live'], section: 'vod' },
+        { types: [], section: null },
+    ])(
+        'returns to an enabled section after refreshing $types',
+        async ({ types, section }) => {
+            const { reporter } = createReporter();
+            const item = { ...createPlaylistMeta(), xtreamContentTypes: types };
+            service.confirmAndRefresh(item, reporter);
+            await confirmPromise;
+            expect(router.navigate).toHaveBeenCalledWith([
+                '/workspace',
+                'xtreams',
+                item._id,
+                ...(section ? [section] : []),
+            ]);
+        }
+    );
+
     it('completes for a reporter that implements no paint hook', async () => {
         const { reporter, calls } = createReporter();
         const item = createPlaylistMeta();
@@ -392,6 +417,7 @@ describe('XtreamRefreshFlowService', () => {
             '/workspace',
             'xtreams',
             item._id,
+            'vod',
         ]);
     });
 

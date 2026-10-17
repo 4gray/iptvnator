@@ -54,7 +54,11 @@ playlist object graph is not the backup format.
 
 ### Xtream
 
-Xtream backups export only connection metadata plus portable user state.
+Xtream backups export connection metadata, desktop catalog selection, and portable user state.
+The optional top-level `xtreamContentTypes` array contains `live`, `movie`, and/or
+`series`; an empty array loads no catalogs, while absence retains legacy all-types
+behavior. Restore validates this field and replaces the destination's selection.
+Browser import preserves the metadata but does not apply desktop catalog filtering.
 
 - Connection metadata:
     - `serverUrl`
@@ -78,6 +82,19 @@ the existing store's pins when that store is available, or stays absent when it
 is unavailable. Re-export neither applies nor consumes the pending snapshot,
 so it also works before the portal has been opened and in browser runtimes.
 Parental category locks still come from the current lock store.
+
+For desktop sources whose restored selection omits catalogs, history and hidden
+category choices without an available catalog are parked separately under
+`xtream-catalog-restore-<playlistId>`. This dormant record does not keep the source
+in an active/failed import state. Re-export merges it with the current complete
+history and category choices without consuming it. Re-enabling types merges their
+parked data into the cache-refresh snapshot and consumes only the applied types;
+it never replays old favorite removals, positions or source pins. Existing cached
+catalogs can accept their data even when their import selection is disabled.
+A new explicit archive has fresh receipt ownership and replaces older deferred
+choices. Explicit history clearing and source deletion clear corresponding dormant
+data. Storage failures retain the original active restore for retry rather than
+acknowledging an incomplete restore.
 
 A failed pending-storage or playback-position read fails export. An unreadable
 collection must never be serialized as a successful empty collection.

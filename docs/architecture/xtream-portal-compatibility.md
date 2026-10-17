@@ -288,6 +288,51 @@ surviving pending state or backup. Opening an Xtream section may initialize
 content when its cache is not ready; startup imports and explicit refresh use
 the same durable persistence invariant. This does not add a refresh scheduler.
 
+## Desktop catalog selection
+
+Desktop source metadata optionally carries `xtreamContentTypes` using `live`,
+`movie`, and `series`. Missing means all types (legacy behavior); `[]` means
+load no catalogs. Add/Edit expose independent checkboxes only with the complete
+Xtream SQLite capability. PWA imports keep their existing all-catalog behavior.
+
+Electron category/content cache reads and imports honor the selection. Ordinary
+catalog search and recently-added SQL exclude disabled types; collection and
+identity reads deliberately do not. Disabling a type retains its cached rows so
+Favorites/history remain playable, with a disabled-type indication. It does not
+delete playback positions or offline files. Saved metadata includes the selection
+in startup projections without parsing large M3U payloads, and backups preserve
+it, including an explicit empty array.
+
+`XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
+fetching their category/content arrays before deleting their old cache. Recovery
+reads the complete source history before parking the snapshot, not the ordinary
+100-entry browsing projection. The optional `dbGetRecentItems` `{ all: true }`
+request crosses preload/main/worker; ordinary reads remain capped at 100. Its
+read-only progress signal reports the current type, network/local phase and
+worker save counts. The editor stays modal and uses the same shared
+`ImportProgressComponent` as the workspace scanning overlay; disable-only edits
+do not show scanning. This path does not advertise cancellation it cannot perform.
+Checkboxes and section selection share the sidebar's Movies → Live TV → Series
+order. After a successful edit-time scan, navigate to the first newly enabled
+type in that order; a single newly enabled type always opens itself. Initial
+imports, manual refreshes and reopening a source from Sources choose the first
+enabled type in the same order. Browser source navigation remains unchanged.
+Failed scans and disable-only edits do not trigger the edit-time navigation. Cache
+delete carries an optional type scope through the worker bridge, snapshots all
+history/hidden-category state, and deletes only the requested catalogs. Ordinary
+Refresh supplies the source's enabled types. Disabled catalog rows remain intact;
+restore still sees the complete source's user state. Import completion and progress
+exclude intentionally skipped types.
+
+Fresh desktop backup restores separate dormant catalog-dependent history and
+hidden choices from the active import snapshot. Enabled types initialize normally;
+unloaded types retain durable restore data for re-export and later re-enabling.
+Replay merges with current source history and does not overwrite later progress,
+favorite removals or source-pin edits. See [backup restoration](./playlist-backup-restore.md).
+
+See [isolated Linux testing](../development/xtream-content-selection-testing.md)
+for the development build and manual validation checklist.
+
 ## PWA Collection Persistence
 
 Collection operations carry `{ id, type }`: `id` remains the SQLite row ID

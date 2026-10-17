@@ -198,6 +198,8 @@
             "LABEL": "Insert m3u(8) playlist as text"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "Content to load",
+            "CONTENT_TO_LOAD_HINT": "Only selected types are imported and refreshed. Select none to pause catalog loading; saved items and downloads are kept.",
             "TITLE": "Playlist title",
             "SERVER_URL": "Server URL",
             "USERNAME": "Username",

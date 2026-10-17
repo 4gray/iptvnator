@@ -3,7 +3,11 @@ import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { EpgService } from '@iptvnator/epg/data-access';
-import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    PlaylistsService,
+    SettingsStore,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { EMPTY, Subject } from 'rxjs';
 import { PlaylistActions } from './actions';
@@ -28,6 +32,8 @@ describe('PlaylistEffects addPlaylist$', () => {
     let effects: PlaylistEffects;
     let writes: Map<string, Subject<Playlist>>;
     let navigated: string[];
+    let navigationCommands: unknown[][];
+    let runtime: { supportsXtreamSqliteDataSource: boolean };
 
     const playlist = (id: string): Playlist =>
         ({
@@ -55,6 +61,7 @@ describe('PlaylistEffects addPlaylist$', () => {
             parent: permissiveParent,
             providers: [
                 { provide: Actions, useValue: new Actions(actions$) },
+                { provide: RuntimeCapabilitiesService, useValue: runtime },
                 // Sibling effects read the store while their fields
                 // initialise, so this one needs a real observable.
                 {
@@ -74,6 +81,7 @@ describe('PlaylistEffects addPlaylist$', () => {
                     useValue: {
                         navigate: (commands: unknown[]) => {
                             navigated.push(String(commands.at(-1)));
+                            navigationCommands.push(commands);
                             return Promise.resolve(true);
                         },
                     },
@@ -92,9 +100,35 @@ describe('PlaylistEffects addPlaylist$', () => {
         actions$ = new Subject();
         writes = new Map();
         navigated = [];
+        navigationCommands = [];
+        runtime = { supportsXtreamSqliteDataSource: false };
         effects = createEffects();
         effects.addPlaylist$.subscribe();
     });
+
+    it.each<{ types: Playlist['xtreamContentTypes']; section: string }>([
+        { types: ['live'], section: 'live' },
+        { types: ['series'], section: 'series' },
+        { types: ['series', 'live', 'movie'], section: 'vod' },
+        { types: ['series', 'live'], section: 'live' },
+    ])(
+        'opens the selected desktop section after adding $types',
+        ({ types, section }) => {
+            runtime.supportsXtreamSqliteDataSource = true;
+            const target = {
+                ...playlist('xc'),
+                serverUrl: 'https://example.invalid',
+                xtreamContentTypes: types,
+            };
+            const write = startWrite('xc');
+            actions$.next(PlaylistActions.addPlaylist({ playlist: target }));
+            write.next(target);
+            write.complete();
+            expect(navigationCommands).toEqual([
+                ['/workspace', 'xtreams', 'xc', section],
+            ]);
+        }
+    );
 
     it('navigates to a playlist once its write completes', () => {
         const write = startWrite('solo');

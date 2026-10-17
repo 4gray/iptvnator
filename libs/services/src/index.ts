@@ -1,4 +1,6 @@
 export * from './lib/catalog-title-match.service';
+export * from './lib/xtream-selected-catalog-refresh.service';
+export * from './lib/xtream-deferred-catalog-restore.service';
 export * from './lib/cross-portal-similar.service';
 export * from './lib/data.service';
 export * from './lib/host-connectivity-reset';

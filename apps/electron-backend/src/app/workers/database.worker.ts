@@ -975,6 +975,7 @@ async function executeRequest(
             const payload = message.payload as {
                 playlistId: string;
                 operationId?: string;
+                contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -996,7 +997,8 @@ async function executeRequest(
                         db,
                         payload.playlistId,
                         controller.control,
-                        capturePhase
+                        capturePhase,
+                        payload.contentTypes
                     );
 
                     controller.emitCompleted({
@@ -1124,8 +1126,11 @@ async function executeRequest(
             return clearRecentlyViewed(db);
 
         case 'DB_GET_RECENT_ITEMS': {
-            const payload = message.payload as { playlistId: string };
-            return getRecentItems(db, payload.playlistId);
+            const payload = message.payload as {
+                playlistId: string;
+                all?: boolean;
+            };
+            return getRecentItems(db, payload.playlistId, payload.all === true);
         }
 
         case 'DB_ADD_RECENT_ITEM': {

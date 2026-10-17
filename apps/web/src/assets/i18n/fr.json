@@ -198,6 +198,8 @@
             "LABEL": "Insérer la liste m3u(8) sous forme de texte"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "Contenu à charger",
+            "CONTENT_TO_LOAD_HINT": "Seuls les types sélectionnés sont importés et actualisés. Tout désélectionner suspend le chargement ; les éléments enregistrés et téléchargements sont conservés.",
             "TITLE": "Titre de la liste",
             "SERVER_URL": "URL du serveur",
             "USERNAME": "Nom d'utilisateur",

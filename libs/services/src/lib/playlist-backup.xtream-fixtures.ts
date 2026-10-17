@@ -155,7 +155,7 @@ export function createRestoreCollaborators() {
                     Promise.resolve(categoryRowsByType[type] ?? [])
             ),
             getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
-            getRecentItems: jest.fn().mockResolvedValue([]),
+            getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
             getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
             hasXtreamCategories: jest.fn().mockResolvedValue(true),
             hasXtreamContent: jest.fn().mockResolvedValue(true),

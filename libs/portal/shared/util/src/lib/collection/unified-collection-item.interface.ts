@@ -62,6 +62,8 @@ export interface UnifiedCollectionItem {
     /** Durable favorite identity, usable even after its catalog row is gone. */
     favoriteId?: number;
     catalogStatus?: XtreamFavoriteCatalogStatus;
+    /** Catalog loading is disabled; saved playback remains permitted. */
+    catalogDisabled?: boolean;
     /** Identity of this saved row, even when a provider reuses its typed ID. */
     xtreamIdentity?: Pick<ContentMetadataPatch, 'tmdbId' | 'releaseYear'>;
 

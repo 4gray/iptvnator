@@ -1,5 +1,6 @@
 import type { ElectronBridgeFavoriteReorderUpdate } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
+import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
@@ -562,7 +563,15 @@ export class UnifiedFavoritesDataService {
         try {
             const rows =
                 (await this.dbService.getAllGlobalFavorites()) as XtreamFavoriteRow[];
-            return rows.map((r) => this.mapXtreamRow(r));
+            const metas = new Map(
+                (await this.getAllMeta()).map((meta) => [meta._id, meta])
+            );
+            return rows.map((r) => ({
+                ...this.mapXtreamRow(r),
+                catalogDisabled: !normalizeXtreamContentTypes(
+                    metas.get(r.playlist_id)?.xtreamContentTypes
+                ).includes(xtreamContentType(r.type)),
+            }));
         } catch {
             return [];
         }
@@ -586,6 +595,9 @@ export class UnifiedFavoritesDataService {
                 ...this.mapXtreamRow(r),
                 playlistId,
                 playlistName: meta?.title || 'Xtream',
+                catalogDisabled: !normalizeXtreamContentTypes(
+                    meta?.xtreamContentTypes
+                ).includes(xtreamContentType(r.type)),
             }));
         } catch {
             return [];

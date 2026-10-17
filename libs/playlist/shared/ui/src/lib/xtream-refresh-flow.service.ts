@@ -15,7 +15,10 @@ import {
     XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    getXtreamContentRoute,
+} from '@iptvnator/shared/interfaces';
 import {
     measureRendererPerformancePhase,
     RENDERER_PERFORMANCE_PHASE,
@@ -198,6 +201,7 @@ export class XtreamRefreshFlowService {
             const [restoreState, playbackPositions] = await Promise.all([
                 this.databaseService.deleteXtreamPlaylistContent(item._id, {
                     operationId,
+                    contentTypes: item.xtreamContentTypes,
                     onEvent: (event) => reporter.report(run, event),
                 }),
                 this.playbackPositionService.getAllPlaybackPositions(item._id),
@@ -231,7 +235,13 @@ export class XtreamRefreshFlowService {
             );
 
             // Navigate to the playlist to trigger re-import
-            await this.router.navigate(['/workspace', 'xtreams', item._id]);
+            const section = getXtreamContentRoute(item.xtreamContentTypes);
+            await this.router.navigate([
+                '/workspace',
+                'xtreams',
+                item._id,
+                ...(section ? [section] : []),
+            ]);
         } catch (error) {
             if (!isDbAbortError(error)) {
                 console.error('Error refreshing Xtream playlist:', error);
