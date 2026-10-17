@@ -14,6 +14,7 @@ export interface EmbeddedMpvBounds {
 export interface EmbeddedMpvCapabilities {
     subtitles: boolean;
     playbackSpeed: boolean;
+    loop?: boolean;
     aspectOverride: boolean;
     screenshot: boolean;
     recording: boolean;

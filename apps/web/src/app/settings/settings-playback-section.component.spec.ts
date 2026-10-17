@@ -464,6 +464,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         fullscreenChannelPanel: new FormControl(true),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
+        loopMode: new FormControl<'disabled' | 'program' | 'channel'>('disabled'),
         showExternalPlaybackBar: new FormControl(true),
         embeddedMpvFrameCopy: new FormControl(false),
         mpvPlayerPath: new FormControl(''),

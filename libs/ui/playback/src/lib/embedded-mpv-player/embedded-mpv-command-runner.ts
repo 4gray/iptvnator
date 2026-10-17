@@ -160,6 +160,14 @@ export class EmbeddedMpvCommandRunner {
         await this.run(id, () => setSpeed(id, speed));
     }
 
+    async setLoop(loop: boolean): Promise<void> {
+        const id = this.ctx.sessionId();
+        const electron = this.bridge();
+        if (!id || !electron?.setEmbeddedMpvLoop) return;
+        const setLoop = electron.setEmbeddedMpvLoop;
+        await this.run(id, () => setLoop(id, loop));
+    }
+
     async setAspect(aspect: string): Promise<void> {
         const id = this.ctx.sessionId();
         const electron = this.bridge();
