@@ -64,6 +64,10 @@ verify download preservation using a development-profile download instead.
   catalog requests. Re-enable one type and verify it refreshes even when cached.
 - Restart and export/import a backup to confirm the selection survives, including
   the all-disabled case. Older backups without a selection enable all types.
+- Restore a Live-only backup containing saved Movie/Series history and hidden
+  categories into an empty profile. Open the source, restart and re-export: that
+  dormant data must remain in the backup. Enable Movies, then Series; their history
+  and hidden choices must return without resetting newer playback progress.
 
 ## Automated checks
 
@@ -84,6 +88,7 @@ This does not validate a real provider's codecs/network or desktop file associat
 ```bash
 pnpm nx run electron-backend-e2e:e2e-ci--src/xtream-content-selection.e2e.ts
 pnpm nx run electron-backend-e2e:e2e-ci--src/xtream-selection-preservation.e2e.ts
+pnpm nx run electron-backend-e2e:e2e-ci--src/xtream-selection-backup.e2e.ts
 pnpm nx test portal-xtream-data-access --runInBand
 pnpm nx test electron-backend --runInBand --testPathPatterns=xtream-content-selection
 pnpm nx test services --runInBand --testPathPatterns='xtream-selected-catalog-refresh|playlist-backup.service'

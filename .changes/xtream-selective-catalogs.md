@@ -4,4 +4,4 @@ area: xtream
 issues: [1965]
 ---
 
-Desktop Xtream sources let you choose which Movies, Live TV and Series catalogs to load, including none. Newly enabled types refresh on save with scanning progress; disabled types stay out of browsing and search while saved Favorites, history, progress and downloads are kept. After scanning, the first newly enabled type opens in sidebar order; reopening a source also respects its selection.
+Desktop Xtream sources load only selected Movies, Live TV and Series catalogs, including none, and scan newly enabled types on save. Saved items, progress and downloads survive disabled catalogs; scanning and reopening choose an enabled section. Backup restores retain unloaded catalogs' history and hidden-category choices until they can be applied.

@@ -8,6 +8,7 @@ import {
     XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistBackupService } from './playlist-backup.service';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
 import {
     createBrowserUserDataStorage,
@@ -145,6 +146,7 @@ export function createPlaylistBackupService(
             clearForPlaylist: jest.fn().mockResolvedValue(true),
         },
         pendingRestoreService,
+        deferredRestore: new XtreamDeferredCatalogRestoreService(),
         parentalLock: {
             initialize: jest.fn().mockResolvedValue(undefined),
             locksReadable: jest.fn(() => true),

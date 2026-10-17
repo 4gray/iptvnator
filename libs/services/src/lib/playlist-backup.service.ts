@@ -14,6 +14,7 @@ import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { PlaybackPositionService } from './playback-position.service';
 import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { ParentalLockService } from './parental-lock/parental-lock.service';
 import { removesParentalLocks } from './parental-lock/parental-lock-store.util';
 import {
@@ -83,6 +84,9 @@ export class PlaylistBackupService {
     private readonly vodSourcePinService = inject(VodSourcePinService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
+    );
+    private readonly deferredRestore = inject(
+        XtreamDeferredCatalogRestoreService
     );
     private readonly parentalLock = inject(ParentalLockService);
     private readonly pwaXtream = inject(PwaXtreamBackupStateService);
@@ -389,7 +393,17 @@ export class PlaylistBackupService {
                 },
             };
             return this.runtime.supportsXtreamSqliteDataSource
-                ? pendingEntry
+                ? {
+                      ...pendingEntry,
+                      userState: {
+                          ...pendingEntry.userState,
+                          ...this.deferredRestore.forExport(
+                              playlist._id,
+                              pendingEntry.userState,
+                              pending.favoritesRestoreId
+                          ),
+                      },
+                  }
                 : this.pwaXtream.exportInto(pendingEntry, pending);
         }
         // An unavailable pin store is no opinion, never an authoritative [].
@@ -422,21 +436,24 @@ export class PlaylistBackupService {
             this.readSourcePinsForExport(playlist._id),
         ]);
 
+        const catalogState = this.deferredRestore.forExport(playlist._id, {
+            hiddenCategories: [
+                ...this.mapHiddenCategories(liveCategories, 'live'),
+                ...this.mapHiddenCategories(movieCategories, 'movies'),
+                ...this.mapHiddenCategories(seriesCategories, 'series'),
+            ],
+            recentlyViewed: recent.map((item) => ({
+                xtreamId: item.xtream_id,
+                contentType: item.type as XtreamBackupContentType,
+                viewedAt: item.viewed_at ?? new Date().toISOString(),
+            })),
+        });
         return {
             ...entry,
             userState: {
-                hiddenCategories: [
-                    ...this.mapHiddenCategories(liveCategories, 'live'),
-                    ...this.mapHiddenCategories(movieCategories, 'movies'),
-                    ...this.mapHiddenCategories(seriesCategories, 'series'),
-                ],
+                ...catalogState,
                 ...this.optionalLockedXtreamCategories(playlist._id),
                 favorites: favorites.map(toXtreamBackupFavorite),
-                recentlyViewed: recent.map((item) => ({
-                    xtreamId: item.xtream_id,
-                    contentType: item.type as XtreamBackupContentType,
-                    viewedAt: item.viewed_at ?? new Date().toISOString(),
-                })),
                 playbackPositions: playbackPositions.map((item) => ({
                     ...item,
                 })),
@@ -1127,6 +1144,12 @@ export class PlaylistBackupService {
         state: XtreamPendingRestoreState
     ): Promise<void> {
         this.playbackPositionService.assertSupportsAtomicReplacement();
+        const prepared = this.deferredRestore.prepare(
+            playlistId,
+            state,
+            XTREAM_CONTENT_TYPES
+        );
+        state = prepared.state;
         await this.restoreXtreamCategoryVisibility(playlistId, state);
         await this.databaseService.restoreXtreamFavoriteSnapshots(
             playlistId,
@@ -1150,6 +1173,11 @@ export class PlaylistBackupService {
         // deliberately does not contain. Absent (an older archive) means "no
         // opinion", and those are left alone.
         if (!state.sourcePins) {
+            this.deferredRestore.complete(
+                playlistId,
+                prepared.snapshot,
+                XTREAM_CONTENT_TYPES
+            );
             return;
         }
 
@@ -1176,6 +1204,11 @@ export class PlaylistBackupService {
                 `Restoring the pinned sources for "${playlistId}" failed.`
             );
         }
+        this.deferredRestore.complete(
+            playlistId,
+            prepared.snapshot,
+            XTREAM_CONTENT_TYPES
+        );
     }
 
     private async restoreXtreamCategoryVisibility(

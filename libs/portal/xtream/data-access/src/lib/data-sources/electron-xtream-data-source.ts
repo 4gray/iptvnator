@@ -4,11 +4,14 @@ import {
     ParentalLockService,
     PlaybackPositionService,
     XtreamPendingRestoreService,
+    XtreamDeferredCatalogRestoreService,
     XtreamImportStatus,
     VodSourcePinService,
 } from '@iptvnator/services';
 import {
     normalizeXtreamContentTypes,
+    XTREAM_CONTENT_TYPES,
+    XtreamContentType,
     ContentMetadataPatch,
     PlaybackPositionData,
     PlaylistMeta,
@@ -48,6 +51,9 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     private readonly vodSourcePinService = inject(VodSourcePinService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
+    );
+    private readonly deferredRestore = inject(
+        XtreamDeferredCatalogRestoreService
     );
     private readonly apiService = inject(XtreamApiService);
     private readonly parentalLock = inject(ParentalLockService);
@@ -739,8 +745,43 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             this.dbService.getAllXtreamCategories(playlistId, 'movies'),
             this.dbService.getAllXtreamCategories(playlistId, 'series'),
         ]);
+        const enabled = normalizeXtreamContentTypes(
+            (await this.getPlaylist(playlistId))?.xtreamContentTypes
+        );
+        const available = (
+            await Promise.all(
+                XTREAM_CONTENT_TYPES.map(async (type) =>
+                    enabled.includes(type) ||
+                    ((await this.dbService.hasXtreamContent(
+                        playlistId,
+                        type
+                    )) &&
+                        (await this.dbService.getXtreamImportStatus(
+                            playlistId,
+                            type
+                        )) === 'completed')
+                        ? type
+                        : null
+                )
+            )
+        ).filter((type): type is XtreamContentType => type !== null);
+        const prepared = this.deferredRestore.prepare(
+            playlistId,
+            restoreState,
+            available
+        );
+        restoreState = prepared.state;
         for (const categories of categoriesByType) {
-            if (categories.length === 0) {
+            if (
+                categories.length === 0 ||
+                !available.some(
+                    (type) =>
+                        type ===
+                        (categories[0].type === 'movies'
+                            ? 'movie'
+                            : categories[0].type)
+                )
+            ) {
                 continue;
             }
 
@@ -793,6 +834,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // a new playlist has no content yet when the archive is read, so its
         // user state is parked and applied once the import finishes.
         if (!restoreState.sourcePins) {
+            this.deferredRestore.complete(
+                playlistId,
+                prepared.snapshot,
+                available
+            );
             return;
         }
 
@@ -816,5 +862,6 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                 `Restoring the pinned sources for "${playlistId}" failed.`
             );
         }
+        this.deferredRestore.complete(playlistId, prepared.snapshot, available);
     }
 }
