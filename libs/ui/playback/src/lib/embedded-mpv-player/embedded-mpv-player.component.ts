@@ -553,32 +553,46 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         });
 
         effect(() => {
-            const tracks = this.subtitleTracks();
+            const session = this.session();
             const preference = this.subtitlePreference.current;
-            if (preference === undefined || tracks.length === 0) {
+            if (!session || preference === undefined) {
                 return;
             }
-            if (
-                this.selectedSubtitleTrackId() !== null ||
-                preference === null
-            ) {
+            if (preference === null) {
+                if (
+                    session.selectedSubtitleTrackId !== null &&
+                    session.selectedSubtitleTrackId !== -1
+                ) {
+                    untracked(() => void this.controller.setSubtitleTrack(-1));
+                }
+                return;
+            }
+            const tracks = session.subtitleTracks;
+            if (tracks.length === 0) {
                 return;
             }
             const match =
                 tracks.find(
                     (track) =>
                         preference.language &&
-                        track.language === preference.language
+                        preference.title &&
+                        track.language === preference.language &&
+                        track.title === preference.title
                 ) ??
                 tracks.find(
                     (track) =>
                         preference.title && track.title === preference.title
                 ) ??
                 tracks.find(
+                    (track) =>
+                        preference.language &&
+                        track.language === preference.language
+                ) ??
+                tracks.find(
                     (track) => track.defaultTrack && track.language !== 'zxx'
                 ) ??
                 tracks.find((track) => track.language !== 'zxx');
-            if (match) {
+            if (match && match.id !== session.selectedSubtitleTrackId) {
                 untracked(
                     () => void this.controller.setSubtitleTrack(match.id)
                 );
@@ -806,13 +820,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     async selectSubtitleTrack(trackId: number): Promise<void> {
         this.legacyInteractions.revealControls(false);
-        const chosen = this.subtitleTracks().find(
-            (track) => track.id === trackId
-        );
-        this.subtitlePreference.current =
-            trackId < 0 || !chosen
-                ? null
-                : { language: chosen.language, title: chosen.title };
+        this.subtitlePreference.record(trackId, this.subtitleTracks());
         await this.controller.setSubtitleTrack(trackId);
         this.menus.close('subtitle');
         this.legacyInteractions.scheduleControlsHide();

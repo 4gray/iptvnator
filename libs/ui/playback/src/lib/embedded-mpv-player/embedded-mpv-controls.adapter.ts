@@ -41,6 +41,7 @@ import { resolveRecordingFeedback } from './embedded-mpv-controls-recording-feed
 import { EmbeddedMpvControlsRecording } from './embedded-mpv-controls-recording';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 import { EmbeddedMpvSubtitleSettings } from './embedded-mpv-subtitle-settings';
+import { EmbeddedMpvSubtitlePreferenceService } from './embedded-mpv-subtitle-preference.service';
 import { toPlayerStreamStats } from './embedded-mpv-stream-stats';
 
 export interface EmbeddedMpvControlsContext {
@@ -59,6 +60,9 @@ interface MappedPlayerStatus {
 @Injectable()
 export class EmbeddedMpvControlsAdapter implements PlayerController {
     private readonly controller = inject(EmbeddedMpvSessionController);
+    private readonly subtitlePreference = inject(
+        EmbeddedMpvSubtitlePreferenceService
+    );
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translationsTick = injectTranslationTick();
@@ -228,7 +232,13 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         seekBy: (deltaSeconds) => void this.controller.seekBy(deltaSeconds),
         setVolume: (value) => void this.controller.applyVolume(value),
         setAudioTrack: (id) => void this.controller.setAudioTrack(id),
-        setSubtitleTrack: (id) => void this.controller.setSubtitleTrack(id),
+        setSubtitleTrack: (id) => {
+            this.subtitlePreference.record(
+                id,
+                this.controller.session()?.subtitleTracks ?? []
+            );
+            void this.controller.setSubtitleTrack(id);
+        },
         addExternalSubtitleFile: () =>
             this.subtitleSettings.addExternalSubtitle(),
         setSubtitleDelay: (seconds) => this.subtitleSettings.setDelay(seconds),
