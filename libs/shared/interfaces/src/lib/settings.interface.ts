@@ -190,6 +190,8 @@ export interface Settings {
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;
+    /** Replay the current stream in MPV, or reopen a live channel after it ends. */
+    loopMode?: 'disabled' | 'program' | 'channel';
     language: Language;
     showCaptions: boolean;
     showDashboard: boolean;

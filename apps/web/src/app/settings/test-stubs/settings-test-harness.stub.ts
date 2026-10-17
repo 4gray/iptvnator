@@ -94,6 +94,7 @@ export const DEFAULT_SETTINGS = {
     m3uVodDetails: true,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
+    loopMode: 'disabled',
     language: Language.ENGLISH,
     showCaptions: false,
     showDashboard: true,

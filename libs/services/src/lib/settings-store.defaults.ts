@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS: Settings = {
     m3uVodDetails: true,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
+    loopMode: 'disabled',
     language: Language.ENGLISH,
     showCaptions: false,
     showDashboard: true,

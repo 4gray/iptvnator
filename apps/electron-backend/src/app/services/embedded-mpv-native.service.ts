@@ -121,6 +121,7 @@ export interface NativeEmbeddedMpvAddon {
     setSubtitleDelay?(sessionId: string, seconds: number): void;
     setSubtitleStyle?(sessionId: string, style: EmbeddedMpvSubtitleStyle): void;
     setSpeed?(sessionId: string, speed: number): void;
+    setLoop?(sessionId: string, loop: boolean): void;
     setAspect?(sessionId: string, aspect: string): void;
     startRecording?(sessionId: string, targetPath: string): void;
     stopRecording?(sessionId: string): void;
@@ -375,6 +376,7 @@ export class EmbeddedMpvNativeService {
         return {
             subtitles: typeof addon?.setSubtitleTrack === 'function',
             playbackSpeed: typeof addon?.setSpeed === 'function',
+            loop: typeof addon?.setLoop === 'function',
             aspectOverride: typeof addon?.setAspect === 'function',
             screenshot: false,
             recording:
@@ -901,6 +903,18 @@ export class EmbeddedMpvNativeService {
             );
         }
         addon.setSpeed(sessionId, speed);
+        return this.refreshSession(sessionId);
+    }
+
+    setLoop(sessionId: string, loop: boolean): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        const addon = this.getAddon();
+        if (typeof addon.setLoop !== 'function') {
+            throw new Error(
+                'Embedded MPV addon does not support loop playback.'
+            );
+        }
+        addon.setLoop(sessionId, loop);
         return this.refreshSession(sessionId);
     }
 

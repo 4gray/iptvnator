@@ -22,6 +22,7 @@ export const SETTINGS_CONTROL_SECTIONS: Readonly<Record<string, string>> = {
     fullscreenChannelPanel: 'playback',
     vodAutoFailover: 'playback',
     openStreamOnDoubleClick: 'playback',
+    loopMode: 'playback',
     showExternalPlaybackBar: 'playback',
     embeddedMpvFrameCopy: 'playback',
     embeddedMpvExtraOptions: 'playback',

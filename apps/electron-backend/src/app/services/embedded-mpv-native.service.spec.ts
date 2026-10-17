@@ -112,6 +112,7 @@ interface MockAddon {
     seekBy?: jest.Mock<void, [string, number]>;
     setVolume: jest.Mock<void, [string, number]>;
     setAudioTrack: jest.Mock<void, [string, number]>;
+    setLoop: jest.Mock<void, [string, boolean]>;
     startRecording: jest.Mock<void, [string, string]>;
     stopRecording: jest.Mock<void, [string]>;
     getSessionSnapshot: jest.Mock<MockSnapshot | null, [string]>;
@@ -129,6 +130,7 @@ function createMockAddon(): MockAddon {
         seekBy: jest.fn(),
         setVolume: jest.fn(),
         setAudioTrack: jest.fn(),
+        setLoop: jest.fn(),
         startRecording: jest.fn(),
         stopRecording: jest.fn(),
         getSessionSnapshot: jest.fn(),
@@ -940,6 +942,15 @@ describe('EmbeddedMpvNativeService power blocker', () => {
 
     it('reports recording support when the addon exposes recording methods', () => {
         expect(service.getSupport().capabilities?.recording).toBe(true);
+    });
+
+    it('forwards program-loop changes to the native addon', () => {
+        startSession('s1', snapshot('playing'));
+        addon.getSessionSnapshot.mockReturnValueOnce(snapshot('playing'));
+
+        service.setLoop('s1', true);
+
+        expect(addon.setLoop).toHaveBeenCalledWith('s1', true);
     });
 
     it.each<NodeJS.Platform>(['darwin', 'win32', 'linux'])(

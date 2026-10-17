@@ -219,6 +219,7 @@ export const SettingsStore = signalStore(
                         DEFAULT_SETTINGS.m3uVodDetails,
                     streamFormat: store.streamFormat(),
                     openStreamOnDoubleClick: store.openStreamOnDoubleClick(),
+                    loopMode: store.loopMode?.() ?? 'disabled',
                     language: store.language(),
                     showCaptions: store.showCaptions(),
                     showDashboard: store.showDashboard(),

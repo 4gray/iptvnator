@@ -17,7 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/services';
+import { injectTranslationTick, SettingsStore } from '@iptvnator/services';
 import {
     EmbeddedMpvAudioTrack,
     RecordingStartMetadata,
@@ -107,6 +107,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         EmbeddedMpvOverlayVisibilityService
     );
     private readonly translate = inject(TranslateService);
+    private readonly settingsStore = inject(SettingsStore);
     /**
      * Ticks when the active language or a loaded translation file changes.
      * translate.instant() is invisible to the signal graph, so every
@@ -140,7 +141,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     /** Catch-up programmes first, else the file's chapters; see the helper. */
     readonly controlsTimelineSegments = computed(
         () =>
-            embeddedMpvTimelineSegments(this.timelineSegments(), this.session()),
+            embeddedMpvTimelineSegments(
+                this.timelineSegments(),
+                this.session()
+            ),
         { equal: sameTimelineSegments }
     );
     readonly stalled = this.controller.stalled;
@@ -149,6 +153,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly isFullscreen = signal(false);
     readonly controlsVisible = signal(true);
 
+    readonly loopMode = computed(
+        () => this.settingsStore.loopMode?.() ?? 'disabled'
+    );
     readonly speedPresets = SPEED_PRESETS;
     readonly aspectPresets = ASPECT_PRESETS;
 
@@ -161,6 +168,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             this.support()?.capabilities ?? {
                 subtitles: false,
                 playbackSpeed: false,
+                loop: false,
                 aspectOverride: false,
                 screenshot: false,
                 recording: false,
@@ -546,6 +554,21 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         });
 
         effect(() => {
+            const id = this.controller.sessionId();
+            const loop = this.loopMode() === 'program';
+            if (id) {
+                void this.controller
+                    .setLoop(loop)
+                    .catch((error) =>
+                        console.warn(
+                            'Could not set embedded MPV loop mode.',
+                            error
+                        )
+                    );
+            }
+        });
+
+        effect(() => {
             this.overlayVisibility.overlayActive();
             this.controller.triggerBoundsSync();
         });
@@ -769,6 +792,19 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         await this.controller.setSubtitleTrack(trackId);
         this.menus.close('subtitle');
         this.legacyInteractions.scheduleControlsHide();
+    }
+
+    cycleLoopMode(): void {
+        const current = this.loopMode();
+        const next =
+            current === 'disabled'
+                ? 'program'
+                : current === 'program'
+                  ? 'channel'
+                  : 'disabled';
+        void this.settingsStore
+            .updateSettings({ loopMode: next })
+            .catch((error) => console.warn('Could not save loop mode.', error));
     }
 
     async selectSpeed(speed: number): Promise<void> {

@@ -12,6 +12,7 @@ const mockEmbeddedMpvService = {
     forgetLinuxMpvExecutableProbe: jest.fn(),
     markLinuxMpvExecutableProbeProvisional: jest.fn(),
     setPaused: jest.fn(),
+    setLoop: jest.fn(),
 };
 const mockSessionOptions = {
     extraOptions: ['network-timeout=10', 'hwdec=no'],
@@ -37,6 +38,7 @@ import { ipcMain } from 'electron';
 import {
     EMBEDDED_MPV_CREATE_SESSION,
     EMBEDDED_MPV_PREPARE,
+    EMBEDDED_MPV_SET_LOOP,
     EMBEDDED_MPV_SET_PAUSED,
     EMBEDDED_MPV_SUPPORT,
 } from '@iptvnator/shared/interfaces';
@@ -65,6 +67,7 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
         mockEmbeddedMpvService.createSession.mockReset();
         mockEmbeddedMpvService.getSupport.mockReset();
         mockEmbeddedMpvService.setPaused.mockReset();
+        mockEmbeddedMpvService.setLoop.mockReset();
     });
 
     describe('support checks and the login shell PATH', () => {
@@ -219,6 +222,19 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
             'Title',
             0.5,
             mockSessionOptions
+        );
+    });
+
+    it('forwards loop commands to the native service', async () => {
+        const session = { id: 'session-1', status: 'playing' };
+        mockEmbeddedMpvService.setLoop.mockReturnValue(session);
+
+        const handler = getIpcMainHandler(EMBEDDED_MPV_SET_LOOP);
+
+        await expect(handler({}, 'session-1', true)).resolves.toEqual(session);
+        expect(mockEmbeddedMpvService.setLoop).toHaveBeenCalledWith(
+            'session-1',
+            true
         );
     });
 
