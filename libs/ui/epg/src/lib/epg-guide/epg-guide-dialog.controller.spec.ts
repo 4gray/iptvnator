@@ -58,6 +58,8 @@ interface Harness {
     focusRow: jest.Mock;
     activate: jest.Mock;
     watch: jest.Mock;
+    canWatch: jest.Mock;
+    copyUrl: jest.Mock;
     offsetMinutes: number;
 }
 
@@ -66,7 +68,9 @@ function harness(offsetMinutes = 0): Harness {
     const focusRow = jest.fn();
     const activate = jest.fn();
     const watch = jest.fn();
-    const catchUp: EpgGuideCatchUp = { canWatch: () => true, watch };
+    const canWatch = jest.fn(() => true);
+    const copyUrl = jest.fn();
+    const catchUp: EpgGuideCatchUp = { canWatch, watch, copyUrl };
     const state = { offsetMinutes };
     const host: EpgGuideDialogHost = {
         rows: () => CHANNELS,
@@ -84,6 +88,8 @@ function harness(offsetMinutes = 0): Harness {
         focusRow,
         activate,
         watch,
+        canWatch,
+        copyUrl,
         offsetMinutes,
     };
 }
@@ -100,6 +106,7 @@ describe('EpgGuideDialogController', () => {
                 channelName: 'Channel b',
                 channelLogo: 'logo.png',
                 primaryAction: 'live',
+                archiveUrlAvailable: true,
                 archiveUnavailableNote: false,
             })
         );
@@ -116,6 +123,7 @@ describe('EpgGuideDialogController', () => {
         expect(test.open).toHaveBeenCalledWith(
             expect.objectContaining({
                 primaryAction: 'timeshift',
+                archiveUrlAvailable: true,
                 archiveUnavailableNote: false,
             })
         );
@@ -127,6 +135,7 @@ describe('EpgGuideDialogController', () => {
 
     it('notes a past card that cannot be replayed, and ignores a missing one', () => {
         const test = harness();
+        test.canWatch.mockReturnValue(false);
 
         test.controller.openDetails(CHANNELS[0], block('past'));
         expect(test.open).toHaveBeenCalledWith(
@@ -140,6 +149,40 @@ describe('EpgGuideDialogController', () => {
         test.controller.openDetails(CHANNELS[0], undefined);
         test.controller.openDetails(undefined, block('now'));
         expect(test.open).not.toHaveBeenCalled();
+    });
+
+    it('shows archive unavailability for future programmes too', () => {
+        const test = harness();
+        test.canWatch.mockReturnValue(false);
+
+        test.controller.openDetails(CHANNELS[0], block('future'));
+
+        expect(test.open).toHaveBeenCalledWith(
+            expect.objectContaining({
+                primaryAction: null,
+                archiveUrlAvailable: false,
+                archiveUnavailableNote: true,
+            })
+        );
+    });
+
+    it('offers the resolved future programme for playback and URL copy', () => {
+        const test = harness();
+        test.open.mockReturnValueOnce(of('copy-catchup-url'));
+
+        test.controller.openDetails(CHANNELS[0], block('future'));
+
+        expect(test.open).toHaveBeenCalledWith(
+            expect.objectContaining({
+                primaryAction: 'timeshift',
+                archiveUrlAvailable: true,
+                archiveUnavailableNote: false,
+            })
+        );
+        expect(test.copyUrl).toHaveBeenCalledWith(
+            CHANNELS[0],
+            expect.objectContaining({ title: 'Programme' })
+        );
     });
 
     it('sends a catch-up request straight to the host', () => {

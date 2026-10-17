@@ -114,6 +114,14 @@ export class EpgTimelineTrackComponent {
         }
     }
 
+    onBlockClick(event: MouseEvent, block: TimelineBlock): void {
+        if (event.altKey) {
+            this.infoClick.emit(block);
+            return;
+        }
+        this.blockClick.emit(block);
+    }
+
     onBlockEnter(item: TimelineRenderBlock, event: Event): void {
         if (item.tier === 'wide') {
             this.popover.set(null);

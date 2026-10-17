@@ -6,7 +6,7 @@ import { BehaviorSubject, of } from 'rxjs';
 import { buildGuideDayAxis, EpgGuideDayAxis } from './epg-guide-layout.util';
 import { EpgGuideRowStatus } from './epg-guide-programs.service';
 import { EpgGuideRowComponent } from './epg-guide-row.component';
-import { EpgGuideChannel } from './epg-guide-source';
+import { EpgGuideCatchUp, EpgGuideChannel } from './epg-guide-source';
 
 const MINUTE_MS = 60_000;
 
@@ -52,7 +52,7 @@ describe('EpgGuideRowComponent', () => {
         programs: readonly EpgProgram[],
         overrides: {
             status?: EpgGuideRowStatus;
-            catchUpAvailable?: boolean;
+            catchUp?: EpgGuideCatchUp;
             rowFocused?: boolean;
             focusedBlock?: number | null;
             tabbable?: boolean;
@@ -64,10 +64,7 @@ describe('EpgGuideRowComponent', () => {
         fixture.componentRef.setInput('status', overrides.status ?? 'loaded');
         fixture.componentRef.setInput('nowMs', nowMs);
         fixture.componentRef.setInput('hourWidthPx', 240);
-        fixture.componentRef.setInput(
-            'catchUpAvailable',
-            overrides.catchUpAvailable ?? false
-        );
+        fixture.componentRef.setInput('catchUp', overrides.catchUp);
         fixture.componentRef.setInput(
             'rowFocused',
             overrides.rowFocused ?? false
@@ -147,23 +144,80 @@ describe('EpgGuideRowComponent', () => {
         expect(activated).not.toHaveBeenCalled();
     });
 
-    it('reports a catch-up click as watch only, not as details', () => {
-        render([program('earlier', -180, -120)], { catchUpAvailable: true });
+    it.each([
+        ['past', -180, -120],
+        ['future', 60, 120],
+    ] as const)(
+        'starts a resolvable %s programme on click',
+        (_when, start, stop) => {
+            render([program('programme', start, stop)], {
+                catchUp: { canWatch: () => true, watch: jest.fn() },
+            });
+            const details = jest.fn();
+            const watch = jest.fn();
+            component.detailsRequested.subscribe(details);
+            component.watchRequested.subscribe(watch);
+
+            expect(
+                fixture.debugElement.query(
+                    By.css('.epg-guide-row__status .epg-guide-row__watch')
+                )
+            ).toBeTruthy();
+
+            fixture.debugElement
+                .query(By.css('.epg-guide-row__block'))
+                .nativeElement.click();
+
+            expect(watch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    block: expect.objectContaining({ when: _when }),
+                })
+            );
+            expect(details).not.toHaveBeenCalled();
+        }
+    );
+
+    it('keeps the play action beside ON NOW in the status area', () => {
+        render([program('on now', -20, 40)], {
+            catchUp: { canWatch: () => true, watch: jest.fn() },
+        });
+
+        const status = fixture.nativeElement.querySelector(
+            '.epg-guide-row__status'
+        );
+        expect(status.querySelector('.epg-guide-row__tag')).toBeTruthy();
+        expect(status.querySelector('.epg-guide-row__watch')).toBeTruthy();
+    });
+
+    it('uses Option-click on an archive programme to open its details', () => {
+        render([program('earlier', -180, -120)], {
+            catchUp: { canWatch: () => true, watch: jest.fn() },
+        });
         const details = jest.fn();
         const watch = jest.fn();
         component.detailsRequested.subscribe(details);
         component.watchRequested.subscribe(watch);
 
-        const button = fixture.debugElement.query(
-            By.css('.epg-guide-row__watch')
-        );
-        expect(button).toBeTruthy();
-        button.nativeElement.click();
+        fixture.debugElement
+            .query(By.css('.epg-guide-row__block'))
+            .nativeElement.dispatchEvent(
+                new MouseEvent('click', { bubbles: true, altKey: true })
+            );
 
-        expect(watch).toHaveBeenCalledWith(
-            expect.objectContaining({ canCatchUp: true })
+        expect(details).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'block' })
         );
-        expect(details).not.toHaveBeenCalled();
+        expect(watch).not.toHaveBeenCalled();
+    });
+
+    it('shows the archive affordance only when the channel can play it', () => {
+        render([program('earlier', -180, -120)], {
+            catchUp: { canWatch: () => false, watch: jest.fn() },
+        });
+
+        expect(
+            fixture.debugElement.query(By.css('.epg-guide-row__watch'))
+        ).toBeNull();
     });
 
     it('renders the empty note when the host says there is no EPG', () => {

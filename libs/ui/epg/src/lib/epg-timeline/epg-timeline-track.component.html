@@ -43,7 +43,7 @@
             [class.is-short]="item.block.durationMin < 10"
             [style.left.px]="item.leftPx"
             [style.width.px]="item.widthPx"
-            (click)="blockClick.emit(item.block)"
+            (click)="onBlockClick($event, item.block)"
             (keydown.enter)="onBlockActivate($event, item.block)"
             (mouseenter)="onBlockEnter(item, $event)"
             (mouseleave)="onBlockLeave()"
@@ -89,7 +89,7 @@
                             "
                             (click)="watchClick.emit(item.block); $event.stopPropagation()"
                         >
-                            <mat-icon>replay</mat-icon>
+                            <mat-icon>play_arrow</mat-icon>
                         </button>
                     }
                 } @else if (isPlaying(item)) {
@@ -102,7 +102,7 @@
                         class="epg-timeline__watch"
                         (click)="watchClick.emit(item.block); $event.stopPropagation()"
                     >
-                        <mat-icon>replay</mat-icon>
+                        <mat-icon>play_arrow</mat-icon>
                         {{ 'EPG.TIMELINE.WATCH' | translate }}
                     </button>
                 }
