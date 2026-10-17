@@ -148,6 +148,8 @@ export interface EmbeddedMpvSession {
     streamUrl: string;
     /** Increments when the native service loads or reloads this session's media. */
     loadRevision?: number;
+    /** The main process owns an external subtitle file for this media. */
+    externalSubtitleActive?: boolean;
     status: EmbeddedMpvSessionStatus;
     positionSeconds: number;
     durationSeconds: number | null;

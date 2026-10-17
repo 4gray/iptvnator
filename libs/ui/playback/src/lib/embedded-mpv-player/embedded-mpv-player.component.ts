@@ -570,10 +570,6 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             if (!session) {
                 return;
             }
-            const sessionSource = JSON.stringify([
-                session.id,
-                session.streamUrl,
-            ]);
             const source = JSON.stringify([
                 session.id,
                 session.streamUrl,
@@ -608,7 +604,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             ) {
                 return;
             }
-            if (this.sharedControls.externalSubtitleSource() === sessionSource) {
+            if (this.sharedControls.externalSubtitlePending()) {
+                return;
+            }
+            if (session.externalSubtitleActive) {
                 this.subtitlePreferenceApplied = true;
                 return;
             }

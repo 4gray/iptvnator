@@ -63,7 +63,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
     private readonly subtitlePreference = inject(
         EmbeddedMpvSubtitlePreferenceService
     );
-    readonly externalSubtitleSource = signal<string | null>(null);
+    readonly externalSubtitlePending = signal(false);
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translationsTick = injectTranslationTick();
@@ -234,7 +234,6 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         setVolume: (value) => void this.controller.applyVolume(value),
         setAudioTrack: (id) => void this.controller.setAudioTrack(id),
         setSubtitleTrack: (id) => {
-            this.externalSubtitleSource.set(null);
             this.subtitlePreference.record(
                 id,
                 this.controller.session()?.subtitleTracks ?? []
@@ -242,15 +241,10 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             void this.controller.setSubtitleTrack(id);
         },
         addExternalSubtitleFile: () => {
-            const session = this.controller.session();
-            const source = session
-                ? JSON.stringify([session.id, session.streamUrl])
-                : null;
-            void this.subtitleSettings.addExternalSubtitle().then((added) => {
-                if (added) {
-                    this.externalSubtitleSource.set(source);
-                }
-            });
+            this.externalSubtitlePending.set(true);
+            void this.subtitleSettings
+                .addExternalSubtitle()
+                .finally(() => this.externalSubtitlePending.set(false));
         },
         setSubtitleDelay: (seconds) => this.subtitleSettings.setDelay(seconds),
         setSubtitleStyle: (style) => this.subtitleSettings.setStyle(style),

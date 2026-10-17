@@ -1281,6 +1281,7 @@ export class EmbeddedMpvNativeService {
             title: session.title,
             streamUrl: snapshot.streamUrl || session.streamUrl,
             loadRevision: session.loadRevision,
+            externalSubtitleActive: session.externalSubtitlePath !== null,
             status: snapshot.status,
             positionSeconds: Math.max(0, Math.floor(snapshot.positionSeconds)),
             durationSeconds:

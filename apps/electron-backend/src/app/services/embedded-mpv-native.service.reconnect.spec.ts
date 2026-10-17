@@ -461,6 +461,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         it('re-adds the external subtitle file once the automatic reload plays', () => {
             startPlayingLive();
             service.addSubtitle('session-1', subtitleFile);
+            expect(lastUpdate()?.externalSubtitleActive).toBe(true);
             poll('playing');
 
             dropAndReload();
@@ -470,6 +471,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
                 'session-1',
                 subtitleFile
             );
+            expect(lastUpdate()?.externalSubtitleActive).toBe(true);
         });
 
         it('does not re-select a file the user had switched away from', () => {
@@ -487,6 +489,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
             startPlayingLive();
             service.addSubtitle('session-1', subtitleFile);
             service.loadPlayback('session-1', LIVE);
+            expect(lastUpdate()?.externalSubtitleActive).toBe(false);
             poll('playing');
 
             dropAndReload();
