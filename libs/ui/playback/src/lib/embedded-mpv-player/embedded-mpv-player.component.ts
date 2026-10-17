@@ -63,6 +63,15 @@ import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 
+function subtitleLanguage(language?: string): string | undefined {
+    if (!language) return undefined;
+    try {
+        return Intl.getCanonicalLocales(language)[0]?.split('-')[0];
+    } catch {
+        return language.toLowerCase();
+    }
+}
+
 @Component({
     selector: 'app-embedded-mpv-player',
     templateUrl: './embedded-mpv-player.component.html',
@@ -273,6 +282,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private readonly subtitlePreference = inject(
         EmbeddedMpvSubtitlePreferenceService
     );
+    private restoredSubtitleSource: string | null = null;
     readonly playbackSpeed = computed(() => this.session()?.playbackSpeed ?? 1);
     readonly aspectOverride = computed(
         () => this.session()?.aspectOverride ?? 'no'
@@ -554,8 +564,16 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         effect(() => {
             const session = this.session();
+            if (!session || session.subtitleTracks.length === 0) {
+                return;
+            }
+            const source = JSON.stringify([session.id, session.streamUrl]);
+            if (source === this.restoredSubtitleSource) {
+                return;
+            }
+            this.restoredSubtitleSource = source;
             const preference = this.subtitlePreference.current;
-            if (!session || preference === undefined) {
+            if (preference === undefined) {
                 return;
             }
             if (preference === null) {
@@ -568,25 +586,23 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 return;
             }
             const tracks = session.subtitleTracks;
-            if (tracks.length === 0) {
-                return;
-            }
+            const preferredLanguage = subtitleLanguage(preference.language);
             const match =
                 tracks.find(
                     (track) =>
-                        preference.language &&
+                        preferredLanguage &&
                         preference.title &&
-                        track.language === preference.language &&
+                        subtitleLanguage(track.language) === preferredLanguage &&
                         track.title === preference.title
                 ) ??
                 tracks.find(
                     (track) =>
-                        preference.title && track.title === preference.title
+                        preferredLanguage &&
+                        subtitleLanguage(track.language) === preferredLanguage
                 ) ??
                 tracks.find(
                     (track) =>
-                        preference.language &&
-                        track.language === preference.language
+                        preference.title && track.title === preference.title
                 ) ??
                 tracks.find(
                     (track) => track.defaultTrack && track.language !== 'zxx'
