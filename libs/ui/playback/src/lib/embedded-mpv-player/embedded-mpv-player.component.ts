@@ -94,6 +94,8 @@ function subtitleLanguage(language?: string): string | undefined {
 export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly showControls = input(true);
+    /** Selects a readable default only until the viewer makes a choice. */
+    readonly showCaptions = input(false);
     readonly recordingFolder = input('');
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
@@ -685,6 +687,31 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                                   preferredLanguage
                           )
                         : true;
+        });
+
+        effect(() => {
+            const enabled = this.showCaptions();
+            const sessionId = this.controller.sessionId();
+            const tracks = this.subtitleTracks();
+            if (!sessionId || !enabled || tracks.length === 0) {
+                return;
+            }
+            if (
+                this.subtitlePreference.current !== undefined ||
+                this.selectedSubtitleTrackId() !== null
+            ) {
+                return;
+            }
+            const track =
+                tracks.find(
+                    (candidate) =>
+                        candidate.defaultTrack && candidate.language !== 'zxx'
+                ) ?? tracks.find((candidate) => candidate.language !== 'zxx');
+            if (track) {
+                untracked(
+                    () => void this.controller.setSubtitleTrack(track.id)
+                );
+            }
         });
 
         effect(() => {

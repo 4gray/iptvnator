@@ -17,9 +17,13 @@ import {
 
 @Component({
     imports: [EmbeddedMpvPlayerComponent],
-    template: `<app-embedded-mpv-player [playback]="playback" />`,
+    template: `<app-embedded-mpv-player
+        [playback]="playback"
+        [showCaptions]="showCaptions"
+    />`,
 })
 class DockPanelsHostComponent {
+    readonly showCaptions = signal(false);
     playback: ResolvedPortalPlayback = {
         streamUrl: 'https://example.test/movie/42.mp4',
         title: 'Movie',
@@ -712,6 +716,49 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         await fixture.whenStable();
 
         expect(setSubtitleTrack).toHaveBeenCalledWith(-1);
+    });
+
+    it('selects a readable subtitle default when Show subtitles is enabled', async () => {
+        const setSubtitleTrack = jest
+            .spyOn(controller, 'setSubtitleTrack')
+            .mockResolvedValue(undefined);
+        const currentSession = controller.session();
+        if (!currentSession) {
+            throw new Error('Expected a ready embedded MPV session');
+        }
+        controller.session.set({
+            ...currentSession,
+            subtitleTracks: [
+                {
+                    id: 30,
+                    language: 'zxx',
+                    selected: false,
+                    defaultTrack: true,
+                },
+                { id: 31, language: 'eng', selected: false },
+            ],
+        });
+        controller.sessionId.set('session-1');
+        fixture.componentInstance.showCaptions.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setSubtitleTrack).toHaveBeenCalledWith(31);
+    });
+
+    it('does not override an explicit subtitles-off choice', async () => {
+        const setSubtitleTrack = jest
+            .spyOn(controller, 'setSubtitleTrack')
+            .mockResolvedValue(undefined);
+        await player.selectSubtitleTrack(-1);
+        setSubtitleTrack.mockClear();
+
+        controller.sessionId.set('session-1');
+        fixture.componentInstance.showCaptions.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setSubtitleTrack).not.toHaveBeenCalled();
     });
 
     it('selects speed and aspect presets from horizontal chip rows', async () => {
