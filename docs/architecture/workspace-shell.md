@@ -59,6 +59,15 @@ Current workspace routes:
 11. `/workspace/xtreams/:id/...`
 12. `/workspace/stalker/:id/...`
 
+When `rememberLastChannel` is enabled and the saved playlist still exists,
+`WorkspaceStartupPreferencesService` routes startup to that playlist's live
+view before applying the ordinary first-view or last-view preference. The
+M3U, Xtream, and Stalker views select the saved channel. Xtream and Stalker
+prefer the stable channel ID because stream URLs can change between sessions.
+`autoplayOnRelaunch` starts a channel only if it was playing before shutdown;
+for embedded MPV, a remembered channel can instead open paused. If the saved
+playlist or channel no longer exists, startup falls back to normal navigation.
+
 Compatibility redirect:
 
 1. `/settings` -> `/workspace/settings`
