@@ -336,7 +336,7 @@ target `master` and for `master` pushes (dispatch it with
 `gh workflow run ci.yml --ref <branch>` for a stacked branch). The
 `Performance journeys` job checks the journey counters listed with `--only`
 in its `Check the journey counters against the baselines` step against the
-same file (warn-only); a new journey baseline
+same file and fails the workflow on a regression; a new journey baseline
 must be added to that list too, which `pnpm nx test performance-tools`
 checks. The weekly
 `performance-ratchet.yml` workflow lowers baselines through a bot PR; validate

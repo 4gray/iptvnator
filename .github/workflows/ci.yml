@@ -300,9 +300,11 @@ jobs:
         # processes plus one seeding run. The large-library launch journey
         # (launch-large) is left to the weekly performance-ratchet.yml.
         timeout-minutes: 30
-        # Warn-only for the first two weeks of plan item B3: a failure is
-        # visible on the run but does not fail the workflow.
-        continue-on-error: true
+        # Counter regressions fail this workflow (plan item B3, #1926).
+        # This policy takes effect on master when #1926 is merged.
+        # Evidence: all 71 master runs from 2026-10-06 to 2026-10-12 passed,
+        # with no enforced counter varying between iterations (see Ratchet
+        # in docs/architecture/performance-journeys.md).
         env:
             NX_SKIP_NX_CACHE: true
 
