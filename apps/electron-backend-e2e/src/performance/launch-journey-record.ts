@@ -80,10 +80,16 @@ function roundThousandth(value: number): number {
     return Math.round(value * 1_000) / 1_000;
 }
 
+/** J1 measures the idle window; a launch variant without one says so. */
+export interface LaunchJourneyRecordOptions {
+    readonly idleWindow: boolean;
+}
+
 export function toLaunchIterationRecord(
     index: number,
     warmup: boolean,
-    measurement: LaunchJourneyMeasurement
+    measurement: LaunchJourneyMeasurement,
+    options: LaunchJourneyRecordOptions = { idleWindow: true }
 ): JourneyIterationRecord {
     const { ipc, mainCounters, renderer, spawnEpochMs } = measurement;
     if (mainCounters === null) {
@@ -120,7 +126,9 @@ export function toLaunchIterationRecord(
             `launch-journey-record-cd-ticks-${renderer.capabilities.changeDetectionTicks}`
         );
     }
-    const idle = assertLaunchIdleWindow(renderer, settle.epochMs);
+    const idle = options.idleWindow
+        ? assertLaunchIdleWindow(renderer, settle.epochMs)
+        : assertNoLaunchIdleWindow(renderer);
     return Object.freeze({
         counters: Object.freeze({
             [LAUNCH_JOURNEY_COUNTER.MODULES_REGISTERED_BEFORE_WINDOW]:
@@ -132,7 +140,9 @@ export function toLaunchIterationRecord(
                     LAUNCH_JOURNEY_COUNTER.SQL_STATEMENTS_BEFORE_READY_TO_SHOW
                 ],
             [LAUNCH_JOURNEY_COUNTER.CD_TICKS]: cdTicks,
-            [LAUNCH_JOURNEY_COUNTER.CD_TICKS_IDLE]: idle.ticks,
+            ...(idle === null
+                ? {}
+                : { [LAUNCH_JOURNEY_COUNTER.CD_TICKS_IDLE]: idle.ticks }),
             [LAUNCH_JOURNEY_COUNTER.DOM_MUTATIONS]:
                 renderer.counters.domMutations,
             [LAUNCH_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,
@@ -173,13 +183,16 @@ export function toLaunchIterationRecord(
                 cardTestId: renderer.terminal.cardTestId,
                 pathname: renderer.terminal.pathname,
             }),
-            idle: Object.freeze({
-                domMutations: idle.domMutations,
-                durationMs: roundTenth(idle.durationMs),
-                settledToIdleStartMs: roundTenth(
-                    idle.startEpochMs - settle.epochMs
-                ),
-            }),
+            idle:
+                idle === null
+                    ? null
+                    : Object.freeze({
+                          domMutations: idle.domMutations,
+                          durationMs: roundTenth(idle.durationMs),
+                          settledToIdleStartMs: roundTenth(
+                              idle.startEpochMs - settle.epochMs
+                          ),
+                      }),
             ipcCallsAfterFirstCard: ipc.callsAfterSentinel,
             // Running totals when the counters were read, after the first card.
             mainCountersAtRead: mainCounters.counters,
@@ -224,6 +237,16 @@ export function toLaunchIterationRecord(
         }),
         warmup,
     });
+}
+
+/** A record without the idle window refuses a probe that ran one. */
+function assertNoLaunchIdleWindow(renderer: JourneyRendererProbeState): null {
+    if (renderer.idle.status !== 'disabled') {
+        throw new Error(
+            `launch-journey-record-idle-unexpected-${renderer.idle.status}`
+        );
+    }
+    return null;
 }
 
 /**

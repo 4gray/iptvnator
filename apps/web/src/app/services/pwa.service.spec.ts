@@ -3,11 +3,11 @@ import {
     HttpTestingController,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { config as rxjsConfig, EMPTY } from 'rxjs';
+import { config as rxjsConfig, Observable, of, Subject } from 'rxjs';
 import {
     buildHostConnectivityFastFailMessage,
     CONNECTIVITY_GUARD_RESET,
@@ -20,13 +20,20 @@ import {
     getStalkerRequestErrorStatus,
     isStalkerProbeTimeout,
 } from '@iptvnator/portal/stalker/data-access';
+import {
+    clearServerAccessToken,
+    ServerStorageStatusService,
+    writeServerAccessToken,
+} from '@iptvnator/services';
 import { PwaService } from './pwa.service';
 
 describe('PwaService', () => {
     let http: HttpTestingController;
     let service: PwaService;
+    let versionUpdates: Subject<void>;
 
     beforeEach(() => {
+        versionUpdates = new Subject<void>();
         jest.spyOn(console, 'log').mockImplementation(() => undefined);
 
         TestBed.configureTestingModule({
@@ -34,9 +41,9 @@ describe('PwaService', () => {
             providers: [
                 PwaService,
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: {
-                        open: jest.fn(),
+                        open: jest.fn().mockResolvedValue(null),
                     },
                 },
                 {
@@ -48,7 +55,7 @@ describe('PwaService', () => {
                 {
                     provide: SwUpdate,
                     useValue: {
-                        versionUpdates: EMPTY,
+                        versionUpdates,
                     },
                 },
                 {
@@ -69,6 +76,29 @@ describe('PwaService', () => {
         jest.restoreAllMocks();
     });
 
+    it('reloads the page from the update toast once the toast is open and its action is chosen', async () => {
+        let showToast!: (ref: {
+            onAction: () => Observable<undefined>;
+        }) => void;
+        const open = TestBed.inject(LazySnackBar).open as jest.Mock;
+        open.mockImplementation(
+            () => new Promise((resolve) => (showToast = resolve))
+        );
+        service.reloadWindow = jest.fn();
+
+        service.checkUpdates();
+        versionUpdates.next();
+
+        expect(open).toHaveBeenCalledWith('UPDATE_AVAILABLE', 'REFRESH');
+        expect(service.reloadWindow).not.toHaveBeenCalled();
+
+        // The toast chunk arrives, the user picks Refresh.
+        showToast({ onAction: () => of(undefined) });
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(service.reloadWindow).toHaveBeenCalledTimes(1);
+    });
+
     it('passes explicit connection-test evidence through without a playback response', async () => {
         const failure = {
             connectionFailure: { kind: 'connection', canTryHttp: true },
@@ -86,7 +116,7 @@ describe('PwaService', () => {
         expect(request.request.params.get('connectionTest')).toBe('true');
         request.flush(failure);
         expect(await pending).toEqual(failure);
-        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
+        expect(TestBed.inject(LazySnackBar).open).not.toHaveBeenCalled();
     });
 
     it('ignores URL imports without a payload or URL instead of calling the backend', () => {
@@ -191,7 +221,7 @@ describe('PwaService', () => {
             );
             await new Promise((resolve) => setTimeout(resolve));
 
-            expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+            expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ETIMEDOUT)',
                 'CLOSE',
                 { duration: 5000 }
@@ -199,6 +229,55 @@ describe('PwaService', () => {
         } finally {
             rxjsConfig.onUnhandledError = previousHandler;
         }
+    });
+
+    it('settles a playlist refresh only once the backend has answered', async () => {
+        let settled = false;
+        const pending = Promise.resolve(
+            service.sendIpcEvent(PLAYLIST_UPDATE, {
+                id: 'playlist-1',
+                url: 'https://provider.example/list.m3u',
+            })
+        ).then(() => {
+            settled = true;
+        });
+
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'target-1',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        // The caller keeps the source busy while the parse is in flight.
+        expect(settled).toBe(false);
+
+        http.expectOne((req) => req.url.endsWith('/parse')).flush({
+            _id: 'playlist-1',
+        });
+        await pending;
+        expect(settled).toBe(true);
+        expect(TestBed.inject(Store).dispatch).toHaveBeenCalled();
+    });
+
+    it('settles a failed playlist refresh after reporting it', async () => {
+        const pending = service.sendIpcEvent(PLAYLIST_UPDATE, {
+            id: 'playlist-1',
+            url: 'https://provider.example/list.m3u',
+        });
+
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'target-1',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        http.expectOne((req) => req.url.endsWith('/parse')).flush(
+            { message: 'failed', status: 500 },
+            { status: 500, statusText: 'Internal Server Error' }
+        );
+
+        await expect(pending).resolves.toBeUndefined();
+        expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
+            expect.any(String),
+            'CLOSE',
+            { duration: 5000 }
+        );
     });
 
     it('appends the proxy network code to the playlist-refresh failure toast', async () => {
@@ -228,7 +307,7 @@ describe('PwaService', () => {
             );
             await new Promise((resolve) => setTimeout(resolve));
 
-            expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+            expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ENETUNREACH)',
                 'CLOSE',
                 { duration: 5000 }
@@ -274,8 +353,105 @@ describe('PwaService', () => {
         expect(error.message).toBe('HTTP Error 404: Not Found');
         expect(error.status).toBe(404);
         // silent flag: discovery probes expect failures — no snackbar.
-        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
+        expect(TestBed.inject(LazySnackBar).open).not.toHaveBeenCalled();
 
+        globalThis.fetch = originalFetch;
+    });
+
+    it('sends a stored server token only while server mode runs', async () => {
+        writeServerAccessToken('kept-token', 'i');
+        const originalFetch = globalThis.fetch;
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            headers: new Headers(),
+            json: async () => ({ js: [] }),
+        } as unknown as Response);
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const call = async () => {
+            const outcome = (
+                service.sendIpcEvent(STALKER_REQUEST, {
+                    url: 'http://portal.example/portal.php',
+                    macAddress: '00:1A:79:AA:BB:CC',
+                    params: { action: 'get_genres' },
+                    silent: true,
+                }) as Promise<unknown>
+            ).catch((error: unknown) => error);
+            await Promise.resolve();
+            for (const request of http.match((candidate) =>
+                candidate.url.endsWith('/provider-targets')
+            )) {
+                request.flush({ targetId: 'target-1' });
+            }
+            await outcome;
+        };
+
+        try {
+            // A token kept from another backend: server mode is not active.
+            await call();
+            expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty(
+                'Authorization'
+            );
+
+            TestBed.inject(ServerStorageStatusService).activate(
+                {
+                    service: 'iptvnator',
+                    apiVersion: 1,
+                    instanceId: 'i',
+                    storage: 'server',
+                    auth: 'token',
+                },
+                () => undefined
+            );
+            await call();
+            expect(fetchMock.mock.calls[1][1].headers).toMatchObject({
+                Authorization: 'Bearer kept-token',
+            });
+        } finally {
+            globalThis.fetch = originalFetch;
+            clearServerAccessToken();
+        }
+    });
+
+    it('asks for a new server token when the access guard refuses a Stalker call', async () => {
+        const status = TestBed.inject(ServerStorageStatusService);
+        status.activate(
+            {
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: 'i',
+                storage: 'server',
+                auth: 'token',
+            },
+            () => undefined
+        );
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            status: 401,
+            statusText: 'Unauthorized',
+            headers: new Headers({
+                'WWW-Authenticate': 'Bearer realm="iptvnator"',
+            }),
+            json: async () => ({ code: 'unauthorized' }),
+        } as unknown as Response) as unknown as typeof fetch;
+
+        const outcome = (
+            service.sendIpcEvent(STALKER_REQUEST, {
+                url: 'http://portal.example/portal.php',
+                macAddress: '00:1A:79:AA:BB:CC',
+                params: { action: 'get_genres' },
+                silent: true,
+            }) as Promise<unknown>
+        ).catch((error: unknown) => error);
+        await Promise.resolve();
+        http.expectOne((candidate) =>
+            candidate.url.endsWith('/provider-targets')
+        ).flush({ targetId: 'target-1' });
+        await outcome;
+
+        expect(status.state()).toBe('unauthorized');
         globalThis.fetch = originalFetch;
     });
 
@@ -466,6 +642,118 @@ describe('PwaService', () => {
         } finally {
             jest.useRealTimers();
             delete globalWithFetch.fetch;
+        }
+    });
+
+    it('sends the server token to the backend only, also with BACKEND_URL=/', async () => {
+        writeServerAccessToken('kept-token', 'i');
+        TestBed.inject(ServerStorageStatusService).activate(
+            {
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: 'i',
+                storage: 'server',
+                auth: 'token',
+            },
+            () => undefined
+        );
+        window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: '/' };
+        const atRoot = TestBed.runInInjectionContext(() => new PwaService());
+        delete window.__IPTVNATOR_CONFIG__;
+        const originalFetch = globalThis.fetch;
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            json: async () => ({ reset: true }),
+        } as unknown as Response);
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const reset = () =>
+            atRoot.sendIpcEvent(CONNECTIVITY_GUARD_RESET, {
+                url: 'http://portal.example:8080/portal.php',
+            });
+
+        try {
+            await reset();
+            // Not `//connectivity-guard/reset`: that is another host.
+            expect(fetchMock.mock.calls[0][0]).toBe(
+                '/connectivity-guard/reset'
+            );
+            expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
+                Authorization: 'Bearer kept-token',
+            });
+
+            atRoot.corsProxyUrl = 'https://elsewhere.example';
+            await reset();
+            expect(fetchMock.mock.calls[1][1].headers).not.toHaveProperty(
+                'Authorization'
+            );
+        } finally {
+            globalThis.fetch = originalFetch;
+            clearServerAccessToken();
+        }
+    });
+
+    it('reports a backend outage seen by its raw fetches', async () => {
+        const status = TestBed.inject(ServerStorageStatusService);
+        const activate = () =>
+            status.activate(
+                {
+                    service: 'iptvnator',
+                    apiVersion: 1,
+                    instanceId: 'i',
+                    storage: 'server',
+                    auth: 'none',
+                },
+                () => undefined
+            );
+        const originalFetch = globalThis.fetch;
+        const reset = () =>
+            (
+                service.sendIpcEvent(CONNECTIVITY_GUARD_RESET, {
+                    url: 'http://portal.example:8080/portal.php',
+                }) as Promise<unknown>
+            ).catch(() => undefined);
+        const answer = (code: number, contentType: string) =>
+            ({
+                ok: false,
+                status: code,
+                headers: new Headers({ 'content-type': contentType }),
+                json: async () => ({}),
+            }) as unknown as Response;
+
+        try {
+            activate();
+            // The backend's own JSON error: it answered.
+            globalThis.fetch = jest
+                .fn()
+                .mockResolvedValue(
+                    answer(502, 'application/json')
+                ) as unknown as typeof fetch;
+            await reset();
+            expect(status.state()).toBe('online');
+
+            // A gateway's page in front of a backend that is down.
+            globalThis.fetch = jest
+                .fn()
+                .mockResolvedValue(
+                    answer(502, 'text/html')
+                ) as unknown as typeof fetch;
+            await reset();
+            expect(status.state()).toBe('offline');
+            expect(status.isVerified()).toBe(false);
+
+            // No answer at all.
+            activate();
+            globalThis.fetch = jest
+                .fn()
+                .mockRejectedValue(
+                    new TypeError('Failed to fetch')
+                ) as unknown as typeof fetch;
+            await reset();
+            expect(status.state()).toBe('offline');
+        } finally {
+            globalThis.fetch = originalFetch;
         }
     });
 

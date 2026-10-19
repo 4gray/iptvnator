@@ -32,6 +32,7 @@ import {
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     registerContentMetadataBackfill,
+    xtreamDetailContentMetadata,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -517,7 +518,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.route.snapshot.params['vodId'],
             playlist.id,
             'movie',
-            this.selectedVodInfo()?.backdrop_path?.[0]
+            this.selectedVodInfo()?.backdrop_path?.[0],
+            xtreamDetailContentMetadata(this.selectedVodInfo()) ?? undefined
         );
 
         this.favoritePulse.set(true);

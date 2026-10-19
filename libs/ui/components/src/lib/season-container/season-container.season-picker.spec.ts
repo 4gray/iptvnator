@@ -198,12 +198,8 @@ describe('SeasonContainerComponent season picker', () => {
         expect(countOf(items[0])).toBe('3 episodes · 2 watched');
         // Nothing watched: the second half is left out, not "0 watched".
         expect(countOf(items[1])).toBe('3 episodes');
-        expect(
-            items[0].classList.contains('season-tabs__menu-item--selected')
-        ).toBe(true);
-        expect(
-            items[1].classList.contains('season-tabs__menu-item--selected')
-        ).toBe(false);
+        expect(items[0].getAttribute('aria-checked') === 'true').toBe(true);
+        expect(items[1].getAttribute('aria-checked') === 'true').toBe(false);
         expect(seasonImages()).toHaveLength(0);
 
         items[4].click();

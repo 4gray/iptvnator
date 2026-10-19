@@ -33,8 +33,6 @@
         [backTarget]="facade.backTarget()"
         [playlistTitle]="facade.playlistTitle()"
         [playlistSubtitle]="facade.playlistSubtitle()"
-        [canOpenPlaylistInfo]="facade.canOpenPlaylistInfo()"
-        [canOpenAccountInfo]="facade.canOpenAccountInfo()"
         [searchQuery]="facade.searchQuery()"
         [canUseSearch]="facade.canUseSearch()"
         [searchPlaceholder]="facade.searchPlaceholder()"
@@ -42,8 +40,6 @@
         [searchStatusLabel]="facade.searchStatusLabel()"
         [headerShortcut]="facade.headerShortcut()"
         [headerSidebarToggle]="facade.headerSidebarToggle()"
-        [canRefreshPlaylist]="facade.canRefreshPlaylist()"
-        [isRefreshingPlaylist]="facade.isRefreshingPlaylist()"
         [isElectron]="facade.isElectron"
         [hasNoPlaylists]="facade.hasNoPlaylists()"
         [isDownloadsView]="facade.isDownloadsView()"
@@ -56,7 +52,6 @@
         [contextDrawerTooltipKey]="facade.contextDrawerLabelKeys().tooltip"
         (backRequested)="facade.goBack()"
         (contextDrawerToggleRequested)="contextDrawer.toggle()"
-        (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"
         (searchSubmitted)="facade.onSearchEnter($event)"
         (commandPaletteRequested)="facade.openCommandPalette()"
@@ -66,8 +61,6 @@
         (headerSidebarToggleRequested)="facade.toggleLiveSidebar()"
         (parentalLockToggleRequested)="facade.toggleParentalLock()"
         (downloadsRequested)="facade.openDownloadsShortcut()"
-        (playlistInfoRequested)="facade.openPlaylistInfo()"
-        (accountInfoRequested)="facade.openAccountInfo()"
         (accountInfoForPlaylistRequested)="facade.openAccountInfoFor($event)"
     />
 
@@ -120,6 +113,9 @@
              shadow without clipping; the scroller inside clips to a
              rectangle (see the stylesheet for why). -->
         <div class="workspace-content-frame">
+            <!-- Self-hosted server storage offline: a row of its own above
+                 the scroller, so full-height pages keep their height. -->
+            <app-workspace-shell-server-banner />
             <!-- tabindex="-1": programmatic focus target for the drawer-close
                  fallback when the toggle is gone (navigated to a route without
                  a context panel); not in the Tab order. -->

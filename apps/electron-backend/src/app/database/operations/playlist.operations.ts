@@ -1,3 +1,4 @@
+import { reconcileCompletedFavoriteCatalog } from './favorite-catalog';
 import { eq, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { Channel, M3uFavoriteChannel } from '@iptvnator/shared/interfaces';
@@ -613,6 +614,7 @@ export async function setAppState(
             set: { value, updatedAt },
         });
 
+    await reconcileCompletedFavoriteCatalog(db, key, value);
     return { success: true };
 }
 

@@ -79,9 +79,16 @@ on the server. Adding a playlist stays the ordinary "Add playlist" flow.
      this instance): a dialog offers "Move to server". Playlists are copied
      with their ids, then the four Xtream user-data maps for those ids.
    - Any later device (server already has playlists): Settings → Server
-     offers "Import this browser's playlists", which runs the existing backup
-     export (browser) and import (server) with fingerprint merging, so the
-     same provider added on two devices is not duplicated.
+     offers "Import this browser's playlists". A browser playlist the server
+     already has (same id, or same source: Xtream server and user, Stalker
+     portal and MAC, M3U URL) merges into the server's copy, so the same
+     provider added on two devices is not duplicated; the others upload with
+     their ids. A merged playlist gains the browser's favorites and history,
+     and the Xtream maps follow under the server id, combined with what the
+     server has (lists unioned, maps merged, the server winning conflicts). The backup format is not used: its
+     PWA export carries no Xtream user data.
+   - The decision marker is written only when nothing failed, so a partial
+     move stays on offer and can run again.
    - Browser data is never deleted. The server-mode cache uses its own
      localStorage key prefix, so legacy keys stay intact.
 5. Offline: reads and writes fail with a visible state. The rail shows an
@@ -125,8 +132,8 @@ All JSON. Errors: `{ message, status, code? }`.
 | `DELETE /v1/playlists/:id` | Delete the row and its user-state entries. |
 | `DELETE /v1/playlists` | Delete all playlists and all user state. |
 | `GET/PUT /v1/app-state/:key` | `{ value }`. |
-| `GET /v1/user-state` | `{ entries: { [namespace]: { [playlistId]: value } } }`. |
-| `PUT/DELETE /v1/user-state/:namespace/:playlistId` | One entry. Namespaces are an allow-list. |
+| `GET /v1/user-state` | `{ entries: { [namespace]: { [playlistId]: value } }, tags }`, a content tag per entry. |
+| `PUT/DELETE /v1/user-state/:namespace/:playlistId` | One entry. Namespaces are an allow-list. `If-Match: "<tag>"` or `If-None-Match: *` makes it conditional: `412` with the current value and tag. A `PUT` for a playlist the server does not have answers `404 playlist_missing`. |
 
 ETags are `"<bootId>-<revision>"` from an in-memory per-playlist revision
 counter; the server is the only writer of its database.
@@ -143,8 +150,7 @@ closes it on `SIGTERM`. Storage errors are logged by name and route only.
 
 - `PlaylistStorageBackend` (libs/services) resolves the document store:
   server store in server mode, Electron bridge when `supportsSqlite`, else
-  IndexedDB. It can switch to browser storage temporarily for the migration
-  export.
+  IndexedDB.
 - `@iptvnator/services/server-storage` (sub-entry, kept out of the eager
   barrel): API client, document store, user-data storage, session, migration.
 - `ServerStorageStatusService` (main barrel, tiny): connection state for the
@@ -170,7 +176,7 @@ https://claude.ai/artifact/3WheJAgeNL5ag6kmtPrJcD
 
 | Situation | Behavior |
 | --- | --- |
-| Probe fails or times out (2.5 s) | Browser mode, no server UI. |
+| Probe gets no answer (network error, 2.5 s timeout, 5xx) | Server mode, offline, if this browser used this backend before (`iptvnator-server:instance`); the page reloads once the server answers. Otherwise browser mode. An answer without server storage, or a 404, forgets the server. |
 | Request fails after boot | Status `offline`, banner, write failures show a snackbar; retry on `visibilitychange` and every 30 s. |
 | `401` | Status `unauthorized`, stored token cleared, redirect to sign-in. |
 | `413` | Snackbar names the limit. |
@@ -203,9 +209,12 @@ https://claude.ai/artifact/3WheJAgeNL5ag6kmtPrJcD
 
 ## 11. Risks
 
-- **Concurrent edits on two devices**: last write wins per document or per
-  Xtream map entry. Every playlist mutation re-reads first, so the window is
-  one round trip.
+- **Concurrent edits on two devices**: a playlist mutation is sent with
+  `If-Match` on the version it was read at; on a `412` the per-playlist
+  write queue runs the mutation again on a fresh read. Imports and start-up
+  migrations stay last write wins.
+  Xtream map entries are written on the tag they were read at and replayed
+  on the server's value after a `412`, so both devices' edits are kept.
 - **Large payloads**: M3U global favorites and backup export read all full
   documents, as IndexedDB does today.
 - **Open instances**: storing credentials raises the cost of an unprotected

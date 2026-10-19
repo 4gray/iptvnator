@@ -81,6 +81,7 @@ Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
 | Global            | `Ctrl/Cmd+R`                | Open recently viewed in the desktop app                    |
 | Global            | `Enter` in workspace search | Submit the search; on Settings, open the best match        |
 | Global            | `F11`                       | Toggle app window fullscreen in the desktop app            |
+| Navigation        | `Alt+←` / `Cmd+[` (macOS)   | Go back, like the top bar's Back and the mouse Back button |
 | Navigation        | `Ctrl/Cmd+B`                | Toggle the live sidebar                                    |
 | Navigation        | `0-9`                       | Select an M3U channel by number                            |
 | Playback          | `Space` / `K`               | Play or pause playback                                     |
@@ -134,6 +135,10 @@ The application is available at <http://localhost:4333>. See
 [`docker/docker-compose.yml`](./docker/docker-compose.yml) for the ready-to-run
 compose file and [`docker/README.md`](./docker/README.md) for environment
 variables, reverse proxy notes, PWA limitations, and build details.
+
+The image keeps playlists, favorites and watch progress on the server, so
+every browser that opens it shares one library. The first browser that opens
+an updated instance offers to move the playlists it already has.
 
 The self-hosted image runs the browser PWA rather than the Electron desktop app:
 EPG/XMLTV panels, Embedded MPV, managed MPV/VLC launching, the download manager,

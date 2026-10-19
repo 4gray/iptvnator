@@ -17,6 +17,7 @@ import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
+    XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 
@@ -259,11 +260,24 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     it('saves a confirmation that arrives after a playlist switch without touching the store', async () => {
         // Only a slow MPV/VLC launch can confirm after the page is gone; the
         // store's recent list belongs to the other playlist by then.
+        const detail = {
+            name: 'Played replacement',
+            tmdb_id: 200,
+            releasedate: '2026-01-01',
+        } as XtreamVodInfo;
+        service.bind({
+            vodId: routeVodId,
+            vodInfo: signal(detail),
+            activeSource,
+            supersedePendingSwitch,
+        });
         await service.startResolvedPlayback({
             streamUrl: 'https://example.com/route.mkv',
             title: 'Slow external launch',
         });
         currentPlaylist.set({ id: 'playlist-switched-meanwhile' });
+        detail.name = 'Later detail';
+        detail.tmdb_id = 999;
 
         TestBed.inject(PlaybackHistoryGate).confirm({
             streamUrls: ['https://example.com/route.mkv'],
@@ -279,7 +293,12 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
             { id: 77, type: 'movie' },
             ROUTE_PLAYLIST,
-            undefined
+            undefined,
+            expect.objectContaining({
+                title: 'Played replacement',
+                tmdbId: 200,
+                releaseYear: 2026,
+            })
         );
     });
 
@@ -313,7 +332,8 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
                     { id: ROUTE_VOD_ID, type: 'movie' },
                     ROUTE_PLAYLIST,
-                    undefined
+                    undefined,
+                    expect.objectContaining({ title: 'Slow external launch' })
                 );
             }
         }

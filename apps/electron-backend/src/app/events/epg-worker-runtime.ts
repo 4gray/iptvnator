@@ -12,6 +12,37 @@ interface ClearWorkerMessage {
 
 /** Worker bootstrap, shutdown and one-shot cache-clear protocol. */
 export class EpgWorkerRuntime {
+    private readonly terminations = new Map<Worker, Promise<void>>();
+    private readonly unterminatedWorkers = new Set<Worker>();
+
+    /** Clear-all must also drain failed imports whose lookup was removed. */
+    async stopAllWorkers(workers: Iterable<Worker>): Promise<void> {
+        await Promise.all(
+            [...new Set([...workers, ...this.unterminatedWorkers])].map(
+                (worker) => this.requestTermination(worker)
+            )
+        );
+    }
+
+    /** No replacement writer may overtake a pending or failed shutdown. */
+    drainTerminations(): Promise<void> | undefined {
+        return this.unterminatedWorkers.size
+            ? this.stopAllWorkers([])
+            : undefined;
+    }
+
+    private requestTermination(worker: Worker): Promise<void> {
+        const pending = this.terminations.get(worker);
+        if (pending) return pending;
+        this.unterminatedWorkers.add(worker);
+        const operation = (async () => {
+            await worker.terminate();
+            this.unterminatedWorkers.delete(worker);
+        })().finally(() => this.terminations.delete(worker));
+        this.terminations.set(worker, operation);
+        return operation;
+    }
+
     constructor(
         private readonly loggerLabel: string,
         private readonly fetchTimeoutMs: number
@@ -118,11 +149,11 @@ export class EpgWorkerRuntime {
     /**
      * Awaits worker shutdown so callers can sequence work (e.g. the next DB
      * access) after the thread has really exited. Termination failures are
-     * logged and swallowed — there is nothing actionable left to do.
+     * logged here but retained for the next strict clear-all shutdown barrier.
      */
     async terminateWorker(worker: Worker, context: string): Promise<void> {
         try {
-            await worker.terminate();
+            await this.requestTermination(worker);
         } catch (error) {
             epgLogger.error(
                 this.loggerLabel,

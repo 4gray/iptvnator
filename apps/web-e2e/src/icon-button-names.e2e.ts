@@ -111,16 +111,12 @@ test('@a11y icon-only buttons are named in Sources and the playlist info dialog'
 }) => {
     await addM3uUrlPlaylist(page, M3U_TITLE);
 
-    // Sources list: refresh, details and remove on each row.
+    // Sources list: refresh, edit and the actions menu on each row.
     await openSources(page);
     const row = sourceRowByTitle(page, M3U_TITLE);
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.hover();
-    for (const name of [
-        'Refresh playlist',
-        'Show playlist details',
-        'Remove playlist',
-    ]) {
+    for (const name of ['Refresh playlist', 'Edit…', 'Playlist actions']) {
         await expect(row.getByRole('button', { name })).toBeAttached();
     }
     await expectNamedButtons(page, 3);

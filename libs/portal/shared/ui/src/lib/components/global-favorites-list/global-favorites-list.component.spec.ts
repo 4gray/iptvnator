@@ -42,6 +42,44 @@ describe('GlobalFavoritesListComponent', () => {
         fixture = TestBed.createComponent(GlobalFavoritesListComponent);
     });
 
+    it('keeps only history removal in the context menu of an unavailable live Recent row', async () => {
+        const item = buildChannel('gone', 'Gone channel', {
+            sourceType: 'xtream',
+            xtreamId: 42,
+            catalogStatus: 'missing',
+        });
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.componentRef.setInput('channels', [item]);
+        Object.defineProperty(fixture.componentInstance, 'supportsEpgMapping', {
+            value: true,
+        });
+        fixture.detectChanges();
+        expect(fixture.componentInstance.hasChannelContextMenu(item)).toBe(
+            true
+        );
+        const remove = jest.spyOn(
+            fixture.componentInstance.removeRequested,
+            'emit'
+        );
+        const row = fixture.nativeElement.querySelector(
+            'app-channel-list-item .channel-list-item'
+        ) as HTMLElement | null;
+        if (!row) throw new Error('Expected live Recent row');
+        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+        await Promise.resolve();
+        fixture.detectChanges();
+        const actions =
+            document.querySelectorAll<HTMLElement>('[role="menuitem"]');
+        expect(actions).toHaveLength(1);
+        expect(actions[0].textContent).toContain(
+            'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY'
+        );
+        actions[0].click();
+        expect(remove).toHaveBeenCalledWith(
+            expect.objectContaining({ uid: item.uid })
+        );
+    });
+
     it('renders filled favorite stars in favorites mode', () => {
         fixture.componentRef.setInput('channels', [buildChannel('b', 'Beta')]);
         fixture.detectChanges();
@@ -153,7 +191,7 @@ describe('GlobalFavoritesListComponent', () => {
         fixture.detectChanges();
 
         const openMenuSpy = jest
-            .spyOn(fixture.componentInstance.contextMenuTrigger(), 'openMenu')
+            .spyOn(fixture.componentInstance.channelContextMenu(), 'open')
             .mockImplementation();
 
         fixture.componentInstance.onChannelContextMenu(
@@ -165,11 +203,9 @@ describe('GlobalFavoritesListComponent', () => {
         );
         await Promise.resolve();
 
-        expect(fixture.componentInstance.contextMenuPosition()).toEqual({
-            x: '24px',
-            y: '32px',
-        });
-        expect(openMenuSpy).toHaveBeenCalled();
+        expect(openMenuSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ clientX: 24, clientY: 32 })
+        );
 
         fixture.componentInstance.openChannelDetails();
 
@@ -177,8 +213,8 @@ describe('GlobalFavoritesListComponent', () => {
             ChannelDetailsDialogComponent,
             expect.objectContaining({
                 data: channel,
-                maxWidth: '720px',
-                width: 'calc(100vw - 32px)',
+                maxWidth: 'calc(100vw - 32px)',
+                width: '760px',
             })
         );
     });
@@ -192,8 +228,8 @@ describe('GlobalFavoritesListComponent', () => {
         fixture.detectChanges();
 
         jest.spyOn(
-            fixture.componentInstance.contextMenuTrigger(),
-            'openMenu'
+            fixture.componentInstance.channelContextMenu(),
+            'open'
         ).mockImplementation();
 
         fixture.componentInstance.onChannelContextMenu(
@@ -228,8 +264,8 @@ describe('GlobalFavoritesListComponent', () => {
         expect(fixture.componentInstance.hasChannelContextMenu(row)).toBe(true);
 
         jest.spyOn(
-            fixture.componentInstance.contextMenuTrigger(),
-            'openMenu'
+            fixture.componentInstance.channelContextMenu(),
+            'open'
         ).mockImplementation();
         fixture.componentInstance.onChannelContextMenu(
             fixture.componentInstance.enrichedChannels()[0],
@@ -255,11 +291,11 @@ describe('GlobalFavoritesListComponent', () => {
 
         expect(fixture.componentInstance.hasChannelContextMenu(row)).toBe(true);
         const closeMenu = jest
-            .spyOn(fixture.componentInstance.contextMenuTrigger(), 'closeMenu')
+            .spyOn(fixture.componentInstance.channelContextMenu(), 'close')
             .mockImplementation();
         jest.spyOn(
-            fixture.componentInstance.contextMenuTrigger(),
-            'openMenu'
+            fixture.componentInstance.channelContextMenu(),
+            'open'
         ).mockImplementation();
 
         fixture.componentInstance.onChannelContextMenu(

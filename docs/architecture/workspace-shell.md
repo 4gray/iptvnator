@@ -89,13 +89,17 @@ The shell is intentionally split into four persistent regions:
        recently viewed. The routed global-search rail link is Electron-only
        because its data source is the SQLite worker bridge.
     2. Provider-aware context links derived from the active or current playlist.
-    3. Settings remains a persistent footer shortcut in the rail.
+    3. Settings remains a persistent footer shortcut in the rail. In
+       [server storage mode](pwa-self-hosted.md#server-storage-mode) a server
+       status shortcut sits above it: its dot shows online, offline or
+       sign-in needed, and it opens Settings → Server.
     4. No brand mark: it only repeated the first workspace link (Dashboard,
        or Sources when the dashboard is off).
 2. Top header:
     1. Leading Back slot: the current page's registered Back, else browser
-       history while an in-app previous page exists, else nothing. See
-       [Header Back](#header-back).
+       history while an in-app previous page exists, else nothing. The mouse
+       Back button, Alt+← / Cmd+[ and the Electron window gestures run it.
+       See [Header Back](#header-back).
     2. Playlist switcher.
     3. Route-aware search input and command palette trigger.
     4. Add source action.
@@ -103,7 +107,9 @@ The shell is intentionally split into four persistent regions:
     6. Downloads shortcut in Electron.
 3. Main body:
     1. Optional left context panel.
-    2. Main router outlet content.
+    2. Main router outlet content. In server storage mode an offline banner
+       with Retry takes the first row of `.workspace-content-frame`, above
+       the scroller, so full-height pages keep their height.
 4. Optional footer:
     1. External playback session bar when a docked session is visible.
 
@@ -174,9 +180,10 @@ navigation (Back, drawer toggle) changes.
    ends: `perf:compositing` reads the same layer and mask counts on every
    route as before the slides (#1895).
 6. **Not covered.** A slide does not change what the route renders. Going
-   back from a portal to the dashboard still shows one frame with the new
-   dashboard below the old page before the old page leaves; that jump is a
-   routing issue, not a layout slide.
+   back from a portal to the dashboard used to lay the new dashboard out
+   below the old page before the old page left, a shift a slide cannot
+   hide. That was the route swap, fixed at its cause (see
+   [Route swaps](#route-swaps)).
 
 `WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
 kept as a thin template-facing API and delegates ownership to component-scoped
@@ -206,6 +213,40 @@ services:
 When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
 for the template unless the template contract itself intentionally changes.
+
+### Route swaps
+
+The router's activation runs in one task, outside change detection:
+deactivation destroys the old routed view, then activation creates the new
+one and inserts its host element into `main.workspace-content` at once.
+`WorkspaceShellRouteStateService.currentUrl` is set on `NavigationEnd`, which
+the router emits synchronously after activation, so the shell's state does
+not lag the outlet. The shell re-renders (the context panel leaves, the
+content frame slides) in the next change detection. With event coalescing
+that runs in the next `requestAnimationFrame`, before that frame paints.
+
+The app does not provide `provideAnimations()`. Nothing uses
+`@angular/animations` triggers (Material animates with CSS), and that
+package's renderer queues every DOM removal until the end of the next change
+detection, while insertions apply at once. Leaving a portal section for the
+dashboard therefore inserted the dashboard below the still-present portal
+page, and the old page left only in the coalesced tick. In between, Chromium
+laid out the document with both pages, the dashboard at y=720 in a 720 px
+window, and scored the swap as one layout shift: 0.337 at 1280 px, 0.394 at
+900 px, 0.723 at 420 px (measured with a `layout-shift` observer in the
+`electron-performance` build). With the default DOM renderer the old page is
+removed in the same microtask, before the new one is inserted, and the swap
+records no shift. `app.config.spec.ts` keeps the animations renderer out, and
+`workspace-route-swap.e2e.ts` asserts that no mutation checkpoint holds both
+pages and that neither the dashboard nor the content pane shifts.
+
+Destroy hooks therefore run with the view's DOM already detached; the
+[UI guidelines](./iptvnator-ui-guidelines.md) ("No animations module") say
+how hooks record geometry and focus instead.
+
+Do not add `provideAnimations()` or `provideAnimationsAsync()` back; animate
+with CSS. A leave animation (`animate.leave` included) delays its element's
+removal in the same way, so a routed page must not carry one.
 
 ## Header Back
 
@@ -279,13 +320,80 @@ of jumping (see [Layout slides](#layout-slides)).
 There is no Forward button: Stalker inline details are store state, not
 history entries, so Forward would skip them.
 
+**Platform gestures.** The mouse Back button, Alt+← (Cmd+[ on macOS) and, in
+Electron, the window's `app-command` `browser-backward` (Windows and Linux:
+mouse Back buttons and the Browser Back key) and trackpad `swipe` left (macOS)
+run the same action as the header button, through
+`WorkspaceBackGesturesService` (shell-provided). Each gesture has one of
+three results (`WorkspaceBackGestureResult`):
+
+- `back`: the header has a target and nothing sits above the page, so
+  `WorkspaceBackNavigationService.goBack()` runs. "Above the page" is document
+  fullscreen (a fullscreen player), an open phone context drawer, a showing
+  CDK backdrop, or a visible `[role="dialog"]`, `[role="alertdialog"]` or
+  `[role="menu"]` outside hidden, `inert` or `aria-hidden` subtrees.
+- `blocked`: something sits above the page. Nothing navigates, and the
+  gesture is still swallowed, because browser Back would navigate under the
+  dialog (which then closes) or out of the fullscreen player.
+- `none`: the header has no Back. The gesture stays the browser's: in the PWA
+  it may leave the app, as browser Back does.
+
+Unless the result is `none`, the browser's default is prevented (the mouse
+press on `mouseup` and `auxclick`, listened to in the capture phase), so the
+browser cannot take a second history step. In Electron the mouse Back button
+is prevented even then: Electron's Chromium steps through history on an
+unprevented press itself, also to entries from before a reload, which reloads
+the app.
+
+- **Chord.** `navigate-back` in `keyboard-shortcut-definitions.ts` lists it in
+  the shortcuts dialog; `isWorkspaceBackShortcut()` matches it, on macOS also
+  by the `BracketLeft` key position for layouts that type `[` with Option.
+  `WorkspaceKeyboardShortcutsService` handles it in a capture-phase document
+  listener and stops a chord that runs Back there, so a focused carousel, tab
+  list, guide or player does not also read it as a plain arrow; a blocked
+  chord is prevented but still reaches the dialog or menu. It is ignored
+  while typing (Alt and Option arrows edit text). A held chord runs Back
+  once: its repeats follow its first press until a key is released, so after
+  a press that ran Back they are swallowed even when the page it reached has
+  no Back left, and the browser cannot step on them.
+- **Electron.** `attachWindowBackGestures()`
+  (`apps/electron-backend/src/app/services/window-back-gestures.ts`) forwards
+  the two window events over the main → renderer push channel
+  `WINDOW:BACK_REQUESTED` with the source (`app-command` or `swipe`); the
+  preload's `onWindowBackRequested` passes only those two values on. The
+  renderer subscribes only when
+  `RuntimeCapabilitiesService.supportsWindowBackGestures` reports the
+  subscription, so an older preload forwards nothing. `browser-forward` and
+  `swipe` right are not forwarded. `swipe` needs macOS's "Swipe between
+  pages" set to two or three fingers. On Linux Electron raises `app-command`
+  for the keydown and the keyup of the Browser Back key alike, so the main
+  process takes that key in `before-input-event` instead (Back once per
+  press, the key never reaches the page) and leaves `app-command` to mouse
+  Back buttons.
+- **One press, two events.** In Electron on Windows and Linux a mouse Back
+  press also reaches the window as `app-command`: with the release on
+  Windows, on press on Linux, and before or after the renderer sees the
+  button. Whichever half comes first runs Back and the other is consumed. A
+  command that arrives while the button is down belongs to that press however
+  long it is held; otherwise a command and a press (or a press and a command)
+  within `BACK_PRESS_TWIN_MS` (500 ms) of each other pair. Each press pairs
+  once, so two quick presses still go back twice, and the chord and the swipe
+  never pair.
+
+Electron E2E `back-gestures.e2e.ts` drives each gesture (the mouse through
+CDP's `back` button, the window events emitted on the `BrowserWindow`) and
+checks that each goes back one history entry, a paired press goes back once
+(also when held), Forward does nothing, and the gestures wait while typing
+(the chord) or with a dialog open. Web E2E `workspace-header-back.e2e.ts`
+checks that the mouse Back button and the chord step once in the browser.
+
 **Phone width.** `phoneDrawerToggle` sets how Back shares the leading slot with
 the context drawer toggle. `replace` (the default) takes the toggle's slot: a
 detail page's drawer belongs to the list that Back returns to. `beside` keeps
 both: the settings drawer holds the page's own sections. `yield` hides Back
 while the toggle shows: the history fallback must not cost a category list its
 only way into the drawer, and two navigation icons do not fit beside the
-switcher. System and browser Back still work there.
+switcher. The platform gestures above and browser Back still work there.
 
 **Left in place.** These controls stay inside their surface on purpose:
 
@@ -477,7 +585,8 @@ Keyboard shortcut help is shell-owned:
 
 1. `WorkspaceKeyboardShortcutsService` is provided by `WorkspaceShellComponent`.
    It owns the workspace-scoped `document:keydown` listener for `?` /
-   `Shift+/`.
+   `Shift+/`, and a capture-phase one for the Back chord (see
+   [Header Back](#header-back)).
 2. The listener ignores events from inputs, textareas, selects, and
    content-editable elements via `isTypingInInput(...)`.
 3. `libs/portal/shared/util/src/lib/keyboard-shortcut-definitions.ts` is the

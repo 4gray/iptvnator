@@ -2,7 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    ServerStorageStatusService,
+} from '@iptvnator/services';
 import { EMBEDDED_MPV_SUPPORT_RECHECK_MS } from '@iptvnator/shared/interfaces';
 import { SETTINGS_SEARCH_ENTRIES } from './settings-search-entries';
 import { SETTINGS_SECTION_DEFINITIONS } from './settings-search-sections';
@@ -31,10 +34,14 @@ interface RuntimeStub {
     supportsEmbeddedMpv: boolean;
 }
 
-function setup(runtime: Partial<RuntimeStub> = {}) {
+function setup(runtime: Partial<RuntimeStub> = {}, serverStorage = false) {
     const router = { navigate: jest.fn().mockResolvedValue(true) };
     TestBed.configureTestingModule({
         providers: [
+            {
+                provide: ServerStorageStatusService,
+                useValue: { isActive: () => serverStorage },
+            },
             {
                 provide: RuntimeCapabilitiesService,
                 useValue: {
@@ -131,7 +138,25 @@ describe('SettingsSearchService', () => {
         // Embedded MPV rows wait for the support probe.
         expect(entries).not.toContain('embedded-mpv-extra-options');
         expect(entries).not.toContain('embedded-mpv-frame-copy');
-        expect(entries.length).toBe(SETTINGS_SEARCH_ENTRIES.length - 4);
+        // Server rows need the self-hosted PWA's server storage.
+        expect(entries).not.toContain('server-connection');
+        expect(entries.length).toBe(SETTINGS_SEARCH_ENTRIES.length - 8);
+    });
+
+    it('offers the server section and rows with server storage', () => {
+        const { service } = setup({}, true);
+
+        expect(service.visibleSections().map(({ id }) => id)).toContain(
+            'server'
+        );
+        expect(service.visibleEntries().map(({ id }) => id)).toEqual(
+            expect.arrayContaining([
+                'server-connection',
+                'server-storage',
+                'server-import-browser',
+                'server-access',
+            ])
+        );
     });
 
     describe('embedded MPV probe', () => {

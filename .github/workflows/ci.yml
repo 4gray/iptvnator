@@ -297,7 +297,8 @@ jobs:
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
         # (launch, open-source, playback, search) is six fresh Electron
-        # processes plus one seeding run.
+        # processes plus one seeding run. The large-library launch journey
+        # (launch-large) is left to the weekly performance-ratchet.yml.
         timeout-minutes: 30
         # Warn-only for the first two weeks of plan item B3: a failure is
         # visible on the run but does not fail the workflow.
@@ -348,9 +349,12 @@ jobs:
                   --only launch/main.modulesRegisteredBeforeWindow
                   --only launch/renderer.layoutShiftScore
                   --only launch/renderer.layoutShiftScoreSettled
+                  --only launch/renderer.cdTicksToFirstCard
+                  --only launch/renderer.cdTicksIdle30s
                   --only open-source/main.mockHttpRequestsToSettled
                   --only open-source/renderer.ipcCallsToFirstPage
                   --only open-source/renderer.layoutShiftScore
+                  --only open-source/renderer.cdTicksToFirstPage
                   --only playback/renderer.httpRequestsToPlaying
                   --only playback/renderer.layoutShiftScore
                   --only search/renderer.ipcCallsPerSearch
@@ -435,6 +439,11 @@ jobs:
             # on startup (tools/nx/check-form-field-defaults.mjs).
             - name: Validate form-field defaults
               run: pnpm run ui:form-field-defaults:validate
+
+            # m3-theme.scss themes only the Material components the app
+            # imports; a new import without a theme entry renders unthemed.
+            - name: Validate the Material theme scope
+              run: pnpm run styles:material-theme-scope:validate
 
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is

@@ -14,7 +14,9 @@ export type SettingsSearchRequirement =
     | 'vod-multi-source'
     /** Probed lazily; false until `ensureEmbeddedMpvSupportLoaded` resolves. */
     | 'embedded-mpv'
-    | 'embedded-mpv-frame-copy';
+    | 'embedded-mpv-frame-copy'
+    /** The PWA runs against self-hosted server storage. */
+    | 'server-storage';
 
 export type SettingsSearchCapabilities = Readonly<
     Record<SettingsSearchRequirement, boolean>

@@ -40,7 +40,11 @@ function createSqliteMock(
         const rule = rules.find(([pattern]) => compact.includes(pattern));
 
         return {
-            all: jest.fn(() => []),
+            all: jest.fn(() =>
+                compact === "PRAGMA table_info('favorites')"
+                    ? [{ name: 'xtream_id' }]
+                    : []
+            ),
             get: jest.fn(),
             run: jest.fn(),
             ...(rule?.[1] ?? {}),
@@ -299,7 +303,7 @@ describe('runMigrations Xtream cache deduplication', () => {
                 'SELECT id FROM content WHERE category_id = ?',
                 { all: () => [{ id: 10 }, { id: 11 }] },
             ],
-            ['INSERT INTO favorites', { run: moveFavoritesRun }],
+            ['UPDATE OR IGNORE favorites', { run: moveFavoritesRun }],
             [
                 'DELETE FROM favorites WHERE content_id = ?',
                 { run: deleteFavoritesRun },

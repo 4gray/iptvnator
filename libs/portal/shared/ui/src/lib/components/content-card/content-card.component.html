@@ -7,6 +7,7 @@
         role="button"
         tabindex="0"
         [attr.aria-label]="title()"
+        [attr.aria-disabled]="disabled() || null"
         (click)="onCardClick()"
         (keydown.enter)="onCardKey($event)"
         (keydown.space)="onCardKey($event)"
@@ -57,11 +58,18 @@
         @if (!postersOnly()) {
             <div class="card-info">
                 <h3>{{ title() }}</h3>
-                @if (date()) {
+                @if (statusLabel()) {
+                    <p class="date-info" data-testid="favorite-catalog-status">
+                        {{ statusLabel() }}
+                    </p>
+                } @else if (date()) {
                     <p class="date-info">
                         {{
                             date()
-                                | date: 'd MMM, HH:mm' : undefined : currentLocale()
+                                | date
+                                    : 'd MMM, HH:mm'
+                                    : undefined
+                                    : currentLocale()
                         }}
                     </p>
                 }

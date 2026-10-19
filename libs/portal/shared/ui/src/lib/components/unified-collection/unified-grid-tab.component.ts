@@ -12,7 +12,10 @@ import {
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import { ContentCardComponent } from '../content-card/content-card.component';
-import { foldSearchText } from '@iptvnator/shared/interfaces';
+import {
+    foldSearchText,
+    isCatalogUnavailable,
+} from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-unified-grid-tab',
@@ -49,7 +52,10 @@ export class UnifiedGridTabComponent {
             : all;
     });
 
+    readonly isUnavailable = isCatalogUnavailable;
+
     onCardClick(item: UnifiedCollectionItem): void {
+        if (isCatalogUnavailable(item)) return;
         this.itemSelected.emit(item);
     }
 

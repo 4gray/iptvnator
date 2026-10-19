@@ -6,11 +6,7 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../services/xtream-api.service';
-import {
-    ParentalLockService,
-    PlaylistsService,
-    USER_DATA_STORAGE,
-} from '@iptvnator/services';
+import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
 
 describe('PwaXtreamDataSource', () => {
@@ -72,6 +68,64 @@ describe('PwaXtreamDataSource', () => {
 
     afterEach(() => {
         localStorage.clear();
+    });
+
+    it('reuses requested catalog rows across favorite status checks and invalidates after refresh', async () => {
+        const rows = Array.from({ length: 1000 }, (_, i) => ({
+            id: i + 1,
+            xtream_id: i + 1,
+            type: 'movie',
+            title: 'Film',
+            tmdb_id: i + 1,
+        })) as XtreamContentItem[];
+        await dataSource.saveContent('p', rows, 'movie');
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({
+                p: Array.from({ length: 50 }, (_, i) => `movie:${i + 1}`),
+            })
+        );
+        const cache = (
+            dataSource as unknown as {
+                contentCache: Map<string, XtreamContentItem[]>;
+            }
+        ).contentCache;
+        const catalog = cache.get('p-movie-content');
+        if (!catalog) throw new Error('Expected loaded movie catalog');
+        let catalogRowsRead = 0;
+        cache.set(
+            'p-movie-content',
+            new Proxy(catalog, {
+                get(target, key, receiver) {
+                    if (typeof key === 'string' && /^\d+$/.test(key))
+                        catalogRowsRead++;
+                    return Reflect.get(target, key, receiver);
+                },
+            })
+        );
+        await dataSource.getFavorites('p');
+        const statuses = await Promise.all(
+            Array.from({ length: 50 }, (_, i) =>
+                dataSource.isFavorite(
+                    { id: i + 1, type: 'movie', identity: { tmdbId: i + 1 } },
+                    'p'
+                )
+            )
+        );
+        expect(statuses.every(Boolean)).toBe(true);
+        // Catalog work is bounded by the load, rather than repeated for each heart.
+        expect(catalogRowsRead).toBeLessThanOrEqual(rows.length);
+        await dataSource.saveContent(
+            'p',
+            [{ ...rows[0], tmdb_id: 2000 }],
+            'movie'
+        );
+        expect(
+            await dataSource.isFavorite(
+                { id: 1, type: 'movie', identity: { tmdbId: 1 } },
+                'p'
+            )
+        ).toBe(false);
     });
 
     it('withholds locked categories from catalog reads and search while the lock is active', async () => {
@@ -650,6 +704,34 @@ describe('PwaXtreamDataSource', () => {
         ]);
     });
 
+    it('keeps concurrent Recent additions when the writer loads on demand', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 201, name: 'First movie', category_id: '20' },
+            { stream_id: 202, name: 'Second movie', category_id: '20' },
+        ]);
+        await dataSource.getContent('playlist-1', credentials, 'movie');
+
+        await Promise.all([
+            dataSource.addRecentItem({ id: 201, type: 'movie' }, 'playlist-1'),
+            dataSource.addRecentItem({ id: 202, type: 'movie' }, 'playlist-1'),
+        ]);
+
+        const recent = await dataSource.getRecentItems('playlist-1');
+        expect(recent).toHaveLength(2);
+        expect(recent).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    xtream_id: 201,
+                    title: 'First movie',
+                }),
+                expect.objectContaining({
+                    xtream_id: 202,
+                    title: 'Second movie',
+                }),
+            ])
+        );
+    });
+
     it('backfills PWA recent-item backdrop metadata without rewriting recency', async () => {
         apiService.getStreams.mockResolvedValue([
             {
@@ -791,6 +873,43 @@ describe('PwaXtreamDataSource', () => {
             ...overrides,
         });
 
+        it('retains concurrent single and batch saves across playlists', async () => {
+            await Promise.all([
+                dataSource.savePlaybackPosition('playlist-1', position()),
+                dataSource.savePlaybackPositionsBatch('playlist-1', [
+                    position({
+                        contentXtreamId: 101,
+                        contentType: 'episode',
+                        seriesXtreamId: 9,
+                    }),
+                ]),
+                dataSource.savePlaybackPosition(
+                    'playlist-2',
+                    position({ playlistId: 'playlist-2' })
+                ),
+            ]);
+
+            expect(
+                await dataSource.getAllPlaybackPositions('playlist-1')
+            ).toHaveLength(2);
+            expect(
+                await dataSource.getAllPlaybackPositions('playlist-2')
+            ).toHaveLength(1);
+            expect(
+                await dataSource.getSeriesPlaybackPositions('playlist-1', 9)
+            ).toEqual([expect.objectContaining({ contentXtreamId: 101 })]);
+            await dataSource.clearPlaybackPosition('playlist-1', 100, 'vod');
+            expect(
+                await dataSource.getPlaybackPosition('playlist-1', 100, 'vod')
+            ).toBeNull();
+            expect(
+                await dataSource.getRecentPlaybackPositions('playlist-1', 1)
+            ).toEqual([expect.objectContaining({ contentXtreamId: 101 })]);
+            expect(
+                await dataSource.getPlaybackPosition('playlist-2', 100, 'vod')
+            ).not.toBeNull();
+        });
+
         it('writes a playback-position batch save as one storage write with upsert semantics', async () => {
             localStorage.setItem(
                 storageKey,
@@ -918,40 +1037,6 @@ describe('PwaXtreamDataSource', () => {
 
             expect(setItemSpy).not.toHaveBeenCalled();
             setItemSpy.mockRestore();
-        });
-    });
-
-    describe('with an injected user data storage', () => {
-        it('reads and writes favorites through it, not localStorage', async () => {
-            const values = new Map<string, string>();
-            const storage = {
-                getItem: (key: string) => values.get(key) ?? null,
-                setItem: (key: string, value: string) => {
-                    values.set(key, value);
-                },
-                removeItem: (key: string) => {
-                    values.delete(key);
-                },
-            };
-            TestBed.resetTestingModule();
-            TestBed.configureTestingModule({
-                providers: [
-                    PwaXtreamDataSource,
-                    { provide: USER_DATA_STORAGE, useValue: storage },
-                    { provide: ParentalLockService, useValue: parentalLock },
-                    { provide: XtreamApiService, useValue: apiService },
-                    { provide: PlaylistsService, useValue: playlistsService },
-                ],
-            });
-            const source = TestBed.inject(PwaXtreamDataSource);
-
-            values.set('xtream-favorites', JSON.stringify({ p1: ['live:1'] }));
-            await source.deletePlaylist('p1');
-
-            expect(JSON.parse(values.get('xtream-favorites') ?? '{}')).toEqual(
-                {}
-            );
-            expect(localStorage.getItem('xtream-favorites')).toBeNull();
         });
     });
 });

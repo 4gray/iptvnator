@@ -1,9 +1,12 @@
+import type { XtreamFavoriteCatalogStatus } from '@iptvnator/shared/interfaces';
 import { StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import { CollectionContentType } from './unified-collection-item.interface';
 
 export interface XtreamFavoriteRow {
-    readonly id: number;
-    readonly category_id: number;
+    readonly id: number | null;
+    readonly category_id: number | null;
+    readonly favorite_id?: number;
+    readonly catalog_status?: XtreamFavoriteCatalogStatus;
     readonly playlist_id: string;
     readonly playlist_name: string;
     readonly xtream_id: number;

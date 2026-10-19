@@ -4,6 +4,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, take } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import {
     ParentalLockService,
     DatabaseService,
@@ -75,13 +76,12 @@ export class SettingsPlaylistResetFacade {
                 SettingsDeleteAllPlaylistsDialogData,
                 boolean
             >(SettingsDeleteAllPlaylistsDialogComponent, {
+                ...dialogSize('md'),
                 autoFocus: false,
                 data: {
                     summary: this.deleteSummary(),
                 },
-                maxWidth: 'calc(100vw - 32px)',
                 restoreFocus: true,
-                width: '460px',
             })
             .afterClosed()
             .pipe(take(1))

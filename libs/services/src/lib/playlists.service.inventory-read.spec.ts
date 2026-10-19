@@ -54,6 +54,8 @@ describe('PlaylistsService inventory reads', () => {
             },
             electronMigrationPromise: null,
             playlistWriteQueues: new Map(),
+            deletingAll: Promise.resolve(),
+            resets: 0,
         });
         const settle = async (index: number, playlists: Playlist[]) => {
             // The read starts after the memoized migration's awaits.

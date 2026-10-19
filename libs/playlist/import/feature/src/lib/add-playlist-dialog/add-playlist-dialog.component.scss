@@ -25,33 +25,6 @@
 // 6px/9px asymmetric padding. Both fight our custom two-line head — kill the
 // ghost and apply explicit padding so the title shares the same 24px
 // horizontal inset as `mat-dialog-content` below.
-.apd-head {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin: 0;
-    padding: 20px 24px 4px;
-
-    &::before {
-        display: none;
-    }
-}
-
-.apd-title {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--apd-heading);
-}
-
-.apd-sub {
-    margin: 0;
-    font-size: 13px;
-    color: var(--apd-body);
-    line-height: 1.45;
-}
-
 // ─── Method grid (5 flat cards instead of 2-level segmented control) ────────
 // One card per source method. Replaces the prior 3×3 type×subtype matrix
 // which had 9 cells of which only 5 were real (Xtream-via-file, etc. didn't
@@ -95,11 +68,7 @@
         border-color: color-mix(in srgb, var(--apd-accent) 32%, transparent);
 
         .apd-method__icon {
-            background: color-mix(
-                in srgb,
-                var(--apd-accent) 14%,
-                transparent
-            );
+            background: color-mix(in srgb, var(--apd-accent) 14%, transparent);
             color: var(--apd-accent);
         }
     }
@@ -111,11 +80,7 @@
             color-mix(in srgb, var(--apd-accent) 32%, transparent);
 
         .apd-method__icon {
-            background: color-mix(
-                in srgb,
-                var(--apd-accent) 22%,
-                transparent
-            );
+            background: color-mix(in srgb, var(--apd-accent) 22%, transparent);
             color: var(--apd-accent);
         }
 
@@ -135,11 +100,7 @@
     display: grid;
     place-items: center;
     border-radius: 8px;
-    background: color-mix(
-        in srgb,
-        var(--apd-surface-raised) 75%,
-        transparent
-    );
+    background: color-mix(in srgb, var(--apd-surface-raised) 75%, transparent);
     color: var(--apd-muted);
     transition:
         background-color 160ms ease,
@@ -223,43 +184,6 @@
         color: var(--apd-muted);
         font-size: 11.5px;
         line-height: 1.45;
-    }
-}
-
-.apd-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 8px 12px;
-
-    &__reset,
-    &__decision {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    &__decision {
-        justify-content: flex-end;
-        margin-left: auto;
-    }
-}
-
-@media (max-width: 520px) {
-    .apd-actions {
-        align-items: stretch;
-        flex-direction: column;
-
-        &__reset,
-        &__decision {
-            width: 100%;
-        }
-
-        &__decision {
-            justify-content: flex-end;
-            margin-left: 0;
-        }
     }
 }
 

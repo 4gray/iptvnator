@@ -56,6 +56,7 @@ import { WorkspaceContextErrorViewComponent } from './components/workspace-conte
 import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
 
@@ -594,10 +595,8 @@ export class WorkspaceContextPanelComponent {
             return;
         }
         this.dialog.open(dialogComponent, {
+            ...dialogSize('md'),
             data: { playlistId: context.playlistId, contentType, categories },
-            width: '500px',
-            maxWidth: 'calc(100vw - 32px)',
-            maxHeight: '90vh',
         });
     }
 
@@ -649,9 +648,7 @@ export class WorkspaceContextPanelComponent {
                 contentType,
                 itemCounts: this.xtreamStore.getCategoryItemCounts(),
             },
-            width: '500px',
-            maxWidth: 'calc(100vw - 32px)',
-            maxHeight: '90vh',
+            ...dialogSize('md'),
         });
         dialogRef
             .afterClosed()

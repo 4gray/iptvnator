@@ -9,6 +9,7 @@ import {
     waitForM3uCatalog,
     writeTemporaryM3uFile,
 } from './electron-test-fixtures';
+import { waitForMenuFocus } from './menu-keyboard';
 
 // ---------------------------------------------------------------------------
 // A source row opens from the keyboard. Each row has its own Tab stop: the
@@ -31,7 +32,7 @@ type RowRing = {
 function readRowRing(page: Page): Promise<RowRing> {
     return page.evaluate(() => {
         const focused = document.activeElement as HTMLElement;
-        const row = focused.closest('.playlist-item') as HTMLElement;
+        const row = focused.closest('.source-row') as HTMLElement;
         const probe = document.createElement('span');
         probe.style.color = 'var(--app-focus-ring)';
         row.append(probe);
@@ -93,16 +94,19 @@ test.describe('Electron Sources keyboard', () => {
                 timeout: 30_000,
             });
             await openSources(page);
-            await expect(page.locator('app-playlist-item')).toHaveCount(2, {
+            await expect(
+                page.locator('app-workspace-sources app-source-row')
+            ).toHaveCount(2, {
                 timeout: 30_000,
             });
             // Bravo opened last, so it is the active source; open the other.
             const row = sourceRowByTitle(page, 'keyboard-alpha').first();
-            await expect(row.locator('.playlist-item')).not.toHaveClass(
-                /\bselected\b/
+            await expect(row.locator('.source-row__body')).not.toHaveAttribute(
+                'aria-current',
+                'true'
             );
             const title = (
-                await row.locator('.playlist-title').textContent()
+                await row.locator('.source-row__name').textContent()
             )?.trim();
             expect(title).toBeTruthy();
 
@@ -153,7 +157,7 @@ test.describe('Electron Sources keyboard', () => {
             await expect(open).not.toBeFocused();
             expect(
                 await row
-                    .locator('.playlist-item')
+                    .locator('.source-row')
                     .evaluate((el) => getComputedStyle(el).outlineStyle)
             ).toBe('none');
             await page.keyboard.press('Shift+Tab');
@@ -167,6 +171,72 @@ test.describe('Electron Sources keyboard', () => {
             ).toBeVisible();
             await expect(
                 channels.filter({ hasText: 'Keyboard Bravo Sports' })
+            ).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@m3u @electron deletes from the row menu and undoes from the toast, keyboard only', async ({
+        dataDir,
+    }) => {
+        const alpha = writeTemporaryM3uFile(dataDir, 'undo-alpha.m3u', [
+            {
+                groupTitle: 'News',
+                name: 'Undo Alpha News',
+                url: 'https://streams.example.test/undo-alpha.m3u8',
+            },
+        ]);
+        const bravo = writeTemporaryM3uFile(dataDir, 'undo-bravo.m3u', [
+            {
+                groupTitle: 'Sports',
+                name: 'Undo Bravo Sports',
+                url: 'https://streams.example.test/undo-bravo.m3u8',
+            },
+        ]);
+        const app = await launchElectronApp(dataDir, {
+            appArgs: [alpha, bravo],
+        });
+        const page = app.mainWindow;
+        const rows = page.locator('app-workspace-sources app-source-row');
+
+        try {
+            await page.waitForURL(/\/workspace\/playlists\/.+/, {
+                timeout: 30_000,
+            });
+            await openSources(page);
+            await expect(rows).toHaveCount(2, { timeout: 30_000 });
+            const before = await rows
+                .locator('.source-row__name')
+                .allTextContents();
+
+            // Focus the first row's ⋯ and open its menu from the keyboard.
+            const row = rows.first();
+            await row.locator('.source-row__more').focus();
+            await page.keyboard.press('Enter');
+            const remove = page.getByRole('menuitem', {
+                name: 'Remove playlist',
+            });
+            await expect(remove).toBeVisible();
+            await waitForMenuFocus(page);
+            await page.keyboard.press('End');
+            await expect(remove).toBeFocused();
+            await page.keyboard.press('Enter');
+
+            // The row leaves at once; Undo takes the focus the row had.
+            await expect(rows).toHaveCount(1);
+            const undo = page.locator(
+                'mat-snack-bar-container.app-toast .source-removal-toast__undo'
+            );
+            await expect(undo).toBeFocused();
+            await page.keyboard.press('Enter');
+
+            await expect(rows).toHaveCount(2);
+            expect(
+                await rows.locator('.source-row__name').allTextContents()
+            ).toEqual(before);
+            await expect(
+                page.locator('mat-snack-bar-container.app-toast')
             ).toHaveCount(0);
         } finally {
             await closeElectronApp(app);
