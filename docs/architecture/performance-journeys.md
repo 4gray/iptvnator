@@ -1913,6 +1913,76 @@ after the painted corner: dashboard idle 537 to 242 MB, during a slide switch
 598 to 303 MB, scrolled 655 to 165 MB; movie detail 110 to 89 MB; series
 detail 187 to 143 MB.
 
+## Working a performance thread
+
+A performance thread is one agent session, one journey and one counter.
+Performance work outside the journeys follows its own section of this
+document ([Compositing budget](#compositing-budget),
+[Charset parse benchmark](#charset-parse-benchmark)); the loop below still
+applies, with that section's measurement in place of the journey counter.
+The standing instruction for an agent on a journey thread:
+
+> Your job is to improve the measured journeys in this document. Every thread
+> targets one journey and one counter. Before changing code, reproduce the
+> slowness with the journey benchmark and record the baseline. Land small
+> PRs; put anything user-visible behind a kill switch; lower
+> `tools/performance/journey-baselines.json` only with the benchmark output
+> as evidence, and take a deliberate increase through the labelled exception
+> in [Ratchet](#ratchet). When a counter stops moving, say so and propose the
+> next bottleneck instead of padding the current thread.
+
+### The loop
+
+1. **Identify.** A thread opens with a slow journey segment, a counter that
+   looks too high, or a finding from the [idle work audit](#idle-work).
+2. **Reproduce.** Run the journey (`pnpm run perf:journeys`) and find the
+   counter or wall-clock phase that shows the problem. If none does, add the
+   counter first ([Adding a counter](#adding-a-counter)); a thread does not
+   optimize what it cannot measure.
+3. **Change.** One PR per cause, sized for review. User-visible changes go
+   behind a kill switch: an environment variable such as
+   `IPTVNATOR_DISABLE_COMPILE_CACHE`, or a settings-store key. The switch is
+   removed within two releases; note the removal date in the PR.
+4. **Validate.** Measure master and the branch side by side: sibling builds
+   launched in alternating rounds of one warm-up plus five measured
+   iterations, on a quiet machine, with the load average stated in the PR.
+   A laptop number is a preview; the Linux CI runner's `Performance journeys`
+   job is the canonical measurer.
+5. **Consolidate.** If the counter dropped and wall-clock followed, lower the
+   baseline in the same PR with the runner's output as evidence ([Ratchet](#ratchet)).
+   A counter that moved without moving wall-clock is not promoted; say so
+   (#1716 is the model). If nothing moved, drop the change rather than land
+   it on a hunch.
+6. **Continue.** Report what the counter now waits on and open the next
+   thread from there. A finding outside the thread's journey becomes a new
+   thread, not a scope extension.
+
+### Evidence in the PR
+
+The PR description carries: the journey and counter, the before/after table
+(counters exact, wall-clock P50 per round), the machine and load during the
+measurement, the Electron and renderer build used, and every reviewer finding
+that was declined with its one-line reason. Numbers in prose are not
+evidence; the table is.
+
+### What stays with the maintainer
+
+- Which journey or surface is next, and when a thread has reached diminishing
+  returns.
+- UX trade-offs: a skeleton now or after a delay, an animation against its
+  frame budget, content that fills in after the first frame. Attach a
+  before/after recording or screenshots and ask; do not decide alone.
+- Ratchet tolerances, `slack` values and the labelled override for a
+  legitimate regression.
+- Branch protection and which CI job is required.
+
+### Scheduled work
+
+The weekly `performance-ratchet.yml` run measures `master` three times and
+opens the tightening PR ([Weekly tightening](#weekly-tightening)). The idle
+audit is repeated after any change that adds a timer, an animation or a
+periodic sync; its findings are threads, not fixes in the auditing PR.
+
 ## Adding a counter
 
 1. Produce the value from the built output or from a deterministic probe, not
