@@ -299,10 +299,11 @@ jobs:
         # (launch, open-source, playback, search) is six fresh Electron
         # processes plus one seeding run.
         timeout-minutes: 30
-        # Blocking since 2026-10-13 (plan item B3): no master run of the
-        # preceding week failed the counter check, and no enforced counter
-        # varied between iterations (see Ratchet in
-        # docs/architecture/performance-journeys.md).
+        # Counter regressions fail this workflow (plan item B3, #1926).
+        # This policy takes effect on master when #1926 is merged.
+        # Evidence: all 71 master runs from 2026-10-06 to 2026-10-12 passed,
+        # with no enforced counter varying between iterations (see Ratchet
+        # in docs/architecture/performance-journeys.md).
         env:
             NX_SKIP_NX_CACHE: true
 

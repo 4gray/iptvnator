@@ -1299,10 +1299,12 @@ requests that change nothing but Markdown, `docs/**`, `.plans/**`,
 `.codex/**`, `.claude/**`, `.changes/**` or `apps/website/**` (the E2E
 workflow's ignore list plus release notes); any other file, including root
 build inputs such as `.nvmrc`, `nx.json` or `tsconfig.base.json`, runs it.
-Pushes to `master` and manual dispatches always run it. The job was warn-only
-(`continue-on-error: true`) from #1717 until 2026-10-13 (plan item B3); since
-then a regression fails the workflow. The switch followed a replay of the
-week before: all 71 `master` runs from 2026-10-06 to 2026-10-12 passed the
+Pushes to `master` and manual dispatches always run it. The job was introduced
+as warn-only (`continue-on-error: true`) in #1717. PR #1926 (plan item B3)
+removes that setting, so a regression fails the workflow. On `master`, the
+blocking policy takes effect when #1926 is merged, not on its commit or
+review date. The switch is backed by a replay: all 71 `master` runs from
+2026-10-06 to 2026-10-12 passed the
 counter check with the baselines of their own commit, and none of the
 enforced counters differed between the measured iterations of a run. Against
 the baselines of 2026-10-13 the older runs fail only where a later PR lowered
