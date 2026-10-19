@@ -1,0 +1,5 @@
+#EXTM3U url-tvg="http://10.0.2.2:8765/sample.xml"
+#EXTINF:-1 tvg-id="demo.one" tvg-name="Demo One" group-title="Noticias",Demo One
+http://10.0.2.2:8765/demo-one.m3u8
+#EXTINF:-1 tvg-id="demo.two" tvg-name="Demo Two" group-title="Deportes",Demo Two
+http://10.0.2.2:8765/demo-two.m3u8
