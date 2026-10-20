@@ -34,6 +34,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '@iptvnator/portal/xtream/data-access';
+import { m3uCollectionContentType } from '@iptvnator/shared/m3u-utils/catalog';
 
 type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
@@ -596,11 +597,18 @@ export class UnifiedRecentDataService {
 
         return recentItems
             .map((recentItem) => {
+                const url = recentItem.url.trim();
+                const byId = recentItem.channel_id
+                    ? channelsById.get(String(recentItem.channel_id).trim())
+                    : undefined;
+                // The saved row first while it still has this URL: rows can
+                // share one, and the row decides the tab the item is
+                // listed on. A refresh re-mints ids, so the URL decides
+                // when the id no longer agrees.
                 const channel =
-                    channelsByUrl.get(recentItem.url.trim()) ||
-                    (recentItem.channel_id
-                        ? channelsById.get(String(recentItem.channel_id).trim())
-                        : undefined);
+                    (byId?.url?.trim() === url ? byId : undefined) ||
+                    channelsByUrl.get(url) ||
+                    byId;
                 const fallbackSourceId =
                     recentItem.url?.trim() ||
                     String(recentItem.channel_id ?? '').trim();
@@ -610,6 +618,10 @@ export class UnifiedRecentDataService {
                 }
 
                 seenUrls.add(channel.url);
+
+                const contentType = m3uCollectionContentType(channel);
+                const artwork =
+                    channel.tvg?.logo ?? recentItem.poster_url ?? null;
 
                 return {
                     uid: buildCollectionUid(
@@ -622,11 +634,17 @@ export class UnifiedRecentDataService {
                         channel.name ||
                         recentItem.tvg_name?.trim() ||
                         recentItem.url,
-                    contentType: 'live' as const,
+                    contentType,
                     sourceType: 'm3u' as const,
                     playlistId: meta._id,
                     playlistName: meta.title || meta.filename || 'M3U',
-                    logo: channel.tvg?.logo ?? recentItem.poster_url ?? null,
+                    logo: artwork,
+                    // The live tab reads `logo`, the movie and series tabs
+                    // read `posterUrl`. An M3U row has one artwork field,
+                    // so now that these rows can be typed as films or
+                    // episodes it has to reach both — otherwise a recently
+                    // watched film renders as missing artwork.
+                    posterUrl: contentType === 'live' ? null : artwork,
                     streamUrl: channel.url,
                     channelId: channel.id,
                     radio: channel.radio,

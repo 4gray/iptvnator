@@ -19,11 +19,12 @@ import {
     RENDERER_PERFORMANCE_PHASE,
 } from '@iptvnator/shared/logging';
 import { filter, firstValueFrom, map, Subscription, take } from 'rxjs';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state/catalog-index';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
-type M3uLoadedSection = 'all' | 'groups';
+type M3uLoadedSection = 'all' | 'groups' | 'vod' | 'series';
 
 @Injectable()
 export class M3uWorkspaceRouteSession {
@@ -32,6 +33,12 @@ export class M3uWorkspaceRouteSession {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
+    /**
+     * Created here so it exists on every M3U section, including Favorites
+     * and Recent: the shell rail and section memory read it through
+     * `M3uCatalogSectionsRegistry` once it has attached.
+     */
+    private readonly catalogIndex = inject(M3uCatalogIndexService);
     private readonly playlistEntities = this.store.selectSignal(
         selectPlaylistEntities
     );
@@ -39,6 +46,8 @@ export class M3uWorkspaceRouteSession {
     private currentPlaylistId: string | null = null;
     private currentSection: string | null = null;
     private loadRequestId = 0;
+    /** The last read of the current playlist failed: the next loaded section retries it. */
+    private lastLoadFailed = false;
     private pendingHiddenGroupsHydration: Subscription | null = null;
 
     constructor() {
@@ -88,17 +97,29 @@ export class M3uWorkspaceRouteSession {
 
         if (!shouldLoadPlaylist) {
             this.loadRequestId += 1;
+            // A section that does not read the channel array leaves the
+            // previous playlist's rows behind. Nothing here consumes them,
+            // but the shell rail counts the catalog from them and would
+            // offer this playlist Movies/Series it does not have. The next
+            // loaded section reloads anyway, because the playlist changed.
             this.store.dispatch(
-                ChannelActions.setChannelsLoading({ loading: false })
+                playlistChanged
+                    ? ChannelActions.setChannels({ channels: [] })
+                    : ChannelActions.setChannelsLoading({ loading: false })
             );
             return;
         }
 
-        if (!playlistChanged && !enteringLoadedSection) {
+        if (
+            !playlistChanged &&
+            !enteringLoadedSection &&
+            !this.lastLoadFailed
+        ) {
             return;
         }
 
         const requestId = ++this.loadRequestId;
+        this.lastLoadFailed = false;
         this.store.dispatch(
             ChannelActions.setChannelsLoading({ loading: true })
         );
@@ -111,7 +132,7 @@ export class M3uWorkspaceRouteSession {
                 this.playlistsService.getPlaylist(playlistId)
             );
 
-            if (!this.isCurrentLoadRequest(requestId, playlistId, section)) {
+            if (!this.isCurrentLoadRequest(requestId, playlistId)) {
                 return;
             }
 
@@ -137,6 +158,7 @@ export class M3uWorkspaceRouteSession {
                     this.store.dispatch(
                         ChannelActions.setChannels({
                             channels,
+                            playlistId,
                         })
                     ),
                 () => ({ items: channels.length })
@@ -151,10 +173,11 @@ export class M3uWorkspaceRouteSession {
                 })
             );
         } catch {
-            if (!this.isCurrentLoadRequest(requestId, playlistId, section)) {
+            if (!this.isCurrentLoadRequest(requestId, playlistId)) {
                 return;
             }
 
+            this.lastLoadFailed = true;
             this.store.dispatch(ChannelActions.setChannels({ channels: [] }));
             this.store.dispatch(
                 FavoritesActions.hydrateFavorites({ channelIds: [] })
@@ -208,18 +231,27 @@ export class M3uWorkspaceRouteSession {
     private isLoadedSection(
         section: string | null
     ): section is M3uLoadedSection {
-        return section === 'all' || section === 'groups';
+        return (
+            section === 'all' ||
+            section === 'groups' ||
+            section === 'vod' ||
+            section === 'series'
+        );
     }
 
     private isCurrentLoadRequest(
         requestId: number,
-        playlistId: string,
-        section: M3uLoadedSection
+        playlistId: string
     ): boolean {
+        // Not "still on the SAME section": the loaded sections share one
+        // load, so moving from All channels to Movies while it is in flight
+        // starts no new request, and rejecting the response for the section
+        // it was asked from would leave the playlist loading forever.
+        // Leaving the loaded sections bumps `loadRequestId`.
         return (
             requestId === this.loadRequestId &&
             this.currentPlaylistId === playlistId &&
-            this.currentSection === section
+            this.isLoadedSection(this.currentSection)
         );
     }
 }

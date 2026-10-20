@@ -65,6 +65,28 @@ describe('workspace-shell-route.utils', () => {
         );
     });
 
+    it('offers the header filter on the M3U Series grid but not on one series', () => {
+        // The grid reads `?q=`; the series page has nothing to narrow, so a
+        // visible search box there would do nothing.
+        expect(
+            parseWorkspaceShellRoute('/workspace/playlists/pl-1/series')
+        ).toEqual(
+            expect.objectContaining({
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute('/workspace/playlists/pl-1/series/42')
+        ).toEqual(
+            expect.objectContaining({
+                section: 'series',
+                searchMode: 'none',
+                usesQuerySearch: false,
+            })
+        );
+    });
+
     it('disables collection shell state for focused download details', () => {
         expect(
             parseWorkspaceShellRoute('/workspace/downloads/42?q=x#details')

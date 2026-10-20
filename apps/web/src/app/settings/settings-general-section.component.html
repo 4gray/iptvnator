@@ -258,6 +258,25 @@
                     ></mat-slide-toggle>
                 </div>
             </div>
+
+            <div class="setting-item" data-setting-id="m3u-catalog-tabs">
+                <div class="setting-item__meta">
+                    <h4 id="m3u-catalog-tabs-label">
+                        {{ 'SETTINGS.M3U_CATALOG_TABS' | translate }}
+                    </h4>
+                    <p id="m3u-catalog-tabs-description">
+                        {{ 'SETTINGS.M3U_CATALOG_TABS_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-slide-toggle
+                        formControlName="m3uCatalogTabs"
+                        aria-labelledby="m3u-catalog-tabs-label"
+                        aria-describedby="m3u-catalog-tabs-description"
+                        data-test-id="m3u-catalog-tabs"
+                    ></mat-slide-toggle>
+                </div>
+            </div>
         </div>
     </section>
 

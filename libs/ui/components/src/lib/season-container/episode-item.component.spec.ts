@@ -63,6 +63,22 @@ describe('EpisodeItemComponent', () => {
         expect(q('.episode-item__progress')).toBeNull();
     });
 
+    it('names the episode in the play label, without a dangling colon when untitled', () => {
+        const label = () =>
+            q('[data-testid="episode-play-target"]')?.getAttribute(
+                'aria-label'
+            );
+        fixture.detectChanges();
+        expect(label()).toBe('XTREAM.PLAY_EPISODE: Episode 3');
+
+        fixture.componentRef.setInput('episode', {
+            ...episode(),
+            title: '',
+        });
+        fixture.detectChanges();
+        expect(label()).toBe('XTREAM.PLAY_EPISODE');
+    });
+
     it('shows the bar and the time left for a started episode', () => {
         fixture.componentRef.setInput('position', position(900));
         fixture.detectChanges();

@@ -15,6 +15,7 @@ describe('default-on settings coercion', () => {
             portalConnectivityGuard: true,
             embeddedMpvAutoReconnect: true,
             showCoverTitles: true,
+            m3uCatalogTabs: true,
         });
     });
 
