@@ -115,12 +115,6 @@ function decide(entry, name, journey, runs) {
             };
         }
     }
-    if (entry.autoTighten === false) {
-        return {
-            measured,
-            reason: 'autoTighten is false: lowered by hand, see the entry in performance-journeys.md.',
-        };
-    }
     if (counter) {
         for (const [index, run] of runs.entries()) {
             const stability = run.journeys[journey]?.counterStability?.[name];
@@ -134,6 +128,12 @@ function decide(entry, name, journey, runs) {
                 };
             }
         }
+    }
+    if (entry.autoTighten === false) {
+        return {
+            measured,
+            reason: 'autoTighten is false: lowered by hand, see the entry in performance-journeys.md.',
+        };
     }
     const highest = Math.max(...measured);
     if (highest >= entry.value) {

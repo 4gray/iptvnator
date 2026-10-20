@@ -201,6 +201,26 @@ test('an entry missing or non-numeric in any run is kept', () => {
     assert.match(invalid.rows[0].reason, /run 3 measured "980"/);
 });
 
+test('an opted-out counter still reports unstable iterations for manual review', () => {
+    const baselines = baselinesFile();
+    baselines.journeys.launch['renderer.initialBytes'].autoTighten = false;
+    const unstableRun = bytesRun(995);
+    unstableRun.journeys.launch.counterStability = {
+        'renderer.initialBytes': { stable: false, values: [990, 995, 992] },
+    };
+    const result = tighten(baselines, [
+        bytesRun(990),
+        unstableRun,
+        bytesRun(980),
+    ]);
+    assert.deepEqual(result.baselines, baselines);
+    assert.deepEqual(result.tightened, []);
+    assert.match(
+        formatReport(result),
+        /kept: unstable in run 2 \(iterations 990, 995, 992\)/
+    );
+});
+
 test('a counter marked unstable in any run is skipped with the iterations', () => {
     const baselines = baselinesFile({
         'renderer.ipcCallsToFirstCard': { value: 20 },
