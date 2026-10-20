@@ -213,6 +213,62 @@ test('a counter value raised behind narrower slack still fails', () => {
     assert.equal(allowed.allowed.length, 1);
 });
 
+for (const [from, to] of [
+    [undefined, false],
+    [true, false],
+    [false, undefined],
+    [false, true],
+]) {
+    test(`changing autoTighten from ${from} to ${to} requires a maintainer decision`, () => {
+        const base = file(100, {
+            mutations: { value: 733, slack: 20, autoTighten: from },
+        });
+        for (const value of [733, 700]) {
+            const head = file(100, {
+                mutations: { value, slack: 20, autoTighten: to },
+            });
+            const result = compareBaselineDirection({ base, head });
+            assert.equal(result.failures.length, 1);
+            assert.match(result.failures[0], /autoTighten changed/);
+            assert.match(result.failures[0], /perf-baseline-increase label/);
+            assert.deepEqual(result.lowered, []);
+            assert.deepEqual(result.unchanged, [
+                'launch/renderer.initialBytes',
+            ]);
+
+            const allowed = compareBaselineDirection({
+                base,
+                head,
+                allowIncrease: true,
+            });
+            assert.deepEqual(allowed.failures, []);
+            assert.deepEqual(allowed.allowed, result.failures);
+        }
+    });
+}
+
+test('equivalent autoTighten policies pass and still allow lowering a baseline', () => {
+    for (const [from, to] of [
+        [undefined, true],
+        [true, undefined],
+        [false, false],
+    ]) {
+        const base = file(100, {
+            mutations: { value: 733, slack: 20, autoTighten: from },
+        });
+        for (const value of [733, 700]) {
+            const head = file(100, {
+                mutations: { value, slack: 20, autoTighten: to },
+            });
+            const result = compareBaselineDirection({ base, head });
+            assert.deepEqual(result.failures, []);
+            assert.deepEqual(result.allowed, []);
+            assert.equal(result.lowered.length, value === 700 ? 1 : 0);
+            assert.equal(result.unchanged.length, value === 733 ? 2 : 1);
+        }
+    }
+});
+
 test('switching an entry between counter and wall-clock fails', () => {
     const counterToWallClock = compareBaselineDirection({
         base: file(100, { x: { value: 100, slack: 10 } }),
@@ -299,7 +355,7 @@ test('formats the outcome', () => {
         formatDirectionResult(
             compareBaselineDirection({ base: file(100), head: file(200) })
         ),
-        /^FAIL {5}launch.*\nBaseline direction check failed: 1 entries raised or removed\.$/
+        /^FAIL {5}launch.*\nBaseline direction check failed: 1 entries weakened or policy changed\.$/
     );
 });
 
@@ -344,6 +400,31 @@ async function runCli(base, head, extraArgs = []) {
         }
     );
 }
+
+test('CLI guards automatic-tightening opt-outs in both directions unless explicitly allowed', async () => {
+    const enabled = file(100, { mutations: { value: 733, slack: 20 } });
+    const disabled = file(100, {
+        mutations: { value: 733, slack: 20, autoTighten: false },
+    });
+    for (const [base, head] of [
+        [enabled, disabled],
+        [disabled, enabled],
+    ]) {
+        const blocked = await runCli(base, head);
+        assert.equal(blocked.status, 1);
+        assert.match(
+            blocked.stderr,
+            /FAIL +launch\/mutations: autoTighten changed/
+        );
+
+        const allowed = await runCli(base, head, ['--allow-increase']);
+        assert.equal(allowed.status, 0, allowed.stderr);
+        assert.match(
+            allowed.stdout,
+            /ALLOWED +launch\/mutations: autoTighten changed/
+        );
+    }
+});
 
 test('CLI exits 0 for a lowered baseline, 1 for a raised one, 0 for a raised one with --allow-increase, 0 when the target branch has no file', async () => {
     const lowered = await runCli(file(100), file(90));

@@ -1295,7 +1295,12 @@ a tolerance or slack widened or an entry disappeared, so a PR cannot grow the
 payload and raise the baseline to match. A counter's `value` may not go up
 either, even when narrower slack lowers its limit, and switching an entry
 between counter and wall-clock (adding or removing `toleranceRatio`) counts
-as a weakening too. Lowered limits and new entries pass.
+as a weakening too. Changing an existing entry's effective `autoTighten`
+policy also requires the `perf-baseline-increase` label, even if its limit
+is lowered at the same time: adding `false` disables future tightening,
+while removing it or setting `true` can erode an intentionally preserved
+band. Omitted and `true` are equivalent. Lowered limits with unchanged
+policy and new entries pass.
 
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
