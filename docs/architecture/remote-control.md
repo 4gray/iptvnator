@@ -279,6 +279,9 @@ Implemented behavior:
 - Channel up/down and number select navigate `visibleChannels()` — the
   search-filtered, mode-conditionally sorted list derived by the same
   `deriveVisibleFavoriteChannels` helper the rendered sidebar uses
+- Up/down skips favorites marked missing or unknown. Number select and status
+  retain the full visible list's numbering; selecting an unavailable row by
+  number does nothing.
 - Remote actions play via the same path as an explicit double-click
   (`activateItem(item, false, true)`), so external MPV/VLC starts
   immediately

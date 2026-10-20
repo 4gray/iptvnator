@@ -1,121 +1,124 @@
-<h2 mat-dialog-title>{{ 'CHANNELS.GROUP_MANAGEMENT.TITLE' | translate }}</h2>
-
-<mat-dialog-content>
-    <div class="header-actions">
-        <div class="selection-info">
-            {{ 'CHANNELS.GROUP_MANAGEMENT.SELECTED' | translate }}:
-            <strong>{{ selectedCount() }}</strong> / {{ totalCount() }}
-            @if (showLocks) {
-                <span class="selection-info__locks">
-                    · {{ 'PARENTAL_LOCK.LOCKED_COUNT' | translate }}:
-                    <strong>{{ lockedCount() }}</strong>
-                </span>
-            }
-        </div>
-        <div class="bulk-actions">
-            <button
-                mat-stroked-button
-                (click)="selectAll()"
-                [disabled]="allSelected()"
-            >
-                <mat-icon>check_box</mat-icon>
-                {{ 'CHANNELS.GROUP_MANAGEMENT.SELECT_ALL' | translate }}
-            </button>
-            <button
-                mat-stroked-button
-                (click)="deselectAll()"
-                [disabled]="selectedCount() === 0"
-            >
-                <mat-icon>check_box_outline_blank</mat-icon>
-                {{ 'CHANNELS.GROUP_MANAGEMENT.DESELECT_ALL' | translate }}
-            </button>
-        </div>
-    </div>
-
-    <label class="search-inline">
-        <mat-icon class="search-inline__icon">search</mat-icon>
-        <input
-            type="search"
-            spellcheck="false"
-            [value]="searchTerm()"
-            (input)="searchTerm.set($any($event.target).value)"
-            [placeholder]="
-                'CHANNELS.GROUP_MANAGEMENT.SEARCH_PLACEHOLDER' | translate
-            "
-        />
-        @if (searchTerm()) {
-            <button
-                type="button"
-                mat-icon-button
-                class="search-inline__clear"
-                [attr.aria-label]="
-                    'EMBEDDED_MPV.PLAYER.CLEAR_SEARCH' | translate
-                "
-                (click)="clearSearch()"
-            >
-                <mat-icon>close</mat-icon>
-            </button>
-        }
-    </label>
-
-    <div class="groups-list">
-        @for (group of filteredGroups(); track group.key) {
-            <div class="group-item" (click)="toggleGroup(group)">
-                <mat-checkbox
-                    [checked]="group.selected"
-                    (click)="$event.stopPropagation()"
-                    (change)="toggleGroup(group)"
-                >
-                </mat-checkbox>
-                <span class="group-name">
-                    @if (group.key) {
-                        {{ group.key | titlecase }}
-                    } @else {
-                        {{ 'CHANNELS.UNGROUPED' | translate }}
-                    }
-                </span>
-                <span class="item-count">({{ group.count }})</span>
+<app-dialog-shell
+    icon="folder"
+    [heading]="'CHANNELS.GROUP_MANAGEMENT.TITLE' | translate"
+    bodyLayout="column"
+>
+    <div class="group-management">
+        <div class="header-actions">
+            <div class="selection-info">
+                {{ 'CHANNELS.GROUP_MANAGEMENT.SELECTED' | translate }}:
+                <strong>{{ selectedCount() }}</strong> / {{ totalCount() }}
                 @if (showLocks) {
-                    <button
-                        type="button"
-                        mat-icon-button
-                        class="lock-toggle"
-                        [class.lock-toggle--locked]="group.locked"
-                        [attr.aria-pressed]="group.locked"
-                        [attr.data-test-id]="'group-lock-' + group.key"
-                        [matTooltip]="
-                            (group.locked
-                                ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
-                                : 'PARENTAL_LOCK.LOCK_CATEGORY'
-                            ) | translate
-                        "
-                        [attr.aria-label]="
-                            (group.locked
-                                ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
-                                : 'PARENTAL_LOCK.LOCK_CATEGORY'
-                            ) | translate
-                        "
-                        (click)="toggleLock(group, $event)"
-                    >
-                        <mat-icon>{{
-                            group.locked ? 'lock' : 'lock_open'
-                        }}</mat-icon>
-                    </button>
+                    <span class="selection-info__locks">
+                        · {{ 'PARENTAL_LOCK.LOCKED_COUNT' | translate }}:
+                        <strong>{{ lockedCount() }}</strong>
+                    </span>
                 }
             </div>
-        } @empty {
-            <div class="empty-message">
-                {{ 'CHANNELS.GROUP_MANAGEMENT.NO_RESULTS' | translate }}
+            <div class="bulk-actions">
+                <button
+                    mat-stroked-button
+                    (click)="selectAll()"
+                    [disabled]="allSelected()"
+                >
+                    <mat-icon>check_box</mat-icon>
+                    {{ 'CHANNELS.GROUP_MANAGEMENT.SELECT_ALL' | translate }}
+                </button>
+                <button
+                    mat-stroked-button
+                    (click)="deselectAll()"
+                    [disabled]="selectedCount() === 0"
+                >
+                    <mat-icon>check_box_outline_blank</mat-icon>
+                    {{ 'CHANNELS.GROUP_MANAGEMENT.DESELECT_ALL' | translate }}
+                </button>
             </div>
-        }
-    </div>
-</mat-dialog-content>
+        </div>
 
-<mat-dialog-actions align="end">
-    <button mat-button (click)="cancel()">
-        {{ 'CLOSE' | translate }}
-    </button>
-    <button mat-flat-button color="primary" (click)="save()">
-        {{ 'CHANNELS.GROUP_MANAGEMENT.SAVE' | translate }}
-    </button>
-</mat-dialog-actions>
+        <label class="search-inline">
+            <mat-icon class="search-inline__icon">search</mat-icon>
+            <input
+                type="search"
+                spellcheck="false"
+                [value]="searchTerm()"
+                (input)="searchTerm.set($any($event.target).value)"
+                [placeholder]="
+                    'CHANNELS.GROUP_MANAGEMENT.SEARCH_PLACEHOLDER' | translate
+                "
+            />
+            @if (searchTerm()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    class="search-inline__clear"
+                    [attr.aria-label]="
+                        'EMBEDDED_MPV.PLAYER.CLEAR_SEARCH' | translate
+                    "
+                    (click)="clearSearch()"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            }
+        </label>
+
+        <div class="groups-list">
+            @for (group of filteredGroups(); track group.key) {
+                <div class="group-item" (click)="toggleGroup(group)">
+                    <mat-checkbox
+                        [checked]="group.selected"
+                        (click)="$event.stopPropagation()"
+                        (change)="toggleGroup(group)"
+                    >
+                    </mat-checkbox>
+                    <span class="group-name">
+                        @if (group.key) {
+                            {{ group.key | titlecase }}
+                        } @else {
+                            {{ 'CHANNELS.UNGROUPED' | translate }}
+                        }
+                    </span>
+                    <span class="item-count">({{ group.count }})</span>
+                    @if (showLocks) {
+                        <button
+                            type="button"
+                            mat-icon-button
+                            class="lock-toggle"
+                            [class.lock-toggle--locked]="group.locked"
+                            [attr.aria-pressed]="group.locked"
+                            [attr.data-test-id]="'group-lock-' + group.key"
+                            [matTooltip]="
+                                (group.locked
+                                    ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
+                                    : 'PARENTAL_LOCK.LOCK_CATEGORY'
+                                ) | translate
+                            "
+                            [attr.aria-label]="
+                                (group.locked
+                                    ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
+                                    : 'PARENTAL_LOCK.LOCK_CATEGORY'
+                                ) | translate
+                            "
+                            (click)="toggleLock(group, $event)"
+                        >
+                            <mat-icon>{{
+                                group.locked ? 'lock' : 'lock_open'
+                            }}</mat-icon>
+                        </button>
+                    }
+                </div>
+            } @empty {
+                <div class="empty-message">
+                    {{ 'CHANNELS.GROUP_MANAGEMENT.NO_RESULTS' | translate }}
+                </div>
+            }
+        </div>
+    </div>
+    <div appDialogFooter>
+        <button mat-button (click)="cancel()">
+            {{ 'CLOSE' | translate }}
+        </button>
+        <button mat-flat-button (click)="save()">
+            {{ 'CHANNELS.GROUP_MANAGEMENT.SAVE' | translate }}
+        </button>
+    </div>
+</app-dialog-shell>

@@ -244,21 +244,7 @@
     </div>
 </ng-template>
 
-<div
-    aria-hidden="true"
-    class="channel-context-menu-anchor"
-    [style.left]="contextMenuPosition().x"
-    [style.top]="contextMenuPosition().y"
-    [matMenuTriggerFor]="channelContextMenu"
-    #contextMenuTrigger="matMenuTrigger"
-></div>
-
-<mat-menu #channelContextMenu="matMenu">
-    <button mat-menu-item (click)="openEpgMapping()">
-        <mat-icon>settings_remote</mat-icon>
-        <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
-    </button>
-</mat-menu>
+<app-channel-context-menu [showMapEpg]="true" (mapEpg)="openEpgMapping()" />
 
 <!-- The channel list, stamped into the sidebar and — with its own search
      term — into the player's fullscreen channel panel. Every instance carries

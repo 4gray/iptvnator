@@ -21,6 +21,10 @@ import {
     SourceCleanupService,
 } from '@iptvnator/portal/shared/data-access';
 import { PlaylistMeta, sourceHealthType } from '@iptvnator/shared/interfaces';
+import {
+    DialogFooterDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 export interface SourceCleanupDialogData extends SourceCleanupContext {
     playlists: readonly PlaylistMeta[];
@@ -29,6 +33,8 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
     selector: 'app-source-cleanup-dialog',
     imports: [
         DatePipe,
+        DialogFooterDirective,
+        DialogShellComponent,
         MatDialogModule,
         MatButtonModule,
         MatCheckboxModule,
@@ -36,10 +42,15 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
         TranslatePipe,
     ],
     providers: [SourceCleanupService],
-    template: ` <h2 mat-dialog-title>
-            {{ 'SOURCE_CLEANUP.TITLE' | translate }}
-        </h2>
-        <mat-dialog-content>
+    template: `
+        <!-- While sources are being deleted, Stop is the one way out: the
+             header close would end the dialog and the batch with it. -->
+        <app-dialog-shell
+            icon="cleaning_services"
+            iconTone="warn"
+            [heading]="'SOURCE_CLEANUP.TITLE' | translate"
+            [showClose]="!locked()"
+        >
             <p>{{ 'SOURCE_CLEANUP.SCOPE' | translate }}</p>
             <p>{{ 'SOURCE_CLEANUP.CONSEQUENCES' | translate }}</p>
             @if (model.phase() === 'checking' || model.phase() === 'deleting') {
@@ -154,41 +165,39 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
                     }
                 }
             }
-        </mat-dialog-content>
-        <mat-dialog-actions align="end">
-            @if (locked()) {
-                <button
-                    mat-button
-                    [disabled]="model.stopRequested()"
-                    (click)="model.stop()"
-                >
-                    {{ 'SOURCE_CLEANUP.STOP' | translate }}
-                </button>
-            } @else {
-                <button mat-button mat-dialog-close>
-                    {{ 'SOURCE_CLEANUP.CLOSE' | translate }}
-                </button>
-                <button
-                    mat-flat-button
-                    class="app-destructive-button"
-                    [disabled]="!selectedCount() || checking()"
-                    (click)="model.removeSelected()"
-                >
-                    {{
-                        'SOURCE_CLEANUP.DELETE'
-                            | translate: { count: selectedCount() }
-                    }}
-                </button>
-            }
-        </mat-dialog-actions>`,
+            <div appDialogFooter>
+                @if (locked()) {
+                    <button
+                        mat-button
+                        [disabled]="model.stopRequested()"
+                        (click)="model.stop()"
+                    >
+                        {{ 'SOURCE_CLEANUP.STOP' | translate }}
+                    </button>
+                } @else {
+                    <button mat-button mat-dialog-close>
+                        {{ 'SOURCE_CLEANUP.CLOSE' | translate }}
+                    </button>
+                    <button
+                        mat-flat-button
+                        class="app-destructive-button"
+                        [disabled]="!selectedCount() || checking()"
+                        (click)="model.removeSelected()"
+                    >
+                        {{
+                            'SOURCE_CLEANUP.DELETE'
+                                | translate: { count: selectedCount() }
+                        }}
+                    </button>
+                }
+            </div>
+        </app-dialog-shell>
+    `,
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {
                 display: block;
-            }
-            mat-dialog-content {
-                min-width: 0;
             }
             .selection-actions {
                 display: flex;

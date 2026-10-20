@@ -618,6 +618,17 @@ Xtream-only row shape:
 12. `DB_GET_APP_STATE`
 13. `DB_SET_APP_STATE`
 
+`DB_UPSERT_APP_PLAYLIST(S)` write whole documents: the row built by the shared
+codec (`buildPlaylistRow` in `libs/shared/database`) replaces the stored one.
+`playlistConflictUpdate` sets every optional column the document leaves empty
+(an empty string or a missing key) to NULL instead of skipping it, because
+`parseAppPlaylist` prefers a column over the payload and would otherwise bring
+a cleared User-Agent, Referrer, Origin, credential, EPG list or file path back.
+Only `date_created` is kept from the first insert. Callers must send the full
+document (`PlaylistsService` reads, patches and writes the whole row); a
+column-only change goes through `DB_UPDATE_PLAYLIST`. The self-hosted web
+backend's playlist repository uses the same conflict update.
+
 `DB_GET_APP_PLAYLIST_METAS` is the preferred path for summary surfaces such as
 the workspace sidebar and dashboard source rail. It selects playlist metadata
 columns only and deliberately skips the large `payload` column, which can
@@ -645,6 +656,34 @@ is unavailable or the SQLite playlist migration has not completed.
 5. `DB_GET_GLOBAL_FAVORITES`
 6. `DB_GET_ALL_GLOBAL_FAVORITES`
 7. `DB_REORDER_GLOBAL_FAVORITES`
+8. `DB_RESTORE_XTREAM_FAVORITES`
+9. `DB_GET_FAVORITES_FOR_BACKUP`
+
+Xtream favorites persist known provider-ID conflicts in `identity_conflict`; a later
+sparse refresh cannot clear them. Full saved TMDB/year confirmation may clear the flag,
+while absence alone does not set it. The flag is migrated on existing durable tables
+and included as identity-conflict evidence in backup snapshots.
+Xtream favorites survive catalog/category deletion through nullable `content_id`
+links and independent typed provider identities plus display snapshots. Reads
+return the durable `favorite_id`, nullable catalog IDs and `catalog_status`;
+remove accepts `{ favoriteId }` and reorder accepts `favorite_id` without a
+catalog row. Legacy content-ID callers resolve playlist/type/provider identity,
+including duplicate category rows. `DB_GET_CONTENT_BY_XTREAM_ID` accepts optional
+normalized TMDB/year evidence from the displayed detail or played item. It excludes
+known conflicting duplicates, ranks full confirmation first, and preserves legacy
+lookup behavior when evidence is omitted. Favorite status/actions use the selected
+internal row ID consistently. Import completion reconciles links and saved
+metadata; detail enrichment also updates the snapshot. Known identity conflicts
+remain unresolved. See [Xtream compatibility](./xtream-portal-compatibility.md#durable-electron-favorites).
+
+`DB_RESTORE_XTREAM_FAVORITES` materializes pending/backup snapshots without an
+online catalog. Inserts and their replay receipt share one synchronous worker
+transaction, so retry after removal does not resurrect an item. Explicit backup
+imports supply a fresh restore ID; legacy pending payloads use a canonical
+hash. `DB_DELETE_XTREAM_CONTENT` returns no canonical favorites to replay.
+`DB_GET_FAVORITES_FOR_BACKUP` deliberately includes locked/unresolved rows;
+ordinary UI reads preserve parental-lock filtering. A failed export read must
+propagate to the caller.
 
 ### Recently viewed
 

@@ -142,6 +142,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
     };
     let status: EmbeddedMpvSessionStatus;
     let positionSeconds: number;
+    let durationSeconds: number | null;
     let recordingActive: boolean;
     let errorOrigin: 'playback' | 'engine' | undefined;
     let rejectedOptionKeys: string[] | undefined;
@@ -179,6 +180,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         service = new EmbeddedMpvNativeService();
         status = 'idle';
         positionSeconds = 0;
+        durationSeconds = null;
         recordingActive = false;
         errorOrigin = undefined;
         rejectedOptionKeys = undefined;
@@ -193,7 +195,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
             getSessionSnapshot: jest.fn<MockSnapshot | null, [string]>(() => ({
                 status,
                 positionSeconds,
-                durationSeconds: null,
+                durationSeconds,
                 volume: 1,
                 streamUrl: LIVE.streamUrl,
                 recording: { active: recordingActive },
@@ -594,6 +596,63 @@ describe('EmbeddedMpvNativeService reconnect', () => {
             ...VOD,
             startTime: 640,
         });
+    });
+
+    it('treats EOF in the middle of an episode as a drop, not as its end (#1902)', () => {
+        service.createSession(BOUNDS, 'Title', 0.5, {
+            extraOptions: [],
+            autoReconnect: true,
+        });
+        service.loadPlayback('session-1', VOD);
+        poll('loading');
+        positionSeconds = 1_260;
+        durationSeconds = 2_700;
+        poll('playing');
+
+        // mpv drained its cache after the server closed the connection.
+        poll('ended');
+        expect(lastUpdate()?.status).toBe('ended');
+        expect(lastUpdate()?.reconnect?.attempt).toBe(1);
+
+        status = 'loading';
+        jest.advanceTimersByTime(2_000);
+        expect(addon.loadPlayback).toHaveBeenLastCalledWith('session-1', {
+            ...VOD,
+            startTime: 1_260,
+        });
+
+        // The genuine end of the episode stays the end.
+        positionSeconds = 2_700;
+        poll('playing');
+        poll('ended');
+        jest.advanceTimersByTime(60_000);
+        expect(lastUpdate()?.status).toBe('ended');
+        expect(lastUpdate()?.reconnect).toBeUndefined();
+        expect(addon.loadPlayback).toHaveBeenCalledTimes(2);
+    });
+
+    it('forgets where the reload resumed once the user seeks', () => {
+        service.createSession(BOUNDS, 'Title', 0.5, {
+            extraOptions: [],
+            autoReconnect: true,
+        });
+        service.loadPlayback('session-1', VOD);
+        poll('loading');
+        positionSeconds = 1_260;
+        durationSeconds = 2_700;
+        poll('playing');
+        poll('ended');
+        status = 'loading';
+        jest.advanceTimersByTime(2_000);
+        poll('playing');
+
+        // A seek away and back: the next early EOF near the old resume
+        // point is a new drop, not the reload ending where it resumed.
+        service.seek('session-1', 600);
+        service.seekBy('session-1', 662);
+        poll('ended');
+
+        expect(lastUpdate()?.reconnect?.attempt).toBe(2);
     });
 
     it('treats EOF on a live stream as a drop', () => {

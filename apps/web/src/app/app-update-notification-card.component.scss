@@ -1,0 +1,66 @@
+@use '../../../../libs/ui/styles/app-controls' as controls;
+
+// The update notification: a kit floating panel in the bottom-right corner,
+// above the EPG import panel's layer so both stay reachable.
+.app-update-notification {
+    @include controls.floating-panel;
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 320px;
+    max-width: calc(100vw - 40px);
+    z-index: 901;
+}
+
+.app-update-notification__header {
+    @include controls.floating-panel-header;
+}
+
+.app-update-notification__title {
+    @include controls.floating-panel-title;
+}
+
+.app-update-notification__close {
+    @include controls.ghost-icon-button(28px, 18px);
+}
+
+.app-update-notification__body {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+
+    strong {
+        font-weight: 600;
+        color: var(--app-heading-color);
+    }
+}
+
+// One accent action (download, install or open the release); the release
+// notes beside it as a secondary button. Small size: the card is 320px wide.
+.app-update-notification__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 0 12px 12px;
+
+    .mat-mdc-unelevated-button {
+        @include controls.accent-button(sm);
+    }
+
+    .app-update-notification__secondary {
+        @include controls.secondary-button(sm);
+    }
+}
+
+@media (max-width: 560px) {
+    .app-update-notification {
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        width: auto;
+        max-width: none;
+    }
+}

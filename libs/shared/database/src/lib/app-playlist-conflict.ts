@@ -14,22 +14,70 @@ export type PlaylistConflictUpdate = {
 const stored = schema.playlists;
 
 /**
- * The `DO UPDATE` half of an app-playlist upsert. A full upsert is built
- * from a snapshot the caller read earlier; when that snapshot carries no
- * panel clock while the stored row does — `setPlaylistServerTimezone`
- * landed in between — the stored clock is carried over as long as the row
- * still points at the same panel, so a favorites, recent-items or metadata
- * write cannot hand a clockless payload back to the past. A snapshot that
- * carries its own clock, or moves the source, wins as is. Nested CASE, not
- * AND: SQLite may reorder AND terms, and the json_* readers raise on a
- * malformed payload unless json_valid ran first.
+ * Columns a whole-document upsert must rewrite even when the document no
+ * longer has a value: the codec maps empty values to `undefined`, which an
+ * `ON CONFLICT DO UPDATE` skips, so a cleared field would keep its old
+ * column value and `parseAppPlaylist` would bring it back. `dateCreated`
+ * belongs to the first insert, and `name`, `type`, `autoRefresh`,
+ * `payload` and `lastUsage` always carry a value.
+ */
+const REPLACEABLE_COLUMNS = [
+    'serverUrl',
+    'username',
+    'password',
+    'lastUpdated',
+    'userAgent',
+    'origin',
+    'referrer',
+    'filePath',
+    'epgUrls',
+    'detectedEpgUrls',
+    'manualEpgUrls',
+    'disabledEpgUrls',
+    'macAddress',
+    'url',
+    'portalUrl',
+    'count',
+    'importDate',
+    'updateDate',
+    'position',
+    'favorites',
+    'recentlyViewed',
+] as const satisfies readonly (keyof schema.NewPlaylist)[];
+
+function withClearedColumns(row: schema.NewPlaylist): schema.NewPlaylist {
+    const cleared: Partial<Record<(typeof REPLACEABLE_COLUMNS)[number], null>> =
+        {};
+    for (const column of REPLACEABLE_COLUMNS) {
+        if (row[column] === undefined) {
+            cleared[column] = null;
+        }
+    }
+    return { ...row, ...cleared };
+}
+
+/**
+ * The `DO UPDATE` half of an app-playlist upsert. The document replaces
+ * the stored one, so every optional column it leaves empty is set to NULL
+ * rather than skipped (see REPLACEABLE_COLUMNS).
+ *
+ * A full upsert is built from a snapshot the caller read earlier; when
+ * that snapshot carries no panel clock while the stored row does —
+ * `setPlaylistServerTimezone` landed in between — the stored clock is
+ * carried over as long as the row still points at the same panel, so a
+ * favorites, recent-items or metadata write cannot hand a clockless
+ * payload back to the past. A snapshot that carries its own clock, or
+ * moves the source, wins as is. Nested CASE, not AND: SQLite may reorder
+ * AND terms, and the json_* readers raise on a malformed payload unless
+ * json_valid ran first.
  */
 export function playlistConflictUpdate(
     row: schema.NewPlaylist,
     playlist: Record<string, unknown>
 ): PlaylistConflictUpdate {
+    const replacement = withClearedColumns(row);
     if (readString(playlist['serverTimezone'])) {
-        return row;
+        return replacement;
     }
     const excludedPayload = sql.raw(`excluded.${stored.payload.name}`);
     const payload = sql`CASE
@@ -48,7 +96,7 @@ export function playlistConflictUpdate(
         END
         ELSE ${excludedPayload}
     END`;
-    return { ...row, payload };
+    return { ...replacement, payload };
 }
 
 /**

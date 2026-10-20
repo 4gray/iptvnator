@@ -61,6 +61,27 @@ contracts below before changing a subsystem; do not load every document.
   are clean. CI and the GitHub review bots confirm a branch; they are not its
   first reviewer.
 
+## Performance threads
+
+- A journey thread targets one journey and one counter from the
+  [performance journeys contract](docs/architecture/performance-journeys.md);
+  name both in the PR. Performance work outside the journeys (compositing
+  budget, charset benchmark) follows its own section of that contract.
+  Reproduce with the matching benchmark before changing code, and put the
+  before/after table in the PR description.
+- Deterministic counters are the guardrail; wall-clock is evidence. Baselines in
+  `tools/performance/journey-baselines.json` move down with the Linux CI
+  runner's output as evidence; a deliberate increase needs the runner's value,
+  a `note` and the maintainer's `perf-baseline-increase` label
+  ([Ratchet](docs/architecture/performance-journeys.md#ratchet)). Never change
+  a probe or a journey to make a number pass.
+- Put user-visible performance changes behind a kill switch and remove it
+  within two releases. UX trade-offs and ratchet tolerances are maintainer
+  decisions: show the change and ask instead of deciding.
+- When a counter stops moving, say so and propose the next bottleneck. Working
+  rules and measurement hygiene:
+  [working a performance thread](docs/architecture/performance-journeys.md#working-a-performance-thread).
+
 ## Keep guidance small and canonical
 
 - Update the affected subsystem's canonical document after meaningful changes.
@@ -101,6 +122,7 @@ contracts below before changing a subsystem; do not load every document.
 | UI, keyboard, detail navigation, remote control | [UI guidelines](docs/architecture/iptvnator-ui-guidelines.md), then matching topic in context map |
 | PWA, backend networking, connectivity guard | [PWA contract](docs/architecture/pwa-self-hosted.md), [host connectivity](docs/architecture/host-connectivity-guard.md) |
 | Downloads, TMDB, multi-source, workspace, backup, website | [Context map](docs/maintenance/agent-context-map.md) |
+| Startup time, bundle size, journeys, ratchet baselines | [Performance journeys](docs/architecture/performance-journeys.md), [working a thread](docs/architecture/performance-journeys.md#working-a-performance-thread) |
 | Release or packaging metadata | [Release pipeline](docs/architecture/release-pipeline.md), release-cut skill |
 
 Repository skills live in `.codex/skills/`. Their frontmatter owns trigger

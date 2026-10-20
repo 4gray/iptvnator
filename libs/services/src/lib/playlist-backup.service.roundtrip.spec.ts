@@ -182,62 +182,51 @@ describe('PlaylistBackupService export → import round-trip', () => {
         return entry;
     }
 
-    it.each([true, false])(
-        'preserves a fresh pending import on re-export (Electron: %s)',
-        async (electron) => {
-            const state = seedState();
-            state.xtreamFavorites.push({
-                xtream_id: 501,
-                type: 'series',
-                position: 1,
-            });
-            const collaborators = createStatefulBackupCollaborators(state);
-            const service = createPlaylistBackupService(collaborators);
-            const original = await service.exportBackup();
-            const originalState = xtreamEntry(original.manifest).userState;
-            expect(originalState.sourcePins).toHaveLength(1);
-            state.xtreamCategories = [];
-            state.xtreamFavorites = [];
-            state.xtreamRecent = [];
-            state.playbackPositions = [];
-            state.sourcePins = [];
-            collaborators.databaseService.getXtreamImportStatus = async () =>
-                'idle';
-            if (!electron) delete electronWindow.electron;
+    // The browser build applies an import at once (see the PWA Xtream spec),
+    // so only the desktop leaves one pending while its catalog downloads.
+    it('preserves a fresh pending import on re-export', async () => {
+        const state = seedState();
+        state.xtreamFavorites.push({
+            xtream_id: 501,
+            type: 'series',
+            position: 1,
+        });
+        const collaborators = createStatefulBackupCollaborators(state);
+        const service = createPlaylistBackupService(collaborators);
+        const original = await service.exportBackup();
+        const originalState = xtreamEntry(original.manifest).userState;
+        expect(originalState.sourcePins).toHaveLength(1);
+        state.xtreamCategories = [];
+        state.xtreamFavorites = [];
+        state.xtreamRecent = [];
+        state.playbackPositions = [];
+        state.sourcePins = [];
+        collaborators.databaseService.getXtreamImportStatus = async () =>
+            'idle';
 
-            const summary = await service.importBackup(original.json);
-            expect(summary.failed).toBe(0);
-            const snapshot =
-                collaborators.pendingRestoreService.getSnapshotOrThrow(
-                    'xtream-1'
-                );
-            expect(snapshot).not.toBeNull();
-            // Pending state must remain exportable even while catalog/storage
-            // reads are unavailable; it is already the complete restore input.
-            jest.spyOn(
-                collaborators.databaseService,
-                'getFavorites'
-            ).mockRejectedValue(new Error('Catalog unavailable'));
-            jest.spyOn(
-                collaborators.playbackPositionService,
-                'getAllPlaybackPositionsOrThrow'
-            ).mockRejectedValue(new Error('Position storage unavailable'));
-            const exported = await service.exportBackup();
-            expect(xtreamEntry(exported.manifest).userState).toEqual(
-                originalState
-            );
-            expect(
-                collaborators.pendingRestoreService.getSnapshotOrThrow(
-                    'xtream-1'
-                )
-            ).toEqual(snapshot);
-        }
-    );
+        const summary = await service.importBackup(original.json);
+        expect(summary.failed).toBe(0);
+        const snapshot =
+            collaborators.pendingRestoreService.getSnapshotOrThrow('xtream-1');
+        expect(snapshot).not.toBeNull();
+        // Durable favorites remain readable independently of the catalog;
+        // other pending state does not require a completed import.
+        jest.spyOn(
+            collaborators.playbackPositionService,
+            'getAllPlaybackPositionsOrThrow'
+        ).mockRejectedValue(new Error('Position storage unavailable'));
+        const exported = await service.exportBackup();
+        expect(xtreamEntry(exported.manifest).userState).toEqual(originalState);
+        expect(
+            collaborators.pendingRestoreService.getSnapshotOrThrow('xtream-1')
+        ).toEqual(snapshot);
+    });
 
     it.each([true, false])(
         'honors empty pending collections and optional source pins (present: %s)',
         async (pinsPresent) => {
             const state = seedState();
+            state.xtreamFavorites = [];
             const collaborators = createStatefulBackupCollaborators(state);
             const pending: XtreamPendingRestoreState = {
                 hiddenCategories: [],
@@ -267,6 +256,7 @@ describe('PlaylistBackupService export → import round-trip', () => {
 
     it('keeps absent pending pins absent when the pin store is unavailable', async () => {
         const state = seedState();
+        state.xtreamFavorites = [];
         const collaborators = createStatefulBackupCollaborators(state);
         collaborators.vodSourcePinService.isAvailable = false;
         const pending: XtreamPendingRestoreState = {
@@ -279,6 +269,91 @@ describe('PlaylistBackupService export → import round-trip', () => {
         const exported =
             await createPlaylistBackupService(collaborators).exportBackup();
         expect(xtreamEntry(exported.manifest).userState).toEqual(pending);
+    });
+
+    it('preserves older pending favorites before merging another archive', async () => {
+        const state = seedState();
+        const collaborators = createStatefulBackupCollaborators(state);
+        const service = createPlaylistBackupService(collaborators);
+        const archive = await service.exportBackup();
+        state.xtreamFavorites = [];
+        collaborators.pendingRestoreService.set('xtream-1', {
+            favorites: [
+                {
+                    contentType: 'movie',
+                    xtreamId: 999,
+                    snapshot: { title: 'Older saved ABC' },
+                },
+            ],
+            hiddenCategories: [],
+            recentlyViewed: [],
+            playbackPositions: [],
+        });
+        expect((await service.importBackup(archive.json)).failed).toBe(0);
+        expect(
+            state.xtreamFavorites.map((row) => row.xtream_id).sort()
+        ).toEqual([501, 999]);
+        expect(
+            state.xtreamFavorites.find((row) => row.xtream_id === 999)?.title
+        ).toBe('Older saved ABC');
+    });
+
+    it('restores and re-exports saved titles while the catalog is offline', async () => {
+        const state = seedState();
+        state.xtreamFavorites = [
+            {
+                xtream_id: 501,
+                type: 'movie',
+                title: 'Saved ABC',
+                poster_url: 'https://example.test/abc.jpg',
+                position: 3,
+            },
+        ];
+        const collaborators = createStatefulBackupCollaborators(state);
+        const service = createPlaylistBackupService(collaborators);
+        const backup = await service.exportBackup();
+        state.xtreamFavorites = [];
+        state.xtreamCategories = [];
+        collaborators.databaseService.getXtreamImportStatus = async () =>
+            'idle';
+        expect((await service.importBackup(backup.json)).failed).toBe(0);
+        expect(state.xtreamFavorites).toEqual([
+            {
+                xtream_id: 501,
+                type: 'movie',
+                title: 'Saved ABC',
+                poster_url: 'https://example.test/abc.jpg',
+                position: 3,
+            },
+        ]);
+        const exported = await service.exportBackup();
+        expect(xtreamEntry(exported.manifest).userState.favorites).toEqual(
+            xtreamEntry(backup.manifest).userState.favorites
+        );
+        expect(xtreamEntry(exported.manifest).userState).not.toHaveProperty(
+            'favoritesRestoreId'
+        );
+    });
+
+    it('refuses to export an empty favorites list after a storage read failure, including during pending import', async () => {
+        const collaborators = createStatefulBackupCollaborators(seedState());
+        const service = createPlaylistBackupService(collaborators);
+        jest.spyOn(
+            collaborators.databaseService,
+            'getFavoritesOrThrow'
+        ).mockRejectedValue(new Error('Favorites read failed'));
+        await expect(service.exportBackup()).rejects.toThrow(
+            'Favorites read failed'
+        );
+        collaborators.pendingRestoreService.set('xtream-1', {
+            favorites: [],
+            hiddenCategories: [],
+            recentlyViewed: [],
+            playbackPositions: [],
+        });
+        await expect(service.exportBackup()).rejects.toThrow(
+            'Favorites read failed'
+        );
     });
 
     it('refuses to export if pending storage cannot be read', async () => {
@@ -338,6 +413,10 @@ describe('PlaylistBackupService export → import round-trip', () => {
                 collaborators.databaseService,
                 'restoreXtreamUserData'
             );
+            const favorites = jest.spyOn(
+                collaborators.databaseService,
+                'restoreXtreamFavoriteSnapshots'
+            );
             const positions = jest.spyOn(
                 collaborators.playbackPositionService,
                 'replaceAllPlaybackPositions'
@@ -351,15 +430,14 @@ describe('PlaylistBackupService export → import round-trip', () => {
             expect(failed.failed).toBe(1);
             expect(visibility).not.toHaveBeenCalled();
             expect(collections).not.toHaveBeenCalled();
+            expect(favorites).not.toHaveBeenCalled();
             expect(positions).not.toHaveBeenCalled();
             expect(pins).not.toHaveBeenCalled();
             expect(
                 collaborators.pendingRestoreService.getOrThrow('xtream-1')
-            ).toEqual(userState);
-            const parkedExport = await service.exportBackup();
-            expect(xtreamEntry(parkedExport.manifest).userState).toEqual(
-                userState
-            );
+            ).toEqual({ ...userState, favoritesRestoreId: expect.any(String) });
+            await expect(service.exportBackup()).rejects.toThrow('unavailable');
+            expect(favorites).not.toHaveBeenCalled();
 
             preflight.mockImplementation(() => undefined);
             collaborators.databaseService.getXtreamImportStatus = async () =>
@@ -372,6 +450,37 @@ describe('PlaylistBackupService export → import round-trip', () => {
             ).toBeNull();
         }
     );
+
+    it('retains an older pending restore without writing favorites when atomic restore is unsupported', async () => {
+        const collaborators = createStatefulBackupCollaborators(seedState());
+        const service = createPlaylistBackupService(collaborators);
+        const archive = await service.exportBackup();
+        collaborators.pendingRestoreService.set('xtream-1', {
+            favorites: [{ contentType: 'movie', xtreamId: 9999 }],
+            hiddenCategories: [],
+            recentlyViewed: [],
+            playbackPositions: [],
+        });
+        const previous =
+            collaborators.pendingRestoreService.getOrThrow('xtream-1');
+        collaborators.playbackPositionService.assertSupportsAtomicReplacement.mockImplementation(
+            () => {
+                throw new Error(
+                    'Atomic playback position replacement unavailable'
+                );
+            }
+        );
+        const favorites = jest.spyOn(
+            collaborators.databaseService,
+            'restoreXtreamFavoriteSnapshots'
+        );
+        const result = await service.importBackup(archive.json);
+        expect(result.failed).toBe(1);
+        expect(favorites).not.toHaveBeenCalled();
+        expect(
+            collaborators.pendingRestoreService.getOrThrow('xtream-1')
+        ).toEqual(previous);
+    });
 
     it('retains failed position restores for retry and consumes only after success', async () => {
         const state = seedState();

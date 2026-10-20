@@ -19,7 +19,11 @@
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none;
-    --rail-link-color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
+    --rail-link-color: color-mix(
+        in srgb,
+        var(--app-on-surface) 65%,
+        transparent
+    );
     --rail-link-hover-color: var(--app-on-surface);
     --rail-link-hover-bg: var(--app-hover-overlay);
     --rail-link-active-bg: var(--app-selection-surface);
@@ -285,5 +289,37 @@
             transparent,
             var(--app-rail-bg, var(--mat-sys-surface-container-low)) 25%
         );
+    }
+}
+
+// Server storage indicator (self-hosted PWA only): the dot carries the
+// connection state, so the icon can stay quiet while online.
+.rail-footer .rail-server {
+    .rail-server__dot {
+        position: absolute;
+        right: 9px;
+        bottom: 9px;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        border: 2px solid
+            var(--app-rail-bg, var(--mat-sys-surface-container-low));
+        background: var(--app-selection-color);
+    }
+
+    &[data-state='offline'] {
+        color: var(--app-expiry-warn-text);
+
+        .rail-server__dot {
+            background: var(--app-expiry-warn-text);
+        }
+    }
+
+    &[data-state='unauthorized'] {
+        color: var(--app-expiry-expired-text);
+
+        .rail-server__dot {
+            background: var(--app-expiry-expired-text);
+        }
     }
 }

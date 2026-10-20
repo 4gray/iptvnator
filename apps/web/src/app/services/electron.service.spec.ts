@@ -1,9 +1,9 @@
 import { SourceActivityService } from '@iptvnator/services';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { DialogService } from '@iptvnator/ui/components';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
@@ -54,9 +54,9 @@ describe('ElectronService', () => {
             openInVlc: jest.fn().mockResolvedValue(session),
         };
         snackBar = {
-            open: jest.fn(() => ({
-                onAction: () => of(undefined),
-            })),
+            open: jest.fn(() =>
+                Promise.resolve({ onAction: () => of(undefined) })
+            ),
         };
         store = { dispatch: jest.fn() };
         translateService = { instant: jest.fn((key: string) => key) };
@@ -70,7 +70,7 @@ describe('ElectronService', () => {
             providers: [
                 ElectronService,
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: snackBar,
                 },
                 {
@@ -504,6 +504,62 @@ describe('ElectronService', () => {
             'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
             'HOME.URL_UPLOAD.TRUST_TLS_HOST',
             { duration: 10000 }
+        );
+    });
+
+    it('opens the trust-host confirmation from the toast action and retries after approval', async () => {
+        let showToast!: (ref: {
+            onAction: () => Observable<undefined>;
+        }) => void;
+        snackBar.open.mockImplementation(
+            () => new Promise((resolve) => (showToast = resolve))
+        );
+        const securityPayload = {
+            code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+            host: 'playlist.local',
+            message: 'Certificate for this playlist host is invalid.',
+        };
+        electronBridge.fetchPlaylistByUrl.mockRejectedValue(
+            new Error(
+                `Error invoking remote method 'FETCH_PLAYLIST_BY_URL': Error: ${SECURITY_ERROR_PREFIX}${JSON.stringify(
+                    securityPayload
+                )}`
+            )
+        );
+        const dialogService = TestBed.inject(DialogService) as unknown as {
+            openConfirmDialog: jest.Mock;
+        };
+        const settingsStore = TestBed.inject(SettingsStore) as unknown as {
+            updateSettings: jest.Mock;
+        };
+
+        await service.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
+            url: 'https://playlist.local/list.m3u',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // Nothing happens before the toast chunk has loaded.
+        expect(dialogService.openConfirmDialog).not.toHaveBeenCalled();
+
+        showToast({ onAction: () => of(undefined) });
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(dialogService.openConfirmDialog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: 'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE',
+                confirmLabel: 'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+            })
+        );
+
+        dialogService.openConfirmDialog.mock.calls[0][0].onConfirm();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(settingsStore.updateSettings).toHaveBeenCalledWith({
+            trustedInsecureTlsHosts: ['playlist.local'],
+        });
+        expect(electronBridge.fetchPlaylistByUrl).toHaveBeenCalledTimes(2);
+        expect(electronBridge.fetchPlaylistByUrl.mock.calls[1][0]).toBe(
+            'https://playlist.local/list.m3u'
         );
     });
 

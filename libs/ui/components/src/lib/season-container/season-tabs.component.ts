@@ -5,9 +5,14 @@ import {
     input,
     output,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { TranslateModule } from '@ngx-translate/core';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '../menu-item-radio/menu-item-radio.directive';
 
 /** Up to this many seasons the picker is a row of chips, beyond it a menu. */
 const MAX_SEASON_CHIPS = 4;
@@ -31,7 +36,14 @@ export type SeasonCountLoadState = 'loading' | 'unloaded';
     templateUrl: './season-tabs.component.html',
     styleUrls: ['./season-tabs.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatIcon, MatMenuModule, TranslateModule],
+    imports: [
+        MatButtonModule,
+        MatIcon,
+        MatMenuModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
+        TranslateModule,
+    ],
 })
 export class SeasonTabsComponent {
     /** Season keys, already sorted in display order. */

@@ -41,4 +41,15 @@ describe('PlaylistStorageBackend', () => {
         expect(backend.kind()).toBe('indexeddb');
         expect(backend.documentStore()).toBeNull();
     });
+
+    it('prefers the server store once it is set', () => {
+        testWindow.electron = undefined;
+        const backend = create(false);
+        const store = { dbGetAppPlaylists: jest.fn() } as never;
+
+        backend.useServerStore(store);
+
+        expect(backend.kind()).toBe('server');
+        expect(backend.documentStore()).toBe(store);
+    });
 });

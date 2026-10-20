@@ -1,14 +1,8 @@
 <div class="apd">
-    <div mat-dialog-title class="apd-head">
-        <h2 class="apd-title">
-            {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
-        </h2>
-        <p class="apd-sub">
-            {{ 'HOME.ADD_PLAYLIST.PICK_METHOD' | translate }}
-        </p>
-    </div>
-
-    <mat-dialog-content>
+    <app-dialog-shell
+        [heading]="'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate"
+        [subtitle]="'HOME.ADD_PLAYLIST.PICK_METHOD' | translate"
+    >
         <div
             class="apd-method-grid"
             role="radiogroup"
@@ -68,18 +62,15 @@
                 }
             }
         </div>
-    </mat-dialog-content>
-
-    <mat-dialog-actions class="apd-actions">
-        @if (playlistType() === 'xtream') {
-            <p class="w-full" id="xtream-http-test-notice">
-                {{
-                    'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.HTTP_PERMISSION'
-                        | translate
-                }}
-            </p>
-        }
-        <div class="apd-actions__reset">
+        <div appDialogFooterStart>
+            @if (playlistType() === 'xtream') {
+                <p class="w-full" id="xtream-http-test-notice">
+                    {{
+                        'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.HTTP_PERMISSION'
+                            | translate
+                    }}
+                </p>
+            }
             <button
                 mat-button
                 type="button"
@@ -89,17 +80,14 @@
                 {{ 'CLEAR' | translate }}
             </button>
         </div>
-
-        <div class="apd-actions__decision">
+        <div appDialogFooter>
             <button mat-button type="button" (click)="closeDialog()">
                 {{ 'CANCEL' | translate }}
             </button>
-
             @switch (playlistType()) {
                 @case ('url') {
                     <button
                         mat-flat-button
-                        color="primary"
                         type="button"
                         [disabled]="!urlUpload()?.form?.valid"
                         (click)="submitUrlPlaylist()"
@@ -110,7 +98,6 @@
                 @case ('file') {
                     <button
                         mat-flat-button
-                        color="primary"
                         type="button"
                         [disabled]="!fileUpload()?.selectedFile()"
                         (click)="fileUpload()?.confirm()"
@@ -121,7 +108,6 @@
                 @case ('text') {
                     <button
                         mat-flat-button
-                        color="primary"
                         type="button"
                         [disabled]="!textImport()?.textForm?.valid"
                         (click)="
@@ -135,7 +121,8 @@
                 }
                 @case ('xtream') {
                     <button
-                        mat-stroked-button
+                        mat-flat-button
+                        class="app-dialog__secondary"
                         type="button"
                         [disabled]="
                             !xtreamImport()?.form?.valid ||
@@ -153,7 +140,6 @@
                     </button>
                     <button
                         mat-flat-button
-                        color="primary"
                         type="button"
                         [disabled]="
                             !xtreamImport()?.form?.valid ||
@@ -166,18 +152,12 @@
                 }
                 @case ('stalker') {
                     @if (stalkerImport()?.isLoading()) {
-                        <button
-                            mat-flat-button
-                            color="primary"
-                            type="button"
-                            disabled
-                        >
+                        <button mat-flat-button type="button" disabled>
                             {{ 'HOME.STALKER_PORTAL.VALIDATING' | translate }}
                         </button>
                     } @else {
                         <button
                             mat-flat-button
-                            color="primary"
                             type="button"
                             [disabled]="!stalkerImport()?.form?.valid"
                             (click)="stalkerImport()?.addPlaylist()"
@@ -188,5 +168,5 @@
                 }
             }
         </div>
-    </mat-dialog-actions>
+    </app-dialog-shell>
 </div>

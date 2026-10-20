@@ -1,4 +1,4 @@
-@use '@angular/material' as mat;
+@use '../../../../styles/app-controls' as controls;
 
 :host {
     display: block;
@@ -11,65 +11,31 @@
     flex-wrap: wrap;
     gap: 4px;
 
-    // Season pills and the dropdown share the section header's 30px pill.
+    // Up to four seasons are tabs in the kit's segmented control: 26px
+    // segments in a 32px track. Past four the toolbar picker, a small
+    // secondary button with a chevron, opens the season menu instead. Both
+    // are as tall as the list/grid switch at the header's far edge.
+    &__track {
+        @include controls.segmented-track;
+    }
+
     &__pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 30px;
-        padding: 0 12px;
-        border: 1px solid transparent;
-        border-radius: 999px;
-        box-sizing: border-box;
-        background: transparent;
-        color: var(--text-secondary, rgba(255, 255, 255, 0.7));
-        font-size: 13px;
-        font-family: inherit;
-        cursor: pointer;
         transition:
             background 150ms ease,
             color 150ms ease;
-
-        &:hover {
-            background: var(--tag-bg, rgba(255, 255, 255, 0.08));
-        }
+        @include controls.segment;
 
         &--active {
-            border-color: color-mix(
-                in srgb,
-                var(--app-on-surface) 14%,
-                transparent
-            );
-            background: var(--app-widget-bg);
-            color: var(--text-primary, #fff);
-            font-weight: 500;
+            @include controls.segment-selected;
         }
     }
 
     &__dropdown {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 30px;
-        padding: 0 10px 0 12px;
-        border: 1px solid
-            color-mix(in srgb, var(--app-on-surface) 14%, transparent);
-        border-radius: 999px;
-        box-sizing: border-box;
-        background: var(--app-widget-bg);
-        color: var(--text-primary, #fff);
-        font-size: 13px;
-        font-weight: 500;
-        font-family: inherit;
-        cursor: pointer;
+        @include controls.secondary-button(sm);
+    }
 
-        > mat-icon {
-            width: 16px;
-            height: 16px;
-            font-size: 16px;
-            line-height: 16px;
-            color: var(--text-secondary, rgba(255, 255, 255, 0.7));
-        }
+    &__chevron {
+        @include controls.trigger-chevron;
     }
 
     &__done {
@@ -106,46 +72,18 @@
     }
 }
 
-// The season menu: two columns per row, the season name and its
-// "N episodes · M watched" count; the selected season gets a selection tint.
-// The panel lives in the overlay container, outside this host.
-::ng-deep .season-tabs-menu.mat-mdc-menu-panel {
-    @include mat.menu-overrides(
-        (
-            container-color: var(--mat-sys-surface-container-high),
-        )
-    );
-    min-width: 280px;
-    max-width: min(360px, calc(100vw - 24px));
-    border: 1px solid color-mix(in srgb, var(--app-on-surface) 10%, transparent);
-    border-radius: 10px;
-
-    .mat-mdc-menu-content {
-        padding: 6px;
-    }
-}
-
+// The season menu takes the global kit panel; its rows carry two columns,
+// the season name and its "N episodes · M watched" count. The chosen row is a
+// `menuitemradio` and gets the kit's selected tint.
 .season-tabs__menu-item {
-    min-height: 0;
-    padding: 8px 10px;
-    border-radius: 6px;
-
     // Material wraps the projected text in a span that must take the row.
     ::ng-deep .mat-mdc-menu-item-text {
         flex: 1 1 auto;
         min-width: 0;
     }
 
-    &--selected {
-        background: color-mix(
-            in srgb,
-            var(--app-selection-color) 10%,
-            transparent
-        );
-
-        .season-tabs__menu-count {
-            color: var(--app-selection-color);
-        }
+    &[aria-checked='true'] .season-tabs__menu-count {
+        color: inherit;
     }
 }
 
@@ -160,7 +98,7 @@
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
-    color: var(--app-heading-color);
+    color: inherit;
     font-size: 13px;
     text-overflow: ellipsis;
     white-space: nowrap;
