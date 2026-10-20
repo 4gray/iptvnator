@@ -16,7 +16,7 @@ const debug = createDevLogger('AppDateLocales');
  * separate lazy chunk, keyed by the Angular locale id that
  * `normalizeDateLocale()` produces for an app language (`by` -> `be`,
  * `ary` -> `ar-MA`, `zhtw` -> `zh-Hant`). Importing all of them eagerly put
- * the data for 18 languages into the initial bundle of every user.
+ * all non-English locale data into the initial bundle of every user.
  */
 export const APP_DATE_LOCALE_LOADERS: Readonly<
     Record<string, AppDateLocaleLoader>

@@ -28,7 +28,7 @@ test('hero: generic download CTA, self-host link and project facts', async () =>
   assert.match(primary, /Download for desktop/);
   assert.match(html, /data-hero-secondary[^>]*>\s*All platforms/);
   assert.match(html, /href="\/iptvnator\/download\/docker\/"[^>]*>\s*Self-host the web app/);
-  assert.match(html, /<dd[^>]*>19<\/dd>/, 'languages fact');
+  assert.match(html, /<dd[^>]*>20<\/dd>/, 'languages fact');
   assert.match(html, /<dd[^>]*>MIT<\/dd>/, 'license fact');
   assert.doesNotMatch(html, /img\.shields\.io/, 'no badge images');
   assert.doesNotMatch(html, /border-dashed/, 'no dashed borders anywhere on the home page');
