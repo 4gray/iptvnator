@@ -1,0 +1,26 @@
+@use '../../../../libs/ui/styles/app-controls' as controls;
+
+// The notice shown when the card's chunk failed to load: the same floating
+// frame and anchor as the card it stands in for.
+.app-update-notification-unavailable {
+    @include controls.floating-panel;
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 901;
+    width: 320px;
+    max-width: calc(100vw - 40px);
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+@media (max-width: 560px) {
+    .app-update-notification-unavailable {
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        width: auto;
+        max-width: none;
+    }
+}

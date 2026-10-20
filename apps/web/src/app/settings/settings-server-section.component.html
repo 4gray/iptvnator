@@ -1,0 +1,156 @@
+<section class="settings-group" id="server">
+    <header class="settings-group__header">
+        <h2>{{ 'SETTINGS.NAV_SERVER' | translate }}</h2>
+        <p>{{ 'SETTINGS.SERVER_DESCRIPTION' | translate }}</p>
+    </header>
+
+    <div class="settings-card">
+        <div class="setting-item" data-setting-id="server-connection">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.SERVER_CONNECTION' | translate }}</h4>
+                <p>
+                    {{ 'SETTINGS.SERVER_CONNECTION_DESCRIPTION' | translate }}
+                </p>
+                <p class="server-detail" data-test-id="server-address">
+                    {{ address }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <span
+                    class="server-state"
+                    [attr.data-state]="state()"
+                    data-test-id="server-state"
+                >
+                    {{
+                        (state() === 'online'
+                            ? 'SETTINGS.SERVER_CONNECTED'
+                            : 'SETTINGS.SERVER_OFFLINE'
+                        ) | translate
+                    }}
+                </span>
+            </div>
+        </div>
+
+        <div class="setting-item" data-setting-id="server-storage">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.SERVER_STORAGE' | translate }}</h4>
+                <p>{{ 'SETTINGS.SERVER_STORAGE_DESCRIPTION' | translate }}</p>
+                @if (details(); as info) {
+                    <p class="server-detail" data-test-id="server-summary">
+                        {{
+                            'SETTINGS.SERVER_STORAGE_SUMMARY'
+                                | translate
+                                    : {
+                                          playlists: info.playlists,
+                                          size: sizeLabel(),
+                                      }
+                        }}
+                    </p>
+                    <p class="server-detail server-detail--path">
+                        {{ info.databasePath }}
+                    </p>
+                }
+            </div>
+            <div class="setting-item__control inline-actions">
+                <button
+                    mat-stroked-button
+                    type="button"
+                    class="inline-actions__button"
+                    (click)="exportData.emit()"
+                    data-test-id="server-export-backup"
+                >
+                    {{ 'SETTINGS.SERVER_EXPORT_BACKUP' | translate }}
+                </button>
+            </div>
+        </div>
+
+        @if (showBrowserImport()) {
+            <div class="setting-item" data-setting-id="server-import-browser">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.SERVER_IMPORT_BROWSER' | translate }}</h4>
+                    <p>
+                        {{
+                            'SETTINGS.SERVER_IMPORT_BROWSER_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                    <p class="server-detail" role="status">
+                        @if (importResult(); as done) {
+                            {{
+                                'SERVER_STORAGE.MIGRATION_DONE'
+                                    | translate: done
+                            }}
+                        } @else if (importFailed()) {
+                            {{ 'SERVER_STORAGE.MIGRATION_FAILED' | translate }}
+                        } @else {
+                            {{
+                                'SETTINGS.SERVER_IMPORT_BROWSER_COUNT'
+                                    | translate
+                                        : { count: browserPlaylistCount() }
+                            }}
+                        }
+                    </p>
+                </div>
+                <div class="setting-item__control inline-actions">
+                    @if (movedSomething()) {
+                        <!-- The library on screen predates the move. -->
+                        <button
+                            mat-stroked-button
+                            type="button"
+                            (click)="reload()"
+                            data-test-id="server-import-reload"
+                        >
+                            {{ 'SERVER_STORAGE.MIGRATION_RELOAD' | translate }}
+                        </button>
+                    }
+                    @if (browserPlaylistCount() > 0) {
+                        <button
+                            mat-flat-button
+                            type="button"
+                            [disabled]="importing()"
+                            [attr.aria-busy]="importing()"
+                            (click)="importBrowserPlaylists()"
+                            data-test-id="server-import-browser"
+                        >
+                            @if (importing()) {
+                                <mat-progress-spinner
+                                    class="button-spinner"
+                                    diameter="16"
+                                    mode="indeterminate"
+                                />
+                            }
+                            {{ 'SERVER_STORAGE.MIGRATION_MOVE' | translate }}
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="setting-item" data-setting-id="server-access">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.SERVER_ACCESS' | translate }}</h4>
+                <p>{{ 'SETTINGS.SERVER_ACCESS_DESCRIPTION' | translate }}</p>
+                <p class="server-detail">
+                    {{
+                        (usesToken()
+                            ? 'SETTINGS.SERVER_ACCESS_TOKEN'
+                            : 'SETTINGS.SERVER_ACCESS_OPEN'
+                        ) | translate
+                    }}
+                </p>
+            </div>
+            @if (usesToken()) {
+                <div class="setting-item__control">
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        (click)="signOut()"
+                        data-test-id="server-sign-out"
+                    >
+                        {{ 'SETTINGS.SERVER_SIGN_OUT' | translate }}
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</section>

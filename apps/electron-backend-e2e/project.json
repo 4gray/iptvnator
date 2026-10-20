@@ -68,6 +68,27 @@
                 "command": "playwright test --config=playwright.journeys.config.ts"
             }
         },
+        "journeys-large-library": {
+            "dependsOn": ["electron-backend:build-performance"],
+            "executor": "nx:run-commands",
+            "cache": false,
+            "parallelism": false,
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "env": {
+                    "IPTVNATOR_JOURNEY_LARGE_LIBRARY": "1"
+                },
+                "command": "playwright test --config=playwright.journeys.config.ts src/journeys/launch-large.journey.ts"
+            }
+        },
+        "large-library-profile": {
+            "executor": "nx:run-commands",
+            "cache": false,
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "command": "tsx --tsconfig tsconfig.json src/performance/large-library-profile.cli.ts"
+            }
+        },
         "compositing-report": {
             "dependsOn": ["electron-backend:build-e2e"],
             "executor": "nx:run-commands",

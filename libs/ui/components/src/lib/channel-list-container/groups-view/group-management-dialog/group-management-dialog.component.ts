@@ -19,6 +19,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ParentalLockService } from '@iptvnator/services';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
+import { DialogShellComponent } from '../../../dialog-shell/dialog-shell.component';
+import { DialogFooterDirective } from '../../../dialog-shell/dialog-shell.directives';
 
 export interface GroupManagementDialogGroup {
     readonly count: number;
@@ -46,6 +48,8 @@ interface GroupWithSelection extends GroupManagementDialogGroup {
 @Component({
     selector: 'app-group-management-dialog',
     imports: [
+        DialogFooterDirective,
+        DialogShellComponent,
         MatDialogModule,
         MatButtonModule,
         MatCheckboxModule,

@@ -309,19 +309,12 @@ strip (poster, season name, episode count — `PORTALS.EPISODE_COUNT_ONE` /
 same gates, from `PortalInlinePlayerComponent.seasonPosters` through
 `buildFullscreenEpisodePanelSeasons`.
 
-Beyond six seasons the tabs become a `mat-menu` dropdown, and that dropdown
-carries **season thumbnails** from the same `seasonPosters` map
-(`SeasonTabsComponent.seasonPosters`, passed by the season container and by
-the fullscreen episode panel): a 28×42 poster projected into the leading slot
-of each menu row that has one, and the selected season's poster inside the
-closed trigger (`season-tabs__dropdown--with-thumb` tightens the pill around
-it). A season without a poster gets no placeholder tile — its row simply
-starts with the text — and a poster whose image request fails is dropped from
-both places rather than left as a broken-image frame (the component keeps its
-own failed-URL set, independent of the container's cover column). The pill
-row (six seasons or fewer) deliberately stays text-only: the design review
-rejected per-pill thumbnails as a second poster rail, and the season cover
-beside the tabs already shows the selected season's picture.
+`SeasonTabsComponent` draws both forms of the picker, on the detail page and
+in the fullscreen episode panel. Up to four seasons the tabs are the kit's
+segmented control (`role="tablist"` on the track only; the "back to playing
+episode" chip sits beside it). From five, the kit's toolbar picker (a small
+secondary button with a chevron) opens a `mat-menu` of radio rows. Neither
+form draws season artwork.
 
 ### Manual watched toggle for movies
 

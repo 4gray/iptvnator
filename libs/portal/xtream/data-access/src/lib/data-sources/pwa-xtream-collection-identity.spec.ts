@@ -1,8 +1,16 @@
 import { TestBed } from '@angular/core/testing';
-import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    PlaylistsService,
+    USER_DATA_STORAGE,
+    XtreamPendingRestoreService,
+} from '@iptvnator/services';
+import { PwaXtreamBackupStorage } from '@iptvnator/services/pwa-xtream-backup-storage';
+import { XtreamPlaylistBackupEntry } from '@iptvnator/shared/interfaces';
 import { of } from 'rxjs';
 import { XtreamApiService } from '../services/xtream-api.service';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
+import { XtreamContentItem } from './xtream-data-source.interface';
 
 const credentials = {
     serverUrl: 'http://localhost:3211',
@@ -365,6 +373,520 @@ describe('PWA Xtream collection identity', () => {
             playlistId: 'p1',
             updatedAt: '2026-10-01T12:00:00.000Z',
         });
+    });
+
+    it.each(['xtream-favorites', 'xtream-collection-items'])(
+        'retains saved metadata through %s quota failure, replay, offline reads and re-export',
+        async (failedKey) => {
+            const entry: XtreamPlaylistBackupEntry = {
+                portalType: 'xtream',
+                exportedId: 'p1',
+                title: 'Saved portal',
+                autoRefresh: false,
+                connection: credentials,
+                userState: {
+                    hiddenCategories: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                    favorites: types.map((contentType, position) => ({
+                        contentType,
+                        xtreamId: 42,
+                        position,
+                        addedAt: '2026-10-01T12:00:00.000Z',
+                        snapshot: {
+                            title: `Saved ${contentType}`,
+                            posterUrl: `https://img.example.com/${contentType}.jpg`,
+                            backdropUrl: `https://img.example.com/${contentType}-wide.jpg`,
+                            tmdbId: 100 + position,
+                            releaseYear: 1995 + position,
+                            originalTitle: `Original ${contentType}`,
+                        },
+                    })),
+                },
+            };
+            const pending = TestBed.inject(XtreamPendingRestoreService);
+            const parked = pending.set('p1', entry.userState);
+            if (!parked) throw new Error('Expected parked restore');
+            const backup = new PwaXtreamBackupStorage(
+                TestBed.inject(USER_DATA_STORAGE)
+            );
+            let blockedKey = failedKey;
+            const setItem = Storage.prototype.setItem;
+            jest.spyOn(Storage.prototype, 'setItem').mockImplementation(
+                function (this: Storage, key, value) {
+                    if (key === blockedKey)
+                        throw new DOMException('full', 'QuotaExceededError');
+                    setItem.call(this, key, value);
+                }
+            );
+            await expect(
+                pending.applyAndConsume('p1', parked, (state) =>
+                    backup.restore('p1', state, entry)
+                )
+            ).rejects.toMatchObject({ name: 'QuotaExceededError' });
+            expect(pending.getOrThrow('p1')?.favorites).toEqual(
+                entry.userState.favorites
+            );
+
+            // Lists fit now, but the sole saved metadata still must not be discarded.
+            blockedKey = 'xtream-collection-items';
+            await expect(
+                pending.applyAndConsume('p1', parked, (state) =>
+                    source.restoreUserData('p1', state)
+                )
+            ).rejects.toMatchObject({ name: 'QuotaExceededError' });
+            expect(pending.getOrThrow('p1')?.favorites).toEqual(
+                entry.userState.favorites
+            );
+
+            blockedKey = '';
+            await expect(
+                pending.applyAndConsume('p1', parked, (state) =>
+                    source.restoreUserData('p1', state)
+                )
+            ).resolves.toBe('consumed');
+            expect(pending.getOrThrow('p1')).toBeNull();
+            api.getStreams.mockResolvedValue([]);
+            reload();
+            const items = await source.getFavorites('p1');
+            expect(
+                items.map(({ title, type, xtream_id }) => ({
+                    title,
+                    type,
+                    xtream_id,
+                }))
+            ).toEqual(
+                types.map((type) => ({
+                    title: `Saved ${type}`,
+                    type,
+                    xtream_id: 42,
+                }))
+            );
+            expect(
+                new PwaXtreamBackupStorage(
+                    TestBed.inject(USER_DATA_STORAGE)
+                ).exportInto(entry).userState.favorites
+            ).toEqual(entry.userState.favorites);
+        }
+    );
+
+    it('keeps imported favorite fields through sparse catalog reads, recent writes, reload and export', async () => {
+        const favorites = types.map((contentType, position) => ({
+            contentType,
+            xtreamId: 42,
+            position,
+            addedAt: '2026-10-01T12:00:00.000Z',
+            snapshot: {
+                title: `${contentType} 42`,
+                posterUrl: `https://img.example.com/${contentType}.jpg`,
+                backdropUrl: `https://img.example.com/${contentType}-wide.jpg`,
+                tmdbId: 100 + position,
+                releaseYear: 1995 + position,
+                originalTitle: `Original ${contentType}`,
+            },
+        }));
+        const entry: XtreamPlaylistBackupEntry = {
+            portalType: 'xtream',
+            exportedId: 'p1',
+            title: 'Saved portal',
+            autoRefresh: false,
+            connection: credentials,
+            userState: {
+                hiddenCategories: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+                favorites,
+            },
+        };
+        await source.restoreUserData('p1', entry.userState);
+        await loadAll();
+        const loaded = await source.getFavorites('p1');
+        expect(loaded.map((item) => item.poster_url)).toEqual(
+            favorites.map((item) => item.snapshot.posterUrl)
+        );
+        for (const type of types) {
+            await source.addRecentItem({ id: 42, type }, 'p1');
+        }
+        await source.getRecentItems('p1');
+        reload();
+        api.getStreams.mockResolvedValue([]);
+        await source.getFavorites('p1');
+        expect(
+            new PwaXtreamBackupStorage(
+                TestBed.inject(USER_DATA_STORAGE)
+            ).exportInto(entry).userState.favorites
+        ).toEqual(favorites);
+    });
+
+    it.each([
+        'missing',
+        'partial',
+        'tmdb conflict',
+        'year conflict',
+        'confirmed',
+        'numeric strings',
+        'zero',
+        'empty',
+    ])(
+        'protects imported identities through %s catalog rows, recent writes and re-export',
+        async (identity) => {
+            const favorites = types.map((contentType, position) => ({
+                contentType,
+                xtreamId: 42,
+                position,
+                addedAt: '2026-10-01T12:00:00.000Z',
+                snapshot: {
+                    title: `Saved ${contentType}`,
+                    posterUrl: `https://img.example.com/saved-${contentType}.jpg`,
+                    tmdbId: 100 + position,
+                    releaseYear: 1995 + position,
+                    originalTitle: `Original ${contentType}`,
+                },
+            }));
+            const entry: XtreamPlaylistBackupEntry = {
+                portalType: 'xtream',
+                exportedId: 'p1',
+                title: 'Saved portal',
+                autoRefresh: false,
+                connection: credentials,
+                userState: {
+                    hiddenCategories: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                    favorites,
+                },
+            };
+            await source.restoreUserData('p1', entry.userState);
+            api.getStreams.mockImplementation((_credentials, type) => {
+                const position = types.indexOf(type);
+                return Promise.resolve([
+                    {
+                        stream_id: 42,
+                        series_id: 42,
+                        category_id: '1',
+                        name: `Returning ${type}`,
+                        stream_icon: `https://img.example.com/returning-${type}.jpg`,
+                        ...(identity !== 'missing'
+                            ? {
+                                  tmdb_id:
+                                      identity === 'tmdb conflict'
+                                          ? 999
+                                          : identity === 'numeric strings'
+                                            ? String(100 + position)
+                                            : identity === 'zero'
+                                              ? '0'
+                                              : identity === 'empty'
+                                                ? ''
+                                                : 100 + position,
+                              }
+                            : {}),
+                        ...(identity !== 'missing' && identity !== 'partial'
+                            ? {
+                                  release_year:
+                                      identity === 'year conflict'
+                                          ? 2026
+                                          : identity === 'numeric strings'
+                                            ? String(1995 + position)
+                                            : identity === 'zero'
+                                              ? 0
+                                              : identity === 'empty'
+                                                ? ''
+                                                : 1995 + position,
+                              }
+                            : {}),
+                    },
+                ]);
+            });
+            await loadAll();
+            // Recent and detail enrichment can run before Favorites is read.
+            for (const type of types) {
+                await source.addRecentItem(
+                    { id: 42, type },
+                    'p1',
+                    'https://img.example.com/returning-wide.jpg'
+                );
+                await source.setContentMetadataIfMissing(
+                    { id: 42, type },
+                    'p1',
+                    { backdropUrl: 'https://img.example.com/detail-wide.jpg' }
+                );
+            }
+            await source.getRecentItems('p1');
+            if (['zero', 'empty'].includes(identity)) {
+                for (const item of await source.getFavorites('p1'))
+                    expect(item.catalog_status).not.toBe('missing');
+            }
+            if (identity.includes('conflict')) {
+                for (const item of await source.getFavorites('p1')) {
+                    expect(item).toMatchObject({ catalog_status: 'missing' });
+                }
+            }
+            const expected = favorites.map((favorite) =>
+                ['confirmed', 'numeric strings'].includes(identity)
+                    ? {
+                          ...favorite,
+                          snapshot: {
+                              ...favorite.snapshot,
+                              catalogStatus: 'present',
+                              title: `Returning ${favorite.contentType}`,
+                              posterUrl: `https://img.example.com/returning-${favorite.contentType}.jpg`,
+                              backdropUrl:
+                                  'https://img.example.com/detail-wide.jpg',
+                          },
+                      }
+                    : identity.includes('conflict')
+                      ? {
+                            ...favorite,
+                            snapshot: {
+                                ...favorite.snapshot,
+                                catalogStatus: 'missing',
+                                catalogMissingReason: 'identity_conflict',
+                            },
+                        }
+                      : favorite
+            );
+            expect(
+                (await source.getFavorites('p1')).map((item) => item.title)
+            ).toEqual(expected.map((item) => item.snapshot.title));
+            const exportFavorites = () =>
+                new PwaXtreamBackupStorage(
+                    TestBed.inject(USER_DATA_STORAGE)
+                ).exportInto(entry).userState.favorites;
+            expect(exportFavorites()).toEqual(expected);
+            reload();
+            api.getStreams.mockResolvedValue([]);
+            await source.getRecentItems('p1');
+            await source.getFavorites('p1');
+            expect(exportFavorites()).toEqual(expected);
+        }
+    );
+
+    it.each([false, true])(
+        'replaces an explicitly removed favorite with current catalog data (legacy=%s)',
+        async (legacy) => {
+            await source.restoreUserData('p1', {
+                favorites: [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 42,
+                        snapshot: { title: 'Original', tmdbId: 100 },
+                    },
+                ],
+                hiddenCategories: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+            });
+            if (legacy) {
+                const snapshots = read('xtream-collection-items');
+                snapshots.p1[42] = snapshots.p1['movie:42'];
+                localStorage.setItem(
+                    'xtream-collection-items',
+                    JSON.stringify(snapshots)
+                );
+            }
+            const replacement = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Replacement',
+                tmdb_id: 200,
+                poster_url: 'new.jpg',
+            } as XtreamContentItem;
+            await source.saveContent('p1', [replacement], 'movie');
+            await source.getFavorites('p1');
+            // A replacement detail heart cannot remove or claim the original favorite.
+            expect(
+                await source.isFavorite({ id: 42, type: 'movie' }, 'p1')
+            ).toBe(false);
+            await expect(
+                source.addFavorite({ id: 42, type: 'movie' }, 'p1')
+            ).rejects.toThrow('XTREAM_FAVORITE_IDENTITY_CONFLICT');
+            expect((await source.getFavorites('p1'))[0].title).toBe('Original');
+            // Explicit removal carries the original saved identity, as the Favorites row does.
+            await source.removeFavorite({ id: 42, type: 'movie', identity: { tmdbId: 100 } }, 'p1');
+            const setItem = Storage.prototype.setItem;
+            const quota = jest
+                .spyOn(Storage.prototype, 'setItem')
+                .mockImplementation(function (this: Storage, key, value) {
+                    if (key === 'xtream-collection-items')
+                        throw new DOMException('full', 'QuotaExceededError');
+                    setItem.call(this, key, value);
+                });
+            await expect(
+                source.addFavorite({ id: 42, type: 'movie' }, 'p1')
+            ).rejects.toMatchObject({ name: 'QuotaExceededError' });
+            expect(await source.getFavorites('p1')).toEqual([]);
+            quota.mockRestore();
+            await source.addFavorite({ id: 42, type: 'movie' }, 'p1');
+            reload();
+            expect(await source.getFavorites('p1')).toEqual([
+                expect.objectContaining({
+                    title: 'Replacement',
+                    tmdb_id: 200,
+                    poster_url: 'new.jpg',
+                }),
+            ]);
+        }
+    );
+
+    it.each([false, true])(
+        'records replacement playback after removing obsolete Recent (quota=%s)',
+        async (quota) => {
+            const ref = { id: 42, type: 'movie' as const };
+            const [cached] = await source.getContent(
+                'p1',
+                credentials,
+                'movie'
+            );
+            const original = cached as XtreamContentItem;
+            original.tmdb_id = 100;
+            const expected = { title: 'Replacement', tmdb_id: 200 };
+            await source.saveContent('p1', [original], 'movie');
+            await source.addRecentItem(ref, 'p1');
+            await source.saveContent(
+                'p1',
+                [{ ...original, ...expected }],
+                'movie'
+            );
+            await source.getRecentItems('p1');
+            await source.removeRecentItem(ref, 'p1');
+            if (quota) {
+                const setItem = Storage.prototype.setItem;
+                const failure = jest
+                    .spyOn(Storage.prototype, 'setItem')
+                    .mockImplementation(function (this: Storage, key, value) {
+                        if (key === 'xtream-recent-items')
+                            throw new DOMException(
+                                'full',
+                                'QuotaExceededError'
+                            );
+                        setItem.call(this, key, value);
+                    });
+                await expect(
+                    source.addRecentItem(ref, 'p1')
+                ).rejects.toMatchObject({ name: 'QuotaExceededError' });
+                expect(read('xtream-recent-items').p1).toEqual([]);
+                failure.mockRestore();
+            }
+            await source.addRecentItem(ref, 'p1');
+            expect((await source.getRecentItems('p1'))[0]).toMatchObject(
+                expected
+            );
+            reload();
+            api.getStreams.mockResolvedValue([]);
+            const [item] = await source.getRecentItems('p1');
+            expect(item).toMatchObject({ title: 'Replacement', tmdb_id: 200 });
+            expect(item.catalog_status).not.toBe('missing');
+            expect(await source.getFavorites('p1')).toEqual([]);
+        }
+    );
+
+    it('keeps played replacements separate from retained favorites through reload and backup restore', async () => {
+        const entry: XtreamPlaylistBackupEntry = {
+            portalType: 'xtream',
+            exportedId: 'p1',
+            title: 'Saved portal',
+            autoRefresh: false,
+            connection: credentials,
+            userState: {
+                hiddenCategories: [],
+                playbackPositions: [],
+                recentlyViewed: [],
+                favorites: types.map((contentType) => ({
+                    contentType,
+                    xtreamId: 42,
+                    snapshot: { title: `Original ${contentType}`, tmdbId: 100 },
+                })),
+            },
+        };
+        await source.restoreUserData('p1', entry.userState);
+        api.getStreams.mockImplementation((_credentials, type) =>
+            Promise.resolve([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: `Replacement ${type}`,
+                    category_id: '1',
+                    tmdb_id: 200,
+                    stream_icon: 'replacement.jpg',
+                },
+            ])
+        );
+        await loadAll();
+        for (const type of types)
+            await source.addRecentItem({ id: 42, type }, 'p1');
+        const verify = async () => {
+            expect(
+                (await source.getFavorites('p1')).map((item) => item.title)
+            ).toEqual(types.map((type) => `Original ${type}`));
+            const recent = await source.getRecentItems('p1');
+            expect(recent).toHaveLength(3);
+            for (const item of recent) {
+                expect(item).toMatchObject({
+                    title: `Replacement ${item.type}`,
+                    tmdb_id: 200,
+                    poster_url: 'replacement.jpg',
+                });
+                expect(item.catalog_status).not.toBe('missing');
+            }
+        };
+        await verify();
+        reload();
+        api.getStreams.mockResolvedValue([]);
+        await verify();
+        const backup = new PwaXtreamBackupStorage(
+            TestBed.inject(USER_DATA_STORAGE)
+        ).exportInto(entry);
+        expect(backup.userState.favorites).toEqual(
+            entry.userState.favorites.map((favorite) => ({
+                ...favorite,
+                snapshot: {
+                    ...favorite.snapshot,
+                    catalogStatus: 'missing',
+                    catalogMissingReason: 'identity_conflict',
+                },
+            }))
+        );
+        localStorage.clear();
+        reload();
+        await new PwaXtreamBackupStorage(
+            TestBed.inject(USER_DATA_STORAGE)
+        ).restore('p1', backup.userState, backup);
+        await verify();
+        const pending = await source.clearPlaylistContent('p1');
+        await source.restoreUserData('p1', pending);
+        await verify();
+    });
+
+    it('retains concurrent explicit additions after loading the favorite writer', async () => {
+        await loadAll();
+        await Promise.all(
+            types.map((type) => source.addFavorite({ id: 42, type }, 'p1'))
+        );
+        expect(
+            (await source.getFavorites('p1')).map((item) => item.type)
+        ).toEqual(types);
+    });
+
+    it('keeps a new favorite when a compatible Recent snapshot cannot be refreshed', async () => {
+        await loadAll();
+        await source.addRecentItem({ id: 42, type: 'movie' }, 'p1');
+        const setItem = Storage.prototype.setItem;
+        jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+            this: Storage,
+            key,
+            value
+        ) {
+            if (key === 'xtream-collection-items')
+                throw new DOMException('full', 'QuotaExceededError');
+            setItem.call(this, key, value);
+        });
+        await expect(
+            source.addFavorite({ id: 42, type: 'movie' }, 'p1')
+        ).resolves.toBeUndefined();
+        expect(
+            (await source.getFavorites('p1')).map((item) => item.type)
+        ).toEqual(['movie']);
     });
 
     it('keeps the artwork saved with each view through clear/restore', async () => {

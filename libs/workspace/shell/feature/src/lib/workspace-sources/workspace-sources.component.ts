@@ -18,6 +18,7 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { map } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import { dialogSize } from '@iptvnator/ui/components';
 import {
     SourceStatusService,
     sourceStatusBucket,
@@ -202,9 +203,8 @@ export class WorkspaceSourcesComponent {
         const activity = this.injector.get(SourceActivityService);
         if (dialogs.getDialogById('source-cleanup')) return;
         dialogs.open(SourceCleanupDialogComponent, {
+            ...dialogSize('lg'),
             id: 'source-cleanup',
-            width: '680px',
-            maxWidth: '95vw',
             data: {
                 playlists: this.playlists(),
                 current: (id: string) =>

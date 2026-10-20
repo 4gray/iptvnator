@@ -76,7 +76,7 @@
                             @if (item.status === 'error') {
                                 @if (isActionableSecurityError(item)) {
                                     <button
-                                        mat-stroked-button
+                                        mat-flat-button
                                         class="trust-btn"
                                         type="button"
                                         (click)="confirmTrust(item)"

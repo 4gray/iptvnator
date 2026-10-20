@@ -1,5 +1,6 @@
 import {
     isStalkerRadioItem,
+    isCatalogUnavailable,
     type EpgProgram,
     type PortalActivityItem,
 } from '@iptvnator/shared/interfaces';
@@ -35,7 +36,7 @@ export function buildDashboardPortalLiveEpgKey(
 export function buildDashboardPortalLiveEpgEntry(
     item: PortalActivityItem
 ): DashboardPortalLiveEpgEntry | null {
-    if (item.type !== 'live') {
+    if (item.type !== 'live' || isCatalogUnavailable(item)) {
         return null;
     }
     if (item.source === 'xtream') {

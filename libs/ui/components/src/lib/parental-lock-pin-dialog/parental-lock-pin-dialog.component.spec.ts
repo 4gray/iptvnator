@@ -103,6 +103,55 @@ describe('ParentalLockPinDialogComponent', () => {
     });
 
     describe('set mode', () => {
+        it('cancels through the header close with no result, never an empty PIN', async () => {
+            const dialog = await openDialog({ mode: 'unlock' });
+            dialog.fixture.detectChanges();
+
+            const headerClose = (
+                dialog.fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLButtonElement>('.app-dialog__close');
+            expect(headerClose).not.toBeNull();
+            headerClose?.click();
+
+            // A bare dismissal must read as a cancel: the lock services take
+            // any string, an empty one included, for an entered PIN.
+            expect(dialog.close).toHaveBeenCalledTimes(1);
+            expect(dialog.close).toHaveBeenCalledWith(undefined);
+        });
+
+        it('hides the header close while a verification is pending, like Cancel', async () => {
+            let settle: (accepted: boolean) => void = () => undefined;
+            const verify = jest.fn(
+                () => new Promise<boolean>((resolve) => (settle = resolve))
+            );
+            const dialog = await openDialog({ mode: 'unlock', verify });
+            const root = dialog.fixture.nativeElement as HTMLElement;
+            const headerClose = () =>
+                root.querySelector<HTMLButtonElement>('.app-dialog__close');
+            dialog.fixture.detectChanges();
+            expect(headerClose()).not.toBeNull();
+
+            await dialog.type('parental-lock-pin', '2468');
+            await dialog.pressEnter();
+            dialog.fixture.detectChanges();
+
+            // A dismissal now would hand the caller a cancel while the PIN
+            // is being checked, and the accepted PIN could no longer be
+            // delivered; the footer's Cancel is disabled for the same reason.
+            expect(verify).toHaveBeenCalledWith('2468');
+            expect(headerClose()).toBeNull();
+            expect(
+                root.querySelector<HTMLButtonElement>(
+                    'mat-dialog-actions button[type="button"]'
+                )?.disabled
+            ).toBe(true);
+            expect(dialog.close).not.toHaveBeenCalled();
+
+            settle(true);
+            await dialog.fixture.whenStable();
+            expect(dialog.close).toHaveBeenCalledWith('2468');
+        });
+
         it('asks password managers for a new password in both fields', async () => {
             const dialog = await openDialog({ mode: 'set' });
 

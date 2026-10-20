@@ -6,7 +6,7 @@ import {
 } from '../data-sources/xtream-data-source.interface';
 import { FavoriteItem } from './favorite-item.interface';
 
-function normalizeCategoryId(categoryId: string | number): number {
+function normalizeCategoryId(categoryId: string | number | null): number {
     const numericCategoryId = Number(categoryId);
     return Number.isFinite(numericCategoryId) ? numericCategoryId : 0;
 }
@@ -48,6 +48,8 @@ export class FavoritesService {
             map((items) =>
                 items.map((item) => ({
                     content_id: item.id,
+                    favorite_id: item.favorite_id,
+                    catalog_status: item.catalog_status,
                     playlist_id: playlistId,
                     type: item.type as FavoriteItem['type'],
                     title: item.title,

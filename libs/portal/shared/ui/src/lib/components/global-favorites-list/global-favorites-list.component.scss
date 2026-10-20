@@ -40,14 +40,6 @@
     gap: 2px;
 }
 
-.channel-context-menu-anchor {
-    position: fixed;
-    width: 0;
-    height: 0;
-    opacity: 0;
-    pointer-events: none;
-}
-
 .empty-state {
     display: flex;
     flex-direction: column;

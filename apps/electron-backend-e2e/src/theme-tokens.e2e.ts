@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import {
     closeElectronApp,
+    createMutableTextServer,
     expect,
     launchElectronApp,
     openSettings,
@@ -8,6 +9,40 @@ import {
     test,
 } from './electron-test-fixtures';
 import { applyTheme } from './theme-contrast';
+
+const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
+<tv>
+  <channel id="guide-news">
+    <display-name>Guide News</display-name>
+  </channel>
+  <programme start="20260328070000 +0000" stop="20260328080000 +0000" channel="guide-news">
+    <title>Guide Bulletin</title>
+  </programme>
+</tv>
+`;
+
+/** An update the main process would announce; the card shows it as is. */
+const availableUpdateStatus = {
+    status: 'available',
+    currentVersion: '0.0.0-e2e',
+    latestVersion: '9.9.9',
+    supportedSelfUpdate: true,
+    manualDownloadUrl: 'https://example.invalid/releases',
+    channel: 'stable',
+    installedChannel: 'stable',
+};
+
+/** The surface, hairline and corner of a framed element. */
+async function frame(locator: Locator) {
+    return locator.evaluate((el) => {
+        const style = getComputedStyle(el);
+        return {
+            background: style.backgroundColor,
+            border: style.borderTopColor,
+            radius: style.borderTopLeftRadius,
+        };
+    });
+}
 
 /**
  * WCAG contrast between an element's outline colour and the fill inside it,
@@ -283,4 +318,170 @@ test.describe('Theme tokens', () => {
             await closeElectronApp(app);
         }
     });
+
+    test('@theme @electron floating panels and toasts share the dialog frame in both themes', async ({
+        dataDir,
+    }) => {
+        const epgServer = await createMutableTextServer(epgFixtureXml, {
+            contentType: 'application/xml; charset=utf-8',
+            resourcePath: '/guide.xml',
+        });
+        try {
+            await withFloatingSurfaces(dataDir, epgServer.resourceUrl);
+        } finally {
+            await epgServer.close();
+        }
+    });
 });
+
+/**
+ * Launches the app with one guide source, shows the update notification and
+ * measures both floating panels, the dialog and a toast in both themes.
+ */
+async function withFloatingSurfaces(
+    dataDir: string,
+    guideUrl: string
+): Promise<void> {
+    const app = await launchElectronApp(dataDir);
+    const page = app.mainWindow;
+    try {
+        await openSettings(page);
+        await openSettingsSection(page, 'epg');
+        await page.getByRole('button', { name: 'Add EPG source' }).click();
+        await page.locator('.epg-source-row input').first().fill(guideUrl);
+        const panel = page.locator('.epg-progress-panel');
+        // A completed import leaves the panel five seconds later, so
+        // each theme imports the source again right before measuring.
+        const importGuide = async () => {
+            await page.getByTestId('epg-source-refresh').click();
+            await expect(
+                panel.locator('.import-item.status-complete')
+            ).toBeVisible();
+        };
+
+        // The update notification appears when the main process
+        // announces an update on the renderer's status channel.
+        await app.electronApp.evaluate(({ BrowserWindow }, status) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                window.webContents.send('APP_UPDATE:STATUS_CHANGED', status);
+            }
+        }, availableUpdateStatus);
+        const card = page.getByTestId('app-update-notification');
+        await expect(card).toBeVisible();
+
+        for (const theme of ['light', 'dark'] as const) {
+            await applyTheme(page, theme);
+            await importGuide();
+            const surface = await resolveColor(
+                page,
+                'var(--app-widget-bg)',
+                'backgroundColor'
+            );
+            const hairline = await resolveColor(page, 'var(--app-line-strong)');
+            const accent = await resolveColor(
+                page,
+                'var(--app-selection-color)',
+                'backgroundColor'
+            );
+
+            // Both floating panels: the dialog's surface, the menu's
+            // hairline, a 12px corner.
+            for (const [name, floating] of [
+                ['import panel', panel],
+                ['update card', card],
+            ] as const) {
+                await expect
+                    .poll(() => frame(floating), {
+                        message: `${name} frame in ${theme} theme`,
+                    })
+                    .toEqual({
+                        background: surface,
+                        border: hairline,
+                        radius: '12px',
+                    });
+            }
+            // Header actions are the kit's 28px square ghost icon buttons.
+            await expect
+                .poll(() =>
+                    panel.locator('.dismiss-all-btn').evaluate((el) => {
+                        const style = getComputedStyle(el);
+                        return {
+                            width: style.width,
+                            radius: style.borderTopLeftRadius,
+                        };
+                    })
+                )
+                .toEqual({ width: '28px', radius: '8px' });
+            // The card's actions: the one accent button and a secondary
+            // beside it, neither outlined.
+            const download = page.getByTestId(
+                'app-update-notification-download'
+            );
+            await expect
+                .poll(() =>
+                    download.evaluate(
+                        (el) => getComputedStyle(el).backgroundColor
+                    )
+                )
+                .toBe(accent);
+            const releaseNotes = page.getByTestId(
+                'app-update-notification-release-notes'
+            );
+            await expect(releaseNotes).not.toHaveClass(
+                /mat-mdc-outlined-button/
+            );
+            expect(
+                await releaseNotes.evaluate(
+                    (el) => getComputedStyle(el).borderTopWidth
+                )
+            ).toBe('0px');
+
+            // The dialog the panels are measured against, and the toast
+            // its confirmation leaves behind.
+            await page
+                .getByRole('button', {
+                    name: 'Clear EPG data',
+                    exact: true,
+                })
+                .click();
+            const dialogSurface = page.locator(
+                'mat-dialog-container .mat-mdc-dialog-surface'
+            );
+            await expect(dialogSurface).toBeVisible();
+            expect(
+                await frame(dialogSurface),
+                `dialog frame in ${theme} theme`
+            ).toEqual({
+                background: surface,
+                border: hairline,
+                radius: '16px',
+            });
+            await page
+                .locator('mat-dialog-container')
+                .getByTestId('confirm-dialog-confirm')
+                .click();
+
+            const toast = page.locator(
+                '.mat-mdc-snack-bar-container .mat-mdc-snackbar-surface'
+            );
+            await expect(toast).toBeVisible();
+            await expect
+                .poll(() => frame(toast), {
+                    message: `toast frame in ${theme} theme`,
+                })
+                .toEqual({
+                    background: surface,
+                    border: hairline,
+                    radius: '10px',
+                });
+            expect(
+                await toast
+                    .locator('.mdc-snackbar__label')
+                    .evaluate((el) => getComputedStyle(el).fontSize)
+            ).toBe('13px');
+            await expect(toast).toBeHidden({ timeout: 10_000 });
+        }
+    } finally {
+        await closeElectronApp(app);
+    }
+}

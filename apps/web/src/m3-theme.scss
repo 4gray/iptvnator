@@ -11,8 +11,7 @@
 // The stack is declared once on html; every Material typography token and the
 // typography hierarchy read it through the variable. Inlined, the 103-char
 // stack was copied into ~90 declarations (about 7 KB of the initial CSS).
-$app-font-stack-value:
-    "'DM Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+$app-font-stack-value: "'DM Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 $app-font-stack: var(--app-font-family);
 
 html {
@@ -179,7 +178,8 @@ html {
     --app-widget-bg: #ffffff;
     --app-widget-header-bg: #fafbfc;
     --app-widget-border: transparent;
-    --app-widget-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+    --app-widget-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
     --app-widget-header-border: rgba(0, 0, 0, 0.06);
     --app-card-hover-bg: #f0f2f5;
     --app-separator: rgba(0, 0, 0, 0.14);
@@ -224,7 +224,8 @@ html {
 
     // Source lists (Sources page, playlist switcher) and their popovers.
     --app-line-strong: rgba(0, 0, 0, 0.12);
-    --app-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --app-font-mono:
+        'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     // A failing source's tag and destructive menu items.
     --app-danger-text: #b3261e;
     --app-danger-surface: color-mix(in srgb, #d12c2c 12%, transparent);
@@ -309,10 +310,10 @@ html {
         --app-separator: rgba(255, 255, 255, 0.14);
 
         // Typography — NOT pure white. Warm graphite-tinted whites
-        --app-heading-color: #d8dce8;       // soft off-white, not #fff
-        --app-body-color: #8b93a8;          // muted blue-grey
-        --app-muted-color: #5c6478;         // dimmed
-        --app-eyebrow-color: #6b7494;       // eyebrow labels
+        --app-heading-color: #d8dce8; // soft off-white, not #fff
+        --app-body-color: #8b93a8; // muted blue-grey
+        --app-muted-color: #5c6478; // dimmed
+        --app-eyebrow-color: #6b7494; // eyebrow labels
 
         // Provider accents (slightly brighter for dark bg)
         --app-provider-xtream: #78adff;
@@ -365,9 +366,13 @@ html {
 // cascade. Pairs with the outline + dynamic MAT_FORM_FIELD_DEFAULT_OPTIONS
 // that provideFormFieldDefaults() (@iptvnator/ui/components) sets on each
 // component rendering a form field.
-$app-refined-input-density: mat.define-theme((
-    density: (scale: -2),
-));
+$app-refined-input-density: mat.define-theme(
+    (
+        density: (
+            scale: -2,
+        ),
+    )
+);
 
 html {
     @include mat.form-field-density($app-refined-input-density);
@@ -430,10 +435,16 @@ html {
                 label-text-color: var(--app-heading-color),
                 selected-state-label-text-color: var(--app-list-selected-fg),
                 selected-state-layer-color: var(--app-list-selected-bg),
-                hover-state-layer-color:
-                    color-mix(in srgb, var(--app-on-surface) 8%, transparent),
-                focus-state-layer-color:
-                    color-mix(in srgb, var(--app-on-surface) 10%, transparent),
+                hover-state-layer-color: color-mix(
+                        in srgb,
+                        var(--app-on-surface) 8%,
+                        transparent
+                    ),
+                focus-state-layer-color: color-mix(
+                        in srgb,
+                        var(--app-on-surface) 10%,
+                        transparent
+                    ),
             )
         );
         padding: 6px;
@@ -447,6 +458,27 @@ html {
         }
     }
 
+    // Every dialog shares one frame: the kit's 16px panel on the widget
+    // surface, a hairline border and the popover shadow. The tokens sit on
+    // the container, inside the overlay, so the `--app-*` values resolve
+    // per theme. A dialog that draws its own surface (the command palette,
+    // the programme dialog) strips this frame through its panel class.
+    .mat-mdc-dialog-container {
+        @include mat.dialog-overrides(
+            (
+                container-shape: 16px,
+                container-color: var(--app-widget-bg),
+                container-elevation-shadow: var(--app-popover-shadow),
+                subhead-color: var(--app-heading-color),
+                supporting-text-color: var(--app-body-color),
+            )
+        );
+    }
+
+    .mat-mdc-dialog-surface {
+        border: 1px solid var(--app-line-strong);
+    }
+
     // ─── Destructive actions ───────────────────────────────────────────────
     // Material only emits `.mat-warn` button colors for M2 themes, so the
     // `warn` color input is a no-op with this M3 theme. Buttons that remove or
@@ -457,6 +489,9 @@ html {
     .app-destructive-button {
         @include mat.button-overrides(
             (
+                filled-container-shape: 10px,
+                text-container-shape: 10px,
+                outlined-container-shape: 10px,
                 filled-container-color: var(--app-danger-surface),
                 filled-disabled-container-color: var(--app-danger-surface),
                 filled-label-text-color: var(--app-danger-text),

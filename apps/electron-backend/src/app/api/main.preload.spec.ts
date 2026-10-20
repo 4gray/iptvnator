@@ -12,6 +12,7 @@ import {
     ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
     ANNOUNCE_PLAYLIST_OPEN_LISTENER,
     OPEN_FILE,
+    WINDOW_BACK_REQUESTED,
 } from '@iptvnator/shared/interfaces';
 import type {
     DownloadMetadataSnapshot,
@@ -307,6 +308,30 @@ describe('main preload DB IPC contract', () => {
         );
         expect(callback).toHaveBeenCalledWith(request);
         expect(mockIpcRenderer.off).toHaveBeenCalledWith(OPEN_FILE, handler);
+    });
+
+    it('forwards only the known window Back gesture sources', () => {
+        const api = getExposedApi();
+        const callback = jest.fn();
+
+        const unsubscribe = api.onWindowBackRequested(callback);
+        const handler = mockIpcRenderer.on.mock.calls.at(-1)?.[1];
+
+        handler({}, 'app-command');
+        handler({}, 'swipe');
+        handler({}, 'browser-forward');
+        handler({}, { source: 'swipe' });
+        unsubscribe();
+
+        expect(mockIpcRenderer.on).toHaveBeenCalledWith(
+            WINDOW_BACK_REQUESTED,
+            expect.any(Function)
+        );
+        expect(callback.mock.calls).toEqual([['app-command'], ['swipe']]);
+        expect(mockIpcRenderer.off).toHaveBeenCalledWith(
+            WINDOW_BACK_REQUESTED,
+            handler
+        );
     });
 
     it('forwards request-scoped DB operation events and unregisters the listener', () => {

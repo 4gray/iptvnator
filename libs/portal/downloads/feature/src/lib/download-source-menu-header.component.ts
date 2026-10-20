@@ -20,22 +20,26 @@ import { TranslatePipe } from '@ngx-translate/core';
             display: block;
         }
 
+        // Lines up with the kit menu rows (10px inline padding) and uses the
+        // kit's section label for the caption.
         .download-source-menu-header {
             display: grid;
             gap: 2px;
-            max-width: 280px;
-            padding: 10px 16px 8px;
-            color: var(--mat-sys-on-surface-variant);
+            padding: 6px 10px 8px;
 
             span {
-                font: var(--mat-sys-label-small);
-                letter-spacing: 0.03em;
+                color: var(--app-muted-color);
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
             }
 
             strong {
                 overflow: hidden;
-                color: var(--mat-sys-on-surface);
-                font: var(--mat-sys-label-large);
+                color: var(--app-heading-color);
+                font-size: 13px;
+                font-weight: 600;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }

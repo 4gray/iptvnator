@@ -38,7 +38,10 @@ import {
     createExternalLaunchOwner,
     startRouteOwnedPlayback,
 } from './vod-details-external-launch-owner';
-import { injectXtreamRecentHistory } from '../xtream-recent-history';
+import {
+    injectXtreamRecentHistory,
+    xtreamPlayedDetail,
+} from '../xtream-recent-history';
 import {
     settleOwnedExternalLaunch,
     VodExternalLaunchClaim,
@@ -406,6 +409,11 @@ export class VodDetailsPlaybackService {
                 xtreamId: this.bindings()?.vodId() ?? NaN,
                 contentType: 'movie',
                 backdropUrl: this.bindings()?.vodInfo()?.backdrop_path?.[0],
+                playedContent: xtreamPlayedDetail(
+                    this.bindings()?.vodInfo(),
+                    playback.title,
+                    playback.thumbnail
+                ),
             });
             return await this.applyPlayback(playback, isCurrent, player);
         } finally {

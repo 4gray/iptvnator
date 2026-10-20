@@ -139,6 +139,7 @@
                 <mat-menu #detailMenu="matMenu" xPosition="before">
                     <button
                         mat-menu-item
+                        class="app-menu-item--danger"
                         data-testid="recording-remove"
                         [disabled]="isActive()"
                         (click)="runAction('remove')"
