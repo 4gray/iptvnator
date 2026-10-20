@@ -1,11 +1,8 @@
-import { createScrollPositionPreserver } from '../../scroll-position/create-scroll-position-preserver';
 import { ChannelScrollFocusDirective } from '../../channel-scroll-focus/channel-scroll-focus.directive';
 import { KeyValue, TitleCasePipe } from '@angular/common';
 import {
-    afterRenderEffect,
     ChangeDetectionStrategy,
     Component,
-    DestroyRef,
     ElementRef,
     OutputEmitterRef,
     computed,
@@ -56,6 +53,7 @@ import {
     GroupManagementDialogGroup,
 } from './group-management-dialog/group-management-dialog.component';
 import { dialogSize } from '../../dialog-shell/dialog-size';
+import { createGroupsRailReveal } from './groups-rail-reveal';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
 /** Rail width inside the fullscreen channel panel; see the `compact` input. */
@@ -237,10 +235,6 @@ export class GroupsViewComponent {
     private previousActiveChannelUrl: string | undefined;
     private preservedContentWidth = 0;
 
-    private readonly scrollPosition = createScrollPositionPreserver(
-        inject(DestroyRef)
-    );
-
     constructor() {
         effect(() => {
             const filteredGroups = this.filteredGroups();
@@ -286,76 +280,12 @@ export class GroupsViewComponent {
             this.selectedGroupChange.emit(this.selectedGroupKey());
         });
 
-        // Keep the selected group in view, but only when it is not
-        // already: a plain effect can read the DOM before the new selection
-        // has rendered (so it centres the PREVIOUS group), and centring a
-        // group the user just clicked — already fully visible — yanks the
-        // rail away from the groups around it. Read the row after the
-        // render instead, and leave a fully visible row where it is.
-        let revealedGroupKey: string | null = null;
-        afterRenderEffect(() => {
-            const selectedGroupKey = this.selectedGroupKey();
-            // Track the rows too: while they are still rendering there is
-            // no selected row to reveal, and their arrival must retry.
-            this.filteredGroups();
-            if (selectedGroupKey == null) {
-                this.scrollPosition.cancel();
-                // A cleared selection must not leave its reveal behind:
-                // when the same group is selected again (e.g. a search
-                // that matched nothing is cleared) it is revealed afresh.
-                revealedGroupKey = null;
-                return;
-            }
-            if (selectedGroupKey === revealedGroupKey) {
-                return;
-            }
-            this.scrollPosition.cancel();
-
-            const container = this.hostEl.nativeElement.querySelector(
-                '.groups-nav-list'
-            ) as HTMLElement | null;
-            const candidates = Array.from(
-                this.hostEl.nativeElement.querySelectorAll('[data-group-key]')
-            ) as HTMLElement[];
-            const selected =
-                candidates.find(
-                    (candidate) =>
-                        candidate.dataset['groupKey'] === selectedGroupKey
-                ) ?? null;
-
-            if (!container || !selected) {
-                return;
-            }
-
-            revealedGroupKey = selectedGroupKey;
-
-            const containerRect = container.getBoundingClientRect();
-            const selectedRect = selected.getBoundingClientRect();
-            if (
-                selectedRect.top >= containerRect.top &&
-                selectedRect.bottom <= containerRect.bottom
-            ) {
-                // Fully visible — but an earlier reveal may still be
-                // smooth-scrolling towards the previous selection; stop
-                // it here so it cannot carry this row out of view.
-                this.scrollPosition.preserve(container);
-                return;
-            }
-
-            const targetTop =
-                container.scrollTop +
-                (selectedRect.top - containerRect.top) -
-                container.clientHeight / 2 +
-                selectedRect.height / 2;
-            const maxScrollTop = Math.max(
-                0,
-                container.scrollHeight - container.clientHeight
-            );
-
-            container.scrollTo({
-                behavior: 'smooth',
-                top: Math.min(maxScrollTop, Math.max(0, targetTop)),
-            });
+        // Reveal lifecycle lives in its own controller: this component
+        // only wires its selection and rows to it.
+        createGroupsRailReveal({
+            host: this.hostEl.nativeElement,
+            selectedGroupKey: this.selectedGroupKey,
+            rowsChanged: () => this.filteredGroups(),
         });
 
         effect(() => {
