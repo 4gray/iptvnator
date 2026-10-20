@@ -90,7 +90,10 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 - **Selection scrolling**: After a selection change the panel reads the
   rendered selected row (post-render) and centers it only when it is not
   already fully visible, so clicking a visible category never moves the
-  rail. Electron selects by local SQLite category ID; the row's
+  rail. Visible selections stop an earlier smooth reveal and reassert the
+  position on the next animation frame to discard Chromium's final compositor
+  update. A newer selection or component destruction cancels that restoration.
+  Electron selects by local SQLite category ID; the row's
   `data-category-id` can contain its provider ID. Those IDs are not
   interchangeable when locating the scroll target, including after filtering
   hidden categories or sorting.

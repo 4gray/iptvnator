@@ -1,8 +1,12 @@
-import { focusLiveChannels } from '@iptvnator/ui/components';
+import {
+    createScrollPositionPreserver,
+    focusLiveChannels,
+} from '@iptvnator/ui/components';
 import {
     afterRenderEffect,
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     ElementRef,
     inject,
     input,
@@ -43,6 +47,10 @@ export class CategoryViewComponent {
 
     readonly categoryClicked = output<CategoryViewItem>();
 
+    private readonly scrollPosition = createScrollPositionPreserver(
+        inject(DestroyRef)
+    );
+
     constructor() {
         // Keep the selected category in view, but only when it is not
         // already: a plain effect can read the DOM before the new selection
@@ -57,6 +65,7 @@ export class CategoryViewComponent {
             // selected row to reveal, and their arrival must retry.
             this.items();
             if (selectedCategory == null) {
+                this.scrollPosition.cancel();
                 // A cleared selection must not leave its reveal behind:
                 // when the same category is selected again it is revealed
                 // afresh.
@@ -66,6 +75,7 @@ export class CategoryViewComponent {
             if (selectedCategory === revealedSelection) {
                 return;
             }
+            this.scrollPosition.cancel();
 
             const container = this.hostEl.nativeElement as HTMLElement;
             // Follow the rendered selection: Electron selects by SQLite
@@ -89,10 +99,7 @@ export class CategoryViewComponent {
                 // Fully visible — but an earlier reveal may still be
                 // smooth-scrolling towards the previous selection; stop
                 // it here so it cannot carry this row out of view.
-                container.scrollTo?.({
-                    behavior: 'auto',
-                    top: container.scrollTop,
-                });
+                this.scrollPosition.preserve(container);
                 return;
             }
 

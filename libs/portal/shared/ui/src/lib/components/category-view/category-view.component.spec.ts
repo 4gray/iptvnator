@@ -59,11 +59,13 @@ describe('CategoryViewComponent rail scrolling', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(scrollTo).toHaveBeenCalledTimes(1);
         expect(scrollTo).toHaveBeenCalledWith({
-            behavior: 'auto',
+            behavior: 'instant',
             top: 500,
         });
+        expect(scrollTo).not.toHaveBeenCalledWith(
+            expect.objectContaining({ behavior: 'smooth' })
+        );
     });
 
     it('centres the selected category when it is off-screen', async () => {

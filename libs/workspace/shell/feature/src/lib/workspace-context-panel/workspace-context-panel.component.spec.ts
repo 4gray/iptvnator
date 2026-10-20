@@ -371,7 +371,7 @@ describe('WorkspaceContextPanelComponent', () => {
     it.each([
         // Alpha's row is already fully visible: clicking it only stops
         // any in-flight scroll at the current position (scrollTop 500).
-        { id: 7, name: 'Alpha', scroll: { behavior: 'auto', top: 500 } },
+        { id: 7, name: 'Alpha', scroll: { behavior: 'instant', top: 500 } },
         // Zulu's row is below the fold: it is centred into view.
         { id: 8, name: 'Zulu', scroll: { behavior: 'smooth', top: 2420 } },
     ])(

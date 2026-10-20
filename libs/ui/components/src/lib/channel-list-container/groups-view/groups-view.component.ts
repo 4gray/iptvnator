@@ -1,9 +1,11 @@
+import { createScrollPositionPreserver } from '../../scroll-position/create-scroll-position-preserver';
 import { ChannelScrollFocusDirective } from '../../channel-scroll-focus/channel-scroll-focus.directive';
 import { KeyValue, TitleCasePipe } from '@angular/common';
 import {
     afterRenderEffect,
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     ElementRef,
     OutputEmitterRef,
     computed,
@@ -235,6 +237,10 @@ export class GroupsViewComponent {
     private previousActiveChannelUrl: string | undefined;
     private preservedContentWidth = 0;
 
+    private readonly scrollPosition = createScrollPositionPreserver(
+        inject(DestroyRef)
+    );
+
     constructor() {
         effect(() => {
             const filteredGroups = this.filteredGroups();
@@ -293,6 +299,7 @@ export class GroupsViewComponent {
             // no selected row to reveal, and their arrival must retry.
             this.filteredGroups();
             if (selectedGroupKey == null) {
+                this.scrollPosition.cancel();
                 // A cleared selection must not leave its reveal behind:
                 // when the same group is selected again (e.g. a search
                 // that matched nothing is cleared) it is revealed afresh.
@@ -302,14 +309,13 @@ export class GroupsViewComponent {
             if (selectedGroupKey === revealedGroupKey) {
                 return;
             }
+            this.scrollPosition.cancel();
 
             const container = this.hostEl.nativeElement.querySelector(
                 '.groups-nav-list'
             ) as HTMLElement | null;
             const candidates = Array.from(
-                this.hostEl.nativeElement.querySelectorAll(
-                    '[data-group-key]'
-                )
+                this.hostEl.nativeElement.querySelectorAll('[data-group-key]')
             ) as HTMLElement[];
             const selected =
                 candidates.find(
@@ -332,10 +338,7 @@ export class GroupsViewComponent {
                 // Fully visible — but an earlier reveal may still be
                 // smooth-scrolling towards the previous selection; stop
                 // it here so it cannot carry this row out of view.
-                container.scrollTo?.({
-                    behavior: 'auto',
-                    top: container.scrollTop,
-                });
+                this.scrollPosition.preserve(container);
                 return;
             }
 

@@ -873,11 +873,13 @@ describe('GroupsViewComponent', () => {
             fixture.detectChanges();
             await fixture.whenStable();
 
-            expect(scrollToMock()).toHaveBeenCalledTimes(1);
             expect(scrollToMock()).toHaveBeenCalledWith({
-                behavior: 'auto',
+                behavior: 'instant',
                 top: 500,
             });
+            expect(scrollToMock()).not.toHaveBeenCalledWith(
+                expect.objectContaining({ behavior: 'smooth' })
+            );
         });
 
         it('reveals the group again after the selection clears and returns (search with no matches, then cleared)', async () => {

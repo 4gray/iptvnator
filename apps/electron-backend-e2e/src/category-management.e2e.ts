@@ -21,6 +21,7 @@ import {
     readVisibleSidebarCategoryNames,
 } from './sidebar-categories.e2e-support';
 import { applyTheme } from './theme-contrast';
+import { expectVisibleCategoryStopsSmoothScroll } from './category-scroll.e2e-support';
 
 test.describe('Electron Xtream Category Management', () => {
     test('keeps the selected category in view with 800 categories, 600 hidden and A-Z sorting', async ({
@@ -104,6 +105,8 @@ test.describe('Electron Xtream Category Management', () => {
                 await row.click();
                 await expect(row).toHaveAttribute('aria-current', 'true');
                 await expectCategoryInView(row);
+                await expectVisibleCategoryStopsSmoothScroll(panel, 'down');
+                await expectVisibleCategoryStopsSmoothScroll(panel, 'up');
             }
         } finally {
             await closeElectronApp(app);
