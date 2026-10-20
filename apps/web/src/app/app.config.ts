@@ -79,6 +79,7 @@ const SUPPORTED_LANGS = new Set([
     'pt',
     'ru',
     'tr',
+    'uk',
     'zh',
     'zhtw',
 ]);

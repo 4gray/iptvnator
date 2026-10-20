@@ -325,7 +325,7 @@ Implemented UI behavior:
   The phone never sees the desktop language setting, so the app shell picks
   the first browser language with a translation
   (`resolveRemoteControlLanguage`, English otherwise) and sets `<html lang>`
-  to it.
+  to it. Ukrainian browser preferences (`uk` and `uk-UA`) load `uk.json`.
 - Polls `/status` every 2s
 - Uses action wrapper to refresh status after command execution
 

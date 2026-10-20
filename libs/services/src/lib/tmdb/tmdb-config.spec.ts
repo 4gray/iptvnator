@@ -5,6 +5,7 @@ describe('toTmdbLanguage', () => {
     it('maps app languages to TMDB codes', () => {
         expect(toTmdbLanguage(Language.GERMAN)).toBe('de-DE');
         expect(toTmdbLanguage(Language.RUSSIAN)).toBe('ru-RU');
+        expect(toTmdbLanguage(Language.UKRAINIAN)).toBe('uk-UA');
     });
 
     it('falls back to en-US for unknown values', () => {
@@ -14,6 +15,18 @@ describe('toTmdbLanguage', () => {
 });
 
 describe('tmdbSearchLanguageForTitle', () => {
+    it('keeps Ukrainian for Cyrillic and Latin titles', () => {
+        expect(
+            tmdbSearchLanguageForTitle(
+                'Тіні забутих предків',
+                Language.UKRAINIAN
+            )
+        ).toBe('uk-UA');
+        expect(
+            tmdbSearchLanguageForTitle('The Matrix', Language.UKRAINIAN)
+        ).toBe('uk-UA');
+    });
+
     it('uses the app language for Latin titles', () => {
         expect(tmdbSearchLanguageForTitle('The Matrix', Language.GERMAN)).toBe(
             'de-DE'
