@@ -65,7 +65,7 @@ export function toTmdbLanguage(
 }
 
 const CYRILLIC_PATTERN = /[\u0400-\u04ff]/;
-const CYRILLIC_TMDB_LANGUAGES = new Set(['ru-RU', 'be-BY']);
+const CYRILLIC_TMDB_LANGUAGES = new Set(['ru-RU', 'be-BY', 'uk-UA']);
 
 /**
  * Language to use for the /search request. TMDB matches translated titles

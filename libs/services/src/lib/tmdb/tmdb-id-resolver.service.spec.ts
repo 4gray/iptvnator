@@ -35,14 +35,14 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
 
     // The services Jest target has no @angular/core/testing — build the
     // service in a plain injection context instead of TestBed.
-    function createService(): TmdbIdResolverService {
+    function createService(appLanguage = 'en'): TmdbIdResolverService {
         const injector = Injector.create({
             providers: [
                 {
                     provide: TmdbRuntimeService,
                     useValue: {
                         apiKey: () => 'key',
-                        appLanguage: () => 'en',
+                        appLanguage: () => appLanguage,
                     },
                 },
                 {
@@ -91,6 +91,43 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
             lookupKey: 'title:лейка|year:2026|v4',
             language: 'ru-RU',
             tmdbId: 101101,
+            payload: null,
+        });
+    });
+
+    it('resolves Ukrainian titles using Ukrainian search results and cache entries', async () => {
+        searchMovie.mockImplementation(async (_query, _year, language) => [
+            {
+                id: 603,
+                title: language === 'uk-UA' ? 'Матриця' : 'Матрица',
+                original_title: 'The Matrix',
+                release_date: '1999-03-31',
+            },
+        ]);
+        const service = createService('uk');
+
+        const id = await service.resolveBySearch('movie', {
+            title: 'Матриця',
+            year: 1999,
+        });
+
+        expect(id).toBe(603);
+        expect(searchMovie).toHaveBeenCalledWith(
+            'Матриця',
+            null,
+            'uk-UA',
+            'key'
+        );
+        expect(cacheGet).toHaveBeenCalledWith(
+            'movie',
+            'title:матриця|year:1999|v4',
+            'uk-UA'
+        );
+        expect(cacheSet).toHaveBeenCalledWith({
+            mediaType: 'movie',
+            lookupKey: 'title:матриця|year:1999|v4',
+            language: 'uk-UA',
+            tmdbId: 603,
             payload: null,
         });
     });
