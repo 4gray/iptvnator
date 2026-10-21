@@ -1,10 +1,9 @@
-import type { DataService } from '@iptvnator/services';
+export interface StalkerAuthTransport { sendIpcEvent<T = unknown>(type: string, payload?: unknown): T | Promise<T> }
 import {
     extractStalkerAuthFailureBody,
     STALKER_REQUEST,
     STALKER_STB_PROFILE_PARAMS,
 } from '@iptvnator/shared/interfaces';
-import type { createLogger } from '@iptvnator/portal/shared/util';
 import {
     normalizeStalkerPortalIdentity,
     type StalkerPortalIdentity,
@@ -184,8 +183,8 @@ function assertNotAuthFailure(response: unknown): void {
  */
 export class StalkerAuthApi {
     constructor(
-        private readonly dataService: DataService,
-        private readonly logger: ReturnType<typeof createLogger>
+        private readonly dataService: StalkerAuthTransport,
+        private readonly logger: { error(...args: unknown[]): void }
     ) {}
 
     async performHandshake(

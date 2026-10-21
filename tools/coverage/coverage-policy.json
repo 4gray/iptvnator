@@ -295,6 +295,24 @@
         ],
         "tierB": [
             {
+                "name": "tv",
+                "root": "apps/tv",
+                "validationCommand": "pnpm nx run tv:verify-build",
+                "reason": "Independent Preact runtime: Node contracts run in tv-tests and browser workflows in tv-e2e. This target audits the browser build; the existing Tier A coverage collector is Jest-specific."
+            },
+            {
+                "name": "tv-tests",
+                "root": "libs/tv/testing",
+                "validationCommand": "pnpm nx test tv-tests",
+                "reason": "Framework-free TV contracts use node:test. Percentage coverage is not integrated with the Jest-only Tier A collector; these tests remain an explicit validation gate without changing existing thresholds."
+            },
+            {
+                "name": "tv-e2e",
+                "root": "apps/tv-e2e",
+                "validationCommand": "pnpm nx e2e tv-e2e",
+                "reason": "Playwright semantic TV workflows are validated separately from source percentage coverage."
+            },
+            {
                 "name": "website",
                 "root": "apps/website",
                 "validationCommand": "pnpm nx test website",

@@ -185,6 +185,24 @@
             "@package": ["./package.json"],
             "@iptvnator/shared/marketing-fixtures": [
                 "./libs/shared/marketing-fixtures/src/index.ts"
+            ],
+            "@iptvnator/tv/util": [
+                "libs/tv/util/src/index.ts"
+            ],
+            "@iptvnator/tv/data-access": [
+                "libs/tv/data-access/src/index.ts"
+            ],
+            "@iptvnator/tv/ui": [
+                "libs/tv/ui/src/index.ts"
+            ],
+            "@iptvnator/tv/feature": [
+                "libs/tv/feature/src/index.ts"
+            ],
+            "@iptvnator/portal/xtream/client": [
+                "libs/portal/xtream/data-access/src/client.ts"
+            ],
+            "@iptvnator/portal/stalker/client": [
+                "libs/portal/stalker/data-access/src/client.ts"
             ]
         },
         "strict": false,

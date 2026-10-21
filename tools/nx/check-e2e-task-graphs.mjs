@@ -27,6 +27,7 @@ export const MODES = {
  */
 export const E2E_PROJECTS = {
     'web-e2e': 'apps/web-e2e',
+    'tv-e2e': 'apps/tv-e2e',
     'electron-backend-e2e': 'apps/electron-backend-e2e',
 };
 

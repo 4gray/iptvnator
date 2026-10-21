@@ -1,0 +1,11 @@
+{
+    "name": "tv-feature",
+    "projectType": "library",
+    "sourceRoot": "libs/tv/feature/src",
+    "tags": ["scope:tv", "domain:tv", "type:feature"],
+    "targets": {
+        "lint": {
+            "command": "eslint \"libs/tv/feature/**/*.{ts,tsx}\""
+        }
+    }
+}

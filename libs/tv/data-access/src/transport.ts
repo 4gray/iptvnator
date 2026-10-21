@@ -1,0 +1,79 @@
+import { httpUrl, Source } from '@iptvnator/tv/util';
+export class ProviderRequestError extends Error {
+    constructor(
+        readonly status: number,
+        readonly upstream = false
+    ) {
+        super('Provider request failed. Check the source and backend.');
+    }
+}
+export class ProviderTransport {
+    private targets = new Map<string, string>();
+    constructor(
+        readonly backend: string,
+        private readonly accessToken = ''
+    ) {
+        httpUrl(backend);
+    }
+    private async json(
+        url: string,
+        signal: AbortSignal,
+        init?: RequestInit
+    ): Promise<unknown> {
+        const response = await fetch(url, {
+            ...init,
+            signal,
+            headers: {
+                ...(this.accessToken
+                    ? { Authorization: `Bearer ${this.accessToken}` }
+                    : {}),
+                ...init?.headers,
+            },
+        });
+        if (!response.ok) throw new ProviderRequestError(response.status);
+        const value = await response.json();
+        if (
+            value?.type === 'ERROR' ||
+            value?.status >= 400 ||
+            (value?.message && !('payload' in value))
+        )
+            throw new ProviderRequestError(Number(value?.status) || 502, true);
+        return value;
+    }
+    private async target(url: string, signal: AbortSignal) {
+        const cached = this.targets.get(url);
+        if (cached) return cached;
+        const promise = this.json(
+            `${this.backend.replace(/\/$/, '')}/provider-targets`,
+            signal,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: httpUrl(url) }),
+            }
+        ).then((v) => (v as { targetId: string }).targetId);
+        const id = await promise;
+        this.targets.set(url, id);
+        return id;
+    }
+    async request(
+        source: Source,
+        route: 'xtream' | 'stalker' | 'parse',
+        params: Record<string, string | number>,
+        signal: AbortSignal,
+        endpoint = source.endpoint ?? source.url
+    ) {
+        const targetId = await this.target(endpoint, signal);
+        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+        const query = new URLSearchParams({ targetId });
+        Object.keys(params).forEach((k) => query.set(k, String(params[k])));
+        const result = (await this.json(
+            `${this.backend.replace(/\/$/, '')}/${route}?${query}`,
+            signal
+        )) as { payload?: unknown };
+        return route === 'parse' ? result : result.payload;
+    }
+    clear() {
+        this.targets.clear();
+    }
+}
