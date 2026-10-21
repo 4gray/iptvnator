@@ -1,4 +1,4 @@
-import { computed } from '@angular/core';
+import { computed, inject } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
@@ -6,6 +6,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { ContentType, XtreamContentLoadState } from '../../xtream-state';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
 
@@ -233,6 +234,8 @@ export function withSelection() {
         withState<SelectionState>(initialSelectionState),
 
         withComputed((store) => {
+            const runtime = inject(RuntimeCapabilitiesService);
+
             const getItemDate = (
                 item: XtreamSelectionItem,
                 categoryType: ContentType
@@ -312,18 +315,25 @@ export function withSelection() {
                 contentType: ContentType
             ): XtreamSelectionItem[] => {
                 const storeAny = store as ParentSelectionStoreLike;
-                const categories =
-                    contentType === 'live'
-                        ? storeAny.liveCategories?.() || []
-                        : contentType === 'vod'
-                          ? storeAny.vodCategories?.() || []
-                          : storeAny.serialCategories?.() || [];
                 const content =
                     contentType === 'live'
                         ? storeAny.liveStreams?.() || []
                         : contentType === 'vod'
                           ? storeAny.vodStreams?.() || []
                           : storeAny.serialStreams?.() || [];
+
+                // PWA does not support hiding categories; don't discard API
+                // items with missing or unknown category IDs there.
+                if (!runtime.isElectron) {
+                    return content;
+                }
+
+                const categories =
+                    contentType === 'live'
+                        ? storeAny.liveCategories?.() || []
+                        : contentType === 'vod'
+                          ? storeAny.vodCategories?.() || []
+                          : storeAny.serialCategories?.() || [];
                 const visibleCategoryIds = new Set(
                     categories
                         .filter((category) => !category.hidden)

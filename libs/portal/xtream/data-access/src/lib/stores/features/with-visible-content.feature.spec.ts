@@ -1,6 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { withSelection } from './with-selection.feature';
+
+const TestPwaVisibleContentStore = signalStore(
+    withState({
+        vodCategories: [{ id: 30, category_id: '30' }],
+        vodStreams: [
+            { category_id: '', title: 'Uncategorized PWA item' },
+            { category_id: '99', title: 'Unknown-category PWA item' },
+        ],
+    }),
+    withSelection()
+);
 
 const TestVisibleContentStore = signalStore(
     withState({
@@ -32,10 +44,16 @@ const TestVisibleContentStore = signalStore(
 
 describe('withSelection visible content', () => {
     let store: InstanceType<typeof TestVisibleContentStore>;
+    let runtime: { isElectron: boolean };
 
     beforeEach(() => {
+        runtime = { isElectron: true };
         TestBed.configureTestingModule({
-            providers: [TestVisibleContentStore],
+            providers: [
+                TestVisibleContentStore,
+                TestPwaVisibleContentStore,
+                { provide: RuntimeCapabilitiesService, useValue: runtime },
+            ],
         });
         store = TestBed.inject(TestVisibleContentStore);
     });
@@ -72,5 +90,21 @@ describe('withSelection visible content', () => {
         expect(
             store.selectItemsFromSelectedCategory().map((item) => item.title)
         ).toEqual(['Visible Night Film']);
+    });
+
+    it('preserves uncategorized and unknown-category items in the PWA', () => {
+        runtime.isElectron = false;
+        const pwaStore = TestBed.inject(TestPwaVisibleContentStore);
+        pwaStore.setSelectedContentType('vod');
+        pwaStore.setSelectedCategory(null);
+
+        expect(
+            pwaStore
+                .getVisibleContentByType()('vod')
+                .map((item) => item.title)
+        ).toEqual(['Uncategorized PWA item', 'Unknown-category PWA item']);
+        expect(
+            pwaStore.selectItemsFromSelectedCategory().map((item) => item.title)
+        ).toEqual(['Uncategorized PWA item', 'Unknown-category PWA item']);
     });
 });
