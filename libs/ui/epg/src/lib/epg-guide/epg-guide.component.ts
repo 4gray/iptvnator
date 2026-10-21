@@ -124,6 +124,7 @@ export class EpgGuideComponent implements OnDestroy {
     readonly searchResults = this.search.results;
     readonly searchPanelVisible = this.search.panelVisible;
     readonly catchUpAvailable = this.source.catchUp !== undefined;
+    readonly catchUp = this.source.catchUp;
     readonly channelColumnPx = EPG_GUIDE_CHANNEL_COLUMN_PX;
 
     readonly totalCount = computed(() => this.source.channels().length);

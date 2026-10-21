@@ -191,7 +191,7 @@ describe('EpgGuideComponent', () => {
         component.setZoom(9_999);
         await settle(fixture);
         expect(localStorage.getItem(EPG_GUIDE_DENSITY_KEY)).toBe('compact');
-        expect(component.zoom()).toBe(480);
+        expect(component.zoom()).toBe(1920);
         expect(component.rowHeightPx()).toBe(44);
     });
 

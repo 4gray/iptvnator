@@ -38,6 +38,8 @@ export interface EpgGuideWindow {
 export interface EpgGuideCatchUp {
     canWatch(channel: EpgGuideChannel, program: EpgProgram): boolean;
     watch(channel: EpgGuideChannel, program: EpgProgram): void;
+    /** Copy a playable archive URL from programme details when supported. */
+    copyUrl?(channel: EpgGuideChannel, program: EpgProgram): void;
 }
 
 /**

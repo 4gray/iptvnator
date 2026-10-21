@@ -30,7 +30,8 @@ export function shouldAutoLaunchExternalPlayer(
     }
 
     const startRequested =
-        !settings.openStreamOnDoubleClick || startPlayback === true;
+        startPlayback !== false &&
+        (!settings.openStreamOnDoubleClick || startPlayback === true);
     return (
         startRequested &&
         settings.player === player &&

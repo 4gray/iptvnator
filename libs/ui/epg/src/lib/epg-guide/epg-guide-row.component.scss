@@ -177,6 +177,10 @@
         border-color 120ms,
         transform 120ms;
 
+    &.is-now.has-watch {
+        padding-right: 52px;
+    }
+
     &:hover {
         border-color: $accent-blue;
         transform: translateY(-1px);
@@ -224,6 +228,16 @@
         .epg-guide-row__tag {
             display: none;
         }
+        &.has-watch {
+            padding-right: 0;
+        }
+
+        .epg-guide-row__status {
+            top: 0;
+            right: 0;
+            align-items: flex-start;
+            transform: none;
+        }
     }
     :host(.is-compact) & {
         top: 5px;
@@ -233,6 +247,10 @@
         gap: 8px;
         border-radius: 6px;
         padding: 0 9px;
+
+        &.is-now.has-watch {
+            padding-right: 52px;
+        }
     }
 }
 
@@ -262,10 +280,17 @@
     text-overflow: ellipsis;
 }
 
-.epg-guide-row__tag {
+.epg-guide-row__status {
     position: absolute;
-    right: 8px;
-    top: 7px;
+    z-index: 2;
+    top: 4px;
+    right: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.epg-guide-row__tag {
     font: 600 9px $font-mono;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -281,30 +306,45 @@
         margin-right: 4px;
         vertical-align: 1px;
     }
-    :host(.is-compact) & {
-        position: static;
-        margin-left: auto;
-    }
 }
 
+.epg-guide-row__details,
 .epg-guide-row__watch {
-    position: absolute;
-    right: 6px;
-    bottom: 5px;
-    width: 20px;
-    height: 20px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
     padding: 0;
     border: 0;
     background: transparent;
     color: $text-secondary;
     cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms;
 
     mat-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
+        font-size: 12.8px;
+        width: 12.8px;
+        height: 12.8px;
     }
     &:hover {
         color: $accent-text;
+    }
+}
+
+.epg-guide-row__block:hover .epg-guide-row__details,
+.epg-guide-row__block:focus-within .epg-guide-row__details,
+.epg-guide-row__block:hover .epg-guide-row__watch,
+.epg-guide-row__block:focus-within .epg-guide-row__watch {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (hover: none) {
+    .epg-guide-row__details {
+        opacity: 1;
+        pointer-events: auto;
     }
 }
