@@ -322,9 +322,9 @@ export function withSelection() {
                           ? storeAny.vodStreams?.() || []
                           : storeAny.serialStreams?.() || [];
 
-                // PWA does not support hiding categories; don't discard API
-                // items with missing or unknown category IDs there.
-                if (!runtime.isElectron) {
+                // API-backed data sources do not support category visibility;
+                // preserve streams with missing or unknown category IDs there.
+                if (!runtime.supportsXtreamSqliteDataSource) {
                     return content;
                 }
 

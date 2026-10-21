@@ -44,10 +44,16 @@ const TestVisibleContentStore = signalStore(
 
 describe('withSelection visible content', () => {
     let store: InstanceType<typeof TestVisibleContentStore>;
-    let runtime: { isElectron: boolean };
+    let runtime: {
+        isElectron: boolean;
+        supportsXtreamSqliteDataSource: boolean;
+    };
 
     beforeEach(() => {
-        runtime = { isElectron: true };
+        runtime = {
+            isElectron: true,
+            supportsXtreamSqliteDataSource: true,
+        };
         TestBed.configureTestingModule({
             providers: [
                 TestVisibleContentStore,
@@ -92,8 +98,9 @@ describe('withSelection visible content', () => {
         ).toEqual(['Visible Night Film']);
     });
 
-    it('preserves uncategorized and unknown-category items in the PWA', () => {
-        runtime.isElectron = false;
+    it('preserves uncategorized items when the SQLite source is unavailable', () => {
+        // Simulate a partial/older Electron bridge that uses the PWA source.
+        runtime.supportsXtreamSqliteDataSource = false;
         const pwaStore = TestBed.inject(TestPwaVisibleContentStore);
         pwaStore.setSelectedContentType('vod');
         pwaStore.setSelectedCategory(null);

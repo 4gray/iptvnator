@@ -172,7 +172,10 @@ describe('withSelection', () => {
                 TestSelectionStore,
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { isElectron: true },
+                    useValue: {
+                        isElectron: true,
+                        supportsXtreamSqliteDataSource: true,
+                    },
                 },
             ],
         });
