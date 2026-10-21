@@ -1,6 +1,5 @@
 import { useState } from 'preact/hooks';
-import { Empty, Hero, Pager, Poster } from '@iptvnator/tv/ui';
-import { Media } from '@iptvnator/tv/util';
+import { Empty, Pager } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 export function Detail({ tv }: { tv: TvModel }) {
     const [season, setSeason] = useState<number>();
@@ -46,7 +45,7 @@ export function Detail({ tv }: { tv: TvModel }) {
                                 data-focus="detail-play"
                                 onClick={() => tv.play(item)}
                             >
-                                {Boolean(tv.data.positions[item.id]?.seconds)
+                                {tv.data.positions[item.id]?.seconds
                                     ? 'Resume'
                                     : 'Watch now'}{' '}
                                 ▶
@@ -104,9 +103,7 @@ export function Detail({ tv }: { tv: TvModel }) {
                                     </span>
                                     <strong>{e.title}</strong>
                                     <small>
-                                        {Boolean(
-                                            tv.data.positions[e.id]?.seconds
-                                        )
+                                        {tv.data.positions[e.id]?.seconds
                                             ? 'Resume episode'
                                             : 'Watch episode'}{' '}
                                         →

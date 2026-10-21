@@ -1,6 +1,4 @@
-import { useState } from 'preact/hooks';
-import { Empty, Hero, Pager, Poster } from '@iptvnator/tv/ui';
-import { Media } from '@iptvnator/tv/util';
+import { Empty, Pager } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 export function Live({ tv }: { tv: TvModel }) {
     const r = tv.route;

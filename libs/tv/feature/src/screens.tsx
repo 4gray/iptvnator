@@ -1,4 +1,3 @@
-import { useState } from 'preact/hooks';
 import { Empty, Hero, Pager, Poster } from '@iptvnator/tv/ui';
 import { Media } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';

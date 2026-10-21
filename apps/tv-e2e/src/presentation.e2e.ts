@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdir } from 'node:fs/promises';
 import { addSource, nav, start } from './helpers';
-test('packaged classic script boots from file protocol', async ({ page }) => {
+test('packaged classic script boots and connects from file protocol', async ({
+    page,
+}) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.name));
     await page.goto(
@@ -13,7 +15,61 @@ test('packaged classic script boots from file protocol', async ({ page }) => {
     await expect(
         page.getByRole('heading', { name: 'Sources', exact: true })
     ).toBeVisible();
+    await addSource(page, 'xtream');
+    await expect(page.locator('.hero h1')).not.toHaveText(
+        'Make yourself at home.'
+    );
     expect(errors).toEqual([]);
+});
+test('remote arrows can leave source fields and reach native disclosure controls', async ({
+    page,
+}) => {
+    await start(page);
+    await expect(
+        page
+            .getByRole('navigation')
+            .getByRole('button', { name: 'Sources', exact: true })
+    ).toBeFocused();
+    const backend = page.getByLabel('IPTVnator backend URL');
+    await backend.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByLabel('Name', { exact: true })).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByLabel('Name', { exact: true })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByLabel('Provider URL')).toBeFocused();
+    await page.getByRole('button', { name: 'STALKER', exact: true }).click();
+    await page.getByLabel('MAC address').focus();
+    await page.keyboard.press('ArrowDown');
+    const disclosure = page.locator('summary');
+    await expect(disclosure).toBeFocused();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByLabel('Serial number')).toBeFocused();
+    await nav(page, 'Settings');
+    await page.evaluate(
+        () =>
+            new Promise<void>((resolve) =>
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => resolve())
+                )
+            )
+    );
+    const layout = page.getByLabel('Home composition');
+    await layout.focus();
+    expect(
+        await layout.evaluate((element) => {
+            const event = new KeyboardEvent('keydown', {
+                key: 'ArrowDown',
+                bubbles: true,
+                cancelable: true,
+            });
+            element.dispatchEvent(event);
+            return event.defaultPrevented;
+        })
+    ).toBe(false);
+    await page.keyboard.press('ArrowLeft');
+    await expect(layout).not.toBeFocused();
 });
 test('cinema/showcase, direct catalog diagnostic and TV layout widths', async ({
     page,

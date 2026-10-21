@@ -30,7 +30,7 @@ threshold changes; TV source percentage coverage is not claimed.
 | Check | Result |
 | --- | --- |
 | `tv:test` | 16 unit tests pass |
-| `tv-e2e:e2e` against production build, backend and provider mocks | 15 browser tests pass |
+| `tv-e2e:e2e` against production build, backend and provider mocks | 16 browser tests pass |
 | TV, TV-tests and TV-E2E type checks | Pass |
 | TV/provider/mock/tool affected lint targets | Pass |
 | Existing Xtream data-access unit suite | 464 pass |
@@ -46,7 +46,9 @@ The TV browser suite covers source entry, all providers, all three Stalker
 series modes (including actual paged mock seasons/files), guide failure,
 preview/Back, native VOD seek and resume, IndexedDB reload and quota failure,
 large catalogs, latest search, delayed stream cancellation including Back,
-pointer/numeric arrows, classic `file://` boot and 1920/1280/1024 widths.
+pointer/numeric arrows, remote form exit and MAG disclosure focus, classic
+`file://` boot and 1920/1280/1024 widths. The form regression fails before the
+focus fix and passes afterwards.
 Direct catalog and media HEAD diagnostics are exercised separately. Screenshots
 are generated under `dist/tv-verification/` using fictional provider artwork.
 

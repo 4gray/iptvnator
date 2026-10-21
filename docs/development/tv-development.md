@@ -26,7 +26,9 @@ LAN/private targets require the backend's documented private-network opt-in.
 `tv-e2e` owns isolated ports 4311, 3433, 3420 and 3421. It starts the built TV
 client, actual web backend, and existing Stalker/Xtream mocks. Its explicit Nx
 dependencies include all four projects. Provider catalog/auth/EPG requests go
-through the actual backend. Synthetic media is local WebM, redirected from
+through the actual backend. The isolated test backend also permits the `null`
+Origin for the packaged `file://` connection test; a real deployment must allow
+the actual TV app Origin explicitly. Synthetic media is local WebM, redirected from
 mock stream addresses. These tests verify application behavior and native
 HTML-video lifecycle in modern Playwright Chromium. They do not validate the
 BX's Chromium 68 engine, native HLS, transport stream decoding or MAG headers.

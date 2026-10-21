@@ -1,5 +1,5 @@
 const selectors =
-    'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)';
+    'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary';
 export function focusKey() {
     return (document.activeElement as HTMLElement)?.dataset.focus ?? '';
 }
@@ -54,7 +54,18 @@ export function installRemote(
         }
         if (!direction.startsWith('Arrow')) return;
         const from = document.activeElement as HTMLElement;
-        if (from?.matches('input,select,textarea')) return;
+        const horizontal = /Left|Right/.test(direction);
+        // Keep caret/slider movement native; vertical arrows leave single-line
+        // fields. Selects own vertical choice changes and leave horizontally.
+        if (
+            from?.matches('textarea') ||
+            (horizontal &&
+                from?.matches(
+                    'input:not([type="checkbox"]):not([type="radio"])'
+                )) ||
+            (!horizontal && from?.matches('select'))
+        )
+            return;
         event.preventDefault();
         if (event.repeat && Date.now() - lastMove < 75) return;
         lastMove = Date.now();
@@ -75,7 +86,6 @@ export function installRemote(
             return;
         }
         const rect = from.getBoundingClientRect();
-        const horizontal = /Left|Right/.test(direction);
         const sign = /Left|Up/.test(direction) ? -1 : 1;
         let score = Infinity;
         let target: HTMLElement | undefined;

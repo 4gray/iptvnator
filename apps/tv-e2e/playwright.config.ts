@@ -28,7 +28,7 @@ export default defineConfig({
             command: 'node --import tsx apps/web-backend/src/main.ts',
             env: {
                 PORT: '3433',
-                CLIENT_URL: 'http://127.0.0.1:4311',
+                CLIENT_URL: 'http://127.0.0.1:4311,null',
                 IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: '1',
                 TSX_TSCONFIG_PATH: 'tsconfig.base.json',
             },

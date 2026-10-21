@@ -67,6 +67,12 @@ Fullscreen Back restores the opening control, and detail Back restores item
 identity and catalog page. Controls appear on demand; remote media keys and
 native VOD seeking use the same adapter.
 
+Single-line text fields keep Left/Right caret movement and use Up/Down for
+spatial focus. Native select controls keep Up/Down for choices and leave with
+Left/Right. Disclosure summaries, including explicit MAG identity fields, are
+part of the remote focus order. Actual webOS keyboard interaction remains a
+physical-device check.
+
 Separate request lanes own catalog/detail, EPG and playback resolution.
 Superseding requests abort transport and lose publication rights, even if a
 transport later delivers a response. Catalog pages render at most 60 Xtream/M3U

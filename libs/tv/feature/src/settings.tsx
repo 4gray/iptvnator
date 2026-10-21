@@ -1,6 +1,5 @@
 import { DirectAccessProbe } from './direct-probe';
-import { useState } from 'preact/hooks';
-import { httpUrl, Source, Provider } from '@iptvnator/tv/util';
+import { httpUrl } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
 export function Settings({ tv }: { tv: TvModel }) {
     const save = (event: SubmitEvent) => {
@@ -58,6 +57,9 @@ export function Settings({ tv }: { tv: TvModel }) {
                 Arrows move focus. OK selects. Back returns to your last title.
                 <br />
                 Live: first OK starts preview; OK again opens fullscreen.
+                <br />
+                Text fields: Up / Down leaves the field. Select lists: Left /
+                Right leaves the list.
                 <br />
                 Playback: Play / Pause, Rewind and Fast Forward are supported.
             </p>
