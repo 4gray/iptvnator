@@ -72,4 +72,27 @@ describe('GroupManagementDialogComponent', () => {
 
         expect(dialogRef.close).toHaveBeenCalledWith(undefined);
     });
+    it('filters groups with required words, quoted phrases and exclusions while preserving locks', async () => {
+        const fixture = await create({
+            groups: [
+                { key: 'Sports', count: 2 },
+                { key: 'Sports News', count: 3 },
+                { key: 'Science Fiction', count: 1 },
+            ],
+            hiddenGroupTitles: [],
+            lockedGroupTitles: ['Sports News'],
+        });
+        const component = fixture.componentInstance;
+        for (const query of ['sports -news', 'sports -"sports news"']) {
+            component.searchTerm.set(query);
+            expect(
+                component.filteredGroups().map((group) => group.key)
+            ).toEqual(['Sports']);
+        }
+        component.searchTerm.set('"science fiction"');
+        expect(component.filteredGroups().map((group) => group.key)).toEqual([
+            'Science Fiction',
+        ]);
+        expect(component.lockedCount()).toBe(1);
+    });
 });

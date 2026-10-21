@@ -2222,5 +2222,17 @@
             "INSTALL_INSTRUCTIONS": "Kurulum talimatları",
             "DONT_SHOW_AGAIN": "Bir daha gösterme"
         }
+    },
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "Anahtar kelimeler",
+        "MODE": "Eşleşme",
+        "ANY": "En az bir kelime (VEYA)",
+        "ALL": "Tüm kelimeler (VE)",
+        "EXCLUDE": "Anahtar kelimeleri hariç tut",
+        "HELP": "Kelimeleri boşluklarla ayırın. İfadeleri tırnak içine alın ve hariç tutmak için - öneki kullanın, ör. \"French Canada\" -ES.",
+        "COUNT": "{{total}} kategoriden {{matched}} tanesi",
+        "CLEAR": "Filtreleri temizle",
+        "REMOVE": "{{term}} terimini kaldır",
+        "REMOVE_EXCLUSION": "{{term}} hariç tutmasını kaldır"
     }
 }

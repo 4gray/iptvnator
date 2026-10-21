@@ -6,8 +6,11 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
+import {
+    categorySearchPredicate,
+    normalizeCategorySearch,
+} from '@iptvnator/portal/shared/util';
 import { ContentType, XtreamContentLoadState } from '../../xtream-state';
-import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 /**
  * Module-level collator — allocating Intl.Collator is expensive;
@@ -296,14 +299,14 @@ export function withSelection() {
                 items: XtreamSelectionItem[],
                 searchTerm: string
             ): XtreamSelectionItem[] => {
-                const normalized = foldSearchText(searchTerm.trim());
-                if (!normalized) {
+                const matches = categorySearchPredicate(searchTerm, '', 'all');
+                if (!searchTerm.trim()) {
                     return items;
                 }
 
                 return items.filter((item) => {
                     const title = (item.title ?? item.name ?? '').toString();
-                    return foldSearchText(title).includes(normalized);
+                    return matches(normalizeCategorySearch(title));
                 });
             };
 

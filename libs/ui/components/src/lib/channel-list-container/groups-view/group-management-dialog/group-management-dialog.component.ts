@@ -17,8 +17,11 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import {
+    categorySearchPredicate,
+    normalizeCategorySearch,
+} from '@iptvnator/portal/shared/util';
 import { ParentalLockService } from '@iptvnator/services';
-import { foldSearchText } from '@iptvnator/shared/interfaces';
 import { DialogShellComponent } from '../../../dialog-shell/dialog-shell.component';
 import { DialogFooterDirective } from '../../../dialog-shell/dialog-shell.directives';
 
@@ -86,14 +89,15 @@ export class GroupManagementDialogComponent {
     );
 
     readonly filteredGroups = computed(() => {
-        const term = foldSearchText(this.searchTerm().trim());
+        const query = this.searchTerm();
 
-        if (!term) {
+        if (!query.trim()) {
             return this.groups();
         }
 
+        const matches = categorySearchPredicate(query, '', 'all');
         return this.groups().filter((group) =>
-            foldSearchText(group.key).includes(term)
+            matches(normalizeCategorySearch(group.key))
         );
     });
 

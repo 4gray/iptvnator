@@ -2222,5 +2222,17 @@
             "INSTALL_INSTRUCTIONS": "Instrukcje instalacji",
             "DONT_SHOW_AGAIN": "Nie pokazuj ponownie"
         }
+    },
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "Słowa kluczowe",
+        "MODE": "Dopasowanie",
+        "ANY": "Co najmniej jedno słowo (LUB)",
+        "ALL": "Wszystkie słowa (I)",
+        "EXCLUDE": "Wyklucz słowa kluczowe",
+        "HELP": "Oddzielaj słowa spacjami. Frazy ujmuj w cudzysłów, a wykluczenia poprzedzaj znakiem -, np. \"French Canada\" -ES.",
+        "COUNT": "{{matched}} z {{total}} kategorii",
+        "CLEAR": "Wyczyść filtry",
+        "REMOVE": "Usuń {{term}}",
+        "REMOVE_EXCLUSION": "Usuń wykluczenie {{term}}"
     }
 }

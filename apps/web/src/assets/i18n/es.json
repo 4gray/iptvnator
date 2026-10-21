@@ -2222,5 +2222,17 @@
             "INSTALL_INSTRUCTIONS": "Instrucciones de instalación",
             "DONT_SHOW_AGAIN": "No volver a mostrar"
         }
+    },
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "Palabras clave",
+        "MODE": "Coincidencia",
+        "ANY": "Al menos una palabra (O)",
+        "ALL": "Todas las palabras (Y)",
+        "EXCLUDE": "Excluir palabras clave",
+        "HELP": "Separa las palabras con espacios. Usa comillas para las frases y el prefijo - para excluir, p. ej. \"French Canada\" -ES.",
+        "COUNT": "{{matched}} de {{total}} categorías",
+        "CLEAR": "Borrar filtros",
+        "REMOVE": "Quitar {{term}}",
+        "REMOVE_EXCLUSION": "Quitar exclusión {{term}}"
     }
 }

@@ -2222,5 +2222,17 @@
             "INSTALL_INSTRUCTIONS": "Installatie-instructies",
             "DONT_SHOW_AGAIN": "Niet meer tonen"
         }
+    },
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "Zoekwoorden",
+        "MODE": "Overeenkomst",
+        "ANY": "Ten minste één woord (OF)",
+        "ALL": "Alle woorden (EN)",
+        "EXCLUDE": "Zoekwoorden uitsluiten",
+        "HELP": "Scheid woorden met spaties. Gebruik aanhalingstekens voor een woordgroep en - voor uitsluitingen, bijv. \"French Canada\" -ES.",
+        "COUNT": "{{matched}} van {{total}} categorieën",
+        "CLEAR": "Filters wissen",
+        "REMOVE": "{{term}} verwijderen",
+        "REMOVE_EXCLUSION": "Uitsluiting {{term}} verwijderen"
     }
 }

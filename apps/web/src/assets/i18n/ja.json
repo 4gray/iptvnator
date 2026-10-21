@@ -2222,5 +2222,17 @@
             "INSTALL_INSTRUCTIONS": "インストール手順",
             "DONT_SHOW_AGAIN": "今後表示しない"
         }
+    },
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "キーワード",
+        "MODE": "一致条件",
+        "ANY": "いずれかの単語（OR）",
+        "ALL": "すべての単語（AND）",
+        "EXCLUDE": "除外キーワード",
+        "HELP": "単語はスペースで区切ります。フレーズは引用符で囲み、除外する語の先頭に - を付けます。例：\"French Canada\" -ES。",
+        "COUNT": "{{total}} カテゴリー中 {{matched}} 件",
+        "CLEAR": "フィルターをクリア",
+        "REMOVE": "{{term}} を削除",
+        "REMOVE_EXCLUSION": "除外条件 {{term}} を削除"
     }
 }
