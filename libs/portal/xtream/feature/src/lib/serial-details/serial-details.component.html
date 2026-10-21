@@ -156,6 +156,7 @@
                 [playback]="playback"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="item.info.name"
+                [seriesTmdbId]="item.info.tmdb_id ?? null"
                 [seriesNavigation]="inlineSeriesNavigation()"
                 [upNextEpisodes]="upNextEpisodes()"
                 [seriesEpisodes]="item.episodes"

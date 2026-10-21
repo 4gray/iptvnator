@@ -42,6 +42,7 @@ import SharedEvents from '../events/shared.events';
 import StalkerEvents from '../events/stalker.events';
 import XtreamEvents from '../events/xtream.events';
 import { registerStreamProbeHandlers } from '../events/stream-probe';
+import { registerIntroDbHandlers } from '../events/introdb.events';
 import { registerConnectivityGuardHandlers } from '../events/connectivity-guard.events';
 import { traceStartupPhase } from '../services/debug-trace';
 import { AppUpdateService } from '../services/app-update.service';
@@ -93,6 +94,7 @@ export function bootstrapDeferredEvents(
     StalkerEvents.bootstrapStalkerEvents();
     XtreamEvents.bootstrapXtreamEvents();
     registerStreamProbeHandlers();
+    registerIntroDbHandlers();
     registerM3uSourceProbe();
     registerSourceProbeCancellation();
     registerConnectivityGuardHandlers();

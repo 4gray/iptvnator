@@ -82,6 +82,25 @@ export interface PlayerUpNextItem {
     progressPercent: number | null;
 }
 
+/** What a skip button jumps over: the opening titles or a "previously on". */
+export type PlayerSkipSegmentKind = 'intro' | 'recap';
+
+/**
+ * A stretch of an episode the viewer can jump past, for the "Skip intro"
+ * button. Series hosts look it up (IntroDB); the controls decide when the
+ * button shows and seek to `endSeconds` when it is pressed.
+ */
+export interface PlayerSkipSegment {
+    kind: PlayerSkipSegmentKind;
+    startSeconds: number;
+    endSeconds: number;
+    /**
+     * Seek past it on its own the first time playback enters it, without a
+     * button (the viewer's auto-skip preference, resolved by the host).
+     */
+    autoSkip?: boolean;
+}
+
 export interface PlayerPreset<T> {
     value: T;
     label: string;

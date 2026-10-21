@@ -21,6 +21,7 @@ import {
     type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
+    PlayerSkipSegment,
     PlayerUpNextItem,
     type PlayerTimelineSegment,
     WEB_PLAYER_SHARED_CONTROLS,
@@ -64,6 +65,8 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     readonly interactionEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Intro / recap of this episode, for the "Skip intro" button. */
+    readonly skipSegments = input<readonly PlayerSkipSegment[] | null>(null);
     /** Catch-up programmes drawn as track segments; null draws one. */
     readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
         null

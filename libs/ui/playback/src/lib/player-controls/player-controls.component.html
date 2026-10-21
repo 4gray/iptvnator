@@ -620,4 +620,13 @@
             (focusout)="chrome.onFocusOut($event)"
         />
     }
+
+    <app-player-skip-segment-button
+        [controller]="controller()"
+        [segments]="skipSegments()"
+        [showControls]="showControls()"
+        [settingsOpen]="settings.isOpen()"
+        [compact]="isCompact()"
+        [raised]="controlsAreVisible()"
+    />
 }

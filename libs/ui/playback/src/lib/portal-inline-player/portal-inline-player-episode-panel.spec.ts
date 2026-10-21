@@ -25,6 +25,7 @@ class StubWebPlayerViewComponent {
     readonly title = input('');
     readonly mediaTitle = input<unknown>(null);
     readonly upNext = input<unknown>(null);
+    readonly skipSegments = input<unknown>(null);
     readonly playback = input<unknown>(null);
     readonly volume = input(1);
     readonly playerOverride = input<unknown>(null);
