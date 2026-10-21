@@ -37,6 +37,7 @@ export * from './lib/watched-badge/watched-badge.component';
 export * from './lib/window-controls/window-controls.component';
 
 export * from './lib/channel-scroll-focus/channel-scroll-focus.directive';
+export * from './lib/scroll-position/create-scroll-position-preserver';
 export * from './lib/category-lock-menu/category-lock-menu.component';
 export * from './lib/menu-item-radio/menu-item-radio.directive';
 

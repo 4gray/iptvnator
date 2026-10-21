@@ -87,8 +87,13 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 - **No content deletion**: Hiding a category only affects sidebar visibility; the category and its content remain in the database
 - **Display order**: The sidebar defaults to server order. Users can switch the
   category panel to `A-Z` or `Z-A` from the sort menu next to category search.
-- **Selection scrolling**: The panel centers the rendered selected row after
-  selection changes. Electron selects by local SQLite category ID; the row's
+- **Selection scrolling**: After a selection change the panel reads the
+  rendered selected row (post-render) and centers it only when it is not
+  already fully visible, so clicking a visible category never moves the
+  rail. Visible selections stop an earlier smooth reveal and reassert the
+  position on the next animation frame to discard Chromium's final compositor
+  update. A newer selection or component destruction cancels that restoration.
+  Electron selects by local SQLite category ID; the row's
   `data-category-id` can contain its provider ID. Those IDs are not
   interchangeable when locating the scroll target, including after filtering
   hidden categories or sorting.

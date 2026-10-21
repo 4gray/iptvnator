@@ -21,6 +21,7 @@ import {
     readVisibleSidebarCategoryNames,
 } from './sidebar-categories.e2e-support';
 import { applyTheme } from './theme-contrast';
+import { expectVisibleCategoryStopsSmoothScroll } from './category-scroll.e2e-support';
 
 test.describe('Electron Xtream Category Management', () => {
     test('keeps the selected category in view with 800 categories, 600 hidden and A-Z sorting', async ({
@@ -103,7 +104,9 @@ test.describe('Electron Xtream Category Management', () => {
                 const row = rows.filter({ hasText: category.name });
                 await row.click();
                 await expect(row).toHaveAttribute('aria-current', 'true');
-                await expectCategoryCentered(row);
+                await expectCategoryInView(row);
+                await expectVisibleCategoryStopsSmoothScroll(panel, 'down');
+                await expectVisibleCategoryStopsSmoothScroll(panel, 'up');
             }
         } finally {
             await closeElectronApp(app);
@@ -506,8 +509,8 @@ async function openManageCategoriesDialog(page: Page) {
     return dialog;
 }
 
-/** Wait for the real smooth scroll to finish with the selected row centered. */
-async function expectCategoryCentered(row: Locator): Promise<void> {
+/** Wait for any scroll to settle with the selected row fully in view. */
+async function expectCategoryInView(row: Locator): Promise<void> {
     let previousTop = -1;
     let stableSamples = 0;
     await expect
@@ -519,25 +522,17 @@ async function expectCategoryCentered(row: Locator): Promise<void> {
                     ) as HTMLElement;
                     const bounds = container.getBoundingClientRect();
                     const rowBounds = element.getBoundingClientRect();
-                    const target =
-                        container.scrollTop +
-                        rowBounds.top -
-                        bounds.top -
-                        container.clientHeight / 2 +
-                        rowBounds.height / 2;
-                    const clamped = Math.min(
-                        container.scrollHeight - container.clientHeight,
-                        Math.max(0, target)
-                    );
                     return {
                         top: container.scrollTop,
-                        centered: Math.abs(container.scrollTop - clamped) < 2,
+                        inView:
+                            rowBounds.top >= bounds.top - 2 &&
+                            rowBounds.bottom <= bounds.bottom + 2,
                     };
                 });
                 stableSamples =
                     position.top === previousTop ? stableSamples + 1 : 0;
                 previousTop = position.top;
-                return position.centered && stableSamples >= 3;
+                return position.inView && stableSamples >= 3;
             },
             { intervals: [100] }
         )
