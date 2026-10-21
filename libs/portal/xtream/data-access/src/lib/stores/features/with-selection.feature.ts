@@ -110,6 +110,7 @@ interface XtreamSelectionCategory {
     readonly id?: string | number;
     readonly name?: string;
     readonly type?: ContentType;
+    readonly hidden?: boolean;
 }
 
 interface XtreamSelectionItem {
@@ -307,17 +308,40 @@ export function withSelection() {
                 });
             };
 
-            // Memoized sorted content - only recalculates when content/type changes
+            const getVisibleContentForType = (
+                contentType: ContentType
+            ): XtreamSelectionItem[] => {
+                const storeAny = store as ParentSelectionStoreLike;
+                const categories =
+                    contentType === 'live'
+                        ? storeAny.liveCategories?.() || []
+                        : contentType === 'vod'
+                          ? storeAny.vodCategories?.() || []
+                          : storeAny.serialCategories?.() || [];
+                const content =
+                    contentType === 'live'
+                        ? storeAny.liveStreams?.() || []
+                        : contentType === 'vod'
+                          ? storeAny.vodStreams?.() || []
+                          : storeAny.serialStreams?.() || [];
+                const visibleCategoryIds = new Set(
+                    categories
+                        .filter((category) => !category.hidden)
+                        .map((category) =>
+                            Number(category.category_id ?? category.id)
+                        )
+                );
+
+                return content.filter((item) =>
+                    visibleCategoryIds.has(Number(item.category_id))
+                );
+            };
+
+            // Memoized sorted content - only recalculates when visible content/type changes
             const sortedContent = computed(() => {
                 const categoryType = store.selectedContentType();
                 const sortMode = store.contentSortMode();
-                const storeAny = store as ParentSelectionStoreLike;
-                const content =
-                    categoryType === 'live'
-                        ? storeAny.liveStreams?.() || []
-                        : categoryType === 'vod'
-                          ? storeAny.vodStreams?.() || []
-                          : storeAny.serialStreams?.() || [];
+                const content = getVisibleContentForType(categoryType);
 
                 if (categoryType === 'vod' || categoryType === 'series') {
                     return sortByMode(content, sortMode, categoryType);
@@ -388,18 +412,10 @@ export function withSelection() {
                 const sortMode = store.contentSortMode();
                 const searchTerm = store.categorySearchTerm();
 
-                const storeAny = store as ParentSelectionStoreLike;
-                const content =
-                    categoryType === 'live'
-                        ? storeAny.liveStreams?.() || []
-                        : categoryType === 'vod'
-                          ? storeAny.vodStreams?.() || []
-                          : storeAny.serialStreams?.() || [];
-
                 if (categoryType === 'vod' || categoryType === 'series') {
                     const minRating = store.minRating();
                     let filtered = categoryId
-                        ? content.filter(
+                        ? getVisibleContentForType(categoryType).filter(
                               (item) => Number(item.category_id) === categoryId
                           )
                         : sortedContent();
@@ -415,7 +431,7 @@ export function withSelection() {
                     return filterBySearchTerm(sortedContent(), searchTerm);
                 }
 
-                const filtered = content.filter(
+                const filtered = getVisibleContentForType(categoryType).filter(
                     (item) => Number(item.category_id) === categoryId
                 );
                 return filterBySearchTerm(filtered, searchTerm);
@@ -450,6 +466,15 @@ export function withSelection() {
                             c.category_id === String(categoryId)
                     );
                 }),
+
+                /**
+                 * Get catalog items that belong to visible categories.
+                 * Hidden categories remain in the underlying catalog for
+                 * lookups and global search, but are excluded from section views.
+                 */
+                getVisibleContentByType: computed(
+                    () => getVisibleContentForType
+                ),
 
                 /**
                  * Get the selected item by ID from content
