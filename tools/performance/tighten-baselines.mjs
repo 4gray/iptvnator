@@ -15,6 +15,9 @@
  *   `.p50` entry is the largest P50.
  * - A counter marked `counterStability.<name>.stable === false` in any run is
  *   skipped: its summary value hides iterations that disagreed.
+ * - An entry with `"autoTighten": false` is kept: its slack covers a band of
+ *   normal values, and lowering `value` to the largest of three runs could
+ *   drop the limit below the top of that band. It is lowered by hand.
  * - `value` never goes up, `slack` and `toleranceRatio` never change, and no
  *   entry is added or removed; check-baseline-direction.mjs must accept the
  *   result without --allow-increase, and this script checks that itself.
@@ -125,6 +128,12 @@ function decide(entry, name, journey, runs) {
                 };
             }
         }
+    }
+    if (entry.autoTighten === false) {
+        return {
+            measured,
+            reason: 'autoTighten is false: lowered by hand, see the entry in performance-journeys.md.',
+        };
     }
     const highest = Math.max(...measured);
     if (highest >= entry.value) {

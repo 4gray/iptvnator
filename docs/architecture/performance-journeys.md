@@ -1512,7 +1512,9 @@ that file:
   `journeys.<journey>.counters` and a wall-clock entry (one with
   `toleranceRatio`) only from `journeys.<journey>.wallClock`, so a value in
   the wrong section also counts as missing;
-- a measurement below its baseline passes and prints a "tighten" hint;
+- a measurement below its baseline passes and prints a "tighten" hint,
+  except for an entry with `"autoTighten": false`, whose band one low run
+  does not move;
 - a measured counter without a baseline is noted, not failed;
 - checking nothing fails: an empty baselines file, or `--only` naming an
   entry that does not exist, cannot exit 0;
@@ -1577,7 +1579,12 @@ a tolerance or slack widened or an entry disappeared, so a PR cannot grow the
 payload and raise the baseline to match. A counter's `value` may not go up
 either, even when narrower slack lowers its limit, and switching an entry
 between counter and wall-clock (adding or removing `toleranceRatio`) counts
-as a weakening too. Lowered limits and new entries pass.
+as a weakening too. Changing an existing entry's effective `autoTighten`
+policy also requires the `perf-baseline-increase` label, even if its limit
+is lowered at the same time: adding `false` disables future tightening,
+while removing it or setting `true` can erode an intentionally preserved
+band. Omitted and `true` are equivalent. Lowered limits with unchanged
+policy and new entries pass.
 
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
@@ -1703,6 +1710,26 @@ changes) and the wall-clock entries did not move. Under
 `prefers-reduced-motion` there is no slide, so a user with that preference
 still sees the jump that the journey no longer measures.
 
+`playback/renderer.domMutationsToPlaying` 733 is validated by #1817 and is
+enforced with slack. #1817 windowed the EPG
+timeline: on the runner the counter fell from 6,182 to 731, `renderer.longTasks`
+from 1 to 0, and the click→`playing` P50 from 221-341 ms (four `master` runs)
+to 196-215 ms (three dispatched runs of the branch). It is not identical: the
+usual value is 731 to 736, and it moves between runs of the same commit (733
+and 736 for a8505e0f9). An iteration where a fifth bridge call
+(`updateRemoteControlStatus`) lands before `playing` adds exactly 17
+(731→748, 733→750). `slack` 20 covers the top of that band, 736 + 17 = 753;
+the regression it guards, the timeline rendering the whole schedule again, is
+about 5,000 mutations above it. `evidenceRun` 38311314484 (f60d79701) read
+733 in every iteration.
+
+The entry carries `"autoTighten": false`, so the weekly tightening leaves it
+alone: three runs that all read 731 would lower `value` to 731 and the limit
+to 751, below the 753 of a normal fifth-call iteration on a 736 run. Lower it
+by hand, and only with runs showing the top of the band fell too (a
+fifth-call iteration at or below the new `value` + `slack`). Remove the slack
+and the flag once the fifth call's race is gone and `master` runs agree.
+
 The two J4 entries, `search/renderer.ipcCallsPerSearch` 1 and
 `search/renderer.sqlStatementsPerSearch` 2 (#1899, `evidenceRun`
 38165392046), were identical in all 816 J4 iterations of the 136 CI journey
@@ -1716,8 +1743,8 @@ plan promotes a counter to a guardrail once a PR has shown that lowering it
 lowered the journey's wall-clock. None of these counters has that evidence
 yet: `main.modulesRegisteredBeforeWindow` waits for the deferred IPC
 registration (plan item C4), the layout-shift scores measure visual
-stability rather than time, and no PR has moved a J2 or J3 counter. Each
-entry therefore carries
+stability rather than time, and no PR has moved a J2 counter. Each
+of these entries therefore carries
 `"note": "guard only, not validated: …"`. A guard stops a regression of a
 deterministic number, and the checker prints the note with a failure; it
 says nothing about whether lowering that number makes the journey faster.
@@ -1747,9 +1774,8 @@ Not enforced, with the reason:
   side of a render. It is enforced at 5 with `slack: 1`.
 - J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
   recent commits.
-- J3 `renderer.ipcCallsToPlaying` (4 or 5) and
-  `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199 before #1817;
-  731, 732 or 734 since, 748 with a fifth call): not identical.
+- J3 `renderer.ipcCallsToPlaying` (4 or 5): not identical. (J3
+  `renderer.domMutationsToPlaying` is enforced with slack, see above.)
 - J3 `renderer.ipcSerialDepthToPlaying` (4 on the runner, 3 on a Mac):
   added after these runs and measured in one runner run so far; a
   candidate once `master` runs agree.
@@ -1781,6 +1807,9 @@ its job; its entries are then unmeasured in that run. A final job runs
   P50 for a `.p50` entry);
 - a counter marked `counterStability.<name>.stable: false` in any run is
   kept, and the report says which run and which iterations disagreed;
+- an entry with `"autoTighten": false` is kept: its slack covers a band of
+  normal values, and the largest of three runs can be the bottom of that band
+  (see `playback/renderer.domMutationsToPlaying` above);
 - `value` never goes up, `slack` and `toleranceRatio` never change, and no
   entry is added or removed: the result must pass
   `check-baseline-direction.mjs` without `--allow-increase`, which both the

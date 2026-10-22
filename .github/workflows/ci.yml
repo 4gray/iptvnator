@@ -357,6 +357,7 @@ jobs:
                   --only open-source/renderer.ipcCallsToFirstPage
                   --only open-source/renderer.layoutShiftScore
                   --only open-source/renderer.cdTicksToFirstPage
+                  --only playback/renderer.domMutationsToPlaying
                   --only playback/renderer.httpRequestsToPlaying
                   --only playback/renderer.layoutShiftScore
                   --only search/renderer.ipcCallsPerSearch
