@@ -40,11 +40,11 @@ l'app desktop casserait sa mise à jour automatique).
 | --- | --- |
 | D-pad | se déplacer entre les éléments ; sur l'image : ◀ ▶ = recherche, ▲ ▼ = quitter l'image / contrôles ; dans un champ texte, les flèches déplacent le curseur tant qu'il peut bouger |
 | OK | activer ; sur l'image : plein écran ; sur un champ texte : clavier. Un appui maintenu vaut une activation |
-| Retour | fermer dialogue/menu → quitter le plein écran → page précédente → (2×) quitter l'app |
-| Menu | menu contextuel de l'élément ; sur l'image : ouvrir le flux dans VLC ; **appui long** : réglages de la coquille |
+| Retour | fermer dialogue/menu → quitter le plein écran → page précédente → (2×) quitter l'app ; **appui long** : réglages de la coquille (télécommandes sans touche Menu) |
+| Menu | menu contextuel de l'élément ; sur l'image : ouvrir le flux dans VLC ; **appui long** : réglages de la coquille. La touche menu contextuel HDMI-CEC et Y d'une manette font de même |
 | ▶⏸ ⏪ ⏩ | lecture/pause, −15 s, +30 s |
 
-## Réglages de la coquille (appui long sur Menu)
+## Réglages de la coquille (appui long sur Menu ou sur Retour)
 
 Taille de l'interface (960 / 1280 / 1600 px), lecteur externe préféré,
 proposition automatique d'un lecteur externe, débogage à distance
@@ -53,7 +53,7 @@ proposition automatique d'un lecteur externe, débogage à distance
 
 ## Dépannage
 
-Le **diagnostic** (appui long sur Menu, ou l'écran d'erreur) donne la version du
+Le **diagnostic** (appui long sur Menu ou Retour, ou l'écran d'erreur) donne la version du
 moteur Chrome du WebView, l'appareil, le port du serveur embarqué et la ligne
 « Écran » (pixels, densité, largeur en px CSS, largeur de layout). Joignez-le à
 tout rapport. Depuis un PC :
@@ -85,11 +85,19 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   (GeckoView serait la solution de repli). Entre 94 et 110, l'app fonctionne
   avec des couleurs dégradées. La dernière erreur console est affichée sous le
   message.
+- **« La vue web du système est indisponible »** : Amazon WebView / Android
+  System WebView est en cours de mise à jour ou désactivé. Attendez une minute
+  puis Réessayer, ou mettez-le à jour (réactivez-le).
 - **« Le serveur embarqué n'a pas pu démarrer »** : les ports 43330 à 43334 sont
   occupés ; fermez l'application concernée ou redémarrez le Stick.
+- **Message « Le port 43330 est utilisé par une autre application »**, app vide :
+  cette fois l'app tourne sur un port temporaire, les playlists enregistrées ne
+  sont pas visibles. Fermez l'autre application (ou redémarrez le Stick) et
+  relancez ; rien n'est perdu.
 - **« Le lecteur a été relancé après avoir manqué de mémoire »** : le rendu web a
   été tué par le système ; la page se recharge. Si cela se répète, réduisez la
-  playlist (catégories masquées dans IPTVnator).
+  playlist (catégories masquées dans IPTVnator). Après une fermeture par
+  Android en arrière-plan, l'app rouvre sur la page affichée.
 
 ### Affichage
 
@@ -104,6 +112,8 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 - **Une touche ne fait rien** : `adb shell getevent -l` montre le code envoyé ;
   les touches interceptées sont dans `MainActivity.dispatchKeyEvent`, le reste
   va à la page (`tv.js`).
+- **Pas de touche Menu** (Google TV, la plupart des box Android TV) : appui long
+  sur Retour pour les réglages de la coquille.
 - **Plus de focus visible** : appuyez sur une flèche. Retour ferme d'abord
   dialogues et menus, puis remonte l'historique, puis quitte (deux appuis).
 - **Pas de clavier sur un champ** : OK sur le champ ouvre le clavier Fire TV ;
@@ -117,7 +127,15 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   de sortie `m3u8` dans les réglages de la playlist. Chaque nouvel essai sur une
   chaîne repropose le lecteur.
 - **La proposition VLC n'apparaît plus** : réglages de la coquille → *Lecteur
-  externe* → cochez « Proposer un lecteur externe ».
+  externe* → cochez « Proposer un lecteur externe ». Une connexion coupée
+  (erreur média 1 ou 2 du lecteur du navigateur) ne la déclenche pas : VLC
+  échouerait de la même façon.
+- **« Error, something went wrong (ERR_RESPONSE_TOO_LARGE) »** à l'ajout d'une
+  source : la playlist ou la réponse du portail dépasse ce que l'appareil peut
+  tenir en mémoire (environ 32 Mo sur un Stick de 1 Go) ; utilisez un export
+  plus petit (un pays, sans VOD) ou un portail Xtream.
+- **L'écran de veille démarre sur une liste** : voulu ; l'écran reste allumé
+  pendant la lecture d'un flux.
 
 ### Données
 

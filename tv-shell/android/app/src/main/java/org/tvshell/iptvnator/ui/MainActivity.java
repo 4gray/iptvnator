@@ -59,6 +59,7 @@ public class MainActivity extends Activity {
     /** Renderer deaths are counted across Activity recreations; a burst means the page itself is the problem. */
     private static final long RENDERER_DEATH_WINDOW_MS = 60_000;
     private static final int RENDERER_DEATH_LIMIT = 3;
+    private static final String STATE_URL = "url";
     private static int rendererDeaths;
     private static long lastRendererDeathAt;
 
@@ -81,8 +82,13 @@ public class MainActivity extends Activity {
     private boolean pageFinished;
     private boolean watchdogExtended;
     private boolean loadRetried;
+    private boolean webViewUnavailable;
     private long splashShownAt;
     private int loadedLayoutWidth;
+    private int loadedScreenWidth;
+    private String restoreUrl;
+    private long backDownAt;
+    private boolean backLongPressFired;
     private String lastConsoleError;
     private final Handler handler = new Handler(Looper.getMainLooper());
     /** Fires when the page never reported itself ready: a too-old WebView fails to parse the bundle silently. */
@@ -106,16 +112,22 @@ public class MainActivity extends Activity {
             if (pageReady) splash.setVisibility(View.GONE);
         }
     };
+    /** The one retry of a main-frame load the loopback server did not answer. */
+    private final Runnable loadRetry = new Runnable() {
+        @Override
+        public void run() {
+            if (!isFinishing() && !isDestroyed() && !pageReady) load();
+        }
+    };
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = new Prefs(this);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (savedInstanceState != null) restoreUrl = savedInstanceState.getString(STATE_URL);
         setContentView(R.layout.activity_main);
         root = findViewById(R.id.root);
-        webView = findViewById(R.id.webview);
         splash = findViewById(R.id.splash);
         errorPanel = findViewById(R.id.error_panel);
         errorText = findViewById(R.id.error_text);
@@ -134,7 +146,22 @@ public class MainActivity extends Activity {
             }
         });
 
-        WebView.setWebContentsDebuggingEnabled(prefs.webDebug() || isDebugBuild());
+        // The WebView is created in code, not inflated: when the system WebView is missing, disabled
+        // or being updated (Amazon WebView updates in the background), its constructor throws an
+        // AndroidRuntimeException, which from the inflater would kill the app before any message.
+        try {
+            webView = new WebView(this);
+            WebView.setWebContentsDebuggingEnabled(prefs.webDebug() || isDebugBuild());
+        } catch (RuntimeException e) {
+            Log.e(ShellApp.TAG, "WebView unavailable", e);
+            webView = null;
+            webViewUnavailable = true;
+            server = ShellApp.currentServer();
+            loadedLayoutWidth = prefs.layoutWidth();
+            showError(getString(R.string.webview_unavailable) + "\n" + e);
+            return;
+        }
+        root.addView(webView, 0, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -186,12 +213,8 @@ public class MainActivity extends Activity {
                     // background, or the process was restored before it listened): load() restarts it.
                     loadRetried = true;
                     Log.w(ShellApp.TAG, "main frame load failed (" + code + "), restarting the server and retrying once");
-                    handler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (!isFinishing() && !pageReady) load();
-                        }
-                    }, LOAD_RETRY_DELAY_MS);
+                    handler.removeCallbacks(loadRetry);
+                    handler.postDelayed(loadRetry, LOAD_RETRY_DELAY_MS);
                     return;
                 }
                 showError(getString(R.string.load_error, String.valueOf(error.getDescription()), String.valueOf(code)));
@@ -206,8 +229,14 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                boolean first = !pageFinished;
                 pageFinished = true;
-                view.requestFocus(View.FOCUS_DOWN);
+                if (first && !pageReady && errorPanel.getVisibility() != View.VISIBLE) {
+                    // The bundle has run: Angular's bootstrap (IndexedDB, playlists) gets a period of its own.
+                    armWatchdog();
+                }
+                // Never take the focus away from the error panel (an error page commits after onReceivedError).
+                if (errorPanel.getVisibility() != View.VISIBLE) view.requestFocus(View.FOCUS_DOWN);
             }
 
             /** The sandboxed renderer died (OOM abort or system kill). Unhandled, Chromium crashes or kills the app. */
@@ -215,10 +244,15 @@ public class MainActivity extends Activity {
             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
                 boolean crashed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && detail.didCrash();
                 long now = SystemClock.uptimeMillis();
-                rendererDeaths = now - lastRendererDeathAt < RENDERER_DEATH_WINDOW_MS ? rendererDeaths + 1 : 1;
-                lastRendererDeathAt = now;
-                Log.w(ShellApp.TAG, "web renderer gone (crashed=" + crashed + ", count=" + rendererDeaths + ")");
+                if (crashed || resumed) {
+                    // The system reclaiming the hidden renderer while another app (VLC, the launcher) is in
+                    // front is routine on a 1 GB device, not a sign that the page is broken: not counted.
+                    rendererDeaths = now - lastRendererDeathAt < RENDERER_DEATH_WINDOW_MS ? rendererDeaths + 1 : 1;
+                    lastRendererDeathAt = now;
+                }
+                Log.w(ShellApp.TAG, "web renderer gone (crashed=" + crashed + ", resumed=" + resumed + ", count=" + rendererDeaths + ")");
                 handler.removeCallbacks(readyWatchdog);
+                handler.removeCallbacks(loadRetry);
                 root.removeView(view);
                 view.destroy();
                 webView = null; // every remaining use is null-guarded
@@ -306,18 +340,37 @@ public class MainActivity extends Activity {
         lastConsoleError = null;
         handler.removeCallbacks(readyWatchdog);
         handler.removeCallbacks(hideSplash);
+        handler.removeCallbacks(loadRetry);
+        setKeepScreenOn(true); // through the splash; the page then reports its playback state
         loadedLayoutWidth = prefs.layoutWidth();
+        loadedScreenWidth = screenCssWidth(this);
         server = ((ShellApp) getApplication()).ensureServer();
         if (server == null) {
             showError(getString(R.string.server_error));
             return;
         }
+        if (ShellApp.onFallbackPort()) toast(getString(R.string.port_fallback, prefs.serverPort(), server.port()));
         server.setLayoutWidth(loadedLayoutWidth);
-        server.setScreenWidth(screenCssWidth(this));
+        server.setScreenWidth(loadedScreenWidth);
+        // After a process restart the route the user was on (the SPA fallback serves it); else the root.
+        String url = restoreUrl != null && restoreUrl.startsWith(server.baseUrl()) ? restoreUrl : server.baseUrl();
+        restoreUrl = null;
         webView.setVisibility(View.VISIBLE);
-        webView.loadUrl(server.baseUrl());
+        webView.loadUrl(url);
         webView.requestFocus(View.FOCUS_DOWN);
+        armWatchdog();
+    }
+
+    /** (Re)starts the ready watchdog for a full period. */
+    private void armWatchdog() {
+        handler.removeCallbacks(readyWatchdog);
         handler.postDelayed(readyWatchdog, READY_TIMEOUT_MS);
+    }
+
+    /** The screen stays on only while the page plays something (and during the start-up splash). */
+    void setKeepScreenOn(boolean on) {
+        if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     /** The page never reported itself ready (or cannot be parsed): the error panel with the diagnostics. */
@@ -329,6 +382,7 @@ public class MainActivity extends Activity {
     }
 
     private void showError(String message) {
+        setKeepScreenOn(false);
         splash.setVisibility(View.GONE);
         errorText.setText(message + "\n\n" + diagnostics());
         errorPanel.setVisibility(View.VISIBLE);
@@ -348,20 +402,27 @@ public class MainActivity extends Activity {
     }
 
     String diagnostics() {
-        String ua = WebSettings.getDefaultUserAgent(this);
         String chrome = "?";
-        int at = ua.indexOf("Chrome/");
-        if (at >= 0) {
-            int end = ua.indexOf(' ', at);
-            chrome = ua.substring(at + 7, end > 0 ? end : ua.length());
-        }
         String webViewPackage = "";
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            android.content.pm.PackageInfo info = WebView.getCurrentWebViewPackage();
-            if (info != null) webViewPackage = info.packageName + " " + info.versionName;
+        try {
+            String ua = WebSettings.getDefaultUserAgent(this);
+            int at = ua.indexOf("Chrome/");
+            if (at >= 0) {
+                int end = ua.indexOf(' ', at);
+                chrome = ua.substring(at + 7, end > 0 ? end : ua.length());
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                android.content.pm.PackageInfo info = WebView.getCurrentWebViewPackage();
+                if (info != null) webViewPackage = info.packageName + " " + info.versionName;
+            }
+        } catch (RuntimeException e) {
+            // The system WebView is missing, disabled or being updated: the rest still helps.
+            webViewPackage = "unavailable (" + e.getClass().getSimpleName() + ")";
         }
+        String port = server == null ? "-" : String.valueOf(server.port());
+        if (server != null && ShellApp.onFallbackPort()) port += " (temporary, saved data on " + prefs.serverPort() + ")";
         return getString(R.string.diagnostics, chrome, webViewPackage, Build.MODEL, Build.VERSION.RELEASE,
-            server == null ? "-" : String.valueOf(server.port()), screenInfo(this) + ", layout " + loadedLayoutWidth);
+            port, screenInfo(this) + ", layout " + loadedLayoutWidth);
     }
 
     // ------------------------------------------------------------- keys
@@ -370,13 +431,30 @@ public class MainActivity extends Activity {
         int code = event.getKeyCode();
         int action = event.getAction();
         if (customView == null && errorPanel.getVisibility() == View.VISIBLE) {
+            // The WebView underneath stays focusable: keys must land on the panel's buttons.
+            View focus = getCurrentFocus();
+            if (focus == null || focus == webView) errorPanel.findViewById(R.id.error_retry).requestFocus();
             return super.dispatchKeyEvent(event);
         }
         switch (code) {
             case KeyEvent.KEYCODE_BACK:
-                if (action == KeyEvent.ACTION_UP) handleBack();
+                // A held Back opens the shell settings: remotes without a Menu key (Google TV, HDMI-CEC).
+                if (action == KeyEvent.ACTION_DOWN) {
+                    if (event.getRepeatCount() == 0) {
+                        backDownAt = SystemClock.uptimeMillis();
+                        backLongPressFired = false;
+                    } else if (!backLongPressFired && SystemClock.uptimeMillis() - backDownAt >= LONG_PRESS_MS) {
+                        backLongPressFired = true;
+                        openSettings();
+                    }
+                } else if (action == KeyEvent.ACTION_UP) {
+                    if (!backLongPressFired && !event.isCanceled()) handleBack();
+                    backLongPressFired = false;
+                }
                 return true;
             case KeyEvent.KEYCODE_MENU:
+            case KeyEvent.KEYCODE_TV_MEDIA_CONTEXT_MENU: // HDMI-CEC remotes
+            case KeyEvent.KEYCODE_BUTTON_Y: // game controllers
                 if (action == KeyEvent.ACTION_DOWN) {
                     if (event.getRepeatCount() == 0) {
                         menuDownAt = SystemClock.uptimeMillis();
@@ -448,8 +526,10 @@ public class MainActivity extends Activity {
     void onWebAppReady() {
         pageReady = true;
         loadRetried = false;
+        setKeepScreenOn(false); // from here the page says when something plays
         handler.removeCallbacks(readyWatchdog);
         handler.removeCallbacks(hideSplash);
+        handler.removeCallbacks(loadRetry);
         long shown = SystemClock.uptimeMillis() - splashShownAt;
         if (shown >= MIN_SPLASH_MS) splash.setVisibility(View.GONE);
         else handler.postDelayed(hideSplash, MIN_SPLASH_MS - shown);
@@ -458,7 +538,11 @@ public class MainActivity extends Activity {
     }
 
     void openExternal(String url, String title) {
-        ExternalPlayer.open(this, url, title, prefs.externalPlayerPackage());
+        if (url == null || url.trim().isEmpty()) {
+            toast(getString(R.string.no_stream_to_open));
+            return;
+        }
+        ExternalPlayer.open(this, url.trim(), title, prefs.externalPlayerPackage());
     }
 
     /**
@@ -499,6 +583,7 @@ public class MainActivity extends Activity {
     }
 
     void toast(String message) {
+        if (message == null || message.isEmpty()) return; // Toast.show() throws on an empty text (API 30+)
         // The application context: a toast may outlive this Activity (renderer restart, exit).
         Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
     }
@@ -521,14 +606,14 @@ public class MainActivity extends Activity {
         resumed = true;
         hideSystemUi();
         if (webView == null) {
-            recreate(); // the renderer died while we were in the background
+            if (!webViewUnavailable) recreate(); // the renderer died while we were in the background
             return;
         }
-        if (webView != null) {
-            webView.onResume();
-            webView.resumeTimers();
-            webView.requestFocus(View.FOCUS_DOWN);
-        }
+        webView.onResume();
+        webView.resumeTimers();
+        if (errorPanel.getVisibility() != View.VISIBLE) webView.requestFocus(View.FOCUS_DOWN);
+        // The page's timers were frozen with the Activity: the start-up budget restarts with them.
+        if (!pageReady && errorPanel.getVisibility() != View.VISIBLE) armWatchdog();
         if (SettingsActivity.dataCleared) {
             SettingsActivity.dataCleared = false;
             if (webView != null) webView.clearCache(true);
@@ -541,6 +626,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         resumed = false;
+        handler.removeCallbacks(readyWatchdog); // nothing can report ready while the page is frozen
         if (webView != null) {
             webView.onPause();
             // JavaScript timers stop too while another app (VLC, the launcher) is in front: the page's
@@ -552,9 +638,25 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        // The route the user was on, for a restart after the system killed the process in the background.
+        if (webView != null && pageReady) outState.putString(STATE_URL, webView.getUrl());
+    }
+
+    /** Display changes the manifest keeps the Activity through: the pinned page scale must follow. */
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        hideSystemUi();
+        if (webView != null && server != null && errorPanel.getVisibility() != View.VISIBLE && screenCssWidth(this) != loadedScreenWidth) load();
+    }
+
+    @Override
     protected void onDestroy() {
         handler.removeCallbacks(readyWatchdog);
         handler.removeCallbacks(hideSplash);
+        handler.removeCallbacks(loadRetry);
         if (webView != null) {
             webView.loadUrl("about:blank");
             root.removeView(webView); // destroy() must not run on an attached WebView

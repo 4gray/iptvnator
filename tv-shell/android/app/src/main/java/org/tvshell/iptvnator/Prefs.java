@@ -53,6 +53,11 @@ public class Prefs {
         return prefs.getInt(KEY_SERVER_PORT, 43330);
     }
 
+    /** False until the first server start persisted the port the web app's storage belongs to. */
+    public boolean hasServerPort() {
+        return prefs.contains(KEY_SERVER_PORT);
+    }
+
     public void setServerPort(int port) {
         prefs.edit().putInt(KEY_SERVER_PORT, port).apply();
     }

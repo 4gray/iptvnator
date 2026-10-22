@@ -1,7 +1,9 @@
 package org.tvshell.iptvnator.backend;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +73,28 @@ public final class Json {
         }
     }
 
+    /**
+     * JSON text already known to be valid ({@link #validate(String)}): written verbatim, never
+     * rebuilt as maps and lists. A provider catalogue of 20 MB costs its own size this way, not
+     * six to ten times that in map entries and strings.
+     */
+    public static final class Raw {
+        private final String text;
+
+        public Raw(String text) {
+            this.text = text;
+        }
+
+        public String text() {
+            return text;
+        }
+
+        @Override
+        public String toString() {
+            return text;
+        }
+    }
+
     public static final class JsonException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
@@ -98,87 +122,199 @@ public final class Json {
         return sb.toString();
     }
 
-    @SuppressWarnings("unchecked")
-    public static void write(Object value, StringBuilder sb) {
-        if (value == null) {
-            sb.append("null");
-        } else if (value instanceof String) {
-            writeString((String) value, sb);
-        } else if (value instanceof Boolean) {
-            sb.append(((Boolean) value).booleanValue() ? "true" : "false");
-        } else if (value instanceof JsonNumber) {
-            sb.append(((JsonNumber) value).text());
-        } else if (value instanceof Number) {
-            double d = ((Number) value).doubleValue();
-            if (value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte) {
-                sb.append(((Number) value).longValue());
-            } else if (Double.isNaN(d) || Double.isInfinite(d)) {
-                sb.append("null");
-            } else if (d == Math.rint(d) && Math.abs(d) < 1e15) {
-                sb.append((long) d);
+    /**
+     * The JSON text as UTF-8 bytes, encoded while it is written: one growing byte array instead
+     * of a char buffer, a String and the bytes alive at the same time (a /parse answer for a
+     * large playlist is tens of MB).
+     */
+    public static byte[] writeUtf8(Object value) {
+        Utf8Sink sink = new Utf8Sink(4096);
+        try {
+            write(value, sink);
+        } catch (IOException e) {
+            throw new IllegalStateException(e); // the sink never throws
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Appendable that encodes into a growing UTF-8 byte array without allocating per call
+     * (OutputStreamWriter allocates for every single character). An unpaired surrogate becomes
+     * '?', as String.getBytes(UTF-8) does.
+     */
+    static final class Utf8Sink implements Appendable {
+        private byte[] buf;
+        private int count;
+        private char pendingHigh;
+
+        Utf8Sink(int initial) {
+            buf = new byte[Math.max(16, initial)];
+        }
+
+        @Override
+        public Appendable append(CharSequence csq) {
+            CharSequence text = csq == null ? "null" : csq;
+            return append(text, 0, text.length());
+        }
+
+        @Override
+        public Appendable append(CharSequence csq, int start, int end) {
+            CharSequence text = csq == null ? "null" : csq;
+            for (int i = start; i < end; i++) append(text.charAt(i));
+            return this;
+        }
+
+        @Override
+        public Appendable append(char c) {
+            if (pendingHigh != 0) {
+                char high = pendingHigh;
+                pendingHigh = 0;
+                if (Character.isLowSurrogate(c)) {
+                    int cp = Character.toCodePoint(high, c);
+                    ensure(4);
+                    buf[count++] = (byte) (0xF0 | (cp >> 18));
+                    buf[count++] = (byte) (0x80 | ((cp >> 12) & 0x3F));
+                    buf[count++] = (byte) (0x80 | ((cp >> 6) & 0x3F));
+                    buf[count++] = (byte) (0x80 | (cp & 0x3F));
+                    return this;
+                }
+                put('?');
+            }
+            if (c < 0x80) {
+                put(c);
+            } else if (c < 0x800) {
+                ensure(2);
+                buf[count++] = (byte) (0xC0 | (c >> 6));
+                buf[count++] = (byte) (0x80 | (c & 0x3F));
+            } else if (Character.isHighSurrogate(c)) {
+                pendingHigh = c;
+            } else if (Character.isLowSurrogate(c)) {
+                put('?');
             } else {
-                sb.append(Double.toString(d));
+                ensure(3);
+                buf[count++] = (byte) (0xE0 | (c >> 12));
+                buf[count++] = (byte) (0x80 | ((c >> 6) & 0x3F));
+                buf[count++] = (byte) (0x80 | (c & 0x3F));
             }
-        } else if (value instanceof Map) {
-            sb.append('{');
-            boolean first = true;
-            for (Map.Entry<String, Object> entry : ((Map<String, Object>) value).entrySet()) {
-                if (!first) sb.append(',');
-                first = false;
-                writeString(entry.getKey(), sb);
-                sb.append(':');
-                write(entry.getValue(), sb);
+            return this;
+        }
+
+        byte[] toByteArray() {
+            if (pendingHigh != 0) {
+                pendingHigh = 0;
+                put('?');
             }
-            sb.append('}');
-        } else if (value instanceof Iterable) {
-            sb.append('[');
-            boolean first = true;
-            for (Object item : (Iterable<Object>) value) {
-                if (!first) sb.append(',');
-                first = false;
-                write(item, sb);
-            }
-            sb.append(']');
-        } else {
-            writeString(String.valueOf(value), sb);
+            return Arrays.copyOf(buf, count);
+        }
+
+        private void put(char ascii) {
+            ensure(1);
+            buf[count++] = (byte) ascii;
+        }
+
+        private void ensure(int extra) {
+            if (count + extra > buf.length) buf = Arrays.copyOf(buf, Math.max(buf.length * 2, count + extra));
         }
     }
 
-    private static void writeString(String s, StringBuilder sb) {
-        sb.append('"');
+    public static void write(Object value, StringBuilder sb) {
+        try {
+            write(value, (Appendable) sb);
+        } catch (IOException e) {
+            throw new IllegalStateException(e); // a StringBuilder never throws
+        }
+    }
+
+    /**
+     * Streams the JSON text to {@code out}: a response goes straight to its UTF-8 bytes instead
+     * of living as a char buffer, then a String, then bytes at the same time.
+     */
+    @SuppressWarnings("unchecked")
+    public static void write(Object value, Appendable out) throws IOException {
+        if (value == null) {
+            out.append("null");
+        } else if (value instanceof String) {
+            writeString((String) value, out);
+        } else if (value instanceof Raw) {
+            out.append(((Raw) value).text);
+        } else if (value instanceof Boolean) {
+            out.append(((Boolean) value).booleanValue() ? "true" : "false");
+        } else if (value instanceof JsonNumber) {
+            out.append(((JsonNumber) value).text());
+        } else if (value instanceof Number) {
+            double d = ((Number) value).doubleValue();
+            if (value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte) {
+                out.append(Long.toString(((Number) value).longValue()));
+            } else if (Double.isNaN(d) || Double.isInfinite(d)) {
+                out.append("null");
+            } else if (d == Math.rint(d) && Math.abs(d) < 1e15) {
+                out.append(Long.toString((long) d));
+            } else {
+                out.append(Double.toString(d));
+            }
+        } else if (value instanceof Map) {
+            out.append('{');
+            boolean first = true;
+            for (Map.Entry<String, Object> entry : ((Map<String, Object>) value).entrySet()) {
+                if (!first) out.append(',');
+                first = false;
+                writeString(entry.getKey(), out);
+                out.append(':');
+                write(entry.getValue(), out);
+            }
+            out.append('}');
+        } else if (value instanceof Iterable) {
+            out.append('[');
+            boolean first = true;
+            for (Object item : (Iterable<Object>) value) {
+                if (!first) out.append(',');
+                first = false;
+                write(item, out);
+            }
+            out.append(']');
+        } else {
+            writeString(String.valueOf(value), out);
+        }
+    }
+
+    private static void writeString(String s, Appendable out) throws IOException {
+        out.append('"');
+        int flushed = 0; // plain runs are appended in one piece
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
+            String escaped;
             switch (c) {
                 case '"':
-                    sb.append("\\\"");
+                    escaped = "\\\"";
                     break;
                 case '\\':
-                    sb.append("\\\\");
+                    escaped = "\\\\";
                     break;
                 case '\n':
-                    sb.append("\\n");
+                    escaped = "\\n";
                     break;
                 case '\r':
-                    sb.append("\\r");
+                    escaped = "\\r";
                     break;
                 case '\t':
-                    sb.append("\\t");
+                    escaped = "\\t";
                     break;
                 case '\b':
-                    sb.append("\\b");
+                    escaped = "\\b";
                     break;
                 case '\f':
-                    sb.append("\\f");
+                    escaped = "\\f";
                     break;
                 default:
-                    if (c < 0x20 || c == 0x2028 || c == 0x2029) {
-                        sb.append(String.format("\\u%04x", (int) c));
-                    } else {
-                        sb.append(c);
-                    }
+                    if (c < 0x20 || c == 0x2028 || c == 0x2029) escaped = String.format("\\u%04x", (int) c);
+                    else continue;
             }
+            if (i > flushed) out.append(s, flushed, i);
+            out.append(escaped);
+            flushed = i + 1;
         }
-        sb.append('"');
+        if (s.length() > flushed) out.append(s, flushed, s.length());
+        out.append('"');
     }
 
     // -------------------------------------------------------------- reader
@@ -191,11 +327,29 @@ public final class Json {
         return value;
     }
 
-    /** True when the text is a syntactically valid JSON document. */
+    /** True when the text is a syntactically valid JSON document (built with {@link #parse}). */
     public static boolean isValid(String text) {
         try {
             parse(text);
             return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Same grammar and nesting bound as {@link #parse}, but nothing is built: strings, numbers
+     * and containers are skipped in place. For provider answers that are passed through as
+     * {@link Raw} without ever being rebuilt.
+     */
+    public static boolean validate(String text) {
+        if (text == null) return false;
+        try {
+            Reader reader = new Reader(text);
+            reader.skipWhitespace();
+            reader.skipValue();
+            reader.skipWhitespace();
+            return reader.atEnd();
         } catch (RuntimeException e) {
             return false;
         }
@@ -271,6 +425,139 @@ public final class Json {
 
         private void enter() {
             if (++depth > MAX_DEPTH) throw new JsonException("JSON nested deeper than " + MAX_DEPTH + " levels at " + pos);
+        }
+
+        /** {@link #readValue} without building anything. */
+        void skipValue() {
+            if (atEnd()) throw new JsonException("Unexpected end of JSON");
+            char c = s.charAt(pos);
+            switch (c) {
+                case '{':
+                    enter();
+                    try {
+                        skipObject();
+                    } finally {
+                        depth--;
+                    }
+                    return;
+                case '[':
+                    enter();
+                    try {
+                        skipArray();
+                    } finally {
+                        depth--;
+                    }
+                    return;
+                case '"':
+                    skipString();
+                    return;
+                case 't':
+                    expectWord("true");
+                    return;
+                case 'f':
+                    expectWord("false");
+                    return;
+                case 'n':
+                    expectWord("null");
+                    return;
+                default:
+                    if (c == '-' || (c >= '0' && c <= '9')) {
+                        scanNumber();
+                        return;
+                    }
+                    throw new JsonException("Unexpected character '" + c + "' at " + pos);
+            }
+        }
+
+        private void skipObject() {
+            pos++; // {
+            skipWhitespace();
+            if (peek() == '}') {
+                pos++;
+                return;
+            }
+            while (true) {
+                skipWhitespace();
+                if (peek() != '"') throw new JsonException("Expected string key at " + pos);
+                skipString();
+                skipWhitespace();
+                if (peek() != ':') throw new JsonException("Expected ':' at " + pos);
+                pos++;
+                skipWhitespace();
+                skipValue();
+                skipWhitespace();
+                char c = peek();
+                if (c == ',') {
+                    pos++;
+                    continue;
+                }
+                if (c == '}') {
+                    pos++;
+                    return;
+                }
+                throw new JsonException("Expected ',' or '}' at " + pos);
+            }
+        }
+
+        private void skipArray() {
+            pos++; // [
+            skipWhitespace();
+            if (peek() == ']') {
+                pos++;
+                return;
+            }
+            while (true) {
+                skipWhitespace();
+                skipValue();
+                skipWhitespace();
+                char c = peek();
+                if (c == ',') {
+                    pos++;
+                    continue;
+                }
+                if (c == ']') {
+                    pos++;
+                    return;
+                }
+                throw new JsonException("Expected ',' or ']' at " + pos);
+            }
+        }
+
+        /** {@link #readString} without the StringBuilder: the same escapes are accepted. */
+        private void skipString() {
+            pos++; // opening quote
+            while (true) {
+                if (atEnd()) throw new JsonException("Unterminated string");
+                char c = s.charAt(pos++);
+                if (c == '"') return;
+                if (c == '\\') {
+                    if (atEnd()) throw new JsonException("Unterminated escape");
+                    char e = s.charAt(pos++);
+                    switch (e) {
+                        case '"':
+                        case '\\':
+                        case '/':
+                        case 'b':
+                        case 'f':
+                        case 'n':
+                        case 'r':
+                        case 't':
+                            break;
+                        case 'u':
+                            unicodeEscape();
+                            pos += 4;
+                            break;
+                        default:
+                            throw new JsonException("Bad escape '\\" + e + "' at " + pos);
+                    }
+                }
+            }
+        }
+
+        /** The four hex digits at {@code pos}, as {@link #readString} decodes them. */
+        private char unicodeEscape() {
+            if (pos + 4 > s.length()) throw new JsonException("Bad unicode escape");
+            return (char) Integer.parseInt(s.substring(pos, pos + 4), 16);
         }
 
         private void expectWord(String word) {
@@ -375,8 +662,7 @@ public final class Json {
                             sb.append('\t');
                             break;
                         case 'u':
-                            if (pos + 4 > s.length()) throw new JsonException("Bad unicode escape");
-                            sb.append((char) Integer.parseInt(s.substring(pos, pos + 4), 16));
+                            sb.append(unicodeEscape());
                             pos += 4;
                             break;
                         default:
@@ -388,8 +674,14 @@ public final class Json {
             }
         }
 
-        /** RFC 8259 number grammar: {@code -?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?}. */
         private JsonNumber readNumber() {
+            int start = pos;
+            scanNumber();
+            return new JsonNumber(s.substring(start, pos));
+        }
+
+        /** RFC 8259 number grammar: {@code -?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?}. */
+        private void scanNumber() {
             int start = pos;
             if (peek() == '-') pos++;
             if (atEnd() || !isAsciiDigit(s.charAt(pos))) throw invalidNumber(start);
@@ -407,7 +699,6 @@ public final class Json {
                 if (!atEnd() && (s.charAt(pos) == '+' || s.charAt(pos) == '-')) pos++;
                 if (skipDigits() == 0) throw invalidNumber(start);
             }
-            return new JsonNumber(s.substring(start, pos));
         }
 
         private int skipDigits() {

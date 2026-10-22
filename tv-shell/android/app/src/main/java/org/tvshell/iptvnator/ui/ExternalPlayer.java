@@ -1,14 +1,15 @@
 package org.tvshell.iptvnator.ui;
 
-import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.util.Log;
 import android.widget.Toast;
 
 import org.tvshell.iptvnator.R;
+import org.tvshell.iptvnator.ShellApp;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +30,11 @@ public final class ExternalPlayer {
     private ExternalPlayer() {
     }
 
+    /** Intent extras travel through a binder transaction with a hard size limit. */
+    private static final int MAX_TITLE_LENGTH = 256;
+
     private static Intent viewIntent(String url, String title) {
+        if (title != null && title.length() > MAX_TITLE_LENGTH) title = title.substring(0, MAX_TITLE_LENGTH);
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setDataAndType(Uri.parse(url), "video/*");
         intent.putExtra(Intent.EXTRA_TITLE, title);
@@ -69,14 +74,17 @@ public final class ExternalPlayer {
         try {
             context.startActivity(intent);
             return true;
-        } catch (ActivityNotFoundException e) {
+        } catch (RuntimeException e) {
+            // ActivityNotFoundException, but also SecurityException (the player's activity is no
+            // longer exported) or a too-large transaction: none of them may take the shell down.
+            Log.w(ShellApp.TAG, "external player launch failed: " + e);
             if (preferredPackage != null && !preferredPackage.isEmpty()) {
-                // The preferred app is gone: fall back to the system chooser.
+                // The preferred app is gone or refuses: fall back to the system chooser.
                 intent.setPackage(null);
                 try {
                     context.startActivity(intent);
                     return true;
-                } catch (ActivityNotFoundException ignored) {
+                } catch (RuntimeException ignored) {
                     // handled below
                 }
             }

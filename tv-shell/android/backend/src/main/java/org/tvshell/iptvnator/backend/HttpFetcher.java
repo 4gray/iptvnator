@@ -39,8 +39,23 @@ public class HttpFetcher {
     /** User-Agent some Xtream panels require (XTREAM_CLIENT_USER_AGENT in IPTVnator). */
     public static final String DEFAULT_USER_AGENT = "VLC/3.0.18 LibVLC/3.0.18";
     private static final int MAX_REDIRECTS = 5;
-    private static final int MAX_BODY_BYTES = 64 * 1024 * 1024;
+    /**
+     * A provider answer costs several times its size (bytes, a String, the record built from
+     * it, the serialised response), so the cap follows the heap: an eighth of it, 64 MB at most
+     * (32 MB on the 256 MB largeHeap of a 1 GB stick). Exhausting the heap would not stay on the
+     * request thread: any other thread's allocation could fail and take the whole app down.
+     */
+    static final long MAX_BODY_BYTES = Math.min(64L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
     private static final Charset UTF8 = Charset.forName("UTF-8");
+
+    /** The body exceeds the cap (declared up front, or found while reading). */
+    static final class TooLargeException extends IOException {
+        private static final long serialVersionUID = 1L;
+
+        TooLargeException() {
+            super("Response too large");
+        }
+    }
 
     public static final class Result {
         public final int status;
@@ -147,6 +162,9 @@ public class HttpFetcher {
                     throw new ProviderException(status, reason == null || reason.isEmpty() ? "HTTP " + status : reason);
                 }
                 String contentType = connection.getContentType();
+                // Declared size first: an oversized answer is refused before a byte of it is read.
+                long declared = connection.getContentLengthLong();
+                if (declared > MAX_BODY_BYTES) throw tooLarge();
                 InputStream in;
                 try {
                     in = connection.getInputStream();
@@ -154,11 +172,15 @@ public class HttpFetcher {
                     throw mapNetworkError(e);
                 }
                 String encoding = connection.getContentEncoding();
+                boolean compressed = encoding != null && (encoding.toLowerCase().contains("gzip") || encoding.toLowerCase().contains("deflate"));
                 try {
-                    if (encoding != null && encoding.toLowerCase().contains("gzip")) in = new GZIPInputStream(in);
-                    else if (encoding != null && encoding.toLowerCase().contains("deflate")) in = new InflaterInputStream(in);
-                    byte[] body = readAll(in);
+                    if (compressed && encoding.toLowerCase().contains("gzip")) in = new GZIPInputStream(in);
+                    else if (compressed) in = new InflaterInputStream(in);
+                    // Content-Length is the compressed size: it only sizes the buffer when the body is plain.
+                    byte[] body = readAll(in, compressed ? -1 : declared, MAX_BODY_BYTES);
                     return new Result(status, new String(body, charsetOf(contentType)), contentType);
+                } catch (TooLargeException e) {
+                    throw tooLarge();
                 } catch (IOException e) {
                     ProviderException wrapped = new ProviderException(status, "Provider response body failed");
                     wrapped.code = codeOf(e);
@@ -194,14 +216,23 @@ public class HttpFetcher {
         return UTF8;
     }
 
-    private static byte[] readAll(InputStream in) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream(64 * 1024);
+    static ProviderException tooLarge() {
+        return new ProviderException("Provider response is too large for this device", "ERR_RESPONSE_TOO_LARGE");
+    }
+
+    /**
+     * Reads at most {@code limit} bytes. A known plain size ({@code declared} &gt;= 0) sizes the
+     * buffer once instead of doubling it (which peaks at three times the body).
+     */
+    static byte[] readAll(InputStream in, long declared, long limit) throws IOException {
+        if (declared > limit) throw new TooLargeException();
+        ByteArrayOutputStream out = new ByteArrayOutputStream(declared > 0 ? (int) declared : 64 * 1024);
         byte[] buffer = new byte[16 * 1024];
-        int total = 0;
+        long total = 0;
         int read;
         while ((read = in.read(buffer)) != -1) {
             total += read;
-            if (total > MAX_BODY_BYTES) throw new IOException("Response too large");
+            if (total > limit) throw new TooLargeException();
             out.write(buffer, 0, read);
         }
         return out.toByteArray();

@@ -339,6 +339,95 @@ console.log('8. the stream handed to an external player is the source, never a f
     expect('syncRecovery', '/live/user/pass/14.m3u8', 'hls.js recovery (re-attach before the old source closes) keeps the playlist');
     expect('copyAfterTeardown', '/movie/user/pass/13.mkv', 'once the player is gone, a copied URL is the stream');
 }
+console.log('9. under the Android bridge: the screen follows playback, error codes, detached players');
+{
+    // A second page with a recording stand-in for the Android bridge (window.TvShell).
+    const bridged = await context.newPage();
+    await bridged.addInitScript(() => {
+        window.__calls = [];
+        window.TvShell = {};
+        ['onReady', 'openExternal', 'onUrlCopied', 'onPlaybackError', 'exitApp', 'showExitHint', 'toast', 'showKeyboard', 'openSettings', 'log', 'setKeepScreenOn']
+            .forEach((m) => { window.TvShell[m] = (...a) => { window.__calls.push([m].concat(a.map(String)).join(' ')); }; });
+    });
+    await bridged.goto(URL_, { waitUntil: 'networkidle' });
+    await bridged.waitForTimeout(1500);
+    check(await bridged.evaluate(() => window.__calls.some((c) => c.startsWith('onReady '))), 'onReady reaches the bridge');
+    const r = await bridged.evaluate(async (provider) => {
+        const out = {};
+        const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const since = () => { const n = window.__calls.length; return () => window.__calls.slice(n); };
+        const video = document.createElement('video');
+        video.muted = true;
+        video.src = provider + '/movie/user/pass/clip.webm';
+        document.body.appendChild(video);
+        // (a) the screen stays on while something really plays, and only then
+        let recent = since();
+        await video.play().catch(() => null);
+        await wait(400);
+        out.playing = recent();
+        recent = since();
+        video.pause();
+        await wait(150);
+        out.paused = recent();
+        // (b) a dropped connection does not offer the external player, a format it cannot play does
+        recent = since();
+        Object.defineProperty(video, 'error', { configurable: true, get: () => ({ code: 2 }) });
+        video.dispatchEvent(new Event('error'));
+        await wait(600);
+        out.networkError = recent();
+        recent = since();
+        Object.defineProperty(video, 'error', { configurable: true, get: () => ({ code: 4 }) });
+        video.dispatchEvent(new Event('error'));
+        await wait(600);
+        out.formatError = recent();
+        // (c) the player of a page the user left is not what the remote controls
+        video.dispatchEvent(new Event('play')); // the layer remembers the element
+        out.attached = window.__tvShell.media('pause');
+        video.remove();
+        out.detached = window.__tvShell.media('playpause');
+        return out;
+    }, PROVIDER);
+    check(r.playing.includes('setKeepScreenOn true'), 'playback keeps the screen on: ' + r.playing.join(' | '));
+    check(r.paused.includes('setKeepScreenOn false'), 'pause lets the screen sleep again: ' + r.paused.join(' | '));
+    check(!r.networkError.some((c) => c.startsWith('onPlaybackError')), 'a network error (code 2) does not offer the external player');
+    check(r.formatError.some((c) => c.startsWith('onPlaybackError') && c.endsWith(' 4')), 'a format error (code 4) does: ' + r.formatError.join(' | '));
+    check(r.attached === true && r.detached === false, 'a detached player is no longer the media the remote controls');
+    await bridged.close();
+}
+
+console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
+{
+    const r = await page.evaluate(() => {
+        const out = {};
+        const host = document.createElement('div');
+        host.innerHTML = '<div id="tvt-scroller" style="position:fixed;left:0;top:0;width:300px;height:120px;overflow:auto;scroll-behavior:smooth;background:#000;z-index:99999">'
+            + Array.from({ length: 12 }, (_, i) => '<button id="tvt-b' + i + '" style="display:block;height:40px;width:200px">row ' + i + '</button>').join('') + '</div>'
+            + '<div class="cdk-overlay-container"><div class="cdk-overlay-pane" style="position:fixed;right:0;bottom:0;z-index:99999"><div class="mat-mdc-snack-bar-container"><button id="tvt-close">Close</button></div></div></div>';
+        document.body.appendChild(host);
+        const scroller = document.getElementById('tvt-scroller');
+        const press = (age) => {
+            const ev = new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true });
+            if (age) Object.defineProperty(ev, 'timeStamp', { value: performance.now() - age });
+            document.activeElement.dispatchEvent(ev);
+        };
+        document.getElementById('tvt-b0').focus();
+        press(0);
+        out.afterFresh = document.activeElement.id;
+        press(500); // 500 ms old, right after the previous one: a repeat that sat in the queue
+        out.afterQueued = document.activeElement.id;
+        for (let i = 0; i < 4; i++) press(0);
+        out.focusedRow = document.activeElement.id;
+        out.scrollTop = scroller.scrollTop; // read at once: the scroll must not be animated
+        document.getElementById('tvt-close').focus();
+        out.scope = window.__tvShell.state().scope;
+        host.remove();
+        return out;
+    });
+    check(r.afterFresh === 'tvt-b1', 'a fresh arrow moves the focus: ' + r.afterFresh);
+    check(r.afterQueued === 'tvt-b1', 'a queued repeat right after it is dropped: ' + r.afterQueued);
+    check(r.focusedRow === 'tvt-b5' && r.scrollTop > 0, 'a smooth-scroll rail scrolls at once (row ' + r.focusedRow + ', scrollTop ' + r.scrollTop + ')');
+    check(r.scope === 'document', 'a snack bar does not become the navigation scope: ' + r.scope);
+}
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();

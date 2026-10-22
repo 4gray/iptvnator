@@ -35,8 +35,9 @@ APK
   a **"This stream cannot be played here"** prompt offering to open them in
   another player (VLC, Kodi, MX Player...). The app's "Copy stream URL" button
   does the same on a TV.
-- **Shell settings** (long-press Menu): interface size (960 / 1280 / 1600 px),
-  preferred external player, data reset, diagnostics (WebView version, screen).
+- **Shell settings** (long-press Menu, or hold Back on remotes without a Menu
+  key): interface size (960 / 1280 / 1600 px), preferred external player, data
+  reset, diagnostics (WebView version, screen).
 - Data (playlists, favourites, positions) is stored by the PWA in the WebView
   (IndexedDB / localStorage) and survives restarts and updates. The embedded
   backend has no server storage: it answers the PWA's `/api/v1/instance` probe
@@ -127,8 +128,8 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 | --- | --- |
 | D-pad | move between elements; on the picture: ◀ ▶ seek, ▲ ▼ leave the picture / reach the controls; in a text field the arrows move the caret until it cannot move further |
 | OK | activate; on the picture: fullscreen; on a text field: keyboard. A held OK is one activation |
-| Back | close dialog/menu → leave fullscreen → previous page → (twice) exit the app |
-| Menu | context menu of the focused item; on the picture: open the stream in VLC; **long press**: shell settings |
+| Back | close dialog/menu → leave fullscreen → previous page → (twice) exit the app; **hold**: shell settings (remotes without a Menu key) |
+| Menu | context menu of the focused item; on the picture: open the stream in VLC; **long press**: shell settings. The HDMI-CEC context-menu key and Y on a game controller do the same |
 | ▶⏸ ⏪ ⏩ | play/pause, −15 s, +30 s |
 
 ## Design notes
@@ -137,26 +138,52 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
   contract as `apps/web-backend` (provider-targets / parse / xtream / stalker).
   `/parse-xml` deliberately answers 501: the PWA does not show the EPG.
 - Fixed origin `http://127.0.0.1:43330`: the PWA's storage belongs to the
-  origin, so the chosen port is remembered in the shell preferences (43330 to
-  43334 are tried).
+  origin, so the port of the first start is remembered and never replaced.
+  When another app holds it, the shell retries it briefly, then serves on
+  another port (43330 to 43334) for that run only and says so in a toast and
+  in the diagnostics; the next start returns to the user's data.
 - The Angular service worker is not served (deliberate 404): the bundle ships
   inside the APK, caching would only make updates stale.
 - `tv.js` is loaded **before** the bundle through a same-origin
   `<script src="tvshell/tv.js">` tag (the app's CSP forbids inline scripts). No
   IPTVnator file is modified. It calls `TvShell.onReady()` only once Angular has
   rendered; the shell shows the error panel with the diagnostics when that does
-  not happen within 30 s (60 s while the page is still being fetched, a cold
-  start after an update) or when the page reports an `Uncaught SyntaxError`. A
-  main-frame load error from the loopback server is retried once after the
-  server is restarted, an HTTP error from it opens the panel at once, and the
-  splash (with the credits) stays at least 1.5 s.
+  not happen within 30 s or when the page reports an `Uncaught SyntaxError`.
+  The 30 s wait doubles once while the page is still being fetched (a cold
+  start after an update), starts again when the bundle has run (Angular's
+  bootstrap gets its own period), and pauses while another app is in front (the
+  page's timers are paused then). A main-frame load error from the loopback
+  server is retried once after the server is restarted, an HTTP error from it
+  opens the panel at once, and the splash (with the credits) stays at least
+  1.5 s. While the panel is up, the remote's keys always land on its buttons.
+- The WebView is created in code, not inflated: when the system WebView is
+  missing, disabled or being updated, the error panel says so instead of the
+  app crashing at start.
+- The screen is kept on only while a `<video>`/`<audio>` plays (and during the
+  splash): `tv.js` reports `playing`/`pause`/`ended`/`emptied` to the shell, so
+  the screensaver and the device's sleep work on lists and menus.
+- After Android closes the app in the background, it reopens on the route it
+  was showing (saved instance state; the server's SPA fallback serves any route).
 - Layout width 1280 CSS px (960 / 1600 selectable) with the page scale pinned
   from the measured screen width (`DisplayMetrics`; a 1080p Fire TV is 960 CSS
   px wide, so the scale is 0.75): the WebView's own overview-mode fit proved
   unreliable on the device.
 - The WebView renderer may be killed on a 1 GB device: `onRenderProcessGone`
-  recreates the Activity (the server survives in the Application); three deaths
-  within a minute show the error panel instead of looping.
+  recreates the Activity (the server survives in the Application); three
+  crashes, or deaths while the app is in front, within a minute show the error
+  panel instead of looping. The system reclaiming the hidden renderer while VLC
+  or another app is in front does not count.
+- Memory on a 1 GB device: provider answers are capped at an eighth of the app's
+  heap (64 MB at most, about 32 MB on a Fire TV Stick Lite) and refused before
+  download when the declared size is larger (`ERR_RESPONSE_TOO_LARGE`). Xtream
+  and Stalker JSON answers are validated and passed through verbatim instead
+  of being rebuilt as maps; responses are encoded straight to UTF-8 bytes and
+  the M3U parser walks the text without splitting it into a second copy.
+- The loopback server never lets an `Error` reach Android's default handler
+  (which kills the app): request bodies are read directly (no NanoHTTPD temp
+  file, whose failure is a bare `java.lang.Error`), a request thread that cannot
+  be started drops that connection only, and an `Error` on a request thread ends
+  that request.
 - Engine requirements measured on the shipped bundle: the JavaScript needs a
   Chrome ≥ 94 engine (class `static {}` blocks), the CSS looks right from
   Chrome 111 (`color-mix()`). The Fire TV Stick (Fire OS 7) ships a recent
@@ -197,12 +224,14 @@ tv-shell/
   and banner; `versionName` is bumped by hand.
 - Only `http`/`https` provider URLs; no EPG, downloads or embedded MPV (PWA
   limits).
+- Playlists and portal answers larger than an eighth of the app's memory (about
+  32 MB on a 1 GB stick) are refused with `ERR_RESPONSE_TOO_LARGE`.
 - The loopback server is reachable by other apps on the device (see the
   security model).
 
 ## Troubleshooting
 
-The **diagnostics** (long-press Menu → Shell settings, or the error panel) show
+The **diagnostics** (long-press Menu or hold Back → Shell settings, or the error panel) show
 the WebView's Chrome engine version, the device, the embedded server port and a
 "Screen" line (pixels, density, CSS width, layout width). Attach it to any
 report. From a PC:
@@ -233,13 +262,20 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   bundle; update "Amazon WebView" / Android System WebView from the Appstore
   (GeckoView would be the fallback). Between 94 and 110 the app works with
   degraded colours. The last console error is shown under the message.
+- **"The system web view is unavailable"**: Amazon WebView / Android System
+  WebView is being updated or was disabled. Wait a minute and press Retry, or
+  update (re-enable) it.
 - **"The embedded server could not start"**: ports 43330 to 43334 are taken by
   another application; close it or restart the stick. The chosen port is
   remembered because the app's data is bound to `http://127.0.0.1:port`.
+- **"Port 43330 is used by another app"** toast, empty app: this run uses a
+  temporary port, so the saved playlists are not visible. Close the other app
+  (or restart the stick) and reopen; nothing was lost.
 - **"The player was restarted after it ran out of memory"**: the WebView's
   renderer was killed; the app reloads from its start view (the last view only
   when IPTVnator's start-up setting restores it). If it keeps happening, use a
-  smaller playlist (hide categories in IPTVnator).
+  smaller playlist (hide categories in IPTVnator). After Android closed the app
+  in the background, it reopens on the page it was showing.
 
 ### Display
 
@@ -253,8 +289,10 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 
 - **A key does nothing**: `adb shell getevent -l` shows the code the remote
   sends; the intercepted keys are listed in `MainActivity.dispatchKeyEvent`
-  (Back, Menu, play/pause, rewind, fast-forward), everything else goes to the
-  page (`tv.js`).
+  (Back, Menu and its aliases, play/pause, rewind, fast-forward), everything
+  else goes to the page (`tv.js`).
+- **No Menu key** (Google TV, most Android TV boxes): hold Back for the shell
+  settings.
 - **No visible focus**: press an arrow, the remote layer puts the focus back
   near its last position. Back closes dialogs and menus first, then walks the
   history, then exits (two presses).
@@ -269,7 +307,14 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   URL". For Xtream, choose the `m3u8` output format in the playlist settings.
   Each new attempt on a channel asks again.
 - **The VLC prompt no longer appears**: Shell settings → *External player* →
-  tick "Offer an external player" and pick the player.
+  tick "Offer an external player" and pick the player. A dropped connection
+  (media error 1 or 2 from the browser player) does not offer it: VLC would
+  fail the same way.
+- **"Error, something went wrong (ERR_RESPONSE_TOO_LARGE)"** when adding a
+  source: the playlist or portal answer is larger than the device can hold; use
+  a smaller export (one country, no VOD) or an Xtream portal.
+- **The screensaver starts on a list**: intended; the screen stays on while a
+  stream plays.
 
 ### Data and memory
 

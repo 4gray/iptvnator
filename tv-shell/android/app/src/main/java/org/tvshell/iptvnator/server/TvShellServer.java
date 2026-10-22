@@ -15,7 +15,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
+import java.net.Socket;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 
@@ -30,7 +31,7 @@ import fi.iki.elonen.NanoHTTPD;
  * Bound to 127.0.0.1 only. The port is fixed per device (see {@link Prefs})
  * because the web app's storage (IndexedDB, localStorage) belongs to the origin.
  */
-public class TvShellServer extends NanoHTTPD {
+public final class TvShellServer extends NanoHTTPD {
 
     private final AssetManager assets;
     private final ShellSite site;
@@ -38,6 +39,7 @@ public class TvShellServer extends NanoHTTPD {
     private final int port;
     /** Same bound as the upstream web backend (express.json limit 16kb): only tiny JSON bodies are legitimate. */
     private static final long MAX_API_BODY_BYTES = 16 * 1024;
+    private static final Charset UTF8 = Charset.forName("UTF-8");
 
     public TvShellServer(Context context, Prefs prefs, int port) {
         super("127.0.0.1", port);
@@ -50,6 +52,36 @@ public class TvShellServer extends NanoHTTPD {
             }
         }, "/api", prefs.layoutWidth());
         this.backend = new WebBackend(new HttpFetcher(), "/api");
+        setAsyncRunner(new DefaultAsyncRunner() {
+            @Override
+            public void exec(ClientHandler handler) {
+                try {
+                    super.exec(handler);
+                } catch (RuntimeException | Error e) {
+                    // Thread.start() fails with an OutOfMemoryError when the device is short of memory:
+                    // uncaught on the listener thread it would kill the app. Drop this connection only;
+                    // the WebView retries it.
+                    Log.w(ShellApp.TAG, "cannot serve a connection: " + e);
+                    closed(handler);
+                    handler.close();
+                }
+            }
+        });
+    }
+
+    /** NanoHTTPD's client thread catches Exception only; an Error there would take the whole app down. */
+    @Override
+    protected ClientHandler createClientHandler(final Socket socket, final InputStream in) {
+        return new ClientHandler(in, socket) {
+            @Override
+            public void run() {
+                try {
+                    super.run(); // its finally{} closes the socket and unregisters the handler
+                } catch (Error e) {
+                    Log.e(ShellApp.TAG, "request thread failed: " + e);
+                }
+            }
+        };
     }
 
     public void start() throws IOException {
@@ -140,13 +172,9 @@ public class TvShellServer extends NanoHTTPD {
                     if (declared > MAX_API_BODY_BYTES) {
                         return close(error(Response.Status.PAYLOAD_TOO_LARGE, "request body too large"));
                     }
-                    Map<String, String> files = new HashMap<String, String>();
-                    try {
-                        session.parseBody(files);
-                    } catch (ResponseException e) {
-                        return error(e.getStatus(), e.getMessage());
-                    }
-                    body = files.get("postData");
+                    // Not session.parseBody(): it spools any body of 1 KiB or more to a temp file and
+                    // rethrows a failure there (full storage) as a bare java.lang.Error.
+                    body = readBody(session.getInputStream(), (int) declared);
                 }
                 Map<String, List<String>> query = session.getParameters();
                 WebBackend.Response r = backend.handle(method.name(), sub, query, body);
@@ -179,7 +207,24 @@ public class TvShellServer extends NanoHTTPD {
             Log.e(ShellApp.TAG, "serve " + uri + " overflowed the stack");
             return newFixedLengthResponse(status(500), "application/json; charset=utf-8",
                 "{\"message\":\"The provider response is too deeply nested for this device\",\"status\":500}");
+        } catch (Error e) {
+            Log.e(ShellApp.TAG, "serve " + uri + " failed: " + e, e);
+            return close(newFixedLengthResponse(status(500), "application/json; charset=utf-8",
+                "{\"message\":\"Internal error\",\"status\":500}"));
         }
+    }
+
+    /** Exactly the declared bytes (bounded by the caller), straight from the socket; null when empty. */
+    private static String readBody(InputStream in, int length) throws IOException {
+        byte[] data = new byte[length];
+        int off = 0;
+        while (off < length) {
+            int read = in.read(data, off, length - off);
+            if (read == -1) break;
+            off += read;
+        }
+        String text = new String(data, 0, off, UTF8).trim();
+        return text.isEmpty() ? null : text;
     }
 
     /** Loopback traffic gains nothing from compression; NanoHTTPD would otherwise gzip text answers after serve(). */
