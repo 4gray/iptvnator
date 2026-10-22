@@ -79,7 +79,7 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 
 ### Démarrage
 
-- **« Le lecteur n'a pas pu être chargé »** après 30 s : la page n'a pas démarré.
+- **« Le lecteur n'a pas pu être chargé »** après 30 à 60 s : la page n'a pas démarré.
   Si la version Chrome affichée est inférieure à **94**, le WebView ne peut pas
   exécuter le bundle Angular ; mettez à jour « Amazon WebView » via l'Appstore
   (GeckoView serait la solution de repli). Entre 94 et 110, l'app fonctionne

@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TV Shell for IPTVnator</string>
+    <string name="credits_label">Credits</string>
+    <string name="credits_names">sz and axs</string>
     <string name="loading">Starting the player…</string>
     <string name="load_error_title">The player could not be loaded</string>
     <string name="load_error">Error: %1$s (code %2$s)</string>
     <string name="server_error">The embedded server could not start (no free port).</string>
-    <string name="load_timeout">The web app did not start within 30 seconds. The WebView of this device may be too old for IPTVnator (Chrome engine 94 or newer is required). Long-press Menu for the diagnostics.</string>
+    <string name="load_timeout">The web app did not start in time. The WebView of this device may be too old for IPTVnator (Chrome engine 94 or newer is required). Long-press Menu for the diagnostics.</string>
     <string name="renderer_restarted">The player was restarted after it ran out of memory.</string>
     <string name="renderer_gone_loop">The web view keeps stopping (out of memory?). Try a smaller playlist, or erase the app data from the settings.</string>
     <string name="retry">Retry</string>

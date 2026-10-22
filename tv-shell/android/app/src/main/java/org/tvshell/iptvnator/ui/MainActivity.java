@@ -24,6 +24,7 @@ import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -45,8 +46,16 @@ import org.tvshell.iptvnator.server.TvShellServer;
 public class MainActivity extends Activity {
 
     private static final long LONG_PRESS_MS = 650;
-    /** How long the web app may take to call TvShell.onReady() before the error panel explains the situation. */
+    /**
+     * How long the web app may take to call TvShell.onReady() before the error panel explains the
+     * situation; doubled once while the page is still being fetched (a cold start on a slow stick
+     * right after an update parses the whole bundle again).
+     */
     private static final long READY_TIMEOUT_MS = 30_000;
+    /** The splash (and its credits) stays readable even on a device that starts in under a second. */
+    private static final long MIN_SPLASH_MS = 1_500;
+    /** A main-frame load error from the loopback server is retried once, after the server is restarted. */
+    private static final long LOAD_RETRY_DELAY_MS = 1_200;
     /** Renderer deaths are counted across Activity recreations; a burst means the page itself is the problem. */
     private static final long RENDERER_DEATH_WINDOW_MS = 60_000;
     private static final int RENDERER_DEATH_LIMIT = 3;
@@ -69,6 +78,10 @@ public class MainActivity extends Activity {
     private AlertDialog externalDialog;
     private boolean resumed;
     private boolean pageReady;
+    private boolean pageFinished;
+    private boolean watchdogExtended;
+    private boolean loadRetried;
+    private long splashShownAt;
     private int loadedLayoutWidth;
     private String lastConsoleError;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -77,9 +90,20 @@ public class MainActivity extends Activity {
         @Override
         public void run() {
             if (pageReady || errorPanel.getVisibility() == View.VISIBLE) return;
-            String message = getString(R.string.load_timeout);
-            if (lastConsoleError != null) message += "\n" + lastConsoleError;
-            showError(message);
+            if (!pageFinished && !watchdogExtended) {
+                // Still fetching and parsing: slow, not broken. One more period before giving up.
+                watchdogExtended = true;
+                Log.i(ShellApp.TAG, "page still loading after " + READY_TIMEOUT_MS + " ms, waiting once more");
+                handler.postDelayed(this, READY_TIMEOUT_MS);
+                return;
+            }
+            showLoadTimeout();
+        }
+    };
+    private final Runnable hideSplash = new Runnable() {
+        @Override
+        public void run() {
+            if (pageReady) splash.setVisibility(View.GONE);
         }
     };
 
@@ -153,13 +177,36 @@ public class MainActivity extends Activity {
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) {
-                    showError(getString(R.string.load_error, String.valueOf(error.getDescription()), String.valueOf(error.getErrorCode())));
+                if (!request.isForMainFrame()) return;
+                int code = error.getErrorCode();
+                boolean serverUnreachable = code == ERROR_CONNECT || code == ERROR_HOST_LOOKUP || code == ERROR_TIMEOUT
+                    || code == ERROR_IO || code == ERROR_FAILED_SSL_HANDSHAKE;
+                if (serverUnreachable && !loadRetried) {
+                    // The embedded server was not answering (its thread died while the app sat in the
+                    // background, or the process was restored before it listened): load() restarts it.
+                    loadRetried = true;
+                    Log.w(ShellApp.TAG, "main frame load failed (" + code + "), restarting the server and retrying once");
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (!isFinishing() && !pageReady) load();
+                        }
+                    }, LOAD_RETRY_DELAY_MS);
+                    return;
                 }
+                showError(getString(R.string.load_error, String.valueOf(error.getDescription()), String.valueOf(code)));
+            }
+
+            /** The server answered the page itself with an error (the bundle missing from the APK, out of memory). */
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+                if (!request.isForMainFrame()) return;
+                showError(getString(R.string.load_error, String.valueOf(errorResponse.getReasonPhrase()), String.valueOf(errorResponse.getStatusCode())));
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                pageFinished = true;
                 view.requestFocus(View.FOCUS_DOWN);
             }
 
@@ -191,7 +238,7 @@ public class MainActivity extends Activity {
                     // A bundle this engine cannot parse: show the diagnostics now rather than after the timeout.
                     if (!pageReady && message.message().startsWith("Uncaught SyntaxError")) {
                         handler.removeCallbacks(readyWatchdog);
-                        readyWatchdog.run();
+                        showLoadTimeout();
                     }
                 }
                 return false;
@@ -252,9 +299,13 @@ public class MainActivity extends Activity {
         }
         errorPanel.setVisibility(View.GONE);
         splash.setVisibility(View.VISIBLE);
+        splashShownAt = SystemClock.uptimeMillis();
         pageReady = false;
+        pageFinished = false;
+        watchdogExtended = false;
         lastConsoleError = null;
         handler.removeCallbacks(readyWatchdog);
+        handler.removeCallbacks(hideSplash);
         loadedLayoutWidth = prefs.layoutWidth();
         server = ((ShellApp) getApplication()).ensureServer();
         if (server == null) {
@@ -267,6 +318,14 @@ public class MainActivity extends Activity {
         webView.loadUrl(server.baseUrl());
         webView.requestFocus(View.FOCUS_DOWN);
         handler.postDelayed(readyWatchdog, READY_TIMEOUT_MS);
+    }
+
+    /** The page never reported itself ready (or cannot be parsed): the error panel with the diagnostics. */
+    private void showLoadTimeout() {
+        if (pageReady || errorPanel.getVisibility() == View.VISIBLE) return;
+        String message = getString(R.string.load_timeout);
+        if (lastConsoleError != null) message += "\n" + lastConsoleError;
+        showError(message);
     }
 
     private void showError(String message) {
@@ -388,8 +447,12 @@ public class MainActivity extends Activity {
     // --------------------------------------------------------- callbacks
     void onWebAppReady() {
         pageReady = true;
+        loadRetried = false;
         handler.removeCallbacks(readyWatchdog);
-        splash.setVisibility(View.GONE);
+        handler.removeCallbacks(hideSplash);
+        long shown = SystemClock.uptimeMillis() - splashShownAt;
+        if (shown >= MIN_SPLASH_MS) splash.setVisibility(View.GONE);
+        else handler.postDelayed(hideSplash, MIN_SPLASH_MS - shown);
         errorPanel.setVisibility(View.GONE);
         if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
     }
@@ -436,7 +499,8 @@ public class MainActivity extends Activity {
     }
 
     void toast(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        // The application context: a toast may outlive this Activity (renderer restart, exit).
+        Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
     }
 
     void showKeyboard() {
@@ -479,6 +543,10 @@ public class MainActivity extends Activity {
         resumed = false;
         if (webView != null) {
             webView.onPause();
+            // JavaScript timers stop too while another app (VLC, the launcher) is in front: the page's
+            // refresh timers would otherwise keep the renderer busy and growing in the background,
+            // which is what gets a 1 GB stick to kill it. onResume() resumes them.
+            webView.pauseTimers();
         }
         super.onPause();
     }
@@ -486,6 +554,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         handler.removeCallbacks(readyWatchdog);
+        handler.removeCallbacks(hideSplash);
         if (webView != null) {
             webView.loadUrl("about:blank");
             root.removeView(webView); // destroy() must not run on an attached WebView
