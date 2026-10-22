@@ -1599,7 +1599,7 @@
         "NEEDS_ATTENTION": "Figyelmet igényel",
         "READY_TO_WATCH": "Lejátszásra kész",
         "OFFLINE": "Internetkapcsolat nélkül elérhető",
-        "OFFLINE_BADGE": "Offline",
+        "OFFLINE_BADGE": "Offline mód",
         "FILTER": {
             "LABEL": "Letöltések szűrése",
             "ALL": "Összes",
