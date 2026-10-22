@@ -52,6 +52,15 @@ public class WebBackendTest {
         Map<String, Object> out = Json.object();
         out.put("payload", WebBackend.payloadOf("[1, 2]"));
         assertEquals("written as given", "{\"payload\":[1, 2]}", WebBackend.json(200, out).bodyText());
+
+        // A hand-made panel answer with a raw tab and line feed in a plot: rebuilt and re-escaped,
+        // never passed through (the browser's JSON.parse would reject the whole envelope).
+        Object lenient = WebBackend.payloadOf("[{\"plot\":\"a\nb\tc\"}]");
+        assertTrue("lenient json is rebuilt", !(lenient instanceof Json.Raw));
+        out.put("payload", lenient);
+        String text = WebBackend.json(200, out).bodyText();
+        for (int i = 0; i < text.length(); i++) assertTrue("no raw control character in " + text, text.charAt(i) >= 0x20);
+        assertTrue("plot kept", text.contains("\"plot\":\"a\\nb\\tc\""));
     }
 
     static String register(WebBackend backend, String url) {

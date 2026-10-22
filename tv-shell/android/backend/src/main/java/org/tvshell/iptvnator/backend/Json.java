@@ -338,9 +338,10 @@ public final class Json {
     }
 
     /**
-     * Same grammar and nesting bound as {@link #parse}, but nothing is built: strings, numbers
-     * and containers are skipped in place. For provider answers that are passed through as
-     * {@link Raw} without ever being rebuilt.
+     * Same nesting bound as {@link #parse}, but nothing is built: strings, numbers and containers
+     * are skipped in place. Stricter than {@link #parse}: it accepts only what a browser's
+     * JSON.parse accepts (no raw control characters in strings, exactly four hex digits after
+     * {@code \\u}), because text it accepts is passed through verbatim as {@link Raw}.
      */
     public static boolean validate(String text) {
         if (text == null) return false;
@@ -530,6 +531,7 @@ public final class Json {
                 if (atEnd()) throw new JsonException("Unterminated string");
                 char c = s.charAt(pos++);
                 if (c == '"') return;
+                if (c < 0x20) throw new JsonException("Unescaped control character at " + (pos - 1));
                 if (c == '\\') {
                     if (atEnd()) throw new JsonException("Unterminated escape");
                     char e = s.charAt(pos++);
@@ -544,7 +546,12 @@ public final class Json {
                         case 't':
                             break;
                         case 'u':
-                            unicodeEscape();
+                            if (pos + 4 > s.length()) throw new JsonException("Bad unicode escape");
+                            for (int i = pos; i < pos + 4; i++) {
+                                char h = s.charAt(i);
+                                boolean hex = (h >= '0' && h <= '9') || (h >= 'a' && h <= 'f') || (h >= 'A' && h <= 'F');
+                                if (!hex) throw new JsonException("Bad unicode escape at " + i);
+                            }
                             pos += 4;
                             break;
                         default:

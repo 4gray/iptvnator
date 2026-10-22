@@ -385,6 +385,22 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         out.attached = window.__tvShell.media('pause');
         video.remove();
         out.detached = window.__tvShell.media('playpause');
+        // (d) leaving a page while it plays: the element is removed first, then pauses
+        const leaving = document.createElement('video');
+        leaving.muted = true;
+        leaving.loop = true;
+        leaving.src = provider + '/movie/user/pass/clip.webm';
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(leaving);
+        document.body.appendChild(wrapper);
+        recent = since();
+        await leaving.play().catch(() => null);
+        await wait(400);
+        out.leavingPlaying = recent();
+        recent = since();
+        wrapper.remove(); // Chromium pauses a removed media element; its events no longer reach the document
+        await wait(400);
+        out.leavingRemoved = recent();
         return out;
     }, PROVIDER);
     check(r.playing.includes('setKeepScreenOn true'), 'playback keeps the screen on: ' + r.playing.join(' | '));
@@ -392,6 +408,8 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
     check(!r.networkError.some((c) => c.startsWith('onPlaybackError')), 'a network error (code 2) does not offer the external player');
     check(r.formatError.some((c) => c.startsWith('onPlaybackError') && c.endsWith(' 4')), 'a format error (code 4) does: ' + r.formatError.join(' | '));
     check(r.attached === true && r.detached === false, 'a detached player is no longer the media the remote controls');
+    check(r.leavingPlaying.includes('setKeepScreenOn true') && r.leavingRemoved.includes('setKeepScreenOn false'),
+        'leaving a playing page lets the screen sleep: ' + r.leavingPlaying.join(' | ') + ' then ' + r.leavingRemoved.join(' | '));
     await bridged.close();
 }
 
@@ -415,7 +433,10 @@ console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
         out.afterFresh = document.activeElement.id;
         press(500); // 500 ms old, right after the previous one: a repeat that sat in the queue
         out.afterQueued = document.activeElement.id;
-        for (let i = 0; i < 4; i++) press(0);
+        document.activeElement.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true }));
+        press(500); // just as late, but released in between: a second press, kept
+        out.afterReleased = document.activeElement.id;
+        for (let i = 0; i < 3; i++) press(0);
         out.focusedRow = document.activeElement.id;
         out.scrollTop = scroller.scrollTop; // read at once: the scroll must not be animated
         document.getElementById('tvt-close').focus();
@@ -423,10 +444,29 @@ console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
         host.remove();
         return out;
     });
+    // A rail with nothing on screen to land on: only the layer's own scroll moves it, and at once.
+    const railScroll = await page.evaluate(async () => {
+        const pane = document.createElement('div');
+        pane.className = 'cdk-overlay-pane'; // its own scope: the app's buttons are not candidates
+        pane.style.cssText = 'position:fixed;left:0;top:0;z-index:99999';
+        pane.innerHTML = '<div id="tvt-rail" style="display:flex;width:300px;height:60px;overflow-x:auto;scroll-behavior:smooth;background:#000">'
+            + '<button id="tvt-r0" style="flex:none;width:200px">first</button><div style="flex:none;width:2000px"></div>'
+            + '<button id="tvt-r1" style="flex:none;width:200px">past the edge</button></div>';
+        document.body.appendChild(pane);
+        await new Promise((resolve) => setTimeout(resolve, 300)); // clear of the previous arrow
+        document.getElementById('tvt-r0').focus();
+        document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', code: 'ArrowRight', bubbles: true, cancelable: true }));
+        const scrolled = document.getElementById('tvt-rail').scrollLeft; // read at once: never animated
+        await new Promise((resolve) => setTimeout(resolve, 150)); // let move()'s retry run before the rail goes
+        pane.remove();
+        return scrolled;
+    });
     check(r.afterFresh === 'tvt-b1', 'a fresh arrow moves the focus: ' + r.afterFresh);
     check(r.afterQueued === 'tvt-b1', 'a queued repeat right after it is dropped: ' + r.afterQueued);
+    check(r.afterReleased === 'tvt-b2', 'a second press after a keyup is kept even when late: ' + r.afterReleased);
     check(r.focusedRow === 'tvt-b5' && r.scrollTop > 0, 'a smooth-scroll rail scrolls at once (row ' + r.focusedRow + ', scrollTop ' + r.scrollTop + ')');
     check(r.scope === 'document', 'a snack bar does not become the navigation scope: ' + r.scope);
+    check(railScroll > 0, 'a smooth rail with nothing on screen to land on scrolls at once: scrollLeft ' + railScroll);
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;

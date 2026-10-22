@@ -91,9 +91,10 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 - **« Le serveur embarqué n'a pas pu démarrer »** : les ports 43330 à 43334 sont
   occupés ; fermez l'application concernée ou redémarrez le Stick.
 - **Message « Le port 43330 est utilisé par une autre application »**, app vide :
-  cette fois l'app tourne sur un port temporaire, les playlists enregistrées ne
-  sont pas visibles. Fermez l'autre application (ou redémarrez le Stick) et
-  relancez ; rien n'est perdu.
+  l'app tourne sur un port temporaire, les playlists enregistrées ne sont pas
+  visibles. Fermez l'autre application (ou redémarrez le Stick) et revenez dans
+  IPTVnator ; rien n'est perdu. N'ajoutez pas vos sources en attendant : elles
+  resteraient sur le port temporaire.
 - **« Le lecteur a été relancé après avoir manqué de mémoire »** : le rendu web a
   été tué par le système ; la page se recharge. Si cela se répète, réduisez la
   playlist (catégories masquées dans IPTVnator). Après une fermeture par
@@ -127,9 +128,11 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   de sortie `m3u8` dans les réglages de la playlist. Chaque nouvel essai sur une
   chaîne repropose le lecteur.
 - **La proposition VLC n'apparaît plus** : réglages de la coquille → *Lecteur
-  externe* → cochez « Proposer un lecteur externe ». Une connexion coupée
-  (erreur média 1 ou 2 du lecteur du navigateur) ne la déclenche pas : VLC
-  échouerait de la même façon.
+  externe* → cochez « Proposer un lecteur externe ». Avec le moteur HTML5 ou
+  ArtPlayer, une connexion coupée (erreur média native 1 ou 2) ne la déclenche
+  pas : VLC échouerait de la même façon. Le lecteur video.js (par défaut) la
+  propose toujours : il signale ainsi un manifeste illisible par la page (sans
+  CORS), que VLC lit.
 - **« Error, something went wrong (ERR_RESPONSE_TOO_LARGE) »** à l'ajout d'une
   source : la playlist ou la réponse du portail dépasse ce que l'appareil peut
   tenir en mémoire (environ 32 Mo sur un Stick de 1 Go) ; utilisez un export

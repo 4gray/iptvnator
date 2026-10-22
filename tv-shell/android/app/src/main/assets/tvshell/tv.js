@@ -10,7 +10,8 @@
  *                      again" for virtual-scroll lists.
  *   Center / Enter   → activation (native for buttons/links, synthesized click
  *                      for elements this layer made focusable, fullscreen on a
- *                      focused <video> — external player when it is in error —,
+ *                      focused <video> — external player when it cannot play the
+ *                      format (or video.js is in error) —,
  *                      soft keyboard on text fields).
  *   Back             → window.__tvShell.back(): closes overlays (Escape), leaves
  *                      fullscreen, goes back in history, finally asks the shell
@@ -48,6 +49,7 @@
     var navDepth = 0;
     var exitArmedUntil = 0;
     var lastArrowAt = 0;
+    var heldArrow = null; // arrow pressed and not released yet: only its keydowns can be queued repeats
     var keepScreenOn = false;
 
     // --------------------------------------------------------------- bridge
@@ -491,6 +493,14 @@
         }
     }
 
+    /** Tells the shell whether the screen must stay on (something plays in the document). */
+    function syncKeepScreenOn(startedPlaying) {
+        var playing = startedPlaying === true || anyMediaPlaying();
+        if (playing === keepScreenOn) return;
+        keepScreenOn = playing;
+        native('setKeepScreenOn', playing);
+    }
+
     function anyMediaPlaying() {
         var media = document.querySelectorAll('video,audio');
         for (var i = 0; i < media.length; i++) {
@@ -529,11 +539,12 @@
             // A held key repeats every 50 ms, faster than a step through a long list: the
             // repeats that waited in the queue would keep moving focus after the key is released.
             var now = performance.now();
-            if (now - lastArrowAt < 250 && now - event.timeStamp > 120) {
+            if (heldArrow === event.key && now - lastArrowAt < 250 && now - event.timeStamp > 120) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 return;
             }
+            heldArrow = event.key;
             lastArrowAt = now;
             if (passThroughArrow(active, dir)) {
                 revealPlayerControls(active);
@@ -1004,8 +1015,8 @@
             setTimeout(function () {
                 var url = api.currentStreamUrl();
                 var code = (t.error && t.error.code) || (hasPlayerError(t) ? 4 : 0);
-                // 1 = aborted, 2 = network: the connection failed, not the format. An external
-                // player would fail the same way; the app retries those itself.
+                // 1 = aborted, 2 = network: the connection failed, not the format; an external
+                // player would fail the same way.
                 if (!url || code < 3 || !armPrompt(url, t.closest ? t.closest('.video-js') : null)) return;
                 lastMediaTitle = document.title;
                 native('onPlaybackError', url, lastMediaTitle || '', String(code));
@@ -1016,10 +1027,15 @@
             document.addEventListener(type, function (e) {
                 var t = e.target;
                 if (!t || !(t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) return;
-                var playing = type === 'playing' || anyMediaPlaying();
-                if (playing === keepScreenOn) return;
-                keepScreenOn = playing;
-                native('setKeepScreenOn', playing);
+                if (type === 'playing' && !t.__tvKeepWatch) {
+                    // Leaving a player removes its element before it pauses or empties, and the
+                    // events of a detached element never reach the document: listen on it too.
+                    t.__tvKeepWatch = true;
+                    ['pause', 'ended', 'emptied'].forEach(function (other) {
+                        t.addEventListener(other, function () { syncKeepScreenOn(false); });
+                    });
+                }
+                syncKeepScreenOn(type === 'playing');
             }, true);
         });
         // video.js never sets the <video> src when no tech accepts the source
@@ -1163,6 +1179,13 @@
         installHistoryTracking();
         installFocusMirror();
         document.addEventListener('keydown', onKeyDown, true);
+        // Keyups arrive in queue order: a keydown after one is a new press, however late it runs.
+        document.addEventListener('keyup', function (e) {
+            if (DIR[e.key]) heldArrow = null;
+        }, true);
+        window.addEventListener('blur', function () {
+            heldArrow = null;
+        });
         // Initial focus once Angular has rendered something.
         var attempts = 0;
         var timer = setInterval(function () {

@@ -30,7 +30,16 @@ public class ShellApp extends Application {
      * the user's data ({@link #onFallbackPort()} lets the UI say so).
      */
     public synchronized TvShellServer ensureServer() {
-        if (server != null && server.isAlive()) return server;
+        if (server != null && server.isAlive()) {
+            if (!fallbackPort) return server;
+            // On a temporary port: the saved one may be free again (the other app was closed).
+            Prefs prefs = new Prefs(this);
+            TvShellServer home = tryBind(prefs, prefs.serverPort());
+            if (home == null) return server;
+            server.stop();
+            Log.i(TAG, "port " + home.port() + " free again: back to the saved data");
+            return listening(home, false);
+        }
         Prefs prefs = new Prefs(this);
         int preferred = prefs.serverPort();
         for (int attempt = 0; attempt < PREFERRED_PORT_ATTEMPTS; attempt++) {

@@ -263,7 +263,13 @@ public class WebBackend {
         String trimmed = body.trim();
         if (trimmed.startsWith("{") || trimmed.startsWith("[") || trimmed.startsWith("\"") || trimmed.equals("null")
             || trimmed.equals("true") || trimmed.equals("false") || trimmed.matches("-?\\d.*")) {
-            return Json.validate(trimmed) ? new Json.Raw(trimmed) : body;
+            if (Json.validate(trimmed)) return new Json.Raw(trimmed);
+            try {
+                // Lenient JSON (a raw tab in a title, a sloppy escape): rebuilt, so the writer re-escapes it.
+                return Json.parse(trimmed);
+            } catch (RuntimeException e) {
+                return body;
+            }
         }
         return body;
     }
