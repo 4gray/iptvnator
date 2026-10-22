@@ -98,7 +98,11 @@ public class SettingsActivity extends Activity {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 prefs.setWebDebug(isChecked);
-                WebView.setWebContentsDebuggingEnabled(isChecked);
+                try {
+                    WebView.setWebContentsDebuggingEnabled(isChecked);
+                } catch (RuntimeException e) {
+                    // The system WebView is missing or being updated: applied at the next start.
+                }
             }
         });
 
@@ -130,9 +134,14 @@ public class SettingsActivity extends Activity {
             .setPositiveButton(R.string.reset_confirm, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    WebStorage.getInstance().deleteAllData();
-                    CookieManager.getInstance().removeAllCookies(null);
-                    CookieManager.getInstance().flush();
+                    try {
+                        WebStorage.getInstance().deleteAllData();
+                        CookieManager.getInstance().removeAllCookies(null);
+                        CookieManager.getInstance().flush();
+                    } catch (RuntimeException e) { // the system WebView is missing or being updated
+                        Toast.makeText(SettingsActivity.this, R.string.webview_unavailable, Toast.LENGTH_LONG).show();
+                        return;
+                    }
                     dataCleared = true;
                     Toast.makeText(SettingsActivity.this, R.string.reset_done, Toast.LENGTH_SHORT).show();
                 }
@@ -142,20 +151,28 @@ public class SettingsActivity extends Activity {
     }
 
     private String diagnostics() {
-        String ua = WebSettings.getDefaultUserAgent(this);
+        String ua = "";
         String chrome = "?";
-        int at = ua.indexOf("Chrome/");
-        if (at >= 0) {
-            int end = ua.indexOf(' ', at);
-            chrome = ua.substring(at + 7, end > 0 ? end : ua.length());
-        }
         String webViewPackage = "";
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            android.content.pm.PackageInfo info = WebView.getCurrentWebViewPackage();
-            if (info != null) webViewPackage = info.packageName + " " + info.versionName;
+        try {
+            ua = WebSettings.getDefaultUserAgent(this);
+            int at = ua.indexOf("Chrome/");
+            if (at >= 0) {
+                int end = ua.indexOf(' ', at);
+                chrome = ua.substring(at + 7, end > 0 ? end : ua.length());
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                android.content.pm.PackageInfo info = WebView.getCurrentWebViewPackage();
+                if (info != null) webViewPackage = info.packageName + " " + info.versionName;
+            }
+        } catch (RuntimeException e) {
+            // The system WebView is missing, disabled or being updated: the rest still helps.
+            webViewPackage = "unavailable (" + e.getClass().getSimpleName() + ")";
         }
         TvShellServer server = ShellApp.currentServer();
+        String port = server == null ? "-" : String.valueOf(server.port());
+        if (server != null && ShellApp.onFallbackPort()) port += " (temporary, saved data on " + prefs.serverPort() + ")";
         return getString(R.string.diagnostics, chrome, webViewPackage, Build.MODEL, Build.VERSION.RELEASE,
-            server == null ? "-" : String.valueOf(server.port()), MainActivity.screenInfo(this) + ", layout " + prefs.layoutWidth()) + "\n" + ua;
+            port, MainActivity.screenInfo(this) + ", layout " + prefs.layoutWidth()) + "\n" + ua;
     }
 }

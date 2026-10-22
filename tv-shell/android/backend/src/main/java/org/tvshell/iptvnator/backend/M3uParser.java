@@ -168,11 +168,10 @@ public final class M3uParser {
         if (content == null) throw new InvalidPlaylistException("parse() expects an M3U playlist as a string");
         if (content.length() > 0 && content.charAt(0) == '﻿') content = content.substring(1);
 
-        String[] lines = content.split("\r?\n", -1);
-
-        int headerIndex = 0;
-        while (headerIndex < lines.length && jsTrim(lines[headerIndex]).isEmpty()) headerIndex++;
-        String headerLine = headerIndex < lines.length ? lines[headerIndex] : "";
+        Lines lines = new Lines(content);
+        String headerLine = lines.next();
+        while (headerLine != null && jsTrim(headerLine).isEmpty()) headerLine = lines.next();
+        if (headerLine == null) headerLine = "";
         if (!EXTM3U_RE.matcher(jsTrim(headerLine)).find()) {
             throw new InvalidPlaylistException("Playlist is not valid");
         }
@@ -187,8 +186,8 @@ public final class M3uParser {
         List<String> currentRaw = null;
         List<String> pendingKodiprops = null;
 
-        for (int idx = headerIndex + 1; idx < lines.length; idx++) {
-            String raw = lines[idx];
+        for (String raw = lines.next(); raw != null; raw = lines.next()) {
+            int idx = lines.index;
             String line = jsTrim(raw);
             if (line.length() != 0 && line.charAt(0) == '#') {
                 if (line.startsWith("#EXTINF:")) {
@@ -295,5 +294,34 @@ public final class M3uParser {
         }
 
         return playlist;
+    }
+
+    /**
+     * The lines {@code content.split("\\r?\\n", -1)} would give (a trailing empty line included),
+     * one at a time: a multi-MB playlist is not materialised a second time as a String[].
+     */
+    static final class Lines {
+        private final String text;
+        private int pos;
+        private boolean done;
+        /** 0-based index of the line {@link #next()} returned last. */
+        int index = -1;
+
+        Lines(String text) {
+            this.text = text;
+        }
+
+        /** @return the next line without its terminator, or null after the last one */
+        String next() {
+            if (done) return null;
+            int nl = text.indexOf('\n', pos);
+            int end = nl == -1 ? text.length() : nl;
+            int lineEnd = nl != -1 && end > pos && text.charAt(end - 1) == '\r' ? end - 1 : end; // \r only as part of \r\n
+            String raw = text.substring(pos, lineEnd);
+            if (nl == -1) done = true;
+            else pos = nl + 1;
+            index++;
+            return raw;
+        }
     }
 }

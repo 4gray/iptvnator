@@ -106,6 +106,30 @@ public class M3uParserTest {
         System.out.println("       " + checked + " fixtures compared");
     }
 
+    /** Lines(): what content.split("\\r?\\n", -1) gives, one at a time, without the String[]. */
+    public void testLinesMatchSplitSemantics() {
+        String[] samples = {"", "a", "a\n", "a\nb", "a\r\nb\r\n", "\n\n", "a\rb\n", "\r\n", "x\n\r\n\ny\r"};
+        for (String text : samples) {
+            String[] expected = text.split("\r?\n", -1);
+            M3uParser.Lines lines = new M3uParser.Lines(text);
+            for (int i = 0; i < expected.length; i++) {
+                assertEquals("line " + i + " of " + text.replace("\r", "\\r").replace("\n", "\\n"), expected[i], lines.next());
+                assertEquals("index " + i, Integer.valueOf(i), Integer.valueOf(lines.index));
+            }
+            assertEquals("end of " + text.replace("\r", "\\r").replace("\n", "\\n"), null, lines.next());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testLineNumbersSurviveBlankLinesAndLineEndings() {
+        Map<String, Object> parsed = M3uParser.parse("\r\n\n#EXTM3U\r\n\r\n#EXTINF:-1,One\r\nhttp://a/1\n\n#EXTINF:-1,Two\nhttp://a/2\n");
+        List<Object> items = (List<Object>) parsed.get("items");
+        assertEquals("two items", 2, Integer.valueOf(items.size()));
+        assertEquals("first line number", Integer.valueOf(5), ((Map<String, Object>) items.get(0)).get("line"));
+        assertEquals("second line number", Integer.valueOf(8), ((Map<String, Object>) items.get(1)).get("line"));
+        assertEquals("raw keeps both lines", "#EXTINF:-1,One\r\nhttp://a/1", ((Map<String, Object>) items.get(0)).get("raw"));
+    }
+
     public void testJsTrimStripsBomAndUnicodeSpaces() {
         assertEquals("bom", "x", M3uParser.jsTrim("﻿x "));
         assertEquals("tabs", "a b", M3uParser.jsTrim("\t a b \r\n"));

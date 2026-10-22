@@ -59,6 +59,17 @@ public class TvShellBridge {
         });
     }
 
+    /** Something plays (or stopped): the screen stays on only during playback. */
+    @JavascriptInterface
+    public void setKeepScreenOn(final boolean on) {
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                activity.setKeepScreenOn(on);
+            }
+        });
+    }
+
     @JavascriptInterface
     public void exitApp() {
         activity.runOnUiThread(new Runnable() {

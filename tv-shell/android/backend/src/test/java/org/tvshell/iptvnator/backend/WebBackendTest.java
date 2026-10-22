@@ -42,6 +42,18 @@ public class WebBackendTest {
         return (Map<String, Object>) Json.parse(r.bodyText());
     }
 
+    public void testPayloadIsValidatedNotRebuilt() {
+        assertTrue("valid json is raw", WebBackend.payloadOf(" { \"a\" : [ 1 , 2 ] } ") instanceof Json.Raw);
+        assertEquals("trimmed, otherwise verbatim", "{ \"a\" : [ 1 , 2 ] }", WebBackend.payloadOf(" { \"a\" : [ 1 , 2 ] } ").toString());
+        assertEquals("almost json stays text", "{\"a\":1,}", WebBackend.payloadOf("{\"a\":1,}"));
+        assertEquals("text stays text", "Not JSON", WebBackend.payloadOf("Not JSON"));
+        assertEquals("null body", "", WebBackend.payloadOf(null));
+        assertEquals("scalar", "42", WebBackend.payloadOf("42").toString());
+        Map<String, Object> out = Json.object();
+        out.put("payload", WebBackend.payloadOf("[1, 2]"));
+        assertEquals("written as given", "{\"payload\":[1, 2]}", WebBackend.json(200, out).bodyText());
+    }
+
     static String register(WebBackend backend, String url) {
         WebBackend.Response r = backend.handle("POST", "/provider-targets", null, "{\"url\":" + Json.write(url) + "}");
         assertEquals("register status", 200, Integer.valueOf(r.status));
@@ -151,6 +163,7 @@ public class WebBackendTest {
         List<Object> payload = (List<Object>) out.get("payload");
         assertEquals("payload parsed", "One", ((Map<String, Object>) payload.get(0)).get("name"));
         assertTrue("number lexical form kept", r.bodyText().contains("\"num\":1.0"));
+        assertTrue("payload passed through verbatim", r.bodyText().contains("\"payload\":[{\"stream_id\":1,\"name\":\"One\",\"num\":1.0}]"));
         assertEquals("endpoint stripped and params encoded", "http://xc.example:8080/player_api.php?username=u%20u&password=p%26p&action=get_live_streams&category_id=7", fetcher.urls.get(0));
         assertEquals("default UA for panels", null, fetcher.headers.get(0).get("User-Agent"));
 

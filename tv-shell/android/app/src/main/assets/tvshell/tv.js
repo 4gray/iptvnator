@@ -47,6 +47,8 @@
     var currentVideo = null;
     var navDepth = 0;
     var exitArmedUntil = 0;
+    var lastArrowAt = 0;
+    var keepScreenOn = false;
 
     // --------------------------------------------------------------- bridge
     function native(method) {
@@ -94,12 +96,11 @@
 
     function isVisible(el) {
         if (!el.isConnected) return false;
-        if (el.closest('[hidden],[inert],[aria-hidden="true"],.cdk-visually-hidden,.cdk-overlay-backdrop')) return false;
-        var rects = el.getClientRects();
-        if (!rects.length) return false;
+        // The geometry first: it rejects most of a long list before the ancestor walk and the style.
         var r = el.getBoundingClientRect();
         if (r.width < 2 || r.height < 2) return false;
         if (r.bottom < 0 || r.right < 0 || r.top > window.innerHeight || r.left > window.innerWidth) return false;
+        if (el.closest('[hidden],[inert],[aria-hidden="true"],.cdk-visually-hidden,.cdk-overlay-backdrop')) return false;
         var cs = getComputedStyle(el);
         if (cs.visibility === 'hidden' || cs.display === 'none' || cs.opacity === '0' || cs.pointerEvents === 'none') return false;
         return true;
@@ -145,12 +146,16 @@
         return true;
     }
 
+    /** Overlay content that is not a place to navigate in: toasts and tooltips. */
+    var TOAST_SELECTOR = '.mat-mdc-snack-bar-container,mat-snack-bar-container,[role="status"],[role="alert"],[role="tooltip"]';
+
     /** Topmost overlay pane that owns focus, or the modal on top, or the document. */
     function navigationScope() {
         var active = document.activeElement;
         if (active && active !== document.body) {
             var pane = active.closest('.cdk-overlay-pane');
-            if (pane) return pane;
+            // A snack bar's action button must not lock the D-pad into the toast while it shows.
+            if (pane && !pane.querySelector(TOAST_SELECTOR)) return pane;
         }
         var backdrop = document.querySelector('.cdk-overlay-backdrop.cdk-overlay-backdrop-showing');
         if (backdrop) {
@@ -294,12 +299,18 @@
 
     function scrollInDirection(scroller, dir) {
         var before = dir === 'up' || dir === 'down' ? scroller.scrollTop : scroller.scrollLeft;
-        var amount = dir === 'up' || dir === 'down' ? Math.max(80, scroller.clientHeight * 0.6) : Math.max(80, scroller.clientWidth * 0.6);
-        if (dir === 'up') scroller.scrollTop -= amount;
-        else if (dir === 'down') scroller.scrollTop += amount;
-        else if (dir === 'left') scroller.scrollLeft -= amount;
-        else scroller.scrollLeft += amount;
-        var after = dir === 'up' || dir === 'down' ? scroller.scrollTop : scroller.scrollLeft;
+        var vertical = dir === 'up' || dir === 'down';
+        var amount = vertical ? Math.max(80, scroller.clientHeight * 0.6) : Math.max(80, scroller.clientWidth * 0.6);
+        var delta = dir === 'up' || dir === 'left' ? -amount : amount;
+        // Never animated: the next decision reads the rects right away, and a rail with
+        // `scroll-behavior: smooth` would still be moving.
+        try {
+            scroller.scrollTo({ top: vertical ? before + delta : scroller.scrollTop, left: vertical ? scroller.scrollLeft : before + delta, behavior: 'instant' });
+        } catch (e) {
+            if (vertical) scroller.scrollTop = before + delta;
+            else scroller.scrollLeft = before + delta;
+        }
+        var after = vertical ? scroller.scrollTop : scroller.scrollLeft;
         return after !== before;
     }
 
@@ -314,9 +325,13 @@
         }
         el.classList.add(FOCUS_CLASS);
         try {
-            el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }); // never animated
         } catch (e) {
-            /* ignore */
+            try {
+                el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            } catch (e2) {
+                /* ignore */
+            }
         }
         lastRect = rectOf(el);
         if (!(opts && opts.silent)) revealPlayerControls(el);
@@ -412,6 +427,7 @@
             var el = list[i].el;
             if (/mat-mdc-icon-button/.test(el.className || '')) score *= 3;
             if (scope === document && !el.closest('main,[role="main"],.cdk-overlay-pane')) score *= 2;
+            if (el.closest(TOAST_SELECTOR)) score *= 4;
             if (score < bestScore) {
                 bestScore = score;
                 best = list[i];
@@ -475,7 +491,18 @@
         }
     }
 
+    function anyMediaPlaying() {
+        var media = document.querySelectorAll('video,audio');
+        for (var i = 0; i < media.length; i++) {
+            if (!media[i].paused && !media[i].ended) return true;
+        }
+        return false;
+    }
+
     function activeVideo() {
+        // The element of a player page the user left keeps its source: playing it would be
+        // ghost audio with no interface to stop it.
+        if (currentVideo && !currentVideo.isConnected) currentVideo = null;
         var videos = document.querySelectorAll('video,audio');
         var best = null, bestArea = -1;
         for (var i = 0; i < videos.length; i++) {
@@ -499,6 +526,15 @@
         var active = document.activeElement;
         if (dir) {
             if (event.ctrlKey || event.altKey || event.metaKey) return;
+            // A held key repeats every 50 ms, faster than a step through a long list: the
+            // repeats that waited in the queue would keep moving focus after the key is released.
+            var now = performance.now();
+            if (now - lastArrowAt < 250 && now - event.timeStamp > 120) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return;
+            }
+            lastArrowAt = now;
             if (passThroughArrow(active, dir)) {
                 revealPlayerControls(active);
                 return;
@@ -527,7 +563,7 @@
             if (active.tagName === 'VIDEO' || active.tagName === 'AUDIO') {
                 event.preventDefault();
                 event.stopImmediatePropagation();
-                if (active.error || hasPlayerError(active)) api.openExternal();
+                if (isUnplayable(active)) api.openExternal();
                 else toggleFullscreen(active);
                 return;
             }
@@ -549,6 +585,11 @@
             else if (event.key === 'F8') { event.preventDefault(); api.media('playpause'); }
             else if (event.key === 'F7') { event.preventDefault(); api.openExternal(); }
         }
+    }
+
+    /** A format the engine cannot play (decode / not supported), unlike a dropped connection. */
+    function isUnplayable(media) {
+        return (media.error && media.error.code >= 3) || hasPlayerError(media);
     }
 
     function hasPlayerError(media) {
@@ -693,7 +734,7 @@
     /** Media keys from the remote. */
     api.media = function (action) {
         var media = activeVideo();
-        if (!media) return false;
+        if (!media || !media.isConnected) return false;
         switch (action) {
             case 'playpause': toggleMedia(media); break;
             case 'play': toggleMedia(media.paused ? media : null); break;
@@ -963,17 +1004,33 @@
             setTimeout(function () {
                 var url = api.currentStreamUrl();
                 var code = (t.error && t.error.code) || (hasPlayerError(t) ? 4 : 0);
-                if (!url || !code || !armPrompt(url, t.closest ? t.closest('.video-js') : null)) return;
+                // 1 = aborted, 2 = network: the connection failed, not the format. An external
+                // player would fail the same way; the app retries those itself.
+                if (!url || code < 3 || !armPrompt(url, t.closest ? t.closest('.video-js') : null)) return;
                 lastMediaTitle = document.title;
                 native('onPlaybackError', url, lastMediaTitle || '', String(code));
             }, 400);
         }, true);
+        // The screen stays on only while something plays (the shell holds no wake lock otherwise).
+        ['playing', 'pause', 'ended', 'emptied'].forEach(function (type) {
+            document.addEventListener(type, function (e) {
+                var t = e.target;
+                if (!t || !(t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) return;
+                var playing = type === 'playing' || anyMediaPlaying();
+                if (playing === keepScreenOn) return;
+                keepScreenOn = playing;
+                native('setKeepScreenOn', playing);
+            }, true);
+        });
         // video.js never sets the <video> src when no tech accepts the source
         // (raw .ts streams): it flags its root with `vjs-error` instead.
         var vjsObserver = new MutationObserver(function (mutations) {
             for (var i = 0; i < mutations.length; i++) {
                 var el = mutations[i].target;
                 if (el.nodeType !== 1 || !el.classList || !el.classList.contains('video-js') || !el.classList.contains('vjs-error')) continue;
+                // No error-code filter here: video.js reports a manifest the page may not read
+                // (no CORS headers, the common case on a TV) as a network error, and an external
+                // player, which has no CORS, is exactly what plays it.
                 var url = videoJsSource();
                 if (!url || !armPrompt(url, el)) continue;
                 lastMediaTitle = document.title;
@@ -1124,6 +1181,10 @@
             if (!rendered) return;
             clearInterval(readyTimer);
             native('onReady', location.href);
+            // The shell kept the screen on through the splash and stops at onReady: a player
+            // that started before (a restored route) says so right after.
+            keepScreenOn = anyMediaPlaying();
+            if (keepScreenOn) native('setKeepScreenOn', true);
         }, 250);
     }
 

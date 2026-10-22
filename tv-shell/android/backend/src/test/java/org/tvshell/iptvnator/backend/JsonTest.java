@@ -82,8 +82,63 @@ public class JsonTest {
 
     public void testWriterEscapesControlCharacters() {
         assertEquals("escapes", "\"\\u0001\\t\\u2028\"", Json.write("\u0001\t\u2028"));
+        assertEquals("mixed runs", "\"a\\\"b\\\\c\\nd\"", Json.write("a\"b\\c\nd"));
+        assertEquals("plain", "\"plain text\"", Json.write("plain text"));
+        assertEquals("empty", "\"\"", Json.write(""));
         assertEquals("double", "1.5", Json.write(Double.valueOf(1.5)));
         assertEquals("whole double", "3", Json.write(Double.valueOf(3.0)));
         assertEquals("long", "-7", Json.write(Long.valueOf(-7)));
+    }
+
+    /** writeUtf8() gives the bytes String.getBytes(UTF-8) gives for the same text, surrogates included. */
+    public void testWriteUtf8MatchesTheStringEncoder() throws Exception {
+        Object[] samples = {
+            "plain", "h\u00e9llo", "\u20ac \u4e2d\u6587", "emoji \ud83d\udcfa tv", "lone high \ud83d x", "lone low \udcfa x", "ends high \ud83d",
+            Json.parse("{\"a\":[1,2.50,\"\\u2028\\n\"],\"b\":null}"),
+        };
+        for (Object sample : samples) {
+            byte[] expected = Json.write(sample).getBytes("UTF-8");
+            assertTrue("utf-8 of " + Json.write(sample), java.util.Arrays.equals(expected, Json.writeUtf8(sample)));
+        }
+        Json.Utf8Sink sink = new Json.Utf8Sink(1);
+        sink.append("ab\ud83d");
+        assertEquals("trailing high surrogate", "ab?", new String(sink.toByteArray(), "UTF-8"));
+        StringBuilder big = new StringBuilder();
+        for (int i = 0; i < 5000; i++) big.append("\u00e9\ud83d\udcfa,");
+        assertTrue("growth", java.util.Arrays.equals(Json.write(big.toString()).getBytes("UTF-8"), Json.writeUtf8(big.toString())));
+    }
+
+    /** validate() skips the same grammar parse() builds: both must agree on every sample. */
+    public void testValidateAgreesWithParse() {
+        String[] samples = {
+            "{}", "[]", "\"x\"", "null", "true", "false", "0", "-1.5e3", "{\"a\":[0,-1.5e2,1E-7,\"s\\u00e9\\\"\\\\/\\b\\f\\n\\r\\t\"]}",
+            "\uFEFF{}", " [ 1 , 2 ] ", "{\"a\":{\"b\":{\"c\":[[[]]]}}}",
+            "", " ", "{", "[1,]", "{\"a\":01}", "[1e-]", "nul", "{\"a\" 1}", "[1 2]", "\"unterminated", "\"bad\\q\"",
+            "\"\\u12\"", "{\"a\":1}x", "[1]]", "{\"a\":1,}", "01", "-", "1.", ".5", "+1", "tru", "[\"a\",]",
+            nested(Json.MAX_DEPTH), nested(Json.MAX_DEPTH + 1), nestedObjects(Json.MAX_DEPTH + 1),
+            "[" + nested(Json.MAX_DEPTH - 1) + "," + nested(Json.MAX_DEPTH - 1) + "]",
+        };
+        for (String text : samples) {
+            assertEquals("validate(" + text.replace("\n", "\\n") + ")", Boolean.valueOf(Json.isValid(text)), Boolean.valueOf(Json.validate(text)));
+        }
+        assertTrue("null text", !Json.validate(null));
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testRawIsWrittenVerbatim() throws java.io.IOException {
+        Map<String, Object> out = Json.object();
+        out.put("action", "get_live_streams");
+        out.put("payload", new Json.Raw("[ {\"num\" : 1.0, \"name\":\"One\"} ]"));
+        String text = Json.write(out);
+        assertEquals("verbatim", "{\"action\":\"get_live_streams\",\"payload\":[ {\"num\" : 1.0, \"name\":\"One\"} ]}", text);
+        assertEquals("still a document", "One", ((Map<String, Object>) ((List<Object>) ((Map<String, Object>) Json.parse(text)).get("payload")).get(0)).get("name"));
+        java.io.StringWriter writer = new java.io.StringWriter();
+        Json.write(out, writer);
+        assertEquals("appendable sink", text, writer.toString());
+        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        java.io.Writer stream = new java.io.OutputStreamWriter(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        Json.write(Json.parse("{\"s\":\"h\\u00e9llo \\u2028\"}"), stream);
+        stream.flush();
+        assertEquals("utf-8 stream", "{\"s\":\"h\u00e9llo \\u2028\"}", new String(bytes.toByteArray(), java.nio.charset.StandardCharsets.UTF_8));
     }
 }

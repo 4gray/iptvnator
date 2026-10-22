@@ -47,17 +47,15 @@ public final class PlaylistBuilder {
 
         Map<String, Object> playlistCopy = Json.object();
         playlistCopy.put("header", parsed.get("header"));
-        List<Object> itemsWithIds = Json.array();
+        // The parsed items become the record's items in place: a second map per channel would
+        // double the per-item heap of a 100k-channel playlist while both lists are alive.
         for (Object itemObj : items) {
             Map<String, Object> item = (Map<String, Object>) itemObj;
             Map<String, Object> drm = KodiProp.extractDrmFromRaw(Json.optString(item, "raw"));
-            Map<String, Object> withId = Json.object();
-            withId.put("id", guid());
-            withId.putAll(item);
-            if (drm != null) withId.put("drm", drm);
-            itemsWithIds.add(withId);
+            item.put("id", guid());
+            if (drm != null) item.put("drm", drm);
         }
-        playlistCopy.put("items", itemsWithIds);
+        playlistCopy.put("items", items);
 
         Map<String, Object> playlist = Json.object();
         playlist.put("id", id);

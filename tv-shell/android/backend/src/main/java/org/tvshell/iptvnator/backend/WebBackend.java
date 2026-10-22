@@ -163,6 +163,7 @@ public class WebBackend {
         } catch (RuntimeException e) {
             return json(500, error("Error, something went wrong", 500));
         }
+        text = null; // the playlist text is not needed while the record is built and serialised
         return json(200, PlaylistBuilder.build(parsed, PlaylistBuilder.lastUrlSegment(url), url, userAgent));
     }
 
@@ -252,17 +253,17 @@ public class WebBackend {
         return failure;
     }
 
-    /** axios parses JSON answers; anything else stays a string. */
+    /**
+     * axios parses JSON answers; anything else stays a string. A JSON answer is validated and
+     * passed through verbatim ({@link Json.Raw}): nothing here inspects it, and rebuilding a
+     * 20 MB catalogue as maps and lists would need several times that in heap on a 1 GB device.
+     */
     static Object payloadOf(String body) {
         if (body == null) return "";
         String trimmed = body.trim();
         if (trimmed.startsWith("{") || trimmed.startsWith("[") || trimmed.startsWith("\"") || trimmed.equals("null")
             || trimmed.equals("true") || trimmed.equals("false") || trimmed.matches("-?\\d.*")) {
-            try {
-                return Json.parse(trimmed);
-            } catch (RuntimeException e) {
-                return body;
-            }
+            return Json.validate(trimmed) ? new Json.Raw(trimmed) : body;
         }
         return body;
     }
@@ -328,8 +329,9 @@ public class WebBackend {
         return body;
     }
 
+    /** Serialised straight to UTF-8 bytes: one growing buffer, not a char buffer plus a String plus bytes. */
     static Response json(int status, Object body) {
-        return new Response(status, "application/json; charset=utf-8", Json.write(body).getBytes(UTF8));
+        return new Response(status, "application/json; charset=utf-8", Json.writeUtf8(body));
     }
 
     /** For tests and diagnostics. */

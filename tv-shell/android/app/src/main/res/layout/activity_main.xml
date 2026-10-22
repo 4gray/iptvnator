@@ -5,12 +5,8 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <WebView
-        android:id="@+id/webview"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:focusable="true"
-        android:focusableInTouchMode="true" />
+    <!-- The WebView is created in code and inserted first (MainActivity.onCreate): inflating one
+         while the system WebView is being updated would throw before the error panel can show. -->
 
     <!-- Asset-free splash shown until the web app reports itself ready. -->
     <FrameLayout
