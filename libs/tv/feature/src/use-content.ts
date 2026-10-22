@@ -100,8 +100,27 @@ export function useContent(
                     )
                 );
                 if (failed === 3) throw new Error('Catalog unavailable');
-                if (lane.owns(job))
-                    setHome([...lists[0], ...lists[1], ...lists[2]]);
+                if (lane.owns(job)) {
+                    const items = [...lists[0], ...lists[1], ...lists[2]];
+                    setHome(items);
+                    // Catalog rows often have only posters. Fill the featured
+                    // title's actual provider backdrop without holding the page.
+                    const hero = items.find((item) => item.kind === 'movie');
+                    if (hero)
+                        void client
+                            .details(hero, job.signal)
+                            .then((detail) => {
+                                if (lane.owns(job))
+                                    setHome(
+                                        items.map((item) =>
+                                            item.id === detail.id
+                                                ? detail
+                                                : item
+                                        )
+                                    );
+                            })
+                            .catch(() => undefined);
+                }
             } else if (route.view === 'detail' && route.item) {
                 const detail = await client.details(route.item, job.signal);
                 if (lane.owns(job)) setSelected(detail);

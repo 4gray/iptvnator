@@ -1,4 +1,5 @@
 import { DirectAccessProbe } from './direct-probe';
+import { TmdbSettings } from './tmdb-settings';
 import { httpUrl } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
 export function Settings({ tv }: { tv: TvModel }) {
@@ -52,6 +53,7 @@ export function Settings({ tv }: { tv: TvModel }) {
                 <button class="primary">Save settings</button>
             </form>
             <DirectAccessProbe tv={tv} />
+            <TmdbSettings tv={tv} />
             <h2>Your remote</h2>
             <p class="muted">
                 Arrows move focus. OK selects. Back returns to your last title.

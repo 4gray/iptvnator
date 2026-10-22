@@ -17,6 +17,7 @@
         "skipDefaultLibCheck": true,
         "baseUrl": ".",
         "paths": {
+            "@iptvnator/shared/tmdb": ["libs/shared/tmdb/src/index.ts"],
             "@iptvnator/portal/catalog/feature": [
                 "libs/portal/catalog/feature/src/index.ts"
             ],

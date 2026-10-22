@@ -1,2 +1,3 @@
 export * from './components';
+export { Backdrop } from './backdrop';
 export * from './focus';

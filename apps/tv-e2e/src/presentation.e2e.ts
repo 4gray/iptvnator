@@ -89,6 +89,25 @@ test('cinema/showcase, direct catalog diagnostic and TV layout widths', async ({
     });
     await expect
         .poll(() =>
+            page.locator('.page-backdrop').evaluate((stage) => {
+                const rect = stage.getBoundingClientRect();
+                const main = document.querySelector('main')!;
+                return (
+                    Math.abs(rect.top) < 1 &&
+                    Math.abs(rect.left - main.getBoundingClientRect().left) <
+                        1 &&
+                    Math.abs(rect.width - main.clientWidth) < 1
+                );
+            })
+        )
+        .toBe(true);
+    expect(
+        await page
+            .locator('.hero')
+            .evaluate((hero) => getComputedStyle(hero).backgroundImage)
+    ).toBe('none');
+    await expect
+        .poll(() =>
             page
                 .locator('.poster-art img')
                 .first()
@@ -97,6 +116,24 @@ test('cinema/showcase, direct catalog diagnostic and TV layout widths', async ({
         .toBeGreaterThan(0);
     await page.screenshot({
         path: join(workspaceRoot, 'dist/tv-verification/cinema-home.png'),
+    });
+    await page.getByRole('button', { name: 'Explore title' }).click();
+    await expect(page.locator('.loading')).toBeHidden();
+    await expect
+        .poll(() =>
+            page
+                .locator('.page-backdrop')
+                .evaluate((stage) =>
+                    Math.abs(stage.getBoundingClientRect().top)
+                )
+        )
+        .toBeLessThan(1);
+    await expect(page.locator('.page-backdrop img')).toHaveAttribute(
+        'src',
+        /backdrop/
+    );
+    await page.screenshot({
+        path: join(workspaceRoot, 'dist/tv-verification/cinema-detail.png'),
     });
     await nav(page, 'Settings');
     await page.getByRole('button', { name: 'Test direct access' }).click();

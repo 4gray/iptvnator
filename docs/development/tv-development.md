@@ -35,23 +35,32 @@ BX's Chromium 68 engine, native HLS, transport stream decoding or MAG headers.
 `tv-playlist.m3u` and `tv-test-media.webm` are local mock-server fixtures only.
 
 The package target produces
-`dist/tv-package/com.iptvnator.tv.prototype_0.1.0_all.ipk` with the pinned webOS
+`dist/tv-package/com.iptvnator.tv.prototype_0.1.1_all.ipk` with the pinned webOS
 CLI. Inspect it with:
 
 ```sh
-pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.0_all.ipk
+pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.1_all.ipk
 pnpm exec ares-setup-device --list
 ```
 
 Only after the user supplies an enabled Developer Mode target and pairing:
 
 ```sh
-pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.0_all.ipk
+pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.1_all.ipk
 pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 ```
 
 Do not root, wake, reconfigure or pair a television without appropriate scope.
 Do not copy unrelated credentials into fixtures or diagnostic scripts.
+
+## TMDB setup
+
+In Settings > Metadata · TMDB, enable metadata, enter your own v3 API key or
+v4 read access token, choose a language, optionally check the key, then save.
+No real key is bundled or needed by automated tests. Home's featured title and
+movie/series details gain artwork and descriptions; catalog rows, live channels
+and episode metadata remain provider-owned. Errors leave provider content usable.
+The TV browser must reach `api.themoviedb.org` and `image.tmdb.org` directly.
 
 ## Hardware status on 2026-10-21
 
@@ -76,10 +85,13 @@ Record device firmware, tested local commit and results for each of:
   unsupported streams and local storage exhaustion.
 
 Product completion and device readiness must be reported separately. XMLTV,
-DRM, TMDB, downloads, synchronization, autostart, Home takeover and transcoding
+DRM, downloads, synchronization, autostart, Home takeover and transcoding
 are outside the approved MVP.
 
 ## Implementation verification
 
 The [dated verification report](tv-validation.md) records completed local checks,
 the remaining Angular Stalker Escape failure, and the separate hardware gate.
+
+The [backdrop and TMDB follow-up report](tv-metadata-validation.md) records the
+0.1.1 package checks separately from the original MVP and real LG validation.

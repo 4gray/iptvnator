@@ -228,11 +228,14 @@ import violates either family, move the contract or implementation to its
 proper owner instead of weakening a constraint.
 
 The independent TV application uses `scope:tv` and `domain:tv`. Its domain
-constraint permits TV, provider, M3U and shared-contract libraries, while the
+constraint permits TV, TMDB, provider, M3U and shared-contract libraries, while the
 same type constraints still apply. TV runtime imports additionally reject
 Angular, Electron and Node. The framework-free provider sub-entrypoints are
 `@iptvnator/portal/xtream/client` and `@iptvnator/portal/stalker/client`;
-see [TV architecture](tv-application.md).
+see [TV architecture](tv-application.md). `shared-tmdb` exposes
+`@iptvnator/shared/tmdb` with `scope:shared`, `domain:tmdb`, `type:data-access`.
+Its domain constraint permits only TMDB and shared contracts; the core has no
+Angular dependencies. Angular services retain injectable compatibility wrappers.
 
 `workspace-shell-util` is a deliberate path/tag exception:
 `libs/workspace/shell/util` is tagged `type:data-access` because it exports

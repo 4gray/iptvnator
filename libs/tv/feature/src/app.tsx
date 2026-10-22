@@ -6,6 +6,8 @@ import { Settings } from './settings';
 import { Home, CatalogScreen } from './screens';
 import { Detail } from './detail';
 import { Live } from './live';
+import { Backdrop } from '@iptvnator/tv/ui';
+import { useMetadata } from './use-metadata';
 const navigation: [View, string, string][] = [
     ['home', '⌂', 'Home'],
     ['live', '▣', 'TV'],
@@ -44,6 +46,26 @@ export function TvApp() {
         };
     });
     const r = tv.route;
+    const hero = tv.home.find((item) => item.kind === 'movie') ?? tv.home[0];
+    const cinematic = r.view === 'home' || r.view === 'detail';
+    const metadata = useMetadata(
+        r.view === 'detail'
+            ? tv.selected
+            : r.view === 'home'
+              ? hero
+              : undefined,
+        tv.data.tmdb
+    );
+    const display = {
+        ...tv,
+        selected: r.view === 'detail' ? metadata.item : tv.selected,
+        home:
+            r.view === 'home' && metadata.item
+                ? tv.home.map((item) =>
+                      item.id === metadata.item?.id ? metadata.item : item
+                  )
+                : tv.home,
+    };
     const current = tv.playing;
     const element = video.current;
     const controlsVisible = usePlayerControls(
@@ -88,7 +110,11 @@ export function TvApp() {
                     YOUR SCREEN.
                 </div>
             </aside>
-            <main hidden={tv.fullscreen}>
+            <main
+                hidden={tv.fullscreen}
+                class={cinematic ? `cinematic-page ${r.view}-page` : ''}
+            >
+                {cinematic ? <Backdrop item={metadata.item} /> : null}
                 <header>
                     <span class="brand-caption">THE EVENING IS YOURS</span>
                     <select
@@ -108,6 +134,12 @@ export function TvApp() {
                         ))}
                     </select>
                 </header>
+                {metadata.failed ? (
+                    <div class="metadata-notice" role="status">
+                        TMDB is unavailable. Showing provider information.
+                        <button onClick={metadata.retry}>Retry metadata</button>
+                    </div>
+                ) : null}
                 {tv.error ? (
                     <div role="alert" class="error">
                         <span>{tv.error}</span>
@@ -123,7 +155,7 @@ export function TvApp() {
                     </div>
                 ) : null}
                 {r.view === 'home' ? (
-                    <Home tv={tv} />
+                    <Home tv={display} />
                 ) : r.view === 'sources' ? (
                     <Sources tv={tv} />
                 ) : r.view === 'settings' ? (
@@ -131,7 +163,7 @@ export function TvApp() {
                 ) : r.view === 'live' ? (
                     <Live tv={tv} />
                 ) : r.view === 'detail' ? (
-                    <Detail key={r.item?.id} tv={tv} />
+                    <Detail key={r.item?.id} tv={display} />
                 ) : (
                     <CatalogScreen tv={tv} />
                 )}

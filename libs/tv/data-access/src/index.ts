@@ -22,3 +22,4 @@ export function createProvider(
 export { StalkerSession } from './stalker-session';
 export { stalkerEpisodes } from './stalker-series';
 export { probeDirect } from './direct-probe';
+export { TvMetadata, checkTmdbKey } from './tmdb';

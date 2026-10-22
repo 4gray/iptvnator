@@ -193,6 +193,7 @@ nav button[aria-current='page'] {
     letter-spacing: 3px;
 }
 main {
+    position: relative;
     margin-left: 230px;
     height: 100vh;
     overflow: auto;
@@ -213,17 +214,65 @@ header {
 header select {
     max-width: 420px;
     font-size: 17px;
-    background: transparent;
+    background: rgba(11, 16, 15, 0.8);
+}
+.cinematic-page > * {
+    position: relative;
+    z-index: 1;
+}
+.cinematic-page > .page-backdrop {
+    position: absolute;
+    z-index: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 880px;
+    pointer-events: none;
+    background: linear-gradient(135deg, #1c382d, var(--tv-bg) 80%);
+}
+.page-backdrop img,
+.backdrop-scrim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+.page-backdrop img {
+    object-fit: cover;
+    object-position: center 20%;
+}
+.backdrop-scrim {
+    background:
+        linear-gradient(
+            0deg,
+            var(--tv-bg) 0%,
+            rgba(11, 16, 15, 0.88) 12%,
+            rgba(11, 16, 15, 0) 64%
+        ),
+        linear-gradient(
+            90deg,
+            rgba(11, 16, 15, 0.96) 0%,
+            rgba(11, 16, 15, 0.78) 33%,
+            rgba(11, 16, 15, 0.18) 75%
+        );
+}
+.shelf .home-page > .page-backdrop {
+    height: 690px;
+}
+.metadata-notice {
+    color: var(--tv-muted);
+    font-size: 18px;
+    margin-bottom: 16px;
+}
+.metadata-notice button {
+    margin-left: 18px;
 }
 .hero {
-    min-height: 470px;
-    background-color: #15281f;
-    background-size: cover;
-    background-position: center 28%;
-    padding: 52px 58px;
+    min-height: 490px;
+    padding: 52px 0 72px;
     position: relative;
     margin-bottom: 44px;
-    border-radius: 8px;
     display: flex;
     align-items: center;
 }
@@ -244,6 +293,10 @@ header select {
     max-width: 550px;
     font-size: 22px;
     color: #becbc3;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 .hero-number {
     position: absolute;
@@ -263,7 +316,7 @@ header select {
 }
 .hero.compact {
     min-height: 320px;
-    padding: 36px 46px;
+    padding: 36px 0;
 }
 .hero.compact h1 {
     font-size: 48px;
@@ -475,7 +528,7 @@ summary {
     display: flex;
     align-items: center;
     margin-top: 32px;
-    min-height: 400px;
+    min-height: 430px;
 }
 .detail-poster {
     min-width: 240px;
@@ -496,9 +549,23 @@ summary {
     max-width: 880px;
 }
 .detail-hero p {
-    color: var(--tv-muted);
+    color: #becbc3;
     max-height: 180px;
     overflow: auto;
+}
+.tmdb-settings {
+    max-width: 900px;
+    margin-top: 48px;
+}
+.tmdb-attribution {
+    margin-top: 26px;
+    color: var(--tv-muted);
+    font-size: 16px;
+}
+.tmdb-attribution img {
+    width: 110px;
+    height: auto;
+    margin-bottom: 14px;
 }
 .actions {
     display: flex;
@@ -768,7 +835,7 @@ footer {
     }
     .hero {
         min-height: 380px;
-        padding: 40px;
+        padding: 40px 0;
     }
     .hero h1 {
         font-size: 56px;

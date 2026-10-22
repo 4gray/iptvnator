@@ -2,7 +2,7 @@
 
 The TV client is a separate Preact 10 application (`apps/tv`), with feature,
 UI, data-access and pure contracts under `libs/tv`. It does not load the Angular
-renderer, Electron bridge, Node runtime, TMDB or another player engine.
+renderer, Electron bridge, Node runtime or another player engine.
 The approved target is LG OLED55BX9LB, firmware 04.64.00, webOS 5.x / Chromium 68.
 A successful desktop browser test is not device certification.
 
@@ -91,6 +91,35 @@ Recent history is bounded to 200 entries; playback positions are retained
 independently, so an older title still resumes. Additive reads recover positions
 from older TV snapshots that only contain history. Closing an OS process can lose the interval
 since the last committed write; asynchronous pagehide writes are best effort.
+
+## Artwork and optional TMDB metadata
+
+Home and details share a backdrop beginning at the top of the content viewport,
+behind the header. Left and bottom gradients keep text readable and fade into
+the page background. There is no blurred panel or animated backdrop. Home
+publishes its catalog immediately, then requests the featured movie's provider
+details to obtain wide artwork. Missing images leave the text and controls usable.
+
+Settings exposes opt-in TMDB enrichment, a masked v3 key or v4 read token,
+metadata language, connection check and an explicit save result. These settings
+survive relaunch in the same atomic IndexedDB snapshot; older snapshots default
+to disabled. The TV requires a user-entered key, even in builds with an injected
+desktop default. Requests go directly to TMDB, independently of the provider backend.
+
+`@iptvnator/shared/tmdb` owns the framework-free API client, title/year confidence
+matching, dead provider-ID recovery, language fallback and metadata orchestration.
+The TV adapter enriches the Home feature and selected movie/series details for
+all providers. It only replaces artwork and description; provider identity,
+stream ID/extension pairs, episode hierarchy and playback commands stay authoritative.
+Live channels and episodes do not trigger enrichment. Whole-catalog enrichment,
+TMDB discovery, people, trailers and episode metadata are not included here.
+
+Provider content renders before metadata. Each selection has cancellation and
+an eight-second deadline; obsolete responses cannot overwrite the current view.
+Failures expose a retry without blocking playback. A session-only LRU holds at
+most 120 entries, separated by media type and language, with the existing TTLs.
+Changing key/language or disabling enrichment replaces the cache. No key or API
+response is logged. The settings section includes the official logo and attribution.
 
 ## Media feasibility is a separate gate
 

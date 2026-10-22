@@ -54,6 +54,13 @@
         "description": "Tier A projects collect and trend source coverage. Tier B projects are validated without percentage coverage. Tier C projects are excluded from the source coverage baseline.",
         "tierA": [
             {
+                "name": "shared-tmdb",
+                "root": "libs/shared/tmdb",
+                "sourceRoot": "libs/shared/tmdb/src",
+                "validationCommand": "pnpm nx test shared-tmdb",
+                "e2eTags": ["@settings", "@tmdb"]
+            },
+            {
                 "name": "web",
                 "root": "apps/web",
                 "sourceRoot": "apps/web/src",

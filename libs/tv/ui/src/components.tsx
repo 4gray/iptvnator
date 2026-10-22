@@ -57,16 +57,7 @@ export function Hero({
     compact?: boolean;
 }) {
     return (
-        <section
-            class={`hero ${compact ? 'compact' : ''}`}
-            style={
-                item?.backdrop || item?.poster
-                    ? {
-                          backgroundImage: `linear-gradient(90deg,#101716 5%,rgba(16,23,22,.2)),url("${item.backdrop ?? item.poster}")`,
-                      }
-                    : {}
-            }
-        >
+        <section class={`hero ${compact ? 'compact' : ''}`}>
             <div class="hero-copy">
                 <span class="eyebrow">YOUR OWN CINEMA</span>
                 <h1>{item?.title ?? 'Make yourself at home.'}</h1>

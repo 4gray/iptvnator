@@ -140,7 +140,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                       ? 'series'
                       : 'movie',
         });
-        restoreFocus(`nav:${view}`);
+        restoreFocus(`nav:${view}`, '', 0);
     }
     function open(item: Media) {
         playback.current.cancel();
@@ -159,7 +159,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         });
         setSelected(item);
         setRoute({ ...route, view: 'detail', item });
-        restoreFocus('detail-play');
+        restoreFocus('detail-play', '', 0);
     }
     async function play(item: Media) {
         if (playing?.id === item.id && item.kind === 'live') {

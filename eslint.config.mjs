@@ -40,9 +40,17 @@ export default [
                     allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
                     depConstraints: [
                         {
+                            sourceTag: 'domain:tmdb',
+                            onlyDependOnLibsWithTags: [
+                                'domain:tmdb',
+                                'domain:shared-contracts',
+                            ],
+                        },
+                        {
                             sourceTag: 'domain:tv',
                             onlyDependOnLibsWithTags: [
                                 'domain:tv',
+                                'domain:tmdb',
                                 'domain:xtream',
                                 'domain:stalker',
                                 'domain:m3u',

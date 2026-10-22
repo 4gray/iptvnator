@@ -91,6 +91,7 @@ export interface UserData {
     positions: Record<string, Progress>;
     layout: 'cinema' | 'shelf';
     epg: boolean;
+    tmdb: { enabled: boolean; apiKey: string; language: string };
 }
 export const initialData = (): UserData => ({
     sources: [],
@@ -102,6 +103,7 @@ export const initialData = (): UserData => ({
     positions: {},
     layout: 'cinema',
     epg: true,
+    tmdb: { enabled: false, apiKey: '', language: 'en' },
 });
 export const identity = (source: Source, kind: Kind, id: unknown) =>
     JSON.stringify([source.id, source.provider, kind, String(id)]);
@@ -155,6 +157,7 @@ export function recordProgress(data: UserData, progress: Progress): UserData {
 }
 export function hydrateUserData(saved: Partial<UserData>): UserData {
     const data = { ...initialData(), ...saved };
+    data.tmdb = { ...initialData().tmdb, ...saved.tmdb };
     if (!saved.positions) {
         data.positions = {};
         data.history.forEach((progress) => {
