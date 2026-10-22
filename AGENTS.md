@@ -89,16 +89,17 @@ contracts below before changing a subsystem; do not load every document.
   README and detailed contracts in architecture docs or a module README.
 - Add to this file only repository-wide rules and navigation. Implementation
   details, incident history and multi-step procedures belong in linked docs.
-  Do not duplicate subsystem contracts here or in CLAUDE.md.
-- `AGENTS.md` is the single source of common rules. `CLAUDE.md` imports it and
-  contains only Claude-specific guidance. Limits: 200 lines / 16 KiB here,
-  30 lines / 2 KiB for CLAUDE.md. Do not raise loading limits to fit more prose.
+  Do not duplicate subsystem contracts here.
+- `AGENTS.md` is the single source of common rules for all agents, including
+  Claude Code. Limit: 200 lines / 16 KiB. Do not raise loading limits to fit
+  more prose. Claude Code setup is in the
+  [agent workflow](docs/development/agent-workflow.md#claude-code).
 - Read the [context map](docs/maintenance/agent-context-map.md) when ownership
   is unclear. Read each affected domain for cross-domain tasks, not the whole map's documents.
 - Preserve exceptions and rationale when moving knowledge. Correct stale facts
   against code; do not silently discard a contract. Maintenance details are in
   the [agent workflow](docs/development/agent-workflow.md).
-- Never run whole-file `prettier --write` on AGENTS.md, CLAUDE.md or `docs/**`.
+- Never run whole-file `prettier --write` on AGENTS.md or `docs/**`.
   Edit only intended lines; upstream Markdown is not uniformly Prettier-clean.
 - After changing guidance, run `pnpm run agents:validate`; after editing a
   repository skill or a literal path it documents, run `pnpm run skills:validate`.
