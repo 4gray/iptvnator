@@ -87,6 +87,8 @@ public class MainActivity extends Activity {
     private int loadedLayoutWidth;
     private int loadedScreenWidth;
     private String restoreUrl;
+    /** The route at the last pause, for the relaunch after the system reclaimed the hidden renderer. */
+    private String lastRoute;
     private long backDownAt;
     private boolean backLongPressFired;
     private String lastConsoleError;
@@ -251,6 +253,7 @@ public class MainActivity extends Activity {
                     lastRendererDeathAt = now;
                 }
                 Log.w(ShellApp.TAG, "web renderer gone (crashed=" + crashed + ", resumed=" + resumed + ", count=" + rendererDeaths + ")");
+                if (resumed) lastRoute = null; // a death in front reloads the start view
                 handler.removeCallbacks(readyWatchdog);
                 handler.removeCallbacks(loadRetry);
                 root.removeView(view);
@@ -361,9 +364,10 @@ public class MainActivity extends Activity {
         armWatchdog();
     }
 
-    /** (Re)starts the ready watchdog for a full period. */
+    /** (Re)starts the ready watchdog for a full period; while paused onResume() does it. */
     private void armWatchdog() {
         handler.removeCallbacks(readyWatchdog);
+        if (!resumed) return; // the page's timers are frozen: it could not report ready
         handler.postDelayed(readyWatchdog, READY_TIMEOUT_MS);
     }
 
@@ -620,6 +624,8 @@ public class MainActivity extends Activity {
             load();
         } else if (server != null && prefs.layoutWidth() != loadedLayoutWidth) {
             load();
+        } else if (server != null && ShellApp.onFallbackPort() && ((ShellApp) getApplication()).ensureServer() != server) {
+            load(); // the saved port is free again: back to the origin that holds the user's data
         }
     }
 
@@ -628,6 +634,7 @@ public class MainActivity extends Activity {
         resumed = false;
         handler.removeCallbacks(readyWatchdog); // nothing can report ready while the page is frozen
         if (webView != null) {
+            lastRoute = pageReady ? webView.getUrl() : null;
             webView.onPause();
             // JavaScript timers stop too while another app (VLC, the launcher) is in front: the page's
             // refresh timers would otherwise keep the renderer busy and growing in the background,
@@ -640,8 +647,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        // The route the user was on, for a restart after the system killed the process in the background.
-        if (webView != null && pageReady) outState.putString(STATE_URL, webView.getUrl());
+        // The route the user was on, for a restart after the system killed the process in the background,
+        // or for the relaunch after it reclaimed the hidden renderer (webView is null by then).
+        String url = webView != null ? (pageReady ? webView.getUrl() : null) : lastRoute;
+        if (url != null) outState.putString(STATE_URL, url);
     }
 
     /** Display changes the manifest keeps the Activity through: the pinned page scale must follow. */
@@ -649,7 +658,10 @@ public class MainActivity extends Activity {
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         hideSystemUi();
-        if (webView != null && server != null && errorPanel.getVisibility() != View.VISIBLE && screenCssWidth(this) != loadedScreenWidth) load();
+        if (webView != null && server != null && errorPanel.getVisibility() != View.VISIBLE && screenCssWidth(this) != loadedScreenWidth) {
+            restoreUrl = webView.getUrl(); // the same page with the new scale (load() checks the origin)
+            load();
+        }
     }
 
     @Override

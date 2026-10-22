@@ -9,7 +9,7 @@
     <string name="server_error">Le serveur embarqué n\'a pas pu démarrer (aucun port libre).</string>
     <string name="load_timeout">L\'application web n\'a pas démarré à temps. Le WebView de cet appareil est peut-être trop ancien pour IPTVnator (moteur Chrome 94 ou plus récent requis). Le diagnostic est ci-dessous.</string>
     <string name="webview_unavailable">La vue web du système est indisponible (mise à jour en cours, ou désactivée). Réessayez dans une minute, ou mettez à jour Amazon WebView / Android System WebView.</string>
-    <string name="port_fallback">Le port %1$d est utilisé par une autre application : port %2$d pour cette fois. Vos playlists enregistrées reviendront dès que le port %1$d sera libre.</string>
+    <string name="port_fallback">Le port %1$d est utilisé par une autre application : port %2$d pour l\'instant. Vos playlists enregistrées reviennent quand vous revenez dans l\'app une fois le port %1$d libéré.</string>
     <string name="no_stream_to_open">Aucun flux à ouvrir</string>
     <string name="renderer_restarted">Le lecteur a été relancé après avoir manqué de mémoire.</string>
     <string name="renderer_gone_loop">La vue web s\'arrête en boucle (mémoire insuffisante ?). Essayez une playlist plus petite, ou effacez les données de l\'application dans les réglages.</string>

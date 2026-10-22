@@ -124,6 +124,17 @@ public class JsonTest {
         assertTrue("null text", !Json.validate(null));
     }
 
+    /** What validate() accepts is sent verbatim: only text a browser's JSON.parse accepts. */
+    public void testValidateIsAsStrictAsTheBrowser() {
+        String[] lenient = {"[\"a\tb\"]", "{\"plot\":\"line1\nline2\"}", "[\"\\u+041\"]", "[\"\\u-001\"]", "[\"\\u\u0661\u0662\u0663\u0664\"]"};
+        for (String text : lenient) {
+            String shown = text.replace("\t", "<TAB>").replace("\n", "<LF>");
+            assertTrue("parse() still reads " + shown, Json.isValid(text));
+            assertTrue("validate() refuses " + shown, !Json.validate(text));
+        }
+        assertTrue("escaped controls are fine", Json.validate("[\"a\\tb\\u00e9\\uD83D\\uDCFA\"]"));
+    }
+
     @SuppressWarnings("unchecked")
     public void testRawIsWrittenVerbatim() throws java.io.IOException {
         Map<String, Object> out = Json.object();

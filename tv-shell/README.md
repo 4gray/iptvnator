@@ -140,8 +140,9 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 - Fixed origin `http://127.0.0.1:43330`: the PWA's storage belongs to the
   origin, so the port of the first start is remembered and never replaced.
   When another app holds it, the shell retries it briefly, then serves on
-  another port (43330 to 43334) for that run only and says so in a toast and
-  in the diagnostics; the next start returns to the user's data.
+  another port (43330 to 43334) and says so in a toast and in the
+  diagnostics. Each return to the app tries the saved port again and switches
+  back to the user's data as soon as it is free.
 - The Angular service worker is not served (deliberate 404): the bundle ships
   inside the APK, caching would only make updates stale.
 - `tv.js` is loaded **before** the bundle through a same-origin
@@ -162,8 +163,10 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 - The screen is kept on only while a `<video>`/`<audio>` plays (and during the
   splash): `tv.js` reports `playing`/`pause`/`ended`/`emptied` to the shell, so
   the screensaver and the device's sleep work on lists and menus.
-- After Android closes the app in the background, it reopens on the route it
-  was showing (saved instance state; the server's SPA fallback serves any route).
+- After Android closes the app, or only its renderer, in the background, it
+  reopens on the route it was showing (saved instance state; the server's SPA
+  fallback serves any route). A display change that alters the scale reloads
+  the same route.
 - Layout width 1280 CSS px (960 / 1600 selectable) with the page scale pinned
   from the measured screen width (`DisplayMetrics`; a 1080p Fire TV is 960 CSS
   px wide, so the scale is 0.75): the WebView's own overview-mode fit proved
@@ -268,9 +271,10 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 - **"The embedded server could not start"**: ports 43330 to 43334 are taken by
   another application; close it or restart the stick. The chosen port is
   remembered because the app's data is bound to `http://127.0.0.1:port`.
-- **"Port 43330 is used by another app"** toast, empty app: this run uses a
+- **"Port 43330 is used by another app"** toast, empty app: the app runs on a
   temporary port, so the saved playlists are not visible. Close the other app
-  (or restart the stick) and reopen; nothing was lost.
+  (or restart the stick) and come back to IPTVnator; nothing was lost. Do not
+  add your sources again meanwhile: they would stay on the temporary port.
 - **"The player was restarted after it ran out of memory"**: the WebView's
   renderer was killed; the app reloads from its start view (the last view only
   when IPTVnator's start-up setting restores it). If it keeps happening, use a
@@ -307,9 +311,11 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   URL". For Xtream, choose the `m3u8` output format in the playlist settings.
   Each new attempt on a channel asks again.
 - **The VLC prompt no longer appears**: Shell settings → *External player* →
-  tick "Offer an external player" and pick the player. A dropped connection
-  (media error 1 or 2 from the browser player) does not offer it: VLC would
-  fail the same way.
+  tick "Offer an external player" and pick the player. With the HTML5 or
+  ArtPlayer engine, a dropped connection (native media error 1 or 2) does not
+  offer it: VLC would fail the same way. The default video.js engine still
+  offers it, because it reports a manifest the page may not read (no CORS) as
+  that same network error, and VLC plays those.
 - **"Error, something went wrong (ERR_RESPONSE_TOO_LARGE)"** when adding a
   source: the playlist or portal answer is larger than the device can hold; use
   a smaller export (one country, no VOD) or an Xtream portal.

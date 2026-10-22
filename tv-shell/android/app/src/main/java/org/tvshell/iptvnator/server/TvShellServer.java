@@ -169,6 +169,9 @@ public final class TvShellServer extends NanoHTTPD {
                             return close(error(Response.Status.BAD_REQUEST, "invalid Content-Length"));
                         }
                     }
+                    if (declared < 0) {
+                        return close(error(Response.Status.BAD_REQUEST, "invalid Content-Length"));
+                    }
                     if (declared > MAX_API_BODY_BYTES) {
                         return close(error(Response.Status.PAYLOAD_TOO_LARGE, "request body too large"));
                     }
@@ -216,6 +219,7 @@ public final class TvShellServer extends NanoHTTPD {
 
     /** Exactly the declared bytes (bounded by the caller), straight from the socket; null when empty. */
     private static String readBody(InputStream in, int length) throws IOException {
+        if (length <= 0) return null;
         byte[] data = new byte[length];
         int off = 0;
         while (off < length) {
