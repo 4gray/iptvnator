@@ -77,7 +77,7 @@ describe('detectProviderImportCandidates', () => {
         it('leans xtream for labeled username+password with a labeled host and port', () => {
             const candidates = detectProviderImportCandidates(
                 [
-                    'Host: super.tv',
+                    'Host: super.example.com',
                     'Port: 8080',
                     'User: carol',
                     'Pass: pa55w0rd',
@@ -88,10 +88,10 @@ describe('detectProviderImportCandidates', () => {
             expect(xtream).toHaveLength(1);
             expect(xtream[0]).toMatchObject({
                 confidence: 'medium',
-                serverUrl: 'http://super.tv:8080',
+                serverUrl: 'http://super.example.com:8080',
                 username: 'carol',
                 password: 'pa55w0rd',
-                suggestedTitle: 'super.tv',
+                suggestedTitle: 'super.example.com',
             });
         });
 
@@ -131,7 +131,7 @@ describe('detectProviderImportCandidates', () => {
             // slip past chat spam filters, ➤ as the separator, ├◉ decoration.
             const candidates = detectProviderImportCandidates(
                 [
-                    '◉𝙿𝙾𝚁𝚃𝙰𝙻➤ http://tv.example.nl:80/',
+                    '◉𝙿𝙾𝚁𝚃𝙰𝙻➤ http://decorated.example.com:80/',
                     '├◉𝚄𝚂𝙴𝚁➤ 6b13aa64d3',
                     '├◉𝙿𝙰𝚂𝚂➤ 602bb462ab75',
                 ].join('\n')
@@ -140,7 +140,7 @@ describe('detectProviderImportCandidates', () => {
             const xtream = only(candidates, 'xtream');
             expect(xtream).toHaveLength(1);
             expect(xtream[0]).toMatchObject({
-                serverUrl: 'http://tv.example.nl',
+                serverUrl: 'http://decorated.example.com',
                 username: '6b13aa64d3',
                 password: '602bb462ab75',
             });
@@ -166,24 +166,24 @@ describe('detectProviderImportCandidates', () => {
         );
 
         it('folds negative-circled font labels (🅤🅢🅔🅡 / 🅟🅐🅢🅢) and reads the get.php line', () => {
-            // Verbatim reseller message: negative-circled capitals NFKC does
+            // Sanitized representative message: negative-circled capitals NFKC does
             // not fold, ➤➤ separators, and a "🅜➌🅤 🅛🅘🅢🅣" (M3U LIST) get.php
             // line whose query is the authoritative credential source.
             const candidates = detectProviderImportCandidates(
                 [
-                    '╭● 🅤🅡🅛 ➤➤ http://raztv.online:80',
-                    '├● 🅤🅢🅔🅡 ➤➤ 94U19T3EAQ68DAP',
-                    '├● 🅟🅐🅢🅢 ➤➤ 6uU3DX7OP5',
-                    '╰● 🅜➌🅤 🅛🅘🅢🅣 ➤➤ http://raztv.online:80/get.php?username=94U19T3EAQ68DAP&password=6uU3DX7OP5&type=m3u_plus',
+                    '╭● 🅤🅡🅛 ➤➤ http://styled.example.com:80',
+                    '├● 🅤🅢🅔🅡 ➤➤ demo-user-123',
+                    '├● 🅟🅐🅢🅢 ➤➤ demo-pass-456',
+                    '╰● 🅜➌🅤 🅛🅘🅢🅣 ➤➤ http://styled.example.com:80/get.php?username=demo-user-123&password=demo-pass-456&type=m3u_plus',
                 ].join('\n')
             );
 
             const xtream = only(candidates, 'xtream');
             expect(xtream).toHaveLength(1);
             expect(xtream[0]).toMatchObject({
-                serverUrl: 'http://raztv.online',
-                username: '94U19T3EAQ68DAP',
-                password: '6uU3DX7OP5',
+                serverUrl: 'http://styled.example.com',
+                username: 'demo-user-123',
+                password: 'demo-pass-456',
             });
         });
 
@@ -194,7 +194,7 @@ describe('detectProviderImportCandidates', () => {
             // word boundary.
             const candidates = detectProviderImportCandidates(
                 [
-                    'Server: iptv.example.tv',
+                    'Server: iptv.example.com',
                     '🇹🇷PORT: 8080',
                     '🇺🇸🇪🇷 : carol',
                     '🇵🇦🇸🇸 : pa55',
@@ -204,7 +204,7 @@ describe('detectProviderImportCandidates', () => {
             const xtream = only(candidates, 'xtream');
             expect(xtream).toHaveLength(1);
             expect(xtream[0]).toMatchObject({
-                serverUrl: 'http://iptv.example.tv:8080',
+                serverUrl: 'http://iptv.example.com:8080',
                 username: 'carol',
                 password: 'pa55',
             });
@@ -221,9 +221,9 @@ describe('detectProviderImportCandidates', () => {
         it('reads an email-shaped username and ignores stats lines (corpus #1)', () => {
             const candidates = detectProviderImportCandidates(
                 [
-                    'http://lordstreams.live:80',
-                    'User=mszala@comcast.net',
-                    'Pass=0323910031',
+                    'http://account.example.com:80',
+                    'User=viewer@example.net',
+                    'Pass=demo-password-1',
                     '30602 channels',
                     'Validity 27/12/26',
                 ].join('\n')
@@ -232,24 +232,24 @@ describe('detectProviderImportCandidates', () => {
             const xtream = only(candidates, 'xtream');
             expect(xtream).toHaveLength(1);
             expect(xtream[0]).toMatchObject({
-                serverUrl: 'http://lordstreams.live',
-                username: 'mszala@comcast.net',
-                password: '0323910031',
+                serverUrl: 'http://account.example.com',
+                username: 'viewer@example.net',
+                password: 'demo-password-1',
             });
         });
 
         it('reads the bare "URL, token, token" handout shape (corpus #2)', () => {
             const candidates = detectProviderImportCandidates(
-                'http://alltvmx.com\nVictoria89\nVictoria89'
+                'http://bare.example.com\ndemo-user\ndemo-user'
             );
 
             const xtream = only(candidates, 'xtream');
             expect(xtream).toHaveLength(1);
             expect(xtream[0]).toMatchObject({
                 confidence: 'low',
-                serverUrl: 'http://alltvmx.com',
-                username: 'Victoria89',
-                password: 'Victoria89',
+                serverUrl: 'http://bare.example.com',
+                username: 'demo-user',
+                password: 'demo-user',
             });
         });
 
@@ -263,13 +263,13 @@ describe('detectProviderImportCandidates', () => {
 
         it('handles indented labels and numeric credentials (corpus #4)', () => {
             const candidates = detectProviderImportCandidates(
-                'http://eliplay.onl:8089\nUser: 111\n Pass: 111'
+                'http://numeric.example.com:8089\nUser: 111\n Pass: 111'
             );
 
             const xtream = only(candidates, 'xtream');
             expect(xtream).toHaveLength(1);
             expect(xtream[0]).toMatchObject({
-                serverUrl: 'http://eliplay.onl:8089',
+                serverUrl: 'http://numeric.example.com:8089',
                 username: '111',
                 password: '111',
             });
@@ -278,16 +278,16 @@ describe('detectProviderImportCandidates', () => {
         it('prefers the get.php line of a full panel dump (corpus #5)', () => {
             const candidates = detectProviderImportCandidates(
                 [
-                    '𝙋𝙤𝙧𝙩𝙖𝙡 : http://31.43.191.125',
+                    '𝙋𝙤𝙧𝙩𝙖𝙡 : http://192.0.2.125',
                     '• 𝘾𝙧𝙚𝙖𝙩𝙚𝙙 : 09/02/2026',
                     '• 𝙀𝙭𝙥 : 10/02/2027',
-                    '• 𝙐𝙨𝙚𝙧 : vip6001770656088',
-                    '• 𝙋𝙖𝙨𝙨 : c394e34a0504',
+                    '• 𝙐𝙨𝙚𝙧 : demo-panel-user',
+                    '• 𝙋𝙖𝙨𝙨 : demo-panel-pass',
                     '• 𝘾𝙤𝙣𝙣 : 1',
                     '• 𝙈𝙖𝙭𝘾𝙤𝙣𝙣 : 1',
                     '• 𝙋𝙤𝙧𝙩 : 8080',
                     '• 𝙎𝙩𝙖𝙩𝙪𝙨 : # OK ✅',
-                    '• 𝐌𝟑𝐔 : http://31.43.191.125:8080/get.php?username=vip6001770656088&password=c394e34a0504&type=m3u',
+                    '• 𝐌𝟑𝐔 : http://192.0.2.125:8080/get.php?username=demo-panel-user&password=demo-panel-pass&type=m3u',
                 ].join('\n')
             );
 
@@ -295,16 +295,16 @@ describe('detectProviderImportCandidates', () => {
             expect(xtream).toHaveLength(1);
             expect(xtream[0]).toMatchObject({
                 confidence: 'high',
-                serverUrl: 'http://31.43.191.125:8080',
-                username: 'vip6001770656088',
-                password: 'c394e34a0504',
+                serverUrl: 'http://192.0.2.125:8080',
+                username: 'demo-panel-user',
+                password: 'demo-panel-pass',
             });
         });
 
         it('completes a port-less labeled portal URL with the labeled port', () => {
             const candidates = detectProviderImportCandidates(
                 [
-                    'Portal : http://panel.example.io',
+                    'Portal : http://panel.example.com',
                     'Port : 8080',
                     'User : u1',
                     'Pass : p1',
@@ -312,7 +312,7 @@ describe('detectProviderImportCandidates', () => {
             );
 
             const xtream = only(candidates, 'xtream');
-            expect(xtream[0].serverUrl).toBe('http://panel.example.io:8080');
+            expect(xtream[0].serverUrl).toBe('http://panel.example.com:8080');
         });
 
         it('reads an inline one-line handout with pipe delimiters', () => {
@@ -463,7 +463,7 @@ describe('detectProviderImportCandidates', () => {
 
         it('treats credentials in the query of a generic URL as xtream', () => {
             const candidates = detectProviderImportCandidates(
-                'http://portal.example.io/api?username=eve&password=pw&foo=bar'
+                'http://portal.example.com/api?username=eve&password=pw&foo=bar'
             );
 
             const xtream = only(candidates, 'xtream');
@@ -635,15 +635,15 @@ describe('detectProviderImportCandidates', () => {
 
         it('reads a dual "DEVICE ID=> 1&2 <hex>" line into both device slots and "S N" as serial', () => {
             const deviceHex =
-                'FCE5A3B00FA5E2B9207E23FC205536314200BEE0FB2FCF0608FB97B6C7337E7F';
+                'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
             const candidates = detectProviderImportCandidates(
                 [
-                    'http://tv.saartv.cc/stalker_portal/c',
-                    'MAC=> 00:1A:79:00:E3:C9',
+                    'http://device.example.com/stalker_portal/c',
+                    'MAC=> 02:00:00:00:00:01',
                     'EXP=> 2030-01-13',
                     'MAX => 10000',
                     'ADULT PASS=> 7700',
-                    'S N=> F2DD20855EE0C',
+                    'S N=> DEADBEEF00001',
                     `DEVICE ID=> 1&2 ${deviceHex}`,
                 ].join('\n')
             );
@@ -651,9 +651,9 @@ describe('detectProviderImportCandidates', () => {
             const stalker = only(candidates, 'stalker');
             expect(stalker).toHaveLength(1);
             expect(stalker[0]).toMatchObject({
-                portalUrl: 'http://tv.saartv.cc/stalker_portal/c',
-                macAddress: '00:1A:79:00:E3:C9',
-                serialNumber: 'F2DD20855EE0C',
+                portalUrl: 'http://device.example.com/stalker_portal/c',
+                macAddress: '02:00:00:00:00:01',
+                serialNumber: 'DEADBEEF00001',
                 deviceId1: deviceHex,
                 deviceId2: deviceHex,
             });
@@ -667,8 +667,8 @@ describe('detectProviderImportCandidates', () => {
                     '⚙️➤System : MediaHack Pro v7.7 (MAC)',
                     '🔌➤Portal Type : Stalker / XUI (/c/)',
                     '✅➤Tarama Zamanı: 2026-03-05 13:28:23',
-                    '🌍➤Portal : http://b1.jinbox.nl:80/c/',
-                    '🆔➤MAC ADRESİ: 00:1A:79:B4:EB:EB',
+                    '🌍➤Portal : http://turkish.example.com:80/c/',
+                    '🆔➤MAC ADRESİ: 02:00:00:00:00:02',
                     '📆➤Son Tarih : Süresiz',
                     '🖥➤Plan : MAG/MAC',
                     '🔊➤ɢᴏʀᴜɴᴛᴜ: Var 👍',
@@ -678,17 +678,17 @@ describe('detectProviderImportCandidates', () => {
             const stalker = only(candidates, 'stalker');
             expect(stalker).toHaveLength(1);
             expect(stalker[0]).toMatchObject({
-                portalUrl: 'http://b1.jinbox.nl:80/c/',
-                macAddress: '00:1A:79:B4:EB:EB',
+                portalUrl: 'http://turkish.example.com:80/c/',
+                macAddress: '02:00:00:00:00:02',
             });
         });
 
         it('reads a scanner dump with Real/Panel URLs and bold-italic labels (corpus #3)', () => {
             const candidates = detectProviderImportCandidates(
                 [
-                    '├○ 𝑹𝒆𝒂𝒍 ➤ http://main.light-ott.net:80/c/',
-                    '├○ 𝑷𝒂𝒏𝒆𝒍 ➤ http://main.light-ott.net/c/',
-                    '├○ 𝑴𝒂𝒄 ➤ 00:1A:79:f5:cd:04',
+                    '├○ 𝑹𝒆𝒂𝒍 ➤ http://scanner.example.net:80/c/',
+                    '├○ 𝑷𝒂𝒏𝒆𝒍 ➤ http://scanner.example.net/c/',
+                    '├○ 𝑴𝒂𝒄 ➤ 02:00:00:00:00:03',
                     '├○ 𝑷𝒂𝒏𝒆𝒍 𝑻𝒚𝒑𝒆 ➤ portal.php',
                     '├○ 𝑬𝒙𝒑 ➤ July 26, 2027, 12:41 pm',
                 ].join('\n')
@@ -698,19 +698,19 @@ describe('detectProviderImportCandidates', () => {
             expect(stalker).toHaveLength(1);
             expect(stalker[0]).toMatchObject({
                 confidence: 'high',
-                portalUrl: 'http://main.light-ott.net:80/c/',
-                macAddress: '00:1A:79:F5:CD:04',
+                portalUrl: 'http://scanner.example.net:80/c/',
+                macAddress: '02:00:00:00:00:03',
             });
         });
 
         it('produces one candidate per MAC of a multi-account list (corpus #6)', () => {
             const candidates = detectProviderImportCandidates(
                 [
-                    'http://mag.tivi-one-iptv.net/c/',
-                    '00:1A:79:61:31:34  13/01/2027',
-                    '00:1A:79:9C:E8:78  31/12/2027 (513 Days)',
-                    '00:1A:79:A0:E3:66  18/08/2027 (378 Days)',
-                    '00:1A:79:AD:85:3E  16/08/2027 (377 Days)',
+                    'http://multi-account.example.net/c/',
+                    '02:00:00:00:00:04  13/01/2027',
+                    '02:00:00:00:00:05  31/12/2027 (513 Days)',
+                    '02:00:00:00:00:06  18/08/2027 (378 Days)',
+                    '02:00:00:00:00:07  16/08/2027 (377 Days)',
                 ].join('\n')
             );
 
@@ -719,27 +719,27 @@ describe('detectProviderImportCandidates', () => {
             expect(
                 stalker.every(
                     (candidate) =>
-                        candidate.portalUrl === 'http://mag.tivi-one-iptv.net/c/'
+                        candidate.portalUrl === 'http://multi-account.example.net/c/'
                 )
             ).toBe(true);
             expect(stalker.map((candidate) => candidate.macAddress)).toEqual([
-                '00:1A:79:61:31:34',
-                '00:1A:79:9C:E8:78',
-                '00:1A:79:A0:E3:66',
-                '00:1A:79:AD:85:3E',
+                '02:00:00:00:00:04',
+                '02:00:00:00:00:05',
+                '02:00:00:00:00:06',
+                '02:00:00:00:00:07',
             ]);
         });
 
         it('reads separator-less SN and a decorated ¹💥² dual device ID (corpus #8)', () => {
             const deviceHex =
-                'AD8D35940A3FA14EA07451780224114F276D0F3BB4427E5351436F60ED6BF0BA';
+                'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
             const candidates = detectProviderImportCandidates(
                 [
-                    'http://tv.saartv.cc/stalker_portal/c/',
-                    'Mac 00:1a:79:01:07:06',
+                    'http://device.example.com/stalker_portal/c/',
+                    'Mac 02:00:00:00:00:08',
                     '𝐄𝐗𝐏 𝐃𝐚𝐭𝐞 2026-08-07',
                     '🔥 🆅🅿️🅽 Toronto',
-                    '𝐒𝐍 38415545307A3',
+                    '𝐒𝐍 DEADBEEF00002',
                     `𝐃𝐞𝐯𝐢𝐜𝐞𝐈𝐃 ¹💥² ${deviceHex}`,
                 ].join('\n')
             );
@@ -747,9 +747,9 @@ describe('detectProviderImportCandidates', () => {
             const stalker = only(candidates, 'stalker');
             expect(stalker).toHaveLength(1);
             expect(stalker[0]).toMatchObject({
-                portalUrl: 'http://tv.saartv.cc/stalker_portal/c/',
-                macAddress: '00:1A:79:01:07:06',
-                serialNumber: '38415545307A3',
+                portalUrl: 'http://device.example.com/stalker_portal/c/',
+                macAddress: '02:00:00:00:00:08',
+                serialNumber: 'DEADBEEF00002',
                 deviceId1: deviceHex,
                 deviceId2: deviceHex,
             });
@@ -760,9 +760,9 @@ describe('detectProviderImportCandidates', () => {
                 [
                     '├○ 𝑺𝒄𝒂𝒏𝒏𝒆𝒅 𝑩𝒚 ➤ ★☆★ 𝓜𝓲𝓱𝓪𝓳𝓵𝓸 𝓘𝓿𝓲𝓬 ★☆★',
                     '├○ 𝑺𝒄𝒂𝒏 𝑫𝒂𝒕𝒆 / 𝑻𝒊𝒎𝒆 ➤ 11.08.2026. • 11:38:54',
-                    '├○ 𝑹𝒆𝒂𝒍 ➤ http://kamariato.com:80',
-                    '├○ 𝑷𝒂𝒏𝒆𝒍 ➤ http://kamariato.com:80/c/',
-                    '├○ 𝑴𝒂𝒄 ➤ 00:1A:79:f1:6a:9f',
+                    '├○ 𝑹𝒆𝒂𝒍 ➤ http://status.example.com:80',
+                    '├○ 𝑷𝒂𝒏𝒆𝒍 ➤ http://status.example.com:80/c/',
+                    '├○ 𝑴𝒂𝒄 ➤ 02:00:00:00:00:09',
                     '├○ 𝑷𝒂𝒏𝒆𝒍 𝑻𝒚𝒑𝒆 ➤ portal.php',
                     '├○ 𝑬𝒙𝒑 ➤ July 12, 2026, 12:00 am -30 Days',
                     '├○ 𝑽𝒑𝒏 ➤  𝑁𝑜 𝐶𝑙𝑖𝑒𝑛𝑡 𝐼𝑃 𝐴𝑑𝑑𝑟𝑒𝑠𝑠',
@@ -774,8 +774,8 @@ describe('detectProviderImportCandidates', () => {
             const stalker = only(candidates, 'stalker');
             expect(stalker).toHaveLength(1);
             expect(stalker[0]).toMatchObject({
-                portalUrl: 'http://kamariato.com:80/c/',
-                macAddress: '00:1A:79:F1:6A:9F',
+                portalUrl: 'http://status.example.com:80/c/',
+                macAddress: '02:00:00:00:00:09',
             });
             expect(only(candidates, 'xtream')).toHaveLength(0);
         });
@@ -783,31 +783,31 @@ describe('detectProviderImportCandidates', () => {
         it('reads a [+]-prefixed dump with serial, device ID and signature (corpus #11)', () => {
             const candidates = detectProviderImportCandidates(
                 [
-                    '[+] Panel: http://mag.jee-ott.xyz:80/c',
-                    '[+] Real: mag.jee-ott.xyz',
-                    '[+] Mac: 00:1B:79:48:3A:90',
+                    '[+] Panel: http://identity.example.com:80/c',
+                    '[+] Real: identity.example.com',
+                    '[+] Mac: 02:00:00:00:00:0A',
                     '[+] Exp.: February 27, 2027, 7:33 pm',
                     '[+] ᴍᴀᴄ ꜱᴛᴀᴛᴜꜱ: ᴍᴀᴄ ᴏꜰꜰ🥺',
                     '[+] ᴍ3ᴜ ꜱᴛᴀᴛᴜꜱ: ᴏꜰꜰʟɪɴᴇ😔',
                     '[+] ᴄʜᴀɴɴᴇʟCategories: 684',
                     '[+] m3u_Url: ',
                     '',
-                    '[+] Serial: 862E1CDB82415',
-                    '[+] Device ID: FA9CBD1857D1D8A57BF1A03542B928CB90779C7CE2673CAC85A5FD4F8B7756E5',
-                    '[+] Signature: A48D3EDCCC09B580CD19A07C8B0A9C44F1D00377CEE9913EE2ADCD858776FD67',
+                    '[+] Serial: DEADBEEF00003',
+                    '[+] Device ID: CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
+                    '[+] Signature: DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
                 ].join('\n')
             );
 
             const stalker = only(candidates, 'stalker');
             expect(stalker).toHaveLength(1);
             expect(stalker[0]).toMatchObject({
-                portalUrl: 'http://mag.jee-ott.xyz:80/c',
-                macAddress: '00:1B:79:48:3A:90',
-                serialNumber: '862E1CDB82415',
+                portalUrl: 'http://identity.example.com:80/c',
+                macAddress: '02:00:00:00:00:0A',
+                serialNumber: 'DEADBEEF00003',
                 deviceId1:
-                    'FA9CBD1857D1D8A57BF1A03542B928CB90779C7CE2673CAC85A5FD4F8B7756E5',
+                    'CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
                 signature1:
-                    'A48D3EDCCC09B580CD19A07C8B0A9C44F1D00377CEE9913EE2ADCD858776FD67',
+                    'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
             });
             expect(stalker[0].deviceId2).toBeUndefined();
         });
