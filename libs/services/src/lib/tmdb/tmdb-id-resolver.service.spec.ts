@@ -35,14 +35,14 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
 
     // The services Jest target has no @angular/core/testing — build the
     // service in a plain injection context instead of TestBed.
-    function createService(): TmdbIdResolverService {
+    function createService(appLanguage = 'en'): TmdbIdResolverService {
         const injector = Injector.create({
             providers: [
                 {
                     provide: TmdbRuntimeService,
                     useValue: {
                         apiKey: () => 'key',
-                        appLanguage: () => 'en',
+                        appLanguage: () => appLanguage,
                     },
                 },
                 {
@@ -93,6 +93,114 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
             tmdbId: 101101,
             payload: null,
         });
+    });
+
+    it('resolves Ukrainian titles using Ukrainian search results and cache entries', async () => {
+        searchMovie.mockImplementation(async (_query, _year, language) => [
+            {
+                id: 603,
+                title: language === 'uk-UA' ? 'Матриця' : 'Матрица',
+                original_title: 'The Matrix',
+                release_date: '1999-03-31',
+            },
+        ]);
+        const service = createService('uk');
+
+        const id = await service.resolveBySearch('movie', {
+            title: 'Матриця',
+            year: 1999,
+        });
+
+        expect(id).toBe(603);
+        expect(searchMovie).toHaveBeenCalledTimes(1);
+        expect(searchMovie).toHaveBeenCalledWith(
+            'Матриця',
+            null,
+            'uk-UA',
+            'key'
+        );
+        expect(cacheGet).toHaveBeenCalledWith(
+            'movie',
+            'title:матриця|year:1999|v4',
+            'uk-UA'
+        );
+        expect(cacheSet).toHaveBeenCalledWith({
+            mediaType: 'movie',
+            lookupKey: 'title:матриця|year:1999|v4',
+            language: 'uk-UA',
+            tmdbId: 603,
+            payload: null,
+        });
+    });
+
+    it.each(['movie', 'tv'] as const)(
+        'retries Russian titles in a Ukrainian %s catalog after a Ukrainian miss',
+        async (mediaType) => {
+            const search = mediaType === 'movie' ? searchMovie : searchTv;
+            search.mockImplementation(async (_query, _year, language) => [
+                {
+                    id: 603,
+                    title: language === 'uk-UA' ? 'Матриця' : 'Матрица',
+                    name: language === 'uk-UA' ? 'Матриця' : 'Матрица',
+                    original_title: 'The Matrix',
+                    original_name: 'The Matrix',
+                    release_date: '1999-03-31',
+                    first_air_date: '1999-03-31',
+                },
+            ]);
+            const service = createService('uk');
+
+            expect(
+                await service.resolveBySearch(mediaType, {
+                    title: 'Матрица',
+                    year: 1999,
+                })
+            ).toBe(603);
+            expect(search.mock.calls.map((call) => call[2])).toEqual([
+                'uk-UA',
+                'ru-RU',
+            ]);
+            expect(
+                cacheSet.mock.calls.map(([row]) => [row.language, row.tmdbId])
+            ).toEqual([
+                ['uk-UA', null],
+                ['ru-RU', 603],
+            ]);
+        }
+    );
+
+    it('uses the Russian cached match after a cached Ukrainian miss', async () => {
+        cacheGet.mockImplementation(async (_type, _key, language) => ({
+            tmdbId: language === 'uk-UA' ? null : 603,
+        }));
+        const service = createService('uk');
+        const cacheService = (service as unknown as { cache: TmdbCacheService })
+            .cache;
+        jest.spyOn(cacheService, 'isFresh').mockReturnValue(true);
+
+        expect(
+            await service.resolveBySearch('movie', {
+                title: 'Матрица',
+                year: 1999,
+            })
+        ).toBe(603);
+        expect(cacheGet.mock.calls.map((call) => call[2])).toEqual([
+            'uk-UA',
+            'ru-RU',
+        ]);
+        expect(searchMovie).not.toHaveBeenCalled();
+        expect(cacheSet).not.toHaveBeenCalled();
+    });
+
+    it('does not retry another language after a transient search error', async () => {
+        searchMovie.mockRejectedValue(new Error('temporarily unavailable'));
+        const service = createService('uk');
+
+        await expect(
+            service.resolveBySearch('movie', { title: 'Матрица', year: 1999 })
+        ).rejects.toThrow('temporarily unavailable');
+        expect(searchMovie).toHaveBeenCalledTimes(1);
+        expect(cacheSet).not.toHaveBeenCalled();
     });
 
     it('caches the miss under the current key, not the folded one', async () => {

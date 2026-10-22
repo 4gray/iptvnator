@@ -111,7 +111,6 @@ export class WorkspaceShellHeaderService {
             this.routeState.activePlaylist()
         )
     );
-    readonly isRefreshingPlaylist = this.playlistRefreshAction.isRefreshing;
     readonly playlistSubtitle = computed(() => {
         this.languageTick();
 

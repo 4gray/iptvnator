@@ -20,9 +20,11 @@ import {
     ThemeOption,
 } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-general-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         CommonModule,
         MatFormFieldModule,

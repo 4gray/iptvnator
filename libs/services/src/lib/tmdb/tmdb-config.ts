@@ -52,6 +52,7 @@ const TMDB_LANGUAGE_MAP: Record<Language, string> = {
     [Language.PORTUGUESE]: 'pt-PT',
     [Language.GREEK]: 'el-GR',
     [Language.HUNGARIAN]: 'hu-HU',
+    [Language.UKRAINIAN]: 'uk-UA',
 };
 
 export function toTmdbLanguage(
@@ -64,7 +65,7 @@ export function toTmdbLanguage(
 }
 
 const CYRILLIC_PATTERN = /[\u0400-\u04ff]/;
-const CYRILLIC_TMDB_LANGUAGES = new Set(['ru-RU', 'be-BY']);
+const CYRILLIC_TMDB_LANGUAGES = new Set(['ru-RU', 'be-BY', 'uk-UA']);
 
 /**
  * Language to use for the /search request. TMDB matches translated titles
@@ -90,6 +91,17 @@ export function tmdbSearchLanguageForTitle(
     return appTmdbLanguage;
 }
 
+/** Try Ukrainian first, then Russian for mixed Cyrillic provider catalogs. */
+export function tmdbSearchLanguagesForTitle(
+    title: string,
+    appLanguage: Language | string | null | undefined
+): readonly string[] {
+    const preferred = tmdbSearchLanguageForTitle(title, appLanguage);
+    return preferred === 'uk-UA' && CYRILLIC_PATTERN.test(title)
+        ? [preferred, 'ru-RU']
+        : [preferred];
+}
+
 export function tmdbPosterUrl(path: string | null | undefined): string | null {
     return path ? `${TMDB_IMAGE_BASE_URL}/${TMDB_POSTER_SIZE}${path}` : null;
 }
@@ -100,9 +112,7 @@ export function tmdbBackdropUrl(
     return path ? `${TMDB_IMAGE_BASE_URL}/${TMDB_BACKDROP_SIZE}${path}` : null;
 }
 
-export function tmdbProfileUrl(
-    path: string | null | undefined
-): string | null {
+export function tmdbProfileUrl(path: string | null | undefined): string | null {
     return path ? `${TMDB_IMAGE_BASE_URL}/${TMDB_PROFILE_SIZE}${path}` : null;
 }
 

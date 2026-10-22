@@ -65,7 +65,7 @@
                     </div>
                     <button
                         type="button"
-                        mat-button
+                        mat-flat-button
                         class="refine-action"
                         [class.refine-action-active]="
                             activeRefinementCount() > 0
@@ -83,6 +83,12 @@
                                 activeRefinementCount()
                             }}</span>
                         }
+                        <mat-icon
+                            class="refine-action__chevron"
+                            iconPositionEnd
+                        >
+                            expand_more
+                        </mat-icon>
                     </button>
                     <mat-menu #refineMenu="matMenu" class="refine-menu">
                         @if (canSortContent()) {
@@ -131,58 +137,74 @@
                                     role="separator"
                                 ></div>
                             }
-                            <div
-                                role="group"
-                                [attr.aria-label]="
-                                    'WORKSPACE.REFINE_RATING_SECTION'
-                                        | translate
-                                "
-                            >
-                                <div
-                                    class="refine-menu-section-title"
-                                    aria-hidden="true"
-                                >
-                                    {{
-                                        'WORKSPACE.REFINE_RATING_SECTION'
-                                            | translate
-                                    }}
-                                </div>
+                            <!-- The thresholds open in a submenu, so the
+                                 menu stays short enough for a small window;
+                                 the row shows the active one. The wrapper
+                                 keeps the row out of MatMenu's direct
+                                 items: the submenu offset is the first
+                                 direct item's offsetTop, which for this
+                                 last row pushed the submenu off screen. -->
+                            <div role="none">
                                 <button
                                     mat-menu-item
-                                    [appMenuItemRadio]="minRating() === null"
-                                    (click)="setMinRating(null)"
+                                    class="refine-rating-trigger"
+                                    [matMenuTriggerFor]="ratingMenu"
+                                >
+                                    <mat-icon>star_outline</mat-icon>
+                                    <span>{{
+                                        'WORKSPACE.REFINE_RATING_SECTION'
+                                            | translate
+                                    }}</span>
+                                    @if (minRating(); as rating) {
+                                        <span class="refine-rating-value"
+                                            >{{ rating }}.0+</span
+                                        >
+                                    }
+                                </button>
+                            </div>
+                        }
+                    </mat-menu>
+                    <mat-menu
+                        #ratingMenu="matMenu"
+                        class="refine-menu refine-rating-menu"
+                    >
+                        <div
+                            role="group"
+                            [attr.aria-label]="
+                                'WORKSPACE.REFINE_RATING_SECTION' | translate
+                            "
+                        >
+                            <button
+                                mat-menu-item
+                                [appMenuItemRadio]="minRating() === null"
+                                (click)="setMinRating(null)"
+                            >
+                                <mat-icon appMenuItemRadioCheck>check</mat-icon>
+                                <span>{{
+                                    'WORKSPACE.FILTER_RATING_ANY' | translate
+                                }}</span>
+                            </button>
+                            @for (
+                                threshold of ratingThresholds;
+                                track threshold
+                            ) {
+                                <button
+                                    mat-menu-item
+                                    [appMenuItemRadio]="
+                                        minRating() === threshold
+                                    "
+                                    (click)="setMinRating(threshold)"
                                 >
                                     <mat-icon appMenuItemRadioCheck
                                         >check</mat-icon
                                     >
                                     <span>{{
-                                        'WORKSPACE.FILTER_RATING_ANY'
-                                            | translate
+                                        'WORKSPACE.FILTER_RATING_MIN'
+                                            | translate: { value: threshold }
                                     }}</span>
                                 </button>
-                                @for (
-                                    threshold of ratingThresholds;
-                                    track threshold
-                                ) {
-                                    <button
-                                        mat-menu-item
-                                        [appMenuItemRadio]="
-                                            minRating() === threshold
-                                        "
-                                        (click)="setMinRating(threshold)"
-                                    >
-                                        <mat-icon appMenuItemRadioCheck
-                                            >check</mat-icon
-                                        >
-                                        <span>{{
-                                            'WORKSPACE.FILTER_RATING_MIN'
-                                                | translate
-                                                    : { value: threshold }
-                                        }}</span>
-                                    </button>
-                                }
-                            </div>
-                        }
+                            }
+                        </div>
                     </mat-menu>
                 }
             </div>

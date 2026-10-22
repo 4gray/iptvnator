@@ -47,7 +47,6 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
-    isWorkspaceLayoutRoute,
     LiveEpgPanelState,
     persistLiveEpgPanelState,
     persistPortalChannelSortMode,
@@ -216,14 +215,8 @@ export class LiveStreamLayoutComponent
     );
     readonly isElectron = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
-    private readonly routeSearchTerm = queryParamSignal(
-        this.route,
-        'q',
-        (value) => (value ?? '').trim()
-    );
-    readonly workspaceSearchTerm = computed(() =>
-        this.isWorkspaceLayout ? this.routeSearchTerm() : ''
+    readonly workspaceSearchTerm = queryParamSignal(this.route, 'q', (value) =>
+        (value ?? '').trim()
     );
     readonly showLiveChannelSidebar = computed(
         () => !!this.selectedCategoryId() || !!this.workspaceSearchTerm()
@@ -702,7 +695,17 @@ export class LiveStreamLayoutComponent
         if (startPlayback && streamUrl) {
             this.recordRecentItem(
                 streamUrl,
-                { xtreamId: item.xtream_id, contentType: 'live' },
+                {
+                    xtreamId: item.xtream_id,
+                    contentType: 'live',
+                    playedContent: {
+                        title: item.title ?? item.name ?? '',
+                        posterUrl: item.poster_url ?? item.stream_icon,
+                        categoryId: item.category_id,
+                        tmdbId: item.tmdb_id ?? undefined,
+                        releaseYear: item.release_year ?? undefined,
+                    },
+                },
                 this.usesEmbeddedPlayer()
                     ? this.playbackSessionKey()
                     : undefined

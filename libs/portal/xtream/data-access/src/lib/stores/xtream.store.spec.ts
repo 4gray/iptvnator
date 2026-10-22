@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import {
     DataService,
     DatabaseService,
@@ -75,6 +77,11 @@ function configureStore(
     TestBed.configureTestingModule({
         providers: [
             XtreamStore,
+            { provide: MatSnackBar, useValue: { open: jest.fn() } },
+            {
+                provide: TranslateService,
+                useValue: { instant: (key: string) => key },
+            },
             { provide: XTREAM_DATA_SOURCE, useValue: dataSource },
             { provide: XtreamApiService, useValue: xtreamApiService },
             { provide: DatabaseService, useValue: {} },
@@ -343,6 +350,39 @@ describe('XtreamStore VOD details recovery', () => {
         });
         expect(store.detailsError()).toBeNull();
         expect(store.isLoadingDetails()).toBe(false);
+    });
+
+    it('publishes series details without provider stand-ins', async () => {
+        const xtreamApiService = {
+            getSeriesInfo: jest.fn().mockResolvedValue({
+                info: {
+                    name: 'Placeholder Series',
+                    plot: 'N/A',
+                    rating: '0',
+                    releaseDate: 'N/A',
+                },
+                seasons: [],
+                episodes: {},
+            }),
+            getVodInfo: jest.fn(),
+            getVodStream: jest.fn(),
+        };
+        const store = configureStore(xtreamApiService);
+
+        store.fetchSerialDetailsWithMetadata({
+            categoryId: 7,
+            serialId: '99',
+        });
+        await waitForCondition(() => store.selectedItem() !== null);
+
+        expect(
+            (store.selectedItem() as { info: Record<string, unknown> }).info
+        ).toEqual({
+            name: 'Placeholder Series',
+            plot: '',
+            rating: '',
+            releaseDate: '',
+        });
     });
 
     it('clears the previous series while a reused-route request is pending or fails', async () => {

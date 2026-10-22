@@ -159,9 +159,6 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
                             queryParamMap: convertToParamMap({}),
                         },
                         queryParamMap: of(convertToParamMap({})),
-                        pathFromRoot: [
-                            { snapshot: { data: { layout: 'workspace' } } },
-                        ],
                     },
                 },
                 {

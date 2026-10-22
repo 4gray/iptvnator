@@ -164,9 +164,11 @@
                                         {{ 'DOWNLOADS.COPY_URL' | translate }}
                                     </span>
                                 </button>
+                                <mat-divider />
                                 <button
                                     mat-menu-item
                                     type="button"
+                                    class="app-menu-item--danger"
                                     [disabled]="isPending(entity.item)"
                                     [attr.aria-label]="
                                         ('DOWNLOADS.REMOVE_FROM_MANAGER'

@@ -21,4 +21,5 @@ export enum Language {
     PORTUGUESE = 'pt',
     GREEK = 'el',
     HUNGARIAN = 'hu',
+    UKRAINIAN = 'uk',
 }

@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
@@ -213,7 +214,7 @@ export class StreamResolverService {
         const stalkerByPlaylist = new Map<string, UnifiedCollectionItem[]>();
 
         for (const item of items) {
-            if (item.contentType !== 'live') {
+            if (item.contentType !== 'live' || isCatalogUnavailable(item)) {
                 continue;
             }
 

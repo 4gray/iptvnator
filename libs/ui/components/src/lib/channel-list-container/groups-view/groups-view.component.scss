@@ -2,6 +2,8 @@
 @use '../../../../../styles/portal-sidebar';
 @use '../../../../../styles/panel-header' as panel;
 @use '../../../../../styles/nav-list';
+@use '../../../../../styles/focus-ring';
+@use '../../styles/channel-list-layout' as layout;
 
 :host {
     display: flex;
@@ -56,25 +58,15 @@
 }
 
 .groups-nav-header {
-    padding: 4px 6px 12px;
-    flex-shrink: 0;
-    display: flex;
-    gap: 10px;
-    flex-direction: column;
+    @include layout.groups-nav-header-box;
 }
 
 .groups-nav-header__content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    @include layout.groups-nav-header-row;
 }
 
 .groups-nav-title {
-    margin: 0;
-    font-size: 0.94rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    @include layout.groups-nav-title-type;
     color: var(--mat-sys-on-surface);
 }
 
@@ -118,9 +110,9 @@
         box-shadow 0.15s ease;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-focus-ring);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-focus-ring) 12%, transparent);
     }
 }
 
@@ -168,11 +160,6 @@
     }
 }
 
-.groups-content-header {
-    @include panel.standard-panel-header();
-    border-top-left-radius: inherit;
-}
-
 .groups-content-header button {
     @include mat.form-field-density(-5);
 }
@@ -181,9 +168,7 @@
     @include panel.standard-panel-meta();
 
     &--stacked {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
+        @include layout.groups-content-meta-stacked;
     }
 }
 
@@ -238,14 +223,6 @@
     background: transparent;
 }
 
-.channel-context-menu-anchor {
-    position: fixed;
-    width: 0;
-    height: 0;
-    opacity: 0;
-    pointer-events: none;
-}
-
 .groups-content-panel {
     width: auto;
     min-width: 0;
@@ -261,7 +238,10 @@
     border-top-left-radius: 16px;
 }
 
+// Outranks `.sidebar .sidebar-header` (portal-sidebar), so the header's box
+// comes from the mixin the loading skeleton shares.
 .groups-content-panel > .groups-content-header {
+    @include layout.groups-content-header-box;
     border-top-left-radius: inherit;
 }
 
@@ -355,8 +335,7 @@
 
     &:focus-visible {
         color: var(--app-heading-color);
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     mat-icon {

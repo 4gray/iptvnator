@@ -1,3 +1,5 @@
+@use '../../../../../../../../ui/styles/focus-ring';
+
 :host {
     display: block;
     min-width: 0;
@@ -30,6 +32,19 @@
     flex-shrink: 0;
     margin-inline-start: -8px;
     app-region: no-drag;
+    // Fades in while the controls after it slide aside (LayoutSlideDirective)
+    // instead of showing under the switcher that is still moving away.
+    animation: header-back-enter 180ms ease;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+@keyframes header-back-enter {
+    from {
+        opacity: 0;
+    }
 }
 
 // Above the phone breakpoint the context panel is always visible beside the
@@ -58,9 +73,9 @@
     app-region: no-drag;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-focus-ring);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-focus-ring) 12%, transparent);
     }
 
     mat-icon {
@@ -182,8 +197,7 @@
         }
 
         &:focus-visible {
-            outline: 2px solid var(--mat-sys-primary);
-            outline-offset: 1px;
+            @include focus-ring.focus-ring-declarations($offset: 1px);
         }
     }
 }
@@ -276,7 +290,7 @@
     width: 18px;
     height: 2px;
     border-radius: 1px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--app-on-surface) 8%, transparent);
     overflow: hidden;
     pointer-events: none;
     z-index: 10;

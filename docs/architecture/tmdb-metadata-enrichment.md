@@ -172,8 +172,13 @@ when the provider's year is off by one.
 the _request_ language, so a Cyrillic query issued with `en-US` would come
 back with an English title and fail the exact-match gate.
 `tmdbSearchLanguageForTitle` detects Cyrillic queries and issues the search
-with `ru-RU` (unless the app language is already Cyrillic-based); details
-are still fetched in the app language afterwards.
+with `ru-RU` unless the app language is Russian (`ru-RU`), Belarusian
+(`be-BY`), or Ukrainian (`uk-UA`), in which case it keeps that language.
+Details are still fetched in the app language afterwards.
+For mixed catalogs, a Cyrillic search that has no confident Ukrainian match
+retries in Russian. Each language keeps its own cached verdict; a cached
+Ukrainian miss still permits the Russian lookup. Transient API errors do not
+trigger a retry in another language.
 
 ## Details Fetch and Localization
 
@@ -208,7 +213,8 @@ component for detail→detail navigation.
 
 `CrossPortalSimilarService` (`libs/services`) extends the rail across
 portals: recommendations are matched against ALL imported Xtream
-playlists with one batched `DB_MATCH_TITLES` request (Electron only,
+playlists with one batched match (`DB_MATCH_TITLES`, sent in small
+requests, see "Sending a batched match"; Electron only,
 same two-tier + year rule). Stalker detail views — where the local
 catalog is server-paginated and unmatchable — get their "Similar" rail
 purely from these cross-portal matches (shared `VodDetailsComponent` for
@@ -353,7 +359,8 @@ Filmography has two scopes:
   rest open the portal search prefilled with the title (`?q=`). Stalker
   has no local catalog, so every title goes through the portal search.
 - **All portals** (Electron only, toggle hidden in the PWA): one batched
-  `DB_MATCH_TITLES` worker request runs a trigram-FTS lookup per title
+  match (`DB_MATCH_TITLES` worker requests of five titles, see "Sending a
+  batched match") runs a trigram-FTS lookup per title
   over ALL imported Xtream playlists
   (`operations/title-match.operations.ts`), confirming candidates with
   the same two-tier normalized-title matching the renderer uses
@@ -362,6 +369,24 @@ Filmography has two scopes:
   (shown in the badge) and navigate into that playlist's detail view.
   This also works from Stalker actor pages — the one place the Stalker
   catalog limitation is lifted.
+
+### Sending a batched match
+
+`CatalogTitleMatchService.matchTitles` deduplicates the titles, keeps the
+first `TITLE_MATCH_TITLE_LIMIT` (200, the worker's own cap) and sends them
+in `DB_MATCH_TITLES` requests of `TITLE_MATCH_REQUEST_SIZE` (5), one after
+another, concatenating the answers in order. The DB worker answers one
+request at a time, so a whole rail's batch in one request held every other
+read behind it: on a 3.9M-title library one recommendations batch took
+95 s cold and kept the dashboard's playback positions (and with them the
+Continue Watching rail) waiting; now other reads wait for five titles at
+most. The answer stays all-or-nothing: a failed
+request, or a parental lock that starts withholding everything midway,
+returns no matches, as one failed request did before. One request ran
+under one parental-lock state, so a batch does too: when
+`ParentalLockService.version()` changes between requests (a relock, an
+unlock, a changed lock list) the batch starts over, and after
+`TITLE_MATCH_LOCK_ATTEMPTS` (3) changing attempts it returns no matches.
 
 ### Resolving a batched match
 
@@ -645,7 +670,8 @@ since shipped.)
   toggle): `DashboardTrendingService`
   (`libs/workspace/dashboard/data-access`) pulls the weekly TMDB trending
   lists (cached one day per language) and runs ONE batched
-  `CatalogTitleMatchService.matchTitles` request against the imported
+  `CatalogTitleMatchService.matchTitles` call (worker requests of five
+  titles, see "Sending a batched match") against the imported
   Xtream playlists — matched cards navigate straight to their detail view
   and show the playlist name; unmatched cards open the global search
   prefilled. Requires both the TMDB opt-in and the Electron DB worker
@@ -665,7 +691,8 @@ since shipped.)
   interleaved round-robin, deduplicated by TMDB id, stripped of anything
   already watched or favorited, and matched against
   the imported libraries with ONE batched
-  `CatalogTitleMatchService.matchTitles` request. The watched/favorited
+  `CatalogTitleMatchService.matchTitles` call (worker requests of five
+  titles). The watched/favorited
   exclusion index is built through the same lookup-attempt builder the
   seeds use, so an activity row is indexed under more than its display
   title: under the media type the detail view enriched with (a Stalker
@@ -719,7 +746,7 @@ since shipped.)
   on its behalf would drop its recommendations for the session; a seed
   that has no TMDB match never resolves either, so that user's rail
   re-runs each visit, which is bounded work (cached enrichment misses
-  plus one batched worker call). Latched loads are keyed by the TMDB language
+  plus one batched title match). Latched loads are keyed by the TMDB language
   (payloads are localized; the facade exposes `language()` for this), the
   seed set, the watched/favorited exclusion set AND the imported-playlist
   id set — watching something new re-seeds on the next dashboard visit,
@@ -810,8 +837,10 @@ Contracts worth keeping:
   credits and no recommendations carries none of them and reads as
   un-enriched. Since the column is never overwritten, getting this wrong is
   unfixable after the fact — a real provider date arriving later cannot
-  correct it. The same marker is what `trustedReleaseYear` (the
-  recommendations exclusion index) must consult if it ever reads this column.
+  correct it. Stalker entries never reach this column, but the same marker
+  rides in their stored `info`, and `trustedReleaseYear` (the recommendations
+  exclusion index) reads it first: a date TMDB supplied does not gate the
+  exact tier. `createStalkerInfo()` keeps the marker through re-normalization.
 - **The id is stored unvetted.** Every consumer reaches TMDB through
   `TmdbEnrichmentService`, whose `detailsForProviderId` runs
   `assessProviderId` and lets the title search take over when the years
@@ -826,11 +855,13 @@ Contracts worth keeping:
   never been opened, and a provider's `"0"` all collapse to the same thing:
   no identity, and the title-only fallback.
 
-Not covered: rows whose detail page has never been opened, playlists
-refreshed after this landed (the columns are re-learned on the next detail
-open, same as `backdrop_url`), and the PWA — its catalog is a session-scoped
-cache rebuilt from the API on every load, so a stored id would never outlive
-the detail view that resolved it. All of them keep the title-only path.
+Rows whose detail page has never been opened keep the title-only fallback.
+Refreshed catalog rows re-learn missing metadata on the next detail open.
+The PWA also fills normalized identity on its session catalog and compatible
+persisted collection snapshots, including identity-only patches. Favorites retain
+that evidence across reload/refresh to detect reused provider IDs. Independent
+Recent snapshots are enriched separately; a conflicting replacement never supplies
+metadata to the older favorite. See [PWA collection persistence](xtream-portal-compatibility.md#pwa-collection-persistence).
 
 ### Stalker backdrops on activity rows
 

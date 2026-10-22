@@ -82,23 +82,6 @@
             </div>
         </div>
     }
-    @case ('no-results') {
-        <div class="empty-state no-results-state">
-            <div class="illustration-container small">
-                <svg class="illustration" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="65" cy="65" r="35" class="search-circle" stroke-width="4"/>
-                    <line x1="90" y1="90" x2="115" y2="115" class="search-handle" stroke-width="4" stroke-linecap="round"/>
-                    <rect x="45" y="50" width="40" height="30" rx="3" class="empty-box" stroke-width="2" opacity="0.4"/>
-                    <line x1="55" y1="65" x2="75" y2="65" class="empty-line" stroke-width="2" opacity="0.3"/>
-                </svg>
-            </div>
-
-            <div class="content">
-                <h3 class="title small">{{ 'HOME.PLAYLISTS.NO_RESULTS_TITLE' | translate }}</h3>
-                <p class="description">{{ 'HOME.PLAYLISTS.NO_RESULTS_DESCRIPTION' | translate }}</p>
-            </div>
-        </div>
-    }
     @case ('no-data') {
         <div class="empty-state no-data-state">
             <div class="empty-icon-container">

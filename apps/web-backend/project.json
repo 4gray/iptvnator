@@ -17,7 +17,8 @@
                 "target": "node22",
                 "bundle": true,
                 "thirdParty": true,
-                "generatePackageJson": true
+                "generatePackageJson": true,
+                "external": ["better-sqlite3"]
             },
             "inputs": [
                 "default",

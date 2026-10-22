@@ -1,13 +1,12 @@
 import {
     Component,
     effect,
-    HostBinding,
     inject,
     OnInit,
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
@@ -66,9 +65,6 @@ const debugAppComponent = createDevLogger('AppComponent');
 })
 export class AppComponent implements OnInit {
     readonly routeReady = signal(false);
-    @HostBinding('class.macos-platform') get isMacOS() {
-        return this.runtime.isMacOS;
-    }
     get usesCustomWindowControls() {
         return this.runtime.usesCustomWindowControls;
     }
@@ -77,7 +73,7 @@ export class AppComponent implements OnInit {
     private readonly dateLocales = inject(AppDateLocaleService);
     private epgBridge = inject(EpgRuntimeBridgeService);
     private epgService = inject(EpgService);
-    private snackBar = inject(MatSnackBar);
+    private snackBar = inject(LazySnackBar);
     private router = inject(Router);
     private store = inject(Store);
     private translate = inject(TranslateService);
@@ -249,7 +245,7 @@ export class AppComponent implements OnInit {
                 );
                 // Show snackbar if all EPG sources are fresh (no stale URLs)
                 if (result.staleUrls.length === 0) {
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.translate.instant('EPG.UP_TO_DATE'),
                         this.translate.instant('CLOSE'),
                         { duration: 3000 }

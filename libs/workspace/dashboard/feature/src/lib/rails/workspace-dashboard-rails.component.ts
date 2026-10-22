@@ -50,7 +50,9 @@ import {
     resolveSourceExpiryBadge,
 } from '@iptvnator/workspace/dashboard/data-access';
 import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
+import { connectDashboardTmdbRails } from './dashboard-tmdb-rails';
 import { DashboardRailComponent } from './dashboard-rail.component';
+import { DashboardRailSkeletonComponent } from './dashboard-rail-skeleton.component';
 import type {
     DashboardRailCard,
     DashboardRailActionSelection,
@@ -76,9 +78,9 @@ import {
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
     RAIL_ITEM_LIMIT,
+    recentContentSkeletonLayout,
     shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
-    SKELETON_CARDS_PER_RAIL,
     SKELETON_RAILS,
 } from './dashboard-rail.utils';
 import type {
@@ -91,6 +93,7 @@ import type {
     imports: [
         DashboardHeroComponent,
         DashboardRailComponent,
+        DashboardRailSkeletonComponent,
         EmptyStateComponent,
         TranslatePipe,
     ],
@@ -133,7 +136,6 @@ export class WorkspaceDashboardRailsComponent {
     readonly xtreamPlaylistCount = this.data.xtreamPlaylistCount;
     readonly isElectron = this.runtime.isElectron;
 
-    readonly skeletonSlots = SKELETON_CARDS_PER_RAIL;
     readonly skeletonRails = SKELETON_RAILS;
     readonly liveRailTitleKeyForSource = liveRailTitleKeyForSource;
     readonly dashboardRails = computed(() =>
@@ -153,12 +155,13 @@ export class WorkspaceDashboardRailsComponent {
         this.continueWatchingBaseCards()
     );
 
-    readonly liveFavoriteCards = computed<DashboardRailCard[]>(() =>
-        this.data
+    readonly liveFavoriteCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.data
             .globalFavoriteLiveItems()
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toFavoriteCard(item))
-    );
+            .map((item) => this.toFavoriteCard(item));
+    });
 
     readonly recentLiveCards = computed<DashboardRailCard[]>(() =>
         this.data
@@ -173,13 +176,25 @@ export class WorkspaceDashboardRailsComponent {
         })
     );
 
+    private readonly recentContentLoading = computed(() => ({
+        continueWatchingCount: this.continueWatchingCards().length,
+        continueWatchingLoading: !this.data.continueWatchingSettled(),
+        globalRecentLoading: this.data.globalRecentLoading(),
+        recentLiveCount: this.recentLiveCards().length,
+    }));
+
     readonly showRecentContentSkeleton = computed(() =>
-        shouldShowRecentContentSkeleton(this.dashboardRails(), {
-            continueWatchingCount: this.continueWatchingCards().length,
-            continueWatchingLoading: !this.data.continueWatchingSettled(),
-            globalRecentLoading: this.data.globalRecentLoading(),
-            recentLiveCount: this.recentLiveCards().length,
-        })
+        shouldShowRecentContentSkeleton(
+            this.dashboardRails(),
+            this.recentContentLoading()
+        )
+    );
+
+    readonly recentContentSkeletonLayout = computed(() =>
+        recentContentSkeletonLayout(
+            this.dashboardRails(),
+            this.recentContentLoading()
+        )
     );
 
     // The live cards whose rails are enabled; the presenter adds the hero's
@@ -204,13 +219,14 @@ export class WorkspaceDashboardRailsComponent {
         this.liveEpg.enrich(this.recentLiveCards())
     );
 
-    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() =>
-        this.data
+    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.data
             .globalFavoriteItems()
             .filter((item) => item.type === 'movie' || item.type === 'series')
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toFavoriteCard(item))
-    );
+            .map((item) => this.toFavoriteCard(item));
+    });
 
     readonly continueWatchingSeeAllState = computed(() =>
         buildDashboardRailSeeAllState(this.continueWatchingBaseCards())
@@ -341,38 +357,15 @@ export class WorkspaceDashboardRailsComponent {
             untracked(() => void this.sourceExpiry.refresh(playlists));
         });
 
-        // Trending rail: needs the TMDB opt-in and the Electron DB worker.
-        // Deferred until the dashboard's own recent/favorites data is in so
-        // the batched title match never competes for the worker at startup.
-        effect(() => {
-            if (
-                !this.dashboardRails().tmdbTrending ||
-                !this.data.globalFavoritesLoaded()
-            ) {
-                return;
-            }
-            untracked(() => void this.trendingService.load());
-        });
-
-        // Recommendations rail: same gating as trending, plus tracked
-        // reads of the seed source, the favorites (both feed the
-        // exclusion set) and the playlist set (feeds the catalog key) so
-        // a newly watched/favorited title or an imported/deleted playlist
-        // re-runs the load — the service keys loads by seed + exclusion +
-        // catalog set and skips no-ops.
-        effect(() => {
-            if (
-                !this.dashboardRails().tmdbRecommendations ||
-                !this.data.globalFavoritesLoaded()
-            ) {
-                return;
-            }
-            this.data.globalRecentVodItems();
-            this.data.globalFavoriteItems();
-            this.data.playlists();
-            // Language feeds the service's load key (localized payloads)
-            this.languageTick();
-            untracked(() => void this.recommendationsService.load());
+        // Trending and recommendations: after the favorites and Continue
+        // Watching, so their title match never holds the DB worker while
+        // the playback positions wait (see connectDashboardTmdbRails).
+        connectDashboardTmdbRails({
+            dashboardRails: this.dashboardRails,
+            languageTick: this.languageTick,
+            data: this.data,
+            trendingService: this.trendingService,
+            recommendationsService: this.recommendationsService,
         });
     }
 
@@ -482,6 +475,7 @@ export class WorkspaceDashboardRailsComponent {
         );
         return {
             id: this.recentCardId(item),
+            catalogStatus: item.catalogStatus,
             title: item.title,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
@@ -522,6 +516,15 @@ export class WorkspaceDashboardRailsComponent {
     private toFavoriteCard(item: DashboardFavoriteItem): DashboardRailCard {
         return {
             id: `fav-${item.id}-${item.playlist_id}-${item.added_at}`,
+            catalogStatus: item.catalogStatus,
+            subtitle:
+                item.catalogStatus && item.catalogStatus !== 'present'
+                    ? this.translate.instant(
+                          item.catalogStatus === 'missing'
+                              ? 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
+                              : 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_UNKNOWN'
+                      )
+                    : undefined,
             title: item.title,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),

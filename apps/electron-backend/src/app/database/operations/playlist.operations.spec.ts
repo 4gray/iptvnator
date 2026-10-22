@@ -46,7 +46,7 @@ function runPlaylistUpdateScenario(scenario: string): unknown {
         const { default: Database } = await import('better-sqlite3');
         const { drizzle } = await import('drizzle-orm/better-sqlite3');
         const schema = await import('@iptvnator/shared/database/schema');
-        const { updatePlaylist, upsertAppPlaylist, upsertAppPlaylists } = await import(${JSON.stringify(operationsUrl)});
+        const { getAppPlaylist, getAppPlaylistMetas, updatePlaylist, upsertAppPlaylist, upsertAppPlaylists } = await import(${JSON.stringify(operationsUrl)});
         const { setPlaylistServerTimezone } = await import(${JSON.stringify(timezoneOperationsUrl)});
         const { __databaseConnectionTestHooks } = await import(${JSON.stringify(connectionUrl)});
         const sqlite = new Database(':memory:');
@@ -315,6 +315,91 @@ describe('playlist.operations', () => {
         expect(result['own-clock'].payload.serverTimezone).toBe('UTC+03:00');
         expect(result['moved'].serverUrl).toBe('http://other.example');
         expect(result['moved'].payload).not.toHaveProperty('serverTimezone');
+    });
+
+    it('clears the optional columns a full upsert leaves empty, so a cleared field stays cleared', () => {
+        // The codec maps an empty value to `undefined`, which ON CONFLICT DO
+        // UPDATE skips; reads prefer the column, so the old value would come
+        // back. Covers the single and batch writers and both conflict-update
+        // shapes (a clockless document and one that carries its own clock).
+        const ids = ['single', 'batch', 'with-clock'];
+        const result = runPlaylistUpdateScenario(`
+            const source = (id, extra = {}) => ({
+                _id: id,
+                title: id,
+                type: 'm3u-url',
+                url: 'http://example.com/list.m3u',
+                userAgent: 'Agent/1',
+                referrer: 'http://ref.example',
+                origin: 'http://origin.example',
+                username: 'demo',
+                password: 'secret',
+                filePath: '/playlists/list.m3u',
+                manualEpgUrls: ['http://epg.example/manual.xml'],
+                favorites: ['1'],
+                ...(id === 'with-clock' ? { serverTimezone: 'UTC' } : {}),
+                ...extra,
+            });
+            const cleared = {
+                userAgent: '',
+                referrer: '   ',
+                origin: '',
+                username: '',
+                password: '',
+                filePath: undefined,
+                manualEpgUrls: undefined,
+            };
+            for (const id of ${JSON.stringify(ids)}) {
+                await upsertAppPlaylist(db, source(id));
+            }
+            await upsertAppPlaylist(db, source('single', cleared));
+            await upsertAppPlaylists(db, [source('batch', cleared)]);
+            await upsertAppPlaylist(db, source('with-clock', cleared));
+            const docs = {};
+            for (const id of ${JSON.stringify(ids)}) {
+                docs[id] = await getAppPlaylist(db, id);
+            }
+            const metas = Object.fromEntries(
+                (await getAppPlaylistMetas(db)).map((meta) => [meta._id, meta])
+            );
+            const rows = Object.fromEntries(
+                sqlite.prepare('SELECT id, date_created FROM playlists').all()
+                    .map((row) => [row.id, row.date_created])
+            );
+            process.stdout.write(JSON.stringify({ docs, metas, rows }));
+        `) as {
+            docs: Record<string, Record<string, unknown>>;
+            metas: Record<string, Record<string, unknown>>;
+            rows: Record<string, string | null>;
+        };
+
+        for (const id of ids) {
+            // Metadata reads see only the columns; the full read merges the
+            // payload in. Both must lose every cleared field.
+            for (const playlist of [result.docs[id], result.metas[id]]) {
+                expect(playlist).toEqual(
+                    expect.objectContaining({
+                        _id: id,
+                        title: id,
+                        url: 'http://example.com/list.m3u',
+                        favorites: ['1'],
+                        manualEpgUrls: [],
+                    })
+                );
+                for (const field of [
+                    'userAgent',
+                    'referrer',
+                    'origin',
+                    'username',
+                    'password',
+                    'filePath',
+                ]) {
+                    expect(playlist).not.toHaveProperty(field);
+                }
+            }
+            expect(result.rows[id]).toEqual(expect.any(String));
+        }
+        expect(result.docs['with-clock']['serverTimezone']).toBe('UTC');
     });
 
     it('loads app playlist metadata without selecting the large payload column', async () => {

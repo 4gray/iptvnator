@@ -1,3 +1,5 @@
+import { WorkspaceDashboardRailsComponent } from './workspace-dashboard-rails.component';
+import type { GlobalRecentItem } from '@iptvnator/workspace/dashboard/data-access';
 import type { EpgProgram, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DEFAULT_DASHBOARD_RAILS_SETTINGS } from '@iptvnator/shared/interfaces';
 import {
@@ -6,6 +8,7 @@ import {
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
+    recentContentSkeletonLayout,
     shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
 } from './dashboard-rail.utils';
@@ -693,6 +696,38 @@ describe('recent content skeleton helper', () => {
             })
         ).toBe(false);
     });
+
+    it('draws posters while Continue Watching is the rail still loading, channel cards otherwise', () => {
+        const loading = {
+            continueWatchingCount: 0,
+            continueWatchingLoading: true,
+            recentLiveCount: 0,
+            globalRecentLoading: true,
+        };
+
+        expect(
+            recentContentSkeletonLayout(
+                DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                loading
+            )
+        ).toBe('cover');
+        expect(
+            recentContentSkeletonLayout(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    continueWatching: false,
+                },
+                loading
+            )
+        ).toBe('channel');
+        // Continue Watching already shows cards; only the live history waits.
+        expect(
+            recentContentSkeletonLayout(DEFAULT_DASHBOARD_RAILS_SETTINGS, {
+                ...loading,
+                continueWatchingCount: 2,
+            })
+        ).toBe('channel');
+    });
 });
 
 describe('live favorites skeleton helper', () => {
@@ -842,4 +877,51 @@ describe('playback-position helpers', () => {
             });
         });
     });
+});
+
+describe('Recent rail availability projection', () => {
+    it.each(['missing', 'unknown'] as const)(
+        'preserves %s before EPG lookup and cached programme display',
+        (catalogStatus) => {
+            const component = Object.create(
+                WorkspaceDashboardRailsComponent.prototype
+            ) as {
+                data: object;
+                toRecentCard: (item: GlobalRecentItem) => DashboardRailCard;
+            };
+            component.data = {
+                getPlaybackPositionForItem: () => null,
+                getRecentItemLink: () => null,
+                getRecentItemDetailNavigationState: () => undefined,
+            };
+            const projected = component.toRecentCard({
+                id: 1,
+                title: 'Retained live',
+                type: 'live',
+                source: 'xtream',
+                playlist_id: 'p',
+                viewed_at: '2026-10-15',
+                epg_lookup_key: 'channel',
+                catalogStatus,
+            } as GlobalRecentItem);
+            expect(projected.catalogStatus).toBe(catalogStatus);
+            expect(
+                buildLiveEpgLookupGroups([projected], () => [
+                    'https://guide.invalid',
+                ])
+            ).toEqual([]);
+            expect(
+                getLiveEpgProgramForCard(
+                    projected,
+                    new Map([
+                        [
+                            liveEpgProgramKey('scope', 'channel'),
+                            { title: 'Cached show' } as EpgProgram,
+                        ],
+                    ]),
+                    'scope'
+                )
+            ).toBeNull();
+        }
+    );
 });

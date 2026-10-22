@@ -225,6 +225,14 @@ looping over `count()` with per-row `nth(index)` reads. Those reads auto-wait,
 so a row removed mid-loop hangs the predicate until the poll times out instead
 of letting it retry.
 
+Chromium drops a scroll key pressed in the frame or two after the previous
+smooth scroll lands but before Blink handles its finish, so the final
+`scrollTop` is not a safe point for the next scroll input. Electron specs press
+scroll keys through `pressScrollKey` in
+`apps/electron-backend-e2e/src/keyboard-scroll.ts`, which waits for
+`scrollend`; web specs call `waitForScrollIdle` from
+`apps/web-e2e/src/e2e-helpers.ts` before the next key.
+
 Playwright coverage is measured semantically by tags and critical journeys, not
 by a source-line percentage. E2E reports should use tags such as `@critical`,
 `@electron`, `@web`, `@xtream`, `@stalker`, `@m3u`, `@search`, `@epg`,
@@ -237,8 +245,11 @@ pnpm run coverage:e2e:summary
 ```
 
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
-by spec file because the suite is sequential): three shards on Ubuntu and
-Windows, two on macOS, whose runners are the scarcest and queued longest. Each
+by spec file because the suite is sequential): three shards on Ubuntu, four
+on Windows, and two on macOS, whose runners are the scarcest and queued longest.
+Windows uses the additional shard to keep slower runners within the existing
+30-minute job limit, including setup; each shard still uses one worker and
+the same tests, assertions, and retry policy. Each
 shard uploads `playwright-report-electron-<os>-<n>`; the follow-up
 `Electron E2E summary` job downloads the shards of each OS into their own
 directory and runs the summary per OS with `--input=<directory>` and
@@ -259,6 +270,7 @@ pnpm run coverage:e2e:v8:web
 pnpm run i18n:validate          # checker unit tests, then the check (CI)
 pnpm run i18n:check             # the check only: locale drift, then key usage
 pnpm run i18n:usage             # key usage only
+pnpm run i18n:duplicates        # report: one English string, diverging translations
 pnpm run i18n:baseline:update   # deliberate: rewrite the English-identical baseline
 ```
 
@@ -296,6 +308,12 @@ a template literal such as `` `EPG.DIALOG.${name}` `` must name a group. Keys
 built entirely at runtime are not checked. CI runs `pnpm run i18n:validate` in
 the unit test job.
 
+`pnpm run i18n:duplicates` (`tools/i18n/check-duplicates.mjs`) is a report,
+not a gate: it lists English strings defined under several keys that a locale
+translates differently. Align drifted wording in the locale files; a group may
+stay when context needs another grammatical form. `--max <n>` makes it fail
+above n groups.
+
 ## Performance
 
 ```bash
@@ -304,6 +322,8 @@ pnpm run perf:initial-bytes         # breakdown only
 pnpm run perf:initial-bytes:check   # measure, then compare with the committed baseline
 pnpm nx test performance-tools
 pnpm run perf:journeys              # J1 launch, J2 open-source and J3 playback journeys, one dist/performance/journeys/<timestamp>/summary.json
+pnpm nx run electron-backend-e2e:journeys-large-library   # J1 on the large-library profile (launch-large); skipped by perf:journeys unless IPTVNATOR_JOURNEY_LARGE_LIBRARY=1
+pnpm nx run electron-backend-e2e:large-library-profile    # build or find that profile (cached by content hash under node_modules/.cache)
 pnpm run perf:compositing           # tile memory and composited layers per route, dist/performance/compositing/<timestamp>/summary.json
 ```
 
@@ -316,7 +336,7 @@ target `master` and for `master` pushes (dispatch it with
 `gh workflow run ci.yml --ref <branch>` for a stacked branch). The
 `Performance journeys` job checks the journey counters listed with `--only`
 in its `Check the journey counters against the baselines` step against the
-same file (warn-only); a new journey baseline
+same file and fails the workflow on a regression; a new journey baseline
 must be added to that list too, which `pnpm nx test performance-tools`
 checks. The weekly
 `performance-ratchet.yml` workflow lowers baselines through a bot PR; validate
@@ -326,7 +346,12 @@ on `master`; before that, see the temporary-trigger note under Weekly
 tightening in the performance journeys document. `perf:journeys` builds the `electron-performance` configuration and runs every
 journey spec against the Xtream mock: J1 launch, then J2 open-source (a
 second set of launches, each followed by the click on the portal card), both
-written to the same summary file; its probe specs run with
+written to the same summary file. The large-library variant of J1
+(`launch-large`, a generated profile of 182 sources and 2.4M catalog rows)
+skips itself unless `IPTVNATOR_JOURNEY_LARGE_LIBRARY=1`, which the
+`journeys-large-library` target sets and the weekly `performance-ratchet.yml`
+passes through the composite action; pull-request CI does not run it (see
+"CI cost" in the journeys document). Its probe specs run with
 `pnpm nx run electron-backend-e2e:test-performance-harness`, which CI runs in
 the `Unit Tests and Typechecks` job of `ci.yml` on every run. `tsx` runs them
 without type checking; `pnpm run typecheck:spec electron-backend-e2e` checks

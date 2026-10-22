@@ -116,7 +116,6 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
                         params: of({ id: playlistId(), view: 'all' }),
                         queryParams: of({}),
                         snapshot: {
-                            data: { layout: 'workspace' },
                             queryParams: {},
                         },
                     },

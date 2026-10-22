@@ -1,3 +1,4 @@
+import type { XtreamFavoriteSnapshot } from './xtream-favorite.interface';
 import { PlaybackPositionData } from './playback-position.interface';
 import { M3uRecentlyViewedItem } from './playlist-recently-viewed.interface';
 import { StalkerPortalItem } from './stalker-portal-item.interface';
@@ -56,12 +57,21 @@ export interface XtreamBackupFavoriteItem {
     xtreamId: number;
     addedAt?: string;
     position?: number | null;
+    snapshot?: XtreamFavoriteSnapshot;
 }
 
 export interface XtreamBackupRecentlyViewedItem {
     contentType: XtreamBackupContentType;
     xtreamId: number;
     viewedAt: string;
+    /**
+     * Artwork the browser build saved with this view, shown ahead of the
+     * title snapshot's. Optional; the desktop build neither writes nor
+     * reads it.
+     */
+    backdropUrl?: string;
+    /** Browser view metadata, independent of a retained favorite with the same provider key. */
+    collectionItem?: XtreamBackupCollectionItem;
 }
 
 /**
@@ -76,6 +86,17 @@ export interface XtreamBackupSourcePin {
     updatedAt?: string;
 }
 
+/**
+ * A favorite or recently viewed title as the browser build last displayed it,
+ * so the restored lists show titles and artwork before the provider catalog
+ * is fetched again. Every other field is the item exactly as it was stored.
+ */
+export interface XtreamBackupCollectionItem {
+    type: XtreamBackupContentType;
+    xtream_id: number;
+    [field: string]: unknown;
+}
+
 export interface XtreamBackupUserState {
     hiddenCategories: XtreamBackupHiddenCategory[];
     favorites: XtreamBackupFavoriteItem[];
@@ -83,6 +104,12 @@ export interface XtreamBackupUserState {
     playbackPositions: PlaybackPositionData[];
     /** Optional: absent in archives written before multi-source existed. */
     sourcePins?: XtreamBackupSourcePin[];
+    /**
+     * Optional and written only by the browser build, which keeps no catalog
+     * between sessions. A cache, not user state: restore merges it into the
+     * playlist's snapshots, and the desktop build ignores it.
+     */
+    collectionItems?: XtreamBackupCollectionItem[];
     /**
      * Parental-lock categories, same shape as `hiddenCategories`. Optional
      * like `sourcePins`: absence means the archive predates the lock and

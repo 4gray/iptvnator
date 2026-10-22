@@ -156,8 +156,8 @@ fit contract:
 The chip row composes with the host search (AND): **All (N)** resets the chip
 filters and states the total copy count, **Available** keeps only sources
 whose probe verified them, **HD+** keeps sources whose quality tag reads
-1080p or better, and the language select is built from the languages actually
-present in the list. Two of these encode a decision worth writing down:
+1080p or better, and the language chip (a filter chip with a chevron that
+opens a radio menu) offers the languages actually present in the list. Two of these encode a decision worth writing down:
 
 - "Available" is strict: only `probe.status === 'ok'` passes. An unchecked
   source must never pass a filter with that name — and because checks are
@@ -833,7 +833,10 @@ titles ("Amélie" → "amelie") against an index built from the raw one — with
 folding, every accented title was invisible to the FTS path, and two identical
 `Amélie` entries produced no candidates at all. The tokenizer is fixed at
 CREATE time, so existing databases are recreated and rebuilt once behind
-`migration:content-title-fts-remove-diacritics:v1`.
+`migration:content-title-fts-remove-diacritics:v1`. That rebuild also records
+`migration:content-title-fts-trigram:v1`, the plain rebuild it supersedes;
+before it did, a new profile rebuilt the whole index a second time on its
+second launch, on the main thread, right after the first catalog import.
 
 `remove_diacritics` needs SQLite 3.45+. The migration probes support on a temp
 table first and does nothing when the runtime rejects it, leaving the working

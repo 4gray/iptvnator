@@ -38,7 +38,10 @@ import {
     type PlaybackFallbackRequest,
     type SeriesPlaybackEpisodeState,
 } from '@iptvnator/ui/playback';
-import { injectXtreamRecentHistory } from '../xtream-recent-history';
+import {
+    injectXtreamRecentHistory,
+    xtreamPlayedDetail,
+} from '../xtream-recent-history';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import {
     externalEpisodeSessionIds,
@@ -242,6 +245,7 @@ export class SerialDetailsPlaybackService {
             xtreamId: this.route.snapshot.params['serialId'],
             contentType: 'series',
             backdropUrl: selectedItem.info?.backdrop_path?.[0],
+            playedContent: xtreamPlayedDetail(selectedItem.info),
         });
         const position = this.episodePlaybackPositions().get(
             Number(episode.id)

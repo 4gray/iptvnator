@@ -1,0 +1,469 @@
+// Buttons, menus, the segmented control and floating panels of the
+// IPTVnator UI kit, over Angular Material: Material keeps the behaviour (focus, keyboard, overlay,
+// ARIA), these mixins set the look through `mat.*-overrides()`.
+//
+// Button variants are roles, not looks:
+// - `secondary-button` (`mat-flat-button`): every ordinary action and every
+//   dropdown trigger (label + 12px chevron, opening a `mat-menu`);
+// - `ghost-button` (`mat-button`) and `ghost-icon-button`
+//   (`mat-icon-button`): row and header actions.
+// No outline, no ripple: hover changes the fill only, and a disabled button
+// is the same button at 40% opacity. Focus keeps the app's ring
+// (`styles.scss` rings every `.mat-mdc-button-base`).
+@use 'sass:map';
+@use '@angular/material' as mat;
+
+$radius: 10px;
+$radius-sm: 8px;
+
+$_sizes: (
+    md: (
+        height: 40px,
+        radius: $radius,
+        padding: 16px,
+        icon-padding: 14px,
+        text: 13.5px,
+        icon: 16px,
+        gap: 8px,
+    ),
+    sm: (
+        height: 32px,
+        radius: $radius-sm,
+        padding: 12px,
+        icon-padding: 10px,
+        text: 12.5px,
+        icon: 14px,
+        gap: 6px,
+    ),
+);
+
+@function _size($size, $key) {
+    @return map.get($_sizes, $size, $key);
+}
+
+@mixin _icon-size($size) {
+    .mat-icon {
+        width: $size;
+        height: $size;
+        font-size: $size;
+        line-height: $size;
+    }
+}
+
+@mixin _disabled {
+    &[disabled],
+    &.mat-mdc-button-disabled {
+        opacity: 0.4;
+    }
+}
+
+/// `$size`: `md` (40px) or `sm` (32px).
+@mixin secondary-button($size: md) {
+    $fill: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    @include mat.button-overrides(
+        (
+            filled-container-color: $fill,
+            filled-disabled-container-color: $fill,
+            filled-label-text-color: var(--app-heading-color),
+            filled-disabled-label-text-color: var(--app-heading-color),
+            filled-container-height: _size($size, height),
+            filled-container-shape: _size($size, radius),
+            filled-horizontal-padding: _size($size, padding),
+            filled-label-text-size: _size($size, text),
+            filled-label-text-weight: 600,
+            filled-label-text-tracking: 0,
+            filled-icon-spacing: _size($size, gap),
+            filled-state-layer-color: var(--app-on-surface),
+            filled-hover-state-layer-opacity: 0.06,
+            filled-focus-state-layer-opacity: 0.06,
+            filled-pressed-state-layer-opacity: 0.1,
+            filled-ripple-color: transparent,
+        )
+    );
+    @include _icon-size(_size($size, icon));
+    @include _disabled;
+}
+
+/// The one accent action of a dialog or form: the selection blue, 40px,
+/// 10px radius, no ripple. Disabled keeps the fill at 40% opacity.
+@mixin accent-button($size: md) {
+    @include mat.button-overrides(
+        (
+            filled-container-color: var(--app-selection-color),
+            filled-disabled-container-color: var(--app-selection-color),
+            filled-label-text-color: var(--app-selection-on-color),
+            filled-disabled-label-text-color: var(--app-selection-on-color),
+            filled-container-height: _size($size, height),
+            filled-container-shape: _size($size, radius),
+            filled-horizontal-padding: _size($size, padding),
+            filled-label-text-size: _size($size, text),
+            filled-label-text-weight: 600,
+            filled-label-text-tracking: 0,
+            filled-icon-spacing: _size($size, gap),
+            filled-state-layer-color: var(--app-selection-on-color),
+            filled-hover-state-layer-opacity: 0.1,
+            filled-focus-state-layer-opacity: 0.1,
+            filled-pressed-state-layer-opacity: 0.16,
+            filled-ripple-color: transparent,
+        )
+    );
+    @include _icon-size(_size($size, icon));
+    @include _disabled;
+}
+
+/// A secondary button at another height (toolbars that stack on narrow
+/// windows use 36px).
+@mixin secondary-button-height($height) {
+    @include mat.button-overrides(
+        (
+            filled-container-height: $height,
+        )
+    );
+}
+
+/// A text action: `--app-body-color`, the heading colour on hover.
+@mixin ghost-button($size: sm) {
+    @include mat.button-overrides(
+        (
+            text-label-text-color: var(--app-body-color),
+            text-disabled-label-text-color: var(--app-body-color),
+            text-container-height: _size($size, height),
+            text-container-shape: _size($size, radius),
+            text-horizontal-padding: _size($size, padding),
+            text-with-icon-horizontal-padding: _size($size, icon-padding),
+            text-label-text-size: _size($size, text),
+            text-label-text-weight: 600,
+            text-label-text-tracking: 0,
+            text-icon-spacing: 6px,
+            text-state-layer-color: var(--app-on-surface),
+            text-hover-state-layer-opacity: 0.08,
+            text-focus-state-layer-opacity: 0.08,
+            text-pressed-state-layer-opacity: 0.12,
+            text-ripple-color: transparent,
+        )
+    );
+    @include _icon-size(14px);
+    @include _disabled;
+
+    &:not([disabled]):hover {
+        @include mat.button-overrides(
+            (
+                text-label-text-color: var(--app-heading-color),
+            )
+        );
+    }
+}
+
+/// A square icon action with an 8px radius, not Material's circle.
+@mixin ghost-icon-button($size: 32px, $icon-size: 16px) {
+    @include mat.icon-button-overrides(
+        (
+            state-layer-size: $size,
+            container-shape: $radius-sm,
+            icon-size: $icon-size,
+            icon-color: var(--app-body-color),
+            disabled-icon-color: var(--app-body-color),
+            state-layer-color: var(--app-on-surface),
+            hover-state-layer-opacity: 0.08,
+            focus-state-layer-opacity: 0.08,
+            pressed-state-layer-opacity: 0.12,
+            ripple-color: transparent,
+            touch-target-display: none,
+        )
+    );
+    border-radius: $radius-sm;
+    @include _icon-size($icon-size);
+    @include _disabled;
+
+    &:not([disabled]):hover {
+        @include mat.icon-button-overrides(
+            (
+                icon-color: var(--app-heading-color),
+            )
+        );
+    }
+}
+
+/// The trailing 12px chevron of a dropdown trigger.
+@mixin trigger-chevron {
+    width: 12px;
+    height: 12px;
+    font-size: 12px;
+    line-height: 12px;
+    margin-inline-start: 2px;
+    color: var(--app-body-color);
+}
+
+/// The `mat-menu` panel; `styles.scss` applies it to every menu.
+/// Items: 36px, 13px, 16px icons in the body colour; destructive items
+/// carry `app-menu-item--danger` and sit after a `<mat-divider>`; a
+/// keyboard hint is a trailing `kbd.app-menu-item__kbd`. A long list stays
+/// on screen and scrolls inside the panel.
+@mixin menu-panel {
+    @include mat.menu-overrides(
+        (
+            container-color: var(--app-widget-bg),
+            container-shape: $radius,
+            item-label-text-color: var(--app-heading-color),
+            item-label-text-size: 13px,
+            item-label-text-weight: 400,
+            item-icon-color: var(--app-body-color),
+            item-icon-size: 16px,
+            item-hover-state-layer-color: color-mix(
+                    in srgb,
+                    var(--app-on-surface) 8%,
+                    transparent
+                ),
+            item-focus-state-layer-color: color-mix(
+                    in srgb,
+                    var(--app-on-surface) 10%,
+                    transparent
+                ),
+            item-leading-spacing: 10px,
+            item-trailing-spacing: 10px,
+            item-with-icon-leading-spacing: 10px,
+            item-with-icon-trailing-spacing: 10px,
+            item-spacing: 10px,
+            divider-color: var(--app-separator),
+            divider-top-spacing: 4px,
+            divider-bottom-spacing: 4px,
+        )
+    );
+    min-width: 240px;
+    max-width: min(360px, calc(100vw - 24px));
+    max-height: min(480px, calc(100vh - 32px));
+    border: 1px solid var(--app-line-strong);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+
+    .mat-mdc-menu-content {
+        padding: 6px;
+    }
+
+    .mat-mdc-menu-item {
+        min-height: 36px;
+        border-radius: 6px;
+
+        .mat-icon {
+            font-size: 16px;
+            line-height: 16px;
+        }
+    }
+
+    // The label span fills the row, so a trailing keyboard hint can sit at
+    // its end.
+    .mat-mdc-menu-item-text {
+        display: flex;
+        flex: 1;
+        align-items: center;
+    }
+
+    .mat-mdc-menu-item[aria-checked='true'] {
+        background: var(--app-list-selected-bg);
+        color: var(--app-list-selected-fg);
+
+        .mat-icon {
+            color: inherit;
+        }
+    }
+
+    .app-menu-item--danger,
+    .app-menu-item--danger .mat-icon {
+        color: var(--app-danger-text);
+    }
+
+    .app-menu-item__kbd {
+        margin-inline-start: auto;
+        padding-inline-start: 16px;
+        font-family: var(--app-font-mono);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--app-muted-color);
+    }
+}
+
+// The segmented control: a recessed track, no dividers, the chosen segment
+// filled. `segmented-control` dresses a `mat-button-toggle-group`;
+// `segmented-track` and `segment` build the same look from plain buttons
+// (the season tabs, which are a tab list). An unchosen segment is text in the
+// body colour: the muted colour reads about 2.9:1 on the track, under the
+// 4.5:1 its 12.5px label needs.
+$_segment-text: var(--app-body-color);
+$_segment-selected-text: var(--app-heading-color);
+$_segment-selected-fill: color-mix(
+    in srgb,
+    var(--app-on-surface) 10%,
+    transparent
+);
+$_segment-hover-fill: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
+$_segment-text-size: 12.5px;
+
+/// The track: 2px padding inside a 1px border, so it adds 6px to the
+/// segments' height (26px segments give a 32px control, a small button's
+/// height).
+@mixin segmented-track {
+    display: inline-flex;
+    // Never wider than its container: when the segments do not fit (four
+    // translated season names in the fullscreen episode panel, a narrow
+    // window), they wrap inside the track instead of being clipped.
+    flex-wrap: wrap;
+    box-sizing: border-box;
+    max-width: 100%;
+    gap: 1px;
+    padding: 2px;
+    border: 1px solid var(--app-line-strong);
+    border-radius: $radius;
+    background: var(--app-content-bg);
+}
+
+/// A plain-button segment of `segmented-track`. Mark the chosen one with
+/// `segment-selected`.
+@mixin segment($height: 26px) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: $height;
+    padding: 0 10px;
+    border: 0;
+    border-radius: $radius-sm;
+    background: transparent;
+    color: $_segment-text;
+    font: inherit;
+    font-size: $_segment-text-size;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:hover {
+        background: $_segment-hover-fill;
+    }
+}
+
+/// Hovering the chosen segment keeps its fill.
+@mixin segment-selected {
+    &,
+    &:hover {
+        background: $_segment-selected-fill;
+        color: $_segment-selected-text;
+    }
+}
+
+/// `mat-button-toggle-group` as the segmented control. `$height` is the
+/// segment's height (see `segmented-track`). `$icon-size` sizes a segment's
+/// `mat-icon`; `$segment-width` gives icon-only segments one width (the
+/// list/grid switch is 30×26).
+///
+/// Include it from a component stylesheet. Material renders a segment's
+/// label and check without the including component's encapsulation
+/// attribute, so those rules go through `::ng-deep`, scoped by the selector
+/// that includes the mixin.
+@mixin segmented-control(
+    $height: 30px,
+    $icon-size: 14px,
+    $segment-width: null
+) {
+    @include mat.button-toggle-overrides(
+        (
+            height: $height,
+            shape: $radius,
+            divider-color: transparent,
+            background-color: transparent,
+            text-color: $_segment-text,
+            selected-state-background-color: $_segment-selected-fill,
+            selected-state-text-color: $_segment-selected-text,
+            state-layer-color: var(--app-on-surface),
+            hover-state-layer-opacity: 0.06,
+            focus-state-layer-opacity: 0.06,
+            label-text-size: $_segment-text-size,
+            label-text-weight: 500,
+            label-text-tracking: 0,
+        )
+    );
+    @include segmented-track;
+
+    .mat-button-toggle {
+        border-radius: $radius-sm;
+        border: 0;
+    }
+
+    // The group already draws its frame; Material adds a left border per
+    // toggle as the divider.
+    .mat-button-toggle + .mat-button-toggle {
+        border-inline-start: 0;
+    }
+
+    @include _icon-size($icon-size);
+
+    ::ng-deep {
+        // A flex row centres an icon beside the label. Its height is set
+        // here because an icon-only segment has no text line to give it one,
+        // and top alignment keeps an icon's baseline from adding a pixel.
+        .mat-button-toggle-label-content {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: $height;
+            padding: 0 10px;
+            vertical-align: top;
+        }
+
+        .mat-pseudo-checkbox {
+            display: none;
+        }
+
+        @if $segment-width {
+            .mat-button-toggle-button {
+                width: $segment-width;
+            }
+
+            .mat-button-toggle-label-content {
+                justify-content: center;
+                padding: 0;
+            }
+        }
+    }
+}
+
+/// A floating, non-modal card anchored to a viewport corner (the EPG import
+/// panel, the update notification): the dialog's surface and shadow, the
+/// menu's hairline, a 12px radius between the two. The panel keeps its own
+/// anchor, width, z-index and entrance.
+@mixin floating-panel {
+    overflow: hidden;
+    border: 1px solid var(--app-line-strong);
+    border-radius: 12px;
+    background: var(--app-widget-bg);
+    box-shadow: var(--app-popover-shadow);
+    color: var(--app-body-color);
+}
+
+/// The panel's header row: the title at the start, ghost icon actions
+/// (`ghost-icon-button(28px, 18px)`) at the end, a hairline under it.
+@mixin floating-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 8px 8px 12px;
+    border-bottom: 1px solid var(--app-widget-header-border);
+}
+
+/// The header's title: the kit's uppercase label with an 18px accent icon.
+@mixin floating-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--app-heading-color);
+
+    .mat-icon {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
+        color: var(--app-selection-color);
+    }
+}

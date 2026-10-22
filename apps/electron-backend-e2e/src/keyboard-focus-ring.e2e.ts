@@ -40,6 +40,8 @@ type Ring = {
     contrast: number | null;
     /** The `overflow: hidden` ancestor that cuts the outline, if any. */
     clippedBy: string | null;
+    /** `--app-focus-ring` where the ring is drawn. */
+    token: string;
 };
 
 type Stop = { element: string; label: string; rings: Ring[] };
@@ -185,6 +187,21 @@ async function installProbe(page: Page): Promise<void> {
             }
             return null;
         };
+        /** The app ring colour in `el`'s context, as `rgb(…)`. */
+        const tokenAt = (el: Element) => {
+            const hex = getComputedStyle(el)
+                .getPropertyValue('--app-focus-ring')
+                .trim();
+            canvas.fillStyle = '#000';
+            canvas.fillStyle = hex;
+            const [r, g, b] = Array.from(
+                (() => {
+                    canvas.fillRect(0, 0, 1, 1);
+                    return canvas.getImageData(0, 0, 1, 1).data;
+                })()
+            );
+            return hex ? `rgb(${r}, ${g}, ${b})` : '';
+        };
         const contrastOf = (on: Element, color: string, inside: boolean) => {
             const layers = layersUnder(inside ? on : on.parentElement);
             if (!layers) return null;
@@ -259,6 +276,7 @@ async function installProbe(page: Page): Promise<void> {
                                 was.offset < 0
                             ),
                             clippedBy: was.clippedBy,
+                            token: tokenAt(on),
                         });
                     }
                     if (was.shadow && was.shadow !== now.shadow) {
@@ -273,6 +291,7 @@ async function installProbe(page: Page): Promise<void> {
                                 was.shadow.endsWith(' inset')
                             ),
                             clippedBy: null,
+                            token: tokenAt(on),
                         });
                     }
                     if (was.border && was.border !== now.border) {
@@ -288,6 +307,7 @@ async function installProbe(page: Page): Promise<void> {
                                     ? null
                                     : contrastOf(on, focused, true),
                             clippedBy: null,
+                            token: tokenAt(on),
                         });
                     }
                     return rings;
@@ -344,6 +364,11 @@ function expectOneVisibleRing(stops: Stop[], context: string): void {
         expect(stop.rings, where).toHaveLength(1);
         const [ring] = stop.rings;
         expect(ring.clippedBy, `${where} ring clipped`).toBeNull();
+        // One ring colour everywhere. A select shows focus on its Material
+        // form-field outline, which keeps the theme's field colours.
+        if (ring.kind !== 'field-outline') {
+            expect(ring.color, `${where} ring colour`).toBe(ring.token);
+        }
         if (ring.contrast !== null) {
             expect(
                 ring.contrast,
@@ -351,6 +376,32 @@ function expectOneVisibleRing(stops: Stop[], context: string): void {
             ).toBeGreaterThanOrEqual(3);
         }
     }
+}
+
+/** The focused element's outline, and whether focus counts as visible. */
+function ringOfFocused(
+    page: Page
+): Promise<{ focusVisible: boolean; outline: string }> {
+    return page.evaluate(() => {
+        const el = document.activeElement ?? document.body;
+        const style = getComputedStyle(el);
+        return {
+            focusVisible: el.matches(':focus-visible'),
+            outline: `${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`,
+        };
+    });
+}
+
+/** `--app-focus-ring` at the focused element, as `rgb(…)`. */
+function focusRingRgb(page: Page): Promise<string> {
+    return page.evaluate(() => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--app-focus-ring)';
+        (document.activeElement ?? document.body).appendChild(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+    });
 }
 
 /** A mouse click focuses `target` without a ring. */
@@ -384,6 +435,7 @@ async function openMoviesWithRatingFilter(page: Page): Promise<void> {
         timeout: 20_000,
     });
     await view.locator('.refine-action').click();
+    await page.locator('.refine-rating-trigger').click();
     await page
         .getByRole('menuitemradio', { name: /^\s*5\.0 and higher/ })
         .click();
@@ -499,19 +551,21 @@ test.describe('Keyboard focus ring', () => {
             // Sources: the type filters, then the list's row actions.
             await openSources(page);
             await expect(
-                page.locator('app-playlist-item').first()
+                page.locator('app-workspace-sources app-source-row').first()
             ).toBeVisible();
+            // Add, the Type and Status rows, Clean up, Sort, then the first
+            // row and its actions; Check again lives in the row's menu.
             await walk(
                 'sources list',
                 page.locator('app-workspace-shell'),
                 page
                     .locator('app-workspace-sources-filters-panel button')
                     .first(),
-                12
+                16
             );
             expect(
                 report['sources list (dark)'].map((stop) => stop.label)
-            ).toContain('Check again');
+            ).toContain('Playlist actions');
 
             // The live EPG list: its rows are Tab stops (`role="button"`)
             // with their own inset ring, then the row's info button.
@@ -538,6 +592,25 @@ test.describe('Keyboard focus ring', () => {
                 firstSection,
                 24
             );
+
+            // A search result chosen with Enter focuses its row by script;
+            // the keypress keeps `:focus-visible`, so the row shows the ring.
+            await applyTheme(page, 'light');
+            const search = page.locator(
+                'app-workspace-shell-header input[type="search"]'
+            );
+            await search.fill('subtitles');
+            await page
+                .getByTestId('settings-search-result-show-captions')
+                .focus();
+            await page.keyboard.press('Enter');
+            const revealed = page.locator('[data-setting-id="show-captions"]');
+            await expect(revealed).toBeFocused();
+            expect(await ringOfFocused(page)).toEqual({
+                focusVisible: true,
+                outline: `solid 2px ${await focusRingRgb(page)}`,
+            });
+
             const toggle = page
                 .getByTestId('settings-container')
                 .locator('mat-slide-toggle [role="switch"]')

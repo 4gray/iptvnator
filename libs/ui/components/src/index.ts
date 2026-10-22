@@ -1,4 +1,5 @@
 export * from './lib/channel-list-container/channel-list-container.component';
+export * from './lib/channel-list-container/channel-context-menu/channel-context-menu.component';
 export * from './lib/channel-list-container/channel-details-dialog/channel-details-dialog.component';
 export * from './lib/channel-list-container/epg-mapping-dialog/epg-mapping-dialog.component';
 export * from './lib/channel-list-container/channel-list-item/channel-list-item.component';
@@ -9,7 +10,9 @@ export * from './lib/confirm-dialog/confirm-dialog.component';
 export * from './lib/confirm-dialog/dialog.service';
 export * from './lib/content-hero/content-hero.component';
 export * from './lib/expandable-text/expandable-text.component';
+export * from './lib/form-field-defaults/form-field-defaults';
 export * from './lib/external-playback-dock/external-playback-dock.component';
+export * from './lib/lazy-dialog/lazy-mat-dialog';
 export * from './lib/portal-detail-shell/content-about.component';
 export * from './lib/portal-detail-shell/detail-template.directives';
 export * from './lib/portal-detail-shell/portal-detail-shell.component';
@@ -34,6 +37,7 @@ export * from './lib/watched-badge/watched-badge.component';
 export * from './lib/window-controls/window-controls.component';
 
 export * from './lib/channel-scroll-focus/channel-scroll-focus.directive';
+export * from './lib/scroll-position/create-scroll-position-preserver';
 export * from './lib/category-lock-menu/category-lock-menu.component';
 export * from './lib/menu-item-radio/menu-item-radio.directive';
 
@@ -54,3 +58,6 @@ export * from './lib/detail-ui/vod-more-menu.component';
 export * from './lib/detail-ui/vod-more-menu.model';
 export * from './lib/detail-ui/series-hero.state';
 export * from './lib/detail-ui/hero-trailer-backdrop.component';
+export * from './lib/dialog-shell/dialog-shell.component';
+export * from './lib/dialog-shell/dialog-shell.directives';
+export * from './lib/dialog-shell/dialog-size';

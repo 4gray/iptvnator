@@ -5,20 +5,12 @@ import {
     computed,
     effect,
     inject,
-    Inject,
     linkedSignal,
-    Optional,
     signal,
-    viewChild,
+    untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import {
-    MAT_DIALOG_DATA,
-    MatDialogModule,
-    MatDialogRef,
-} from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -29,7 +21,6 @@ import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     buildXtreamNavigationTarget,
-    isWorkspaceLayoutRoute,
     queryParamSignal,
     workspacePortalCommands,
 } from '@iptvnator/portal/shared/util';
@@ -44,11 +35,6 @@ import {
     GlobalSearchResult,
     isM3uGlobalSearchResult,
 } from '@iptvnator/shared/interfaces';
-
-interface SearchResultsData {
-    isGlobalSearch: boolean;
-    initialQuery?: string;
-}
 
 interface GlobalSearchResultGroup {
     playlistId: string;
@@ -92,9 +78,7 @@ function groupResultsByPlaylistId(
         ContentCardComponent,
         FormsModule,
         MatCheckboxModule,
-        MatDialogModule,
         MatIcon,
-        MatIconButton,
         MatProgressSpinner,
         SearchLayoutComponent,
         TranslatePipe,
@@ -104,14 +88,12 @@ function groupResultsByPlaylistId(
     styleUrls: ['./search-results.component.scss'],
 })
 export class SearchResultsComponent implements AfterViewInit {
-    readonly searchLayoutComponent = viewChild(SearchLayoutComponent);
     readonly xtreamStore = inject(XtreamStore);
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
     private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly logger = createLogger('XtreamSearchResults');
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
     readonly routeSearchTerm = queryParamSignal(
         this.activatedRoute,
         'q',
@@ -137,7 +119,16 @@ export class SearchResultsComponent implements AfterViewInit {
     private static readonly TYPE_FILTERS_STORAGE_KEY =
         'global-search-type-filters';
 
-    isGlobalSearch = false;
+    readonly isGlobalSearch =
+        this.activatedRoute.snapshot.data?.['isGlobalSearch'] === true;
+
+    /** Nothing of the portal's catalog is loading or importing any more. */
+    private readonly isCatalogReady = computed(
+        () =>
+            !this.xtreamStore.isLoadingContent() &&
+            !this.xtreamStore.isLoadingCategories() &&
+            !this.xtreamStore.isImporting()
+    );
 
     /** Whether to group global search results by playlist */
     readonly groupByPlaylist = signal(
@@ -246,15 +237,7 @@ export class SearchResultsComponent implements AfterViewInit {
         }
     }
 
-    constructor(
-        @Optional() @Inject(MAT_DIALOG_DATA) data: SearchResultsData | null,
-        @Optional() public dialogRef: MatDialogRef<SearchResultsComponent>
-    ) {
-        this.isGlobalSearch =
-            data?.isGlobalSearch ||
-            this.activatedRoute.snapshot.data?.['isGlobalSearch'] === true;
-        const initialQuery = (data?.initialQuery ?? '').trim();
-
+    constructor() {
         if (this.isGlobalSearch) {
             const savedFilters = localStorage.getItem(
                 SearchResultsComponent.TYPE_FILTERS_STORAGE_KEY
@@ -273,43 +256,54 @@ export class SearchResultsComponent implements AfterViewInit {
                     // Ignore malformed storage value and keep defaults.
                 }
             }
-
-            if (initialQuery) {
-                this.xtreamStore.setSearchTerm(initialQuery);
-            }
         }
 
-        effect((onCleanup) => {
-            const term = this.searchTerm();
-            if (term.length >= this.minSearchLength) {
-                const timeout = setTimeout(() => this.executeSearch(), 300);
-                onCleanup(() => clearTimeout(timeout));
-            } else if (term.length < this.minSearchLength) {
-                this.clearResultsOnly();
-            }
-        });
-
+        // Created first so a route `q` reaches the store before the search
+        // effect's first run: a term left in the store by an earlier visit
+        // must not be queried on the way to the route's term.
         effect(() => {
-            if (!this.isWorkspaceLayout) {
-                return;
-            }
-
             const queryTerm = this.routeSearchTerm();
-            if (queryTerm === this.searchTerm()) {
+            if (queryTerm === untracked(this.searchTerm)) {
                 return;
             }
 
             this.xtreamStore.setSearchTerm(queryTerm);
         });
+
+        // One effect for both triggers, so a term and the end of catalog
+        // loading arriving in the same flush run one search, not two.
+        // - A new term runs at once: typed terms arrive already debounced by
+        //   the workspace shell (SEARCH_INPUT_DEBOUNCE_MS), and a term from
+        //   the URL or a filter change is a single deliberate change. A newer
+        //   term supersedes an older query still in flight (request versions).
+        // - A prefilled in-portal search (a reload or deep link with `q`) can
+        //   run while the portal's catalog is still loading, and the in-portal
+        //   search reads that catalog: it runs again once loading has finished.
+        let previousTerm: string | undefined;
+        let wasCatalogReady: boolean | undefined;
+        effect(() => {
+            const term = this.searchTerm();
+            const ready = this.isCatalogReady();
+            const termChanged = term !== previousTerm;
+            const becameReady =
+                wasCatalogReady === false && ready && !this.isGlobalSearch;
+            previousTerm = term;
+            wasCatalogReady = ready;
+            if (!termChanged && !becameReady) {
+                return;
+            }
+            untracked(() => {
+                if (term.length >= this.minSearchLength) {
+                    this.executeSearch();
+                } else if (termChanged) {
+                    this.clearResultsOnly();
+                }
+            });
+        });
     }
 
     ngAfterViewInit() {
         this.xtreamStore.setSelectedContentType('vod');
-        if (this.showInlineSearchInput) {
-            setTimeout(() => {
-                this.searchLayoutComponent()?.focusSearchInput();
-            });
-        }
     }
 
     executeSearch() {
@@ -328,13 +322,6 @@ export class SearchResultsComponent implements AfterViewInit {
                 excludeHidden,
             });
         }
-    }
-
-    /**
-     * Update search term in the store
-     */
-    updateSearchTerm(term: string) {
-        this.xtreamStore.setSearchTerm(term);
     }
 
     /**
@@ -526,17 +513,9 @@ export class SearchResultsComponent implements AfterViewInit {
             imageUrl: item.poster_url,
         });
 
-        if (this.isGlobalSearch) {
-            this.dialogRef?.close();
-        }
-
         void this.router.navigate(navigation.link, {
             state: navigation.state,
         });
-    }
-
-    onCloseDialog() {
-        this.dialogRef?.close();
     }
 
     /** History Back; the portal's default section when it opened the session. */
@@ -569,25 +548,13 @@ export class SearchResultsComponent implements AfterViewInit {
         return this.groupedResults();
     }
 
-    get showInlineSearchInput(): boolean {
-        return !this.isWorkspaceLayout;
-    }
-
-    get showGlobalCloseButton(): boolean {
-        return this.isGlobalSearch && !this.isWorkspaceLayout;
-    }
-
     /**
      * The in-portal search is a nested view (reached from the toolbar
      * search box or an actor page), so it offers the header's Back; the
-     * global search is a top-level sidebar destination, and the dialog has
-     * its own close button — a Back there would navigate the page behind
-     * the open dialog.
+     * global search is a top-level sidebar destination.
      */
     get backAvailable(): boolean {
-        return (
-            this.isWorkspaceLayout && !this.isGlobalSearch && !this.dialogRef
-        );
+        return !this.isGlobalSearch;
     }
 
     get minSearchLength(): number {
@@ -616,10 +583,6 @@ export class SearchResultsComponent implements AfterViewInit {
     private selectM3uItem(item: GlobalSearchResult): void {
         if (!isM3uGlobalSearchResult(item)) {
             return;
-        }
-
-        if (this.isGlobalSearch) {
-            this.dialogRef?.close();
         }
 
         void this.router.navigate(

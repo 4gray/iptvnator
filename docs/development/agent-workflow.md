@@ -16,7 +16,8 @@ claims in the final summary. Repo docs remain canonical regardless of authorship
 
 Keep AGENTS.md limited to repository-wide constraints and task routing. Do not
 add feature histories, method lists, schema inventories or troubleshooting
-procedures to it. CLAUDE.md imports AGENTS.md; do not mirror common prose by hand.
+procedures to it. All coding agents, including Claude Code, read AGENTS.md;
+do not create a second copy of the common instructions.
 Use [the context map](../maintenance/agent-context-map.md) for the owning document
 and relevant skill. Read multiple contracts for cross-domain work. Add a new
 canonical document only when no existing owner fits; link it from the map.
@@ -27,8 +28,30 @@ The [2026-09 migration ledger](../maintenance/agent-guidance-migration.md) recor
 the initial move; it is an audit artifact, not required reading for feature work.
 Later normal edits maintain the canonical docs, not duplicate historical prose.
 
+## Claude Code
+
+Use Claude Code **2.1.281 or newer** with its built-in AGENTS.md plugin enabled.
+Native support arrived in 2.1.277; 2.1.281 fixed availability for sessions with
+telemetry disabled and some cloud providers. See the
+[official instruction-loading documentation](https://code.claude.com/docs/en/memory#agentsmd).
+
+The repository uses AGENTS.md directly and does not need a CLAUDE.md wrapper.
+By default, CLAUDE.md, .claude/CLAUDE.md or CLAUDE.local.md in the working
+directory or an ancestor prevents AGENTS.md loading. If you keep one locally,
+set **Project instructions** to **claude-md-and-agents-md** in `/config`.
+Personal ~/.claude/CLAUDE.md and .claude/rules/ can remain alongside AGENTS.md.
+Start a new session after upgrading and check the AGENTS.md loading notice.
+
+Release skills remain mirrored in `.claude/skills/`; their `.codex/skills/`
+copies must stay byte-identical. Read other repository skills from the paths
+in the context map.
+
+## Guidance validation
+
 Run `pnpm run agents:validate` after guidance changes. It checks line/byte budgets,
 root imports and local navigation links/anchors, including migration destinations.
+CLAUDE.md is optional; if present, it still has a 30-line / 2 KiB budget and
+must contain exactly one standalone AGENTS.md import.
 Line budgets count LF, CRLF and standalone CR endings consistently.
 Markdown navigation is parsed with the already-declared `marked` dependency;
 undefined explicit references (including shortcut images) are errors, and code examples are excluded.
@@ -117,7 +140,7 @@ It cannot prove semantic equivalence; review changed contracts as well.
 
 ## Protected Markdown edits
 
-Never run whole-file `prettier --write` on AGENTS.md, CLAUDE.md or docs/**.
+Never run whole-file `prettier --write` on AGENTS.md or docs/**.
 Upstream formatting is not uniformly Prettier-clean: whole-file writes can
 corrupt nested list indentation or change a literal continuation into a bullet.
 Format only intended new lines. If accidental formatting occurred, reconstruct

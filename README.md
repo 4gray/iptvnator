@@ -68,7 +68,7 @@ The application is a cross-platform, open-source project built with Electron and
 - Cross-platform desktop (Electron) and installable PWA
 - Desktop auto-updater and mobile remote control _(desktop)_
 - Docker self-hosting for the PWA + web backend
-- 19 languages ([translation files](apps/web/src/assets/i18n/)), light & dark themes, and keyboard shortcuts
+- 20 languages ([translation files](apps/web/src/assets/i18n/)), light & dark themes, and keyboard shortcuts
 
 ## Keyboard shortcuts
 
@@ -81,6 +81,7 @@ Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
 | Global            | `Ctrl/Cmd+R`                | Open recently viewed in the desktop app                    |
 | Global            | `Enter` in workspace search | Submit the search; on Settings, open the best match        |
 | Global            | `F11`                       | Toggle app window fullscreen in the desktop app            |
+| Navigation        | `Alt+←` / `Cmd+[` (macOS)   | Go back, like the top bar's Back and the mouse Back button |
 | Navigation        | `Ctrl/Cmd+B`                | Toggle the live sidebar                                    |
 | Navigation        | `0-9`                       | Select an M3U channel by number                            |
 | Playback          | `Space` / `K`               | Play or pause playback                                     |
@@ -134,6 +135,10 @@ The application is available at <http://localhost:4333>. See
 [`docker/docker-compose.yml`](./docker/docker-compose.yml) for the ready-to-run
 compose file and [`docker/README.md`](./docker/README.md) for environment
 variables, reverse proxy notes, PWA limitations, and build details.
+
+The image keeps playlists, favorites and watch progress on the server, so
+every browser that opens it shares one library. The first browser that opens
+an updated instance offers to move the playlists it already has.
 
 The self-hosted image runs the browser PWA rather than the Electron desktop app:
 EPG/XMLTV panels, Embedded MPV, managed MPV/VLC launching, the download manager,
@@ -421,6 +426,7 @@ The name **"IPTVnator"** and the IPTVnator logo are unregistered trademarks of t
 
 Start with the [task context map](docs/maintenance/agent-context-map.md) to find
 the authoritative contract and validation for your area. Common agent rules are
-in [AGENTS.md](AGENTS.md); Claude Code imports that same file. Development and
+in [AGENTS.md](AGENTS.md); Claude Code reads that same file directly (see
+[Claude Code setup](docs/development/agent-workflow.md#claude-code)). Development and
 documentation-maintenance conventions live in the
 [agent workflow](docs/development/agent-workflow.md).

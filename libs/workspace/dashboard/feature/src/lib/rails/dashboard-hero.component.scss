@@ -9,6 +9,8 @@
 // reverse, with the same geometry.
 
 @use '../../../../../../ui/styles/detail-view-actions' as detail-actions;
+@use '../../../../../../ui/styles/focus-ring';
+@use '../../../../../../ui/styles/skeleton-shimmer' as shimmer;
 
 // The host renders nothing when there is no slide and no skeleton; with
 // `display: contents` it then adds no flex gap to the rails page either.
@@ -75,8 +77,7 @@
     color: var(--hero-heading);
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 }
 
@@ -452,8 +453,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 
     &:active {
@@ -541,8 +541,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 1px;
+        @include focus-ring.focus-ring-declarations($offset: 1px);
     }
 }
 
@@ -594,8 +593,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
         border-radius: 6px;
     }
 
@@ -658,17 +656,10 @@
     );
 }
 
+@include shimmer.keyframes;
+
 .hero__skeleton {
-    display: block;
-    border-radius: 6px;
-    background: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 8%, transparent) 0%,
-        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 16%, transparent) 50%,
-        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 8%, transparent) 100%
-    );
-    background-size: 200% 100%;
-    animation: hero-skeleton-shimmer 1.6s linear infinite;
+    @include shimmer.block(6px);
 
     &--eyebrow {
         width: 180px;
@@ -692,15 +683,6 @@
         height: 38px;
         border-radius: 10px;
         margin-top: 4px;
-    }
-}
-
-@keyframes hero-skeleton-shimmer {
-    from {
-        background-position: 200% 0;
-    }
-    to {
-        background-position: -200% 0;
     }
 }
 
@@ -769,8 +751,7 @@
         transition: none;
     }
 
-    .hero__content,
-    .hero__skeleton {
+    .hero__content {
         animation: none;
     }
 }

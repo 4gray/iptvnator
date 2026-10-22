@@ -2,18 +2,14 @@
     [searchTerm]="searchTerm()"
     [resultsCount]="xtreamStore.searchResults().length"
     [isLoading]="xtreamStore.isSearching()"
-    [showCloseButton]="false"
     [backAvailable]="backAvailable"
     [showResultsCount]="!isGlobalSearch || !groupByPlaylist()"
-    [showSearchInput]="showInlineSearchInput"
     [minSearchLength]="minSearchLength"
     [initialDescriptionKey]="initialDescriptionKey"
     [nearEndHasMore]="hasMoreSearchResults()"
     [nearEndAppending]="isAppendingSearchResults()"
     [nearEndRenderedCount]="renderedSearchResultsCount()"
     [nearEndResetKey]="searchResetIdentity()"
-    (searchTermChange)="updateSearchTerm($event)"
-    (closeClick)="onCloseDialog()"
     (backClick)="goBack()"
     (nearEnd)="onResultsNearEnd()"
 >
@@ -39,11 +35,6 @@
             >
                 {{ 'PORTALS.SEARCH_VIEW.VISIBLE_CATEGORIES_ONLY' | translate }}
             </mat-checkbox>
-        }
-        @if (showGlobalCloseButton) {
-            <button mat-icon-button (click)="onCloseDialog()">
-                <mat-icon>close</mat-icon>
-            </button>
         }
     </ng-container>
 

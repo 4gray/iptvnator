@@ -5,21 +5,25 @@ import {
     inject,
     input,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { NgTemplateOutlet } from '@angular/common';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { MatButton } from '@angular/material/button';
+import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { filter, map } from 'rxjs';
 import {
     PlaylistActions,
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
+import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
 
 /** The first route also waits for settings and XMLTV source reconciliation. */
 @Component({
     selector: 'app-startup-status',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButtonModule, MatProgressSpinnerModule, TranslatePipe],
+    imports: [MatButton, NgTemplateOutlet, TranslatePipe],
     template: `
         @if (!complete()) {
             <section
@@ -45,7 +49,40 @@ import {
                     />
                 </svg>
                 @if (!failed()) {
-                    <mat-spinner diameter="32" aria-hidden="true" />
+                    <div class="startup-spinner" aria-hidden="true">
+                        <div class="startup-spinner__container">
+                            <div class="startup-spinner__layer">
+                                <div
+                                    class="startup-spinner__clipper startup-spinner__clipper--left"
+                                >
+                                    <svg
+                                        viewBox="0 0 25.2 25.2"
+                                        focusable="false"
+                                    >
+                                        <circle r="11" cx="50%" cy="50%" />
+                                    </svg>
+                                </div>
+                                <div class="startup-spinner__gap">
+                                    <svg
+                                        viewBox="0 0 25.2 25.2"
+                                        focusable="false"
+                                    >
+                                        <circle r="11" cx="50%" cy="50%" />
+                                    </svg>
+                                </div>
+                                <div
+                                    class="startup-spinner__clipper startup-spinner__clipper--right"
+                                >
+                                    <svg
+                                        viewBox="0 0 25.2 25.2"
+                                        focusable="false"
+                                    >
+                                        <circle r="11" cx="50%" cy="50%" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 }
                 <h1>
                     {{
@@ -62,9 +99,30 @@ import {
                     }}
                 </p>
                 @if (failed()) {
-                    <button mat-flat-button type="button" (click)="retry()">
-                        {{ 'RETRY' | translate }}
-                    </button>
+                    <!--
+                        Material's button loads with the failure branch so the
+                        first screen does not carry the button chunk. A native
+                        button retries while the chunk downloads and stays when
+                        the load fails.
+                    -->
+                    @defer (on immediate) {
+                        <button mat-flat-button type="button" (click)="retry()">
+                            {{ 'RETRY' | translate }}
+                        </button>
+                    } @placeholder {
+                        <ng-container [ngTemplateOutlet]="nativeRetry" />
+                    } @error {
+                        <ng-container [ngTemplateOutlet]="nativeRetry" />
+                    }
+                    <ng-template #nativeRetry>
+                        <button
+                            class="startup-retry-native"
+                            type="button"
+                            (click)="retry()"
+                        >
+                            {{ 'RETRY' | translate }}
+                        </button>
+                    </ng-template>
                 }
             </section>
         }
@@ -121,6 +179,161 @@ import {
             margin-top: 8px;
             app-region: no-drag;
         }
+        /* The flat button's shape in the theme's colours, until the
+           Material button loads. */
+        .startup-retry-native {
+            height: 40px;
+            padding: 0 24px;
+            border: 0;
+            border-radius: 20px;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font: inherit;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /*
+         * The same drawing as an indeterminate <mat-spinner diameter="32">
+         * (two clipped half circles plus a gap patch, Material's durations,
+         * curves and keyframes, a 10% stroke on a 25.2 viewBox around an
+         * r=11 circle, 1.25x slower under reduced motion), as static markup:
+         * the component would load the progress-spinner chunk before the
+         * app's first screen and set every attribute after insertion.
+         */
+        .startup-spinner {
+            --startup-spinner-multiplier: 1;
+            position: relative;
+            width: 32px;
+            height: 32px;
+            overflow: hidden;
+            line-height: 0;
+            direction: ltr;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .startup-spinner {
+                --startup-spinner-multiplier: 1.25;
+            }
+        }
+        .startup-spinner__container,
+        .startup-spinner__layer,
+        .startup-spinner svg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        .startup-spinner__container {
+            animation: startup-spinner-container-rotate
+                calc(1568.2352941176ms * var(--startup-spinner-multiplier))
+                linear infinite;
+        }
+        .startup-spinner__layer {
+            animation: startup-spinner-layer-rotate
+                calc(5332ms * var(--startup-spinner-multiplier))
+                cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        }
+        .startup-spinner__clipper {
+            display: inline-flex;
+            position: relative;
+            width: 50%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .startup-spinner__clipper svg {
+            width: 200%;
+        }
+        .startup-spinner__clipper--left svg {
+            animation: startup-spinner-left-spin
+                calc(1333ms * var(--startup-spinner-multiplier))
+                cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        }
+        .startup-spinner__clipper--right svg {
+            left: -100%;
+            animation: startup-spinner-right-spin
+                calc(1333ms * var(--startup-spinner-multiplier))
+                cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        }
+        .startup-spinner__gap {
+            position: absolute;
+            top: 0;
+            left: 47.5%;
+            box-sizing: border-box;
+            width: 5%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .startup-spinner__gap svg {
+            left: -900%;
+            width: 2000%;
+            transform: rotate(180deg);
+        }
+        .startup-spinner svg {
+            fill: transparent;
+        }
+        .startup-spinner circle {
+            stroke: var(--mat-sys-primary);
+            stroke-width: 10%;
+            stroke-dasharray: 69.11503837897544px;
+            stroke-dashoffset: 34.55751918948772px;
+        }
+        @media (forced-colors: active) {
+            .startup-spinner circle {
+                stroke: CanvasText;
+            }
+        }
+        @keyframes startup-spinner-container-rotate {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        @keyframes startup-spinner-layer-rotate {
+            12.5% {
+                transform: rotate(135deg);
+            }
+            25% {
+                transform: rotate(270deg);
+            }
+            37.5% {
+                transform: rotate(405deg);
+            }
+            50% {
+                transform: rotate(540deg);
+            }
+            62.5% {
+                transform: rotate(675deg);
+            }
+            75% {
+                transform: rotate(810deg);
+            }
+            87.5% {
+                transform: rotate(945deg);
+            }
+            100% {
+                transform: rotate(1080deg);
+            }
+        }
+        @keyframes startup-spinner-left-spin {
+            from {
+                transform: rotate(265deg);
+            }
+            50% {
+                transform: rotate(130deg);
+            }
+            to {
+                transform: rotate(265deg);
+            }
+        }
+        @keyframes startup-spinner-right-spin {
+            from {
+                transform: rotate(-265deg);
+            }
+            50% {
+                transform: rotate(-130deg);
+            }
+            to {
+                transform: rotate(-265deg);
+            }
+        }
     `,
 })
 export class AppStartupStatusComponent {
@@ -130,8 +343,23 @@ export class AppStartupStatusComponent {
         selectPlaylistsLoadingFlag
     );
     readonly failed = this.store.selectSignal(selectPlaylistsLoadFailed);
+    private readonly router = inject(Router);
+    private readonly url = toSignal(
+        this.router.events.pipe(
+            filter((event) => event instanceof NavigationEnd),
+            map((event) => event.urlAfterRedirects)
+        ),
+        { initialValue: this.router.url }
+    );
+    /**
+     * Server storage asking for a token: the playlists cannot load, and the
+     * sign-in page must stay up whatever its check reports.
+     */
+    private readonly onSignInPage = computed(() =>
+        this.url().startsWith(SERVER_SIGN_IN_PATH)
+    );
     readonly complete = computed(
-        () => this.routeReady() && this.sourcesReady()
+        () => this.routeReady() && (this.sourcesReady() || this.onSignInPage())
     );
 
     retry(): void {
