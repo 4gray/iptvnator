@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TV Shell pour IPTVnator</string>
+    <string name="credits_label">Crédits</string>
+    <string name="credits_names">sz and axs</string>
     <string name="loading">Démarrage du lecteur…</string>
     <string name="load_error_title">Le lecteur n\'a pas pu être chargé</string>
     <string name="load_error">Erreur : %1$s (code %2$s)</string>
     <string name="server_error">Le serveur embarqué n\'a pas pu démarrer (aucun port libre).</string>
-    <string name="load_timeout">L\'application web n\'a pas démarré en 30 secondes. Le WebView de cet appareil est peut-être trop ancien pour IPTVnator (moteur Chrome 94 ou plus récent requis). Appui long sur Menu pour le diagnostic.</string>
+    <string name="load_timeout">L\'application web n\'a pas démarré à temps. Le WebView de cet appareil est peut-être trop ancien pour IPTVnator (moteur Chrome 94 ou plus récent requis). Appui long sur Menu pour le diagnostic.</string>
     <string name="renderer_restarted">Le lecteur a été relancé après avoir manqué de mémoire.</string>
     <string name="renderer_gone_loop">La vue web s\'arrête en boucle (mémoire insuffisante ?). Essayez une playlist plus petite, ou effacez les données de l\'application dans les réglages.</string>
     <string name="retry">Réessayer</string>

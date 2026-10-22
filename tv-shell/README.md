@@ -145,7 +145,11 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
   `<script src="tvshell/tv.js">` tag (the app's CSP forbids inline scripts). No
   IPTVnator file is modified. It calls `TvShell.onReady()` only once Angular has
   rendered; the shell shows the error panel with the diagnostics when that does
-  not happen within 30 s or when the page reports an `Uncaught SyntaxError`.
+  not happen within 30 s (60 s while the page is still being fetched, a cold
+  start after an update) or when the page reports an `Uncaught SyntaxError`. A
+  main-frame load error from the loopback server is retried once after the
+  server is restarted, an HTTP error from it opens the panel at once, and the
+  splash (with the credits) stays at least 1.5 s.
 - Layout width 1280 CSS px (960 / 1600 selectable) with the page scale pinned
   from the measured screen width (`DisplayMetrics`; a 1080p Fire TV is 960 CSS
   px wide, so the scale is 0.75): the WebView's own overview-mode fit proved
@@ -224,7 +228,7 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 
 ### Start-up
 
-- **"The player could not be loaded"** after 30 s: the page did not start. If
+- **"The player could not be loaded"** after 30 to 60 s: the page did not start. If
   the Chrome version shown is below **94**, the WebView cannot run the Angular
   bundle; update "Amazon WebView" / Android System WebView from the Appstore
   (GeckoView would be the fallback). Between 94 and 110 the app works with
