@@ -1,0 +1,69 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Chaîne n°1 – « Été »",
+    "tvg": {
+     "id": "fr1",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": "Télé française"
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://x/été.ts",
+    "raw": "#EXTINF:-1 tvg-id=\"fr1\" group-title=\"Télé française\",Chaîne n°1 – « Été »\r\nhttp://x/été.ts",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "テレビ 東京",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": "日本"
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://x/jp.ts",
+    "raw": "#EXTINF:-1 group-title=\"日本\",テレビ 東京\r\nhttp://x/jp.ts",
+    "line": 4,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

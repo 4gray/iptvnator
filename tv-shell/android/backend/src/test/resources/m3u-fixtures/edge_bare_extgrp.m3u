@@ -1,0 +1,4 @@
+#EXTM3U
+#EXTINF:-1 group-title="Kept",A
+#EXTGRP:
+http://x/1.ts
