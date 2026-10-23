@@ -69,6 +69,7 @@ ipcMain.handle(
         event,
         payload: {
             url: string;
+            userAgent?: string;
             params: Record<string, string>;
             requestId?: string;
             probe?: SourceProbeContext;
@@ -92,6 +93,7 @@ ipcMain.handle(
         let activeRequestKey: string | null = null;
         let requestUrlForLog = payload.url;
         let guardToken: HostRequestToken | null = null;
+        const userAgent = payload.userAgent?.trim() || XTREAM_CLIENT_USER_AGENT;
         try {
             const { url, params, requestId, sessionId } = payload;
 
@@ -125,7 +127,7 @@ ipcMain.handle(
                 method: 'GET',
                 url: apiUrl.toString(),
                 headers: {
-                    'User-Agent': XTREAM_CLIENT_USER_AGENT,
+                    'User-Agent': userAgent,
                     Accept: 'application/json',
                 },
                 timeout: 30000, // 30 seconds timeout for Xtream API
@@ -230,7 +232,7 @@ ipcMain.handle(
                         method: 'GET',
                         url: apiUrl,
                         headers: {
-                            'User-Agent': XTREAM_CLIENT_USER_AGENT,
+                            'User-Agent': userAgent,
                             Accept: 'application/json',
                         },
                         timeout: 30000,

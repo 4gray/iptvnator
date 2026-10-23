@@ -8,6 +8,35 @@ import {
 } from './web-backend-app.spec-helpers';
 
 describe('web backend app', () => {
+    it('uses the Xtream User-Agent override as a header without forwarding it as an API parameter', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse({ user_info: { auth: 1 } });
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://xtream.example'
+                );
+                await fetch(
+                    `${baseUrl}/xtream?targetId=${targetId}&username=user&userAgent=%20Mozilla%2F5.0%20(Windows%20NT%2010.0%3B%20Win64%3B%20x64)%20AppleWebKit%2F537.36%20`
+                );
+                expect(httpClient.requests).toEqual([
+                    expect.objectContaining({
+                        headers: {
+                            'User-Agent':
+                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        },
+                        params: { username: 'user' },
+                    }),
+                ]);
+            }
+        );
+    });
+
     it('exposes a health endpoint', async () => {
         await withServer(createWebBackendApp(), async (baseUrl) => {
             const response = await fetch(`${baseUrl}/health`);

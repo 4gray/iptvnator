@@ -252,6 +252,36 @@ describe('XtreamEvents session cancellation', () => {
         });
     });
 
+    it.each([
+        [
+            ' Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        ],
+        ['   ', 'VLC/3.0.18 LibVLC/3.0.18'],
+        [undefined, 'VLC/3.0.18 LibVLC/3.0.18'],
+    ])(
+        'uses the playlist User-Agent or fallback (%s)',
+        async (userAgent, expected) => {
+            axiosMock.mockResolvedValue({ status: 200, data: {}, headers: {} });
+            await registeredHandlers.get('XTREAM_REQUEST')?.(
+                {},
+                {
+                    url: 'https://example.com',
+                    params: {},
+                    userAgent,
+                }
+            );
+            expect(axiosMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    headers: {
+                        'User-Agent': expected,
+                        Accept: 'application/json',
+                    },
+                })
+            );
+        }
+    );
+
     it('normalizes full Xtream API URLs before appending player_api.php', async () => {
         const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
         expect(requestHandler).toBeDefined();
