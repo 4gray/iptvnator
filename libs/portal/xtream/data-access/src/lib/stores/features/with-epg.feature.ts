@@ -111,7 +111,12 @@ export function withEpg() {
             const settingsStore = inject(SettingsStore);
             const sources = inject(EpgSourceSettingsService);
 
-            const supportsEpg = (): boolean => runtime.supportsEpg;
+            // Provider EPG needs only the portal transport (Electron IPC or
+            // the PWA's backend proxy). The XMLTV parts — the manual mapping
+            // lookup below and XtreamXmltvFallbackService — keep their own
+            // capability checks and stay off in the PWA.
+            const supportsProviderEpg = (): boolean =>
+                runtime.supportsProviderEpg;
 
             /**
              * Helper to get credentials from parent store
@@ -155,7 +160,7 @@ export function withEpg() {
                  */
                 async loadEpg(): Promise<EpgItem[]> {
                     const sourceRevision = sources.revision();
-                    if (!supportsEpg()) {
+                    if (!supportsProviderEpg()) {
                         patchState(store, {
                             epgItems: [],
                             isLoadingEpg: false,
@@ -234,7 +239,7 @@ export function withEpg() {
                     streamId: number,
                     epgChannelId?: string | null
                 ): Promise<EpgItem[]> {
-                    if (!supportsEpg()) {
+                    if (!supportsProviderEpg()) {
                         return [];
                     }
 

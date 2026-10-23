@@ -5,7 +5,10 @@
  */
 export type SettingsSearchRequirement =
     | 'desktop'
+    /** XMLTV sources: import and data management (desktop today). */
     | 'epg'
+    /** Any guide, XMLTV or a portal's own: the EPG page's display rows. */
+    | 'epg-display'
     | 'remote-control'
     | 'startup-window-mode'
     | 'portal-connectivity-guard'

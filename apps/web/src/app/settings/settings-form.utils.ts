@@ -58,7 +58,8 @@ export function createEpgUrlControl(value = ''): FormControl<string | null> {
 
 export function createSettingsForm(
     formBuilder: FormBuilder,
-    supportsEpg: boolean
+    supportsEpg: boolean,
+    supportsEpgDisplay = supportsEpg
 ) {
     const form = formBuilder.group({
         player: [VideoPlayer.VideoJs],
@@ -122,9 +123,10 @@ export function createSettingsForm(
         portalConnectivityGuard: true,
         coverSize: 'medium' as CoverSize,
         showCoverTitles: true,
-        ...(supportsEpg
+        ...(supportsEpg ? { preferUploadedEpgOverXtream: false } : {}),
+        // View mode and offset shape every guide, a portal's own included.
+        ...(supportsEpgDisplay
             ? {
-                  preferUploadedEpgOverXtream: false,
                   epgViewMode: 'timeline' as EpgViewMode,
                   epgOffsetMinutes: new FormControl<number>(0, [
                       Validators.required,

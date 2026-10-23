@@ -81,6 +81,7 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
+                        supportsProviderEpg: true,
                         get supportsEpg() {
                             return Boolean(window.electron);
                         },

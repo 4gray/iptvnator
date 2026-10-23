@@ -5,6 +5,7 @@ import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 import {
     DataService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -99,6 +100,7 @@ export class StreamResolverService {
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
 
     /**
@@ -128,8 +130,14 @@ export class StreamResolverService {
     private readonly xtreamEpgCacheTtlMs = 60 * 1000;
     private readonly xtreamEpgFailureCooldownMs = 30 * 1000;
 
+    /** Local XMLTV: M3U guides, `epg_channel_id` matches, manual mappings. */
     private get supportsProgramLookup(): boolean {
         return this.epgBridge.supportsProgramLookup;
+    }
+
+    /** Xtream and Stalker guides: only the portal transport is needed. */
+    private get supportsProviderEpg(): boolean {
+        return this.runtime.supportsProviderEpg;
     }
 
     private async getElectronPlaylist(
@@ -202,7 +210,12 @@ export class StreamResolverService {
         items: UnifiedCollectionItem[]
     ): Promise<Map<string, EpgProgram | null>> {
         const epgMap = new Map<string, EpgProgram | null>();
-        if (!this.supportsProgramLookup) {
+        // M3U rows need XMLTV; Xtream and Stalker rows need the portal
+        // transport (and try XMLTV matches and mappings first where XMLTV
+        // exists).
+        const loadsM3u = this.supportsProgramLookup;
+        const loadsPortals = this.supportsProviderEpg;
+        if (!loadsM3u && !loadsPortals) {
             return epgMap;
         }
 
@@ -214,7 +227,11 @@ export class StreamResolverService {
         const stalkerByPlaylist = new Map<string, UnifiedCollectionItem[]>();
 
         for (const item of items) {
-            if (item.contentType !== 'live' || isCatalogUnavailable(item)) {
+            if (
+                !loadsPortals ||
+                item.contentType !== 'live' ||
+                isCatalogUnavailable(item)
+            ) {
                 continue;
             }
 
@@ -240,7 +257,11 @@ export class StreamResolverService {
         const tasks: Promise<void>[] = [];
 
         for (const item of items) {
-            if (item.sourceType === 'm3u' && item.contentType === 'live') {
+            if (
+                loadsM3u &&
+                item.sourceType === 'm3u' &&
+                item.contentType === 'live'
+            ) {
                 tasks.push(this.loadM3uEpg(item, epgMap, now));
             }
         }
@@ -281,7 +302,7 @@ export class StreamResolverService {
         item: UnifiedCollectionItem
     ): Promise<ResolvedLiveCollectionDetail> {
         const playback = await this.resolveXtream(item);
-        if (!this.supportsProgramLookup) {
+        if (!this.supportsProviderEpg) {
             return {
                 playback,
                 epgMode: 'portal',
@@ -315,7 +336,7 @@ export class StreamResolverService {
             };
         }
 
-        if (!this.supportsProgramLookup) {
+        if (!this.supportsProviderEpg) {
             return {
                 playback,
                 epgMode: 'portal',
@@ -1133,7 +1154,7 @@ export class StreamResolverService {
         limit: number,
         clock = this.epgLoadClock()
     ): Promise<EpgItem[]> {
-        if (!this.supportsProgramLookup) {
+        if (!this.supportsProviderEpg) {
             return [];
         }
 
@@ -1275,7 +1296,7 @@ export class StreamResolverService {
         channelId: string,
         size: number
     ): Promise<EpgItem[]> {
-        if (!this.supportsProgramLookup) {
+        if (!this.supportsProviderEpg) {
             return [];
         }
 

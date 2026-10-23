@@ -418,12 +418,13 @@ all, and none inside the hero.
           cannot queue a replacement, and without it the pre-change answer
           would be trusted for a full TTL (the repo's late-result
           invalidation contract).
-        - Desktop only in practice: the shared collection resolver is gated on
-          the local XMLTV bridge (`supportsProgramLookup`) and answers nothing
-          without it, so `sync()` returns immediately in the PWA rather than
-          filing an empty answer for every card. Lifting that gate for portal
-          lookups would change the collection pages too and is deliberately
-          out of scope here.
+        - Gated on the portal transport (`supportsProviderEpg`), like the
+          collection resolver's portal lookups: it works in the PWA through
+          the backend proxy, and `sync()` returns immediately only where no
+          portal transport exists, rather than filing an empty answer for
+          every card. The XMLTV overlays inside the resolver
+          (`epg_channel_id`, manual mappings) stay behind
+          `supportsProgramLookup`.
         - `DashboardLiveEpgPresenter.enrich()` prefers the portal answer, falls
           back to the XMLTV title match when the portal said "nothing on air",
           and marks a card

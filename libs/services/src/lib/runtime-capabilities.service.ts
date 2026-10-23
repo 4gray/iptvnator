@@ -177,6 +177,30 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    /**
+     * Xtream and Stalker provider EPG (`get_short_epg`,
+     * `get_simple_data_table`, `get_epg_info`). It needs only the portal
+     * transport: the PWA's PwaService forwards to the web backend proxy,
+     * Electron sends through both portal preload methods. Independent of
+     * XMLTV (`supportsEpg` and its narrower flags).
+     */
+    get supportsProviderEpg(): boolean {
+        return (
+            this.isPwa ||
+            (this.hasElectronMethod('xtreamRequest') &&
+                this.hasElectronMethod('stalkerRequest'))
+        );
+    }
+
+    /**
+     * Xtream catch-up (timeshift) from the EPG panel: watch, copy, download.
+     * Hidden in the browser PWA until a manual check against a real provider
+     * shows its players play the REST MPEG-TS archive URL.
+     */
+    get supportsProviderCatchUp(): boolean {
+        return this.isElectron;
+    }
+
     get supportsSqlite(): boolean {
         return [
             'dbDeleteAllPlaylists',

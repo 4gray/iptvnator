@@ -441,6 +441,44 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpgGuide).toBe(false);
     });
 
+    it('offers provider EPG wherever the portal transport exists, independently of XMLTV', () => {
+        const service = new RuntimeCapabilitiesService();
+
+        // PWA: PwaService forwards XTREAM_REQUEST and STALKER_REQUEST to the
+        // backend proxy, so portal guides work without any XMLTV support.
+        testWindow.electron = undefined;
+        expect(service.supportsProviderEpg).toBe(true);
+        expect(service.supportsEpg).toBe(false);
+
+        // Electron: ElectronService sends both requests through these
+        // preload methods; XMLTV is a separate surface.
+        testWindow.electron = {
+            xtreamRequest: jest.fn(),
+            stalkerRequest: jest.fn(),
+        };
+        expect(service.supportsProviderEpg).toBe(true);
+        expect(service.supportsEpg).toBe(false);
+
+        // A partial bridge cannot reach both portal kinds.
+        testWindow.electron = { xtreamRequest: jest.fn() };
+        expect(service.supportsProviderEpg).toBe(false);
+        testWindow.electron = {
+            fetchEpg: jest.fn(),
+            getChannelPrograms: jest.fn(),
+        };
+        expect(service.supportsProviderEpg).toBe(false);
+    });
+
+    it('offers provider catch-up playback only in the desktop app', () => {
+        const service = new RuntimeCapabilitiesService();
+
+        testWindow.electron = undefined;
+        expect(service.supportsProviderCatchUp).toBe(false);
+
+        testWindow.electron = {};
+        expect(service.supportsProviderCatchUp).toBe(true);
+    });
+
     it('requires the complete downloads preload surface', () => {
         testWindow.electron = {
             downloadsGetList: jest.fn(),
