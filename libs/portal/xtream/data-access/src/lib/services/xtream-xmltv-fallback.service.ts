@@ -6,19 +6,12 @@ import {
     DEFAULT_EPG_MATCH_ORDER,
     createXmltvIdentityIndex,
     resolveOrderedXmltvId,
-    collectAmbiguousXmltvIds,
-    resolveUniqueActiveDuplicateNames,
 } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 
 type ElectronEpgBridge = {
     getEpgChannels?: () => Promise<{ channels: Array<{ id: string; displayName: string }> }>;
-    getEpgProgramCoverage?: (window: {
-        channelIds: string[];
-        fromMs: number;
-        toMs: number;
-    }) => Promise<string[]>;
     getChannelPrograms?: (channelId: string) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch?: (
         channelIds: string[],
@@ -34,44 +27,6 @@ export class XtreamXmltvFallbackService {
     private guideCache:
         | { revision: number; promise: Promise<Array<{ id: string; displayName: string }>> }
         | undefined;
-    // A single, bounded coverage query per XMLTV import revision and minute,
-    // shared across all visible Xtream rows. Never issue an IPC call per row.
-    private duplicateCoverageCache:
-        | { revision: number; minute: number; promise: Promise<Map<string, string>> }
-        | undefined;
-
-    private async activeDuplicateNames(
-        guide: readonly { id: string; displayName: string }[],
-        revision: number
-    ): Promise<Map<string, string>> {
-        const bridge = this.bridge;
-        if (!bridge?.getEpgProgramCoverage) return new Map();
-        const ids = collectAmbiguousXmltvIds(guide);
-        if (ids.length === 0 || ids.length > 2000) return new Map();
-
-        const now = epgProviderClockMs(
-            Date.now(),
-            this.settingsStore.resolvedEpgOffsetMinutes()
-        );
-        const minute = Math.floor(now / 60_000);
-        if (!this.duplicateCoverageCache ||
-            this.duplicateCoverageCache.revision !== revision ||
-            this.duplicateCoverageCache.minute !== minute) {
-            this.duplicateCoverageCache = {
-                revision,
-                minute,
-                promise: bridge.getEpgProgramCoverage({
-                    channelIds: ids,
-                    fromMs: now,
-                    toMs: now + 1000,
-                }).then((active) =>
-                    resolveUniqueActiveDuplicateNames(guide, new Set(active ?? []))
-                ).catch(() => new Map()),
-            };
-        }
-        return this.duplicateCoverageCache.promise;
-    }
-
     /**
      * Xtream providers may use IDs from an unrelated EPG. Resolve a unique
      * exact XMLTV display name without changing provider data or storing a
@@ -101,29 +56,13 @@ export class XtreamXmltvFallbackService {
         const index = createXmltvIdentityIndex(guide);
         const order = this.settingsStore.resolvedEpgMatchOrder?.() ??
             DEFAULT_EPG_MATCH_ORDER;
-        // Existing valid IDs take precedence when the user explicitly
-        // selects "tvg-id" first. Otherwise a duplicate name may be matched
-        // only if exactly one candidate is currently broadcasting.
-        if (order[0] === 'tvg-id' && original &&
-            index.ids.has(original.toLowerCase())) {
-            return original;
-        }
-
-        let names = index.names;
-        if (name && index.names.get(name.toLowerCase()) === null) {
-            const unique = await this.activeDuplicateNames(guide, revision);
-            if (revision !== this.sources.revision()) return original;
-            const selectedId = unique.get(name.toLowerCase());
-            if (selectedId) {
-                const resolvedNames = new Map(index.names);
-                resolvedNames.set(name.toLowerCase(), selectedId);
-                names = resolvedNames;
-            }
-        }
+        // First Exact is resolved by the shared name index in guide order.
+        // The configured priority (including explicit tvg-id first) still
+        // determines which field wins, and provider fallback is preserved.
         return resolveOrderedXmltvId(
             { channelName: name, tvgName: name, tvgId: original },
             index.ids,
-            names,
+            index.names,
             order
         ) ?? original;
     }
