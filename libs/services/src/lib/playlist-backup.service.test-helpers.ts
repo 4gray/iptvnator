@@ -8,6 +8,7 @@ import {
     XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistBackupService } from './playlist-backup.service';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
 import {
     createBrowserUserDataStorage,
@@ -120,7 +121,7 @@ export function createPlaylistBackupService(
         databaseService: {
             getAllXtreamCategories: jest.fn().mockResolvedValue([]),
             getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
-            getRecentItems: jest.fn().mockResolvedValue([]),
+            getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
             getXtreamImportStatus: jest.fn().mockResolvedValue('idle'),
             hasXtreamCategories: jest.fn().mockResolvedValue(false),
             hasXtreamContent: jest.fn().mockResolvedValue(false),
@@ -145,6 +146,7 @@ export function createPlaylistBackupService(
             clearForPlaylist: jest.fn().mockResolvedValue(true),
         },
         pendingRestoreService,
+        deferredRestore: new XtreamDeferredCatalogRestoreService(),
         parentalLock: {
             initialize: jest.fn().mockResolvedValue(undefined),
             locksReadable: jest.fn(() => true),
@@ -278,7 +280,7 @@ export function createStatefulBackupCollaborators(
                     .map((row) => ({ ...row })),
             getFavoritesOrThrow: async () =>
                 state.xtreamFavorites.map((row) => ({ ...row })),
-            getRecentItems: async () =>
+            getRecentItemsOrThrow: async () =>
                 state.xtreamRecent.map((row) => ({ ...row })),
             getXtreamImportStatus: async () => 'completed',
             hasXtreamCategories: async () => true,

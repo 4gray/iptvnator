@@ -50,9 +50,10 @@ export async function clearRecentlyViewed(
 
 export async function getRecentItems(
     db: AppDatabase,
-    playlistId: string
+    playlistId: string,
+    all = false
 ) {
-    return db
+    const query = db
         .select({
             id: schema.content.id,
             category_id: schema.content.categoryId,
@@ -76,8 +77,9 @@ export async function getRecentItems(
             eq(schema.recentlyViewed.contentId, schema.content.id)
         )
         .where(eq(schema.recentlyViewed.playlistId, playlistId))
-        .orderBy(desc(schema.recentlyViewed.viewedAt))
-        .limit(100);
+        .orderBy(desc(schema.recentlyViewed.viewedAt));
+    // Recovery must retain every entry; the ordinary browsing read stays capped.
+    return all ? query : query.limit(100);
 }
 
 export async function addRecentItem(

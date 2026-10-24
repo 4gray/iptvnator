@@ -198,6 +198,8 @@
             "LABEL": "m3u(8) 재생목록을 텍스트로 붙여넣기"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "불러올 콘텐츠",
+            "CONTENT_TO_LOAD_HINT": "선택한 유형만 가져오고 새로 고칩니다. 모두 선택 해제하면 목록 불러오기가 중지되며 저장된 항목과 다운로드는 유지됩니다.",
             "TITLE": "재생목록 제목",
             "SERVER_URL": "서버 URL",
             "USERNAME": "사용자 이름",

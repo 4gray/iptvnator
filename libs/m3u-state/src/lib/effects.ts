@@ -32,8 +32,10 @@ import {
     EpgSourceSettingsService,
     PlaylistsService,
     SettingsStore,
+    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
+    getXtreamContentRoute,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
     Channel,
@@ -77,6 +79,7 @@ export class PlaylistEffects {
     private store = inject(Store);
     private translate = inject(TranslateService);
     private settingsStore = inject(SettingsStore);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private epgSources = inject(EpgSourceSettingsService);
     private readonly playlistScopedEpgFetchKeys = new Map<string, string>();
 
@@ -524,7 +527,15 @@ export class PlaylistEffects {
 
     private navigateToPlaylist(playlist: Playlist): void {
         if (playlist.serverUrl) {
-            void this.router.navigate(['/workspace', 'xtreams', playlist._id]);
+            const section = this.runtime.supportsXtreamSqliteDataSource
+                ? getXtreamContentRoute(playlist.xtreamContentTypes)
+                : null;
+            void this.router.navigate([
+                '/workspace',
+                'xtreams',
+                playlist._id,
+                ...(section ? [section] : []),
+            ]);
             return;
         }
 
