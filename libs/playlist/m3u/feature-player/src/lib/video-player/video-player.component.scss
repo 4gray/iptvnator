@@ -39,8 +39,23 @@
 }
 
 .content-container {
+    position: relative;
     min-width: 0;
     background: var(--app-content-bg);
+}
+
+.catalog-return-button {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    z-index: 6;
+    background: var(--app-widget-bg);
+    color: var(--app-on-surface);
+    border: 1px solid var(--app-widget-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    &:focus-visible { outline: 2px solid var(--app-focus-ring); }
 }
 
 .video-player {

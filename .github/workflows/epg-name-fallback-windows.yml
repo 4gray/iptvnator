@@ -11,6 +11,7 @@ on:
             - fix/m3u-epg-alias-reactive-refresh
             - feat/epg-first-exact-match
             - fix/m3u-epg-per-channel-exact
+            - feat/m3u-poster-catalog-season-browser
     workflow_dispatch:
 
 concurrency:
@@ -110,7 +111,7 @@ jobs:
             - name: Upload unsigned Windows installer
               uses: actions/upload-artifact@v7
               with:
-                  name: IPTVnator-M3U-Per-Channel-Exact-v0.25.0-epgpriority.6-Windows-x64
+                  name: IPTVnator-M3U-Catalog-v0.25.0-catalog.1-Windows-x64
                   path: dist/executables/**/*windows-x64-setup.exe
                   if-no-files-found: error
                   retention-days: 14

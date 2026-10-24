@@ -152,6 +152,7 @@ import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.componen
 import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 import { M3uContentNavigationComponent } from '../m3u-content-navigation.component';
+import { M3uMediaCatalogComponent } from '../m3u-media-catalog/m3u-media-catalog.component';
 
 const M3U_EPG_GUIDE_HEADER_ACTION_ID = 'm3u-epg-guide';
 const M3U_SIDEBAR_STORAGE_KEY = 'm3u-sidebar-width';
@@ -214,6 +215,7 @@ function isInsideScrollableRegion(
         M3uFullscreenChannelListComponent,
         M3uVodDetailComponent,
         M3uContentNavigationComponent,
+        M3uMediaCatalogComponent,
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
@@ -738,6 +740,31 @@ export class VideoPlayerComponent
         const kind = this.categoryView();
         return kind === null || kind === 'live';
     });
+
+    /** Bounded poster/episode catalog appears only for Movies and Series. */
+    readonly catalogKind = computed<'movies' | 'series'>(() =>
+        this.categoryView() === 'series' ? 'series' : 'movies'
+    );
+    readonly inMediaSection = computed(() =>
+        this.categoryView() === 'movies' || this.categoryView() === 'series'
+    );
+    readonly showMediaCatalog = computed(() => {
+        if (!this.inMediaSection()) return false;
+        const active = this.activeChannel();
+        if (!active) return true;
+        return !this.sidebarChannels().some(channel =>
+            channel.id === active.id && channel.url === active.url &&
+            channel.name === active.name
+        );
+    });
+
+    openCatalogEntry(channel: Channel): void {
+        this.store.dispatch(ChannelActions.setActiveChannel({ channel }));
+    }
+
+    browseMediaCatalog(): void {
+        this.store.dispatch(ChannelActions.resetActiveChannel());
+    }
 
     /** Selected video player options */
     readonly playerSettings = signal<Partial<Settings>>({

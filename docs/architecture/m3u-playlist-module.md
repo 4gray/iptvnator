@@ -2014,3 +2014,20 @@ of them and `enqueueAll` queues the batch, because stopping at the first match
 would silently drop the rest of the selection. Adding an exec code to
 `linux.executableArgs` would suppress the `%U` but also pass that code to the
 app as a real argument, so it is not an option.
+
+## M3U Movies poster catalog and Series season browser (community fork)
+
+For a mixed M3U playlist, Movies now offers a poster-card catalog with a
+bounded 36-item page, title search, group filtering and sorting. Poster art
+comes from the original `tvg-logo` when present; when it is absent, optional
+TMDB enrichment queries at most eight visible missing entries per visited page.
+TMDB stays opt-in. Selecting a card uses the existing M3U channel action and
+playback/detail flow. Nothing persists or rewrites the source.
+
+Series groups only recognizable S01E02, 1x02, season/episode and episode-name
+markers into a title → season → episode hierarchy. Entries without reliable
+markers stay available as Unorganized and in Browse All Content, rather than
+being assigned invented episode numbers. Duplicate encodes remain independent
+playable entries. The catalog builds an index over existing channel references
+only, and caps displayed DOM rows and poster requests; original lists, groups,
+favorites, EPG and provider settings remain unchanged.

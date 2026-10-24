@@ -82,7 +82,21 @@
             <mat-icon>chevron_right</mat-icon>
         </button>
     }
-    @if (activeChannel(); as activeChannel) {
+    @if (inMediaSection() && activeChannel() && !showMediaCatalog()) {
+        <button
+            class="catalog-return-button"
+            type="button"
+            (click)="browseMediaCatalog()"
+            aria-label="Back to media catalog"
+        >← {{ catalogKind() === 'movies' ? 'Browse Movies' : 'Browse Series' }}</button>
+    }
+    @if (showMediaCatalog()) {
+        <app-m3u-media-catalog
+            [kind]="catalogKind()"
+            [channels]="sidebarChannels()"
+            (selected)="openCatalogEntry($event)"
+        />
+    } @else if (activeChannel(); as activeChannel) {
         @if (showMovieDetail()) {
             <app-m3u-vod-detail
                 [channel]="activeChannel"

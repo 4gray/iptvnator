@@ -28,12 +28,12 @@ This fork focuses on two practical desktop IPTV workflows: automatically organiz
 Large playlists containing live channels, movies, and series can remain **one regularly updated M3U source**. IPTVnator classifies entries in memory; it does **not** rewrite M3U files, replace playlist URLs, create a new server, or replicate every stream into separate playlists.
 
 - **Live TV:** established live-channel interface, groups, favorites, and EPG.
-- **Movies:** movie entries using the familiar channel-list layout in this MVP.
-- **Series:** series and episode candidates using the same list layout. Advanced season/episode browsing is future work.
+- **Movies:** selectable poster cards with title search, group filtering and pagination, retaining the original channel list on the left; TMDB poster fallback runs only with metadata enabled.
+- **Series:** recognizes episode markers and groups matching entries into series, seasons and playable episodes. Unrecognized entries remain accessible separately.
 - **Unclassified:** entries without sufficient evidence. The section displays a count; nothing disappears from the original playlist.
 - **Browse All Content:** unchanged access to the entire original playlist.
 
-Classification is intentionally conservative. Names, URL extensions, and group labels can be inaccurate; **Unclassified is safer than guessing**. The feature is tested with synthetic 100,000-entry playlists, but individual provider playlist accuracy must be validated with real data. Poster catalogs and manual classification-rule editing are *not* included in this MVP.
+Classification is intentionally conservative. Names, URL extensions, and group labels can be inaccurate; **Unclassified is safer than guessing**. The feature is tested with synthetic 100,000-entry playlists, but individual provider playlist accuracy must be validated with real data. Manual classification-rule editing is still outside this feature. Poster catalogs and season browsing are implemented in the separate [catalog preview branch](https://github.com/mkaand/iptvnator/tree/feat/m3u-poster-catalog-season-browser), not in the current released v0.25.0-epgpriority.6 build.
 
 ### 📅 External XMLTV and EPG matching
 
