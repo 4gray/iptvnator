@@ -82,6 +82,8 @@ export function withEpg() {
         selectedItem?: () => {
             xtream_id?: number | null;
             epg_channel_id?: string | null;
+            name?: string;
+            title?: string;
         } | null;
     };
 
@@ -185,6 +187,7 @@ export function withEpg() {
                     // Xtream key, so look it up and use the mapped EPG
                     // channel ID for the XMLTV / provider lookup.
                     let epgChannelId = selectedItem?.epg_channel_id ?? null;
+                    let manualMappingApplied = false;
                     const playlistId = storeAny.currentPlaylist?.()?.id;
                     if (runtime.supportsEpgMapping && playlistId) {
                         try {
@@ -197,6 +200,7 @@ export function withEpg() {
                                 );
                             if (mapping?.epgChannelId?.trim()) {
                                 epgChannelId = mapping.epgChannelId.trim();
+                                manualMappingApplied = true;
                             }
                         } catch {
                             // Non-fatal; keep original epgChannelId.
@@ -204,6 +208,12 @@ export function withEpg() {
                     }
 
                     try {
+                        if (!manualMappingApplied) {
+                            epgChannelId = await fallbackService.resolveExactXmltvChannelId(
+                                epgChannelId,
+                                selectedItem?.title || selectedItem?.name
+                            );
+                        }
                         const epgItems =
                             await fallbackService.resolveCurrentEpg({
                                 epgChannelId,
