@@ -16,8 +16,8 @@
                 <div class="settings-hero__text">
                     <div class="settings-hero__title">
                         <span>IPTVnator</span>
-                        @if (version()?.includes('epgfix')) {
-                            <span class="settings-chip settings-chip--accent">EPG Fix</span>
+                        @if (version()?.includes('epgfix') || version()?.includes('m3uclass')) {
+                            <span class="settings-chip settings-chip--accent">M3U Classifier + EPG Fix</span>
                         }
                         @if (updateStatusChip(); as chip) {
                             <span
