@@ -56,6 +56,7 @@ import {
     Channel,
     EpgProgram,
     epgProviderClockMs,
+    DEFAULT_EPG_MATCH_ORDER,
     isM3uRecentlyViewedItem,
     normalizeStalkerDate,
     PlaylistMeta,
@@ -278,6 +279,16 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         untracked(() => {
             this.fetchEpgForChannels(this._channelList);
         });
+    });
+    private appliedEpgMatchOrder = '';
+    private readonly epgMatchingRefreshEffect = effect(() => {
+        const key = (this.settingsStore.resolvedEpgMatchOrder?.() ??
+            DEFAULT_EPG_MATCH_ORDER).join('|');
+        if (key === this.appliedEpgMatchOrder) return;
+        const isInitial = this.appliedEpgMatchOrder === '';
+        this.appliedEpgMatchOrder = key;
+        if (isInitial || this._channelList.length === 0) return;
+        untracked(() => this.fetchEpgForChannels(this._channelList));
     });
     private appliedEpgOffsetMinutes: number | null = null;
     /**
@@ -580,7 +591,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 buildExactEpgNameAliases(
                     channels,
                     guide?.channels ?? [],
-                    manual ?? {}
+                    manual ?? {},
+                    this.settingsStore.resolvedEpgMatchOrder?.() ?? DEFAULT_EPG_MATCH_ORDER
                 )
             );
         } catch {
