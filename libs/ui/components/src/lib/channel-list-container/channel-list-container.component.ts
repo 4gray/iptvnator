@@ -602,7 +602,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             const imported = guide?.channels ?? [];
             const duplicates = collectAmbiguousXmltvIds(imported, requestedNames);
             let programmeBackedDuplicates = new Map<string, string>();
-            if (duplicates.length > 0 && duplicates.length <= 2048 &&
+            if (duplicates.length > 0 && duplicates.length <= 2000 &&
                 this.epgBridge.supportsGuide) {
                 try {
                     const now = epgProviderClockMs(
