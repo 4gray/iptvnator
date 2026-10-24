@@ -138,6 +138,43 @@ describe('EpgService', () => {
         expect(epgBridge.fetchEpg).not.toHaveBeenCalled();
     });
 
+    it('never replaces the resolved EPG timeline with a late raw-key response', async () => {
+        epgBridge.supportsProgramLookup = true;
+        let finishOld!: (value: unknown[]) => void;
+        const oldRequest = new Promise<unknown[]>((resolve) => {
+            finishOld = resolve;
+        });
+        const old = {
+            channel: 'A2.tr',
+            start: '2026-10-24T18:00:00Z',
+            stop: '2026-10-24T19:00:00Z',
+            title: 'Stale wrong schedule',
+        };
+        const correct = {
+            channel: 'playlist.a2',
+            start: '2026-10-24T18:00:00Z',
+            stop: '2026-10-24T19:00:00Z',
+            title: 'Correct EPG programme',
+        };
+        (epgBridge.getChannelPrograms as jest.Mock)
+            .mockReturnValueOnce(oldRequest)
+            .mockResolvedValueOnce([correct]);
+
+        let latest: EpgProgram[] = [];
+        const sub = service.currentEpgPrograms$.subscribe((programs) => {
+            latest = programs;
+        });
+        service.getChannelPrograms('A2.tr');
+        service.getChannelPrograms('playlist.a2');
+        await Promise.resolve();
+        expect(latest[0]?.title).toBe('Correct EPG programme');
+
+        finishOld([old]);
+        await Promise.resolve();
+        expect(latest[0]?.title).toBe('Correct EPG programme');
+        sub.unsubscribe();
+    });
+
     it('prevents pending programmes from repopulating a cache after source deletion', async () => {
         epgBridge.supportsProgramLookup = true;
         let resolveOld!: (programs: unknown[]) => void;
