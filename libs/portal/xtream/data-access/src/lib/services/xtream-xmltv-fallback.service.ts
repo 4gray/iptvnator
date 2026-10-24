@@ -115,8 +115,9 @@ export class XtreamXmltvFallbackService {
             if (revision !== this.sources.revision()) return original;
             const selectedId = unique.get(name.toLowerCase());
             if (selectedId) {
-                names = new Map(index.names);
-                names.set(name.toLowerCase(), selectedId);
+                const resolvedNames = new Map(index.names);
+                resolvedNames.set(name.toLowerCase(), selectedId);
+                names = resolvedNames;
             }
         }
         return resolveOrderedXmltvId(
