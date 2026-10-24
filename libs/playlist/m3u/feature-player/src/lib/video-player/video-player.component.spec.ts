@@ -70,6 +70,7 @@ import {
     StubPortalEmptyStateComponent,
     StubResizableDirective,
     StubSidebarComponent,
+    StubM3uContentNavigationComponent,
     StubWebPlayerViewComponent,
 } from './video-player.spec-stubs';
 
@@ -233,6 +234,7 @@ describe('VideoPlayerComponent', () => {
                         StubPortalEmptyStateComponent,
                         StubResizableDirective,
                         StubSidebarComponent,
+                        StubM3uContentNavigationComponent,
                         StubWebPlayerViewComponent,
                         MockPipe(
                             TranslatePipe,
