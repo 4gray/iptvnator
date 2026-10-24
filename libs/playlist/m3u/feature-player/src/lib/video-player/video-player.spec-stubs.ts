@@ -60,6 +60,17 @@ export class StubChannelListLoadingStateComponent {
 }
 
 @Component({
+    selector: 'app-m3u-content-navigation',
+    standalone: true,
+    template: '',
+})
+export class StubM3uContentNavigationComponent {
+    readonly playlistId = input<string | null>(null);
+    readonly activeView = input('live');
+    readonly index = input<unknown>(null);
+}
+
+@Component({
     selector: 'app-sidebar',
     standalone: true,
     template: '',
@@ -67,6 +78,7 @@ export class StubChannelListLoadingStateComponent {
 export class StubSidebarComponent {
     readonly channels = input<Channel[]>([]);
     readonly channelsLoading = input(false);
+    readonly enableEpg = input(true);
     readonly showPlaylistHeader = input(false);
     readonly activeView = input('');
     readonly sidebarWidth = input(0);

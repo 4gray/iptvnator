@@ -20,13 +20,16 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { queryParamSignal } from '@iptvnator/portal/shared/util';
 import {
     ChannelActions,
     FavoritesActions,
     PlaylistActions,
+    buildExactEpgNameAliases,
+    replaceExactEpgNameAliases,
+    resolveRawChannelEpgLookupKey,
     resolveChannelEpgLookupKey,
     selectActive,
     selectFavorites,
@@ -52,6 +55,8 @@ import {
     foldSearchText,
     Channel,
     EpgProgram,
+    epgProviderClockMs,
+    DEFAULT_EPG_MATCH_ORDER,
     isM3uRecentlyViewedItem,
     normalizeStalkerDate,
     PlaylistMeta,
@@ -114,6 +119,7 @@ const EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS = 2000;
 })
 export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly snackBar = inject(MatSnackBar);
@@ -138,6 +144,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private epgRefreshInterval?: number;
     /** The EPG fetch in flight; a newer fetch cancels it so a stale map never lands. */
     private epgFetchSubscription?: Subscription;
+    /** Reject asynchronous alias/EPG results for a superseded channel list. */
+    private epgAliasGeneration = 0;
 
     /** Global progress tick signal - triggers re-computation of progress percentages */
     readonly progressTick = signal(0);
@@ -156,9 +164,10 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
         return normalizeEpgUrls(playlist.epgUrls ?? []);
     });
+    readonly enableEpg = input(true);
     readonly shouldShowEpg = computed(
         () =>
-            this.runtime.supportsEpg &&
+            this.enableEpg() && this.runtime.supportsEpg &&
             (this.globalEpgUrls().length > 0 ||
                 this.playlistEpgUrls().length > 0)
     );
@@ -270,6 +279,16 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         untracked(() => {
             this.fetchEpgForChannels(this._channelList);
         });
+    });
+    private appliedEpgMatchOrder = '';
+    private readonly epgMatchingRefreshEffect = effect(() => {
+        const key = (this.settingsStore.resolvedEpgMatchOrder?.() ??
+            DEFAULT_EPG_MATCH_ORDER).join('|');
+        if (key === this.appliedEpgMatchOrder) return;
+        const isInitial = this.appliedEpgMatchOrder === '';
+        this.appliedEpgMatchOrder = key;
+        if (isInitial || this._channelList.length === 0) return;
+        untracked(() => this.fetchEpgForChannels(this._channelList));
     });
     private appliedEpgOffsetMinutes: number | null = null;
     /**
@@ -526,6 +545,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             clearInterval(this.progressInterval);
         }
 
+        ++this.epgAliasGeneration;
         this.epgAvailabilitySubscription?.unsubscribe();
         this.epgFetchSubscription?.unsubscribe();
         this.channelList$.complete();
@@ -534,15 +554,56 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     /**
      * Fetches EPG data for all channels
      */
-    private fetchEpgForChannels(channels: Channel[]): void {
+    private async fetchEpgForChannels(channels: Channel[]): Promise<void> {
         // A fetch started for a previous channel list, EPG scope or display
         // offset must not install its map after this one: cancel it first.
+        const request = ++this.epgAliasGeneration;
         this.epgFetchSubscription?.unsubscribe();
-        if (!channels || channels.length === 0) {
+        if (!this.enableEpg()) {
             this.channelEpgMap.set(new Map());
             this.channelIconMap.set(new Map());
             return;
         }
+        if (!channels || channels.length === 0) {
+            replaceExactEpgNameAliases(new Map());
+            this.channelEpgMap.set(new Map());
+            this.channelIconMap.set(new Map());
+            return;
+        }
+
+        // EPG keys from another provider are not necessarily XMLTV IDs.
+        // Resolve only unambiguous, exact display names, without persisting
+        // mappings or overriding a user-created mapping / valid guide ID.
+        try {
+            const rawKeys = Array.from(
+                new Set(
+                    channels
+                        .map((channel) => resolveRawChannelEpgLookupKey(channel))
+                        .filter(Boolean)
+                )
+            );
+            const [guide, manual] = await Promise.all([
+                this.epgBridge.getEpgChannels(),
+                this.epgBridge.getEpgMappingsBatch(rawKeys),
+            ]);
+            if (request !== this.epgAliasGeneration) return;
+
+            // No programme-coverage pass is required: the guide's first
+            // exact display-name entry is authoritative for auto mapping.
+            const imported = guide?.channels ?? [];
+            replaceExactEpgNameAliases(
+                buildExactEpgNameAliases(
+                    channels,
+                    imported,
+                    manual ?? {},
+                    this.settingsStore.resolvedEpgMatchOrder?.() ?? DEFAULT_EPG_MATCH_ORDER
+                )
+            );
+        } catch {
+            if (request !== this.epgAliasGeneration) return;
+            replaceExactEpgNameAliases(new Map());
+        }
+        if (request !== this.epgAliasGeneration) return;
 
         const channelIds = Array.from(
             new Set(
@@ -563,8 +624,39 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 channelIds,
                 epgLookupOptions
             ),
-        }).subscribe(({ epgMap, metadataMap }) => {
-            this.channelEpgMap.set(epgMap);
+        }).subscribe(async ({ epgMap, metadataMap }) => {
+            if (request !== this.epgAliasGeneration) return;
+
+            // The timeline queries its full XMLTV programme window while the
+            // sidebar requests one currently-airing row. If the latter misses
+            // a valid guide channel, reuse the timeline's proven lookup path.
+            // Only missing keys are retried, in one batched IPC request.
+            const missing = channelIds.filter((key) => !epgMap.get(key));
+            if (missing.length > 0 && this.epgBridge.supportsGuide) {
+                const now = epgProviderClockMs(
+                    Date.now(),
+                    this.settingsStore.resolvedEpgOffsetMinutes()
+                );
+                try {
+                    const windows = await this.epgBridge.getProgramsForChannels({
+                        channelIds: missing,
+                        fromMs: now - 60_000,
+                        toMs: now + 60_000,
+                    });
+                    if (request !== this.epgAliasGeneration) return;
+                    for (const key of missing) {
+                        const airing = (windows?.[key] ?? []).find((program) =>
+                            Date.parse(program.start) <= now &&
+                            now < Date.parse(program.stop)
+                        );
+                        if (airing) epgMap.set(key, airing);
+                    }
+                } catch {
+                    // Preserve the batch results if the guide query is unavailable.
+                }
+            }
+            if (request !== this.epgAliasGeneration) return;
+            this.channelEpgMap.set(new Map(epgMap));
             this.channelIconMap.set(
                 new Map(
                     Array.from(
@@ -688,7 +780,21 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      * Handles favorites reorder from drag-drop
      */
     onFavoritesReordered(channelIds: string[]): void {
-        this.store.dispatch(FavoritesActions.setFavorites({ channelIds }));
+        const existing = this._favorites();
+        // A category-specific view only renders a subset of source favorites.
+        // Preserve all other sections (and parental-hidden entries) in place.
+        const visibleUrls = new Set(this.visibleChannelList().map((channel) => channel.url));
+        const movable = existing.filter((url) => visibleUrls.has(url));
+        if (movable.length !== channelIds.length ||
+            new Set(channelIds).size !== channelIds.length ||
+            channelIds.some((url) => !movable.includes(url))) {
+            return;
+        }
+        let offset = 0;
+        const merged = existing.map((url) =>
+            visibleUrls.has(url) ? channelIds[offset++] : url
+        );
+        this.store.dispatch(FavoritesActions.setFavorites({ channelIds: merged }));
     }
 
     async removeRecentChannel(channelUrl: string): Promise<void> {

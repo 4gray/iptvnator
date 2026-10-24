@@ -1,9 +1,10 @@
-import { inject, Injectable, OnDestroy } from '@angular/core';
+import { effect, inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import {
     buildXtreamEpgMappingKey,
     EpgItem,
     windowEpgItemsAtProviderClock,
+    DEFAULT_EPG_MATCH_ORDER,
 } from '@iptvnator/shared/interfaces';
 import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
@@ -23,6 +24,7 @@ interface CacheEntry {
 export interface EpgQueueEntry {
     streamId: number;
     epgChannelId?: string | null;
+    channelName?: string | null;
     /** Owning playlist — required to resolve manual EPG mappings. */
     playlistId?: string | null;
 }
@@ -85,6 +87,26 @@ export class EpgQueueService implements OnDestroy {
     private readonly delayMs = 200;
     private readonly cacheTtlMs = 5 * 60 * 1000; // 5 minutes
     private readonly failureCooldownMs = 60 * 1000;
+
+    private lastMatchingPreferences: string | null = null;
+    private readonly matchingPreferencesEffect = effect(() => {
+        const matching = (this.settingsStore.resolvedEpgMatchOrder?.() ??
+            DEFAULT_EPG_MATCH_ORDER).join('|');
+        const source = this.settingsStore.preferUploadedEpgOverXtream?.() ? 'xmltv' : 'provider';
+        const next = matching + ':' + source;
+        if (this.lastMatchingPreferences === next) return;
+        const firstRun = this.lastMatchingPreferences === null;
+        this.lastMatchingPreferences = next;
+        if (firstRun) return;
+        ++this.enqueueGeneration;
+        this.queue = [];
+        for (const id of new Set([
+            ...this.cache.keys(), ...this.visibleSet, ...this.inFlight,
+        ])) {
+            this.invalidate(id);
+            this.epgResult$.next({ streamId: id, items: [] });
+        }
+    });
 
     /** Emits EPG results as they arrive. */
     readonly epgResult$ = new Subject<{ streamId: number; items: EpgItem[] }>();
@@ -192,9 +214,21 @@ export class EpgQueueService implements OnDestroy {
         // correct EPG channel ID for the XMLTV batch call that follows.
         // Guarded so environments without the bridge (PWA) skip the await
         // entirely and the enqueue keeps its original microtask timing.
-        if (typeof window.electron?.getEpgMappingsBatch === 'function') {
-            await this.resolveManualMappings(normalized);
+        const manuallyMapped = typeof window.electron?.getEpgMappingsBatch === 'function'
+            ? await this.resolveManualMappings(normalized)
+            : new Set<number>();
+
+        // One cached XMLTV channel-index load serves this whole viewport.
+        // Manual mappings must never be overwritten by an automatic alias.
+        if (typeof window.electron?.getEpgChannels === 'function') {
+            await Promise.all(normalized.map(async (entry) => {
+                if (manuallyMapped.has(entry.streamId)) return;
+                entry.epgChannelId = await this.fallbackService.resolveExactXmltvChannelId(
+                    entry.epgChannelId, entry.channelName
+                );
+            }));
         }
+        if (generation !== this.enqueueGeneration) return;
 
         const streamsByEpgId = new Map<string, number[]>();
         for (const entry of normalized) {
@@ -287,13 +321,14 @@ export class EpgQueueService implements OnDestroy {
      */
     private async resolveManualMappings(
         entries: EpgQueueEntry[]
-    ): Promise<void> {
+    ): Promise<Set<number>> {
+        const manuallyMapped = new Set<number>();
         const getEpgMappingsBatch =
             typeof window.electron?.getEpgMappingsBatch === 'function'
                 ? window.electron.getEpgMappingsBatch
                 : null;
         if (!getEpgMappingsBatch) {
-            return;
+            return manuallyMapped;
         }
 
         const keyByStreamId = new Map<number, string>();
@@ -305,7 +340,7 @@ export class EpgQueueService implements OnDestroy {
             );
         }
         if (keyByStreamId.size === 0) {
-            return;
+            return manuallyMapped;
         }
 
         try {
@@ -318,6 +353,7 @@ export class EpgQueueService implements OnDestroy {
                 const key = keyByStreamId.get(entry.streamId);
                 const mapped = key ? mappings[key]?.trim() : undefined;
                 if (mapped) {
+                    manuallyMapped.add(entry.streamId);
                     this.logger.info(
                         `Mapped stream ${entry.streamId}: ${entry.epgChannelId ?? '(none)'} → ${mapped}`
                     );
@@ -328,6 +364,7 @@ export class EpgQueueService implements OnDestroy {
             // Mapping lookup failure is non-fatal; keep the original
             // epgChannelId values and proceed.
         }
+        return manuallyMapped;
     }
 
     private pruneEphemeralMaps(visibleIds: Set<number>): void {

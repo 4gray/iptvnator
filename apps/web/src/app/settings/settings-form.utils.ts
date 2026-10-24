@@ -13,6 +13,9 @@ import {
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
     DEFAULT_TMDB_SETTINGS,
     EpgViewMode,
+    EpgMatchOrder,
+    DEFAULT_EPG_MATCH_ORDER,
+    normalizeEpgMatchOrder,
     Language,
     normalizeAppUpdateChannel,
     normalizeDashboardRailsSettings,
@@ -126,6 +129,7 @@ export function createSettingsForm(
             ? {
                   preferUploadedEpgOverXtream: false,
                   epgViewMode: 'timeline' as EpgViewMode,
+                  epgMatchOrder: new FormControl<EpgMatchOrder>([...DEFAULT_EPG_MATCH_ORDER], { nonNullable: true }),
                   epgOffsetMinutes: new FormControl<number>(0, [
                       Validators.required,
                       Validators.min(-720),
@@ -221,6 +225,7 @@ export function createSettingsFromFormValue(
             value.preferUploadedEpgOverXtream ??
             currentSettings.preferUploadedEpgOverXtream ??
             false,
+        epgMatchOrder: normalizeEpgMatchOrder(value.epgMatchOrder ?? currentSettings.epgMatchOrder),
         epgViewMode:
             value.epgViewMode ?? currentSettings.epgViewMode ?? 'timeline',
         epgOffsetMinutes: normalizeEpgOffsetMinutes(

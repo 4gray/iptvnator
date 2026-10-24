@@ -53,6 +53,7 @@ import {
     StubPortalEmptyStateComponent,
     StubResizableDirective,
     StubSidebarComponent,
+    StubM3uContentNavigationComponent,
     StubWebPlayerViewComponent,
 } from './video-player.spec-stubs';
 
@@ -180,6 +181,7 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
                         StubPortalEmptyStateComponent,
                         StubResizableDirective,
                         StubSidebarComponent,
+                        StubM3uContentNavigationComponent,
                         StubWebPlayerViewComponent,
                         MockPipe(
                             TranslatePipe,

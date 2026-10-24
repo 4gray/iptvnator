@@ -32,11 +32,17 @@
             <mat-icon>chevron_left</mat-icon>
         </button>
     }
+    <app-m3u-content-navigation
+        [playlistId]="activePlaylistId()"
+        [activeView]="activeView()"
+        [index]="contentIndex()"
+    />
     @defer {
         <app-sidebar
-            [channels]="(channels$ | async)!"
+            [channels]="sidebarChannels()"
             [channelsLoading]="channelsLoading()"
-            [activeView]="activeView()"
+            [activeView]="sidebarPresentationView()"
+            [enableEpg]="allowSectionEpg()"
             [sidebarWidth]="sidebarWidth()"
             (sidebarWidthRequested)="onGroupedSidebarWidthRequested($event)"
             (sidebarWidthRequestEnded)="
@@ -162,7 +168,7 @@
 
             @if (guideOpen()) {
                 <app-epg-guide class="epg-guide-host" (close)="closeGuide()" />
-            } @else if (supportsEpg && activeChannel.radio !== 'true') {
+            } @else if (allowSectionEpg() && supportsEpg && activeChannel.radio !== 'true') {
                 @let canCollapseEpgPanel =
                     shouldShowInlinePlayer(activeChannel);
                 <div

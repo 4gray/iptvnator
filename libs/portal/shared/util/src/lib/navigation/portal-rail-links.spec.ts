@@ -78,22 +78,14 @@ describe('buildPortalRailLinks', () => {
             workspace: true,
         });
 
-        expect(links.primary).toEqual([
-            {
-                icon: 'tv',
-                tooltip: 'All channels (this playlist)',
-                path: ['/workspace', 'playlists', 'm3u-1', 'all'],
-                exact: true,
-                section: 'all',
-            },
-            {
-                icon: 'folder',
-                tooltip: 'Groups (this playlist)',
-                path: ['/workspace', 'playlists', 'm3u-1', 'groups'],
-                exact: true,
-                section: 'groups',
-            },
+        expect(links.primary.map((link) => link.section)).toEqual([
+            'live', 'movies', 'series', 'unclassified', 'all', 'groups',
         ]);
+        expect(links.primary[0]?.path).toEqual([
+            '/workspace', 'playlists', 'm3u-1', 'live',
+        ]);
+        expect(links.primary[3]?.tooltip).toBe('Unclassified (this M3U)');
+        expect(links.primary[4]?.exact).toBe(true);
         expect(links.secondary).toEqual([]);
     });
 });

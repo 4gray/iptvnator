@@ -65,6 +65,7 @@ function configureStore(setup: TestStoreSetup) {
     };
 
     const fallbackService = {
+        resolveExactXmltvChannelId: jest.fn(async (id: string | null | undefined) => id ?? null),
         getProgramsForChannel: jest.fn<Promise<EpgItem[]>, unknown[]>(),
         resolveCurrentEpg:
             XtreamXmltvFallbackService.prototype.resolveCurrentEpg,

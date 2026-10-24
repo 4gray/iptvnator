@@ -31,6 +31,7 @@ import {
     VideoPlayer,
     normalizeAppUpdateChannel,
     normalizeEpgOffsetMinutes,
+    normalizeEpgMatchOrder,
     normalizeDashboardRailsSettings,
     normalizeParentalLockRelockMinutes,
     normalizeStartupWindowMode,
@@ -59,6 +60,9 @@ export const SettingsStore = signalStore(
         resolvedEpgViewMode: computed<EpgViewMode>(
             () => store.epgViewMode?.() ?? 'timeline'
         ),
+        resolvedEpgMatchOrder: computed(() =>
+            normalizeEpgMatchOrder(store.epgMatchOrder?.())
+        ),
         resolvedEpgOffsetMinutes: computed(() =>
             normalizeEpgOffsetMinutes(store.epgOffsetMinutes?.())
         ),
@@ -86,6 +90,7 @@ export const SettingsStore = signalStore(
                             epgOffsetMinutes: normalizeEpgOffsetMinutes(
                                 storedSettings.epgOffsetMinutes
                             ),
+                            epgMatchOrder: normalizeEpgMatchOrder(storedSettings.epgMatchOrder),
                             ...resolveDefaultOnSettings(storedSettings),
                             dashboardRails: normalizeDashboardRailsSettings(
                                 storedSettings.dashboardRails
@@ -140,6 +145,9 @@ export const SettingsStore = signalStore(
                                   settings.dashboardRails
                               ),
                           }
+                        : {}),
+                    ...(settings.epgMatchOrder !== undefined
+                        ? { epgMatchOrder: normalizeEpgMatchOrder(settings.epgMatchOrder) }
                         : {}),
                     ...(settings.epgOffsetMinutes !== undefined
                         ? {
@@ -270,6 +278,7 @@ export const SettingsStore = signalStore(
                     dashboardRails: normalizeDashboardRailsSettings(
                         store.dashboardRails?.()
                     ),
+                    epgMatchOrder: normalizeEpgMatchOrder(store.epgMatchOrder?.()),
                     preferUploadedEpgOverXtream:
                         store.preferUploadedEpgOverXtream?.() ??
                         DEFAULT_SETTINGS.preferUploadedEpgOverXtream,

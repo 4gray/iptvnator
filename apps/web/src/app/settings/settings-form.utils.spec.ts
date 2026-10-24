@@ -114,6 +114,22 @@ describe('settings form utils — update channel', () => {
     });
 });
 
+describe('settings form utils — EPG matching', () => {
+    it('saves the ordered preferences and preserves them on form round trip', () => {
+        const form = createSettingsForm(new FormBuilder(), true);
+        form.get('epgMatchOrder')?.setValue(['tvg-id','tvg-name','channel-name']);
+        const updated = createSettingsFromFormValue(form, {} as Settings);
+        expect(updated.epgMatchOrder).toEqual(['tvg-id','tvg-name','channel-name']);
+    });
+    it('does not erase priority if EPG controls are unavailable', () => {
+        const form = createSettingsForm(new FormBuilder(), false);
+        const saved = createSettingsFromFormValue(form, {
+            epgMatchOrder: ['tvg-id','channel-name','tvg-name'],
+        } as Settings);
+        expect(saved.epgMatchOrder).toEqual(['tvg-id','channel-name','tvg-name']);
+    });
+});
+
 describe('settings form utils — EPG display offset', () => {
     const formBuilder = new FormBuilder();
 

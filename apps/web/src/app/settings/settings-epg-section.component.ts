@@ -17,8 +17,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatSelectModule } from '@angular/material/select';
+import { MatRadioModule } from '@angular/material/radio';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { EpgViewMode } from '@iptvnator/shared/interfaces';
+import {
+    EpgViewMode, EpgMatchField, EpgMatchOrder,
+    normalizeEpgMatchOrder,
+} from '@iptvnator/shared/interfaces';
 import { EpgSourceStatusComponent } from '@iptvnator/ui/epg';
 import { TranslateModule } from '@ngx-translate/core';
 import { EpgViewModeOption } from './settings.models';
@@ -36,6 +41,8 @@ import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-de
         MatInputModule,
         MatProgressSpinnerModule,
         MatSlideToggleModule,
+        MatSelectModule,
+        MatRadioModule,
         MatTooltipModule,
         ReactiveFormsModule,
         TranslateModule,
@@ -69,6 +76,30 @@ export class SettingsEpgSectionComponent {
 
     /** Minutes one stepper click shifts the displayed times by */
     readonly offsetStep = 30;
+    readonly matchingFields: readonly { value: EpgMatchField; title: string }[] = [
+        { value: 'channel-name', title: 'Channel Name' },
+        { value: 'tvg-name', title: 'tvg-name' },
+        { value: 'tvg-id', title: 'tvg-id' },
+    ];
+    readonly matchingLevels = ['Primary Match', 'Secondary Match', 'Third Match'];
+
+    get matchingOrder(): EpgMatchOrder {
+        return normalizeEpgMatchOrder(this.form().get('epgMatchOrder')?.value);
+    }
+
+    /** Reorder by swapping, so each field occurs once. Changes stage until Save. */
+    setMatchOrder(level: number, selected: EpgMatchField): void {
+        const control = this.form().get('epgMatchOrder');
+        if (!control || level < 0 || level >= 3) return;
+        const next = [...this.matchingOrder] as EpgMatchOrder;
+        const from = next.indexOf(selected);
+        if (from < 0 || from === level) return;
+        [next[level], next[from]] = [next[from], next[level]];
+        control.setValue(next);
+        control.markAsDirty();
+        this.form().markAsDirty();
+    }
+
 
     get offsetControl(): AbstractControl | null {
         return this.form().get('epgOffsetMinutes');

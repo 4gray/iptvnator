@@ -7,6 +7,16 @@ export type PortalRailSection =
     | 'itv'
     | 'library'
     | 'live'
+    | 'live-groups'
+    | 'live-favorites'
+    | 'movies-favorites'
+    | 'series-favorites'
+    | 'unclassified-favorites'
+    | 'movies'
+    | 'movies-groups'
+    | 'series-groups'
+    | 'unclassified'
+    | 'unclassified-groups'
     | 'recent'
     | 'recently-added'
     | 'radio'
@@ -146,25 +156,45 @@ export function buildPortalRailLinks(
     if (provider === 'playlists') {
         const primary: PortalRailLink[] = [
             {
+                icon: 'live_tv',
+                tooltip: 'Live TV (this M3U)',
+                path: [...root, 'live'],
+                section: 'live',
+            },
+            {
+                icon: 'movie',
+                tooltip: 'Movies (this M3U)',
+                path: [...root, 'movies'],
+                section: 'movies',
+            },
+            {
                 icon: 'tv',
-                tooltip: 'All channels (this playlist)',
+                tooltip: 'Series (this M3U)',
+                path: [...root, 'series'],
+                section: 'series',
+            },
+            {
+                icon: 'help_outline',
+                tooltip: 'Unclassified (this M3U)',
+                path: [...root, 'unclassified'],
+                section: 'unclassified',
+            },
+            {
+                icon: 'view_list',
+                tooltip: 'Browse all M3U content',
                 path: [...root, 'all'],
                 exact: true,
                 section: 'all',
             },
             {
                 icon: 'folder',
-                tooltip: 'Groups (this playlist)',
+                tooltip: 'Legacy M3U groups',
                 path: [...root, 'groups'],
                 exact: true,
                 section: 'groups',
             },
         ];
-
-        return {
-            primary,
-            secondary: [],
-        };
+        return { primary, secondary: [] };
     }
 
     return { primary: [], secondary: [] };

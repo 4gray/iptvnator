@@ -1,5 +1,5 @@
 import { Channel } from '@iptvnator/shared/interfaces';
-import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
+import { exactEpgNameAliasesRevision, getChannelEpgAliasKey, replaceExactEpgNameAliases, resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
 
 function buildChannel(overrides: Partial<Channel> = {}): Channel {
     return {
@@ -25,6 +25,8 @@ function buildChannel(overrides: Partial<Channel> = {}): Channel {
 }
 
 describe('resolveChannelEpgLookupKey', () => {
+    beforeEach(() => replaceExactEpgNameAliases(new Map()));
+    afterEach(() => replaceExactEpgNameAliases(new Map()));
     it('prefers tvg id when present', () => {
         expect(resolveChannelEpgLookupKey(buildChannel())).toBe('epg-id');
     });
@@ -62,4 +64,37 @@ describe('resolveChannelEpgLookupKey', () => {
             )
         ).toBe('Channel Name');
     });
+    it('publishes an alias change only when an actual lookup changes', () => {
+        const channel = buildChannel();
+        const initial = exactEpgNameAliasesRevision();
+        replaceExactEpgNameAliases(new Map([[getChannelEpgAliasKey(channel), 'bbc.earth']]));
+        expect(resolveChannelEpgLookupKey(channel)).toBe('bbc.earth');
+        expect(exactEpgNameAliasesRevision()).toBe(initial + 1);
+        replaceExactEpgNameAliases(new Map([[getChannelEpgAliasKey(channel), 'bbc.earth']]));
+        expect(exactEpgNameAliasesRevision()).toBe(initial + 1);
+        replaceExactEpgNameAliases(new Map([[getChannelEpgAliasKey(channel), 'beinsports.1']]));
+        expect(resolveChannelEpgLookupKey(channel)).toBe('beinsports.1');
+        expect(exactEpgNameAliasesRevision()).toBe(initial + 2);
+    });
+
+    it('keeps automatic matches separate for a shared tvg-id', () => {
+        const hd = buildChannel({ id: 'hd', name: 'A2 HD' });
+        const uhd = buildChannel({ id: 'uhd', name: 'A2 UHD' });
+        replaceExactEpgNameAliases(new Map([
+            [getChannelEpgAliasKey(hd), 'guide.hd'],
+            [getChannelEpgAliasKey(uhd), 'guide.uhd'],
+        ]));
+        expect(resolveChannelEpgLookupKey(hd)).toBe('guide.hd');
+        expect(resolveChannelEpgLookupKey(uhd)).toBe('guide.uhd');
+        expect(resolveChannelEpgLookupKey(buildChannel({ id: 'other' }))).toBe('epg-id');
+    });
+
+    it('resolves cloned channel data to the same alias', () => {
+        const channel = buildChannel();
+        replaceExactEpgNameAliases(new Map([
+            [getChannelEpgAliasKey(channel), 'guide.a2'],
+        ]));
+        expect(resolveChannelEpgLookupKey({ ...channel, tvg: { ...channel.tvg } })).toBe('guide.a2');
+    });
+
 });

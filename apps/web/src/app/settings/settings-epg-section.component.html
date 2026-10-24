@@ -104,6 +104,40 @@
         </div>
     </section>
 
+    <section class="settings-section" data-test-id="epg-matching-preferences">
+        <div class="settings-section__header">
+            <h3>EPG Matching Preferences</h3>
+        </div>
+        <p class="settings-section__desc">
+            Choose the order used to match playlist channels against imported XMLTV.
+            A non-empty field is not considered a match until its value
+            resolves to a unique EPG channel. Manual mappings always win.
+        </p>
+        <div class="settings-card">
+            @for (label of matchingLevels; track label; let i = $index) {
+                <div class="setting-item" [attr.data-setting-id]="'epg-match-' + i">
+                    <div class="setting-item__meta">
+                        <h4>{{ label }}</h4>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                            <mat-select
+                                [value]="matchingOrder[i]"
+                                (selectionChange)="setMatchOrder(i, $event.value)"
+                                [attr.aria-label]="label"
+                                [attr.data-test-id]="'epg-match-priority-' + i"
+                            >
+                                @for (field of matchingFields; track field.value) {
+                                    <mat-option [value]="field.value">{{ field.title }}</mat-option>
+                                }
+                            </mat-select>
+                        </mat-form-field>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
     <section class="settings-section">
         <div class="settings-section__header">
             <h3>{{ 'SETTINGS.CARD_SOURCES' | translate }}</h3>
@@ -281,16 +315,19 @@
             <div class="setting-item" data-setting-id="prefer-uploaded-epg">
                 <div class="setting-item__meta">
                     <h4 id="prefer-uploaded-epg-label">
-                        {{ 'SETTINGS.PREFER_UPLOADED_EPG_TITLE' | translate }}
+                        Xtream EPG Source Priority
                     </h4>
                     <p>{{ 'SETTINGS.PREFER_UPLOADED_EPG_HINT' | translate }}</p>
                 </div>
                 <div class="setting-item__control setting-item__toggle">
-                    <mat-slide-toggle
+                    <mat-radio-group
                         formControlName="preferUploadedEpgOverXtream"
-                        aria-labelledby="prefer-uploaded-epg-label"
-                        data-test-id="toggle-prefer-uploaded-epg"
-                    ></mat-slide-toggle>
+                        aria-label="Xtream EPG Source Priority"
+                        data-test-id="xtream-epg-source-priority"
+                    >
+                        <mat-radio-button [value]="true">Configured XMLTV First</mat-radio-button>
+                        <mat-radio-button [value]="false">Xtream Provider EPG First</mat-radio-button>
+                    </mat-radio-group>
                 </div>
             </div>
         </div>

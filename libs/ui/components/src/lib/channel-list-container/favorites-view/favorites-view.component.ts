@@ -19,7 +19,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { SettingsStore } from '@iptvnator/services';
-import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
+import { resolveChannelEpgLookupKey, resolveRawChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import {
     foldSearchText,
     Channel,
@@ -167,7 +167,7 @@ export class FavoritesViewComponent {
         }
 
         this.channelContextMenu().close();
-        const channelKey = resolveChannelEpgLookupKey(channel);
+        const channelKey = resolveRawChannelEpgLookupKey(channel);
         if (!channelKey) {
             return;
         }

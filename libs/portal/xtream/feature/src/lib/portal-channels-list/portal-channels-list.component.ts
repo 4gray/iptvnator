@@ -252,6 +252,51 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             onCleanup(() => cancelAnimationFrame(frame));
         });
 
+        // CDK emits renderedRangeStream only when row indices change.
+        // If a category's channels arrive asynchronously after the viewport
+        // mounts, its rendered range can remain unchanged (e.g. [0, 8]).
+        // Without this hook the first XMLTV/EPG batch is never requested,
+        // and clicking a channel appears to "fix" only the selected row.
+        let seededChannels: readonly XtreamChannelListItem[] | null = null;
+        let seededViewport: CdkVirtualScrollViewport | null = null;
+        let seededPlaylistId: string | null = null;
+        afterRenderEffect(() => {
+            const channels = this.filteredChannels();
+            const viewport = this.viewport();
+            const playlistId = this.xtreamStore.currentPlaylist()?.id ?? null;
+            const isLive = this.xtreamStore.selectedContentType() === 'live';
+            if (!this.supportsEpg || !isLive || !viewport || !playlistId ||
+                channels.length === 0) {
+                return;
+            }
+            if (channels === seededChannels &&
+                viewport === seededViewport &&
+                playlistId === seededPlaylistId) {
+                return;
+            }
+            seededChannels = channels;
+            seededViewport = viewport;
+            seededPlaylistId = playlistId;
+
+            const range = viewport.getRenderedRange();
+            // Only request rendered rows. If CDK has not measured a
+            // viewport yet, its renderedRangeStream handles the first
+            // non-empty range; never prefetch off-screen entries here.
+            const visible = range.end > range.start
+                ? channels.slice(range.start, range.end)
+                : [];
+            if (visible.length > 0) {
+                // Cached entries can synchronously repaint row components.
+                // Do that after this render pass, never inside its hook.
+                queueMicrotask(() => {
+                    if (this.filteredChannels() !== channels ||
+                        this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+                        this.viewport() !== viewport) return;
+                    untracked(() => this.loadEpgForVisibleChannels(visible));
+                });
+            }
+        });
+
         const selectedChannelId = computed(() =>
             Number(
                 (

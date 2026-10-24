@@ -24,6 +24,7 @@ import {
     EpgService,
 } from '@iptvnator/epg/data-access';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { createXmltvIdentityIndex } from '@iptvnator/shared/interfaces';
 import { debounceTime, from, Subject, switchMap } from 'rxjs';
 import { provideFormFieldDefaults } from '../../form-field-defaults/form-field-defaults';
 import { DialogShellComponent } from '../../dialog-shell/dialog-shell.component';
@@ -85,6 +86,7 @@ export class EpgMappingDialogComponent {
     >([]);
     readonly selectedId = signal<string | null>(null);
     readonly currentMapping = signal<string | null>(null);
+    readonly automaticMapping = signal<string | null>(null);
 
     private readonly search$ = new Subject<string>();
 
@@ -191,6 +193,32 @@ export class EpgMappingDialogComponent {
             const mappedId = m?.epgChannelId ?? null;
             if (!mappedId) {
                 this.currentMapping.set(null);
+                try {
+                    const guide = await this.epgBridge.getEpgChannels();
+                    const name = this.data.channelName.trim().toLocaleLowerCase();
+                    const exactMatches = guide?.channels.filter(
+                        (channel) =>
+                            channel.displayName.trim().toLocaleLowerCase() === name
+                    ) ?? [];
+                    if (exactMatches.length > 0) {
+                        const first = createXmltvIdentityIndex(
+                            guide?.channels ?? []
+                        ).names.get(name);
+                        const match = exactMatches.find(
+                            (channel) => channel.id === first
+                        ) ?? exactMatches[0];
+                        const uniqueIds = new Set(
+                            exactMatches.map((channel) => channel.id)
+                        );
+                        this.automaticMapping.set(
+                            uniqueIds.size > 1
+                                ? `Auto (first exact of ${uniqueIds.size}): ${match.displayName} (${match.id})`
+                                : `Auto (name): ${match.displayName} (${match.id})`
+                        );
+                    }
+                } catch {
+                    // The mapping dialog remains usable without an EPG index.
+                }
                 return;
             }
             this.currentMapping.set(mappedId);

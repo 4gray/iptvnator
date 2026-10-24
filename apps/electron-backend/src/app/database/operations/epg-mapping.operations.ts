@@ -5,6 +5,7 @@ import type { AppDatabase } from '../database.types';
 /**
  * Get a single EPG channel mapping by lookup key.
  */
+const MAPPING_LOOKUP_CHUNK_SIZE = 400;
 export async function getEpgMapping(
     db: AppDatabase,
     channelKey: string
@@ -35,17 +36,21 @@ export async function getEpgMappingsBatch(
         return new Map();
     }
 
-    const rows = await db
-        .select({
-            channelKey: schema.epgChannelMappings.channelKey,
-            epgChannelId: schema.epgChannelMappings.epgChannelId,
-        })
-        .from(schema.epgChannelMappings)
-        .where(inArray(schema.epgChannelMappings.channelKey, channelKeys));
-
+    // Large playlists can exceed SQLite host parameter limits.
+    const uniqueKeys = Array.from(new Set(channelKeys));
     const mapping = new Map<string, string>();
-    for (const row of rows) {
-        mapping.set(row.channelKey, row.epgChannelId);
+    for (let i = 0; i < uniqueKeys.length; i += MAPPING_LOOKUP_CHUNK_SIZE) {
+        const chunk = uniqueKeys.slice(i, i + MAPPING_LOOKUP_CHUNK_SIZE);
+        const rows = await db
+            .select({
+                channelKey: schema.epgChannelMappings.channelKey,
+                epgChannelId: schema.epgChannelMappings.epgChannelId,
+            })
+            .from(schema.epgChannelMappings)
+            .where(inArray(schema.epgChannelMappings.channelKey, chunk));
+        for (const row of rows) {
+            mapping.set(row.channelKey, row.epgChannelId);
+        }
     }
     return mapping;
 }

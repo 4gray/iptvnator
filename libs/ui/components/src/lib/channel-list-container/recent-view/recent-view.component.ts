@@ -13,7 +13,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
+import { resolveChannelEpgLookupKey, resolveRawChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
 import {
     foldSearchText,
@@ -148,7 +148,7 @@ export class RecentViewComponent {
         }
 
         this.channelContextMenu().close();
-        const channelKey = resolveChannelEpgLookupKey(channel);
+        const channelKey = resolveRawChannelEpgLookupKey(channel);
         if (!channelKey) {
             return;
         }

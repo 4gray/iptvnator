@@ -8,6 +8,7 @@ function createForm(offset = 0): FormGroup {
     return new FormGroup({
         epgUrl: new FormArray<FormControl<string | null>>([]),
         epgViewMode: new FormControl('timeline'),
+        epgMatchOrder: new FormControl(['channel-name','tvg-name','tvg-id']),
         epgOffsetMinutes: new FormControl<number>(offset, [
             Validators.required,
             Validators.min(-720),
@@ -39,6 +40,16 @@ describe('SettingsEpgSectionComponent offset stepper', () => {
             imports: [SettingsEpgSectionComponent, TranslateModule.forRoot()],
         }).compileComponents();
         fixture = TestBed.createComponent(SettingsEpgSectionComponent);
+    });
+
+    it('swaps matching priorities without duplicates and marks the form dirty', () => {
+        const form = configure(createForm());
+        fixture.componentInstance.setMatchOrder(0, 'tvg-id');
+        expect(form.get('epgMatchOrder')?.value).toEqual([
+            'tvg-id','tvg-name','channel-name',
+        ]);
+        expect(form.get('epgMatchOrder')?.dirty).toBe(true);
+        expect(form.dirty).toBe(true);
     });
 
     it('moves the offset by one step and stages the change', () => {

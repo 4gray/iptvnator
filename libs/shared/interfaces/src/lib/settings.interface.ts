@@ -72,6 +72,7 @@ export type CoverSize = 'small' | 'medium' | 'large';
 
 /** Rendering of the live EPG panel under the player. */
 export type EpgViewMode = 'timeline' | 'list';
+import type { EpgMatchOrder } from './epg-match-priority.util';
 
 export interface DashboardRailsSettings {
     hero: boolean;
@@ -272,6 +273,8 @@ export interface Settings {
     showCoverTitles?: boolean;
     /** Live EPG panel layout: horizontal timeline (default) or vertical list */
     epgViewMode?: EpgViewMode;
+    /** Ordered matching fields applied only after manual mappings. */
+    epgMatchOrder?: EpgMatchOrder;
     /**
      * Display-only correction, in whole minutes, for guides whose provider
      * labels programme times with the wrong timezone. Clamped to ±720 by

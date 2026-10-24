@@ -3,8 +3,7 @@
 > [!IMPORTANT]
 > **Independent, unofficial fork** of [4gray/iptvnator](https://github.com/4gray/iptvnator), maintained at [mkaand/iptvnator](https://github.com/mkaand/iptvnator). This project is **not affiliated with or endorsed by the upstream maintainers**. It does not supply IPTV subscriptions, streams, channels, or copyrighted content. All original upstream credit and licensing remain in place.
 
-> [!CAUTION]
-> **Default-branch status:** The latest M3U EPG collision fix is developed on the [per-channel exact-match branch](https://github.com/mkaand/iptvnator/tree/fix/m3u-epg-per-channel-exact), building on the [First Exact Match branch](https://github.com/mkaand/iptvnator/tree/feat/epg-first-exact-match), **not merged into the application code on `master`**. The feature-branch [Windows CI workflow](https://github.com/mkaand/iptvnator/actions/workflows/epg-name-fallback-windows.yml) builds test installers. This documentation appears on `master` for transparency and does not imply the default branch contains these code changes.
+**Current fork version: [v0.25.0-epgpriority.6](https://github.com/mkaand/iptvnator/releases/tag/v0.25.0-epgpriority.6)** (Windows x64, unsigned community preview). The M3U EPG identity-collision fix was confirmed working for BEINSPORTS 1 HD with the user's external XMLTV guide. Code is maintained on the default `master` branch; no additional development branch is required to install or use it.
 
 This fork focuses on two practical desktop IPTV workflows: automatically organizing large mixed M3U playlists and matching an externally managed XMLTV guide to M3U/Xtream channels **without editing either source**. Upstream IPTVnator remains the foundation, and its standard playback, search, favorites, and provider integrations are retained.
 
@@ -18,11 +17,11 @@ This fork focuses on two practical desktop IPTV workflows: automatically organiz
 | XMLTV matching | Standard channel metadata and manual mapping | **Configurable Primary / Secondary / Third Match**: Channel Name, `tvg-name`, and `tvg-id` |
 | Missing or mismatched guide IDs | May require manual mapping | Retry the next matching field after a *failed lookup*, even when an unrelated `tvg-id` exists |
 | Duplicate XMLTV display names | Mapping can require manual selection | **First Exact Match:** the first matching imported XMLTV record wins, even when later records share the same channel name |
-| Shared M3U `tvg-id` | HD/SD/UHD streams can reuse the same provider identifier | **Per-entry exact XMLTV association:** defaults to Channel Name first, preventing cross-variant collisions |
+| Shared M3U `tvg-id` | HD/SD/UHD variants may carry the same provider ID | **Per-entry exact matching** keeps automatic XMLTV IDs independent, with Channel Name first by default |
 | Xtream guide source | Provider EPG and externally supplied XMLTV | **Configured XMLTV First / Xtream Provider EPG First** selection plus XMLTV fallback by channel name |
 | Xtream list EPG | Existing preview refresh paths | Refresh visible-channel programme previews on async category load and category switching without clicking a channel |
 | M3U active timeline | Lookup at channel selection time | Re-query an active channel if its asynchronous XMLTV name/ID association changes; ignore stale older query responses |
-| Windows preview builds | Official upstream release process | Fork-specific version labels, automated regression tests, and unsigned Windows x64 installer artifacts |
+| Windows preview builds | Official upstream release process | Fork-specific version labels, automated regression tests, and an unsigned Windows x64 preview installer attached to the fork's release |
 
 ### 📺 M3U content organization
 
@@ -48,7 +47,9 @@ The next field is tried only when no usable XMLTV channel match was found. Saved
 
 **First Exact Match for duplicate channel names.** WebGrab EPG Manager may publish a canonical stream under several linked XMLTV IDs to cover different player names. The guide can therefore contain several `<channel>` records with the *same exact display name*, for example three `BEINSPORTS 1 HD` records with distinct IDs. This fork **selects the first exact name match returned by the imported guide channel index**, rather than rejecting the match or checking which candidate is on air. It does not automatically strip or conflate `HD`, `SD`, or `UHD`: those remain separate exact names. A manual mapping overrides automatic choices.
 
-**Shared provider IDs and name-first matching.** Some M3U playlists intentionally share `tvg-id="A2.tr"` between `A2 HD` and `A2 UHD` even when the `tvg-name` is identical. Likewise, BEINSPORTS HD and SD variants can share `LIGTV.tr`. The [new fix branch](https://github.com/mkaand/iptvnator/tree/fix/m3u-epg-per-channel-exact) indexes automatic matches per channel entry, not per reused provider ID, so name-first XMLTV matches do not cancel each other. Saved manual mappings retain precedence and their existing raw-key semantics. This is a **Windows preview under validation**, not a claim that real-provider testing has passed.
+**M3U channels sharing a provider ID.** Some playlists intentionally give `A2 HD` and `A2 UHD` the same `tvg-id="A2.tr"` and `tvg-name="A2 HD"`; some give three `BEINSPORTS 1 HD` streams and an SD variant the same `LIGTV.tr`. The visible M3U **Channel Name** takes precedence by default and resolves each entry's XMLTV ID independently in session memory. A duplicated `tvg-id` no longer cancels all of these matches. HD/SD/UHD entries are not automatically conflated, even when they broadcast identical content. An explicitly customized match order is still respected.
+
+**Manual mapping compatibility:** Existing saved mappings stay keyed by the original M3U lookup key and override automatic matching. A manual mapping for a shared `tvg-id` still applies to all its variants (the legacy behavior). The mapping dialog uses this raw key, not a transient resolved XMLTV ID; no provider sources or settings are rewritten.
 
 **What “first” means:** The local Electron database lists EPG channels ordered by display name and, for identical names, stable SQLite insertion order (`rowid`). On a fresh import, that generally follows the XMLTV channel order; after reimports or updates, older database row identities can persist, so **reordering an existing XML file is not guaranteed to change the first imported match**. Where exact source-file order is critical, clean up duplicate names in the EPG generator and re-import accordingly.
 
@@ -57,14 +58,15 @@ The next field is tried only when no usable XMLTV channel match was found. Saved
 
 ### 🔧 Scope, compatibility, and downloads
 
-- **Desktop:** Windows x64 NSIS preview installers are built by the fork's [GitHub Actions workflow](https://github.com/mkaand/iptvnator/actions/workflows/epg-name-fallback-windows.yml). Look for a successful run on a feature/fix branch and its **Artifacts** section. Artifacts expire; they are not permanent public releases.
+- **Windows x64 installer:** Download the unsigned NSIS setup executable from this fork's [v0.25.0-epgpriority.6 release](https://github.com/mkaand/iptvnator/releases/tag/v0.25.0-epgpriority.6). The [verified GitHub Actions run](https://github.com/mkaand/iptvnator/actions/runs/40133636976) also retains a temporary build artifact. Because this is an unsigned community build, Windows SmartScreen may prompt before installation.
 - **Versioning:** fork builds carry descriptive suffixes (for example, `0.25.0-epgpriority.6`) to distinguish them from upstream releases.
 - **Updates:** an official upstream update can replace fork-only features. Do not install an upstream update over this preview build without checking whether the relevant changes have been integrated.
 - **Privacy:** your EPG/playlist URL, database, credentials, and WebGrab EPG Manager do not need to be modified to use these features. Avoid posting private playlist URLs or Xtream credentials in bug reports.
 - **Platform coverage:** EPG matching through the native XMLTV database is desktop-oriented; browser/PWA builds may lack the required Electron bridge operations.
+- **Windows acceptance:** BEINSPORTS 1 HD EPG and its populated timeline were confirmed on a real Windows installation using an external XMLTV guide. Automated CI covers the A2 HD/UHD and BEINSPORTS shared-ID scenarios. Additional live-provider regressions and saved manual mapping cases should still be checked before considering the fork broadly stable.
 - **Quality status:** automated tests cover the matching rules, duplicates, large-library classification, M3U/Xtream regressions, settings, and Windows packaging. Real-provider reception and guide content still require manual acceptance testing.
 
-**Development branches:** [EPG priority](https://github.com/mkaand/iptvnator/tree/feat/epg-configurable-match-priority) · [M3U classification](https://github.com/mkaand/iptvnator/tree/feat/m3u-content-classification) · [Xtream initial list refresh](https://github.com/mkaand/iptvnator/tree/fix/xtream-epg-visible-list-initial-refresh) · [First Exact Match](https://github.com/mkaand/iptvnator/tree/feat/epg-first-exact-match) · [Per-channel exact matching](https://github.com/mkaand/iptvnator/tree/fix/m3u-epg-per-channel-exact).
+**Development:** All fork improvements are consolidated in the [default master branch](https://github.com/mkaand/iptvnator/tree/master). The [integration pull request](https://github.com/mkaand/iptvnator/pull/1) and commit history retain attribution and implementation details. An archived tag preserves the earlier experimental collision-fix branch.
 
 **Upstream references:** [official IPTVnator](https://github.com/4gray/iptvnator) · [original EPG matching report, issue #1992](https://github.com/4gray/iptvnator/issues/1992). If you discover a bug in fork-only code, please use [issues in this fork](https://github.com/mkaand/iptvnator/issues) rather than attributing it to upstream.
 
