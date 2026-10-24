@@ -4,6 +4,7 @@ import {
     ElectronBridgeApi,
     ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeEpgFetchResult,
+    ElectronBridgeEpgChannelListResult,
     ElectronBridgeEpgMapping,
     ElectronBridgeEpgProgress,
     ElectronBridgeEpgProgressStats,
@@ -52,6 +53,7 @@ type EpgElectronBridge = Pick<
     | 'getChannelPrograms'
     | 'getCurrentProgramsBatch'
     | 'getEpgChannelMetadata'
+    | 'getEpgChannels'
     | 'getEpgProgramsForChannels'
     | 'getEpgProgramCoverage'
     | 'onEpgProgress'
@@ -269,6 +271,11 @@ export class EpgRuntimeBridgeService {
             this.bridge?.searchEpgPrograms?.(searchTerm, limit) ??
             Promise.resolve(null)
         );
+    }
+
+    /** The imported XMLTV channels used to resolve exact-name fallbacks. */
+    getEpgChannels(): Promise<ElectronBridgeEpgChannelListResult | null> {
+        return this.bridge?.getEpgChannels?.() ?? Promise.resolve(null);
     }
 
     getEpgMapping(
