@@ -55,6 +55,7 @@ import {
     foldSearchText,
     Channel,
     EpgProgram,
+    epgProviderClockMs,
     isM3uRecentlyViewedItem,
     normalizeStalkerDate,
     PlaylistMeta,
@@ -601,8 +602,39 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 channelIds,
                 epgLookupOptions
             ),
-        }).subscribe(({ epgMap, metadataMap }) => {
-            this.channelEpgMap.set(epgMap);
+        }).subscribe(async ({ epgMap, metadataMap }) => {
+            if (request !== this.epgAliasGeneration) return;
+
+            // The timeline queries its full XMLTV programme window while the
+            // sidebar requests one currently-airing row. If the latter misses
+            // a valid guide channel, reuse the timeline's proven lookup path.
+            // Only missing keys are retried, in one batched IPC request.
+            const missing = channelIds.filter((key) => !epgMap.get(key));
+            if (missing.length > 0 && this.epgBridge.supportsGuide) {
+                const now = epgProviderClockMs(
+                    Date.now(),
+                    this.settingsStore.resolvedEpgOffsetMinutes()
+                );
+                try {
+                    const windows = await this.epgBridge.getProgramsForChannels({
+                        channelIds: missing,
+                        fromMs: now - 60_000,
+                        toMs: now + 60_000,
+                    });
+                    if (request !== this.epgAliasGeneration) return;
+                    for (const key of missing) {
+                        const airing = (windows?.[key] ?? []).find((program) =>
+                            Date.parse(program.start) <= now &&
+                            now < Date.parse(program.stop)
+                        );
+                        if (airing) epgMap.set(key, airing);
+                    }
+                } catch {
+                    // Preserve the batch results if the guide query is unavailable.
+                }
+            }
+            if (request !== this.epgAliasGeneration) return;
+            this.channelEpgMap.set(new Map(epgMap));
             this.channelIconMap.set(
                 new Map(
                     Array.from(
