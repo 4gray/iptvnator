@@ -764,7 +764,21 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      * Handles favorites reorder from drag-drop
      */
     onFavoritesReordered(channelIds: string[]): void {
-        this.store.dispatch(FavoritesActions.setFavorites({ channelIds }));
+        const existing = this._favorites();
+        // A category-specific view only renders a subset of source favorites.
+        // Preserve all other sections (and parental-hidden entries) in place.
+        const visibleUrls = new Set(this.visibleChannelList().map((channel) => channel.url));
+        const movable = existing.filter((url) => visibleUrls.has(url));
+        if (movable.length !== channelIds.length ||
+            new Set(channelIds).size !== channelIds.length ||
+            channelIds.some((url) => !movable.includes(url))) {
+            return;
+        }
+        let offset = 0;
+        const merged = existing.map((url) =>
+            visibleUrls.has(url) ? channelIds[offset++] : url
+        );
+        this.store.dispatch(FavoritesActions.setFavorites({ channelIds: merged }));
     }
 
     async removeRecentChannel(channelUrl: string): Promise<void> {
