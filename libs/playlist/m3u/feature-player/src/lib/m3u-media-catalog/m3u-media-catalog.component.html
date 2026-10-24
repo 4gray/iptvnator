@@ -27,6 +27,7 @@
             @if (moviePage().length) {
                 <div class="movie-grid">
                     @for (movie of moviePage(); track entryKey(movie)) {
+                        <div class="movie-tile">
                         <button type="button" class="movie-card" (click)="selected.emit(movie)"
                             [attr.aria-label]="'Play ' + movie.name">
                             <div class="poster">
@@ -38,6 +39,17 @@
                             </div>
                             <span class="movie-title">{{ movie.name }}</span>
                         </button>
+                        <select class="content-type-select"
+                            [attr.aria-label]="'Change content type for ' + movie.name"
+                            [value]="currentContentType(movie)"
+                            (change)="changeContentType(movie, $event)">
+                            <option value="automatic">Automatic</option>
+                            <option value="live">Live TV</option>
+                            <option value="movies">Movies</option>
+                            <option value="series">Series</option>
+                            <option value="unclassified">Unclassified</option>
+                        </select>
+                        </div>
                     }
                 </div>
             } @else {

@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import type { Channel } from '@iptvnator/shared/interfaces';
 import { releaseTagYear } from '@iptvnator/shared/interfaces';
-import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils';
+import { buildM3uSeriesCatalog, m3uContentOverrideKey, type M3uContentKind } from '@iptvnator/shared/m3u-utils';
 import type { M3uSeries } from '@iptvnator/shared/m3u-utils';
 import { TmdbEnrichmentService, tmdbPosterUrl } from '@iptvnator/services';
 
@@ -37,6 +37,18 @@ export class M3uMediaCatalogComponent {
     readonly kind = input.required<'movies' | 'series'>();
     readonly channels = input.required<readonly Channel[]>();
     readonly selected = output<Channel>();
+    readonly contentOverrides = input<Readonly<Record<string, M3uContentKind>>>({});
+    readonly contentTypeChanged = output<{ channel: Channel; kind: M3uContentKind | null }>();
+
+    currentContentType(channel: Channel): string {
+        return this.contentOverrides()[m3uContentOverrideKey(channel)] ?? 'automatic';
+    }
+    changeContentType(channel: Channel, event: Event): void {
+        const value = (event.target as HTMLSelectElement).value;
+        const kind: M3uContentKind | null = value === 'live' || value === 'movies' ||
+            value === 'series' || value === 'unclassified' ? value : null;
+        this.contentTypeChanged.emit({ channel, kind });
+    }
 
     readonly query = signal('');
     readonly groupFilter = signal('');

@@ -168,3 +168,6 @@
     .catalog-controls { width: 100%; }
     .catalog-controls input { flex: 1; min-width: 110px; }
 }
+.movie-tile { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.content-type-select { min-width: 0; width: 100%; background: var(--app-widget-bg); color: inherit; border: 1px solid var(--app-widget-border); border-radius: 6px; font: inherit; font-size: 11px; padding: 5px; }
+.content-type-select:focus-visible { outline: 2px solid var(--app-focus-ring); }
