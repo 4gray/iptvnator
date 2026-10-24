@@ -163,9 +163,10 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
         return normalizeEpgUrls(playlist.epgUrls ?? []);
     });
+    readonly enableEpg = input(true);
     readonly shouldShowEpg = computed(
         () =>
-            this.runtime.supportsEpg &&
+            this.enableEpg() && this.runtime.supportsEpg &&
             (this.globalEpgUrls().length > 0 ||
                 this.playlistEpgUrls().length > 0)
     );
@@ -547,6 +548,11 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         // offset must not install its map after this one: cancel it first.
         const request = ++this.epgAliasGeneration;
         this.epgFetchSubscription?.unsubscribe();
+        if (!this.enableEpg()) {
+            this.channelEpgMap.set(new Map());
+            this.channelIconMap.set(new Map());
+            return;
+        }
         if (!channels || channels.length === 0) {
             replaceExactEpgNameAliases(new Map());
             this.channelEpgMap.set(new Map());
