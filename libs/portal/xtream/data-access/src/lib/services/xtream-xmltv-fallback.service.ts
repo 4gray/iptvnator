@@ -3,6 +3,9 @@ import {
     EpgItem,
     EpgProgram,
     epgProviderClockMs,
+    DEFAULT_EPG_MATCH_ORDER,
+    createXmltvIdentityIndex,
+    resolveOrderedXmltvId,
 } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
@@ -35,8 +38,10 @@ export class XtreamXmltvFallbackService {
         channelName: string | null | undefined
     ): Promise<string | null> {
         const original = providerId?.trim() || null;
-        const name = channelName?.trim().toLocaleLowerCase() || '';
-        if (!name || !this.bridge?.getEpgChannels) return original;
+        const name = channelName?.trim() || '';
+        if ((!name && !original) || !this.bridge?.getEpgChannels) {
+            return original;
+        }
 
         const revision = this.sources.revision();
         if (!this.guideCache || this.guideCache.revision !== revision) {
@@ -49,20 +54,13 @@ export class XtreamXmltvFallbackService {
         }
         const guide = await this.guideCache.promise;
         if (revision !== this.sources.revision()) return original;
-        if (
-            original &&
-            guide.some((row) => row.id.toLocaleLowerCase() === original.toLocaleLowerCase())
-        ) {
-            return original;
-        }
-
-        let match: string | null = null;
-        for (const row of guide) {
-            if (row.displayName.trim().toLocaleLowerCase() !== name) continue;
-            if (match && match !== row.id) return original;
-            match = row.id;
-        }
-        return match ?? original;
+        const index = createXmltvIdentityIndex(guide);
+        return resolveOrderedXmltvId(
+            { channelName: name, tvgName: name, tvgId: original },
+            index.ids,
+            index.names,
+            this.settingsStore.resolvedEpgMatchOrder?.() ?? DEFAULT_EPG_MATCH_ORDER
+        ) ?? original;
     }
 
     /**
