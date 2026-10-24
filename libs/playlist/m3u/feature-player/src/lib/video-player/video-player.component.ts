@@ -718,7 +718,7 @@ export class VideoPlayerComponent
     /** Computed once per channel-array identity; the original objects are retained. */
     readonly contentIndex = computed(() => buildM3uContentIndex(this.channels()));
     readonly categoryView = computed<M3uContentKind | null>(() => {
-        const base = this.activeView().replace(/-groups$/, '');
+        const base = this.activeView().replace(/-(?:groups|favorites)$/, '');
         return base === 'live' || base === 'movies' ||
             base === 'series' || base === 'unclassified' ? base : null;
     });
@@ -729,6 +729,7 @@ export class VideoPlayerComponent
     readonly sidebarPresentationView = computed(() => {
         const view = this.activeView();
         if (view.endsWith('-groups')) return 'groups';
+        if (view.endsWith('-favorites')) return 'favorites';
         if (this.categoryView()) return 'all';
         return view;
     });
