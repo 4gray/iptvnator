@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Keep startup resume interaction tests with their existing component setup. */
 import { EventEmitter, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -26,6 +27,7 @@ import {
     ParentalLockService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    PlaybackResumeService,
     SettingsStore,
 } from '@iptvnator/services';
 import {
@@ -189,6 +191,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         openExternalPlayback: jest.fn(),
     };
     const settingsStore = {
+        updateSettings: jest.fn().mockResolvedValue(undefined),
         openStreamOnDoubleClick: signal(false),
         resolvedEpgViewMode: signal<'timeline' | 'list'>('timeline'),
         resolvedEpgOffsetMinutes: signal(0),
@@ -371,6 +374,26 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         fixture?.destroy();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         window.electron = originalElectron;
+    });
+
+    it('reselects the saved Stalker channel by stable id', () => {
+        const channels = defaultItvChannels();
+        const resume = TestBed.inject(PlaybackResumeService);
+        resume.setPendingResume(
+            'playlist-1',
+            'https://example.com/expired-session',
+            true,
+            String(channels[1].id)
+        );
+        itvFullChannelList.set(channels);
+        const play = jest
+            .spyOn(component, 'playChannel')
+            .mockResolvedValue(undefined);
+
+        fixture.detectChanges();
+
+        expect(play).toHaveBeenCalledWith(channels[1], true);
+        expect(resume.peekPendingResumeStreamUrl('playlist-1')).toBeNull();
     });
 
     it('renders the controlled epg list and removes the load-more button', () => {

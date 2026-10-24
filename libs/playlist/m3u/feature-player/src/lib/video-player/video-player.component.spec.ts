@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Keep startup resume interaction tests with their existing component setup. */
 import { AsyncPipe } from '@angular/common';
 import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -20,6 +21,7 @@ import {
     DataService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    PlaybackResumeService,
     SettingsStore,
 } from '@iptvnator/services';
 import {
@@ -195,6 +197,7 @@ describe('VideoPlayerComponent', () => {
                     provide: SettingsStore,
                     useValue: {
                         player,
+                        updateSettings: jest.fn().mockResolvedValue(undefined),
                         showCaptions,
                         stripCountryPrefix,
                         resolvedEpgViewMode: epgViewMode,
@@ -252,6 +255,31 @@ describe('VideoPlayerComponent', () => {
         fixture?.destroy();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         window.electron = originalElectron;
+    });
+
+    it('selects the saved M3U channel once when startup resumes this playlist', () => {
+        const resume = TestBed.inject(PlaybackResumeService);
+        resume.setPendingResume('playlist-1', sampleChannel.url, true);
+        channels.set([sampleChannel]);
+
+        fixture.detectChanges();
+
+        expect(storeMock.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setActiveChannel({ channel: sampleChannel })
+        );
+        expect(resume.peekPendingResumeStreamUrl('playlist-1')).toBeNull();
+    });
+
+    it('prepares a remembered paused channel without autoplay', () => {
+        const resume = TestBed.inject(PlaybackResumeService);
+        resume.setPendingResume('playlist-1', sampleChannel.url, false);
+        channels.set([sampleChannel]);
+
+        fixture.detectChanges();
+        syncStoreState(sampleChannel);
+        fixture.detectChanges();
+
+        expect(component.startPaused()).toBe(true);
     });
 
     it('registers and clears the workspace guide header shortcut', () => {

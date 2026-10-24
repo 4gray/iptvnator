@@ -156,11 +156,9 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly alternativeSources = input<VodSourceDescriptor[]>([]);
     /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
+    readonly startPaused = input(false);
 
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly alternativeSourceRequested = output<string>();
     readonly sourceCheckRequested = output<string>();

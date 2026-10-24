@@ -223,6 +223,11 @@ export const SettingsStore = signalStore(
                     showCaptions: store.showCaptions(),
                     showDashboard: store.showDashboard(),
                     startupBehavior: store.startupBehavior(),
+                    rememberLastChannel: store.rememberLastChannel?.() ?? false,
+                    autoplayOnRelaunch: store.autoplayOnRelaunch?.() ?? false,
+                    resumePlaybackOnStartup:
+                        store.resumePlaybackOnStartup?.() ?? false,
+                    lastPlayingChannel: store.lastPlayingChannel?.() ?? null,
                     startupWindowMode: normalizeStartupWindowMode(
                         store.startupWindowMode?.()
                     ),

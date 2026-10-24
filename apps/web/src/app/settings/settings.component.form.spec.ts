@@ -680,6 +680,8 @@ describe('SettingsComponent form', () => {
                 {
                     ...component.settingsForm.value,
                     trustedPrivateNetworkEpgUrls: [],
+                    resumePlaybackOnStartup: false,
+                    lastPlayingChannel: null,
                     trustedInsecureTlsHosts: [],
                     // Parental lock settings are not on the form; Save
                     // carries the current values through unchanged.
@@ -691,6 +693,8 @@ describe('SettingsComponent form', () => {
             expect(updateSettings).toHaveBeenCalledWith({
                 ...component.settingsForm.value,
                 trustedPrivateNetworkEpgUrls: [],
+                resumePlaybackOnStartup: false,
+                lastPlayingChannel: null,
                 trustedInsecureTlsHosts: [],
                 parentalLockEnabled: false,
                 parentalLockRelockMinutes: 15,

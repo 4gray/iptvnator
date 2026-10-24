@@ -42,6 +42,7 @@ import {
     ParentalLockService,
     PlaylistsService,
     RecordingsService,
+    PlaybackResumeService,
     RuntimeCapabilitiesService,
     SettingsStore,
     injectTranslationTick,
@@ -197,6 +198,7 @@ export class StalkerLiveStreamLayoutComponent
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly playbackResumeService = inject(PlaybackResumeService);
     private readonly streamHeaders = inject(ElectronStreamHeadersService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
@@ -656,8 +658,69 @@ export class StalkerLiveStreamLayoutComponent
         promise: Promise<ResolvedPortalPlayback>;
     } | null = null;
     private lastPlaylistId: string | null | undefined = undefined;
+    private pendingResumeConsumed = false;
+    private readonly isActivelyPlaying = signal(true);
+    private readonly resumeTargetChannelId = signal<string | null>(null);
+    readonly startPaused = computed(
+        () =>
+            this.resumeTargetChannelId() !== null &&
+            this.resumeTargetChannelId() === this.selectedChannelId()
+    );
+
+    onPlayingStateChanged(playing: boolean | undefined): void {
+        if (playing !== undefined) this.isActivelyPlaying.set(playing);
+    }
 
     constructor() {
+        effect(() => {
+            if (this.pendingResumeConsumed || this.isRadioMode()) return;
+            const playlistId = this.stalkerStore.currentPlaylist()?._id;
+            if (!playlistId) return;
+            const url =
+                this.playbackResumeService.peekPendingResumeStreamUrl(
+                    playlistId
+                );
+            if (url === null) return;
+            const channelId =
+                this.playbackResumeService.peekPendingResumeChannelId(
+                    playlistId
+                );
+            const channels = this.itvFullChannelList();
+            if (!channels.length) return;
+            const target = channelId
+                ? channels.find(
+                      (item) => normalizeStalkerEntityId(item.id) === channelId
+                  )
+                : null;
+            this.pendingResumeConsumed = true;
+            const shouldAutoplay =
+                this.playbackResumeService.peekPendingResumeShouldAutoplay(
+                    playlistId
+                );
+            this.playbackResumeService.clearPendingResume();
+            if (!target) return;
+            if (!shouldAutoplay) this.resumeTargetChannelId.set(channelId);
+            void this.playChannel(target, true);
+        });
+
+        effect(() => {
+            if (!this.usesEmbeddedPlayer()) return;
+            const playback = this.activePlayback();
+            const playlistId = this.stalkerStore.currentPlaylist()?._id;
+            const channelId = this.selectedChannelId();
+            if (!playback || !playlistId || !channelId) return;
+            if (this.isActivelyPlaying()) {
+                void this.playbackResumeService.recordPlaybackStarted(
+                    'stalker',
+                    playlistId,
+                    playback.streamUrl,
+                    channelId
+                );
+            } else {
+                void this.playbackResumeService.recordPlaybackStopped();
+            }
+        });
+
         this.epgClockTimer = setInterval(
             () => this.epgClockTick.update((tick) => tick + 1),
             30_000
@@ -904,6 +967,7 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     ngOnDestroy() {
+        void this.playbackResumeService.recordPlaybackStopped();
         this.navigation.reset();
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
@@ -1030,6 +1094,14 @@ export class StalkerLiveStreamLayoutComponent
                 });
             } else if (startPlayback) {
                 void this.portalPlayer.openResolvedPlayback(playback, true);
+                if (sourceId && channelId) {
+                    void this.playbackResumeService.recordPlaybackStarted(
+                        'stalker',
+                        sourceId,
+                        playback.streamUrl,
+                        channelId
+                    );
+                }
             }
         } catch (error) {
             if (
