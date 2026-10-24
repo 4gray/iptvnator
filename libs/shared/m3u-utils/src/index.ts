@@ -6,3 +6,4 @@ export * from './lib/playback-media-extension.util';
 export * from './lib/playlist.utils';
 export * from './lib/catchup.utils';
 export * from './lib/strip-country-prefix.util';
+export * from './lib/m3u-series-catalog.util';
