@@ -35,8 +35,16 @@ describe('exact XMLTV display name fallback', () => {
             buildExactEpgNameAliases([channel('Other', 'valid.id')], [
                 { id: 'valid.id', displayName: 'Something else' },
                 { id: 'another.id', displayName: 'Other' },
-            ]).size
+            ], {}, ['tvg-id', 'tvg-name', 'channel-name']).size
         ).toBe(0);
+    });
+
+    it('prefers A2 HD name over an unrelated, valid TVG ID by default', () => {
+        const aliases = buildExactEpgNameAliases([channel('A2 HD', 'A2.tr')], [
+            { id: 'A2.tr', displayName: 'Other channel' },
+            { id: 'playlist.a2', displayName: 'A2 HD' },
+        ]);
+        expect(aliases.get('A2.tr')).toBe('playlist.a2');
     });
 
     it('preserves manually configured mappings', () => {
