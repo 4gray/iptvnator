@@ -120,6 +120,8 @@
 <app-channel-context-menu
     [showMapEpg]="supportsEpgMapping"
     [showDetails]="true"
+    [showContentType]="allowContentTypeChange()"
+    (contentTypeChanged)="openContentTypeChange($event)"
     (mapEpg)="openEpgMapping()"
     (details)="openChannelDetails()"
 />

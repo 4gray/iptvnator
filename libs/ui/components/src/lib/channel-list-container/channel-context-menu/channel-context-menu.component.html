@@ -13,6 +13,11 @@
             <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
         </button>
     }
+    @if (showContentType()) {
+        <button mat-menu-item type="button" [matMenuTriggerFor]="classifyMenu">
+            <mat-icon>category</mat-icon><span>Change Content Type</span>
+        </button>
+    }
     @if (showDetails()) {
         <button mat-menu-item type="button" (click)="details.emit()">
             <mat-icon>info</mat-icon>
@@ -49,4 +54,23 @@
             }}</span>
         </button>
     }
+</mat-menu>
+
+<mat-menu #classifyMenu="matMenu">
+    <button mat-menu-item type="button" (click)="contentTypeChanged.emit('live')">
+        <mat-icon>live_tv</mat-icon><span>Live TV</span>
+    </button>
+    <button mat-menu-item type="button" (click)="contentTypeChanged.emit('movies')">
+        <mat-icon>movie</mat-icon><span>Movies</span>
+    </button>
+    <button mat-menu-item type="button" (click)="contentTypeChanged.emit('series')">
+        <mat-icon>video_library</mat-icon><span>Series</span>
+    </button>
+    <button mat-menu-item type="button" (click)="contentTypeChanged.emit('unclassified')">
+        <mat-icon>help_outline</mat-icon><span>Unclassified</span>
+    </button>
+    <mat-divider />
+    <button mat-menu-item type="button" (click)="contentTypeChanged.emit(null)">
+        <mat-icon>restart_alt</mat-icon><span>Reset to Automatic</span>
+    </button>
 </mat-menu>

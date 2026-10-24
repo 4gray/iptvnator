@@ -11,6 +11,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { TranslatePipe } from '@ngx-translate/core';
+import type { M3uContentKind } from '@iptvnator/shared/m3u-utils';
 
 /** The pointer position a context menu opens at. */
 export type ChannelContextMenuPoint = Pick<MouseEvent, 'clientX' | 'clientY'>;
@@ -34,6 +35,7 @@ export type ChannelContextMenuPoint = Pick<MouseEvent, 'clientX' | 'clientY'>;
 export class ChannelContextMenuComponent {
     readonly showMapEpg = input(false);
     readonly showDetails = input(false);
+    readonly showContentType = input(false);
     /**
      * The playlist to offer "View in …" for; no row while null. An empty
      * name (a playlist saved without one) still shows the row.
@@ -43,6 +45,7 @@ export class ChannelContextMenuComponent {
 
     readonly mapEpg = output<void>();
     readonly details = output<void>();
+    readonly contentTypeChanged = output<M3uContentKind | null>();
     readonly openInPlaylist = output<void>();
     readonly removeFromHistory = output<void>();
 
@@ -51,6 +54,7 @@ export class ChannelContextMenuComponent {
         () =>
             this.showMapEpg() ||
             this.showDetails() ||
+            this.showContentType() ||
             this.openInPlaylistName() !== null
     );
 

@@ -14,6 +14,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import type { M3uContentKind } from '@iptvnator/shared/m3u-utils';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -97,6 +98,8 @@ export class AllChannelsViewComponent {
     /** Whether to show EPG data */
     readonly shouldShowEpg = input.required<boolean>();
     readonly openOnDoubleClick = input(false);
+    readonly allowContentTypeChange = input(false);
+    readonly contentTypeChanged = output<{ channel: Channel; kind: M3uContentKind | null }>();
 
     /** Item size for virtual scroll */
     readonly itemSize = input.required<number>();
@@ -219,6 +222,13 @@ export class AllChannelsViewComponent {
 
         this.channelContextMenu().close();
         ChannelDetailsDialogComponent.open(this.dialog, channel);
+    }
+
+    openContentTypeChange(kind: M3uContentKind | null): void {
+        const channel = this.contextMenuChannel();
+        if (!channel) return;
+        this.channelContextMenu().close();
+        this.contentTypeChanged.emit({ channel, kind });
     }
 
     openEpgMapping(): void {
