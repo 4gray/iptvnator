@@ -47,7 +47,7 @@ export class XtreamXmltvFallbackService {
         const bridge = this.bridge;
         if (!bridge?.getEpgProgramCoverage) return new Map();
         const ids = collectAmbiguousXmltvIds(guide);
-        if (ids.length === 0 || ids.length > 2048) return new Map();
+        if (ids.length === 0 || ids.length > 2000) return new Map();
 
         const now = epgProviderClockMs(
             Date.now(),
