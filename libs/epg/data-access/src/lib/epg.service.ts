@@ -96,6 +96,9 @@ export class EpgService {
         return epgProviderClockMs(Date.now(), this.epgOffsetMinutes());
     }
 
+    /** Guards the selected timeline against out-of-order XMLTV responses. */
+    private activeChannelRequestGeneration = 0;
+
     readonly epgAvailable$ = this.epgAvailable.asObservable();
     readonly currentEpgPrograms$ = this.currentEpgPrograms.asObservable();
 
@@ -158,6 +161,7 @@ export class EpgService {
     getChannelPrograms(channelId: string): void {
         if (!this.epgBridge.supportsProgramLookup) return;
         debugEpgService('Fetching EPG for channel ID:', channelId);
+        const request = ++this.activeChannelRequestGeneration;
 
         from(this.epgBridge.getChannelPrograms(channelId))
             .pipe(
@@ -165,6 +169,9 @@ export class EpgService {
                 timeout(3000),
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
                 catchError((err) => {
+                    if (request !== this.activeChannelRequestGeneration) {
+                        return of([]);
+                    }
                     console.error('EPG get programs error:', err);
                     this.showErrorSnackbar();
                     this.currentEpgPrograms.next([]);
@@ -173,6 +180,7 @@ export class EpgService {
                 })
             )
             .subscribe((programs) => {
+                if (request !== this.activeChannelRequestGeneration) return;
                 this.epgAvailable.next(programs.length > 0);
                 this.currentEpgPrograms.next(programs);
             });
