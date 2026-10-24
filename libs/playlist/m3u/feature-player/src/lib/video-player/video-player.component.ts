@@ -33,6 +33,8 @@ import {
     isDashChannel,
     isDashStreamUrl,
     isLikelyM3uMovie,
+    buildM3uContentIndex,
+    type M3uContentKind,
     isLikelyM3uVod,
     isM3uCatchupPlaybackSupported,
     resolveM3uCatchupUrl,
@@ -148,6 +150,7 @@ import { M3uEpgGuideSourceService } from '../epg-guide/m3u-epg-guide-source.serv
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
+import { M3uContentNavigationComponent } from '../m3u-content-navigation.component';
 
 const M3U_EPG_GUIDE_HEADER_ACTION_ID = 'm3u-epg-guide';
 const M3U_SIDEBAR_STORAGE_KEY = 'm3u-sidebar-width';
@@ -209,6 +212,7 @@ function isInsideScrollableRegion(
         EpgTimelineComponent,
         M3uFullscreenChannelListComponent,
         M3uVodDetailComponent,
+        M3uContentNavigationComponent,
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
@@ -706,10 +710,32 @@ export class VideoPlayerComponent
     /** Active M3U view (all, groups, favorites, recent) */
     readonly activeView = toSignal(
         this.activatedRoute.params.pipe(
-            map((params) => params['view'] || 'all')
+            map((params) => params['view'] || 'live')
         ),
-        { initialValue: 'all' }
+        { initialValue: 'live' }
     );
+
+    /** Computed once per channel-array identity; the original objects are retained. */
+    readonly contentIndex = computed(() => buildM3uContentIndex(this.channels()));
+    readonly categoryView = computed<M3uContentKind | null>(() => {
+        const base = this.activeView().replace(/-groups$/, '');
+        return base === 'live' || base === 'movies' ||
+            base === 'series' || base === 'unclassified' ? base : null;
+    });
+    readonly sidebarChannels = computed(() => {
+        const kind = this.categoryView();
+        return kind ? this.contentIndex()[kind] : this.channels();
+    });
+    readonly sidebarPresentationView = computed(() => {
+        const view = this.activeView();
+        if (view.endsWith('-groups')) return 'groups';
+        if (this.categoryView()) return 'all';
+        return view;
+    });
+    readonly allowSectionEpg = computed(() => {
+        const kind = this.categoryView();
+        return kind === null || kind === 'live';
+    });
 
     /** Selected video player options */
     readonly playerSettings = signal<Partial<Settings>>({
