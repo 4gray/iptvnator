@@ -593,12 +593,13 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             // Investigate only duplicate names actually present in this M3U.
             // A batched, bounded programme-coverage lookup avoids per-channel
             // IPC calls and never chooses an arbitrary duplicate EPG source.
-            const requestedNames = new Set(
-                channels.flatMap((channel) => [
-                    channel.name?.trim().toLowerCase(),
-                    channel.tvg?.name?.trim().toLowerCase(),
-                ]).filter((name): name is string => Boolean(name))
-            );
+            const requestedNames = new Set<string>();
+            for (const channel of channels) {
+                const name = channel.name?.trim().toLowerCase();
+                const tvgName = channel.tvg?.name?.trim().toLowerCase();
+                if (name) requestedNames.add(name);
+                if (tvgName) requestedNames.add(tvgName);
+            }
             const imported = guide?.channels ?? [];
             const duplicates = collectAmbiguousXmltvIds(imported, requestedNames);
             let programmeBackedDuplicates = new Map<string, string>();
