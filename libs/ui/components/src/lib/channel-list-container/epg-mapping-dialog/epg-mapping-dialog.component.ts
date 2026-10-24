@@ -219,7 +219,7 @@ export class EpgMappingDialogComponent {
                         const candidates = collectAmbiguousXmltvIds(
                             guide?.channels ?? [], new Set([name])
                         );
-                        if (candidates.length > 2048 || candidates.length === 0) {
+                        if (candidates.length > 2000 || candidates.length === 0) {
                             return;
                         }
                         const now = epgProviderClockMs(
