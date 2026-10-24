@@ -43,7 +43,7 @@ The next field is tried only when no usable XMLTV channel match was found. Saved
 
 **Repeated channel names are handled carefully.** For example, if an imported guide lists three different XMLTV IDs for `BEINSPORTS 1 HD`, the fork checks current programme coverage in one bounded query. It automatically associates the name only if **exactly one distinct ID** has a programme covering the current EPG clock instant. If zero or two or more candidates are active, the name remains ambiguous and can still be mapped manually. A configured ID-first preference and existing manual mappings are respected.
 
-Duplicate resolution is **best effort**, not a guarantee that two stations with the same name carry the same programming. Guide coverage can be stale, unavailable, or incomplete. A maximum of 2,048 candidate XMLTV IDs is checked in an ambiguity pass to avoid excessive backend work; larger ambiguous sets remain unresolved. Temporary automatic associations are recomputed and **are not written to the playlist or XMLTV source**.
+Duplicate resolution is **best effort**, not a guarantee that two stations with the same name carry the same programming. Guide coverage can be stale, unavailable, or incomplete. A maximum of 2,000 candidate XMLTV IDs is checked in an ambiguity pass to avoid excessive backend work; larger ambiguous sets remain unresolved. Temporary automatic associations are recomputed and **are not written to the playlist or XMLTV source**.
 
 ### 🔧 Scope, compatibility, and downloads
 
