@@ -63,6 +63,7 @@ import {
     buildExternalPlayerPayload,
     resolveExternalPlayerHttpHeaders,
     resolveChannelEpgLookupKey,
+    exactEpgNameAliasesRevision,
     selectActive,
     selectActiveEpgProgram,
     selectActivePlaybackUrl,
@@ -832,6 +833,33 @@ export class VideoPlayerComponent
                 30_000
             );
             onCleanup(() => clearInterval(intervalId));
+        });
+
+        // An M3U playlist can finish XMLTV name/ID matching *after* the
+        // user selects a channel. The NgRx channel-selection effect requested
+        // its raw tvg-id then; before this fix the timeline kept that stale
+        // lookup forever even though the sidebar had the resolved guide ID.
+        // Observe alias changes without re-selecting/restarting the stream.
+        let priorChannelIdentity: string | null = null;
+        let priorLookupKey: string | null = null;
+        effect(() => {
+            exactEpgNameAliasesRevision();
+            const channel = this.activeChannel();
+            const playlistId = this.activePlaylistId();
+            const identity = channel && playlistId
+                ? `${playlistId}::${channel.id}::${channel.url}`
+                : null;
+            const lookupKey = identity
+                ? resolveChannelEpgLookupKey(channel)
+                : null;
+            const changedForSameChannel = !!identity &&
+                identity === priorChannelIdentity &&
+                lookupKey !== priorLookupKey;
+            priorChannelIdentity = identity;
+            priorLookupKey = lookupKey;
+            if (changedForSameChannel && lookupKey && this.supportsEpg) {
+                untracked(() => this.epgService.getChannelPrograms(lookupKey));
+            }
         });
 
         // Mirror the legacy uncontrolled epg-list store side effects so the
