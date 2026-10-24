@@ -720,8 +720,11 @@ export class VideoPlayerComponent
     );
 
     /** Computed once per channel-array identity; the original objects are retained. */
+    readonly contentOverrides = computed(() =>
+        this.activePlaylistMeta()?.m3uContentOverrides ?? {}
+    );
     readonly contentIndex = computed(() => buildM3uContentIndex(
-        this.channels(), this.activePlaylistMeta()?.m3uContentOverrides ?? {}
+        this.channels(), this.contentOverrides()
     ));
     readonly categoryView = computed<M3uContentKind | null>(() => {
         const base = this.activeView().replace(/-(?:groups|favorites)$/, '');

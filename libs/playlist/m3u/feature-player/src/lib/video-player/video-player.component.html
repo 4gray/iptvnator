@@ -95,7 +95,7 @@
         <app-m3u-media-catalog
             [kind]="catalogKind()"
             [channels]="sidebarChannels()"
-            [contentOverrides]="activePlaylistMeta()?.m3uContentOverrides ?? {}"
+            [contentOverrides]="contentOverrides()"
             (selected)="openCatalogEntry($event)"
             (contentTypeChanged)="onCatalogContentTypeChanged($event)"
         />
