@@ -24,6 +24,12 @@ import {
     EpgService,
 } from '@iptvnator/epg/data-access';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { SettingsStore } from '@iptvnator/services';
+import {
+    collectAmbiguousXmltvIds,
+    epgProviderClockMs,
+    resolveUniqueActiveDuplicateNames,
+} from '@iptvnator/shared/interfaces';
 import { debounceTime, from, Subject, switchMap } from 'rxjs';
 import { provideFormFieldDefaults } from '../../form-field-defaults/form-field-defaults';
 import { DialogShellComponent } from '../../dialog-shell/dialog-shell.component';
@@ -76,6 +82,7 @@ export class EpgMappingDialogComponent {
     private readonly epgService = inject(EpgService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
+    private readonly settingsStore = inject(SettingsStore);
 
     readonly searchMinChars = SEARCH_MIN_CHARS;
     readonly searchTerm = signal('');
@@ -205,6 +212,35 @@ export class EpgMappingDialogComponent {
                         this.automaticMapping.set(
                             `Auto (name): ${match.displayName} (${match.id})`
                         );
+                    } else if (uniqueIds.size > 1) {
+                        this.automaticMapping.set(
+                            `Ambiguous: ${uniqueIds.size} guide IDs. Select a channel manually.`
+                        );
+                        const candidates = collectAmbiguousXmltvIds(
+                            guide?.channels ?? [], new Set([name])
+                        );
+                        if (candidates.length > 2048 || candidates.length === 0) {
+                            return;
+                        }
+                        const now = epgProviderClockMs(
+                            Date.now(),
+                            this.settingsStore.resolvedEpgOffsetMinutes()
+                        );
+                        const active = await this.epgBridge.getProgramCoverage({
+                            channelIds: candidates,
+                            fromMs: now,
+                            toMs: now + 1000,
+                        });
+                        if (active) {
+                            const unique = resolveUniqueActiveDuplicateNames(
+                                guide?.channels ?? [], new Set(active)
+                            ).get(name);
+                            if (unique) {
+                                this.automaticMapping.set(
+                                    `Auto (on-air EPG): ${this.data.channelName} (${unique})`
+                                );
+                            }
+                        }
                     }
                 } catch {
                     // The mapping dialog remains usable without an EPG index.
