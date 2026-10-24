@@ -21,7 +21,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
+import { resolveChannelEpgLookupKey, resolveRawChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { ParentalLockService, SettingsStore } from '@iptvnator/services';
 import {
     foldSearchText,
@@ -620,7 +620,7 @@ export class GroupsViewComponent {
         }
 
         this.channelContextMenu().close();
-        const channelKey = resolveChannelEpgLookupKey(channel);
+        const channelKey = resolveRawChannelEpgLookupKey(channel);
         if (!channelKey) {
             return;
         }

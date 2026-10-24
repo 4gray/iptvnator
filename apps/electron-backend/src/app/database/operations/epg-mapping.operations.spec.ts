@@ -136,6 +136,22 @@ describe('epg-mapping.operations', () => {
         });
     });
 
+
+    it('chunks manual mapping queries for large M3U playlists', async () => {
+        const { db, select } = createDbMock([
+            { channelKey: 'key-0', epgChannelId: 'first' },
+            { channelKey: 'key-400', epgChannelId: 'later' },
+        ]);
+        const keys = Array.from({ length: 405 }, (_, i) => `key-${i}`);
+        const result = await getEpgMappingsBatch(db, [...keys, 'key-400']);
+        expect(select).toHaveBeenCalledTimes(2);
+        expect(inArrayMock).toHaveBeenCalledTimes(2);
+        expect((inArrayMock.mock.calls[0][1] as string[]).length).toBe(400);
+        expect((inArrayMock.mock.calls[1][1] as string[]).length).toBe(5);
+        expect(result.get('key-0')).toBe('first');
+        expect(result.get('key-400')).toBe('later');
+    });
+
     describe('setEpgMapping', () => {
         it('upserts on the channel key', async () => {
             const { db, insert, values, onConflictDoUpdate } = createDbMock();

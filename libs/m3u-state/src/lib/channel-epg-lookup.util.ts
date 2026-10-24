@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { Channel } from '@iptvnator/shared/interfaces';
 
 // Derived in the desktop renderer from imported XMLTV channel names.
-// These aliases are session-only: playlists, guides and manual mappings stay untouched.
+// These per-entry aliases are session-only: playlists, guides and manual mappings stay untouched.
 const exactEpgNameAliases = new Map<string, string>();
 const aliasRevision = signal(0);
 /** Reactively signals resolved M3U EPG key changes to the active player. */
@@ -31,6 +31,25 @@ export function replaceExactEpgNameAliases(
     aliasRevision.update((revision) => revision + 1);
 }
 
+/**
+ * Stable session-only per-entry identity. A provider can reuse a tvg-id across
+ * HD/SD/UHD entries; it is not safe as an automatic XMLTV alias map key.
+ * The identity survives NgRx cloning and also distinguishes duplicate URLs.
+ * Persisted manual mappings continue using the original, raw lookup key.
+ */
+export function getChannelEpgAliasKey(
+    channel: Channel | null | undefined
+): string {
+    if (!channel) return '';
+    return JSON.stringify([
+        channel.id ?? '',
+        channel.url ?? '',
+        channel.name?.trim() ?? '',
+        channel.tvg?.name?.trim() ?? '',
+        channel.tvg?.id?.trim() ?? '',
+    ]);
+}
+
 /** Original playlist lookup key; also the key for manual EPG mappings. */
 export function resolveRawChannelEpgLookupKey(
     channel: Channel | null | undefined
@@ -47,5 +66,5 @@ export function resolveChannelEpgLookupKey(
     channel: Channel | null | undefined
 ): string {
     const key = resolveRawChannelEpgLookupKey(channel);
-    return exactEpgNameAliases.get(key) ?? key;
+    return exactEpgNameAliases.get(getChannelEpgAliasKey(channel)) ?? key;
 }

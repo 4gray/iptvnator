@@ -4,7 +4,7 @@ import {
     createXmltvIdentityIndex,
     resolveOrderedXmltvId,
 } from '@iptvnator/shared/interfaces';
-import { resolveRawChannelEpgLookupKey } from './channel-epg-lookup.util';
+import { getChannelEpgAliasKey, resolveRawChannelEpgLookupKey } from './channel-epg-lookup.util';
 
 export interface ExactEpgChannel extends XmltvChannelIdentity {}
 
@@ -12,7 +12,8 @@ export interface ExactEpgChannel extends XmltvChannelIdentity {}
  * Pick the first *successful* XMLTV lookup in the configured field order.
  * Existing manual mappings always win. For repeated exact XMLTV display
  * names the first entry in the imported guide channel list wins, matching
- * First Exact preference. This is a transient renderer lookup map:
+ * First Exact preference. Keys are per M3U entry, not shared tvg-id values.
+ * This is a transient renderer lookup map:
  * neither M3U entries nor the imported guide are modified.
  */
 export function buildExactEpgNameAliases(
@@ -22,11 +23,12 @@ export function buildExactEpgNameAliases(
     order: readonly EpgMatchOrder[number][] = DEFAULT_EPG_MATCH_ORDER,
 ): Map<string, string> {
     const index = createXmltvIdentityIndex(epgChannels);
-    const proposed = new Map<string, string | null>();
+    const proposed = new Map<string, string>();
 
     for (const channel of playlistChannels) {
-        const key = resolveRawChannelEpgLookupKey(channel);
-        if (!key || Object.prototype.hasOwnProperty.call(manualMappings, key)) {
+        const rawKey = resolveRawChannelEpgLookupKey(channel);
+        // A saved mapping for the legacy raw key always overrides auto matching.
+        if (!rawKey || Object.prototype.hasOwnProperty.call(manualMappings, rawKey)) {
             continue;
         }
 
@@ -40,18 +42,10 @@ export function buildExactEpgNameAliases(
             index.names,
             order,
         );
-        if (!matched || matched === key) continue;
-
-        if (!proposed.has(key)) {
-            proposed.set(key, matched);
-        } else if (proposed.get(key) !== matched) {
-            proposed.set(key, null);
+        if (matched && matched !== rawKey) {
+            proposed.set(getChannelEpgAliasKey(channel), matched);
         }
     }
 
-    return new Map(
-        Array.from(proposed).filter(
-            (entry): entry is [string, string] => entry[1] !== null
-        )
-    );
+    return proposed;
 }
