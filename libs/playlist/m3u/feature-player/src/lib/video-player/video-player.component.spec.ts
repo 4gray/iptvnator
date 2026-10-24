@@ -8,7 +8,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
-import { ChannelActions, EpgActions } from '@iptvnator/m3u-state';
+import { ChannelActions, EpgActions, replaceExactEpgNameAliases } from '@iptvnator/m3u-state';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -1372,6 +1372,35 @@ describe('VideoPlayerComponent', () => {
         expect(storeMock.dispatch).toHaveBeenCalledWith(
             EpgActions.resetActiveEpgProgram()
         );
+    });
+
+    it('reloads the current programme after an async XMLTV alias arrives, without selecting or restarting a channel', () => {
+        replaceExactEpgNameAliases(new Map());
+        syncStoreState(sampleChannel);
+        fixture.detectChanges();
+        epgServiceMock.getChannelPrograms.mockClear();
+        storeMock.dispatch.mockClear();
+        replaceExactEpgNameAliases(new Map([
+            ['sample-tvg-id', 'playlist.bbc.earth'],
+        ]));
+        fixture.detectChanges();
+        expect(epgServiceMock.getChannelPrograms)
+            .toHaveBeenCalledWith('playlist.bbc.earth');
+        expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+            ChannelActions.setActiveChannel({
+                channel: sampleChannel,
+            })
+        );
+        // No duplicate backend query when the mapping is identical.
+        epgServiceMock.getChannelPrograms.mockClear();
+        replaceExactEpgNameAliases(new Map([
+            ['sample-tvg-id', 'playlist.bbc.earth'],
+        ]));
+        fixture.detectChanges();
+        expect(epgServiceMock.getChannelPrograms).not.toHaveBeenCalled();
+        replaceExactEpgNameAliases(new Map());
+        syncStoreState(null);
+        fixture.detectChanges();
     });
 
     describe('EPG needs-setup empty state', () => {
