@@ -13,6 +13,7 @@
         <span class="epg-mapping-current__value">
             {{
                 currentMapping() ||
+                    automaticMapping() ||
                     ('EPG_MAPPING_DIALOG.NO_MAPPING' | translate)
             }}
         </span>
