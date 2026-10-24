@@ -1,18 +1,34 @@
+import { signal } from '@angular/core';
 import { Channel } from '@iptvnator/shared/interfaces';
 
 // Derived in the desktop renderer from imported XMLTV channel names.
 // These aliases are session-only: playlists, guides and manual mappings stay untouched.
 const exactEpgNameAliases = new Map<string, string>();
+const aliasRevision = signal(0);
+/** Reactively signals resolved M3U EPG key changes to the active player. */
+export const exactEpgNameAliasesRevision = aliasRevision.asReadonly();
 
 export function replaceExactEpgNameAliases(
     aliases: ReadonlyMap<string, string>
 ): void {
-    exactEpgNameAliases.clear();
+    const updated = new Map<string, string>();
     for (const [key, epgChannelId] of aliases) {
         if (key.trim() && epgChannelId.trim()) {
-            exactEpgNameAliases.set(key, epgChannelId);
+            updated.set(key, epgChannelId);
         }
     }
+    if (
+        exactEpgNameAliases.size === updated.size &&
+        Array.from(updated).every(([key, value]) =>
+            exactEpgNameAliases.get(key) === value
+        )
+    ) return;
+
+    exactEpgNameAliases.clear();
+    for (const [key, value] of updated) {
+        exactEpgNameAliases.set(key, value);
+    }
+    aliasRevision.update((revision) => revision + 1);
 }
 
 /** Original playlist lookup key; also the key for manual EPG mappings. */
