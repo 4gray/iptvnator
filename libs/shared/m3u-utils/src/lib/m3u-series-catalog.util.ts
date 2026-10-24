@@ -24,7 +24,7 @@ const EPISODE_ONLY = /(?:^|[^\p{L}\p{N}])(?:episode|ep|bölüm|bolum)[\s._:-]*(\
 function stripMarker(name: string, match: RegExpMatchArray): string {
     // Regexp consumes a possible separator before the marker; keep only title
     // text, not quality/episode descriptors.
-    const start = (match.index ?? 0) + (match[0].length - match[0].trimStart().length);
+    const start = (match.index ?? 0) + (match[0].length - match[0].replace(/^\s+/u, '').length);
     const before = name.slice(0, start).replace(/[\s._-]+$/u, '');
     const after = name.slice((match.index ?? 0) + match[0].length)
         .replace(/^[\s._-]+/u, '')
