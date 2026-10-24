@@ -48,7 +48,7 @@ Duplicate resolution is **best effort**, not a guarantee that two stations with 
 ### 🔧 Scope, compatibility, and downloads
 
 - **Desktop:** Windows x64 NSIS preview installers are built by the fork's [GitHub Actions workflow](https://github.com/mkaand/iptvnator/actions/workflows/epg-name-fallback-windows.yml). Look for a successful run on a feature/fix branch and its **Artifacts** section. Artifacts expire; they are not permanent public releases.
-- **Versioning:** fork builds carry descriptive suffixes (for example, `0.25.0-epgpriority.2`) to distinguish them from upstream releases.
+- **Versioning:** fork builds carry descriptive suffixes (for example, `0.25.0-epgpriority.3`) to distinguish them from upstream releases.
 - **Updates:** an official upstream update can replace fork-only features. Do not install an upstream update over this preview build without checking whether the relevant changes have been integrated.
 - **Privacy:** your EPG/playlist URL, database, credentials, and WebGrab EPG Manager do not need to be modified to use these features. Avoid posting private playlist URLs or Xtream credentials in bug reports.
 - **Platform coverage:** EPG matching through the native XMLTV database is desktop-oriented; browser/PWA builds may lack the required Electron bridge operations.
