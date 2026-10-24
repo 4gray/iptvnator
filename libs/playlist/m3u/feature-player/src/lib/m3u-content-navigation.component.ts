@@ -1,41 +1,44 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { Router } from '@angular/router';
 import type { M3uContentIndex, M3uContentKind } from '@iptvnator/shared/m3u-utils';
 
 /** Source-local navigation. Existing global workspace navigation stays intact. */
 @Component({
     selector: 'app-m3u-content-navigation',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [RouterLink],
     template: `
         <nav class="m3u-content-navigation" aria-label="M3U content sections">
             <div class="m3u-content-navigation__kinds">
                 @for (kind of kinds; track kind.key) {
-                    <a
+                    <button
+                        type="button"
                         class="m3u-content-navigation__item"
                         [class.m3u-content-navigation__item--active]="currentKind() === kind.key"
-                        [routerLink]="['/workspace/playlists', playlistId(), sectionPath(kind.key)]"
+                        (click)="navigate(sectionPath(kind.key))"
                         [attr.aria-current]="currentKind() === kind.key ? 'page' : null"
                     >
                         <span>{{ kind.label }}</span>
                         <span class="m3u-content-navigation__count">{{ index()[kind.key].length }}</span>
-                    </a>
+                    </button>
                 }
             </div>
             <div class="m3u-content-navigation__modes">
-                <a
-                    [routerLink]="['/workspace/playlists', playlistId(), currentBase()]"
+                <button
+                    type="button"
+                    (click)="navigate(currentBase())"
                     [class.m3u-content-navigation__mode--active]="!isGroups()"
-                >All</a>
-                <a
-                    [routerLink]="['/workspace/playlists', playlistId(), currentBase() === 'all' ? 'groups' : currentBase() + '-groups']"
+                >All</button>
+                <button
+                    type="button"
+                    (click)="navigate(currentBase() === 'all' ? 'groups' : currentBase() + '-groups')"
                     [class.m3u-content-navigation__mode--active]="isGroups()"
-                >Groups</a>
-                <a
-                    [routerLink]="['/workspace/playlists', playlistId(), 'all']"
+                >Groups</button>
+                <button
+                    type="button"
+                    (click)="navigate('all')"
                     [class.m3u-content-navigation__legacy--active]="currentKind() === null"
                     class="m3u-content-navigation__legacy"
-                >Browse All Content ({{ total() }})</a>
+                >Browse All Content ({{ total() }})</button>
             </div>
         </nav>
     `,
@@ -62,8 +65,12 @@ import type { M3uContentIndex, M3uContentKind } from '@iptvnator/shared/m3u-util
             background: color-mix(in srgb, currentColor 4%, transparent);
             font-size: 12px;
             font-weight: 600;
+            border: 0;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
         }
-        .m3u-content-navigation__item:hover, .m3u-content-navigation__modes a:hover {
+        .m3u-content-navigation__item:hover, .m3u-content-navigation__modes button:hover {
             background: color-mix(in srgb, currentColor 9%, transparent);
         }
         .m3u-content-navigation__item--active, .m3u-content-navigation__mode--active {
@@ -72,18 +79,23 @@ import type { M3uContentIndex, M3uContentKind } from '@iptvnator/shared/m3u-util
         }
         .m3u-content-navigation__count { font-size: 11px; opacity: 0.8; font-variant-numeric: tabular-nums; }
         .m3u-content-navigation__modes { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
-        .m3u-content-navigation__modes a {
+        .m3u-content-navigation__modes button {
             padding: 4px 6px;
             color: inherit;
             text-decoration: none;
             border-radius: 5px;
             font-size: 11px;
+            border: 0;
+            cursor: pointer;
+            font-family: inherit;
+            background: transparent;
         }
         .m3u-content-navigation__legacy { margin-left: auto; }
         .m3u-content-navigation__legacy--active { font-weight: 700; }
     `],
 })
 export class M3uContentNavigationComponent {
+    private readonly router = inject(Router);
     readonly playlistId = input<string | null>(null);
     readonly activeView = input('live');
     readonly index = input.required<M3uContentIndex>();
@@ -107,6 +119,11 @@ export class M3uContentNavigationComponent {
         return this.kinds.find((kind) => kind.key === base)?.key ?? null;
     });
     readonly currentBase = computed(() => this.currentKind() ?? 'all');
+
+    navigate(section: string): void {
+        const id = this.playlistId();
+        if (id) void this.router.navigate(['/workspace/playlists', id, section]);
+    }
 
     sectionPath(kind: M3uContentKind): string {
         return kind + (this.isGroups() ? '-groups' : '');
