@@ -5,6 +5,7 @@ on:
         branches:
             - fix/epg-exact-name-fallback
             - feat/m3u-content-classification
+            - feat/epg-configurable-match-priority
     workflow_dispatch:
 
 concurrency:
@@ -40,6 +41,12 @@ jobs:
 
             - name: Install locked dependencies
               run: pnpm install --frozen-lockfile
+
+            - name: Test shared EPG matching utilities
+              run: pnpm nx test shared-interfaces --runInBand --skip-nx-cache
+
+            - name: Test settings matching preferences
+              run: pnpm nx test web --runInBand --skip-nx-cache --runTestsByPath apps/web/src/app/settings/settings-epg-section.component.spec.ts apps/web/src/app/settings/settings-form.utils.spec.ts
 
             - name: Test exact-name fallback
               run: pnpm nx test m3u-state --runInBand --skip-nx-cache
@@ -89,7 +96,7 @@ jobs:
             - name: Upload unsigned Windows installer
               uses: actions/upload-artifact@v7
               with:
-                  name: IPTVnator-EPG-Fix-Windows-x64
+                  name: IPTVnator-EPG-Priority-Windows-x64
                   path: dist/executables/**/*windows-x64-setup.exe
                   if-no-files-found: error
                   retention-days: 14
