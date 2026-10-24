@@ -15,6 +15,7 @@ import {
 import { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
+import { EmbeddedMpvSubtitlePreferenceService } from './embedded-mpv-subtitle-preference.service';
 
 const LIVE_PLAYBACK: ResolvedPortalPlayback = {
     streamUrl: 'https://example.com/live',
@@ -190,6 +191,19 @@ describe('EmbeddedMpvControlsAdapter', () => {
     it('returns safe empty defaults before it is configured', () => {
         expect(adapter.capabilities()).toEqual(DEFAULT_PLAYER_CAPABILITIES);
         expect(adapter.state()).toEqual(createEmptyControlsState());
+    });
+
+    it('records subtitle choices made through the shared controls', () => {
+        const preference = TestBed.inject(
+            EmbeddedMpvSubtitlePreferenceService
+        );
+        adapter.commands.setSubtitleTrack(3);
+        expect(preference.current).toEqual({ language: 'de', title: undefined });
+        expect(controller.setSubtitleTrack).toHaveBeenCalledWith(3);
+
+        adapter.commands.setSubtitleTrack(-1);
+        expect(preference.current).toBeNull();
+        expect(controller.setSubtitleTrack).toHaveBeenCalledWith(-1);
     });
 
     it('derives baseline, optional, and VOD series capabilities', () => {

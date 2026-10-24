@@ -251,6 +251,18 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         expect(addon.loadPlayback).toHaveBeenCalledTimes(1);
     };
 
+    it('identifies a same-URL reconnect even when loading is not published', () => {
+        startPlayingLive();
+        expect(lastUpdate()?.loadRevision).toBe(1);
+
+        poll('error');
+        jest.advanceTimersByTime(2_000);
+
+        expect(addon.loadPlayback).toHaveBeenCalledTimes(2);
+        expect(lastUpdate()?.streamUrl).toBe(LIVE.streamUrl);
+        expect(lastUpdate()?.loadRevision).toBe(2);
+    });
+
     it('hands the session options to the addon', () => {
         service.createSession(BOUNDS, 'Title', 0.5, {
             extraOptions: ['network-timeout=10', 'hwdec=no'],
@@ -449,6 +461,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         it('re-adds the external subtitle file once the automatic reload plays', () => {
             startPlayingLive();
             service.addSubtitle('session-1', subtitleFile);
+            expect(lastUpdate()?.externalSubtitleActive).toBe(true);
             poll('playing');
 
             dropAndReload();
@@ -458,6 +471,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
                 'session-1',
                 subtitleFile
             );
+            expect(lastUpdate()?.externalSubtitleActive).toBe(true);
         });
 
         it('does not re-select a file the user had switched away from', () => {
@@ -475,6 +489,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
             startPlayingLive();
             service.addSubtitle('session-1', subtitleFile);
             service.loadPlayback('session-1', LIVE);
+            expect(lastUpdate()?.externalSubtitleActive).toBe(false);
             poll('playing');
 
             dropAndReload();
