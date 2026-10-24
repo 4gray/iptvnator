@@ -20,13 +20,16 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { queryParamSignal } from '@iptvnator/portal/shared/util';
 import {
     ChannelActions,
     FavoritesActions,
     PlaylistActions,
+    buildExactEpgNameAliases,
+    replaceExactEpgNameAliases,
+    resolveRawChannelEpgLookupKey,
     resolveChannelEpgLookupKey,
     selectActive,
     selectFavorites,
@@ -114,6 +117,7 @@ const EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS = 2000;
 })
 export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly snackBar = inject(MatSnackBar);
@@ -138,6 +142,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private epgRefreshInterval?: number;
     /** The EPG fetch in flight; a newer fetch cancels it so a stale map never lands. */
     private epgFetchSubscription?: Subscription;
+    /** Reject asynchronous alias/EPG results for a superseded channel list. */
+    private epgAliasGeneration = 0;
 
     /** Global progress tick signal - triggers re-computation of progress percentages */
     readonly progressTick = signal(0);
@@ -526,6 +532,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             clearInterval(this.progressInterval);
         }
 
+        ++this.epgAliasGeneration;
         this.epgAvailabilitySubscription?.unsubscribe();
         this.epgFetchSubscription?.unsubscribe();
         this.channelList$.complete();
@@ -534,15 +541,46 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     /**
      * Fetches EPG data for all channels
      */
-    private fetchEpgForChannels(channels: Channel[]): void {
+    private async fetchEpgForChannels(channels: Channel[]): Promise<void> {
         // A fetch started for a previous channel list, EPG scope or display
         // offset must not install its map after this one: cancel it first.
+        const request = ++this.epgAliasGeneration;
         this.epgFetchSubscription?.unsubscribe();
         if (!channels || channels.length === 0) {
+            replaceExactEpgNameAliases(new Map());
             this.channelEpgMap.set(new Map());
             this.channelIconMap.set(new Map());
             return;
         }
+
+        // EPG keys from another provider are not necessarily XMLTV IDs.
+        // Resolve only unambiguous, exact display names, without persisting
+        // mappings or overriding a user-created mapping / valid guide ID.
+        try {
+            const rawKeys = Array.from(
+                new Set(
+                    channels
+                        .map((channel) => resolveRawChannelEpgLookupKey(channel))
+                        .filter(Boolean)
+                )
+            );
+            const [guide, manual] = await Promise.all([
+                this.epgBridge.getEpgChannels(),
+                this.epgBridge.getEpgMappingsBatch(rawKeys),
+            ]);
+            if (request !== this.epgAliasGeneration) return;
+            replaceExactEpgNameAliases(
+                buildExactEpgNameAliases(
+                    channels,
+                    guide?.channels ?? [],
+                    manual ?? {}
+                )
+            );
+        } catch {
+            if (request !== this.epgAliasGeneration) return;
+            replaceExactEpgNameAliases(new Map());
+        }
+        if (request !== this.epgAliasGeneration) return;
 
         const channelIds = Array.from(
             new Set(
