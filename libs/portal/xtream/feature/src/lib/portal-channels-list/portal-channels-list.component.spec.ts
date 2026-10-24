@@ -213,12 +213,6 @@ describe('PortalChannelsListComponent', () => {
         selectedTypeContentLoading.set(false);
         fixture.detectChanges();
         expect(epgQueueService.enqueue).not.toHaveBeenCalled();
-        const viewport = fixture.componentInstance.viewport()!;
-        // Model a measured CDK viewport. An empty rendered range means
-        // no row is on-screen and must not trigger any EPG request.
-        jest.spyOn(viewport, 'getRenderedRange').mockReturnValue({
-            start: 0, end: 2,
-        });
 
         currentPlaylist.set({
             id: 'playlist-1',
@@ -230,6 +224,14 @@ describe('PortalChannelsListComponent', () => {
             { xtream_id: 101, title: 'A2 HD', epg_channel_id: 'A2.tr' },
             { xtream_id: 102, title: 'Bein Sports 5', epg_channel_id: null },
         ]);
+        fixture.detectChanges();
+        // The viewport now exists. CDK may measure it after the channel
+        // store is hydrated, without changing its rendered index range.
+        const viewport = fixture.componentInstance.viewport()!;
+        jest.spyOn(viewport, 'getRenderedRange').mockReturnValue({
+            start: 0, end: 2,
+        });
+        selectedChannels.set([...selectedChannels()]);
         fixture.detectChanges();
         await Promise.resolve();
 
@@ -251,12 +253,13 @@ describe('PortalChannelsListComponent', () => {
             username: 'demo',
             password: 'test',
         });
+        selectedChannels.set([{ xtream_id: 11, title: 'Old Category Channel' }]);
         fixture.detectChanges();
         const viewport = fixture.componentInstance.viewport()!;
         jest.spyOn(viewport, 'getRenderedRange').mockReturnValue({
             start: 0, end: 1,
         });
-        selectedChannels.set([{ xtream_id: 11, title: 'Old Category Channel' }]);
+        selectedChannels.set([...selectedChannels()]);
         fixture.detectChanges();
         await Promise.resolve();
         expect(epgQueueService.enqueue).toHaveBeenCalled();
