@@ -1386,6 +1386,12 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                         session->running.load() &&
                         session->loadedPath) {
                         session->snapshot.status = SessionStatus::Ended;
+                    } else if (!eofReached &&
+                               session->snapshot.status == SessionStatus::Ended &&
+                               session->loadedPath) {
+                        session->snapshot.status = session->paused
+                            ? SessionStatus::Paused
+                            : SessionStatus::Playing;
                     }
                     break;
                 }
@@ -2563,6 +2569,29 @@ Napi::Value SetSpeed(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+Napi::Value SetLoop(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsBoolean()) {
+        throw Napi::TypeError::New(env, "Expected session id and loop flag.");
+    }
+    const auto session = getSessionOrThrow(
+        env, info[0].As<Napi::String>().Utf8Value()
+    );
+    const char* value = info[1].As<Napi::Boolean>().Value() ? "inf" : "no";
+    const int result = mpv_set_property_async(
+        session->handle, nextAsyncRequestId(), "loop-file",
+        MPV_FORMAT_STRING, const_cast<char**>(&value)
+    );
+    if (result < 0) {
+        throw Napi::Error::New(
+            env, std::string("Failed to update loop state: ") +
+                mpv_error_string(result)
+        );
+    }
+    return env.Undefined();
+}
+
 Napi::Value SetAspect(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
@@ -3014,6 +3043,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
         Napi::Function::New(env, SetSubtitleTrack)
     );
     exports.Set("setSpeed", Napi::Function::New(env, SetSpeed));
+    exports.Set("setLoop", Napi::Function::New(env, SetLoop));
     exports.Set("setAspect", Napi::Function::New(env, SetAspect));
     exports.Set("startRecording", Napi::Function::New(env, StartRecording));
     exports.Set("stopRecording", Napi::Function::New(env, StopRecording));

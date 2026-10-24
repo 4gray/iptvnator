@@ -1384,6 +1384,10 @@ export interface ElectronBridgeApi {
     ) => Promise<EmbeddedMpvSession | null>;
     /** Opens the main-process subtitle file dialog; null when cancelled. */
     selectEmbeddedMpvSubtitleFile?: () => Promise<string | null>;
+    setEmbeddedMpvLoop?: (
+        sessionId: string,
+        loop: boolean
+    ) => Promise<EmbeddedMpvSession | null>;
     setEmbeddedMpvSpeed?: (
         sessionId: string,
         speed: number

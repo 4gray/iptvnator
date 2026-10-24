@@ -14,6 +14,7 @@ import {
     EMBEDDED_MPV_SET_BOUNDS,
     EMBEDDED_MPV_SET_PAUSED,
     EMBEDDED_MPV_SET_SPEED,
+    EMBEDDED_MPV_SET_LOOP,
     EMBEDDED_MPV_SET_SUBTITLE_DELAY,
     EMBEDDED_MPV_SET_SUBTITLE_STYLE,
     EMBEDDED_MPV_SET_SUBTITLE_TRACK,
@@ -181,6 +182,9 @@ handleEmbeddedMpv(EMBEDDED_MPV_SELECT_SUBTITLE_FILE, () =>
 
 handleEmbeddedMpv(EMBEDDED_MPV_SET_SPEED, (sessionId: string, speed: number) =>
     getService().setSpeed(sessionId, speed)
+);
+handleEmbeddedMpv(EMBEDDED_MPV_SET_LOOP, (sessionId: string, loop: boolean) =>
+    getService().setLoop(sessionId, loop)
 );
 
 handleEmbeddedMpv(

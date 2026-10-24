@@ -274,7 +274,9 @@
                                     class="embedded-mpv-player__live-dot"
                                     aria-hidden="true"
                                 ></span>
-                                {{ 'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate }}
+                                {{
+                                    'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate
+                                }}
                             </span>
                         } @else {
                             <span
@@ -403,6 +405,34 @@
                                 selectedSubtitleTrackId() === null
                                     ? 'subtitles_off'
                                     : 'subtitles'
+                            }}</mat-icon>
+                        </button>
+                    }
+
+                    @if (capabilities().loop) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="embedded-mpv-player__control-button"
+                            data-test-id="embedded-mpv-loop-mode"
+                            (click)="cycleLoopMode()"
+                            [attr.aria-pressed]="loopMode() !== 'disabled'"
+                            [attr.aria-label]="
+                                ('SETTINGS.LOOP_MODE' | translate) +
+                                ': ' +
+                                ('SETTINGS.LOOP_MODE_' +
+                                    loopMode().toUpperCase() | translate)
+                            "
+                            [matTooltip]="
+                                'SETTINGS.LOOP_MODE_' + loopMode().toUpperCase()
+                                    | translate
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>{{
+                                loopMode() === 'program'
+                                    ? 'repeat_one'
+                                    : 'repeat'
                             }}</mat-icon>
                         </button>
                     }

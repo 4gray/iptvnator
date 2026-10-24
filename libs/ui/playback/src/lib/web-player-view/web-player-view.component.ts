@@ -71,6 +71,7 @@ import {
     toVideoPlayer,
 } from './web-player-recovery-policy';
 import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
+import { ChannelLoopLimiter } from './channel-loop-limiter';
 
 @Component({
     selector: 'app-web-player-view',
@@ -175,6 +176,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         () => this.settingsStore.showCaptions?.() ?? false
     );
     readonly reloadToken = signal(0);
+    private readonly channelLoopLimiter = new ChannelLoopLimiter();
     readonly externalRecoveryState = this.externalRecovery.states;
     readonly externalRecoveryPending = this.externalRecovery.pending;
     readonly recoveryPending = computed(
@@ -322,6 +324,7 @@ export class WebPlayerViewComponent implements OnDestroy {
             if (this.liveAutoFormat.pending()) return;
             void this.recovery.diagnosticIntentToken();
             const sourceRevision = this.playbackSourceRevisionToken();
+            this.channelLoopLimiter.setSource(this.streamUrl());
             untracked(() =>
                 this.recoverySession.syncSourceRevision(sourceRevision)
             );
@@ -413,7 +416,20 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.recovery.requestRecommendedPlayer(target);
     }
 
+    onPlayerPlaybackEnded(): void {
+        this.playbackEnded.emit();
+        if (
+            this.settingsStore.loopMode?.() !== 'channel' ||
+            !this.resolvedIsLive()
+        ) {
+            return;
+        }
+        if (!this.channelLoopLimiter.allow()) return;
+        this.reloadToken.update((value) => value + 1);
+    }
+
     retryPlayback(): void {
+        this.channelLoopLimiter.reset();
         this.recovery.retryPlayback();
     }
 }

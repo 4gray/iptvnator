@@ -659,6 +659,11 @@ const electronApi: ElectronBridgeApi = {
         speed: number
     ): Promise<EmbeddedMpvSession | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SET_SPEED', sessionId, speed),
+    setEmbeddedMpvLoop: (
+        sessionId: string,
+        loop: boolean
+    ): Promise<EmbeddedMpvSession | null> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_SET_LOOP', sessionId, loop),
     setEmbeddedMpvAspect: (
         sessionId: string,
         aspect: string
