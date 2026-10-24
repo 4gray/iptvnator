@@ -8,7 +8,7 @@ export function createM3uWorkspaceRoutes(): Route[] {
         {
             path: '',
             pathMatch: 'full',
-            redirectTo: 'all',
+            redirectTo: 'live',
         },
         {
             path: 'favorites',
