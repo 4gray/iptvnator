@@ -16,6 +16,7 @@ export * from './lib/epg-channel-with-programs.interface';
 export * from './lib/epg-channel.model';
 export * from './lib/epg-display-offset.util';
 export * from './lib/epg-match-priority.util';
+export * from './lib/epg-duplicate-name-resolution.util';
 export * from './lib/epg-item.interface';
 export * from './lib/epg-mapping-key.util';
 export * from './lib/epg-program.model';
