@@ -8,6 +8,7 @@ on:
             - feat/epg-configurable-match-priority
             - fix/xtream-epg-visible-list-initial-refresh
             - feat/epg-duplicate-coverage-and-fork-readme
+            - fix/m3u-epg-alias-reactive-refresh
     workflow_dispatch:
 
 concurrency:
@@ -67,6 +68,9 @@ jobs:
 
             - name: Test shared portal navigation
               run: pnpm nx test portal-shared-util --runInBand --skip-nx-cache
+
+            - name: Test M3U store lookup and EPG stale-response protection
+              run: pnpm nx test m3u-state --runInBand --skip-nx-cache && pnpm nx test epg-data-access --runInBand --skip-nx-cache
 
             - name: Type-check desktop and renderer
               run: pnpm run typecheck:ci
