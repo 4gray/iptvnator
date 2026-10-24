@@ -14,6 +14,7 @@ jest.mock('@iptvnator/portal/shared/util', () => ({
 
 describe('XtreamXmltvFallbackService', () => {
     type Bridge = {
+        getEpgChannels: jest.Mock;
         getChannelPrograms: jest.Mock<Promise<EpgProgram[]>, [string]>;
         getCurrentProgramsBatch: jest.Mock<
             Promise<Record<string, EpgProgram | null>>,
@@ -28,6 +29,7 @@ describe('XtreamXmltvFallbackService', () => {
     beforeEach(() => {
         epgOffsetMinutes = 0;
         bridge = {
+            getEpgChannels: jest.fn().mockResolvedValue({channels: []}),
             getChannelPrograms: jest.fn(),
             getCurrentProgramsBatch: jest.fn(),
         };
@@ -227,4 +229,59 @@ describe('XtreamXmltvFallbackService', () => {
         expect(items).toEqual([]);
         expect(Object.keys(batch)).toEqual(['rtl.de']);
     });
+    describe('exact XMLTV channel name fallback', () => {
+        it('recovers a mismatched Xtream EPG ID with the same channel name', async () => {
+            bridge.getEpgChannels.mockResolvedValue({
+                channels: [{ id: 'playlist.a2.f39e', displayName: 'A2 HD' }],
+            });
+            const service = makeService();
+            await expect(
+                service.resolveExactXmltvChannelId('A2.tr', 'A2 HD')
+            ).resolves.toBe('playlist.a2.f39e');
+        });
+
+        it('matches when the Xtream provider supplied no EPG ID', async () => {
+            bridge.getEpgChannels.mockResolvedValue({
+                channels: [{ id: 'epg.a2', displayName: 'A2 HD' }],
+            });
+            await expect(
+                makeService().resolveExactXmltvChannelId(null, ' a2 hd ')
+            ).resolves.toBe('epg.a2');
+        });
+
+        it('keeps valid imported-guide provider IDs', async () => {
+            bridge.getEpgChannels.mockResolvedValue({
+                channels: [
+                    { id: 'existing', displayName: 'Provider Channel' },
+                    { id: 'other', displayName: 'A2 HD' },
+                ],
+            });
+            await expect(
+                makeService().resolveExactXmltvChannelId('existing', 'A2 HD')
+            ).resolves.toBe('existing');
+        });
+
+        it('refuses ambiguous duplicate display names', async () => {
+            bridge.getEpgChannels.mockResolvedValue({
+                channels: [
+                    { id: 'first', displayName: 'A2 HD' },
+                    { id: 'second', displayName: 'A2 HD' },
+                ],
+            });
+            await expect(
+                makeService().resolveExactXmltvChannelId('provider', 'A2 HD')
+            ).resolves.toBe('provider');
+        });
+
+        it('loads the imported XMLTV channel index only once per service instance', async () => {
+            bridge.getEpgChannels.mockResolvedValue({
+                channels: [{ id: 'a2', displayName: 'A2 HD' }],
+            });
+            const service = makeService();
+            await service.resolveExactXmltvChannelId('provider', 'A2 HD');
+            await service.resolveExactXmltvChannelId('provider', 'A2 HD');
+            expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
+        });
+    });
+
 });
