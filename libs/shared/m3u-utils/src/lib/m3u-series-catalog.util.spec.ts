@@ -45,6 +45,6 @@ describe('M3U series catalog', () => {
         expect(catalog.series).toHaveLength(25);
         expect(catalog.series.reduce((n, s) => n + s.count, 0)).toBe(100000);
         expect(catalog.series.flatMap(s => s.seasons).flatMap(s => s.episodes)
-            .every(e => channels.includes(e.channel))).toBe(true);
+            .every(e => channels[Number(e.channel.id)] === e.channel)).toBe(true);
     });
 });
