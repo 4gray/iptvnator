@@ -286,7 +286,14 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 ? channels.slice(range.start, range.end)
                 : channels.slice(0, Math.min(channels.length, 24));
             if (visible.length > 0) {
-                untracked(() => this.loadEpgForVisibleChannels(visible));
+                // Cached entries can synchronously repaint row components.
+                // Do that after this render pass, never inside its hook.
+                queueMicrotask(() => {
+                    if (this.filteredChannels() !== channels ||
+                        this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+                        this.viewport() !== viewport) return;
+                    untracked(() => this.loadEpgForVisibleChannels(visible));
+                });
             }
         });
 
