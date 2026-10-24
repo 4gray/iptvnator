@@ -279,68 +279,53 @@ describe('XtreamXmltvFallbackService', () => {
             ).resolves.toBe('existing');
         });
 
-        it('chooses the only on-air BEINSPORTS 1 HD among three identical names', async () => {
+        it('chooses the first exact BEINSPORTS 1 HD ID even when all candidates are live', async () => {
             bridge.getEpgChannels.mockResolvedValue({
                 channels: [
-                    { id: 'beinsports.a', displayName: 'BEINSPORTS 1 HD' },
-                    { id: 'beinsports.b', displayName: 'BEINSPORTS 1 HD' },
-                    { id: 'beinsports.c', displayName: 'BEINSPORTS 1 HD' },
+                    { id: 'playlist.ligtvtr.88f04beb2605', displayName: 'BEINSPORTS 1 HD' },
+                    { id: 'playlist.ligtvtr.2be172194bf4', displayName: 'BEINSPORTS 1 HD' },
+                    { id: 'playlist.ligtvtr.6c12cd1eb0f7', displayName: 'BEINSPORTS 1 HD' },
                 ],
             });
-            bridge.getEpgProgramCoverage.mockResolvedValue(['beinsports.b']);
+            bridge.getEpgProgramCoverage.mockResolvedValue([
+                'playlist.ligtvtr.88f04beb2605',
+                'playlist.ligtvtr.2be172194bf4',
+                'playlist.ligtvtr.6c12cd1eb0f7',
+            ]);
             await expect(makeService().resolveExactXmltvChannelId(
                 'external.id', 'BEINSPORTS 1 HD'
-            )).resolves.toBe('beinsports.b');
-            expect(bridge.getEpgProgramCoverage).toHaveBeenCalledTimes(1);
-            expect(bridge.getEpgProgramCoverage).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    channelIds: ['beinsports.a','beinsports.b','beinsports.c'],
-                    fromMs: expect.any(Number),
-                    toMs: expect.any(Number),
-                })
-            );
+            )).resolves.toBe('playlist.ligtvtr.88f04beb2605');
+            expect(bridge.getEpgProgramCoverage).not.toHaveBeenCalled();
         });
 
-        it('keeps the provider key when multiple duplicate candidates are on air', async () => {
+        it('preserves source field priority when tvg-id comes first', async () => {
+            matchOrder = ['tvg-id','channel-name','tvg-name'];
             bridge.getEpgChannels.mockResolvedValue({
                 channels: [
-                    { id: 'a', displayName: 'BEINSPORTS 1 HD' },
-                    { id: 'b', displayName: 'BEINSPORTS 1 HD' },
+                    { id: 'known.provider.id', displayName: 'Not BEIN' },
+                    { id: 'first', displayName: 'BEINSPORTS 1 HD' },
+                    { id: 'second', displayName: 'BEINSPORTS 1 HD' },
                 ],
             });
-            bridge.getEpgProgramCoverage.mockResolvedValue(['a','b']);
             await expect(makeService().resolveExactXmltvChannelId(
-                'external.id','BEINSPORTS 1 HD'
-            )).resolves.toBe('external.id');
+                'known.provider.id','BEINSPORTS 1 HD'
+            )).resolves.toBe('known.provider.id');
         });
 
-        it('shares one duplicate coverage IPC request across concurrent visible rows', async () => {
+        it('returns first exact from the cached channel list for concurrent Xtream rows', async () => {
             bridge.getEpgChannels.mockResolvedValue({
                 channels: [
-                    { id: 'a', displayName: 'BEINSPORTS 1 HD' },
-                    { id: 'b', displayName: 'BEINSPORTS 1 HD' },
+                    { id: 'first', displayName: 'BEINSPORTS 1 HD' },
+                    { id: 'second', displayName: 'BEINSPORTS 1 HD' },
                 ],
             });
-            bridge.getEpgProgramCoverage.mockResolvedValue(['b']);
             const service = makeService();
-            const values = await Promise.all([
+            expect(await Promise.all([
                 service.resolveExactXmltvChannelId(null, 'BEINSPORTS 1 HD'),
-                service.resolveExactXmltvChannelId('provider.id', 'BEINSPORTS 1 HD'),
-            ]);
-            expect(values).toEqual(['b','b']);
-            expect(bridge.getEpgProgramCoverage).toHaveBeenCalledTimes(1);
-        });
-
-        it('refuses ambiguous duplicate display names', async () => {
-            bridge.getEpgChannels.mockResolvedValue({
-                channels: [
-                    { id: 'first', displayName: 'A2 HD' },
-                    { id: 'second', displayName: 'A2 HD' },
-                ],
-            });
-            await expect(
-                makeService().resolveExactXmltvChannelId('provider', 'A2 HD')
-            ).resolves.toBe('provider');
+                service.resolveExactXmltvChannelId('wrong.provider', 'BEINSPORTS 1 HD'),
+            ])).toEqual(['first','first']);
+            expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
+            expect(bridge.getEpgProgramCoverage).not.toHaveBeenCalled();
         });
 
         it('loads the imported XMLTV channel index only once per service instance', async () => {
