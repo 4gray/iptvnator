@@ -1,5 +1,5 @@
 import { Channel } from '@iptvnator/shared/interfaces';
-import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
+import { exactEpgNameAliasesRevision, replaceExactEpgNameAliases, resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
 
 function buildChannel(overrides: Partial<Channel> = {}): Channel {
     return {
@@ -25,6 +25,8 @@ function buildChannel(overrides: Partial<Channel> = {}): Channel {
 }
 
 describe('resolveChannelEpgLookupKey', () => {
+    beforeEach(() => replaceExactEpgNameAliases(new Map()));
+    afterEach(() => replaceExactEpgNameAliases(new Map()));
     it('prefers tvg id when present', () => {
         expect(resolveChannelEpgLookupKey(buildChannel())).toBe('epg-id');
     });
@@ -62,4 +64,17 @@ describe('resolveChannelEpgLookupKey', () => {
             )
         ).toBe('Channel Name');
     });
+    it('publishes an alias change only when an actual lookup changes', () => {
+        const channel = buildChannel();
+        const initial = exactEpgNameAliasesRevision();
+        replaceExactEpgNameAliases(new Map([['epg-id', 'bbc.earth']]));
+        expect(resolveChannelEpgLookupKey(channel)).toBe('bbc.earth');
+        expect(exactEpgNameAliasesRevision()).toBe(initial + 1);
+        replaceExactEpgNameAliases(new Map([['epg-id', 'bbc.earth']]));
+        expect(exactEpgNameAliasesRevision()).toBe(initial + 1);
+        replaceExactEpgNameAliases(new Map([['epg-id', 'beinsports.1']]));
+        expect(resolveChannelEpgLookupKey(channel)).toBe('beinsports.1');
+        expect(exactEpgNameAliasesRevision()).toBe(initial + 2);
+    });
+
 });
