@@ -17,6 +17,7 @@ This fork focuses on two practical desktop IPTV workflows: automatically organiz
 | Duplicate XMLTV display names | No arbitrary duplicate selected | Resolve automatically **only if precisely one candidate has current programme coverage**; otherwise keep manual selection |
 | Xtream guide source | Provider EPG and externally supplied XMLTV | **Configured XMLTV First / Xtream Provider EPG First** selection plus XMLTV fallback by channel name |
 | Xtream list EPG | Existing preview refresh paths | Refresh visible-channel programme previews on async category load and category switching without clicking a channel |
+| M3U active timeline | Lookup at channel selection time | Re-query an active channel if its asynchronous XMLTV name/ID association changes; ignore stale older query responses |
 | Windows preview builds | Official upstream release process | Fork-specific version labels, automated regression tests, and unsigned Windows x64 installer artifacts |
 
 ### 📺 M3U content organization
@@ -48,7 +49,7 @@ Duplicate resolution is **best effort**, not a guarantee that two stations with 
 ### 🔧 Scope, compatibility, and downloads
 
 - **Desktop:** Windows x64 NSIS preview installers are built by the fork's [GitHub Actions workflow](https://github.com/mkaand/iptvnator/actions/workflows/epg-name-fallback-windows.yml). Look for a successful run on a feature/fix branch and its **Artifacts** section. Artifacts expire; they are not permanent public releases.
-- **Versioning:** fork builds carry descriptive suffixes (for example, `0.25.0-epgpriority.3`) to distinguish them from upstream releases.
+- **Versioning:** fork builds carry descriptive suffixes (for example, `0.25.0-epgpriority.4`) to distinguish them from upstream releases.
 - **Updates:** an official upstream update can replace fork-only features. Do not install an upstream update over this preview build without checking whether the relevant changes have been integrated.
 - **Privacy:** your EPG/playlist URL, database, credentials, and WebGrab EPG Manager do not need to be modified to use these features. Avoid posting private playlist URLs or Xtream credentials in bug reports.
 - **Platform coverage:** EPG matching through the native XMLTV database is desktop-oriented; browser/PWA builds may lack the required Electron bridge operations.
