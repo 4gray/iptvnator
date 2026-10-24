@@ -1,5 +1,10 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { buildElectronLaunchArgs } from './electron-test-fixtures';
+import { dirname, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import {
+    buildElectronLaunchArgs,
+    packagedRendererIndexPath,
+} from './electron-test-fixtures';
 import { terminateElectronProcess } from './electron-process-termination';
 
 /**
@@ -106,6 +111,11 @@ function waitForEndpoints(
 
 async function findMainPage(devtools: string): Promise<string> {
     const origin = new URL(devtools).host;
+    // Angular may replace index.html with /workspace/dashboard before the
+    // first poll. Both URLs belong to the same packaged renderer directory.
+    const rendererRoot = pathToFileURL(
+        dirname(packagedRendererIndexPath) + sep
+    ).href;
     const deadline = Date.now() + STARTUP_TIMEOUT_MS;
     while (Date.now() < deadline) {
         const targets = (await (
@@ -117,7 +127,7 @@ async function findMainPage(devtools: string): Promise<string> {
         }[];
         const page = targets.find(
             (target) =>
-                target.type === 'page' && target.url.includes('index.html')
+                target.type === 'page' && target.url.startsWith(rendererRoot)
         );
         if (page) return page.webSocketDebuggerUrl;
         await new Promise((resolve) => setTimeout(resolve, 250));
