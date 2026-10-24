@@ -66,7 +66,11 @@ const STALKER_SECTIONS = [
     'search',
     'downloads',
 ] as const;
-const M3U_SECTIONS = ['all', 'groups', 'favorites', 'recent'] as const;
+const M3U_SECTIONS = [
+    'live', 'live-groups', 'movies', 'movies-groups',
+    'series', 'series-groups', 'unclassified', 'unclassified-groups',
+    'all', 'groups', 'favorites', 'recent',
+] as const;
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistContextFacade {
@@ -317,7 +321,7 @@ export class PlaylistContextFacade {
         }
 
         if (provider === 'playlists' && currentSection) {
-            return 'all';
+            return 'live';
         }
 
         const memory = this.readSectionMemory();
@@ -342,7 +346,7 @@ export class PlaylistContextFacade {
         }
 
         if (provider === 'playlists') {
-            return 'all';
+            return 'live';
         }
 
         return 'vod';
