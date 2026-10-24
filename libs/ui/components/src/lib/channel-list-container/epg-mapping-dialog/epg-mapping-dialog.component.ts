@@ -85,6 +85,7 @@ export class EpgMappingDialogComponent {
     >([]);
     readonly selectedId = signal<string | null>(null);
     readonly currentMapping = signal<string | null>(null);
+    readonly automaticMapping = signal<string | null>(null);
 
     private readonly search$ = new Subject<string>();
 
@@ -191,6 +192,23 @@ export class EpgMappingDialogComponent {
             const mappedId = m?.epgChannelId ?? null;
             if (!mappedId) {
                 this.currentMapping.set(null);
+                try {
+                    const guide = await this.epgBridge.getEpgChannels();
+                    const name = this.data.channelName.trim().toLocaleLowerCase();
+                    const exactMatches = guide?.channels.filter(
+                        (channel) =>
+                            channel.displayName.trim().toLocaleLowerCase() === name
+                    ) ?? [];
+                    const uniqueIds = new Set(exactMatches.map((channel) => channel.id));
+                    if (uniqueIds.size === 1) {
+                        const match = exactMatches[0];
+                        this.automaticMapping.set(
+                            `Auto (name): ${match.displayName} (${match.id})`
+                        );
+                    }
+                } catch {
+                    // The mapping dialog remains usable without an EPG index.
+                }
                 return;
             }
             this.currentMapping.set(mappedId);
