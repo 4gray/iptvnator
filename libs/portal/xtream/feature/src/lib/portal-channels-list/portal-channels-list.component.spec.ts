@@ -206,6 +206,50 @@ describe('PortalChannelsListComponent', () => {
         ).not.toBeNull();
     });
 
+    it('requests EPG for asynchronously loaded visible channels without clicking a row', () => {
+        // Mount an empty category first. Its CDK viewport already exists
+        // when the category items arrive, so the rendered indices may remain
+        // unchanged and renderedRangeStream need not emit a second event.
+        selectedTypeContentLoading.set(false);
+        fixture.detectChanges();
+        expect(epgQueueService.enqueue).not.toHaveBeenCalled();
+
+        currentPlaylist.set({
+            id: 'playlist-1',
+            serverUrl: 'https://example.test',
+            username: 'demo',
+            password: 'test',
+        });
+        selectedChannels.set([
+            { xtream_id: 101, title: 'A2 HD', epg_channel_id: 'A2.tr' },
+            { xtream_id: 102, title: 'Bein Sports 5', epg_channel_id: null },
+        ]);
+        fixture.detectChanges();
+
+        expect(epgQueueService.enqueue).toHaveBeenCalled();
+        const [entries, visibleIds] = epgQueueService.enqueue.mock.calls.at(-1)!;
+        expect(entries).toEqual(expect.arrayContaining([
+            expect.objectContaining({ streamId: 101, channelName: 'A2 HD' }),
+            expect.objectContaining({ streamId: 102, channelName: 'Bein Sports 5' }),
+        ]));
+        expect(visibleIds).toEqual(new Set([101, 102]));
+        expect(selectedItem()).toBeNull();
+    });
+
+    it('does not request Xtream EPG for a non-live collection', () => {
+        selectedTypeContentLoading.set(false);
+        selectedContentType.set('movie');
+        currentPlaylist.set({
+            id: 'playlist-1',
+            serverUrl: 'https://example.test',
+            username: 'demo',
+            password: 'test',
+        });
+        selectedChannels.set([{ xtream_id: 201, title: 'Film' }]);
+        fixture.detectChanges();
+        expect(epgQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
     it('selects the current preview program by timestamps, preserves them, and updates progress from them', () => {
         jest.useFakeTimers();
         const currentStartTimestamp = Math.floor(
