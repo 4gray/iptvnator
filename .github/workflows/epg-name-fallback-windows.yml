@@ -39,6 +39,9 @@ jobs:
             - name: Test exact-name fallback
               run: pnpm nx test m3u-state --runInBand --skip-nx-cache
 
+            - name: Test Xtream EPG fallback
+              run: pnpm nx test portal-xtream-data-access --runInBand --skip-nx-cache
+
             - name: Type-check desktop and renderer
               run: pnpm run typecheck:ci
 
