@@ -64,7 +64,7 @@ import {
     Settings,
     STORE_KEY,
 } from '@iptvnator/shared/interfaces';
-import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
+import { m3uContentOverrideKey, normalizeEpgUrls, type M3uContentKind } from '@iptvnator/shared/m3u-utils';
 import { AllChannelsViewComponent } from './all-channels-view/all-channels-view.component';
 import { FavoritesViewComponent } from './favorites-view/favorites-view.component';
 import { GroupsViewComponent } from './groups-view/groups-view.component';
@@ -165,6 +165,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         return normalizeEpgUrls(playlist.epgUrls ?? []);
     });
     readonly enableEpg = input(true);
+    readonly enableContentReclassification = input(false);
     readonly shouldShowEpg = computed(
         () =>
             this.enableEpg() && this.runtime.supportsEpg &&
@@ -757,6 +758,19 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 { duration: 5000 }
             );
         }
+    }
+
+    onContentTypeChanged(change: { channel: Channel; kind: M3uContentKind | null }): void {
+        const playlist = this.activePlaylist();
+        if (!this.enableContentReclassification() || !playlist ||
+            playlist.serverUrl || playlist.macAddress) return;
+        const key = m3uContentOverrideKey(change.channel);
+        const overrides = { ...(playlist.m3uContentOverrides ?? {}) };
+        if (change.kind === null) delete overrides[key];
+        else overrides[key] = change.kind;
+        this.store.dispatch(PlaylistActions.updatePlaylistMeta({
+            playlist: { _id: playlist._id, m3uContentOverrides: overrides } as PlaylistMeta,
+        }));
     }
 
     onHiddenGroupTitlesChanged(hiddenGroupTitles: string[]): void {

@@ -34,6 +34,7 @@ import {
     isDashStreamUrl,
     isLikelyM3uMovie,
     buildM3uContentIndex,
+    m3uContentOverrideKey,
     type M3uContentKind,
     isLikelyM3uVod,
     isM3uCatchupPlaybackSupported,
@@ -719,7 +720,9 @@ export class VideoPlayerComponent
     );
 
     /** Computed once per channel-array identity; the original objects are retained. */
-    readonly contentIndex = computed(() => buildM3uContentIndex(this.channels()));
+    readonly contentIndex = computed(() => buildM3uContentIndex(
+        this.channels(), this.activePlaylistMeta()?.m3uContentOverrides ?? {}
+    ));
     readonly categoryView = computed<M3uContentKind | null>(() => {
         const base = this.activeView().replace(/-(?:groups|favorites)$/, '');
         return base === 'live' || base === 'movies' ||
@@ -757,6 +760,18 @@ export class VideoPlayerComponent
             channel.name === active.name
         );
     });
+
+    onCatalogContentTypeChanged(change: { channel: Channel; kind: M3uContentKind | null }): void {
+        const playlist = this.activePlaylistMeta();
+        if (!playlist || playlist.serverUrl || playlist.macAddress) return;
+        const key = m3uContentOverrideKey(change.channel);
+        const overrides = { ...(playlist.m3uContentOverrides ?? {}) };
+        if (change.kind === null) delete overrides[key];
+        else overrides[key] = change.kind;
+        this.store.dispatch(PlaylistActions.updatePlaylistMeta({
+            playlist: { _id: playlist._id, m3uContentOverrides: overrides } as PlaylistMeta,
+        }));
+    }
 
     openCatalogEntry(channel: Channel): void {
         this.store.dispatch(ChannelActions.setActiveChannel({ channel }));

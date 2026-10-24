@@ -43,6 +43,7 @@
             [channelsLoading]="channelsLoading()"
             [activeView]="sidebarPresentationView()"
             [enableEpg]="allowSectionEpg()"
+            [enableContentReclassification]="true"
             [sidebarWidth]="sidebarWidth()"
             (sidebarWidthRequested)="onGroupedSidebarWidthRequested($event)"
             (sidebarWidthRequestEnded)="
@@ -95,6 +96,7 @@
             [kind]="catalogKind()"
             [channels]="sidebarChannels()"
             (selected)="openCatalogEntry($event)"
+            (contentTypeChanged)="onCatalogContentTypeChanged($event)"
         />
     } @else if (activeChannel(); as activeChannel) {
         @if (showMovieDetail()) {

@@ -19,6 +19,7 @@ export class SidebarComponent {
     readonly channels = input<Channel[]>([]);
     readonly channelsLoading = input(false);
     readonly enableEpg = input(true);
+    readonly enableContentReclassification = input(false);
     readonly activeView = input<string>('all');
     readonly sidebarWidth = input<number | null>(null);
     readonly sidebarWidthRequested = output<number>();
