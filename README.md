@@ -14,7 +14,7 @@ This fork focuses on two practical desktop IPTV workflows: automatically organiz
 | M3U navigation | General channel browsing | Category-specific **All / Groups / Favorites**, while preserving source-level channel identity and preferences |
 | XMLTV matching | Standard channel metadata and manual mapping | **Configurable Primary / Secondary / Third Match**: Channel Name, `tvg-name`, and `tvg-id` |
 | Missing or mismatched guide IDs | May require manual mapping | Retry the next matching field after a *failed lookup*, even when an unrelated `tvg-id` exists |
-| Duplicate XMLTV display names | No arbitrary duplicate selected | Resolve automatically **only if precisely one candidate has current programme coverage**; otherwise keep manual selection |
+| Duplicate XMLTV display names | Mapping can require manual selection | **First Exact Match:** the first matching imported XMLTV record wins, even when later records share the same channel name |
 | Xtream guide source | Provider EPG and externally supplied XMLTV | **Configured XMLTV First / Xtream Provider EPG First** selection plus XMLTV fallback by channel name |
 | Xtream list EPG | Existing preview refresh paths | Refresh visible-channel programme previews on async category load and category switching without clicking a channel |
 | M3U active timeline | Lookup at channel selection time | Re-query an active channel if its asynchronous XMLTV name/ID association changes; ignore stale older query responses |
@@ -42,20 +42,23 @@ In **Settings → EPG → EPG Matching Preferences**, choose three distinct fiel
 
 The next field is tried only when no usable XMLTV channel match was found. Saved **manual channel mappings retain priority**. For Xtream playlists, select **Configured XMLTV First** to prefer a configured external guide, or **Xtream Provider EPG First** to prioritize the provider's built-in EPG.
 
-**Repeated channel names are handled carefully.** For example, if an imported guide lists three different XMLTV IDs for `BEINSPORTS 1 HD`, the fork checks current programme coverage in one bounded query. It automatically associates the name only if **exactly one distinct ID** has a programme covering the current EPG clock instant. If zero or two or more candidates are active, the name remains ambiguous and can still be mapped manually. A configured ID-first preference and existing manual mappings are respected.
+**First Exact Match for duplicate channel names.** WebGrab EPG Manager may publish a canonical stream under several linked XMLTV IDs to cover different player names. The guide can therefore contain several `<channel>` records with the *same exact display name*, for example three `BEINSPORTS 1 HD` records with distinct IDs. This fork **selects the first exact name match returned by the imported guide channel index**, rather than rejecting the match or checking which candidate is on air. It does not automatically strip or conflate `HD`, `SD`, or `UHD`: those remain separate exact names. A manual mapping overrides automatic choices.
 
-Duplicate resolution is **best effort**, not a guarantee that two stations with the same name carry the same programming. Guide coverage can be stale, unavailable, or incomplete. A maximum of 2,000 candidate XMLTV IDs is checked in an ambiguity pass to avoid excessive backend work; larger ambiguous sets remain unresolved. Temporary automatic associations are recomputed and **are not written to the playlist or XMLTV source**.
+**What “first” means:** The local Electron database lists EPG channels ordered by display name and, for identical names, stable SQLite insertion order (`rowid`). On a fresh import, that generally follows the XMLTV channel order; after reimports or updates, older database row identities can persist, so **reordering an existing XML file is not guaranteed to change the first imported match**. Where exact source-file order is critical, clean up duplicate names in the EPG generator and re-import accordingly.
+
+**Trade-off:** First Exact is a deliberate user preference, not proof that multiple entries carry identical schedules. If the first entry has stale or missing programmes, the app does **not** silently pick a different duplicate based on current airtime. Use the existing manual EPG mapping UI for exceptions. The guide and playlist remain untouched, and ordered matching still respects **Channel Name → `tvg-name` → `tvg-id`** (or the saved custom priority).
+
 
 ### 🔧 Scope, compatibility, and downloads
 
 - **Desktop:** Windows x64 NSIS preview installers are built by the fork's [GitHub Actions workflow](https://github.com/mkaand/iptvnator/actions/workflows/epg-name-fallback-windows.yml). Look for a successful run on a feature/fix branch and its **Artifacts** section. Artifacts expire; they are not permanent public releases.
-- **Versioning:** fork builds carry descriptive suffixes (for example, `0.25.0-epgpriority.4`) to distinguish them from upstream releases.
+- **Versioning:** fork builds carry descriptive suffixes (for example, `0.25.0-epgpriority.5`) to distinguish them from upstream releases.
 - **Updates:** an official upstream update can replace fork-only features. Do not install an upstream update over this preview build without checking whether the relevant changes have been integrated.
 - **Privacy:** your EPG/playlist URL, database, credentials, and WebGrab EPG Manager do not need to be modified to use these features. Avoid posting private playlist URLs or Xtream credentials in bug reports.
 - **Platform coverage:** EPG matching through the native XMLTV database is desktop-oriented; browser/PWA builds may lack the required Electron bridge operations.
 - **Quality status:** automated tests cover the matching rules, duplicates, large-library classification, M3U/Xtream regressions, settings, and Windows packaging. Real-provider reception and guide content still require manual acceptance testing.
 
-**Development branches:** [EPG priority](https://github.com/mkaand/iptvnator/tree/feat/epg-configurable-match-priority) · [M3U classification](https://github.com/mkaand/iptvnator/tree/feat/m3u-content-classification) · [Xtream initial list refresh](https://github.com/mkaand/iptvnator/tree/fix/xtream-epg-visible-list-initial-refresh) · [Duplicate-guide resolution and documentation](https://github.com/mkaand/iptvnator/tree/feat/epg-duplicate-coverage-and-fork-readme).
+**Development branches:** [EPG priority](https://github.com/mkaand/iptvnator/tree/feat/epg-configurable-match-priority) · [M3U classification](https://github.com/mkaand/iptvnator/tree/feat/m3u-content-classification) · [Xtream initial list refresh](https://github.com/mkaand/iptvnator/tree/fix/xtream-epg-visible-list-initial-refresh) · [First Exact Match](https://github.com/mkaand/iptvnator/tree/feat/epg-first-exact-match).
 
 **Upstream references:** [official IPTVnator](https://github.com/4gray/iptvnator) · [original EPG matching report, issue #1992](https://github.com/4gray/iptvnator/issues/1992). If you discover a bug in fork-only code, please use [issues in this fork](https://github.com/mkaand/iptvnator/issues) rather than attributing it to upstream.
 
