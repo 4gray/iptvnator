@@ -8,7 +8,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
-import { ChannelActions, EpgActions, replaceExactEpgNameAliases } from '@iptvnator/m3u-state';
+import { ChannelActions, EpgActions, getChannelEpgAliasKey, replaceExactEpgNameAliases } from '@iptvnator/m3u-state';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -1381,7 +1381,7 @@ describe('VideoPlayerComponent', () => {
         epgServiceMock.getChannelPrograms.mockClear();
         storeMock.dispatch.mockClear();
         replaceExactEpgNameAliases(new Map([
-            ['sample-tvg-id', 'playlist.bbc.earth'],
+            [getChannelEpgAliasKey(sampleChannel), 'playlist.bbc.earth'],
         ]));
         fixture.detectChanges();
         expect(epgServiceMock.getChannelPrograms)
@@ -1394,7 +1394,7 @@ describe('VideoPlayerComponent', () => {
         // No duplicate backend query when the mapping is identical.
         epgServiceMock.getChannelPrograms.mockClear();
         replaceExactEpgNameAliases(new Map([
-            ['sample-tvg-id', 'playlist.bbc.earth'],
+            [getChannelEpgAliasKey(sampleChannel), 'playlist.bbc.earth'],
         ]));
         fixture.detectChanges();
         expect(epgServiceMock.getChannelPrograms).not.toHaveBeenCalled();
