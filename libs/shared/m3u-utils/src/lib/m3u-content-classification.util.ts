@@ -72,8 +72,20 @@ export function classifyM3uContent(channel: Channel): M3uContentKind {
     return 'unclassified';
 }
 
+/**
+ * Stable within one playlist import/update, without relying on generated
+ * channel IDs. URL and title distinguish alternate entries sharing a stream.
+ * Private provider URLs are never logged or sent to a remote service.
+ */
+export function m3uContentOverrideKey(channel: Pick<Channel, 'url' | 'name'>): string {
+    return JSON.stringify([channel.url ?? '', channel.name ?? '']);
+}
+
 /** One linear classification pass, retaining original Channel references/order. */
-export function buildM3uContentIndex(channels: readonly Channel[]): M3uContentIndex {
+export function buildM3uContentIndex(
+    channels: readonly Channel[],
+    overrides: Readonly<Record<string, M3uContentKind>> = {},
+): M3uContentIndex {
     const index: M3uContentIndex = {
         live: [],
         movies: [],
@@ -81,7 +93,12 @@ export function buildM3uContentIndex(channels: readonly Channel[]): M3uContentIn
         unclassified: [],
     };
     for (const channel of channels) {
-        index[classifyM3uContent(channel)].push(channel);
+        const configured = overrides[m3uContentOverrideKey(channel)];
+        const kind = configured === 'live' || configured === 'movies' ||
+            configured === 'series' || configured === 'unclassified'
+                ? configured
+                : classifyM3uContent(channel);
+        index[kind].push(channel);
     }
     return index;
 }

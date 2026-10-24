@@ -1,5 +1,6 @@
 import type { Channel } from '@iptvnator/shared/interfaces';
-import { buildM3uContentIndex, classifyM3uContent } from './m3u-content-classification.util';
+import { buildM3uContentIndex,
+    m3uContentOverrideKey, classifyM3uContent } from './m3u-content-classification.util';
 
 function item(group: string, name: string, url: string, radio = 'false'): Channel {
     return { id: name, name, url, radio, group: { title: group } } as Channel;
@@ -58,4 +59,21 @@ describe('M3U presentation classification', () => {
         expect(index.series.length).toBe(0);
         expect(index.unclassified.length).toBe(0);
     });
+    it('respects per-channel overrides and reset without mutating source channels', () => {
+        const original = { id: 'one', name: 'Example', url: 'https://example.invalid/file.mp4', group: { title: '' } } as Channel;
+        const identity = m3uContentOverrideKey(original);
+        expect(buildM3uContentIndex([original]).movies).toHaveLength(1);
+        const manual = buildM3uContentIndex([original], { [identity]: 'live' });
+        expect(manual.live).toEqual([original]);
+        expect(manual.movies).toHaveLength(0);
+        expect(buildM3uContentIndex([original], {}).movies).toEqual([original]);
+        expect(original.group?.title).toBe('');
+    });
+
+    it('uses URL and name instead of volatile parsed-channel ID', () => {
+        const channel = { name: 'Example', url: 'https://example.invalid/a.mp4', id: 'old' } as Channel;
+        expect(m3uContentOverrideKey(channel)).toBe(m3uContentOverrideKey({ ...channel, id: 'new' }));
+        expect(m3uContentOverrideKey(channel)).not.toBe(m3uContentOverrideKey({ ...channel, name: 'Other' }));
+    });
+
 });

@@ -108,4 +108,6 @@ export interface Playlist {
     };
     /** Hidden M3U group titles for the groups view */
     hiddenGroupTitles?: string[];
+    /** Per-entry, user-curated M3U display classification; source files remain unchanged. */
+    m3uContentOverrides?: Record<string, 'live' | 'movies' | 'series' | 'unclassified'>;
 }

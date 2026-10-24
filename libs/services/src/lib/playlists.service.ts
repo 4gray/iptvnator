@@ -215,6 +215,7 @@ export class PlaylistsService {
             lastUsage: playlist.lastUsage ?? new Date().toISOString(),
             favorites: playlist.favorites ?? [],
             recentlyViewed: playlist.recentlyViewed ?? [],
+            m3uContentOverrides: playlist.m3uContentOverrides ?? {},
             autoRefresh: Boolean(playlist.autoRefresh),
             playlist: playlist.playlist,
             url: playlist.url,
@@ -684,6 +685,7 @@ export class PlaylistsService {
                 ? {
                       favorites: currentPlaylist.favorites,
                       recentlyViewed: currentPlaylist.recentlyViewed,
+                      m3uContentOverrides: currentPlaylist.m3uContentOverrides,
                       position: currentPlaylist.position,
                   }
                 : {}),
@@ -857,6 +859,9 @@ export class PlaylistsService {
                 ? {
                       hiddenGroupTitles: updatedPlaylist.hiddenGroupTitles,
                   }
+                : {}),
+            ...(updatedPlaylist.m3uContentOverrides !== undefined
+                ? { m3uContentOverrides: updatedPlaylist.m3uContentOverrides }
                 : {}),
             ...(updatedPlaylist.detectedEpgUrls !== undefined
                 ? { detectedEpgUrls: epgSourceState.detectedEpgUrls }

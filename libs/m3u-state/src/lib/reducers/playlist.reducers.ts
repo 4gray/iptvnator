@@ -80,6 +80,7 @@ export const playlistReducers = [
                             action.playlist.userAgent ??
                             currentPlaylist?.userAgent,
                         favorites: currentPlaylist?.favorites ?? [],
+                        m3uContentOverrides: currentPlaylist?.m3uContentOverrides ?? {},
                         epgUrls: epgSourceState.epgUrls,
                         detectedEpgUrls: epgSourceState.detectedEpgUrls,
                         manualEpgUrls: epgSourceState.manualEpgUrls,
@@ -208,6 +209,9 @@ export const playlistReducers = [
                             : {}),
                         ...(p.hiddenGroupTitles != null
                             ? { hiddenGroupTitles: p.hiddenGroupTitles }
+                            : {}),
+                        ...(p.m3uContentOverrides !== undefined
+                            ? { m3uContentOverrides: p.m3uContentOverrides }
                             : {}),
                         ...(p.epgUrls != null ? { epgUrls: p.epgUrls } : {}),
                         ...(p.detectedEpgUrls != null
