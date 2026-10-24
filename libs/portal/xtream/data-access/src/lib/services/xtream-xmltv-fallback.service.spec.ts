@@ -24,10 +24,12 @@ describe('XtreamXmltvFallbackService', () => {
 
     let bridge: Bridge;
     let epgOffsetMinutes = 0;
+    let matchOrder: ['channel-name'|'tvg-name'|'tvg-id', 'channel-name'|'tvg-name'|'tvg-id', 'channel-name'|'tvg-name'|'tvg-id'] = ['channel-name','tvg-name','tvg-id'];
     const originalElectron = (window as { electron?: unknown }).electron;
 
     beforeEach(() => {
         epgOffsetMinutes = 0;
+        matchOrder = ['channel-name','tvg-name','tvg-id'];
         bridge = {
             getEpgChannels: jest.fn().mockResolvedValue({channels: []}),
             getChannelPrograms: jest.fn(),
@@ -53,6 +55,7 @@ describe('XtreamXmltvFallbackService', () => {
                     provide: SettingsStore,
                     useValue: {
                         resolvedEpgOffsetMinutes: () => epgOffsetMinutes,
+                        resolvedEpgMatchOrder: () => matchOrder,
                     },
                 },
             ],
@@ -249,7 +252,7 @@ describe('XtreamXmltvFallbackService', () => {
             ).resolves.toBe('epg.a2');
         });
 
-        it('keeps valid imported-guide provider IDs', async () => {
+        it('prefers channel names over provider IDs by default', async () => {
             bridge.getEpgChannels.mockResolvedValue({
                 channels: [
                     { id: 'existing', displayName: 'Provider Channel' },
@@ -258,6 +261,19 @@ describe('XtreamXmltvFallbackService', () => {
             });
             await expect(
                 makeService().resolveExactXmltvChannelId('existing', 'A2 HD')
+            ).resolves.toBe('other');
+        });
+
+        it('honors explicit provider tvg-id-first matching', async () => {
+            matchOrder = ['tvg-id', 'channel-name', 'tvg-name'];
+            bridge.getEpgChannels.mockResolvedValue({
+                channels: [
+                    { id: 'existing', displayName: 'Provider Channel' },
+                    { id: 'other', displayName: 'A2 HD' },
+                ],
+            });
+            await expect(
+                makeService().resolveExactXmltvChannelId('existing','A2 HD')
             ).resolves.toBe('existing');
         });
 
