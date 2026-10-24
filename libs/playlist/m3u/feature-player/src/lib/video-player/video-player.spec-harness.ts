@@ -39,6 +39,7 @@ export const epgPrograms$ = new BehaviorSubject<EpgProgram[]>([]);
 export const epgServiceMock = {
     currentEpgPrograms$: epgPrograms$.asObservable(),
     getChannelMetadataForChannels: () => of(new Map()),
+    getChannelPrograms: jest.fn(),
 };
 
 export const player = signal<VideoPlayer>(VideoPlayer.VideoJs);
