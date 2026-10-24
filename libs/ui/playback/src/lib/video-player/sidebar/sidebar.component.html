@@ -1,6 +1,7 @@
 <app-channel-list-container
     [channelList]="channels()"
     [channelsLoading]="channelsLoading()"
+    [enableEpg]="enableEpg()"
     [activeView]="activeView()"
     [recentItems]="activePlaylist()?.recentlyViewed ?? []"
     [sidebarWidth]="sidebarWidth()"
