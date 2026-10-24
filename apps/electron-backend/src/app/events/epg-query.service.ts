@@ -331,7 +331,11 @@ export class EpgQueryService {
                     displayName: schema.epgChannels.displayName,
                 })
                 .from(schema.epgChannels)
-                .orderBy(schema.epgChannels.displayName);
+                // First Exact must be stable for duplicate display names.
+                // SQLite rowid retains insertion order among same-name rows.
+                // Without an explicit tie-breaker, SQL does not guarantee
+                // which imported XMLTV ID is returned first.
+                .orderBy(schema.epgChannels.displayName, sql`epg_channels.rowid ASC`);
 
             return { channels, programs: [] };
         } catch (error) {
