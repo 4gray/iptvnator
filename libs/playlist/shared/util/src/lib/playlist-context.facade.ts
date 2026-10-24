@@ -67,8 +67,8 @@ const STALKER_SECTIONS = [
     'downloads',
 ] as const;
 const M3U_SECTIONS = [
-    'live', 'live-groups', 'movies', 'movies-groups',
-    'series', 'series-groups', 'unclassified', 'unclassified-groups',
+    'live', 'live-groups', 'live-favorites', 'movies', 'movies-groups', 'movies-favorites',
+    'series', 'series-groups', 'series-favorites', 'unclassified', 'unclassified-groups', 'unclassified-favorites',
     'all', 'groups', 'favorites', 'recent',
 ] as const;
 
