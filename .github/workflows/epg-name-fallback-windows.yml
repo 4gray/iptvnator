@@ -1,0 +1,78 @@
+name: Fork EPG Fix - Windows installer
+
+on:
+    push:
+        branches:
+            - fix/epg-exact-name-fallback
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    windows-installer:
+        name: EPG tests and Windows x64 EXE
+        runs-on: windows-2022
+        timeout-minutes: 90
+        env:
+            CI: 'true'
+            CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+            IPTVNATOR_EMBEDDED_MPV_PLATFORM: win32
+            IPTVNATOR_EMBEDDED_MPV_ARCH: x64
+            IPTVNATOR_REQUIRE_EMBEDDED_MPV: '1'
+        steps:
+            - name: Checkout fork branch
+              uses: actions/checkout@v7
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: pnpm
+
+            - name: Install locked dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Test exact-name fallback
+              run: pnpm nx test m3u-state --runInBand --skip-nx-cache
+
+            - name: Type-check desktop and renderer
+              run: pnpm run typecheck:ci
+
+            - name: Resolve pinned embedded MPV runtime
+              id: mpv
+              shell: bash
+              run: node tools/embedded-mpv/windows-runtime-pin.mjs --github-output
+
+            - name: Stage verified embedded MPV runtime
+              shell: bash
+              env:
+                  WINDOWS_RUNTIME_URL: ${{ steps.mpv.outputs.url }}
+                  WINDOWS_RUNTIME_SHA256: ${{ steps.mpv.outputs.sha256 }}
+              run: |
+                  set -euo pipefail
+                  pnpm embedded-mpv:stage-runtime:windows-archive -- "${WINDOWS_RUNTIME_URL}" "${WINDOWS_RUNTIME_SHA256}"
+
+            - name: Restrict electron-builder to Windows x64
+              shell: bash
+              run: |
+                  node - <<'NODE'
+                  const fs = require('fs');
+                  const config = JSON.parse(fs.readFileSync('electron-builder.json', 'utf8'));
+                  for (const target of config.win.target) target.arch = ['x64'];
+                  fs.writeFileSync('electron-builder.json', JSON.stringify(config, null, 4) + '\n');
+                  NODE
+
+            - name: Build Windows installer (not published)
+              run: pnpm run make:app
+
+            - name: Upload unsigned Windows installer
+              uses: actions/upload-artifact@v7
+              with:
+                  name: IPTVnator-EPG-Fix-Windows-x64
+                  path: dist/executables/**/*windows-x64-setup.exe
+                  if-no-files-found: error
+                  retention-days: 14
