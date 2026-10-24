@@ -279,12 +279,12 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             seededPlaylistId = playlistId;
 
             const range = viewport.getRenderedRange();
-            // Before CDK measures the viewport, seed only a small head
-            // subset. Normal renderedRangeStream handling will take over
-            // when its range becomes available.
+            // Only request rendered rows. If CDK has not measured a
+            // viewport yet, its renderedRangeStream handles the first
+            // non-empty range; never prefetch off-screen entries here.
             const visible = range.end > range.start
                 ? channels.slice(range.start, range.end)
-                : channels.slice(0, Math.min(channels.length, 24));
+                : [];
             if (visible.length > 0) {
                 // Cached entries can synchronously repaint row components.
                 // Do that after this render pass, never inside its hook.
