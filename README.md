@@ -507,3 +507,13 @@ in [AGENTS.md](AGENTS.md); Claude Code reads that same file directly (see
 [Claude Code setup](docs/development/agent-workflow.md#claude-code)). Development and
 documentation-maintenance conventions live in the
 [agent workflow](docs/development/agent-workflow.md).
+
+## Catalog.2 experimental preview
+
+Work in the [experimental development branch](https://github.com/mkaand/iptvnator/tree/feat/m3u-classification-playback-resilience), not the stable master release.
+
+- **Change Content Type** in the M3U channel context menu: Live TV / Movies / Series / Unclassified and **Reset to Automatic**. Movie poster cards also have a category selector.
+- Overrides are per-playlist metadata, surviving automatic M3U refreshes. Items use original stream URL plus name rather than generated channel IDs. The source M3U remains unchanged.
+- A limited HTTP HEAD check for ambiguous/PHP Video.js streams can detect HLS or MPEG-TS MIME types. Explicit TS/HLS files are unchanged. Unknown/failed checks keep original behavior.
+- No authorization credentials, response bodies, URLs, or private test fixtures are logged by this check. CORS, provider authentication, unsupported codecs, and invalid MSE streams are not bypassed.
+- Preview must pass CI and real Windows acceptance before merging or publishing a stable release.
