@@ -57,40 +57,35 @@ describe('exact XMLTV display name fallback', () => {
         ).toBe(0);
     });
 
-    it('does not select an ambiguous XMLTV display name', () => {
+    it('takes the first exact display name even if two XMLTV IDs share it', () => {
         expect(
             buildExactEpgNameAliases([channel('A2 HD', 'A2.tr')], [
                 { id: 'one', displayName: 'A2 HD' },
                 { id: 'two', displayName: 'A2 HD' },
-            ]).size
-        ).toBe(0);
+            ]).get('A2.tr')
+        ).toBe('one');
     });
 
-    it('automatically maps three duplicated names when only one is on air', () => {
+    it('maps the first of three BEINSPORTS 1 HD IDs regardless of current coverage', () => {
         const aliases = buildExactEpgNameAliases(
             [channel('BEINSPORTS 1 HD', 'unrelated.provider.id')],
             [
-                { id: 'playlist.ligtvtr.a', displayName: 'BEINSPORTS 1 HD' },
-                { id: 'playlist.ligtvtr.b', displayName: 'BEINSPORTS 1 HD' },
-                { id: 'playlist.ligtvtr.c', displayName: 'BEINSPORTS 1 HD' },
-            ],
-            {},
-            ['channel-name', 'tvg-name', 'tvg-id'],
-            new Map([['beinsports 1 hd', 'playlist.ligtvtr.b']]),
+                { id: 'playlist.ligtvtr.88f04beb2605', displayName: 'BEINSPORTS 1 HD' },
+                { id: 'playlist.ligtvtr.2be172194bf4', displayName: 'BEINSPORTS 1 HD' },
+                { id: 'playlist.ligtvtr.6c12cd1eb0f7', displayName: 'BEINSPORTS 1 HD' },
+            ]
         );
-        expect(aliases.get('unrelated.provider.id')).toBe('playlist.ligtvtr.b');
+        expect(aliases.get('unrelated.provider.id')).toBe('playlist.ligtvtr.88f04beb2605');
     });
 
-    it('still respects a manual override with unique active coverage', () => {
+    it('never overrides a saved manual association', () => {
         const aliases = buildExactEpgNameAliases(
             [channel('BEINSPORTS 1 HD', 'provider.id')],
             [
                 { id: 'a', displayName: 'BEINSPORTS 1 HD' },
                 { id: 'b', displayName: 'BEINSPORTS 1 HD' },
             ],
-            { 'provider.id': 'manual.selected' },
-            undefined,
-            new Map([['beinsports 1 hd', 'b']]),
+            { 'provider.id': 'manual.selected' }
         );
         expect(aliases.size).toBe(0);
     });
