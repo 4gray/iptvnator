@@ -25,9 +25,9 @@ function stripMarker(name: string, match: RegExpMatchArray): string {
     // Regexp consumes a possible separator before the marker; keep only title
     // text, not quality/episode descriptors.
     const start = (match.index ?? 0) + (match[0].length - match[0].trimStart().length);
-    const before = name.slice(0, start).replace(/[\s._\-([{]+$/u, '');
+    const before = name.slice(0, start).replace(/[\s._-]+$/u, '');
     const after = name.slice((match.index ?? 0) + match[0].length)
-        .replace(/^[\s._\-)[\]}]+/u, '')
+        .replace(/^[\s._-]+/u, '')
         .replace(/^(?:hd|fhd|uhd|4k|1080p|720p)(?:$|[\s._\-])/iu, '')
         .trim();
     return (before || after || name).trim();
