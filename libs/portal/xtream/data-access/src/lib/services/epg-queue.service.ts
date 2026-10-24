@@ -1,9 +1,10 @@
-import { inject, Injectable, OnDestroy } from '@angular/core';
+import { effect, inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import {
     buildXtreamEpgMappingKey,
     EpgItem,
     windowEpgItemsAtProviderClock,
+    DEFAULT_EPG_MATCH_ORDER,
 } from '@iptvnator/shared/interfaces';
 import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
@@ -86,6 +87,26 @@ export class EpgQueueService implements OnDestroy {
     private readonly delayMs = 200;
     private readonly cacheTtlMs = 5 * 60 * 1000; // 5 minutes
     private readonly failureCooldownMs = 60 * 1000;
+
+    private lastMatchingPreferences: string | null = null;
+    private readonly matchingPreferencesEffect = effect(() => {
+        const matching = (this.settingsStore.resolvedEpgMatchOrder?.() ??
+            DEFAULT_EPG_MATCH_ORDER).join('|');
+        const source = this.settingsStore.preferUploadedEpgOverXtream?.() ? 'xmltv' : 'provider';
+        const next = matching + ':' + source;
+        if (this.lastMatchingPreferences === next) return;
+        const firstRun = this.lastMatchingPreferences === null;
+        this.lastMatchingPreferences = next;
+        if (firstRun) return;
+        ++this.enqueueGeneration;
+        this.queue = [];
+        for (const id of new Set([
+            ...this.cache.keys(), ...this.visibleSet, ...this.inFlight,
+        ])) {
+            this.invalidate(id);
+            this.epgResult$.next({ streamId: id, items: [] });
+        }
+    });
 
     /** Emits EPG results as they arrive. */
     readonly epgResult$ = new Subject<{ streamId: number; items: EpgItem[] }>();
