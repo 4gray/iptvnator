@@ -66,6 +66,35 @@ describe('exact XMLTV display name fallback', () => {
         ).toBe(0);
     });
 
+    it('automatically maps three duplicated names when only one is on air', () => {
+        const aliases = buildExactEpgNameAliases(
+            [channel('BEINSPORTS 1 HD', 'unrelated.provider.id')],
+            [
+                { id: 'playlist.ligtvtr.a', displayName: 'BEINSPORTS 1 HD' },
+                { id: 'playlist.ligtvtr.b', displayName: 'BEINSPORTS 1 HD' },
+                { id: 'playlist.ligtvtr.c', displayName: 'BEINSPORTS 1 HD' },
+            ],
+            {},
+            ['channel-name', 'tvg-name', 'tvg-id'],
+            new Map([['beinsports 1 hd', 'playlist.ligtvtr.b']]),
+        );
+        expect(aliases.get('unrelated.provider.id')).toBe('playlist.ligtvtr.b');
+    });
+
+    it('still respects a manual override with unique active coverage', () => {
+        const aliases = buildExactEpgNameAliases(
+            [channel('BEINSPORTS 1 HD', 'provider.id')],
+            [
+                { id: 'a', displayName: 'BEINSPORTS 1 HD' },
+                { id: 'b', displayName: 'BEINSPORTS 1 HD' },
+            ],
+            { 'provider.id': 'manual.selected' },
+            undefined,
+            new Map([['beinsports 1 hd', 'b']]),
+        );
+        expect(aliases.size).toBe(0);
+    });
+
     it('uses tvg-name before channel name and supports case-insensitive exact names', () => {
         expect(
             buildExactEpgNameAliases(
