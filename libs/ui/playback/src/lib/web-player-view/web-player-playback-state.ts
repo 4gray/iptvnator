@@ -80,6 +80,8 @@ export function createVideoJsOptions(options: {
     readonly streamUrl: string;
     readonly isLive: boolean;
     readonly reloadToken: number;
+    /** MIME detected from a bounded HEAD probe of a user-selected ambiguous stream. */
+    readonly detectedFormat?: 'hls' | 'mpegts' | null;
 }): {
     readonly isLive: boolean;
     readonly reloadToken: number;
@@ -90,6 +92,8 @@ export function createVideoJsOptions(options: {
 } {
     const extension = getPlaybackMediaExtensionFromUrl(options.streamUrl);
     const type =
+        options.detectedFormat === 'hls' ? 'application/x-mpegURL' :
+        options.detectedFormat === 'mpegts' ? 'video/mp2t' :
         extension === 'm3u' || extension === 'm3u8'
             ? 'application/x-mpegURL'
             : extension === 'ts' || !extension

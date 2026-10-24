@@ -34,11 +34,13 @@ export class VjsMpegTsSession {
 
     constructor(private readonly config: VjsMpegTsSessionConfig) {}
 
-    isSupportedSource(url?: string): boolean {
+    isSupportedSource(url?: string, mimeType?: string): boolean {
         if (!url) {
             return false;
         }
 
+        // A resolved HLS response on an extensionless endpoint is not raw TS.
+        if (mimeType?.toLowerCase().includes('mpegurl')) return false;
         const extension = getPlaybackMediaExtensionFromUrl(url);
         return (extension === 'ts' || !extension) && mpegts.isSupported();
     }

@@ -63,7 +63,7 @@ export function hasVjsMpegTsModeChanged(
 export function shouldChangeVjsSource(
     previousOptions: VideoPlayerOptions,
     currentOptions: VideoPlayerOptions,
-    isMpegTsSource: (url?: string) => boolean
+    isMpegTsSource: (url?: string, mimeType?: string) => boolean
 ): boolean {
     const previousSource = previousOptions.sources?.[0];
     const currentSource = currentOptions.sources?.[0];
@@ -77,7 +77,7 @@ export function shouldChangeVjsSource(
         hasVjsMpegTsModeChanged(
             previousOptions,
             currentOptions,
-            isMpegTsSource(currentSource?.src)
+            isMpegTsSource(currentSource?.src, currentSource?.type)
         )
     );
 }

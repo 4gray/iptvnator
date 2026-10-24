@@ -39,6 +39,7 @@ describe('VjsMpegTsSession', () => {
             )
         ).toBe(true);
 
+        expect(session.isSupportedSource('https://example.test/live.php', 'application/x-mpegURL')).toBe(false);
         isSupportedMock.mockReturnValue(false);
         expect(
             session.isSupportedSource('https://example.test/live/stream.ts')

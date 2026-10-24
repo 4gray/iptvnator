@@ -172,4 +172,19 @@ describe('web player playback state', () => {
             sources: [{ src: streamUrl, type }],
         });
     });
+    it('routes a MIME-confirmed HLS response even when the endpoint ends in php', () => {
+        const options = createVideoJsOptions({
+            streamUrl: 'https://example.invalid/channel.php',
+            isLive: true,
+            reloadToken: 1,
+            detectedFormat: 'hls',
+        });
+        expect(options.sources[0].type).toBe('application/x-mpegURL');
+        expect(createVideoJsOptions({
+            streamUrl: 'https://example.invalid/channel.php',
+            isLive: true,
+            reloadToken: 1,
+        }).sources[0].type).toBe('video/mp2t');
+    });
+
 });
