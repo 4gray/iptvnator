@@ -8,6 +8,7 @@ import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 
 type ElectronEpgBridge = {
+    getEpgChannels?: () => Promise<{ channels: Array<{ id: string; displayName: string }> }>;
     getChannelPrograms?: (channelId: string) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch?: (
         channelIds: string[],
@@ -20,6 +21,49 @@ export class XtreamXmltvFallbackService {
     private readonly logger = createLogger('XtreamXmltvFallback');
     private readonly settingsStore = inject(SettingsStore);
     private readonly sources = inject(EpgSourceSettingsService);
+    private guideCache:
+        | { revision: number; promise: Promise<Array<{ id: string; displayName: string }>> }
+        | undefined;
+
+    /**
+     * Xtream providers may use IDs from an unrelated EPG. Resolve a unique
+     * exact XMLTV display name without changing provider data or storing a
+     * synthetic manual mapping. An existing imported-guide ID always wins.
+     */
+    async resolveExactXmltvChannelId(
+        providerId: string | null | undefined,
+        channelName: string | null | undefined
+    ): Promise<string | null> {
+        const original = providerId?.trim() || null;
+        const name = channelName?.trim().toLocaleLowerCase() || '';
+        if (!name || !this.bridge?.getEpgChannels) return original;
+
+        const revision = this.sources.revision();
+        if (!this.guideCache || this.guideCache.revision !== revision) {
+            this.guideCache = {
+                revision,
+                promise: this.bridge.getEpgChannels()
+                    .then((result) => result?.channels ?? [])
+                    .catch(() => []),
+            };
+        }
+        const guide = await this.guideCache.promise;
+        if (revision !== this.sources.revision()) return original;
+        if (
+            original &&
+            guide.some((row) => row.id.toLocaleLowerCase() === original.toLocaleLowerCase())
+        ) {
+            return original;
+        }
+
+        let match: string | null = null;
+        for (const row of guide) {
+            if (row.displayName.trim().toLocaleLowerCase() !== name) continue;
+            if (match && match !== row.id) return original;
+            match = row.id;
+        }
+        return match ?? original;
+    }
 
     /**
      * `DataService.isElectron` is intentionally not consulted here: it
