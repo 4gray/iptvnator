@@ -43,7 +43,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
 import { translateServiceProvider } from './video-player.spec-harness';
-import { StubSidebarComponent } from './video-player.spec-stubs';
+import { StubSidebarComponent, StubM3uContentNavigationComponent } from './video-player.spec-stubs';
 
 // The component's chain reaches video.js (ui/playback → VjsPlayer); the CJS
 // bundle breaks under the ESM jest environment, so it is mocked before the
@@ -264,6 +264,7 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
                         AsyncPipe,
                         StubChannelListHiddenStateComponent,
                         StubSidebarComponent,
+                        StubM3uContentNavigationComponent,
                         MockPipe(
                             TranslatePipe,
                             (value: string | null | undefined) => value ?? ''
