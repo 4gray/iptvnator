@@ -176,8 +176,8 @@ importers:
         specifier: 6.0.0
         version: 6.0.0
       shaka-player:
-        specifier: 5.2.12
-        version: 5.2.12
+        specifier: 5.2.13
+        version: 5.2.13
       shell-path:
         specifier: 3.1.0
         version: 3.1.0
@@ -9206,8 +9206,8 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  shaka-player@5.2.12:
-    resolution: {integrity: sha512-vEsuVDI3+oLh+yqpjXexQZlg2XMUBI0VrqatDuKWacPaxAud6Uph5uCowUPLhUgNG5XKWCpoM4l1r8qYzWH+zg==}
+  shaka-player@5.2.13:
+    resolution: {integrity: sha512-0XMkFT1ANs4M5YeHpZyUcUIE0NKS9IKL4B12DdG6lXf7zdLpWMP9KaVoPa+FGE/XLRjCYpg02Tr8ZoMSNtQH6g==}
     engines: {node: '>=18'}
 
   shallow-clone@3.0.1:
@@ -20479,7 +20479,7 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  shaka-player@5.2.12: {}
+  shaka-player@5.2.13: {}
 
   shallow-clone@3.0.1:
     dependencies:
