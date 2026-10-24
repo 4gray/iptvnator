@@ -7,6 +7,7 @@ on:
             - feat/m3u-content-classification
             - feat/epg-configurable-match-priority
             - fix/xtream-epg-visible-list-initial-refresh
+            - feat/epg-duplicate-coverage-and-fork-readme
     workflow_dispatch:
 
 concurrency:
@@ -100,7 +101,7 @@ jobs:
             - name: Upload unsigned Windows installer
               uses: actions/upload-artifact@v7
               with:
-                  name: IPTVnator-EPG-Priority-Windows-x64
+                  name: IPTVnator-EPG-Duplicate-Fix-Windows-x64
                   path: dist/executables/**/*windows-x64-setup.exe
                   if-no-files-found: error
                   retention-days: 14
