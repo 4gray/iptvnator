@@ -4,6 +4,7 @@ on:
     push:
         branches:
             - fix/epg-exact-name-fallback
+            - feat/m3u-content-classification
     workflow_dispatch:
 
 permissions:
@@ -41,6 +42,12 @@ jobs:
 
             - name: Test Xtream EPG fallback
               run: pnpm nx test portal-xtream-data-access --runInBand --skip-nx-cache
+
+            - name: Test M3U classification
+              run: pnpm nx test m3u-utils --runInBand --skip-nx-cache
+
+            - name: Test M3U routes and player
+              run: pnpm nx test playlist-m3u-feature-player --skip-nx-cache
 
             - name: Type-check desktop and renderer
               run: pnpm run typecheck:ci
