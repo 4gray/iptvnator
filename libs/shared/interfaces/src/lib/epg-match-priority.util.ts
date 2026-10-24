@@ -32,7 +32,7 @@ export interface PlaylistEpgIdentity {
 export function resolveOrderedXmltvId(
     channel: PlaylistEpgIdentity,
     epgIds: ReadonlySet<string>,
-    nameMatches: ReadonlyMap<string, string | null>,
+    nameMatches: ReadonlyMap<string, string>,
     order: readonly EpgMatchField[] = DEFAULT_EPG_MATCH_ORDER,
 ): string | null {
     for (const field of normalizeEpgMatchOrder(order)) {
@@ -52,17 +52,20 @@ export function resolveOrderedXmltvId(
 
 export function createXmltvIdentityIndex(channels: readonly XmltvChannelIdentity[]): {
     ids: ReadonlySet<string>;
-    names: ReadonlyMap<string, string | null>;
+    names: ReadonlyMap<string, string>;
 } {
     const ids = new Set<string>();
-    const names = new Map<string, string | null>();
+    const names = new Map<string, string>();
     for (const row of channels) {
         if (!row.id?.trim()) continue;
         ids.add(row.id.trim().toLowerCase());
         const name = row.displayName?.trim().toLowerCase();
         if (!name) continue;
+        // FIRST EXACT: preserve the first guide record for this exact
+        // (case-insensitive, whitespace-trimmed) display name. WebGrab may
+        // legitimately export multiple XMLTV IDs for one display name.
+        // Do not require unique programme coverage or guess via fuzzy names.
         if (!names.has(name)) names.set(name, row.id.trim());
-        else if (names.get(name) !== row.id.trim()) names.set(name, null);
     }
     return { ids, names };
 }
