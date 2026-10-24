@@ -19,8 +19,17 @@ export function buildExactEpgNameAliases(
     epgChannels: readonly ExactEpgChannel[],
     manualMappings: Readonly<Record<string, string>> = {},
     order: readonly EpgMatchOrder[number][] = DEFAULT_EPG_MATCH_ORDER,
+    resolvedDuplicateNames: ReadonlyMap<string, string> = new Map(),
 ): Map<string, string> {
     const index = createXmltvIdentityIndex(epgChannels);
+    // A duplicate name may be promoted only when one XMLTV ID has actual
+    // current-programme coverage. Never bypass ambiguous names by order.
+    const resolvedNames = new Map(index.names);
+    for (const [name, id] of resolvedDuplicateNames) {
+        if (resolvedNames.get(name) === null) {
+            resolvedNames.set(name, id);
+        }
+    }
     const proposed = new Map<string, string | null>();
 
     for (const channel of playlistChannels) {
@@ -36,7 +45,7 @@ export function buildExactEpgNameAliases(
                 tvgId: channel.tvg?.id,
             },
             index.ids,
-            index.names,
+            resolvedNames,
             order,
         );
         if (!matched || matched === key) continue;
