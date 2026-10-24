@@ -6,6 +6,7 @@ on:
             - fix/epg-exact-name-fallback
             - feat/m3u-content-classification
             - feat/epg-configurable-match-priority
+            - fix/xtream-epg-visible-list-initial-refresh
     workflow_dispatch:
 
 concurrency:
@@ -53,6 +54,9 @@ jobs:
 
             - name: Test Xtream EPG fallback
               run: pnpm nx test portal-xtream-data-access --runInBand --skip-nx-cache
+
+            - name: Test Xtream live list and first EPG paint
+              run: pnpm nx test portal-xtream-feature --runInBand --skip-nx-cache
 
             - name: Test M3U classification
               run: pnpm nx test m3u-utils --runInBand --skip-nx-cache
