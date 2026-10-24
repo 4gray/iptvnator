@@ -3,6 +3,8 @@
 > [!IMPORTANT]
 > **Independent, unofficial fork** of [4gray/iptvnator](https://github.com/4gray/iptvnator), maintained at [mkaand/iptvnator](https://github.com/mkaand/iptvnator). This project is **not affiliated with or endorsed by the upstream maintainers**. It does not supply IPTV subscriptions, streams, channels, or copyrighted content. All original upstream credit and licensing remain in place.
 
+**Current fork version: [v0.25.0-epgpriority.6](https://github.com/mkaand/iptvnator/releases/tag/v0.25.0-epgpriority.6)** (Windows x64, unsigned community preview). The M3U EPG identity-collision fix was confirmed working for BEINSPORTS 1 HD with the user's external XMLTV guide. Code is maintained on the default `master` branch; no additional development branch is required to install or use it.
+
 This fork focuses on two practical desktop IPTV workflows: automatically organizing large mixed M3U playlists and matching an externally managed XMLTV guide to M3U/Xtream channels **without editing either source**. Upstream IPTVnator remains the foundation, and its standard playback, search, favorites, and provider integrations are retained.
 
 ## What this fork changes
@@ -19,7 +21,7 @@ This fork focuses on two practical desktop IPTV workflows: automatically organiz
 | Xtream guide source | Provider EPG and externally supplied XMLTV | **Configured XMLTV First / Xtream Provider EPG First** selection plus XMLTV fallback by channel name |
 | Xtream list EPG | Existing preview refresh paths | Refresh visible-channel programme previews on async category load and category switching without clicking a channel |
 | M3U active timeline | Lookup at channel selection time | Re-query an active channel if its asynchronous XMLTV name/ID association changes; ignore stale older query responses |
-| Windows preview builds | Official upstream release process | Fork-specific version labels, automated regression tests, and unsigned Windows x64 installer artifacts |
+| Windows preview builds | Official upstream release process | Fork-specific version labels, automated regression tests, and an unsigned Windows x64 preview installer attached to the fork's release |
 
 ### 📺 M3U content organization
 
@@ -56,15 +58,15 @@ The next field is tried only when no usable XMLTV channel match was found. Saved
 
 ### 🔧 Scope, compatibility, and downloads
 
-- **Desktop:** Windows x64 NSIS preview installers are built by the fork's [GitHub Actions workflow](https://github.com/mkaand/iptvnator/actions/workflows/epg-name-fallback-windows.yml). Look for a successful run on a feature/fix branch and its **Artifacts** section. Artifacts expire; they are not permanent public releases.
+- **Windows x64 installer:** Download the unsigned NSIS setup executable from this fork's [v0.25.0-epgpriority.6 release](https://github.com/mkaand/iptvnator/releases/tag/v0.25.0-epgpriority.6). The [verified GitHub Actions run](https://github.com/mkaand/iptvnator/actions/runs/40133636976) also retains a temporary build artifact. Because this is an unsigned community build, Windows SmartScreen may prompt before installation.
 - **Versioning:** fork builds carry descriptive suffixes (for example, `0.25.0-epgpriority.6`) to distinguish them from upstream releases.
 - **Updates:** an official upstream update can replace fork-only features. Do not install an upstream update over this preview build without checking whether the relevant changes have been integrated.
 - **Privacy:** your EPG/playlist URL, database, credentials, and WebGrab EPG Manager do not need to be modified to use these features. Avoid posting private playlist URLs or Xtream credentials in bug reports.
 - **Platform coverage:** EPG matching through the native XMLTV database is desktop-oriented; browser/PWA builds may lack the required Electron bridge operations.
-- **Preview acceptance:** Successful CI proves automated tests and installer packaging, not real-provider reception. Validate A2 HD/UHD, BEINSPORTS HD/SD, 360 TV HD, Xtream XMLTV priority and existing manual mappings on Windows before declaring stable.
+- **Windows acceptance:** BEINSPORTS 1 HD EPG and its populated timeline were confirmed on a real Windows installation using an external XMLTV guide. Automated CI covers the A2 HD/UHD and BEINSPORTS shared-ID scenarios. Additional live-provider regressions and saved manual mapping cases should still be checked before considering the fork broadly stable.
 - **Quality status:** automated tests cover the matching rules, duplicates, large-library classification, M3U/Xtream regressions, settings, and Windows packaging. Real-provider reception and guide content still require manual acceptance testing.
 
-**Development branches:** [EPG priority](https://github.com/mkaand/iptvnator/tree/feat/epg-configurable-match-priority) · [M3U classification](https://github.com/mkaand/iptvnator/tree/feat/m3u-content-classification) · [Xtream initial list refresh](https://github.com/mkaand/iptvnator/tree/fix/xtream-epg-visible-list-initial-refresh) · [First Exact Match](https://github.com/mkaand/iptvnator/tree/feat/epg-first-exact-match) · [M3U per-entry exact fix](https://github.com/mkaand/iptvnator/tree/fix/m3u-epg-per-channel-exact).
+**Development:** All fork improvements are consolidated in the [default master branch](https://github.com/mkaand/iptvnator/tree/master). The [integration pull request](https://github.com/mkaand/iptvnator/pull/1) and commit history retain attribution and implementation details. An archived tag preserves the earlier experimental collision-fix branch.
 
 **Upstream references:** [official IPTVnator](https://github.com/4gray/iptvnator) · [original EPG matching report, issue #1992](https://github.com/4gray/iptvnator/issues/1992). If you discover a bug in fork-only code, please use [issues in this fork](https://github.com/mkaand/iptvnator/issues) rather than attributing it to upstream.
 
