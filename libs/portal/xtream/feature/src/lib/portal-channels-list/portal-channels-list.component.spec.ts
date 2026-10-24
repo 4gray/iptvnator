@@ -213,6 +213,12 @@ describe('PortalChannelsListComponent', () => {
         selectedTypeContentLoading.set(false);
         fixture.detectChanges();
         expect(epgQueueService.enqueue).not.toHaveBeenCalled();
+        const viewport = fixture.componentInstance.viewport()!;
+        // Model a measured CDK viewport. An empty rendered range means
+        // no row is on-screen and must not trigger any EPG request.
+        jest.spyOn(viewport, 'getRenderedRange').mockReturnValue({
+            start: 0, end: 2,
+        });
 
         currentPlaylist.set({
             id: 'playlist-1',
@@ -244,6 +250,11 @@ describe('PortalChannelsListComponent', () => {
             serverUrl: 'https://example.test',
             username: 'demo',
             password: 'test',
+        });
+        fixture.detectChanges();
+        const viewport = fixture.componentInstance.viewport()!;
+        jest.spyOn(viewport, 'getRenderedRange').mockReturnValue({
+            start: 0, end: 1,
         });
         selectedChannels.set([{ xtream_id: 11, title: 'Old Category Channel' }]);
         fixture.detectChanges();
