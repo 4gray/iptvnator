@@ -26,13 +26,18 @@ import type { M3uContentIndex, M3uContentKind } from '@iptvnator/shared/m3u-util
                 <button
                     type="button"
                     (click)="navigate(currentBase())"
-                    [class.m3u-content-navigation__mode--active]="!isGroups()"
+                    [class.m3u-content-navigation__mode--active]="!isGroups() && !isFavorites()"
                 >All</button>
                 <button
                     type="button"
                     (click)="navigate(currentBase() === 'all' ? 'groups' : currentBase() + '-groups')"
                     [class.m3u-content-navigation__mode--active]="isGroups()"
                 >Groups</button>
+                <button
+                    type="button"
+                    (click)="navigate(currentBase() === 'all' ? 'favorites' : currentBase() + '-favorites')"
+                    [class.m3u-content-navigation__mode--active]="isFavorites()"
+                >Favorites</button>
                 <button
                     type="button"
                     (click)="navigate('all')"
@@ -114,8 +119,9 @@ export class M3uContentNavigationComponent {
         const view = this.activeView();
         return view === 'groups' || view.endsWith('-groups');
     });
+    readonly isFavorites = computed(() => this.activeView().endsWith('-favorites'));
     readonly currentKind = computed<M3uContentKind | null>(() => {
-        const base = this.activeView().replace(/-groups$/, '');
+        const base = this.activeView().replace(/-(?:groups|favorites)$/, '');
         return this.kinds.find((kind) => kind.key === base)?.key ?? null;
     });
     readonly currentBase = computed(() => this.currentKind() ?? 'all');
@@ -126,6 +132,6 @@ export class M3uContentNavigationComponent {
     }
 
     sectionPath(kind: M3uContentKind): string {
-        return kind + (this.isGroups() ? '-groups' : '');
+        return kind + (this.isGroups() ? '-groups' : this.isFavorites() ? '-favorites' : '');
     }
 }
