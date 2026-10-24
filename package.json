@@ -1,6 +1,6 @@
 {
     "name": "iptvnator",
-    "version": "0.25.0",
+    "version": "0.25.0-epgfix.2",
     "engines": {
         "node": "^22.22.3 || ^24.15.0"
     },
