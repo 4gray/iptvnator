@@ -7,6 +7,10 @@ on:
             - feat/m3u-content-classification
     workflow_dispatch:
 
+concurrency:
+    group: fork-epg-fix-${{ github.ref }}
+    cancel-in-progress: true
+
 permissions:
     contents: read
 
@@ -48,6 +52,9 @@ jobs:
 
             - name: Test M3U routes and player
               run: pnpm nx test playlist-m3u-feature-player --skip-nx-cache
+
+            - name: Test shared portal navigation
+              run: pnpm nx test portal-shared-util --runInBand --skip-nx-cache
 
             - name: Type-check desktop and renderer
               run: pnpm run typecheck:ci
