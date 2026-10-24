@@ -11,6 +11,7 @@ describe('EpgQueueService', () => {
     let fallback: {
         getProgramsForChannel: jest.Mock;
         getCurrentProgramsBatch: jest.Mock;
+        resolveExactXmltvChannelId: jest.Mock;
     };
     let settings: {
         preferUploadedEpgOverXtream: jest.Mock;
@@ -41,6 +42,7 @@ describe('EpgQueueService', () => {
             getFullEpg: jest.fn().mockResolvedValue([]),
         };
         fallback = {
+            resolveExactXmltvChannelId: jest.fn(async (id: string | null | undefined) => id ?? null),
             getProgramsForChannel: jest.fn().mockResolvedValue([]),
             getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
         };
