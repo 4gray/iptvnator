@@ -18,6 +18,7 @@ import { ChannelListContainerComponent } from '@iptvnator/ui/components';
 export class SidebarComponent {
     readonly channels = input<Channel[]>([]);
     readonly channelsLoading = input(false);
+    readonly enableEpg = input(true);
     readonly activeView = input<string>('all');
     readonly sidebarWidth = input<number | null>(null);
     readonly sidebarWidthRequested = output<number>();
