@@ -411,6 +411,25 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).not.toBeNull();
     });
 
+    it('shows the pinned-controls setting only for embedded MPV on desktop', () => {
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput(
+            'form',
+            createForm(VideoPlayer.EmbeddedMpv)
+        );
+        fixture.detectChanges();
+
+        expect(
+            queryByTestId('embedded-mpv-keep-controls-visible-toggle')
+        ).not.toBeNull();
+
+        fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
+        fixture.detectChanges();
+        expect(
+            queryByTestId('embedded-mpv-keep-controls-visible-toggle')
+        ).toBeNull();
+    });
+
     it('offers the up next card toggle for Embedded MPV only under the frame-copy engine', () => {
         // The native-view engine never mounts the shared controls.
         fixture.componentRef.setInput(
@@ -465,7 +484,10 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
+        embeddedMpvKeepControlsVisible: new FormControl(false),
         embeddedMpvFrameCopy: new FormControl(false),
+        embeddedMpvExtraOptions: new FormControl(''),
+        embeddedMpvAutoReconnect: new FormControl(false),
         mpvPlayerPath: new FormControl(''),
         mpvPlayerArguments: new FormControl(''),
         mpvReuseInstance: new FormControl(false),

@@ -633,6 +633,7 @@
         "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "埋め込みプレーヤーでは次のオプションを変更できません: {{keys}}",
         "EMBEDDED_MPV_AUTO_RECONNECT": "切断されたストリームに自動的に再接続",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "再生中のストリームが切断されると、埋め込みプレーヤーは間隔を延ばしながら最大 6 回まで再読み込みを試み、その後あきらめます。一度も開始しなかったストリームには、引き続き手動の再試行が必要です。",
+        "EMBEDDED_MPV_KEEP_CONTROLS_VISIBLE": "埋め込み MPV の操作ボタンを常に表示",
         "VOD_AUTO_FAILOVER": "再生エラー時にソースを自動切り替え",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "映画の再生に失敗したとき、同じ作品が別のプレイリストにもある場合は自動的にそちらへ切り替え、再生位置を引き継ぎます。標準では無効です。別のソースでは吹き替えが異なる場合があるため、切り替え時は必ず通知されます。",
         "NAV_PARENTAL": "ペアレンタルロック",

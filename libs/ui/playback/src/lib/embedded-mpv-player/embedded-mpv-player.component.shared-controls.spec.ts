@@ -314,6 +314,23 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         expect(component.controlsVisible()).toBe(false);
     });
 
+    it('keeps native controls visible until the dedicated setting is turned off', () => {
+        jest.useFakeTimers();
+        const { fixture, component } = render('native');
+        component.controlsVisible.set(false);
+        fixture.componentRef.setInput('keepControlsVisible', true);
+        fixture.detectChanges();
+
+        expect(component.controlsAreVisible()).toBe(true);
+        jest.advanceTimersByTime(2500);
+        expect(component.controlsAreVisible()).toBe(true);
+
+        fixture.componentRef.setInput('keepControlsVisible', false);
+        fixture.detectChanges();
+        jest.advanceTimersByTime(2500);
+        expect(component.controlsAreVisible()).toBe(false);
+    });
+
     it('syncs fullscreen state when shared controls attach after entering fullscreen', () => {
         const { fixture, controller } = render('native');
         fullscreenElement = root(fixture);

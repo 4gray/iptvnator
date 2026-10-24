@@ -232,6 +232,8 @@ export const SettingsStore = signalStore(
                     showExternalPlaybackBar:
                         store.showExternalPlaybackBar?.() ??
                         DEFAULT_SETTINGS.showExternalPlaybackBar,
+                    embeddedMpvKeepControlsVisible:
+                        store.embeddedMpvKeepControlsVisible?.() ?? false,
                     stripCountryPrefix:
                         store.stripCountryPrefix?.() ??
                         DEFAULT_SETTINGS.stripCountryPrefix,

@@ -211,6 +211,8 @@ export interface Settings {
     updateChannel?: AppUpdateChannel;
     /** Show the desktop footer bar for external playback status */
     showExternalPlaybackBar?: boolean;
+    /** Keep embedded MPV playback controls visible during playback. */
+    embeddedMpvKeepControlsVisible?: boolean;
     /** Strip country/group prefixes like "US | " or "UK - " from channel names */
     stripCountryPrefix?: boolean;
     theme: Theme;

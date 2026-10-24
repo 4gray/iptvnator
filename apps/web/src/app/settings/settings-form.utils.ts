@@ -97,6 +97,7 @@ export function createSettingsForm(
         startupWindowMode: 'normal' as StartupWindowMode,
         updateChannel: DEFAULT_APP_UPDATE_CHANNEL as AppUpdateChannel,
         showExternalPlaybackBar: true,
+        embeddedMpvKeepControlsVisible: false,
         stripCountryPrefix: false,
         theme: Theme.SystemTheme,
         mpvPlayerPath: '',
@@ -193,6 +194,8 @@ export function createSettingsFromFormValue(
         startupWindowMode: normalizeStartupWindowMode(value.startupWindowMode),
         updateChannel: normalizeAppUpdateChannel(value.updateChannel),
         showExternalPlaybackBar: value.showExternalPlaybackBar ?? true,
+        embeddedMpvKeepControlsVisible:
+            value.embeddedMpvKeepControlsVisible ?? false,
         stripCountryPrefix: value.stripCountryPrefix ?? false,
         theme: value.theme ?? Theme.SystemTheme,
         mpvPlayerPath: normalizeExternalPlayerPath(value.mpvPlayerPath),
