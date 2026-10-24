@@ -151,6 +151,42 @@ test('a counter with slack passes up to value + slack and reports the slack used
     assert.match(below.tightenable[0], /below baseline 1,000 by 10 bytes/);
 });
 
+test('an entry with autoTighten false gets no tightening hint below its value', () => {
+    const baselines = {
+        version: 1,
+        journeys: {
+            playback: {
+                'renderer.domMutationsToPlaying': {
+                    value: 733,
+                    unit: 'mutations',
+                    slack: 20,
+                    autoTighten: false,
+                },
+            },
+        },
+    };
+    const result = compareToBaselines({
+        baselines,
+        summary: {
+            journeys: {
+                playback: {
+                    counters: { 'renderer.domMutationsToPlaying': 731 },
+                },
+            },
+        },
+    });
+    assert.deepEqual(result.failures, []);
+    assert.deepEqual(result.tightenable, []);
+    assert.match(
+        result.passed[0],
+        /731 mutations within 753 .*autoTighten is false: lower it by hand/
+    );
+    assert.match(
+        formatResult(result),
+        /1 baselines checked, 0 can be tightened/
+    );
+});
+
 test('wall-clock entries fail only above value × toleranceRatio', () => {
     const within = compareToBaselines({
         baselines,
@@ -367,6 +403,13 @@ test('rejects malformed baseline files', () => {
                 journeys: { launch: { x: { value: 1, note: true } } },
             }),
         /non-string "note"/
+    );
+    assert.throws(
+        () =>
+            validateBaselines({
+                journeys: { launch: { x: { value: 1, autoTighten: 'no' } } },
+            }),
+        /non-boolean "autoTighten"/
     );
 });
 

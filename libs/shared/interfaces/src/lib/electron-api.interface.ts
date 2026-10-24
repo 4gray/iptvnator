@@ -335,6 +335,7 @@ export interface ElectronBridgeStalkerRequestPayload {
 }
 
 export interface ElectronBridgeXtreamRequestPayload {
+    userAgent?: string;
     probe?: SourceProbeContext;
     connectionTest?: boolean;
     url: string;

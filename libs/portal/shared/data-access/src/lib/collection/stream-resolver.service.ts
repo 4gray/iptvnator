@@ -815,6 +815,7 @@ export class StreamResolverService {
     }
 
     private async getXtreamCredentials(playlistId: string): Promise<{
+        userAgent?: string;
         serverUrl: string;
         username: string;
         password: string;
@@ -834,6 +835,7 @@ export class StreamResolverService {
             serverUrl: playlist.serverUrl,
             username: playlist.username,
             password: playlist.password,
+            userAgent: playlist.userAgent?.trim() || undefined,
             serverTimezone: playlist.serverTimezone,
         };
     }

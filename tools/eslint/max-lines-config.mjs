@@ -8,7 +8,7 @@
  */
 
 /**
- * Production TypeScript. CLAUDE.md asks for under 300 lines; this is the hard
+ * Production TypeScript. AGENTS.md asks for under 300 lines; this is the hard
  * ceiling CI enforces.
  */
 export const MAX_LINES_PROD = 400;
@@ -24,8 +24,8 @@ export const MAX_LINES_TEST = 1200;
 
 /**
  * Comments and blank lines are not counted. This repo mandates documentation
- * (see "Documentation After Changes" in CLAUDE.md), so a docblock must never be
- * the reason a file has to be split.
+ * (see "Keep guidance small and canonical" in AGENTS.md), so a docblock must
+ * never be the reason a file has to be split.
  */
 export const MAX_LINES_OPTIONS = {
     skipBlankLines: true,

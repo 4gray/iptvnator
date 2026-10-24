@@ -30,6 +30,35 @@ describe('XtreamApiService', () => {
         service = TestBed.inject(XtreamApiService);
     });
 
+    it('forwards the connection User-Agent on account variants and catalog requests', async () => {
+        dataService.sendIpcEvent.mockResolvedValueOnce({
+            type: 'ERROR',
+            message: 'blocked',
+        });
+        dataService.sendIpcEvent.mockResolvedValueOnce({
+            payload: { user_info: { auth: 1 } },
+        });
+        const custom = {
+            ...credentials,
+            userAgent:
+                ' Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ',
+        };
+        await service.getAccountInfo(custom);
+        dataService.sendIpcEvent.mockResolvedValue({ payload: [] });
+        await service.getCategories(custom, 'live');
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(3);
+        for (const [, payload] of dataService.sendIpcEvent.mock.calls) {
+            expect(payload).toMatchObject({
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            });
+            expect(payload).toHaveProperty('params');
+            expect((payload as { params: unknown }).params).not.toHaveProperty(
+                'userAgent'
+            );
+        }
+    });
+
     it('normalizes account-info server URLs and trims credentials before IPC', async () => {
         dataService.sendIpcEvent.mockResolvedValue({
             payload: {

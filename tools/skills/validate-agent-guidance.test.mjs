@@ -44,6 +44,26 @@ test('valid guidance and remote links pass', async (t) => {
         []
     );
 });
+test('native AGENTS guidance passes without a CLAUDE wrapper', async (t) => {
+    const rootDir = await fixture(t);
+    await rm(join(rootDir, 'CLAUDE.md'));
+    assert.deepEqual(await validateAgentGuidance({ rootDir }), {
+        checkedFiles: 3,
+        diagnostics: [],
+    });
+});
+for (const path of ['AGENTS.md', map, migration]) {
+    test(`${path}: remains required without a CLAUDE wrapper`, async (t) => {
+        const rootDir = await fixture(t);
+        await rm(join(rootDir, 'CLAUDE.md'));
+        await rm(join(rootDir, path));
+        const result = await validateAgentGuidance({ rootDir });
+        assert.deepEqual(result.diagnostics, [
+            `${path}: required guidance file is missing`,
+        ]);
+        assert.equal(result.checkedFiles, 2);
+    });
+}
 for (const [path, limit] of [
     ['AGENTS.md', 200],
     ['CLAUDE.md', 30],

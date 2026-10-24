@@ -632,6 +632,7 @@ export class ElectronService extends DataService {
     } */
 
     private async forwardXtreamRequest(payload: {
+        userAgent?: string;
         probe?: SourceProbeContext;
         connectionTest?: boolean;
         url: string;
