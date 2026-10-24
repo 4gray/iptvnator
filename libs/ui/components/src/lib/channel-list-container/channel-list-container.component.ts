@@ -57,6 +57,8 @@ import {
     EpgProgram,
     epgProviderClockMs,
     DEFAULT_EPG_MATCH_ORDER,
+    collectAmbiguousXmltvIds,
+    resolveUniqueActiveDuplicateNames,
     isM3uRecentlyViewedItem,
     normalizeStalkerDate,
     PlaylistMeta,
@@ -587,12 +589,48 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 this.epgBridge.getEpgMappingsBatch(rawKeys),
             ]);
             if (request !== this.epgAliasGeneration) return;
+
+            // Investigate only duplicate names actually present in this M3U.
+            // A batched, bounded programme-coverage lookup avoids per-channel
+            // IPC calls and never chooses an arbitrary duplicate EPG source.
+            const requestedNames = new Set(
+                channels.flatMap((channel) => [
+                    channel.name?.trim().toLowerCase(),
+                    channel.tvg?.name?.trim().toLowerCase(),
+                ]).filter((name): name is string => Boolean(name))
+            );
+            const imported = guide?.channels ?? [];
+            const duplicates = collectAmbiguousXmltvIds(imported, requestedNames);
+            let programmeBackedDuplicates = new Map<string, string>();
+            if (duplicates.length > 0 && duplicates.length <= 2048 &&
+                this.epgBridge.supportsGuide) {
+                try {
+                    const now = epgProviderClockMs(
+                        Date.now(),
+                        this.settingsStore.resolvedEpgOffsetMinutes()
+                    );
+                    const active = await this.epgBridge.getProgramCoverage({
+                        channelIds: duplicates,
+                        fromMs: now,
+                        toMs: now + 1000,
+                    });
+                    if (request !== this.epgAliasGeneration) return;
+                    if (active) {
+                        programmeBackedDuplicates =
+                            resolveUniqueActiveDuplicateNames(imported, new Set(active));
+                    }
+                } catch {
+                    // No unverified auto-selection on database or IPC failure.
+                }
+            }
+            if (request !== this.epgAliasGeneration) return;
             replaceExactEpgNameAliases(
                 buildExactEpgNameAliases(
                     channels,
-                    guide?.channels ?? [],
+                    imported,
                     manual ?? {},
-                    this.settingsStore.resolvedEpgMatchOrder?.() ?? DEFAULT_EPG_MATCH_ORDER
+                    this.settingsStore.resolvedEpgMatchOrder?.() ?? DEFAULT_EPG_MATCH_ORDER,
+                    programmeBackedDuplicates
                 )
             );
         } catch {
