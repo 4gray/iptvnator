@@ -1,0 +1,119 @@
+<section class="m3u-media-catalog" [attr.aria-label]="kind() === 'movies' ? 'Movie catalog' : 'Series catalog'">
+    <header class="catalog-header">
+        <div>
+            <h2>{{ kind() === 'movies' ? 'Movies' : 'Series' }}</h2>
+            <p>{{ kind() === 'movies' ? movieMatches().length : seriesMatches().length }} {{ kind() === 'movies' ? 'movies' : 'series' }}</p>
+        </div>
+        <div class="catalog-controls">
+            <input type="search" [value]="query()" (input)="changeQuery($event)"
+                [attr.aria-label]="kind() === 'movies' ? 'Search movies' : 'Search series'"
+                placeholder="Search titles" />
+            <select aria-label="Filter catalog by group" [value]="groupFilter()" (change)="changeGroup($event)">
+                <option value="">All groups</option>
+                @for (group of groups(); track group) {
+                    <option [value]="group">{{ group }}</option>
+                }
+            </select>
+            <select aria-label="Sort catalog" [value]="sort()" (change)="changeSort($event)">
+                <option value="playlist">Playlist order</option>
+                <option value="az">A to Z</option>
+                <option value="za">Z to A</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="catalog-scroll">
+        @if (kind() === 'movies') {
+            @if (moviePage().length) {
+                <div class="movie-grid">
+                    @for (movie of moviePage(); track entryKey(movie)) {
+                        <button type="button" class="movie-card" (click)="selected.emit(movie)"
+                            [attr.aria-label]="'Play ' + movie.name">
+                            <div class="poster">
+                                @if (poster(movie); as artwork) {
+                                    <img [src]="artwork" [alt]="movie.name" loading="lazy" decoding="async">
+                                } @else {
+                                    <span class="missing-poster" aria-hidden="true">🎬</span>
+                                }
+                            </div>
+                            <span class="movie-title">{{ movie.name }}</span>
+                        </button>
+                    }
+                </div>
+            } @else {
+                <p class="empty-catalog">No matching movies.</p>
+            }
+        } @else {
+            @if (currentSeries(); as series) {
+                <button class="back-button" type="button" (click)="selectedSeriesKey.set(null)">
+                    ← All series
+                </button>
+                <h3>{{ series.title }}</h3>
+                <p class="series-count">{{ series.count }} episodes and variants</p>
+                <div class="season-picker" aria-label="Seasons">
+                    @for (season of series.seasons; track season.number) {
+                        <button type="button" [class.active]="currentSeason()?.number === season.number"
+                            (click)="selectSeason(season.number)">
+                            {{ season.number === 0 ? 'Unspecified season' : 'Season ' + season.number }}
+                            ({{ season.episodes.length }})
+                        </button>
+                    }
+                </div>
+                <div class="episode-list">
+                    @for (entry of currentSeason()?.episodes ?? []; track entryKey(entry.channel)) {
+                        <button type="button" (click)="selected.emit(entry.channel)">
+                            <span class="episode-number">E{{ entry.episode }}</span>
+                            <span class="episode-title">{{ entry.channel.name }}</span>
+                            <span class="episode-play" aria-hidden="true">▶</span>
+                        </button>
+                    }
+                </div>
+            } @else {
+                @if (seriesPage().length) {
+                    <div class="series-grid">
+                        @for (series of seriesPage(); track series.key) {
+                            <button type="button" class="series-card" (click)="selectSeries(series)">
+                                <span class="series-icon" aria-hidden="true">▤</span>
+                                <span class="series-name">{{ series.title }}</span>
+                                <span class="series-count">{{ series.seasons.length }} seasons · {{ series.count }} episodes</span>
+                            </button>
+                        }
+                    </div>
+                } @else {
+                    <p class="empty-catalog">No matching series.</p>
+                }
+                @if (inventory().unorganized.length) {
+                    <div class="unorganized">
+                        <button type="button" (click)="showUnorganized.set(!showUnorganized())"
+                            [attr.aria-expanded]="showUnorganized()">
+                            {{ showUnorganized() ? 'Hide' : 'Show' }} unorganized entries
+                            ({{ unorganizedMatches().length }})
+                        </button>
+                        @if (showUnorganized()) {
+                            <div class="episode-list">
+                                @for (channel of unorganizedPage(); track entryKey(channel)) {
+                                    <button type="button" (click)="selected.emit(channel)">
+                                        <span class="episode-title">{{ channel.name }}</span>
+                                        <span aria-hidden="true">▶</span>
+                                    </button>
+                                }
+                            </div>
+                            @if (unorganizedMatches().length > 40) {
+                                <p class="series-count">Showing the first 40. Use search to narrow the list, or Browse All Content for every entry.</p>
+                            }
+                        }
+                    </div>
+                }
+            }
+        }
+    </div>
+    @if (kind() === 'movies' ? moviePages() > 1 : (currentSeries() === null && seriesPages() > 1)) {
+        <footer class="catalog-pages">
+            <button type="button" (click)="changePage(-1)" [disabled]="page() === 0">Previous</button>
+            <span>Page {{ (kind() === 'movies' ? currentMoviePage() : currentSeriesPage()) + 1 }}
+                / {{ kind() === 'movies' ? moviePages() : seriesPages() }}</span>
+            <button type="button" (click)="changePage(1)"
+                [disabled]="page() >= (kind() === 'movies' ? moviePages() : seriesPages()) - 1">Next</button>
+        </footer>
+    }
+</section>
