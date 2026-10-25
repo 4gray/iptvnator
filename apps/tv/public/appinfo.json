@@ -1,6 +1,6 @@
 {
     "id": "com.iptvnator.tv.prototype",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "vendor": "IPTVnator",
     "type": "web",
     "main": "index.html",

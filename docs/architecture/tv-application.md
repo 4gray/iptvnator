@@ -112,6 +112,49 @@ without changing sources/history. Source and settings sessions cannot exchange
 draft types. The same expiry, cancellation and committed-write receipt rules
 apply. Navigating away during a write waits for its outcome before acknowledging.
 
+## Optional server source library
+
+Settings can connect independently to the self-hosted `/v1` server-storage API.
+The client verifies service, API version, storage mode and instance identity before
+sending a saved token or writes. Redirects are refused. A changed instance requires
+an explicit reconnect; a failed/aborted/invalid read never replaces the cached
+sources. A snapshot becomes visible only after the TV IndexedDB transaction commits.
+Startup, visible app return and a 60-second foreground timer refresh sources while
+not playing; Settings also exposes manual refresh, status and last successful sync.
+This timer is independent of backend health checks and provider reconnection.
+
+M3U URLs, stored file/pasted M3U payloads, Xtream and Stalker sources are supported.
+The mapper preserves provider credentials, explicit MAG identity and observed
+full/simple mode, but never imports another device's Stalker session token. Existing
+TV sessions survive unchanged connection fields. Shared framework-free
+`sourceIdentity` matches accounts using the same rules as PWA migration. A matching
+local source retains its TV media ID and an original configuration copy; new entries
+have an instance/playlist-scoped ID plus the original server playlist ID.
+
+The server controls linked source configuration. Edit/delete happen in the PWA;
+refresh applies changes and removes missing server entries, retaining local viewing
+data and restoring an original local source when one was linked. Disconnect restores
+original local configurations and keeps other downloaded sources as local copies.
+Favorites, history, progress and TV preferences are not synchronized in this phase.
+Source credentials are cached locally just like manually entered TV sources.
+Custom header fields are retained for copying; only the existing M3U parser's
+User-Agent option is applied here. Native video still cannot attach arbitrary
+provider headers, and this change does not add Xtream header handling.
+
+Copy to server is an explicit per-source action. It re-reads the library, keeps an
+existing provider account unchanged and creates missing records with stable IDs and
+`If-None-Match: *`. A conflicting ID or failed write is visible; a retry after a lost
+response cannot overwrite a server record. Concurrent independent uploads of the
+same account with different IDs are not globally deduplicated by the server API.
+No automatic source writes or server deletions occur. Malformed/unsupported documents
+fail the refresh as a whole, preserving the previous cache rather than silently
+losing entries. Full file M3U payloads are fetched only for sources without a URL.
+
+The optional [TV companion container](../../docker/tv/README.md) can provide TV APIs
+and a narrowly configured gateway to an existing PWA library without touching its
+service or database. The existing server remains authoritative; the gateway does not
+create a second shared database. Electron still does not activate server storage.
+
 ## Playback and local data
 
 One `HTMLVideoElement` exists for preview and fullscreen. Focus movement never

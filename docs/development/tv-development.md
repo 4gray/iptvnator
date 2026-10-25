@@ -37,8 +37,10 @@ on TV. Build the matching TV branch until its backend changes are published;
 verify `/api/tv/connection` reports protocol 1 and pairing support, and include
 `file://com.iptvnator.tv.prototype-webos` alongside the NAS web origin in
 `CLIENT_URL`. The existing Compose restart policy is `unless-stopped`.
-TV sources/favorites/progress still live locally; pointing at the NAS does not
-enable the PWA's server-storage synchronization in the TV client.
+TV favorites/progress remain local. Sources can optionally connect through
+Settings → Server library, independently from the provider backend URL. See the
+[server source library contract](../architecture/tv-application.md#optional-server-source-library)
+and [companion container instructions](../../docker/tv/README.md).
 
 ### Follow-up TODO
 
@@ -47,18 +49,14 @@ enable the PWA's server-storage synchronization in the TV client.
   data volume, configure TV CORS and automatic restart, verify TV connection,
   phone setup and provider requests, then switch the TV from the temporary Mac
   backend. Deployment is pending; the existing NAS image lacks the TV routes.
-- [ ] Add an optional TV "Server library" mode using the existing `/v1`
-  server-storage API. Start with shared M3U, Xtream and Stalker sources, explicit
-  local-source import/merge and a refresh action with connection/last-sync status.
-  Preserve server source IDs, provider authentication fields and existing local
-  data; define deletion, offline and conflict behavior before enabling writes.
-  Map favorites, history and resume separately against each provider's existing
-  server representation rather than treating them as already interoperable.
-  The TV API proxy and library server may initially be separate endpoints;
-  a single compatible deployment can eventually provide both. Reuse framework-free
-  contracts without importing Angular services into the TV client.
+- [x] Add optional TV server sources: M3U/Xtream/Stalker, explicit copy of a
+  local source, cached reads, refresh/status, instance checks and identity-safe
+  disconnect. See the server library contract above for conflict/deletion rules.
+- [ ] Add shared favorites, history and resume, with provider-specific mapping
+  and conflict/offline tests; these remain local on TV.
 
-These are follow-up tasks, not capabilities of the installed TV package.
+Server sources are implemented in 0.1.9; NAS installation and cross-device viewing
+state remain separate follow-ups.
 
 If the backend stopped or restarted, restore it and select Retry connection
 on the TV. Connected is a backend health/auth check, not proof that the portal
@@ -76,18 +74,18 @@ BX's Chromium 68 engine, native HLS, transport stream decoding or MAG headers.
 `tv-playlist.m3u` and `tv-test-media.webm` are local mock-server fixtures only.
 
 The package target produces
-`dist/tv-package/com.iptvnator.tv.prototype_0.1.8_all.ipk` with the pinned webOS
+`dist/tv-package/com.iptvnator.tv.prototype_0.1.9_all.ipk` with the pinned webOS
 CLI. Inspect it with:
 
 ```sh
-pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.8_all.ipk
+pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.9_all.ipk
 pnpm exec ares-setup-device --list
 ```
 
 Only after the user supplies an enabled Developer Mode target and pairing:
 
 ```sh
-pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.8_all.ipk
+pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.9_all.ipk
 pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 ```
 
@@ -203,3 +201,6 @@ unfinished-title hero, retained resume rail and separate real-LG checks.
 
 [TV Live browsing validation](tv-live-validation.md) records the 0.1.8 category
 browser, full-height lists and stable preview/guide checks.
+
+[TV server source library validation](tv-library-validation.md) records the 0.1.9
+checks and the separate NAS administrator installation step.

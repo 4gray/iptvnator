@@ -33,7 +33,7 @@ export async function start(page: Page) {
         }
         if (
             /^https?:\/\//.test(url) &&
-            !/^http:\/\/(?:localhost|127\.0\.0\.1):(?:4311|3433|3420|3421)\//.test(
+            !/^http:\/\/(?:localhost|127\.0\.0\.1):(?:4311|3433|3434|3420|3421)\//.test(
                 url
             )
         ) {
@@ -89,6 +89,7 @@ export async function addSource(
             .getByLabel('MAC address')
             .fill(options.mac ?? '00:1a:79:00:00:03');
     await page.getByRole('button', { name: 'Save and connect' }).click();
+    await expect(page.locator('.source-form')).toHaveCount(0);
     await expect(page.locator('.loading')).toBeHidden({ timeout: 25000 });
     await expect(page.locator('.error')).toBeHidden();
 }
@@ -97,6 +98,14 @@ export async function nav(page: Page, label: string, openAllChannels = true) {
         .getByRole('navigation')
         .getByRole('button', { name: label, exact: true })
         .click();
+    await page.evaluate(
+        () =>
+            new Promise<void>((resolve) =>
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => resolve())
+                )
+            )
+    );
     await expect(page.locator('.loading')).toBeHidden();
     if (label === 'TV' && openAllChannels) {
         await page.locator('[data-focus="live-category:"]').click();

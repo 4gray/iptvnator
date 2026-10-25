@@ -1,3 +1,4 @@
+import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
 import { firstRoute, type Route, type View } from './navigation';
 export type { View } from './navigation';
@@ -38,6 +39,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         setError,
         () => tick((t) => t + 1)
     );
+    const library = useLibrary(data, storageReady, !!playing, update);
     const backend = useBackend(data, storageReady, update);
     const content = useContent(
         route,
@@ -76,6 +78,9 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
               active.deviceId2,
               active.signature1,
               active.signature2,
+              active.userAgent,
+              active.referrer,
+              active.origin,
           ])
         : '';
     useEffect(() => {
@@ -99,7 +104,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                 update((d) => ({
                     ...d,
                     sources: d.sources.map((s) =>
-                        s.id === source.id ? source : s
+                        s.id === source.id && !abort.signal.aborted
+                            ? {
+                                  ...s,
+                                  endpoint: source.endpoint,
+                                  full: source.full,
+                                  token: source.token,
+                              }
+                            : s
                     ),
                 }))
         );
@@ -121,7 +133,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             abort.abort();
             client.dispose();
         };
-    }, [fingerprint, data.backend, data.backendToken, storageReady, retry]);
+    }, [
+        fingerprint,
+        active?.m3uItems,
+        data.backend,
+        data.backendToken,
+        storageReady,
+        retry,
+    ]);
     function stop() {
         playback.current.cancel();
         player.current?.stop();
@@ -297,6 +316,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         }
     }
     return {
+        library,
         retryPlayback,
         restoreKey: pendingFocus.current,
         restoreScroll: pendingScroll.current,

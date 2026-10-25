@@ -33,6 +33,7 @@ test('movie and series sorting defaults to recent, survives append/detail/relaun
     await xtreamCatalog(page);
     await expect(page.getByLabel('Sort by')).toHaveValue('recent');
     await expect(title(page)).toHaveText('Title 124');
+    await expect(page.locator('.poster-card').first()).toBeVisible();
     await page.locator('main').evaluate((e) => {
         e.scrollTop = e.scrollHeight;
     });

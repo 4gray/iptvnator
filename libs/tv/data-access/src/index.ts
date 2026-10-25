@@ -26,3 +26,6 @@ export { TvMetadata, checkTmdbKey } from './tmdb';
 export * from './backend';
 export * from './pairing';
 export { storedMediaPoster } from './stored-artwork';
+
+export * from './library';
+export * from './library-sources';

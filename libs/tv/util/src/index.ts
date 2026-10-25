@@ -21,6 +21,11 @@ export interface Source {
     endpoint?: string;
     full?: boolean;
     token?: string;
+    userAgent?: string;
+    referrer?: string;
+    origin?: string;
+    m3uItems?: Record<string, unknown>[];
+    libraryId?: string;
 }
 export interface Media {
     id: string;
@@ -88,7 +93,16 @@ export interface Progress {
     duration: number;
     updated: number;
 }
+export interface LibrarySettings {
+    url: string;
+    token: string;
+    instanceId: string;
+    lastSync: number;
+    /** Original local sources survive linking, server deletion and disconnect. */
+    originals: Record<string, Source>;
+}
 export interface UserData {
+    library?: LibrarySettings;
     sources: Source[];
     activeId: string;
     backend: string;

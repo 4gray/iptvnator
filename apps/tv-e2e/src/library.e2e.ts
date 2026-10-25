@@ -1,0 +1,307 @@
+import {
+    test,
+    expect,
+    type Page,
+    type APIRequestContext,
+} from '@playwright/test';
+import { addSource, nav, stalker, start, xtream } from './helpers';
+const server = 'http://127.0.0.1:3434';
+const headers = { Authorization: 'Bearer tv-library-test' };
+const document = (id: string, fields: Record<string, unknown> = {}) => ({
+    _id: id,
+    title: `Shared ${id}`,
+    importDate: '',
+    lastUsage: '',
+    autoRefresh: false,
+    count: 0,
+    ...fields,
+});
+async function put(
+    request: APIRequestContext,
+    id: string,
+    fields: Record<string, unknown>
+) {
+    const response = await request.put(`${server}/v1/playlists/${id}`, {
+        headers,
+        data: document(id, fields),
+    });
+    expect(response.ok()).toBeTruthy();
+}
+async function connect(page: Page) {
+    await nav(page, 'Settings');
+    const pane = page.getByRole('region', { name: 'Server library' });
+    await pane.getByLabel('Library server URL').fill(server);
+    await pane
+        .getByLabel('Library access token (if required)')
+        .fill('tv-library-test');
+    await pane
+        .getByRole('button', { name: 'Connect library', exact: true })
+        .click();
+    await expect(pane.getByRole('status')).toContainText('Connected');
+    return pane;
+}
+async function snapshot(page: Page) {
+    return page.evaluate(
+        async () =>
+            new Promise<{
+                activeId: string;
+                sources: { id: string; libraryId?: string; name: string }[];
+                library?: { instanceId: string };
+            }>((resolve) => {
+                const req = indexedDB.open('iptvnator-tv-user-data');
+                req.onsuccess = () => {
+                    const db = req.result;
+                    const tx = db.transaction('state');
+                    const item = tx.objectStore('state').get('user');
+                    tx.oncomplete = () => {
+                        resolve(item.result?.data);
+                        db.close();
+                    };
+                };
+            })
+    );
+}
+test.beforeEach(async ({ request }) => {
+    expect(
+        (await request.delete(`${server}/v1/playlists`, { headers })).ok()
+    ).toBeTruthy();
+});
+test('shared Xtream, Stalker and M3U sources load, retain local identity and survive relaunch', async ({
+    page,
+    request,
+}) => {
+    await put(request, 'xtream', {
+        serverUrl: xtream,
+        username: 'user1',
+        password: 'pass1',
+    });
+    await put(request, 'stalker', {
+        portalUrl: `${stalker}/server/load.php`,
+        macAddress: '00:1a:79:00:00:03',
+    });
+    await put(request, 'm3u', { url: `${xtream}/playlist.m3u` });
+    await put(request, 'file', {
+        playlist: {
+            items: [
+                {
+                    name: 'Stored TV channel',
+                    url: `${xtream}/stored-live.ts`,
+                },
+            ],
+        },
+    });
+    await start(page);
+    await addSource(page, 'xtream');
+    const original = (await snapshot(page)).activeId;
+    await connect(page);
+    expect((await snapshot(page)).activeId).toBe(original);
+    expect((await snapshot(page)).sources).toHaveLength(4);
+    for (const name of [
+        'Shared xtream',
+        'Shared stalker',
+        'Shared m3u',
+        'Shared file',
+    ]) {
+        await nav(page, 'Sources');
+        await page
+            .locator('.source-row')
+            .getByRole('button', { name: new RegExp(name) })
+            .click();
+        await expect(page.locator('.loading')).toBeHidden({ timeout: 25000 });
+        await nav(page, 'TV');
+        await expect(page.locator('.channel').first()).toBeVisible();
+    }
+    await page.reload();
+    await expect(page.getByRole('navigation')).toBeVisible();
+    expect((await snapshot(page)).sources).toHaveLength(4);
+    await put(request, 'xtream', {
+        title: 'Renamed on server',
+        serverUrl: xtream,
+        username: 'user1',
+        password: 'pass1',
+    });
+    await nav(page, 'Settings');
+    await page.getByRole('button', { name: 'Refresh library now' }).click();
+    await expect
+        .poll(async () =>
+            (await snapshot(page)).sources.some(
+                (s) => s.name === 'Renamed on server'
+            )
+        )
+        .toBeTruthy();
+    expect(
+        (await snapshot(page)).sources.find(
+            (s) => s.name === 'Renamed on server'
+        )?.id
+    ).toBe(original);
+});
+test('auth/offline/replaced instance preserve cache; disconnect restores original local source', async ({
+    page,
+    request,
+}) => {
+    await put(request, 'xtream', {
+        serverUrl: xtream,
+        username: 'user1',
+        password: 'pass1',
+    });
+    await start(page);
+    await addSource(page, 'xtream');
+    const pane = await connect(page);
+    await page.route(`${server}/v1/playlists**`, (route) => route.abort());
+    await pane.getByRole('button', { name: 'Refresh library now' }).click();
+    await expect(pane.getByRole('alert')).toContainText('unavailable');
+    expect((await snapshot(page)).sources[0].name).toBe('Shared xtream');
+    await page.unroute(`${server}/v1/playlists**`);
+    let protectedRequests = 0;
+    await page.route(`${server}/v1/**`, async (route) => {
+        if (route.request().headers()['authorization']) protectedRequests++;
+        if (route.request().url().endsWith('/instance'))
+            await route.fulfill({
+                json: {
+                    service: 'iptvnator',
+                    apiVersion: 1,
+                    storage: 'server',
+                    auth: 'token',
+                    instanceId: 'replacement',
+                },
+            });
+        else await route.continue();
+    });
+    await pane.getByRole('button', { name: 'Refresh library now' }).click();
+    await expect(pane.getByRole('alert')).toContainText('has changed');
+    expect(protectedRequests).toBe(0);
+    await page.unroute(`${server}/v1/**`);
+    await pane.getByRole('button', { name: 'Disconnect library' }).click();
+    await expect(pane.getByRole('status')).toContainText('Disconnected');
+    expect((await snapshot(page)).sources[0].name).toBe('TV xtream');
+    await pane.getByLabel('Library server URL').fill(server);
+    await pane.getByLabel('Library access token (if required)').fill('wrong');
+    await pane
+        .getByRole('button', { name: 'Connect library', exact: true })
+        .click();
+    await expect(pane.getByRole('alert')).toContainText('access denied');
+    expect((await snapshot(page)).library).toBeUndefined();
+});
+test('explicit source upload uses real server storage, is idempotent and preserves unrelated server data', async ({
+    page,
+    request,
+}) => {
+    await start(page);
+    await addSource(page, 'm3u');
+    const before = await snapshot(page);
+    const pane = await connect(page);
+    await pane
+        .getByLabel('Local source to copy to server')
+        .selectOption(before.activeId);
+    await pane.getByRole('button', { name: 'Copy source to server' }).click();
+    await expect(pane.getByRole('status')).toContainText('1 server sources');
+    const response = await request.get(`${server}/v1/playlists`, { headers });
+    const list = await response.json();
+    expect(list).toHaveLength(1);
+    expect(list[0]._id).toBe(before.activeId);
+    expect(list[0].url).toBe(`${xtream}/playlist.m3u`);
+    await pane.getByRole('button', { name: 'Refresh library now' }).click();
+    await expect(pane.getByRole('status')).toContainText('Connected');
+    expect((await snapshot(page)).sources).toHaveLength(1);
+    await request.delete(
+        `${server}/v1/playlists/${encodeURIComponent(before.activeId)}`,
+        { headers }
+    );
+    await pane.getByRole('button', { name: 'Refresh library now' }).click();
+    await expect(pane.getByRole('status')).toContainText('0 server sources');
+    expect((await snapshot(page)).sources[0].id).toBe(before.activeId);
+});
+
+test('a library reply cannot interrupt playback or reconnect after disconnect', async ({
+    page,
+    request,
+}) => {
+    await put(request, 'xtream', {
+        serverUrl: xtream,
+        username: 'user1',
+        password: 'pass1',
+    });
+    await start(page);
+    await addSource(page, 'xtream');
+    await connect(page);
+    let release!: () => void;
+    let started!: () => void;
+    const pending = new Promise<void>((resolve) => {
+        started = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    await page.route(`${server}/v1/playlists?view=meta`, async (route) => {
+        started();
+        await held;
+        await route
+            .fulfill({
+                json: [
+                    document('xtream', {
+                        title: 'Late replacement',
+                        serverUrl: 'http://example.invalid',
+                        username: 'user1',
+                        password: 'changed',
+                    }),
+                ],
+            })
+            .catch(() => undefined);
+    });
+    await page.getByRole('button', { name: 'Refresh library now' }).click();
+    await pending;
+    await nav(page, 'Movies');
+    await page.locator('.poster-card').first().click();
+    await page.getByRole('button', { name: 'Watch now' }).click();
+    await expect
+        .poll(() =>
+            page
+                .locator('video')
+                .evaluate(
+                    (v: HTMLVideoElement) => !v.paused && v.currentTime > 0
+                )
+        )
+        .toBeTruthy();
+    const response = page.waitForResponse(`${server}/v1/playlists?view=meta`);
+    release();
+    await (await response).finished();
+    await page.evaluate(
+        () =>
+            new Promise<void>((resolve) =>
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => resolve())
+                )
+            )
+    );
+    await expect
+        .poll(async () => (await snapshot(page)).sources[0].name)
+        .toBe('Shared xtream');
+    await page.keyboard.press('Escape');
+    await nav(page, 'Settings');
+    await expect(
+        page.getByRole('region', { name: 'Server library' }).getByRole('alert')
+    ).toContainText('deferred');
+    let releaseAgain!: () => void;
+    let startedAgain!: () => void;
+    const pendingAgain = new Promise<void>((resolve) => {
+        startedAgain = resolve;
+    });
+    const heldAgain = new Promise<void>((resolve) => {
+        releaseAgain = resolve;
+    });
+    await page.unroute(`${server}/v1/playlists?view=meta`);
+    await page.route(`${server}/v1/playlists?view=meta`, async (route) => {
+        startedAgain();
+        await heldAgain;
+        await route.fulfill({ json: [] }).catch(() => undefined);
+    });
+    await page.getByRole('button', { name: 'Refresh library now' }).click();
+    await pendingAgain;
+    await page.getByRole('button', { name: 'Disconnect library' }).click();
+    releaseAgain();
+    await expect(
+        page.getByRole('region', { name: 'Server library' }).getByRole('status')
+    ).toContainText('Disconnected');
+    expect((await snapshot(page)).library).toBeUndefined();
+    expect((await snapshot(page)).sources[0].name).toBe('TV xtream');
+});

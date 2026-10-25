@@ -65,7 +65,9 @@ export function Sources({ tv }: { tv: TvModel }) {
     }
     return (
         <>
-            <p class="muted">Your subscriptions. Saved on this TV.</p>
+            <p class="muted">
+                Your subscriptions. Server sources are managed in the PWA.
+            </p>
             <div class="source-list">
                 {tv.data.sources.map((source) => (
                     <div class="source-row" key={source.id}>
@@ -77,8 +79,18 @@ export function Sources({ tv }: { tv: TvModel }) {
                             {tv.data.activeId === source.id ? '● ' : ''}
                             {source.name}
                         </button>
-                        <button onClick={() => edit(source)}>Edit</button>
                         <button
+                            disabled={!!source.libraryId || !!source.m3uItems}
+                            onClick={() => edit(source)}
+                        >
+                            {source.libraryId
+                                ? 'Server source'
+                                : source.m3uItems
+                                  ? 'Stored playlist'
+                                  : 'Edit'}
+                        </button>
+                        <button
+                            disabled={!!source.libraryId}
                             onClick={() => {
                                 if (
                                     confirm(

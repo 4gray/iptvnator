@@ -10,6 +10,7 @@ test('compact page headers leave room for posters and remove prototype chrome at
         password: 'marketing',
     });
     await nav(page, 'Movies');
+    await expect(page.locator('.poster-card').first()).toBeVisible();
     for (const width of [1920, 1280, 960]) {
         await page.setViewportSize({ width, height: 1080 });
         const geometry = await page.evaluate(() => {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { LibrarySettings } from './library-settings';
 import { PhoneSetup } from './phone-setup';
 import { BackendConnection } from './backend-connection';
 import { DirectAccessProbe } from './direct-probe';
@@ -24,6 +25,7 @@ export function Settings({ tv }: { tv: TvModel }) {
         <>
             <BackendConnection tv={tv} label="Backend URL" />
             <PhoneSetup tv={tv} purpose="settings" />
+            <LibrarySettings tv={tv} />
             <form
                 class="source-form"
                 key={`${tv.data.layout}:${tv.data.epg}`}
@@ -73,8 +75,8 @@ export function Settings({ tv }: { tv: TvModel }) {
                 Playback: Play / Pause, Rewind and Fast Forward are supported.
             </p>
             <p class="muted">
-                Sources, favorites and viewing progress stay on this TV. Native
-                media compatibility must be checked on your device.
+                Favorites and viewing progress stay on this TV. Native media
+                compatibility must be checked on your device.
             </p>
         </>
     );

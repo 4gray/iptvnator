@@ -26,12 +26,14 @@ export class M3uProvider implements ProviderClient {
         private transport: ProviderTransport
     ) {}
     async connect(signal: AbortSignal) {
-        const result = (await this.transport.request(
-            this.source,
-            'parse',
-            {},
-            signal
-        )) as { playlist?: { items?: unknown } };
+        const result = this.source.m3uItems
+            ? { playlist: { items: this.source.m3uItems } }
+            : ((await this.transport.request(
+                  this.source,
+                  'parse',
+                  {},
+                  signal
+              )) as { playlist?: { items?: unknown } });
         this.items = rows(result.playlist?.items).map((raw) => {
             const url = text(raw.url);
             const kind = isLikelyM3uVod({ url, radio: raw.radio as string })

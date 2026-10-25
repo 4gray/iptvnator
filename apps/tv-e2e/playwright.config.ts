@@ -18,6 +18,20 @@ export default defineConfig({
     ],
     webServer: [
         {
+            command: 'node --import tsx apps/web-backend/src/main.ts',
+            env: {
+                PORT: '3434',
+                CLIENT_URL: 'http://127.0.0.1:4311,null',
+                IPTVNATOR_STORAGE: 'server',
+                IPTVNATOR_ACCESS_TOKEN: 'tv-library-test',
+                IPTVNATOR_DATA_DIR: `${workspaceRoot}/tmp/tv-library-e2e-${process.pid}`,
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+            },
+            url: 'http://127.0.0.1:3434/health',
+            cwd: workspaceRoot,
+            reuseExistingServer: false,
+        },
+        {
             command:
                 'pnpm exec vite preview --config apps/tv/vite.config.ts --host 127.0.0.1 --port 4311 --strictPort',
             url: 'http://127.0.0.1:4311',
