@@ -200,8 +200,9 @@ export class WebPlayerRecoveryController {
         if (!this.deps.resolvedIsLive() ||
             !isAmbiguousStreamUrl(this.deps.streamUrl()) ||
             !transient ||
-            ![PlaybackDiagnosticCode.NetworkError, PlaybackDiagnosticCode.MediaDecodeError,
-              PlaybackDiagnosticCode.UnknownPlaybackError].includes(issue.code) ||
+            !(issue.code === PlaybackDiagnosticCode.NetworkError ||
+              issue.code === PlaybackDiagnosticCode.MediaDecodeError ||
+              issue.code === PlaybackDiagnosticCode.UnknownPlaybackError) ||
             this.autoRetryAttempt() >= 3) return false;
 
         const attempt = this.autoRetryAttempt() + 1;
