@@ -13,6 +13,13 @@ the shared playback-command resolver. The deployed NAS 0.1.9 build also uses
 the shared MAG identity and request URL builders. A captured successful link
 equals the URL handed to native video after command-prefix normalization.
 
+Repeated observed `create_link` responses contain different temporary URLs and
+are not marked as disk-cache responses. Favorites retain the original item/cmd;
+both playback resolution and Retry call the provider again. Selecting an already
+selected live item opens fullscreen instead of minting a link; the error UI's
+Retry explicitly resolves a new one. No signed playback URL is persisted as the
+channel command. Cached catalog data is therefore not the demonstrated cause.
+
 Electron can attach a stream header profile; native HTML video cannot attach
 arbitrary portal credentials. Foreign-host streams use a credential-free
 profile in Electron, so forwarding the portal MAC cookie/Bearer to the CDN is
