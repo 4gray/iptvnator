@@ -46,6 +46,7 @@ interface SelectedTestItem {
     id: string;
     cmd: string;
     has_files?: boolean;
+    is_series?: boolean;
     title?: string;
     name?: string;
     o_name?: string;
@@ -148,6 +149,15 @@ describe('withStalkerPlayer', () => {
         });
 
         store = TestBed.inject(TestPlayerStore);
+    });
+
+    it('does not reinterpret a lazy episode command through the parent movie file lookup', async () => {
+        store.setSelectedItem({ id: '10', cmd: '/media/file_101.mpg', is_series: true, has_files: true });
+        dataService.sendIpcEvent.mockResolvedValueOnce({ js: { cmd: 'https://cdn.example/alpha.mp4' } });
+        const result = await store.resolveVodPlayback('/media/own-episode.mpg', 'Alpha', '', 1, 123);
+        expect(result.streamUrl).toBe('https://cdn.example/alpha.mp4');
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ params: expect.objectContaining({ action: 'create_link', cmd: '/media/own-episode.mpg' }) }));
     });
 
     it('falls back to file ids for VOD playback and persists recently viewed metadata', async () => {

@@ -14,6 +14,7 @@ export interface StalkerVodSeriesSeason {
  */
 export interface StalkerVodSeriesEpisode {
     id: string;
+    cmd?: string;
     series_number?: number;
     episode_num?: number;
     name?: string;

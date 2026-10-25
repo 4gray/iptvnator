@@ -12,6 +12,7 @@ import {
 import {
     buildStalkerSelectedVodItem,
     StalkerStore,
+    StalkerEpisodeResolver,
 } from '@iptvnator/portal/stalker/data-access';
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import { EMPTY, of } from 'rxjs';
@@ -36,6 +37,17 @@ describe('StalkerSeriesViewComponent back navigation', () => {
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
             providers: [
+                {
+                    provide: StalkerEpisodeResolver,
+                    useValue: {
+                        resolveCommand: async (
+                            _playlist: unknown,
+                            episode: { originalId?: string }
+                        ) => `/media/file_${episode.originalId}.mpg`,
+                        resolveDownload: async () =>
+                            'https://cdn.example.test/episode.mpg',
+                    },
+                },
                 {
                     provide: StalkerStore,
                     useValue: {
