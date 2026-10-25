@@ -124,6 +124,35 @@ describe('collection guide hydration', () => {
         }
     );
 
+    it.each([true, false])(
+        'hydrates the retained stream when replacement fails (guide first=%s)',
+        async (guideFirst) => {
+            const guide = createDeferred<EpgItem[]>();
+            const replacement = createDeferred<ResolvedLiveCollectionDetail>();
+            const channel = buildLiveItem('xtream');
+            resolver.resolveLiveDetail
+                .mockResolvedValueOnce(detail(channel))
+                .mockReturnValueOnce(replacement.promise);
+            resolver.loadEpgItems.mockReturnValueOnce(guide.promise);
+            await selection.activate(channel);
+            const pending = selection.activate(buildLiveItem('stalker'));
+            const settleGuide = async () => {
+                guide.resolve([buildEpgItem('Retained guide')]);
+                await guide.promise;
+                await Promise.resolve();
+            };
+            if (guideFirst) await settleGuide();
+            replacement.reject(new Error('Replacement unavailable'));
+            await pending;
+            if (!guideFirst) await settleGuide();
+            expect(activeUid()).toBe(channel.uid);
+            expect(activeItem()).toBe(channel);
+            expect(activeDetail()?.epgItems?.[0]?.title).toBe('Retained guide');
+            await selection.activate(channel);
+            expect(resolver.loadEpgItems).toHaveBeenCalledTimes(1);
+        }
+    );
+
     it('rejects the first guide when revisiting the same channel under a newer selection', async () => {
         const first = createDeferred<EpgItem[]>();
         resolver.loadEpgItems

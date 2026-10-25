@@ -300,9 +300,15 @@ EPG requests follow the standard Stalker request path:
 
 Both `get_epg_info` and `get_short_epg` are background work and pass
 `{ silent: true }` through `executeStalkerRequest`. Direct and authenticated
-requests, auth renewal and portal-repair retries retain that option. Electron
+requests, auth renewal (handshake, profile and status-2 login) and portal-repair
+retries retain that option. Authentication still coalesces by playlist/session
+identity, not by presentation policy; foreground callers keep their ordinary
+notification policy when they initiate the shared token request. Electron
 and PWA transports still reject failures so bulk/short fallback logic works,
-but do not open error snackbars for each failed preview. The collection
+but do not open error snackbars for each failed preview. Raw authentication
+requests and login orchestration stay in `stalker-auth.api.ts`, with pure
+contracts and helpers in `stalker-auth.types.ts` and `stalker-auth.utils.ts`.
+The collection
 resolver's short-EPG requests use the same option.
 
 No EPG-specific transport exists. `STALKER_REQUEST` goes through the Electron

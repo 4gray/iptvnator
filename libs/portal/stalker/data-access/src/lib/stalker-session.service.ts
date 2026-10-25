@@ -1,4 +1,4 @@
-import type { StalkerRequestOptions } from './stalker-authenticated-request-client';
+import type { StalkerRequestOptions } from './stalker-request-options';
 import { Injectable, Injector, inject } from '@angular/core';
 import {
     isFullStalkerPortalPlaylist,
@@ -113,7 +113,7 @@ export class StalkerSessionService {
     private readonly requestClient = new StalkerAuthenticatedRequestClient(
         this.dataService,
         this.tokens,
-        (playlist) => this.ensureToken(playlist),
+        (playlist, options) => this.ensureToken(playlist, options),
         (playlist, sessionFingerprint) => {
             this.portalRepairDiscoveries.assertAvailable(playlist._id);
             this.editedSessions.assertCurrent(playlist, sessionFingerprint);
@@ -309,7 +309,8 @@ export class StalkerSessionService {
      * Returns the token to use for requests, and the serial number to store.
      */
     async ensureToken(
-        playlist: Playlist
+        playlist: Playlist,
+        options: StalkerRequestOptions = {}
     ): Promise<{ token: string | null; serialNumber?: string }> {
         const pendingRepair = this.portalRepairDiscoveries.waitIfPending(
             playlist._id
@@ -353,7 +354,7 @@ export class StalkerSessionService {
                 'Waiting out an authentication for a different identity...'
             );
             await pendingEntry.promise.catch(() => undefined);
-            return this.ensureToken(playlist);
+            return this.ensureToken(playlist, options);
         }
 
         if (!playlist.portalUrl || !playlist.macAddress) {
@@ -388,6 +389,7 @@ export class StalkerSessionService {
                     macAddress,
                     identity,
                     {
+                        ...(options.silent ? { silent: true } : {}),
                         storedToken: stored.token,
                         credentials: {
                             username: playlist.username,

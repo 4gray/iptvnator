@@ -96,9 +96,11 @@ handler as the header Back.
   (`resolveLiveDetail(item, { includeEpg: false })`). Once that detail is
   mounted, `UnifiedLiveSelection` hydrates M3U or portal programmes separately;
   `loadEpgItems` never resolves or launches playback. A guide response must
-  still own both the selection generation and the exact mounted detail before
-  it can update the panel. Switching, closing or destroying the selection
-  invalidates pending answers, and guide failures leave playback running.
+  still own both a mounted-guide token and the exact mounted detail before
+  it can update the panel. Pending playback selections use a separate generation:
+  the retained stream can still receive its guide while a replacement resolves
+  or fails. A successful replacement, close or destruction invalidates the
+  mounted-guide token; guide failures leave playback running.
 - Live preview results use `collectionEpgKey` in portal shared util.
   Xtream/Stalker results include source type, playlist ID and provider channel
   ID, independently of collection UIDs, names or `tvgId`. Resolver writes,

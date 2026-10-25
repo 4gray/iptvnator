@@ -79,6 +79,9 @@ export function createUnifiedLiveSelection(options: {
 
     /** Stream URL of the radio playback whose header override this configured. */
     let radioHeaderScopeUrl: string | null = null;
+    // The mounted stream keeps its guide while a replacement resolves or fails.
+    // Pending row highlights use the separate playback selection generation.
+    let guideOwner: symbol | null = null;
     /**
      * The selection still resolving. `activeUid` alone cannot tell a pending
      * highlight from the stream on screen — `activeItem`/`activeDetail` stay
@@ -101,7 +104,7 @@ export function createUnifiedLiveSelection(options: {
     const hydrateSelectedPrograms = async (
         item: UnifiedCollectionItem,
         detail: ResolvedLiveCollectionDetail,
-        generation: number
+        owner: symbol
     ): Promise<void> => {
         if (item.radio === 'true' || detail.channel?.radio === 'true') return;
         try {
@@ -115,7 +118,7 @@ export function createUnifiedLiveSelection(options: {
                               ),
                       }
                     : { epgItems: await streamResolver.loadEpgItems(item) };
-            if (generation !== options.generation.current()) return;
+            if (guideOwner !== owner) return;
             options.activeDetail.update((current) =>
                 current === detail ? { ...current, ...guide } : current
             );
@@ -147,6 +150,7 @@ export function createUnifiedLiveSelection(options: {
 
     const close = (): void => {
         options.generation.next();
+        guideOwner = null;
         pendingActivation = null;
         options.isSelecting.set(false);
         options.activeDetail.set(null);
@@ -238,13 +242,15 @@ export function createUnifiedLiveSelection(options: {
             options.activeTimeshift.set(null);
             options.activeItem.set(item);
             options.activeDetail.set(detail);
+            const owner = Symbol();
+            guideOwner = owner;
 
             const supportsGuide =
                 detail.epgMode === 'm3u'
                     ? options.supportsEpg
                     : options.supportsProviderEpg;
             if (supportsGuide) {
-                void hydrateSelectedPrograms(item, detail, generation);
+                void hydrateSelectedPrograms(item, detail, owner);
             }
 
             if (
@@ -309,6 +315,7 @@ export function createUnifiedLiveSelection(options: {
         close,
         dispose(): void {
             disposed = true;
+            guideOwner = null;
             // Invalidate a playback continuation still awaiting its header
             // IPC and drop any radio credentials owned by this tab.
             options.generation.next();

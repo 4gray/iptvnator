@@ -1,3 +1,4 @@
+import type { StalkerRequestOptions } from './stalker-request-options';
 import {
     extractStalkerAuthFailureBody,
     isFullStalkerPortalPlaylist,
@@ -10,18 +11,14 @@ import { isStalkerAuthorizationFailure } from './stalker-response-classification
 import { stalkerSessionFingerprint } from './stalker-session-store';
 import type { StalkerTokenCache } from './stalker-token-cache';
 
-export interface StalkerRequestOptions {
-    /** Background failures still reject but never show a transport snackbar. */
-    silent?: boolean;
-}
-
 /** Authenticated request + one-shot session renewal shared by all callers. */
 export class StalkerAuthenticatedRequestClient {
     constructor(
         private readonly dataService: DataService,
         private readonly tokens: StalkerTokenCache,
         private readonly ensureToken: (
-            playlist: Playlist
+            playlist: Playlist,
+            options: StalkerRequestOptions
         ) => Promise<{ token: string | null; serialNumber?: string }>,
         private readonly assertCurrent: (
             playlist: Playlist,
@@ -40,7 +37,10 @@ export class StalkerAuthenticatedRequestClient {
         // in flight; its old response must never reach a store or player.
         const configuration = { ...playlist } as Playlist;
         const sessionFingerprint = stalkerSessionFingerprint(configuration);
-        const { token, serialNumber } = await this.ensureToken(configuration);
+        const { token, serialNumber } = await this.ensureToken(
+            configuration,
+            options
+        );
 
         try {
             const response = await this.dataService.sendIpcEvent<T>(

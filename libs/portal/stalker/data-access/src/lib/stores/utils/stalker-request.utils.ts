@@ -1,4 +1,4 @@
-import type { StalkerRequestOptions } from '../../stalker-authenticated-request-client';
+import type { StalkerRequestOptions } from '../../stalker-request-options';
 import { DataService } from '@iptvnator/services';
 import {
     isFullStalkerPortalPlaylist,
