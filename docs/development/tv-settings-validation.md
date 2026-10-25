@@ -75,3 +75,61 @@ change. There was no push, PR, CI dispatch, merge or NAS change.
 
 Canonical behavior is documented in `docs/architecture/tv-application.md`;
 release note: `.changes/tv-settings-categories.md`.
+
+
+## Rebase and LG installation — TV 0.1.15
+
+The Settings commit is rebased onto `origin/master` at `aecfb7d7d` (merged TV
+PR #2003). The only conflict was the library browser test's import/server
+constant; both the upstream `UserData` import and offset-based library URL are
+retained. Stalker watchdog, source identity and phone security fixes from master
+remain unchanged. The rebased feature commit is `38826f25b`.
+
+The prototype package advances from 0.1.14 to 0.1.15. This is a local TV package
+release, not a desktop `v*` release: global package version, changelog consumption,
+release tags and public desktop assets are unchanged.
+
+Frozen dependencies were reinstalled after rebase. Final local gates:
+
+- All 85 TV unit tests pass through `pnpm nx test tv-tests`.
+- The full TV browser suite passes all 96 scenarios using
+  `TV_E2E_PORT_OFFSET=10000 pnpm nx e2e tv-e2e`, including watchdog activation,
+  provider identity/security, Settings drafts, remote navigation and phone setup.
+- Lint/typecheck passes for TV, feature, UI, data-access, util, tests, E2E and
+  phone setup, through each project's available target (12 tasks total).
+- Production build, classic IIFE/ES2018 audit and IPK packaging pass.
+- All 161 release notes, 3 agent guidance files and 8 repository skills validate.
+
+`com.iptvnator.tv.prototype_0.1.15_all.ipk` is installed over 0.1.14 on the
+existing paired `iptvnator-lg-bx` device, without uninstalling the application.
+The installed app's local appinfo confirms 0.1.15; its engine reports
+Chrome 68.0.3440.106 at 1920×1080.
+
+On-device CDP checks pass: six categories, one visible panel, no outer overflow,
+Right into a native select, Left to its category, Down to EPG, Right into its
+checkbox, webOS 461 Back to categories, retained category/control on leaving and
+returning, native text-caret ownership, and no visible alerts. Screenshots of
+Metadata and remote help were inspected. The source selector was hidden only
+while capturing these local screenshots, then restored; no saved setting or key
+was edited. A pointer probe ran while the app had returned to the background and
+did not move focus; it is not counted as a pointer pass. Actual physical arrows,
+Magic Remote feel and media playback were not exercised in this Settings check.
+Browser pointer coverage passes. The prior first-launch playback limitation from
+the Stalker investigation remains outside this change.
+
+Before/after read-only snapshots agree on all compared SHA-256 digests: source
+configuration (excluding renewable Stalker session tokens), active source and TV
+preferences, library configuration (excluding last-sync timestamp), favorites,
+history and progress. Both contain 3 sources, 8 favorites and 19 history/position
+records. Only counts and digests were saved locally; source details and keys were
+not written to the report. Initially the debugger's IndexedDB read was suspended
+because the app was hidden; bringing the app forward completed it normally.
+
+Evidence lives under `dist/tv-verification/settings-0.1.15/`: `before.json`,
+`after.json`, `lg-checks.json`, `lg-metadata.png` and `lg-remote.png`. Browser layout
+screenshots remain under `dist/tv-verification/settings-categories/`.
+Package: `dist/tv-package/com.iptvnator.tv.prototype_0.1.15_all.ipk`.
+SHA-256: `71c758d018df10bef27b437f7ec7d39bd5760304d10ee5c18d60500028a3412f`.
+No NAS service, desktop release, push, PR or merge was performed during this
+local installation. GitHub integration awaits the user's answer to the explicit
+publication-scope question because the initial task prohibited push/PR/merge.
