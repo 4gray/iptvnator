@@ -187,7 +187,9 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             await player.current!.play(
                 item,
                 resolved,
-                p && p.duration - p.seconds > 15 ? p.seconds : 0
+                p && (!p.duration || p.duration - p.seconds > 15)
+                    ? p.seconds
+                    : 0
             );
         } catch {
             if (lane.owns(job))
@@ -208,7 +210,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     if (playback.current.owns(job)) {
                         setError('');
                         setPlaying(item);
-                        void player.current?.play(item, resolved, 0);
+                        const p = repo.current!.data.positions[item.id];
+                        void player.current?.play(
+                            item,
+                            resolved,
+                            p && (!p.duration || p.duration - p.seconds > 15)
+                                ? p.seconds
+                                : 0
+                        );
                     }
                 })
                 .catch(() => setError('Playback could not be restarted.'));

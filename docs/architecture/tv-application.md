@@ -112,6 +112,17 @@ Fullscreen Back restores the opening control, and detail Back restores item
 identity and catalog page. Controls appear on demand; remote media keys and
 native VOD seeking use the same adapter.
 
+Native VOD resume waits for confirmed playback and seek readiness, retries
+ignored/rejected assignments at most every 750 ms, and requires a subsequent
+media event at the requested position with seeking complete. Metadata alone is
+not confirmation on webOS. A 250 ms poll and readiness events handle late
+duration/ranges; a 30-second deadline pauses with a recoverable error. Progress
+writes are suppressed during restoration and seeking, including pause/leave.
+Timeout preserves the previous saved position. Retry playback reads that
+position again, including records whose duration was unknown; completed items
+still restart. Stop/source replacement cancels the retry timer. Positive timeline
+seeks use the same confirmation path; explicit seek-to-zero starts over.
+
 Single-line text fields keep Left/Right caret movement and use Up/Down for
 spatial focus. Native select controls keep Up/Down for choices and leave with
 Left/Right. Disclosure summaries, including explicit MAG identity fields, are

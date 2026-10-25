@@ -232,13 +232,15 @@ export function TvApp() {
                                         }
                                         value={element?.currentTime ?? 0}
                                         onInput={(e) => {
-                                            if (element)
-                                                element.currentTime = Number(
-                                                    e.currentTarget.value
-                                                );
+                                            tv.player.current?.seekTo(
+                                                Number(e.currentTarget.value)
+                                            );
                                         }}
                                     />
                                 </label>
+                            ) : null}
+                            {tv.player.current?.restoringPosition ? (
+                                <p role="status">Restoring saved position…</p>
                             ) : null}
                             {tv.error ? (
                                 <div role="alert" class="error">

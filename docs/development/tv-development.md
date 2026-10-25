@@ -37,18 +37,18 @@ BX's Chromium 68 engine, native HLS, transport stream decoding or MAG headers.
 `tv-playlist.m3u` and `tv-test-media.webm` are local mock-server fixtures only.
 
 The package target produces
-`dist/tv-package/com.iptvnator.tv.prototype_0.1.5_all.ipk` with the pinned webOS
+`dist/tv-package/com.iptvnator.tv.prototype_0.1.6_all.ipk` with the pinned webOS
 CLI. Inspect it with:
 
 ```sh
-pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.5_all.ipk
+pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.6_all.ipk
 pnpm exec ares-setup-device --list
 ```
 
 Only after the user supplies an enabled Developer Mode target and pairing:
 
 ```sh
-pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.5_all.ipk
+pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.6_all.ipk
 pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 ```
 
@@ -155,3 +155,6 @@ Sort by selector; Recently added is the default. Their saved choices are separat
 
 [TV visual refinement validation](tv-visual-validation.md) records the 0.1.5
 compact headers, resume artwork, typed favorites and channel fallback checks.
+
+[TV resume validation](tv-resume-validation.md) records the 0.1.6 native seek
+retry, saved-position protection and separate real-LG playback checks.

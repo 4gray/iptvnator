@@ -9,9 +9,19 @@ export class NativePlayer {
     get hasConfirmedPlayback() {
         return this.confirmed && !this.video.paused && !this.video.ended;
     }
+    get restoringPosition() {
+        return !!this.restore && !this.restore.failed;
+    }
     private confirmed = false;
     private timer?: ReturnType<typeof setInterval>;
-    private resumePosition = 0;
+    private restore?: {
+        target: number;
+        deadline: number;
+        lastAttempt: number;
+        attempted: boolean;
+        failed: boolean;
+    };
+    private restoreTimer?: ReturnType<typeof setInterval>;
     private generation = 0;
     private handlers: Record<string, () => void>;
     constructor(
@@ -23,20 +33,18 @@ export class NativePlayer {
         this.handlers = {
             playing: () => {
                 this.confirmed = true;
+                this.tryRestore(true);
                 this.persist();
                 this.changed();
             },
-            loadedmetadata: () => {
-                if (
-                    this.resumePosition > 0 &&
-                    Number.isFinite(video.duration)
-                ) {
-                    video.currentTime = Math.min(
-                        this.resumePosition,
-                        Math.max(0, video.duration - 1)
-                    );
-                    this.resumePosition = 0;
-                }
+            loadedmetadata: () => this.tryRestore(),
+            durationchange: () => this.tryRestore(),
+            canplay: () => this.tryRestore(),
+            progress: () => this.tryRestore(),
+            seeked: () => {
+                this.tryRestore(true);
+                this.persist();
+                this.changed();
             },
             pause: () => {
                 this.persist();
@@ -52,7 +60,10 @@ export class NativePlayer {
                         'This stream could not be played. Check codec, network and provider media headers. The API backend does not relay video.'
                     );
             },
-            timeupdate: () => this.changed(),
+            timeupdate: () => {
+                this.tryRestore(true);
+                this.changed();
+            },
         };
         Object.keys(this.handlers).forEach((name) =>
             video.addEventListener(name, this.handlers[name])
@@ -70,7 +81,8 @@ export class NativePlayer {
         const generation = ++this.generation;
         this.item = item;
         this.lastPlayback = { sourceId: item.sourceId, url: playback.url };
-        this.resumePosition = item.kind === 'live' ? 0 : resume;
+        if (item.kind !== 'live' && Number.isFinite(resume) && resume > 0)
+            this.startRestore(resume);
         this.confirmed = false;
         this.video.src = playback.url;
         this.video.load();
@@ -88,7 +100,8 @@ export class NativePlayer {
     }
     persist() {
         const item = this.item;
-        if (!item || !this.confirmed) return;
+        if (!item || !this.confirmed || this.restore || this.video.seeking)
+            return;
         const seconds = Number.isFinite(this.video.currentTime)
             ? this.video.currentTime
             : 0;
@@ -103,6 +116,7 @@ export class NativePlayer {
     }
     stop() {
         this.persist();
+        this.cancelRestore();
         this.item = undefined;
         this.confirmed = false;
         this.generation++;
@@ -111,6 +125,7 @@ export class NativePlayer {
         this.video.load();
     }
     resume() {
+        if (this.restore?.failed) this.startRestore(this.restore.target);
         this.video
             .play()
             .catch(() => this.failure('Playback could not resume.'));
@@ -123,11 +138,109 @@ export class NativePlayer {
         else this.pause();
     }
     seek(delta: number) {
-        if (this.item?.kind !== 'live' && Number.isFinite(this.video.duration))
-            this.video.currentTime = Math.max(
-                0,
-                Math.min(this.video.duration, this.video.currentTime + delta)
+        this.seekTo(this.video.currentTime + delta);
+    }
+    seekTo(seconds: number) {
+        if (
+            !this.item ||
+            this.item.kind === 'live' ||
+            !Number.isFinite(seconds)
+        )
+            return;
+        const target = Math.max(
+            0,
+            Number.isFinite(this.video.duration) && this.video.duration > 0
+                ? Math.min(this.video.duration, seconds)
+                : seconds
+        );
+        if (target > 0) {
+            this.startRestore(target);
+            this.tryRestore();
+        } else {
+            try {
+                this.video.currentTime = 0;
+                this.cancelRestore();
+            } catch {
+                this.failure(
+                    'This stream is not ready to seek. Try again after playback starts.'
+                );
+            }
+        }
+        this.changed();
+    }
+    private cancelRestore() {
+        clearInterval(this.restoreTimer);
+        this.restoreTimer = undefined;
+        this.restore = undefined;
+    }
+    private startRestore(target: number) {
+        this.cancelRestore();
+        this.restore = {
+            target,
+            deadline: Date.now() + 30000,
+            lastAttempt: -Infinity,
+            attempted: false,
+            failed: false,
+        };
+        this.restoreTimer = setInterval(() => this.tryRestore(), 250);
+    }
+    private tryRestore(confirm = false) {
+        const pending = this.restore;
+        const v = this.video;
+        if (!pending || pending.failed || !this.item) return;
+        // A setter may be accepted before the native pipeline actually seeks.
+        // Keep the old saved progress until a media event confirms the result.
+        const target =
+            Number.isFinite(v.duration) && v.duration > 0
+                ? Math.min(pending.target, Math.max(0, v.duration - 1))
+                : pending.target;
+        if (
+            confirm &&
+            pending.attempted &&
+            !v.seeking &&
+            v.readyState >= 2 &&
+            Math.abs(v.currentTime - target) <= Math.min(2, target / 4)
+        ) {
+            this.cancelRestore();
+            return;
+        }
+        if (Date.now() >= pending.deadline) {
+            pending.failed = true;
+            clearInterval(this.restoreTimer);
+            v.pause();
+            this.failure(
+                'Could not restore the saved position. It is preserved. Retry playback or choose a position on the timeline.'
             );
+            this.changed();
+            return;
+        }
+        // webOS may report metadata long before it accepts a VOD seek.
+        if (
+            !this.confirmed ||
+            v.readyState < 2 ||
+            v.seeking ||
+            Date.now() - pending.lastAttempt < 750
+        )
+            return;
+        let seekable = false;
+        for (let i = 0; i < v.seekable.length; i++)
+            if (v.seekable.start(i) <= target && v.seekable.end(i) >= target)
+                seekable = true;
+        if (
+            !seekable &&
+            (v.seekable.length ||
+                v.readyState < 3 ||
+                !Number.isFinite(v.duration) ||
+                v.duration <= 0)
+        )
+            return;
+        pending.lastAttempt = Date.now();
+        try {
+            v.currentTime = target;
+            pending.attempted = true;
+        } catch {
+            // Readiness events and the bounded timer retry rejected early seeks.
+        }
     }
     dispose() {
         this.stop();

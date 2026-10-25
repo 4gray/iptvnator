@@ -26,6 +26,7 @@ test('native player records only confirmed playback, saves on pause and exposes 
             },
         },
         duration: { value: 100 },
+        readyState: { value: 4 },
         currentTime: { value: 0, writable: true },
     });
     const saved: Progress[] = [];
@@ -53,8 +54,10 @@ test('native player records only confirmed playback, saves on pause and exposes 
         player.persist();
         assert.equal(saved.length, 0);
         video.dispatchEvent(new dom.window.Event('loadedmetadata'));
-        assert.equal(video.currentTime, 22);
+        assert.equal(video.currentTime, 0);
         video.dispatchEvent(new dom.window.Event('playing'));
+        assert.equal(video.currentTime, 22);
+        video.dispatchEvent(new dom.window.Event('seeked'));
         await Promise.resolve();
         assert.equal(saved.length, 1);
         video.currentTime = 30;
