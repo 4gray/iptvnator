@@ -1,5 +1,5 @@
 const selectors =
-    'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary';
+    'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[data-tv-scroll]';
 export function focusKey() {
     return (document.activeElement as HTMLElement)?.dataset.focus ?? '';
 }

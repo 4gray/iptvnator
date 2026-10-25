@@ -92,10 +92,15 @@ export async function addSource(
     await expect(page.locator('.loading')).toBeHidden({ timeout: 25000 });
     await expect(page.locator('.error')).toBeHidden();
 }
-export async function nav(page: Page, label: string) {
+export async function nav(page: Page, label: string, openAllChannels = true) {
     await page
         .getByRole('navigation')
         .getByRole('button', { name: label, exact: true })
         .click();
     await expect(page.locator('.loading')).toBeHidden();
+    if (label === 'TV' && openAllChannels) {
+        await page.locator('[data-focus="live-category:"]').click();
+        await expect(page.locator('.channel-pane-header button')).toBeVisible();
+        await expect(page.locator('.channel').first()).toBeFocused();
+    }
 }

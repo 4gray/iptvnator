@@ -23,6 +23,16 @@ async function watch(page: Page, index: number, episode = false) {
     await page.keyboard.press('Escape');
     await nav(page, 'Home');
     await expect(page.locator('[data-focus="nav:home"]')).toBeFocused();
+    // Clicking the nav button focuses it before its scheduled restoration runs.
+    // Let that navigation frame finish before starting another keyboard gesture.
+    await page.evaluate(
+        () =>
+            new Promise<void>((resolve) =>
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => resolve())
+                )
+            )
+    );
     return title;
 }
 

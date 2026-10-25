@@ -1,110 +1,83 @@
-import { Empty, VirtualCollection, ChannelLogo } from '@iptvnator/tv/ui';
+import { LiveChannels, useLiveBrowse } from './live-channels';
+import { useEffect, useRef } from 'preact/hooks';
 import { TvModel } from './use-tv';
 export function Live({ tv }: { tv: TvModel }) {
-    const r = tv.route;
+    const browse = useLiveBrowse(tv);
+    const guide = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (guide.current) guide.current.scrollTop = 0;
+    }, [tv.selected?.id]);
     const selected = tv.selected;
     return (
-        <>
-            <p class="muted">
-                Choose a channel. Press OK to preview, and again to fill your
-                screen.
-            </p>
-            <div class="live-layout">
-                <section class="channel-pane">
-                    <label>
-                        Category
-                        <select
-                            value={r.category}
-                            onChange={(e) =>
-                                tv.setRoute({
-                                    ...r,
-                                    category: e.currentTarget.value,
-                                    page: 0,
-                                })
-                            }
+        <div
+            class="live-layout"
+            onKeyDown={(event) => {
+                if (
+                    !tv.fullscreen &&
+                    !browse.categoriesOpen &&
+                    (event.keyCode === 461 ||
+                        ['Escape', 'BrowserBack', 'Backspace'].includes(
+                            event.key
+                        ))
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    browse.back();
+                }
+            }}
+        >
+            <LiveChannels tv={tv} browse={browse} />
+            <section class="live-information">
+                <div class="preview-placeholder">
+                    {tv.playing ? (
+                        <button
+                            class="preview-open"
+                            data-focus="live-fullscreen"
+                            onClick={() => {
+                                if (tv.playing) void tv.play(tv.playing);
+                            }}
+                            aria-label="Open fullscreen"
                         >
-                            <option value="">All channels</option>
-                            {tv.catalog.categories.map((c) => (
-                                <option value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                    </label>
-                    <div class="channels">
-                        <VirtualCollection
-                            key={tv.catalogKey}
-                            layout="channels"
-                            items={tv.catalog.items}
-                            more={tv.hasMore}
-                            busy={tv.catalogBusy}
-                            error={tv.catalogError}
-                            loadMore={tv.loadMore}
-                            restoreKey={tv.restoreKey}
-                            restoreScroll={tv.restoreScroll}
-                            render={(item, n) => (
-                                <button
-                                    class={`channel ${tv.playing?.id === item.id && tv.player.current?.hasConfirmedPlayback ? 'is-playing' : ''}`}
-                                    data-focus={item.id}
-                                    aria-pressed={selected?.id === item.id}
-                                    onFocus={() => tv.setSelected(item)}
-                                    onClick={() => {
-                                        tv.setSelected(item);
-                                        tv.play(item);
-                                    }}
-                                >
-                                    <span class="channel-number">
-                                        {String(n + 1).padStart(2, '0')}
-                                    </span>
-                                    <ChannelLogo src={item.poster} />
-                                    <span>
-                                        <strong>{item.title}</strong>
-                                        <small>
-                                            {tv.playing?.id === item.id
-                                                ? tv.player.current
-                                                      ?.hasConfirmedPlayback
-                                                    ? '● Playing'
-                                                    : 'Starting / paused'
-                                                : 'Live channel'}
-                                        </small>
-                                    </span>
-                                </button>
-                            )}
-                        />
-                    </div>
-                    {!tv.busy && !tv.catalog.items.length ? (
-                        <Empty>No channels in this category.</Empty>
+                            Fullscreen ↗
+                        </button>
+                    ) : (
+                        <span>Select a channel to start preview</span>
+                    )}
+                </div>
+                <div class="section-title">
+                    <h2>{selected?.title ?? 'Programme guide'}</h2>
+                    {selected ? (
+                        <button
+                            aria-label="Favorite channel"
+                            onClick={() => tv.favorite(selected)}
+                        >
+                            {tv.data.favorites.some((m) => m.id === selected.id)
+                                ? '♥ Saved'
+                                : '♡ Save channel'}
+                        </button>
                     ) : null}
-                </section>
-                <section class="live-information">
-                    <div class="preview-placeholder">
-                        {tv.playing ? (
-                            <button
-                                class="preview-open"
-                                onClick={() => {
-                                    tv.setFullscreen(true);
-                                }}
-                                aria-label="Open fullscreen"
-                            >
-                                Fullscreen ↗
-                            </button>
-                        ) : (
-                            <span>Select a channel to start preview</span>
-                        )}
-                    </div>
-                    <div class="section-title">
-                        <h2>{selected?.title ?? 'Programme guide'}</h2>
-                        {selected ? (
-                            <button
-                                aria-label="Favorite channel"
-                                onClick={() => tv.favorite(selected)}
-                            >
-                                {tv.data.favorites.some(
-                                    (m) => m.id === selected.id
-                                )
-                                    ? '♥ Saved'
-                                    : '♡ Save channel'}
-                            </button>
-                        ) : null}
-                    </div>
+                </div>
+                <div
+                    class="programme-list"
+                    ref={guide}
+                    tabIndex={0}
+                    data-tv-scroll
+                    data-focus="live-guide"
+                    role="region"
+                    aria-label="Programme guide"
+                    onKeyDown={(event) => {
+                        const pane = event.currentTarget;
+                        const down =
+                            event.key === 'ArrowDown' || event.keyCode === 40;
+                        const up =
+                            event.key === 'ArrowUp' || event.keyCode === 38;
+                        if (down || (up && pane.scrollTop > 0)) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            pane.scrollTop += down ? 100 : -100;
+                        }
+                    }}
+                >
                     {tv.data.epg ? (
                         <>
                             {tv.epg.slice(0, 12).map((p) => (
@@ -142,8 +115,8 @@ export function Live({ tv }: { tv: TvModel }) {
                             ) : null}
                         </>
                     ) : null}
-                </section>
-            </div>
-        </>
+                </div>
+            </section>
+        </div>
     );
 }

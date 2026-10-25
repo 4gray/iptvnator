@@ -115,7 +115,13 @@ export function TvApp() {
             </aside>
             <main
                 hidden={tv.fullscreen}
-                class={cinematic ? `cinematic-page ${r.view}-page` : ''}
+                class={
+                    cinematic
+                        ? `cinematic-page ${r.view}-page`
+                        : r.view === 'live'
+                          ? 'live-page'
+                          : ''
+                }
             >
                 {cinematic ? <Backdrop item={metadata.item} /> : null}
                 <PageHeader tv={tv} />
@@ -149,7 +155,7 @@ export function TvApp() {
                 ) : r.view === 'settings' ? (
                     <Settings tv={tv} />
                 ) : r.view === 'live' ? (
-                    <Live tv={tv} />
+                    <Live key={tv.data.activeId} tv={tv} />
                 ) : r.view === 'favorites' ? (
                     <Favorites tv={tv} />
                 ) : r.view === 'detail' ? (

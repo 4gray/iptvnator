@@ -120,6 +120,22 @@ Fullscreen Back restores the opening control, and detail Back restores item
 identity and catalog page. Controls appear on demand; remote media keys and
 native VOD seeking use the same adapter.
 
+Live opens a large category list in its left pane. OK enters the selected
+category; its header button or Back within the Live panes returns to categories.
+Back from categories leaves Live; fullscreen Back first returns to preview.
+Re-entering the same category restores the channel identity and scroll window;
+choosing another category starts at its first channel. Category browsing never
+starts or replaces playback. Source changes reset this local browse state.
+Category rows use the same bounded 20-row window as channels, including distant
+focus restoration; the All channels row remains available without provider groups.
+
+Live owns a viewport-height flex/grid frame rather than the outer page scroll.
+Its two independent scrollers are the category/channel list and programme guide.
+Both reserve a scrollbar with `overflow-y: scroll`, supported on Chromium 68;
+changing EPG content cannot resize or move the preview. The guide is a named,
+focusable region: Up/Down scroll its contents, Up at the beginning exits, and
+Left/Right use spatial navigation. Preview and channel actions remain fixed.
+
 Native VOD resume waits for confirmed playback and seek readiness, retries
 ignored/rejected assignments at most every 750 ms, and requires a subsequent
 media event at the requested position with seeking complete. Metadata alone is

@@ -44,7 +44,8 @@ button:hover {
 button:focus,
 input:focus,
 select:focus,
-summary:focus {
+summary:focus,
+[data-tv-scroll]:focus {
     outline: 3px solid var(--app-focus-ring-color);
     outline-offset: 4px;
 }
@@ -774,18 +775,91 @@ summary {
         36px Georgia,
         serif;
 }
+main.live-page {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 24px;
+}
+.live-page > .page-header,
+.live-page > .error,
+.live-page > .loading {
+    flex-shrink: 0;
+}
 .live-layout {
     display: grid;
     grid-template-columns: 38% minmax(0, 1fr);
     grid-gap: 42px;
+    flex: 1;
+    min-height: 0;
 }
-.channel-pane {
+.channel-pane,
+.live-information {
     min-width: 0;
+    min-height: 0;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
 }
-.channels {
-    max-height: 570px;
-    overflow: auto;
+.channels,
+.programme-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: scroll;
+    overflow-x: hidden;
     padding: 8px;
+}
+.channels::-webkit-scrollbar,
+.programme-list::-webkit-scrollbar {
+    width: 12px;
+}
+.channels::-webkit-scrollbar-thumb,
+.programme-list::-webkit-scrollbar-thumb {
+    background: #40554a;
+}
+.channel-pane-header {
+    flex-shrink: 0;
+    padding: 0 8px 14px;
+}
+.channel-pane-header h2 {
+    margin: 0;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+}
+.channel-pane-header button {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.channel-pane-header > span {
+    display: block;
+    font-size: 16px;
+    margin-top: 12px;
+}
+.live-category {
+    width: 100%;
+    min-height: 80px;
+    margin-bottom: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: transparent;
+}
+.live-category strong {
+    font-size: 22px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.live-category > span {
+    margin-left: 18px;
+    color: var(--tv-accent);
+}
+.live-category[aria-pressed='true'] {
+    background: #1c2a23;
 }
 .channel {
     width: 100%;
@@ -851,6 +925,7 @@ summary {
     margin-bottom: 14px;
 }
 .preview-placeholder {
+    flex-shrink: 0;
     width: 100%;
     height: 0;
     padding-bottom: 56.25%;
@@ -877,9 +952,19 @@ summary {
 }
 .live-information .section-title h2 {
     font-size: 26px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.live-information .section-title {
+    flex-shrink: 0;
+    min-height: 72px;
+    margin: 14px 0;
 }
 .live-information .section-title button {
     font-size: 16px;
+    flex-shrink: 0;
 }
 .programme {
     display: flex;
@@ -1100,13 +1185,8 @@ summary {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
     .live-layout {
-        grid-template-columns: 1fr;
-    }
-    .live-information {
-        grid-row: 1;
-    }
-    .channels {
-        max-height: 400px;
+        grid-template-columns: 42% minmax(0, 1fr);
+        grid-gap: 18px;
     }
     .episode-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
