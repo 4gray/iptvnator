@@ -71,6 +71,9 @@ function options(
         seriesId: 50001,
         seriesMode: 'regular-series' as const,
         resolveUrl,
+        resolveLazyUrl: jest
+            .fn()
+            .mockResolvedValue('https://cdn.example.test/lazy.mpg'),
     };
 }
 
@@ -122,7 +125,8 @@ describe('createStalkerSeriesDownloadAdapter', () => {
         const resolveUrl = jest
             .fn()
             .mockResolvedValue('https://cdn.example.test/episode.mpg');
-        const adapter = createStalkerSeriesDownloadAdapter(options(resolveUrl));
+        const config = options(resolveUrl);
+        const adapter = createStalkerSeriesDownloadAdapter(config);
         const first = adapter.createCandidate(
             episode({
                 id: '62001',
@@ -151,8 +155,12 @@ describe('createStalkerSeriesDownloadAdapter', () => {
         await expect(second?.prepare()).resolves.toEqual(
             expect.objectContaining({ xtreamId: 62002 })
         );
-        expect(resolveUrl).toHaveBeenNthCalledWith(1, '/media/file_777.mpg', 3);
-        expect(resolveUrl).toHaveBeenNthCalledWith(2, '/media/file_777.mpg', 3);
+        expect(resolveUrl).not.toHaveBeenCalled();
+        expect(config.resolveLazyUrl).toHaveBeenCalledTimes(2);
+        expect(config.resolveLazyUrl.mock.calls[0][0]).toMatchObject({
+            originalId: '777',
+            id: '62001',
+        });
     });
 
     it('prepares the complete Stalker episode request and versioned snapshot', async () => {
@@ -243,8 +251,9 @@ describe('createStalkerSeriesDownloadAdapter', () => {
             const resolveUrl = jest
                 .fn()
                 .mockResolvedValue('https://cdn.example.test/episode.mpg');
+            const config = options(resolveUrl);
             const candidate = createStalkerSeriesDownloadAdapter(
-                options(resolveUrl)
+                config
             ).createCandidate(
                 episode({
                     id: '63001',
@@ -259,12 +268,18 @@ describe('createStalkerSeriesDownloadAdapter', () => {
             await expect(candidate?.prepare()).resolves.toEqual(
                 expect.objectContaining({ xtreamId: 63001 })
             );
-            expect(resolveUrl).toHaveBeenCalledWith(
-                customSid === 'vod-series'
-                    ? '/media/file_501.mpg'
-                    : originalCmd,
-                7
-            );
+            if (customSid === 'vod-series') {
+                expect(resolveUrl).not.toHaveBeenCalled();
+                expect(config.resolveLazyUrl).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        originalId: '501',
+                        episode_num: 7,
+                    })
+                );
+            } else {
+                expect(resolveUrl).toHaveBeenCalledWith(originalCmd, 7);
+                expect(config.resolveLazyUrl).not.toHaveBeenCalled();
+            }
         }
     );
 

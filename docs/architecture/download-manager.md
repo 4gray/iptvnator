@@ -250,7 +250,13 @@ available after restart and after the source archive expires.
   become stable skips without requiring a Stalker URL/network request. Both
   providers use normalized `episode.id` as the canonical
   episode `xtreamId`; Stalker `originalCmd` and `originalId` participate only
-  in URL resolution. Provider adapters preserve numeric season zero, including
+  in URL resolution. Lazy Stalker VOD downloads use the same
+  `StalkerEpisodeResolver` as playback: an episode command or a media-file
+  lookup with provider movie/season/episode IDs, never a file ID synthesized
+  from the episode ID. The #1844 fix applies to new preparations; existing
+  stored URLs and media are not rewritten. An affected old entry must be
+  cancelled/removed and downloaded anew from its series, because Retry/Resume
+  retains its stored URL. Provider adapters preserve numeric season zero, including
   a fallback season key of `"0"`, so Specials keep distinct `S00` coordinates.
   The exact `(playlistId, contentType, xtreamId)` identity is authoritative.
   Complete `(playlistId, seriesXtreamId, seasonNumber, episodeNumber)`
