@@ -48,6 +48,15 @@ never sent as Xtream IDs.
 Stalker uses the existing authentication implementation with a narrow transport
 interface, observed full/simple endpoint classification, persisted idempotent
 tokens, one shared repair attempt, MAG profile/identity rules and watchdog.
+Before a full portal's Live `create_link`, TV awaits a best-effort
+`watchdog/get_events` with `event_active_id=0`, `cur_play_type=0`, and `init=1`
+for a new authenticated session. Later Live resolutions and the 25-second
+keepalive send `init=0`. Concurrent Live resolutions share preparation;
+authentication repair resets initialization, and disposal stops the timer.
+Simple portals and VOD/Series do not start this Live lifecycle. This matches
+Stalkinator's provider-compatibility behavior; native LG acceptance and the
+remaining first-launch failure are recorded in
+[the investigation](../development/tv-live-playback-investigation.md).
 Editing a source preserves unchanged MAC bytes; only a new or explicitly edited
 MAC is normalized. Catalog titles choose the first nonblank original name,
 name or title supplied by the portal.

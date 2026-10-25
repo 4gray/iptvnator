@@ -14,6 +14,8 @@ import { ProviderRequestError, ProviderTransport } from './transport';
 export class StalkerSession {
     private repair?: Promise<void>;
     private watchdog?: ReturnType<typeof setInterval>;
+    private livePreparation?: Promise<void>;
+    private liveInitialized = false;
     private lifetime = new AbortController();
     private auth: StalkerAuthApi;
     constructor(
@@ -134,20 +136,68 @@ export class StalkerSession {
         this.source.token = result.token;
         await this.save({ ...this.source });
         if (this.watchdog) clearInterval(this.watchdog);
-        this.watchdog = setInterval(
-            () => {
-                this.request(
-                    { type: 'stb', action: 'get_events' },
-                    this.lifetime.signal
-                ).catch(() => undefined);
-            },
-            Math.max(30, result.watchdogTimeoutSeconds ?? 120) * 1000
-        );
+        this.watchdog = undefined;
+        this.liveInitialized = false;
     }
+    private async prepareLive(signal: AbortSignal): Promise<void> {
+        if (!this.source.full) return;
+        if (!this.livePreparation) {
+            this.livePreparation = this.pingLive(
+                this.liveInitialized ? '0' : '1',
+                this.lifetime.signal
+            )
+                .then((ok) => {
+                    if (!ok || this.lifetime.signal.aborted) return;
+                    this.liveInitialized = true;
+                    if (!this.watchdog)
+                        this.watchdog = setInterval(() => {
+                            void this.prepareLive(this.lifetime.signal).catch(
+                                () => undefined
+                            );
+                        }, 25000);
+                })
+                .finally(() => {
+                    this.livePreparation = undefined;
+                });
+        }
+        await this.livePreparation;
+        if (signal.aborted || this.lifetime.signal.aborted)
+            throw new DOMException('Aborted', 'AbortError');
+    }
+    private async pingLive(
+        init: '0' | '1',
+        signal: AbortSignal
+    ): Promise<boolean> {
+        const token = this.source.token;
+        try {
+            await this.request(
+                {
+                    type: 'watchdog',
+                    action: 'get_events',
+                    event_active_id: '0',
+                    cur_play_type: '0',
+                    init,
+                },
+                signal
+            );
+            if (init === '0' && token !== this.source.token)
+                return this.pingLive('1', signal);
+            return true;
+        } catch {
+            // Compatible portals may not implement watchdog; playback remains authoritative.
+            return false;
+        }
+    }
+
     async request(
         params: Record<string, string | number>,
         signal: AbortSignal
     ): Promise<unknown> {
+        if (signal.aborted || this.lifetime.signal.aborted)
+            throw new DOMException('Aborted', 'AbortError');
+        const liveLink =
+            params.type === 'itv' && params.action === 'create_link';
+        if (liveLink) await this.prepareLive(signal);
         const failedToken = this.source.token;
         let result;
         try {
@@ -174,6 +224,7 @@ export class StalkerSession {
                 });
             await this.repair;
             if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+            if (liveLink) await this.prepareLive(signal);
             result = await this.raw(params, signal);
             if (isStalkerAuthFailureResponse(result))
                 throw new Error(
