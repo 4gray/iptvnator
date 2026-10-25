@@ -10,12 +10,14 @@ import {
     inject,
     input,
     output,
+    signal,
     untracked,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
+import { PortalDetailShellComponent } from '@iptvnator/ui/components';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     UnifiedCollectionDetailDirective,
@@ -64,13 +66,23 @@ function providerToPortalType(provider: PortalProvider): UnifiedPortalType {
 
 @Component({
     selector: 'app-global-collection-detail-host',
-    template: '',
+    imports: [PortalDetailShellComponent],
+    template: `
+        @if (isLoading()) {
+            <app-portal-detail-shell
+                [isLoading]="true"
+                [backAvailable]="false"
+            />
+        }
+    `,
+    styles: ':host { display: contents; }',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GlobalCollectionDetailHostComponent implements OnDestroy {
     readonly item = input<UnifiedCollectionItem | null>(null);
     readonly seriesResume = input<SeriesResumeTarget | null>(null);
     readonly closeRequested = output<void>();
+    readonly isLoading = signal(false);
 
     private readonly viewContainer = inject(ViewContainerRef);
     private readonly environmentInjector = inject(EnvironmentInjector);
@@ -99,6 +111,9 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
     ): Promise<void> {
         const requestId = ++this.renderRequestId;
         this.clearDetail();
+        this.isLoading.set(
+            item?.sourceType === 'xtream' || item?.sourceType === 'stalker'
+        );
 
         if (!item) {
             return;
@@ -117,6 +132,7 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
         // series, Stalker embedded-VOD / lazy is_series shows).
         componentRef.setInput('seriesResume', seriesResume);
         this.subscribeToClose(componentRef.instance);
+        this.isLoading.set(false);
     }
 
     private async loadDetailComponent(

@@ -5,6 +5,8 @@
         [ngTemplateOutlet]="detailTemplate()?.templateRef ?? null"
         [ngTemplateOutletContext]="detailContext"
     />
+} @else if (isDetailPending()) {
+    <app-portal-detail-shell [isLoading]="true" [backAvailable]="false" />
 } @else if (isLoading()) {
     <div class="collection-header">
         <span class="collection-title">{{ title() | translate }}</span>

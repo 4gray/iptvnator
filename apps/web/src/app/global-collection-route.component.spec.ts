@@ -1,6 +1,7 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, output, signal, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule } from '@ngx-translate/core';
 import {
     SeriesResumeTarget,
     UnifiedCollectionItem,
@@ -66,7 +67,7 @@ describe('GlobalCollectionDetailHostComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [WrapperComponent],
+            imports: [WrapperComponent, TranslateModule.forRoot()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(WrapperComponent);
@@ -103,6 +104,43 @@ describe('GlobalCollectionDetailHostComponent', () => {
 
         expect(queryDetail()).toBeNull();
     });
+
+    it.each(['xtream', 'stalker'] as const)(
+        'keeps the detail skeleton visible while the %s module loads',
+        async (sourceType) => {
+            const host = fixture.debugElement.query(
+                By.directive(GlobalCollectionDetailHostComponent)
+            ).componentInstance as GlobalCollectionDetailHostComponent;
+            let resolveComponent!: (component: Type<unknown>) => void;
+            jest.spyOn(
+                host as unknown as {
+                    loadDetailComponent: () => Promise<Type<unknown>>;
+                },
+                'loadDetailComponent'
+            ).mockReturnValueOnce(
+                new Promise((resolve) => (resolveComponent = resolve))
+            );
+            fixture.componentInstance.item.set({
+                ...xtreamSeriesItem,
+                sourceType,
+            });
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="hero-skeleton"]'
+                )
+            ).not.toBeNull();
+
+            resolveComponent(MockXtreamCollectionDetailComponent);
+            await stabilize();
+            expect(queryDetail()).not.toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="hero-skeleton"]'
+                )
+            ).toBeNull();
+        }
+    );
 
     it('ignores sources without a collection detail component', async () => {
         fixture.componentInstance.item.set({

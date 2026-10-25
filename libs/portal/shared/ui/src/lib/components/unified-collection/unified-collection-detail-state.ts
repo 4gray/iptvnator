@@ -29,6 +29,8 @@ export interface CollectionDetailState {
     readonly seriesResume: WritableSignal<SeriesResumeTarget | null>;
     /** Template context for the host's projected detail template. */
     readonly context: Signal<UnifiedCollectionDetailContext | null>;
+    /** A navigation handoff is waiting for collection validation. */
+    readonly isPending: Signal<boolean>;
     /** Whether this route and host can render the item's detail in place. */
     canOpen(item: UnifiedCollectionItem): boolean;
     open(
@@ -64,6 +66,9 @@ export function createCollectionDetailState(options: {
     const router = inject(Router);
     const item = signal<UnifiedCollectionItem | null>(null);
     const seriesResume = signal<SeriesResumeTarget | null>(null);
+    const pendingItem = signal(
+        getOpenCollectionDetailItemState(window.history.state)?.item ?? null
+    );
 
     const canRenderOnCurrentRoute = (
         candidate: UnifiedCollectionItem
@@ -93,6 +98,7 @@ export function createCollectionDetailState(options: {
     };
 
     const clear = (): void => {
+        pendingItem.set(null);
         item.set(null);
         seriesResume.set(null);
         options.onClear();
@@ -134,11 +140,12 @@ export function createCollectionDetailState(options: {
     });
 
     const syncFromHistory = (): void => {
-        if (options.isLoading()) return;
         const detailState = getOpenCollectionDetailItemState(
             window.history.state
         );
         const savedItem = detailState?.item;
+        pendingItem.set(savedItem ?? null);
+        if (options.isLoading()) return;
         const currentItem =
             savedItem &&
             options.items().find((row) => row.uid === savedItem.uid);
@@ -150,6 +157,7 @@ export function createCollectionDetailState(options: {
                 ? null
                 : savedItem);
 
+        pendingItem.set(null);
         if (detailItem && canOpen(detailItem)) {
             open(detailItem, detailState?.seriesResume);
             return;
@@ -168,6 +176,10 @@ export function createCollectionDetailState(options: {
     return {
         item,
         seriesResume,
+        isPending: computed(() => {
+            const pending = pendingItem();
+            return !!pending && canOpen(pending);
+        }),
         context: computed<UnifiedCollectionDetailContext | null>(() => {
             const current = item();
             if (!current) {
