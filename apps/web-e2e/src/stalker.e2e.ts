@@ -930,6 +930,9 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     const detailUrl = page.url();
     await page.keyboard.press('Escape');
     await expect(seriesToggle).toBeHidden();
+    // CDK removes its closing backdrop after the panel disappears. Until
+    // then the detail shell correctly leaves Escape to the overlay.
+    await expect(page.locator('.cdk-overlay-backdrop')).toHaveCount(0);
     await page.locator('[data-testid="series-more-menu"]').focus();
     await page.keyboard.press('Escape');
     await expect(page.locator('app-portal-detail-shell')).toHaveCount(0);
