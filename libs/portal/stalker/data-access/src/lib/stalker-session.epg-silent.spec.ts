@@ -1,7 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { DataService, PlaylistsService } from '@iptvnator/services';
-import { Playlist } from '@iptvnator/shared/interfaces';
+import {
+    Playlist,
+    CONNECTIVITY_GUARD_RESET,
+    STALKER_REQUEST,
+} from '@iptvnator/shared/interfaces';
+import { StalkerPortalDiscoveryService } from './stalker-portal-discovery.service';
 import { StalkerSessionService } from './stalker-session.service';
 
 /** Real session + auth API: token lookup is deliberately not mocked. */
@@ -110,6 +115,40 @@ describe('background Stalker EPG authentication', () => {
             expect(send).toHaveBeenCalled();
             for (const [, payload] of send.mock.calls)
                 expect(payload.silent).toBe(true);
+        }
+    );
+
+    it.each([true, false])(
+        'keeps discovery authentication on the initiating notification policy (silent=%s)',
+        async (silent) => {
+            send.mockImplementation(
+                async (
+                    event: string,
+                    payload: { params?: { action: string } }
+                ) => {
+                    if (event === CONNECTIVITY_GUARD_RESET)
+                        return { success: true };
+                    if (payload.params?.action === 'handshake')
+                        throw new Error('Authentication unavailable');
+                    return 'Authorization failed.';
+                }
+            );
+            const discovery = TestBed.inject(StalkerPortalDiscoveryService);
+            const result = await discovery.discover(
+                playlist.portalUrl ?? '',
+                playlist.macAddress ?? '',
+                {},
+                { silent }
+            );
+            expect(result.status).toBe('auth-rejected');
+            const authCalls = send.mock.calls.filter(
+                ([event, payload]) =>
+                    event === STALKER_REQUEST &&
+                    payload.params.action === 'handshake'
+            );
+            expect(authCalls.length).toBeGreaterThan(0);
+            for (const [, payload] of authCalls)
+                expect(Boolean(payload.silent)).toBe(silent);
         }
     );
 

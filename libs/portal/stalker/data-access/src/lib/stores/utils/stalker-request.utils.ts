@@ -24,7 +24,10 @@ export interface StalkerPortalRepairApi {
      * Probes and persists a proven-different configuration; null when
      * nothing may change.
      */
-    repairPortal(playlist: PlaylistMeta): Promise<PlaylistMeta | null>;
+    repairPortal(
+        playlist: PlaylistMeta,
+        options?: StalkerRequestOptions
+    ): Promise<PlaylistMeta | null>;
 }
 
 export interface StalkerRequestDeps {
@@ -197,7 +200,10 @@ export async function executeStalkerRequest<T>(
         );
 
         if (deps.portalRepair?.shouldAttemptRepair(effective, response)) {
-            const repaired = await deps.portalRepair.repairPortal(effective);
+            const repaired = await deps.portalRepair.repairPortal(
+                effective,
+                options
+            );
             if (repaired) {
                 return dispatchStalkerRequest<T>(
                     deps,
@@ -211,7 +217,10 @@ export async function executeStalkerRequest<T>(
         return response;
     } catch (error) {
         if (deps.portalRepair?.shouldAttemptRepair(effective, error)) {
-            const repaired = await deps.portalRepair.repairPortal(effective);
+            const repaired = await deps.portalRepair.repairPortal(
+                effective,
+                options
+            );
             if (repaired) {
                 return dispatchStalkerRequest<T>(
                     deps,

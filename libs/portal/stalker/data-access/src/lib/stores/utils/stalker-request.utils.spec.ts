@@ -223,6 +223,10 @@ describe('executeStalkerRequest lazy portal repair', () => {
                 { action: 'get_short_epg', type: 'itv' },
                 { silent: true }
             );
+            expect(deps.portalRepair.repairPortal).toHaveBeenCalledWith(
+                PLAYLIST,
+                { silent: true }
+            );
             expect(send).toHaveBeenCalledTimes(2);
             for (const [, payload] of send.mock.calls)
                 expect(payload.silent).toBe(true);
@@ -329,7 +333,7 @@ describe('executeStalkerRequest lazy portal repair', () => {
         await expect(
             executeStalkerRequest(deps, PLAYLIST, CATEGORY_PARAMS)
         ).rejects.toBe(notFound);
-        expect(repair.repairPortal).toHaveBeenCalledWith(PLAYLIST);
+        expect(repair.repairPortal).toHaveBeenCalledWith(PLAYLIST, {});
     });
 
     it('applies an existing override before dispatching', async () => {

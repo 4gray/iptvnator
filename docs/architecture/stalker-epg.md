@@ -301,7 +301,8 @@ EPG requests follow the standard Stalker request path:
 Both `get_epg_info` and `get_short_epg` are background work and pass
 `{ silent: true }` through `executeStalkerRequest`. Direct and authenticated
 requests, auth renewal (handshake, profile and status-2 login) and portal-repair
-retries retain that option. Authentication still coalesces by playlist/session
+retries retain that option. A repair initiated by a background guide also
+passes it through endpoint discovery and its authentication confirmation. Authentication still coalesces by playlist/session
 identity, not by presentation policy; foreground callers keep their ordinary
 notification policy when they initiate the shared token request. Electron
 and PWA transports still reject failures so bulk/short fallback logic works,
