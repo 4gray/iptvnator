@@ -103,7 +103,7 @@ contracts below before changing a subsystem; do not load every document.
   Edit only intended lines; upstream Markdown is not uniformly Prettier-clean.
 - After changing guidance, run `pnpm run agents:validate`; after editing a
   repository skill or a literal path it documents, run `pnpm run skills:validate`.
-  Keep release-cut and release-notes copies byte-identical for Codex and Claude.
+  Keep Claude skill symlinks pointing to the canonical `.agents/skills/` sources.
 - Save finalized plans only in `.plans/YYYY-MM-DD-short-topic.md`; if a filename
   exists, append `-2`, `-3`, etc. Respect active mode restrictions on file writes;
   if writing is forbidden, save the approved plan when execution starts.
@@ -126,7 +126,7 @@ contracts below before changing a subsystem; do not load every document.
 | Startup time, bundle size, journeys, ratchet baselines | [Performance journeys](docs/architecture/performance-journeys.md), [working a thread](docs/architecture/performance-journeys.md#working-a-performance-thread) |
 | Release or packaging metadata | [Release pipeline](docs/architecture/release-pipeline.md), release-cut skill |
 
-Repository skills live in `.codex/skills/`. Their frontmatter owns trigger
+Repository skills live in `.agents/skills/`. Their frontmatter owns trigger
 conditions; use the context map to locate a relevant skill. Read its linked
 contract before editing. A missing optional global skill/tool is not a blocker:
 use repository documentation and available CLI discovery.

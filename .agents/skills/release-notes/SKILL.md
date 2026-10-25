@@ -51,4 +51,4 @@ pnpm run release:notes:validate
 Full format: `.changes/README.md`. Gate policy:
 `tools/release/check-release-note-gate.mjs`.
 
-The `.codex` and `.claude` copies of this skill must remain byte-identical.
+Canonical source: `.agents/skills/`; Claude Code follows a symlink.
