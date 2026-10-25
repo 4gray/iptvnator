@@ -835,6 +835,105 @@ describe('GroupsViewComponent', () => {
         );
     });
 
+    describe('groups rail scrolling', () => {
+        const scrollToMock = (): jest.Mock =>
+            HTMLElement.prototype.scrollTo as unknown as jest.Mock;
+
+        function mockRailGeometry(rowTops: number[]): {
+            container: HTMLElement;
+            rows: HTMLElement[];
+        } {
+            const container = fixture.nativeElement.querySelector(
+                '.groups-nav-list'
+            ) as HTMLElement;
+            Object.defineProperties(container, {
+                clientHeight: { value: 400 },
+                scrollHeight: { value: 3000 },
+            });
+            container.scrollTop = 500;
+            container.getBoundingClientRect = () =>
+                new DOMRect(0, 100, 200, 400);
+            const rows = Array.from(
+                container.querySelectorAll<HTMLElement>('[data-group-key]')
+            );
+            rows.forEach((row, index) => {
+                row.getBoundingClientRect = () =>
+                    new DOMRect(0, rowTops[index] ?? 150, 200, 40);
+            });
+            return { container, rows };
+        }
+
+        it('only stops any in-flight scroll when the clicked group is already fully visible', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const { rows } = mockRailGeometry([150, 250, 350, 450]);
+            scrollToMock().mockClear();
+
+            component.selectGroup(rows[1].dataset['groupKey'] as string);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(scrollToMock()).toHaveBeenCalledWith({
+                behavior: 'instant',
+                top: 500,
+            });
+            expect(scrollToMock()).not.toHaveBeenCalledWith(
+                expect.objectContaining({ behavior: 'smooth' })
+            );
+        });
+
+        it('reveals the group again after the selection clears and returns (search with no matches, then cleared)', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const { container, rows } = mockRailGeometry([
+                150, 250, 350, 2200,
+            ]);
+            const key = rows[3].dataset['groupKey'] as string;
+            scrollToMock().mockClear();
+
+            component.selectGroup(key);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(scrollToMock()).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                top: 2420,
+            });
+
+            // A search with no matches clears the selection and the rows;
+            // the rail's scroll position collapses with them.
+            scrollToMock().mockClear();
+            component.selectedGroupKey.set(null);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            container.scrollTop = 0;
+
+            component.selectGroup(key);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(scrollToMock()).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                top: 1920,
+            });
+        });
+
+        it('centres the selected group when it is off-screen', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const { rows } = mockRailGeometry([150, 250, 350, 2200]);
+            scrollToMock().mockClear();
+
+            component.selectGroup(rows[3].dataset['groupKey'] as string);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(scrollToMock()).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                top: 2420,
+            });
+        });
+    });
+
     it('keeps the manage action visible when all groups are hidden', () => {
         setInputs({
             hiddenGroupTitles: ['Movies', 'News', 'Series', 'Sports'],

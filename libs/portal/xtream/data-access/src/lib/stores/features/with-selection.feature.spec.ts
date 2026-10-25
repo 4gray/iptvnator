@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     CATALOG_INITIAL_WINDOW,
     CATALOG_WINDOW_CHUNK,
@@ -167,7 +168,16 @@ describe('withSelection', () => {
 
     beforeEach(() => {
         TestBed.configureTestingModule({
-            providers: [TestSelectionStore],
+            providers: [
+                TestSelectionStore,
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: {
+                        isElectron: true,
+                        supportsXtreamSqliteDataSource: true,
+                    },
+                },
+            ],
         });
 
         store = TestBed.inject(TestSelectionStore);

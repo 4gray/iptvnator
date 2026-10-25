@@ -121,6 +121,16 @@
             }
         },
         "playback": {
+            "renderer.domMutationsToPlaying": {
+                "value": 733,
+                "unit": "mutations",
+                "slack": 20,
+                "autoTighten": false,
+                "updatedAt": "2026-10-13",
+                "evidencePr": 1817,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38311314484",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb); 731-736 across runs since #1817, +17 (up to 753) when a fifth bridge call lands before playing"
+            },
             "renderer.httpRequestsToPlaying": {
                 "value": 2,
                 "unit": "requests",

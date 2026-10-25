@@ -129,6 +129,7 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
         );
         hasItvEpgMappingOverride.mockReset();
         hasItvEpgMappingOverride.mockReturnValue(false);
+        store.ensureBulkItvEpg.mockClear();
         await TestBed.configureTestingModule({
             imports: [StalkerLiveStreamLayoutComponent],
             providers: [
@@ -136,7 +137,8 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        supportsEpg: true,
+                        // Provider EPG only, no XMLTV flag — as in the PWA.
+                        supportsProviderEpg: true,
                         isElectron: true,
                         supportsEpgMapping: false,
                     },
@@ -196,6 +198,15 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
     });
 
     afterEach(() => fixture.destroy());
+
+    it('loads the bulk guide from provider EPG alone, as in the browser PWA', async () => {
+        for (let i = 0; i < 3; i += 1) {
+            fixture.detectChanges();
+            await fixture.whenStable();
+        }
+
+        expect(store.ensureBulkItvEpg).toHaveBeenCalledWith(168);
+    });
 
     it('drops the previous channel fallback from the panel as soon as the selection moves', async () => {
         await component.playChannel(channels[0]);

@@ -41,6 +41,22 @@ async function waitUntilShown(app: UnautomatedElectronApp): Promise<void> {
             { timeout: 30_000 }
         )
         .toBe(true);
+    if (process.platform === 'darwin') {
+        // isVisible() and the initial document state can become true before
+        // Cocoa finishes activating the first window. Wait for native focus
+        // before testing hide/minimize; macOS also treats occlusion as hidden.
+        await app.evaluateInMain(`
+            electron.app.focus({ steal: true });
+            electron.BrowserWindow.getAllWindows()[0].focus();
+        `);
+        await expect
+            .poll(() =>
+                app.evaluateInMain<boolean>(
+                    'return electron.BrowserWindow.getAllWindows()[0].isFocused();'
+                )
+            )
+            .toBe(true);
+    }
     await expect.poll(() => visibility(app)).toBe('visible');
 }
 

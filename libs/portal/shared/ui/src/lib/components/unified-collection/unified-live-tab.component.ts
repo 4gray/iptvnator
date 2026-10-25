@@ -126,6 +126,10 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
 
     readonly supportsEpg = this.runtime.supportsEpg;
+    private readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
+    /** Some row can carry a programme: XMLTV for M3U, the portal guide otherwise. */
+    protected readonly supportsAnyEpg =
+        this.supportsEpg || this.supportsProviderEpg;
 
     private readonly fullscreenChannelPanelTemplate = viewChild<
         TemplateRef<FullscreenChannelPanelContext>
@@ -173,6 +177,14 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly openInPlaylistTarget = this.view.openInPlaylistTarget;
     readonly openInPlaylistName = this.view.openInPlaylistName;
     readonly playbackSessionKey = this.view.playbackSessionKey;
+    /** M3U selections need XMLTV; Xtream and Stalker ones read the portal guide. */
+    readonly showsEpgPanel = computed(
+        () =>
+            !this.isRadioSelection() &&
+            (this.view.isM3uSelection()
+                ? this.supportsEpg
+                : this.supportsProviderEpg)
+    );
 
     private readonly catchup = createUnifiedLiveCatchup({
         activeTimeshift: this.activeTimeshift,
@@ -218,7 +230,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly recordingMetadata = this.recording.metadata;
 
     private readonly epgPrograms = createUnifiedLiveEpgMap({
-        supportsEpg: this.supportsEpg,
+        supportsEpg: this.supportsAnyEpg,
         items: this.items,
         offsetMinutes: this.epgView.offsetMinutes,
     });
@@ -232,6 +244,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         isSelecting: this.isSelecting,
         generation: this.generation,
         supportsEpg: this.supportsEpg,
+        supportsProviderEpg: this.supportsProviderEpg,
         isRadioDetail: (detail) => this.view.isRadioDetail(detail),
         shouldOpenExternalPlayback: (detail, startPlayback) =>
             this.view.shouldOpenExternalPlayback(detail, startPlayback),
@@ -252,7 +265,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     constructor() {
         effect(() => {
             const items = this.items();
-            if (this.supportsEpg) {
+            if (this.supportsAnyEpg) {
                 this.epgPrograms.load(items);
             } else {
                 this.epgPrograms.clear();

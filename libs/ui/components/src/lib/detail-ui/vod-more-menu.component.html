@@ -40,7 +40,7 @@
         (keydown)="onMenuKeydown($event)"
     >
         @if (view() === 'menu') {
-            @for (section of sections(); track $index) {
+            @for (section of menuSections(); track $index) {
                 @if (section.items.length) {
                     @if ($index > 0) {
                         <hr class="more-menu__divider" aria-hidden="true" />
@@ -70,7 +70,9 @@
                             <span class="more-menu__label">{{
                                 item.labelKey | translate: item.labelParams
                             }}</span>
-                            @if (item.hint !== null && item.hint !== undefined) {
+                            @if (
+                                item.hint !== null && item.hint !== undefined
+                            ) {
                                 <span class="more-menu__hint">{{
                                     item.hint
                                 }}</span>

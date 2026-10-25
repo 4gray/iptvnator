@@ -457,6 +457,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 },
                 categoryType
             );
@@ -1148,6 +1149,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             serverUrl: playlist.serverUrl,
             username: playlist.username,
             password: playlist.password,
+            userAgent: playlist.userAgent?.trim() || undefined,
         };
 
         await Promise.all(

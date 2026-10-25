@@ -322,6 +322,8 @@ pnpm run perf:initial-bytes         # breakdown only
 pnpm run perf:initial-bytes:check   # measure, then compare with the committed baseline
 pnpm nx test performance-tools
 pnpm run perf:journeys              # J1 launch, J2 open-source and J3 playback journeys, one dist/performance/journeys/<timestamp>/summary.json
+pnpm nx run electron-backend-e2e:journeys-large-library   # J1 on the large-library profile (launch-large); skipped by perf:journeys unless IPTVNATOR_JOURNEY_LARGE_LIBRARY=1
+pnpm nx run electron-backend-e2e:large-library-profile    # build or find that profile (cached by content hash under node_modules/.cache)
 pnpm run perf:compositing           # tile memory and composited layers per route, dist/performance/compositing/<timestamp>/summary.json
 ```
 
@@ -334,7 +336,7 @@ target `master` and for `master` pushes (dispatch it with
 `gh workflow run ci.yml --ref <branch>` for a stacked branch). The
 `Performance journeys` job checks the journey counters listed with `--only`
 in its `Check the journey counters against the baselines` step against the
-same file (warn-only); a new journey baseline
+same file and fails the workflow on a regression; a new journey baseline
 must be added to that list too, which `pnpm nx test performance-tools`
 checks. The weekly
 `performance-ratchet.yml` workflow lowers baselines through a bot PR; validate
@@ -344,7 +346,12 @@ on `master`; before that, see the temporary-trigger note under Weekly
 tightening in the performance journeys document. `perf:journeys` builds the `electron-performance` configuration and runs every
 journey spec against the Xtream mock: J1 launch, then J2 open-source (a
 second set of launches, each followed by the click on the portal card), both
-written to the same summary file; its probe specs run with
+written to the same summary file. The large-library variant of J1
+(`launch-large`, a generated profile of 182 sources and 2.4M catalog rows)
+skips itself unless `IPTVNATOR_JOURNEY_LARGE_LIBRARY=1`, which the
+`journeys-large-library` target sets and the weekly `performance-ratchet.yml`
+passes through the composite action; pull-request CI does not run it (see
+"CI cost" in the journeys document). Its probe specs run with
 `pnpm nx run electron-backend-e2e:test-performance-harness`, which CI runs in
 the `Unit Tests and Typechecks` job of `ci.yml` on every run. `tsx` runs them
 without type checking; `pnpm run typecheck:spec electron-backend-e2e` checks
@@ -391,7 +398,7 @@ not app unit/E2E. Tooling validation still requires its own focused tests.
 
 `pnpm run agents:validate` checks root instruction budgets/imports and guidance
 navigation links/anchors. `pnpm run skills:validate` checks skill frontmatter,
-length, paths and release mirrors. Both tooling suites run through
+length, paths, required release skills and Claude symlinks. Both tooling suites run through
 `pnpm nx test repository-skills`; syntax checks use
 `pnpm nx lint repository-skills`. The CI guidance check runs regardless of the
 Nx affected set. Semantic preservation of moved contracts is a review task;

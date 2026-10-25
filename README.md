@@ -68,7 +68,7 @@ The application is a cross-platform, open-source project built with Electron and
 - Cross-platform desktop (Electron) and installable PWA
 - Desktop auto-updater and mobile remote control _(desktop)_
 - Docker self-hosting for the PWA + web backend
-- 19 languages ([translation files](apps/web/src/assets/i18n/)), light & dark themes, and keyboard shortcuts
+- 20 languages ([translation files](apps/web/src/assets/i18n/)), light & dark themes, and keyboard shortcuts
 
 ## Keyboard shortcuts
 
@@ -426,6 +426,7 @@ The name **"IPTVnator"** and the IPTVnator logo are unregistered trademarks of t
 
 Start with the [task context map](docs/maintenance/agent-context-map.md) to find
 the authoritative contract and validation for your area. Common agent rules are
-in [AGENTS.md](AGENTS.md); Claude Code imports that same file. Development and
+in [AGENTS.md](AGENTS.md); Claude Code reads that same file directly (see
+[Claude Code setup](docs/development/agent-workflow.md#claude-code)). Development and
 documentation-maintenance conventions live in the
 [agent workflow](docs/development/agent-workflow.md).

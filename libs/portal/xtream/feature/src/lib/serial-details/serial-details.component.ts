@@ -29,7 +29,6 @@ import {
     SeasonContainerSeasonPlaybackToggleRequest,
     SeasonContainerSeriesPlaybackToggleRequest,
     SimilarRailComponent,
-    ViewInPortalActionComponent,
     VodMoreMenuComponent,
     readSavedEpisodeViewMode,
     scrollToCastCrewRow,
@@ -108,7 +107,6 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         SeasonContainerComponent,
         SimilarRailComponent,
         TranslatePipe,
-        ViewInPortalActionComponent,
         VodMoreMenuComponent,
     ],
 })

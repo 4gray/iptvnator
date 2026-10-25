@@ -43,7 +43,10 @@ function buildProgram(
 }
 
 interface TestStoreSetup {
+    userAgent?: string;
     appEnvironment?: 'electron' | 'pwa';
+    /** Portal transport present (default true, as in both runtimes). */
+    providerEpg?: boolean;
     selectedItem: { xtream_id: number; epg_channel_id?: string | null };
     preferUploaded?: boolean;
     epgOffsetMinutes?: number;
@@ -52,7 +55,7 @@ interface TestStoreSetup {
 function configureStore(setup: TestStoreSetup) {
     const TestEpgStore = signalStore(
         withState({
-            currentPlaylist: PLAYLIST,
+            currentPlaylist: { ...PLAYLIST, userAgent: setup.userAgent },
             selectedItem: setup.selectedItem,
         }),
         withEpg()
@@ -82,9 +85,10 @@ function configureStore(setup: TestStoreSetup) {
             {
                 provide: RuntimeCapabilitiesService,
                 useValue: {
-                    get supportsEpg() {
-                        return (setup.appEnvironment ?? 'electron') !== 'pwa';
-                    },
+                    // XMLTV exists only on the desktop; the portal transport
+                    // exists in both runtimes unless a test removes it.
+                    supportsEpg: (setup.appEnvironment ?? 'electron') !== 'pwa',
+                    supportsProviderEpg: setup.providerEpg ?? true,
                 },
             },
             { provide: XtreamApiService, useValue: xtreamApiService },
@@ -102,6 +106,37 @@ function configureStore(setup: TestStoreSetup) {
 
 describe('withEpg', () => {
     afterEach(() => TestBed.resetTestingModule());
+
+    it('forwards the playlist User-Agent for selected and row guides', async () => {
+        const { store, xtreamApiService } = configureStore({
+            selectedItem: { xtream_id: 101 },
+            userAgent:
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        });
+        xtreamApiService.getFullEpg.mockResolvedValue([]);
+        xtreamApiService.getShortEpg.mockResolvedValue([]);
+
+        await store.loadEpg();
+        await store.loadChannelEpg(102);
+
+        expect(xtreamApiService.getFullEpg).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            }),
+            101,
+            { suppressErrorLog: true }
+        );
+        expect(xtreamApiService.getShortEpg).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            }),
+            102,
+            1,
+            { suppressErrorLog: true }
+        );
+    });
 
     it('selects the current program in the provider clock when a display offset is set', async () => {
         const { store, xtreamApiService } = configureStore({
@@ -184,15 +219,61 @@ describe('withEpg', () => {
         expect(fallbackService.getProgramsForChannel).not.toHaveBeenCalled();
     });
 
-    it('does not load Xtream or XMLTV EPG in browser/PWA mode', async () => {
+    it('loads the Xtream provider guide in browser/PWA mode without XMLTV', async () => {
         const { store, xtreamApiService, fallbackService } = configureStore({
             appEnvironment: 'pwa',
             selectedItem: { xtream_id: 101, epg_channel_id: 'rtl.de' },
         });
+        const now = Math.floor(Date.now() / 1000);
+        const programs = [buildProgram('Provider Show', now - 600, now + 600)];
+        xtreamApiService.getFullEpg.mockResolvedValue(programs);
 
         const result = await store.loadEpg();
 
+        expect(xtreamApiService.getFullEpg).toHaveBeenCalledWith(
+            {
+                serverUrl: 'http://demo.example',
+                username: 'demo',
+                password: 'secret',
+            },
+            101,
+            { suppressErrorLog: true }
+        );
+        expect(fallbackService.getProgramsForChannel).not.toHaveBeenCalled();
+        expect(result).toEqual(programs);
+        expect(store.currentEpgItem()).toEqual(programs[0]);
+        expect(store.isLoadingEpg()).toBe(false);
+    });
+
+    it('loads a channel preview from get_short_epg in browser/PWA mode', async () => {
+        const { store, xtreamApiService } = configureStore({
+            appEnvironment: 'pwa',
+            selectedItem: { xtream_id: 101 },
+        });
+        const now = Math.floor(Date.now() / 1000);
+        const preview = [buildProgram('Preview Show', now - 60, now + 60)];
+        xtreamApiService.getShortEpg.mockResolvedValue(preview);
+
+        await expect(store.loadChannelEpg(202, null)).resolves.toEqual(preview);
+        expect(xtreamApiService.getShortEpg).toHaveBeenCalledWith(
+            expect.objectContaining({ serverUrl: 'http://demo.example' }),
+            202,
+            1,
+            { suppressErrorLog: true }
+        );
+    });
+
+    it('loads no EPG at all without a portal transport', async () => {
+        const { store, xtreamApiService, fallbackService } = configureStore({
+            providerEpg: false,
+            selectedItem: { xtream_id: 101, epg_channel_id: 'rtl.de' },
+        });
+
+        const result = await store.loadEpg();
+        const preview = await store.loadChannelEpg(101, 'rtl.de');
+
         expect(result).toEqual([]);
+        expect(preview).toEqual([]);
         expect(store.epgItems()).toEqual([]);
         expect(store.isLoadingEpg()).toBe(false);
         expect(xtreamApiService.getFullEpg).not.toHaveBeenCalled();

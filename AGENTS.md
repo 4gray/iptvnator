@@ -61,6 +61,27 @@ contracts below before changing a subsystem; do not load every document.
   are clean. CI and the GitHub review bots confirm a branch; they are not its
   first reviewer.
 
+## Performance threads
+
+- A journey thread targets one journey and one counter from the
+  [performance journeys contract](docs/architecture/performance-journeys.md);
+  name both in the PR. Performance work outside the journeys (compositing
+  budget, charset benchmark) follows its own section of that contract.
+  Reproduce with the matching benchmark before changing code, and put the
+  before/after table in the PR description.
+- Deterministic counters are the guardrail; wall-clock is evidence. Baselines in
+  `tools/performance/journey-baselines.json` move down with the Linux CI
+  runner's output as evidence; a deliberate increase needs the runner's value,
+  a `note` and the maintainer's `perf-baseline-increase` label
+  ([Ratchet](docs/architecture/performance-journeys.md#ratchet)). Never change
+  a probe or a journey to make a number pass.
+- Put user-visible performance changes behind a kill switch and remove it
+  within two releases. UX trade-offs and ratchet tolerances are maintainer
+  decisions: show the change and ask instead of deciding.
+- When a counter stops moving, say so and propose the next bottleneck. Working
+  rules and measurement hygiene:
+  [working a performance thread](docs/architecture/performance-journeys.md#working-a-performance-thread).
+
 ## Keep guidance small and canonical
 
 - Update the affected subsystem's canonical document after meaningful changes.
@@ -68,20 +89,21 @@ contracts below before changing a subsystem; do not load every document.
   README and detailed contracts in architecture docs or a module README.
 - Add to this file only repository-wide rules and navigation. Implementation
   details, incident history and multi-step procedures belong in linked docs.
-  Do not duplicate subsystem contracts here or in CLAUDE.md.
-- `AGENTS.md` is the single source of common rules. `CLAUDE.md` imports it and
-  contains only Claude-specific guidance. Limits: 200 lines / 16 KiB here,
-  30 lines / 2 KiB for CLAUDE.md. Do not raise loading limits to fit more prose.
+  Do not duplicate subsystem contracts here.
+- `AGENTS.md` is the single source of common rules for all agents, including
+  Claude Code. Limit: 200 lines / 16 KiB. Do not raise loading limits to fit
+  more prose. Claude Code setup is in the
+  [agent workflow](docs/development/agent-workflow.md#claude-code).
 - Read the [context map](docs/maintenance/agent-context-map.md) when ownership
   is unclear. Read each affected domain for cross-domain tasks, not the whole map's documents.
 - Preserve exceptions and rationale when moving knowledge. Correct stale facts
   against code; do not silently discard a contract. Maintenance details are in
   the [agent workflow](docs/development/agent-workflow.md).
-- Never run whole-file `prettier --write` on AGENTS.md, CLAUDE.md or `docs/**`.
+- Never run whole-file `prettier --write` on AGENTS.md or `docs/**`.
   Edit only intended lines; upstream Markdown is not uniformly Prettier-clean.
 - After changing guidance, run `pnpm run agents:validate`; after editing a
   repository skill or a literal path it documents, run `pnpm run skills:validate`.
-  Keep release-cut and release-notes copies byte-identical for Codex and Claude.
+  Keep Claude skill symlinks pointing to the canonical `.agents/skills/` sources.
 - Save finalized plans only in `.plans/YYYY-MM-DD-short-topic.md`; if a filename
   exists, append `-2`, `-3`, etc. Respect active mode restrictions on file writes;
   if writing is forbidden, save the approved plan when execution starts.
@@ -101,9 +123,10 @@ contracts below before changing a subsystem; do not load every document.
 | UI, keyboard, detail navigation, remote control | [UI guidelines](docs/architecture/iptvnator-ui-guidelines.md), then matching topic in context map |
 | PWA, backend networking, connectivity guard | [PWA contract](docs/architecture/pwa-self-hosted.md), [host connectivity](docs/architecture/host-connectivity-guard.md) |
 | Downloads, TMDB, multi-source, workspace, backup, website | [Context map](docs/maintenance/agent-context-map.md) |
+| Startup time, bundle size, journeys, ratchet baselines | [Performance journeys](docs/architecture/performance-journeys.md), [working a thread](docs/architecture/performance-journeys.md#working-a-performance-thread) |
 | Release or packaging metadata | [Release pipeline](docs/architecture/release-pipeline.md), release-cut skill |
 
-Repository skills live in `.codex/skills/`. Their frontmatter owns trigger
+Repository skills live in `.agents/skills/`. Their frontmatter owns trigger
 conditions; use the context map to locate a relevant skill. Read its linked
 contract before editing. A missing optional global skill/tool is not a blocker:
 use repository documentation and available CLI discovery.

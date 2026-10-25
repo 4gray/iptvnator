@@ -29,6 +29,7 @@ import {
     ChannelListSkeletonComponent,
     MenuItemRadioCheckDirective,
     MenuItemRadioDirective,
+    PortalDetailShellComponent,
 } from '@iptvnator/ui/components';
 import {
     clearNavigationStateKeys,
@@ -71,6 +72,7 @@ import {
 import { createCollectionModeLabels } from './unified-collection-labels';
 import { setupCollectionLoad } from './unified-collection-load';
 import { createCollectionScopeState } from './unified-collection-scope';
+import { collectionSkeletonShowsEpg } from './unified-collection-skeleton';
 import { UnifiedCollectionDetailDirective } from './unified-collection-detail.directive';
 
 @Component({
@@ -91,6 +93,7 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
         MatTooltip,
         MenuItemRadioCheckDirective,
         MenuItemRadioDirective,
+        PortalDetailShellComponent,
         TranslatePipe,
         UnifiedGridTabComponent,
         UnifiedLiveTabComponent,
@@ -134,7 +137,6 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly showReloadIndicator = this.data.showReloadIndicator;
     readonly allItems = this.data.allItems;
     readonly favoriteUidSet = this.data.favoriteUidSet;
-    readonly supportsEpg = this.runtime.supportsEpg;
     readonly skeletonRows = Array.from({ length: 12 }, (_, i) => i);
     readonly skeletonCards = Array.from({ length: 8 }, (_, i) => i);
     readonly pendingAutoOpenLiveItem = signal(
@@ -166,6 +168,13 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly scope = this.scopeState.scope;
     readonly showScopeToggle = this.scopeState.showToggle;
     readonly effectiveScope = this.scopeState.effective;
+    /** Skeleton rows reserve the programme line like the rows they stand for. */
+    readonly skeletonShowsEpg = computed(() =>
+        collectionSkeletonShowsEpg(this.portalType(), this.effectiveScope(), {
+            xmltv: this.runtime.supportsEpg,
+            provider: this.runtime.supportsProviderEpg,
+        })
+    );
     /**
      * Scope of the rows on screen. Every action on them (Clear, drag
      * reorder) uses this instead of `effectiveScope()`, which already names
@@ -246,6 +255,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly selectedDetailItem = this.detailState.item;
     readonly selectedDetailSeriesResume = this.detailState.seriesResume;
     readonly detailContext = this.detailState.context;
+    readonly isDetailPending = this.detailState.isPending;
 
     constructor() {
         setupClearCollectionViewCommand({

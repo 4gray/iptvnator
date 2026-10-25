@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import {
     getGlobalFavoriteNavigation,
+    OPEN_COLLECTION_DETAIL_STATE_KEY,
     ScopeToggleService,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
@@ -13,6 +14,57 @@ import { createCollectionScopeState } from './unified-collection-scope';
 
 describe('dashboard favorite detail handoff', () => {
     afterEach(() => window.history.replaceState({}, document.title));
+
+    it('clears pending presentation on Back and rejects a removed favorite after loading', () => {
+        const saved: UnifiedCollectionItem = {
+            uid: 'xtream::source::movie:77',
+            name: 'Removed favorite',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'source',
+            playlistName: 'Source',
+            favoriteId: 11,
+            xtreamId: 77,
+        };
+        const historyState = {
+            [OPEN_COLLECTION_DETAIL_STATE_KEY]: { item: saved },
+        };
+        window.history.replaceState(historyState, document.title);
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: Router,
+                    useValue: { url: '/workspace/global-favorites' },
+                },
+            ],
+        });
+        const isLoading = signal(true);
+        const detail = TestBed.runInInjectionContext(() =>
+            createCollectionDetailState({
+                mode: signal('favorites'),
+                items: signal([]),
+                isLoading,
+                portalType: signal(undefined),
+                detailTemplate: signal({}),
+                onOpen: jest.fn(),
+                onClear: jest.fn(),
+            })
+        );
+        expect(detail.isPending()).toBe(true);
+        expect(detail.item()).toBeNull();
+
+        window.history.replaceState({}, document.title);
+        detail.syncFromHistory();
+        expect(detail.isPending()).toBe(false);
+
+        window.history.replaceState(historyState, document.title);
+        detail.syncFromHistory();
+        expect(detail.isPending()).toBe(true);
+        isLoading.set(false);
+        detail.syncFromHistory();
+        expect(detail.isPending()).toBe(false);
+        expect(detail.item()).toBeNull();
+    });
 
     it.each(['movie', 'series'] as const)(
         'validates a %s from another playlist against the global collection',

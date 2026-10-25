@@ -172,8 +172,13 @@ when the provider's year is off by one.
 the _request_ language, so a Cyrillic query issued with `en-US` would come
 back with an English title and fail the exact-match gate.
 `tmdbSearchLanguageForTitle` detects Cyrillic queries and issues the search
-with `ru-RU` (unless the app language is already Cyrillic-based); details
-are still fetched in the app language afterwards.
+with `ru-RU` unless the app language is Russian (`ru-RU`), Belarusian
+(`be-BY`), or Ukrainian (`uk-UA`), in which case it keeps that language.
+Details are still fetched in the app language afterwards.
+For mixed catalogs, a Cyrillic search that has no confident Ukrainian match
+retries in Russian. Each language keeps its own cached verdict; a cached
+Ukrainian miss still permits the Russian lookup. Transient API errors do not
+trigger a retry in another language.
 
 ## Details Fetch and Localization
 

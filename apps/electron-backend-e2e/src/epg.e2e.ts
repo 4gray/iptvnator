@@ -573,13 +573,21 @@ test.describe('Electron EPG', () => {
             );
             await expect(complete).toHaveCount(2);
             expect(await getEpgChannelCount(app.mainWindow)).toBe(2);
+            await observeStagedChannels(app.mainWindow);
             refreshing = true;
             await app.mainWindow
                 .getByRole('button', { name: 'Refresh all', exact: true })
                 .click();
             await expect
-                .poll(() => getEpgChannelCount(app.mainWindow))
-                .toBe(101);
+                .poll(() => stagedChannelCount(app.mainWindow))
+                .toBe(100);
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(2);
+            const previousPrograms = await app.mainWindow.evaluate(() =>
+                window.electron.getChannelPrograms('first')
+            );
+            expect(previousPrograms.map((program) => program.title)).toEqual([
+                'Initial first Bulletin',
+            ]);
             expect(
                 requests.filter((source) => source === 'second')
             ).toHaveLength(0);
@@ -653,6 +661,7 @@ test.describe('Electron EPG', () => {
         const app = await launchElectronApp(dataDir);
         let fetch: Promise<unknown> | undefined;
         try {
+            await observeStagedChannels(app.mainWindow);
             fetch = app.mainWindow.evaluate(
                 (urls) => window.electron.fetchEpg(urls),
                 [`${origin}/active.xml`, `${origin}/queued.xml`]
@@ -661,10 +670,11 @@ test.describe('Electron EPG', () => {
             // is still awaited below so a transport failure cannot pass.
             void fetch.catch(() => undefined);
             await expect
-                .poll(() => getEpgChannelCount(app.mainWindow), {
+                .poll(() => stagedChannelCount(app.mainWindow), {
                     timeout: 30000,
                 })
                 .toBe(100);
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(0);
             const cleared = await app.mainWindow.evaluate(() =>
                 window.electron.clearEpgData()
             );
@@ -1238,4 +1248,24 @@ async function getEpgChannelCount(page: Page): Promise<number> {
         const result = await window.electron?.getEpgChannels?.();
         return Array.isArray(result?.channels) ? result.channels.length : 0;
     });
+}
+
+// Progress confirms a real staging batch without exposing unpublished channels.
+async function observeStagedChannels(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        document.documentElement.dataset['stagedChannels'] = '0';
+        window.electron.onEpgProgress?.((progress) => {
+            if (progress.status === 'loading' && progress.stats) {
+                document.documentElement.dataset['stagedChannels'] = String(
+                    progress.stats.totalChannels
+                );
+            }
+        });
+    });
+}
+
+async function stagedChannelCount(page: Page): Promise<number> {
+    return page.evaluate(() =>
+        Number(document.documentElement.dataset['stagedChannels'] ?? 0)
+    );
 }
