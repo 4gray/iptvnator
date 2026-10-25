@@ -283,6 +283,7 @@ export class WebPlayerViewComponent implements OnDestroy {
             this.externalFallbackRequested.emit(request),
     });
     readonly playbackDiagnostic = this.recovery.playbackDiagnostic;
+    readonly autoRetryAttempt = this.recovery.autoRetryAttempt;
     readonly visiblePlaybackDiagnostic =
         this.recovery.visiblePlaybackDiagnostic;
     readonly recommendations = this.recovery.recommendations;
@@ -374,6 +375,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.recovery.destroy();
         this.liveAutoFormat.destroy();
         this.externalRecovery.destroy();
         this.applicationHandoff.destroy();
@@ -394,8 +396,10 @@ export class WebPlayerViewComponent implements OnDestroy {
                 this.playbackApplicationToken()
             ) &&
             !this.liveAutoFormat.pending()
-        )
+        ) {
+            this.recovery.playbackStarted();
             this.liveAutoFormat.started();
+        }
     }
 
     handleTimeUpdate(
