@@ -10,8 +10,13 @@ function visibleChannels() {
 export const categoryKey = (id: string) => `live-category:${id}`;
 export function useLiveBrowse(tv: TvModel) {
     const [categoriesOpen, setCategoriesOpen] = useState(true);
+    const source = useRef(tv.data.activeId);
     const categories = useRef(tv.catalog.categories);
-    if (tv.route.view === 'live' && tv.catalog.categories.length)
+    if (
+        source.current === tv.data.activeId &&
+        tv.route.view === 'live' &&
+        tv.catalog.categories.length
+    )
         categories.current = tv.catalog.categories;
     const categoryScroll = useRef(0);
     const returning = useRef(false);
@@ -37,14 +42,21 @@ export function useLiveBrowse(tv: TvModel) {
             page: 0,
         });
     }
-    useEffect(() => {
-        if (tv.route.view !== 'live') {
+    useLayoutEffect(() => {
+        const changed = source.current !== tv.data.activeId;
+        source.current = tv.data.activeId;
+        if (changed || tv.route.view !== 'live') {
             setCategoriesOpen(true);
             categories.current = [];
             categoryScroll.current = 0;
             channel.current = { key: '', scroll: 0 };
             setChannelScroll(0);
             pending.current = null;
+            returning.current = false;
+            if (changed && tv.route.view === 'live') {
+                tv.setRoute({ ...tv.route, category: '', query: '', page: 0 });
+                restoreFocus(categoryKey(''));
+            }
         }
     }, [tv.data.activeId, tv.route.view]);
     function choose(id: string) {

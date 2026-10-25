@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { beforeEach, test } from 'node:test';
 import { createProvider, ProviderTransport } from '@iptvnator/tv/data-access';
 import { Media, Source } from '@iptvnator/tv/util';
 
@@ -20,11 +20,12 @@ const channel = (id: string): Media => ({
     title: `Channel ${id}`,
     raw: {},
 });
+beforeEach((context) => context.mock.method(Date, 'now', () => 150_000));
 const programme = (name: string) => ({
     name,
     descr: 'Description',
-    start_timestamp: '100',
-    stop_timestamp: '200',
+    start_timestamp: String(Date.now() / 1000 - 60),
+    stop_timestamp: String(Date.now() / 1000 + 60),
 });
 const bulk = (name: string) => ({ js: { data: { a: [programme(name)] } } });
 const signal = () => new AbortController().signal;
@@ -79,8 +80,8 @@ test('concurrent grid and preview share bulk; cancelling preview keeps grid requ
             {
                 title: 'Shared',
                 description: 'Description',
-                start: 100_000,
-                end: 200_000,
+                start: 90_000,
+                end: 210_000,
             },
         ]);
         await client.epg(channel('a'), signal());
@@ -235,6 +236,87 @@ test('an already cancelled EPG request never starts bulk or fallback', async () 
         owner.abort();
         await assert.rejects(client.epg(channel('a'), owner.signal), aborted);
         assert.equal(transport.calls.length, 0);
+    } finally {
+        client.dispose();
+    }
+});
+
+for (const kind of ['invalid', 'expired', 'future'] as const) {
+    test(`${kind} bulk EPG falls back to the current short programme and preserves valid bulk entries`, async () => {
+        const entry = {
+            ...programme('Bulk'),
+            start_timestamp:
+                kind === 'invalid' ? 'bad' : kind === 'expired' ? '10' : '300',
+            stop_timestamp:
+                kind === 'invalid' ? 'bad' : kind === 'expired' ? '20' : '400',
+        };
+        const transport = new Transport((params) =>
+            params.action === 'get_epg_info'
+                ? { js: { data: { a: [entry] } } }
+                : {
+                      js: [
+                          programme('Current'),
+                          { ...entry, name: 'Duplicate bulk start' },
+                      ],
+                  }
+        );
+        const client = provider(transport);
+        try {
+            const programs = await client.epg(channel('a'), signal());
+            assert.ok(
+                programs.some(
+                    (p) =>
+                        p.title === 'Current' &&
+                        p.start <= Date.now() &&
+                        p.end > Date.now()
+                )
+            );
+            assert.equal(
+                programs.some((p) => p.title === 'Bulk'),
+                kind !== 'invalid'
+            );
+            assert.equal(
+                programs.some((p) => p.title === 'Duplicate bulk start'),
+                false
+            );
+            assert.deepEqual(
+                transport.calls.map((c) => c.action),
+                ['get_epg_info', 'get_short_epg']
+            );
+        } finally {
+            client.dispose();
+        }
+    });
+}
+
+test('a failed short fallback retains a valid future bulk guide', async () => {
+    const transport = new Transport((params) => {
+        if (params.action === 'get_epg_info')
+            return {
+                js: {
+                    data: {
+                        a: [
+                            {
+                                ...programme('Future'),
+                                start_timestamp: '300',
+                                stop_timestamp: '400',
+                            },
+                        ],
+                    },
+                },
+            };
+        throw new Error('Short guide unavailable');
+    });
+    const client = provider(transport);
+    try {
+        assert.equal(
+            (await client.epg(channel('a'), signal()))[0].title,
+            'Future'
+        );
+        assert.deepEqual(
+            transport.calls.map((c) => c.action),
+            ['get_epg_info', 'get_short_epg']
+        );
     } finally {
         client.dispose();
     }

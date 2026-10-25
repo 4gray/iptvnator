@@ -35,14 +35,14 @@ directory migration. Frozen dependencies were reinstalled after the merge.
 
 ## Local checks
 
-Node 22.23.2 / pnpm 10.33.0. TV unit tests: 67 passed, including storage-read
+Node 22.23.2 / pnpm 10.33.0. TV unit tests: 71 passed, including storage-read
 protection, bounded target repair and progress-save retry after player teardown.
 The read-protection regression failed against the old repository implementation.
 Web backend: 237 tests passed. Related provider/shared/EPG unit suites and web and
 Electron TypeScript checks pass.
 
-The complete TV browser suite passes 82 scenarios across M3U, Xtream and Stalker,
-including six recovery/onboarding scenarios and five review regressions. These run against the real local
+The complete TV browser suite passes 83 scenarios across M3U, Xtream and Stalker,
+including six recovery/onboarding scenarios and six review regressions. These run against the real local
 backend and mock providers, with synthetic media in modern Chromium. They do not
 certify webOS decoding or physical remote behavior.
 The separately invoked phone-setup split target passes all eight scenarios,
@@ -79,7 +79,7 @@ of this validation. Local evidence is held outside tracked source under
 `/tmp/iptvnator-tv-*.log`; the build artifact is
 `dist/tv-package/com.iptvnator.tv.prototype_0.1.12_all.ipk`.
 
-IPK SHA-256: `af3a4a089c8d6ef57efc183a54901d181bc4c8bcacf4aa5d8690b708b8cba703`.
+IPK SHA-256: `dd2d2d72e98eebbfb4e0195494d0e28bc2096f2ea915b8d64b7b8a96ca344bde`.
 The local Greptile CLI is unavailable; no installation or account setup was
 attempted. Codex round 1 reviewed `aa8e09b7e` against master and reported three
 P2 findings: stale native error callbacks, abandoned guide playback resolution
@@ -96,3 +96,10 @@ All were accepted and fixed. Their regression tests fail before each fix; the
 MAC flow uses a disconnected server-library source and also checks intentional
 MAC changes. Guide coverage checks both leaving and returning to the original
 day. The title contract is exercised for Live, movies and series.
+
+Round 3 reviewed `751dcaf13` and found two P2 cases: library-driven source
+replacement retained the previous Live category, and nonempty but unusable bulk
+EPG suppressed the short guide. Both were accepted and reproduced before fixes.
+Coverage now includes a live library deletion flow and invalid/past/future bulk
+guides, merge priority and short-guide failure. Existing EPG cache tests keep
+their lifecycle assertions and use an explicit clock for current coverage.

@@ -183,6 +183,9 @@ Back from categories leaves Live; fullscreen Back first returns to preview.
 Re-entering the same category restores the channel identity and scroll window;
 choosing another category starts at its first channel. Category browsing never
 starts or replaces playback. Source changes reset this local browse state.
+This also applies when a server-library refresh removes the active source while
+Live remains open: category, query and retained focus/scroll are cleared before
+browsing the replacement source.
 Category rows use the same bounded 20-row window as channels, including distant
 focus restoration; the All channels row remains available without provider groups.
 
@@ -248,7 +251,11 @@ requests; late responses cannot publish. The foreground minute tick rechecks onl
 visible rows, with a five-minute cache age and manual Refresh guide. Refresh keeps
 old programmes visible while loading and restores a replaced programme's focus.
 Stalker's bulk cache independently deduplicates concurrent callers and expires
-on demand after five minutes. Cancelling one subscriber leaves the others alive;
+on demand after five minutes. Bulk programmes are normalized before checking
+current coverage. Invalid, past-only or future-only lists request the short guide
+and merge it with valid bulk entries, which win exact start-time collisions.
+A failed short request retains a usable bulk schedule.
+Cancelling one subscriber leaves the others alive;
 the final cancellation and provider disposal abort/fence the shared request.
 
 An overlay owns directional and Tab focus, including hidden page/control exclusion.

@@ -4,7 +4,7 @@ import {
     type Page,
     type APIRequestContext,
 } from '@playwright/test';
-import { addSource, nav, stalker, start, xtream } from './helpers';
+import { addSource, backend, nav, stalker, start, xtream } from './helpers';
 const server = 'http://127.0.0.1:3434';
 const headers = { Authorization: 'Bearer tv-library-test' };
 const document = (id: string, fields: Record<string, unknown> = {}) => ({
@@ -70,6 +70,53 @@ test.beforeEach(async ({ request }) => {
     expect(
         (await request.delete(`${server}/v1/playlists`, { headers })).ok()
     ).toBeTruthy();
+});
+test('library removal of the active source resets Live categories for the replacement provider', async ({
+    page,
+    request,
+}) => {
+    await put(request, 'xtream', {
+        serverUrl: xtream,
+        username: 'user1',
+        password: 'pass1',
+    });
+    await put(request, 'stalker', {
+        portalUrl: `${stalker}/server/load.php`,
+        macAddress: '00:1a:79:00:00:03',
+    });
+    await start(page);
+    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await page.getByRole('button', { name: 'Check and connect' }).click();
+    await connect(page);
+    await nav(page, 'Sources');
+    await page
+        .locator('.source-row')
+        .filter({ hasText: 'Shared xtream' })
+        .getByRole('button')
+        .first()
+        .click();
+    const original = (await snapshot(page)).activeId;
+    await nav(page, 'TV', false);
+    await page.locator('.live-category').nth(1).click();
+    await expect(page.locator('.channel-pane-header')).toBeVisible();
+    expect(
+        (
+            await request.delete(`${server}/v1/playlists/xtream`, { headers })
+        ).ok()
+    ).toBeTruthy();
+    await page.evaluate(() =>
+        document.dispatchEvent(new Event('visibilitychange'))
+    );
+    await expect
+        .poll(async () => (await snapshot(page)).activeId)
+        .not.toBe(original);
+    await expect(page.locator('[data-focus="live-category:"]')).toBeVisible();
+    await expect(page.locator('[data-focus="live-category:"]')).toBeFocused();
+    await page.locator('[data-focus="live-category:"]').click();
+    await expect(page.locator('.channel').first()).toBeVisible();
+    await expect(page.locator('.channel-pane-header')).toContainText(
+        'All channels'
+    );
 });
 test('renaming a retained server source preserves its MAC; an explicit MAC edit normalizes it', async ({
     page,

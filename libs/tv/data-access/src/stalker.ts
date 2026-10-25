@@ -153,34 +153,42 @@ export class StalkerProvider implements ProviderClient {
                 throw new DOMException('Aborted', 'AbortError');
         }
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-        let data = rows(bulk[item.providerId]);
-        if (!data.length)
-            data = rows(
-                unwrap(
-                    await this.session.request(
-                        {
-                            type: 'itv',
-                            action: 'get_short_epg',
-                            ch_id: item.providerId,
-                            size: 12,
-                        },
-                        signal
+        const primary = normalizePrograms(rows(bulk[item.providerId]));
+        const now = Date.now();
+        if (primary.some((p) => p.start <= now && p.end > now)) return primary;
+        try {
+            const short = normalizePrograms(
+                rows(
+                    unwrap(
+                        await this.session.request(
+                            {
+                                type: 'itv',
+                                action: 'get_short_epg',
+                                ch_id: item.providerId,
+                                size: 12,
+                            },
+                            signal
+                        )
                     )
                 )
             );
-        return data
-            .map((p) => ({
-                title: text(p.name ?? p.title),
-                description: text(p.descr),
-                start:
-                    Number(p.start_timestamp) * 1000 ||
-                    Date.parse(text(p.time).replace(' ', 'T')),
-                end:
-                    Number(p.stop_timestamp) * 1000 ||
-                    Date.parse(text(p.time_to).replace(' ', 'T')),
-            }))
-            .filter((p) => Number.isFinite(p.start) && Number.isFinite(p.end));
+            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+            // Keep the longer bulk schedule; it owns exact start-time collisions.
+            const merged = new Map(
+                [...short, ...primary].map((p) => [p.start, p])
+            );
+            return [...merged.values()].sort((a, b) => a.start - b.start);
+        } catch (error) {
+            if (
+                signal.aborted ||
+                (error as Error)?.name === 'AbortError' ||
+                !primary.length
+            )
+                throw error;
+            return primary;
+        }
     }
+
     async resolve(item: Media, signal: AbortSignal) {
         let cmd = text(item.raw.cmd);
         if (!cmd) throw new Error('Provider supplied no playback command.');
@@ -245,4 +253,25 @@ export class StalkerProvider implements ProviderClient {
         this.session.dispose();
         this.pages.clear();
     }
+}
+
+/** TV view-model timestamps; normalize before deciding whether bulk answers now. */
+function normalizePrograms(data: Record<string, unknown>[]) {
+    return data
+        .map((p) => ({
+            title: text(p.name ?? p.title),
+            description: text(p.descr),
+            start:
+                Number(p.start_timestamp) * 1000 ||
+                Date.parse(text(p.time).replace(' ', 'T')),
+            end:
+                Number(p.stop_timestamp) * 1000 ||
+                Date.parse(text(p.time_to).replace(' ', 'T')),
+        }))
+        .filter(
+            (p) =>
+                Number.isFinite(p.start) &&
+                Number.isFinite(p.end) &&
+                p.end > p.start
+        );
 }
