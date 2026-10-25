@@ -35,6 +35,7 @@ import {
     CollectionContentType,
     CollectionScope,
     FavoritesChannelSortMode,
+    buildOpenLiveCollectionItemState,
     getOpenLiveCollectionItemState,
     isTypingInInput,
     LiveLayoutSidebarStateService,
@@ -48,6 +49,7 @@ import {
     CollectionMode,
     UnifiedCollectionDataService,
 } from '@iptvnator/portal/shared/data-access';
+import { consumeStartupLastLive } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
@@ -138,7 +140,11 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly skeletonRows = Array.from({ length: 12 }, (_, i) => i);
     readonly skeletonCards = Array.from({ length: 8 }, (_, i) => i);
     readonly pendingAutoOpenLiveItem = signal(
-        getOpenLiveCollectionItemState(window.history.state)
+        getOpenLiveCollectionItemState(window.history.state) ??
+            (() => {
+                const last = consumeStartupLastLive();
+                return last ? buildOpenLiveCollectionItemState(last) : null;
+            })()
     );
 
     private readonly contentType = createCollectionContentTypeState(
