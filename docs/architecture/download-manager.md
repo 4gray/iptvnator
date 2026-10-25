@@ -436,6 +436,10 @@ available after restart and after the source archive expires.
 - Retained `filePath`s recorded in the database stay usable after the user switches download folders — resume/retry of a retained row does not re-require the folder to be the current selection. Fresh downloads still authorize against the currently selected folder.
 - Startup recovery recognizes a finalization that crashed between creating the final file and committing the row (`downloading` row, no partial, final file present with the recorded size) and marks it `completed` instead of failing it and orphaning the file.
 - Pause/resume is covered end to end by `apps/electron-backend-e2e/src/downloads.e2e.ts`: a throttled Range-capable mock server verifies the paused `.part` on disk, the `Range`/`If-Range` resume request, and byte-exact assembly of the final file. Automatic reconnects are covered by `apps/electron-backend-e2e/src/download-reliability.e2e.ts`: a validator-carrying interrupting server must complete without a manual Retry via `Range`/`If-Range`, and a validator-less interrupting server must complete through the rewound overlap-verification `Range` request.
+  Both fixtures hold the first response until the E2E observes the exact prefix
+  size on disk, then explicitly interrupt the connection. A server write
+  callback or fixed delay cannot prove client delivery, especially on Windows.
+  Exact Range offsets and byte-for-byte final payload assertions remain required.
 - The OS downloads path is always authorized. A custom folder becomes
   authorized only after native folder selection, and the main process persists
   that selection under Electron `userData`. Renderer settings may display the
