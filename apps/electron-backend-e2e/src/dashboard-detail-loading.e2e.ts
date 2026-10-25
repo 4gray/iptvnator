@@ -16,6 +16,7 @@ import { applyTheme } from './theme-contrast';
 import { xtreamPlaylistIdFromUrl } from './xtream-import-wait';
 
 const recentChannel = 'DB_GET_RECENTLY_VIEWED';
+const playlistRecentChannel = 'DB_GET_RECENT_ITEMS';
 
 for (const contentType of ['movie', 'series'] as const) {
     test(`dashboard ${contentType} details keep the detail skeleton through collection loading`, async ({
@@ -26,6 +27,7 @@ for (const contentType of ['movie', 'series'] as const) {
         await resetMockServers(request, ['xtream']);
         const app = await launchElectronWithChannelHolds(dataDir, [
             recentChannel,
+            playlistRecentChannel,
         ]);
         const page = app.mainWindow;
         try {
@@ -102,7 +104,7 @@ for (const contentType of ['movie', 'series'] as const) {
             }
 
             // Opening the collection itself still uses its list/grid loader.
-            const hold = await holdIpcChannel(app, recentChannel);
+            const hold = await holdIpcChannel(app, playlistRecentChannel);
             await openGlobalRecent(page);
             await hold.waitUntilHeld();
             await expect(
