@@ -25,6 +25,25 @@ on your LAN) when starting the backend process. The URL entered on the TV must
 name a host reachable from the TV; `localhost` means the television itself.
 LAN/private targets require the backend's documented private-network opt-in.
 
+For continuous TV use, host the matching backend on an always-on machine rather
+than an interactive agent/terminal process. A temporary detached process can
+survive terminal exit but is not a supervised service: it does not restart after
+a crash/reboot and is unavailable while the Mac sleeps. Do not silently install
+boot/login services.
+
+The [self-hosted container](../../docker/README.md) includes this web backend
+under `/api`: with the default port mapping, enter `http://<NAS-IP>:4333/api`
+on TV. Build the matching TV branch until its backend changes are published;
+verify `/api/tv/connection` reports protocol 1 and pairing support, and include
+`file://com.iptvnator.tv.prototype-webos` alongside the NAS web origin in
+`CLIENT_URL`. The existing Compose restart policy is `unless-stopped`.
+TV sources/favorites/progress still live locally; pointing at the NAS does not
+enable the PWA's server-storage synchronization in the TV client.
+
+If the backend stopped or restarted, restore it and select Retry connection
+on the TV. Connected is a backend health/auth check, not proof that the portal
+has reconnected. See the architecture contract for the current retry limits.
+
 `tv-e2e` owns isolated ports 4311, 3433, 3420 and 3421. It starts the built TV
 client, actual web backend, and existing Stalker/Xtream mocks. Its explicit Nx
 dependencies include these projects and the phone setup application. Provider catalog/auth/EPG requests go

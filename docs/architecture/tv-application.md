@@ -77,6 +77,14 @@ require selection and protected servers require their access token. Other
 subnets, IPv6, unavailable platform APIs, custom ports and failed searches keep
 manual entry available. This is bounded HTTP discovery, not universal mDNS/SSDP.
 
+The 30-second backend check updates connection status only; it does not retry
+provider initialization or reload a failed catalog. Provider initialization runs
+on startup, source/backend changes and explicit Retry connection. That action
+recreates the provider transport, including backend target registrations, before
+reloading the current view. Stalker token repair/watchdog handles its own portal
+session, not an unavailable backend. Automatic provider reconnection with
+backoff and app-resume recovery is not implemented in this prototype.
+
 `apps/tv-setup` owns the lightweight phone form. The web backend builds and ships
 its HTML/JS/CSS as assets and mounts the session API in
 `apps/web-backend/src/app/tv-setup`. A TV creates a five-minute session after
