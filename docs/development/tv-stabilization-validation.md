@@ -12,7 +12,9 @@ not a claim of general webOS/provider/codec compatibility.
 the TV branch by merge commit `2b30f406e`. The primary checkout and master branch
 are unchanged. The integration preserves upstream Stalker request options, TV
 framework-free provider contracts, module boundaries and the canonical skills
-directory migration. Frozen dependencies were reinstalled after the merge.
+directory migration. A subsequent upstream update through `fee8411f7` (Stalker
+lazy episode file resolution, #1996) is integrated by `8fe0236cc`. Frozen
+dependencies were reinstalled after both merges.
 
 - Failed startup reads block every repository write and show a retry screen.
   Retrying reads the original data; default empty state cannot replace it.
@@ -35,34 +37,38 @@ directory migration. Frozen dependencies were reinstalled after the merge.
 
 ## Local checks
 
-Node 22.23.2 / pnpm 10.33.0. TV unit tests: 71 passed, including storage-read
+Node 22.23.2 / pnpm 10.33.0. TV unit tests: 73 passed, including storage-read
 protection, bounded target repair and progress-save retry after player teardown.
 The read-protection regression failed against the old repository implementation.
 Web backend: 237 tests passed. Related provider/shared/EPG unit suites and web and
 Electron TypeScript checks pass.
 
-The complete TV browser suite passes 87 scenarios across M3U, Xtream and Stalker,
-including six recovery/onboarding scenarios and ten review regressions. These run against the real local
+The complete TV browser suite passes 88 scenarios across M3U, Xtream and Stalker,
+including six recovery/onboarding scenarios, ten review regressions and the
+upstream episode/file-ID case. These run against the real local
 backend and mock providers, with synthetic media in modern Chromium. They do not
 certify webOS decoding or physical remote behavior.
 The separately invoked phone-setup split target passes all eight scenarios,
 building both clients first. All 125 inferred Playwright task graphs pass in
 local and CI configuration; no GitHub CI was dispatched.
 
-The full Tier A coverage run passes all 36 projects. Merged coverage is 84.89%
-statements, 75.86% branches, 83.21% functions and 85.25% lines after rerunning
-the affected shared/Angular EPG coverage. Shared EPG implementation moved out
+The full Tier A coverage run passes all 36 projects. Merged coverage is 84.90%
+statements, 75.89% branches, 83.21% functions and 85.26% lines after rerunning
+the affected shared/Angular EPG and Stalker coverage. Shared EPG implementation moved out
 of the coverage-excluded barrel into `timeline.ts`; its five geometry tests now
 measure 100% statements, branches, functions and lines. Existing Angular EPG
-tests also pass. Coverage health has a same-name-spec warning for the public
-barrel, not a failure. TV uses its separately executed
+tests also pass. Final coverage health has five same-name-spec warnings for
+Stalker barrels, models, the helper and test harness, not failures. The helper
+is exercised through the existing resolver tests. TV uses its separately executed
 Node test target and browser suite rather than claiming Tier A Jest coverage.
 
 Affected Nx lint/typechecks, production TV and backend builds, ES2018/classic
 bundle verification and IPK packaging pass. Dependency policy, release notes,
-agent/skill guidance, stylesheet inputs and E2E task graphs pass. Electron E2E
-was not run: this follow-up changes TV behavior and retains the already-tested
-framework-free extraction; no new Electron IPC or player behavior is introduced.
+agent/skill guidance, stylesheet inputs and E2E task graphs pass. After the latest
+master integration, Stalker data-access and feature coverage suites pass 630 and
+501 tests respectively. Four real Electron regression scenarios for lazy-series
+file resolution pass with isolated mock ports and temporary profiles; the Nx
+target rebuilds the Electron main process and Angular renderer first.
 
 ## Hardware and publication boundary
 
@@ -83,7 +89,7 @@ of this validation. Local evidence is held outside tracked source under
 `/tmp/iptvnator-tv-*.log`; the build artifact is
 `dist/tv-package/com.iptvnator.tv.prototype_0.1.12_all.ipk`.
 
-IPK SHA-256: `81a2bcbe32605210377212a3f4af69a145faace14a656e5488ef9085c6722e34`.
+IPK SHA-256: `431e18f2b784ac568041715a11a5960fb3344ddedea1b1f2f211489543ddde7c`.
 The local Greptile CLI is unavailable; no installation or account setup was
 attempted. Codex round 1 reviewed `aa8e09b7e` against master and reported three
 P2 findings: stale native error callbacks, abandoned guide playback resolution
@@ -131,3 +137,13 @@ The repository's local review policy stops after five rounds. These final two
 fixes have automated regression coverage but have not received a sixth independent
 review; the branch does not claim a clean final-review verdict. Greptile remains
 unavailable. No push or PR was attempted.
+
+After the fifth review, upstream master advanced. Integrating it exposed the
+same episode/file-ID confusion in TV: the new upstream mock reproduced show A
+playing show B's file. Its regression failed before the TV fix. The upstream
+selection algorithm now lives in a framework-free helper shared by the Angular
+resolver and TV, preserving authentication/cancellation and custom-protocol file
+identity. Older saved TV episodes refresh their exact parent-scoped coordinates
+without changing persisted identity/progress. Two TV unit cases cover new and
+legacy entries; the upstream Angular resolver tests exercise the same helper.
+This integration and correction are also outside the five-round review cap.

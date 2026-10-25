@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Source, Media } from '@iptvnator/tv/util';
+import { Source, Media, identity } from '@iptvnator/tv/util';
 import {
     ProviderTransport,
     ProviderRequestError,
+    createProvider,
 } from '@iptvnator/tv/data-access';
 import { StalkerPagedCatalog } from '@iptvnator/portal/stalker/client';
 import { StalkerSession } from '@iptvnator/tv/data-access';
@@ -43,6 +44,74 @@ const parent: Media = {
     title: 'Show',
     raw: { origin: 'series' },
 };
+for (const legacy of [false, true]) {
+    test(`lazy episode resolves its real file and preserves identity (legacy progress: ${legacy})`, async () => {
+        const s = source();
+        const calls: Record<string, string | number>[] = [];
+        const transport = new Transport((params) => {
+            calls.push(params);
+            if (params.action === 'create_link')
+                return { js: { cmd: 'https://cdn.invalid/right.mp4' } };
+            return {
+                js: {
+                    data: params.episode_id
+                        ? [
+                              {
+                                  id: '900',
+                                  is_file: true,
+                                  video_id: '100',
+                                  series_id: '101',
+                                  protocol: 'custom',
+                                  cmd: 'https://cdn.invalid/right.mp4',
+                              },
+                          ]
+                        : params.season_id
+                          ? [
+                                {
+                                    id: '101',
+                                    is_episode: true,
+                                    series_number: '1',
+                                },
+                            ]
+                          : [
+                                {
+                                    id: '11',
+                                    video_id: '100',
+                                    is_season: true,
+                                    season_number: '1',
+                                },
+                            ],
+                },
+            };
+        });
+        const provider = createProvider(s, transport, async () => undefined);
+        const show = {
+            ...parent,
+            id: identity(s, 'series', 'movie:100'),
+            raw: { origin: 'vod', is_series: true },
+        };
+        const signal = new AbortController().signal;
+        try {
+            const [episode] = await provider.episodes(show, signal);
+            const originalId = episode.id;
+            if (legacy)
+                episode.raw = { cmd: '/media/file_101.mpg', origin: 'vod' };
+            const resolved = await provider.resolve(episode, signal);
+            assert.equal(resolved.url, 'https://cdn.invalid/right.mp4');
+            assert.equal(
+                calls.find((call) => call.action === 'create_link')?.cmd,
+                '/media/file_900.mpg'
+            );
+            const lookup = calls.find((call) => call.episode_id);
+            assert.equal(lookup?.movie_id, '100');
+            assert.equal(lookup?.season_id, '11');
+            assert.equal(lookup?.episode_id, '101');
+            assert.equal(episode.id, originalId);
+        } finally {
+            provider.dispose();
+        }
+    });
+}
 test('full portal reuses persisted token and repairs expired auth once for concurrent requests', async () => {
     let expired = false;
     let handshakes = 0;
@@ -149,7 +218,7 @@ test('regular and embedded series retain commands and episode numbers', async ()
         session.dispose();
     }
 });
-test('lazy Ministra episodes preserve parent-scoped IDs and original file IDs', async () => {
+test('lazy Ministra episodes preserve parent-scoped IDs and provider lookup coordinates', async () => {
     const transport = new Transport((params) =>
         params.season_id
             ? {
@@ -202,7 +271,16 @@ test('lazy Ministra episodes preserve parent-scoped IDs and original file IDs', 
         );
         assert.equal(one[0].episode, 3);
         assert.equal(one[0].season, 2);
-        assert.equal(one[0].raw.cmd, '/media/file_file.mpg');
+        assert.equal(one[0].raw.cmd, undefined);
+        assert.deepEqual(one[0].raw.lazyEpisode, {
+            originalCmd: undefined,
+            custom_sid: 'vod-series',
+            vodEpisode: {
+                movieId: '100',
+                seasonId: 'season',
+                episodeId: 'file',
+            },
+        });
         assert.notEqual(one[0].id, two[0].id);
     } finally {
         session.dispose();

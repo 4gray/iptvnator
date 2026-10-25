@@ -25,3 +25,5 @@ export {
 } from './lib/stores/utils/stalker-sorting';
 export { StalkerPagedCatalog } from './lib/stalker-paged-client';
 export { resolveStalkerArtwork } from './lib/stalker-artwork.utils';
+export { resolveStalkerEpisodeCommand } from './lib/stalker-episode-command';
+export type { StalkerEpisodeCommand } from './lib/stalker-episode-command';

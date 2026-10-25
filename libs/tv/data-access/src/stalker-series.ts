@@ -7,6 +7,8 @@ import {
     sortByNumericValue,
     sortVodSeriesSeasonsByNumber,
     sortEpisodesByNumber,
+    resolveStalkerEpisodeCommand,
+    type StalkerEpisodeCommand,
 } from '@iptvnator/portal/stalker/client';
 import { isStalkerSeriesFlag } from '@iptvnator/shared/interfaces';
 import { Media, Source, identity, rows } from '@iptvnator/tv/util';
@@ -16,6 +18,62 @@ export function unwrap(value: unknown): unknown {
     return js && typeof js === 'object' && 'data' in js
         ? (js as { data: unknown }).data
         : js;
+}
+export async function stalkerEpisodeCommand(
+    session: StalkerSession,
+    source: Source,
+    item: Media,
+    signal: AbortSignal
+): Promise<string> {
+    let descriptor = item.raw.lazyEpisode as StalkerEpisodeCommand | undefined;
+    // Older TV progress stores an invented file command without season IDs.
+    // Refresh the exact parent-scoped episode before resolving; retain its ID/position.
+    if (
+        !descriptor &&
+        item.raw.series === undefined &&
+        String(item.raw.cmd ?? '').startsWith('/media/file_')
+    ) {
+        let parent: unknown;
+        try {
+            parent = JSON.parse(item.parentId ?? '');
+        } catch {
+            /* Invalid legacy identity. */
+        }
+        if (
+            !Array.isArray(parent) ||
+            parent[0] !== source.id ||
+            parent[1] !== 'stalker' ||
+            parent[2] !== 'series' ||
+            typeof parent[3] !== 'string' ||
+            !parent[3].startsWith('movie:')
+        )
+            throw new Error('Reopen this series to refresh its episode.');
+        const episodes = await stalkerEpisodes(
+            session,
+            source,
+            {
+                ...item,
+                id: item.parentId!,
+                providerId: parent[3].slice(6),
+                kind: 'series',
+                raw: { origin: 'vod', is_series: true },
+            },
+            signal
+        );
+        descriptor = episodes.find((episode) => episode.id === item.id)?.raw
+            .lazyEpisode as StalkerEpisodeCommand | undefined;
+        if (!descriptor)
+            throw new Error(
+                'Saved episode is no longer supplied by this series.'
+            );
+    }
+    return descriptor
+        ? resolveStalkerEpisodeCommand(descriptor, (params) =>
+              session.request(params, signal)
+          )
+        : typeof item.raw.cmd === 'string'
+          ? item.raw.cmd
+          : '';
 }
 async function orderedRows(
     session: StalkerSession,
@@ -150,9 +208,16 @@ export async function stalkerEpisodes(
                 parentId: item.id,
                 poster: item.poster,
                 raw: {
-                    cmd: lazy
-                        ? `/media/file_${e.originalId}.mpg`
-                        : e.originalCmd,
+                    cmd: e.originalCmd,
+                    ...(lazy
+                        ? {
+                              lazyEpisode: {
+                                  originalCmd: e.originalCmd,
+                                  custom_sid: e.custom_sid,
+                                  vodEpisode: e.vodEpisode,
+                              },
+                          }
+                        : {}),
                     origin: 'vod',
                     series: lazy ? undefined : e.episode_num,
                 },

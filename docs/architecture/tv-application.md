@@ -283,6 +283,13 @@ seeks use the same confirmation path; explicit seek-to-zero starts over.
 Remote Stop (413) tears down the stream and returns focus to its origin or
 channel. Back from fullscreen Live returns to the ongoing preview instead.
 
+Lazy Stalker episodes retain provider movie/season/episode coordinates and use
+the shared framework-free episode command resolver before `create_link`.
+An episode ID is never invented as a media-file ID. Old saved TV episodes without
+these coordinates refresh their exact parent-scoped episode from the provider;
+their persisted identity and progress remain intact. Missing/ambiguous saved
+episodes fail visibly rather than selecting another show's file.
+
 Single-line text fields keep Left/Right caret movement and use Up/Down for
 spatial focus. Native select controls keep Up/Down for choices and leave with
 Left/Right. Disclosure summaries, including explicit MAG identity fields, are

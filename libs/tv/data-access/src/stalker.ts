@@ -22,7 +22,11 @@ import {
 } from '@iptvnator/tv/util';
 import { StalkerSession } from './stalker-session';
 import { StalkerEpgBulk } from './stalker-epg-bulk';
-import { stalkerEpisodes, unwrap } from './stalker-series';
+import {
+    stalkerEpisodeCommand,
+    stalkerEpisodes,
+    unwrap,
+} from './stalker-series';
 import { ProviderTransport } from './transport';
 export class StalkerProvider implements ProviderClient {
     readonly capabilities = {
@@ -190,7 +194,15 @@ export class StalkerProvider implements ProviderClient {
     }
 
     async resolve(item: Media, signal: AbortSignal) {
-        let cmd = text(item.raw.cmd);
+        let cmd =
+            item.kind === 'episode'
+                ? await stalkerEpisodeCommand(
+                      this.session,
+                      this.source,
+                      item,
+                      signal
+                  )
+                : text(item.raw.cmd);
         if (!cmd) throw new Error('Provider supplied no playback command.');
         if (shouldResolveMovieFileId(item.raw, cmd)) {
             const files = rows(

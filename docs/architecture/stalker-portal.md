@@ -1567,6 +1567,9 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   become `/media/file_<file.id>.mpg` before `create_link`, matching Ministra's
   reference player. Only a valid returned file ID is accepted; the episode ID
   is never substituted.
+  The framework-free `resolveStalkerEpisodeCommand` helper owns this selection
+  for both the Angular service and TV; each caller supplies its authenticated,
+  cancellable request pipeline.
 - The extra file lookup is covered by the pending playback ownership guard:
   changes to the selected source/show, episode command, or provider
   coordinates discard its result before inline or external playback starts.

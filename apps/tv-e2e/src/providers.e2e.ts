@@ -1,5 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { addSource, nav, start, stalker, xtream } from './helpers';
+test('Stalker lazy episodes resolve their own media file when another show owns the episode-number file', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'stalker', { mac: '00:1a:79:18:44:01' });
+    await nav(page, 'Movies');
+    await page.getByRole('button', { name: /Fixture Alpha/ }).click();
+    await page.locator('.episode').first().click();
+    await expect(page.locator('video')).toHaveAttribute(
+        'src',
+        /\/stream\/issue1844\/10\/1\.mp4$/
+    );
+});
 test('Xtream: source, live preview/fullscreen, movie, episode, favorites and relaunch', async ({
     page,
 }) => {
