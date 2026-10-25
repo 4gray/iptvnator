@@ -49,6 +49,10 @@ export function parentalLockXtreamCategoryGuard(
     section: XtreamCategorySection
 ): CanActivateFn {
     return async (route): Promise<boolean | UrlTree> => {
+        if (section === 'live' && !route.paramMap.has('categoryId')) {
+            return true;
+        }
+
         const parentalLock = inject(ParentalLockService);
         const router = inject(Router);
         const databaseService = inject(DatabaseService);

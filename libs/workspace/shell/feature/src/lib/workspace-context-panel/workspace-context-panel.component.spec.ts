@@ -37,6 +37,7 @@ const translations: Record<string, string> = {
 
 interface RouteSnapshotStub {
     routeConfig: { path: string } | null;
+    url: { path: string }[];
     paramMap: { has: (param: string) => boolean };
     children: RouteSnapshotStub[];
 }
@@ -48,6 +49,7 @@ function createRouteSnapshot(
 ): RouteSnapshotStub {
     return {
         routeConfig: path ? { path } : null,
+        url: path ? path.split('/').map((segment) => ({ path: segment })) : [],
         paramMap: {
             has: (param: string) => hasCategoryId && param === 'categoryId',
         },

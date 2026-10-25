@@ -31,10 +31,7 @@ type ClearCategoryScopeOptions = {
 export function hasActiveLiveCategoryRoute(
     route: ActivatedRouteSnapshot
 ): boolean {
-    if (
-        route.routeConfig?.path === 'live/:categoryId' &&
-        route.paramMap.has('categoryId')
-    ) {
+    if (route.url?.[0]?.path === 'live' && route.paramMap.has('categoryId')) {
         return true;
     }
 

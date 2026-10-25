@@ -61,7 +61,7 @@ describe('WorkspaceContextPanelComponent category toggle deselection', () => {
                     paramMap: { has: () => false },
                     children: [
                         {
-                            routeConfig: { path: 'live/:categoryId' },
+                            url: [{ path: 'live' }, { path: '1' }],
                             paramMap: {
                                 has: (param: string) => param === 'categoryId',
                             },

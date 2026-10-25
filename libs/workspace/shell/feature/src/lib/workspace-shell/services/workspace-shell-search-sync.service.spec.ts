@@ -175,7 +175,7 @@ describe('WorkspaceShellSearchSyncService', () => {
                     value: {
                         snapshot: {
                             root: {
-                                routeConfig: { path: 'live/:categoryId' },
+                                url: [{ path: 'live' }, { path: '7' }],
                                 paramMap: {
                                     has: (key: string) => key === 'categoryId',
                                 },

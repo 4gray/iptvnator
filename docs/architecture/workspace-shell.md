@@ -446,12 +446,20 @@ three nested levels, their affordances and persistence are specified in
 `iptvnator-ui-guidelines.md` ("Collapsible Live Sidebar").
 
 A category click in a LIVE section (Xtream `live`, Stalker `itv` and `radio`)
-changes only the selected category: the live layouts gate their player on the
-store's selected item, so the handler must not clear it — the channel the user
+changes only the selected category: the live layouts keep playback separate
+from the browsed category, so the handler must not clear it — the channel the user
 is watching keeps playing while the sidebar re-filters (Xtream: #936; Stalker:
 `onStalkerCategoryClicked` returns before `clearSelectedItem()`). VOD and
 series category clicks do drop the open detail (`setSelectedItem(null)` /
 `clearSelectedItem()`) because they navigate to a list route.
+
+Xtream `/live` and `/live/:categoryId` share one URL-matched route definition.
+Changing or clearing a category from a deep link (including Recently Added)
+keeps the live layout and embedded player mounted, rather than reopening the
+channel. The matcher retains `categoryId` for existing consumers; the parental
+guard checks category changes and allows the category-less root without a PIN.
+Shell category-route detection reads consumed URL segments and parameters,
+not a literal route configuration path.
 
 The channel header offers **Show playing channel** when browsing excludes the
 active channel. It returns to that category and focuses the row without
