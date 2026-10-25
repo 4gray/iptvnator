@@ -158,10 +158,12 @@ export class M3uMediaCatalogComponent {
         effect(() => {
             const entries = this.seriesPage();
             if (this.kind() !== 'series' || !this.tmdb.isEnabled()) return;
-            // Bounded opt-in enrichment: only a few cards on the visible page,
-            // never an eager 2,000+ series scan.
-            const candidates = entries.filter(s => !this.attemptedSeries.has(s.key))
-                .slice(0, 8);
+            // Enrich every series on the current *bounded* 48-card page.
+            // Limiting this to the first eight permanently starved all later
+            // rows, because attemptedSeries is not a reactive signal and the
+            // effect never ran again to schedule the remaining cards. Requests
+            // remain sequential and never scan the full series library.
+            const candidates = entries.filter(s => !this.attemptedSeries.has(s.key));
             for (const entry of candidates) this.attemptedSeries.add(entry.key);
             untracked(() => { void this.resolveSeriesMetadata(candidates); });
         });
