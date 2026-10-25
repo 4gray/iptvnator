@@ -60,8 +60,21 @@
                 <button class="back-button" type="button" (click)="selectedSeriesKey.set(null)">
                     ← All series
                 </button>
-                <h3>{{ series.title }}</h3>
-                <p class="series-count">{{ series.count }} episodes and variants</p>
+                <div class="series-detail-heading">
+                    @if (seriesPoster(series); as artwork) {
+                        <img [src]="artwork" [alt]="series.title" loading="lazy">
+                    }
+                    <div>
+                        <h3>{{ series.title }}</h3>
+                        <p class="series-count">{{ series.count }} episodes and variants
+                            @if (seriesYear(series)) { · {{ seriesYear(series) }} }
+                            @if (seriesRating(series)) { · ★ {{ seriesRating(series) }} }
+                        </p>
+                        @if (seriesDescription(series)) {
+                            <p class="series-overview">{{ seriesDescription(series) }}</p>
+                        }
+                    </div>
+                </div>
                 <div class="season-picker" aria-label="Seasons">
                     @for (season of series.seasons; track season.number) {
                         <button type="button" [class.active]="currentSeason()?.number === season.number"
@@ -85,9 +98,20 @@
                     <div class="series-grid">
                         @for (series of seriesPage(); track series.key) {
                             <button type="button" class="series-card" (click)="selectSeries(series)">
-                                <span class="series-icon" aria-hidden="true">▤</span>
+                                @if (seriesPoster(series); as artwork) {
+                                    <img class="series-poster" [src]="artwork" [alt]="series.title"
+                                        loading="lazy" decoding="async">
+                                } @else {
+                                    <span class="series-icon" aria-hidden="true">▤</span>
+                                }
                                 <span class="series-name">{{ series.title }}</span>
-                                <span class="series-count">{{ series.seasons.length }} seasons · {{ series.count }} episodes</span>
+                                <span class="series-count">{{ series.seasons.length }} seasons · {{ series.count }} episodes
+                                    @if (seriesYear(series)) { · {{ seriesYear(series) }} }
+                                    @if (seriesRating(series)) { · ★ {{ seriesRating(series) }} }
+                                </span>
+                                @if (seriesDescription(series)) {
+                                    <span class="series-card-overview">{{ seriesDescription(series) }}</span>
+                                }
                             </button>
                         }
                     </div>

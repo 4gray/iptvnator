@@ -13,7 +13,7 @@ import type { Channel } from '@iptvnator/shared/interfaces';
 import { releaseTagYear } from '@iptvnator/shared/interfaces';
 import { buildM3uSeriesCatalog, m3uContentOverrideKey, type M3uContentKind } from '@iptvnator/shared/m3u-utils';
 import type { M3uSeries } from '@iptvnator/shared/m3u-utils';
-import { TmdbEnrichmentService, tmdbPosterUrl } from '@iptvnator/services';
+import { TmdbEnrichmentService, tmdbPosterUrl, type TmdbTvDetails } from '@iptvnator/services';
 
 const MOVIE_PAGE_SIZE = 36;
 const SERIES_PAGE_SIZE = 48;
@@ -60,6 +60,23 @@ export class M3uMediaCatalogComponent {
     readonly posterOverrides = signal<ReadonlyMap<string, string>>(new Map());
 
     private readonly attemptedPosters = new Set<string>();
+    private readonly attemptedSeries = new Set<string>();
+    readonly seriesDetails = signal<ReadonlyMap<string, TmdbTvDetails>>(new Map());
+
+    seriesPoster(series: M3uSeries): string | null {
+        return tmdbPosterUrl(this.seriesDetails().get(series.key)?.poster_path);
+    }
+    seriesDescription(series: M3uSeries): string {
+        return this.seriesDetails().get(series.key)?.overview?.trim() ?? '';
+    }
+    seriesYear(series: M3uSeries): string {
+        return this.seriesDetails().get(series.key)?.first_air_date?.slice(0, 4) ?? '';
+    }
+    seriesRating(series: M3uSeries): string {
+        const score = this.seriesDetails().get(series.key)?.vote_average;
+        return typeof score === 'number' && score > 0 ? score.toFixed(1) : '';
+    }
+
 
     readonly groups = computed(() =>
         Array.from(new Set(
@@ -139,6 +156,16 @@ export class M3uMediaCatalogComponent {
 
     constructor() {
         effect(() => {
+            const entries = this.seriesPage();
+            if (this.kind() !== 'series' || !this.tmdb.isEnabled()) return;
+            // Bounded opt-in enrichment: only a few cards on the visible page,
+            // never an eager 2,000+ series scan.
+            const candidates = entries.filter(s => !this.attemptedSeries.has(s.key))
+                .slice(0, 8);
+            for (const entry of candidates) this.attemptedSeries.add(entry.key);
+            untracked(() => { void this.resolveSeriesMetadata(candidates); });
+        });
+        effect(() => {
             const entries = this.moviePage();
             if (this.kind() !== 'movies' || !this.tmdb.isEnabled()) return;
             // Max eight *missing* posters per visited page. Never batch-query
@@ -149,6 +176,23 @@ export class M3uMediaCatalogComponent {
             for (const channel of candidates) this.attemptedPosters.add(this.entryKey(channel));
             untracked(() => { void this.resolveMissingPosters(candidates); });
         });
+    }
+
+    private async resolveSeriesMetadata(entries: readonly M3uSeries[]): Promise<void> {
+        for (const item of entries) {
+            try {
+                const details = await this.tmdb.enrichTv({ title: item.title });
+                if (details) {
+                    this.seriesDetails.update(current => {
+                        const next = new Map(current);
+                        next.set(item.key, details);
+                        return next;
+                    });
+                }
+            } catch {
+                // TMDB is optional; catalog and playback remain available.
+            }
+        }
     }
 
     private async resolveMissingPosters(entries: readonly Channel[]): Promise<void> {

@@ -171,3 +171,10 @@
 .movie-tile { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .content-type-select { min-width: 0; width: 100%; background: var(--app-widget-bg); color: inherit; border: 1px solid var(--app-widget-border); border-radius: 6px; font: inherit; font-size: 11px; padding: 5px; }
 .content-type-select:focus-visible { outline: 2px solid var(--app-focus-ring); }
+
+.series-poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; }
+.series-card-overview { font-size: 12px; line-height: 1.35; color: var(--app-eyebrow-color);
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.series-detail-heading { display: flex; align-items: flex-start; gap: 16px; }
+.series-detail-heading > img { width: 108px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; }
+.series-overview { max-width: 740px; line-height: 1.55; font-size: 13px; }
