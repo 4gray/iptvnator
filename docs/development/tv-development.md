@@ -62,6 +62,25 @@ movie/series details gain artwork and descriptions; catalog rows, live channels
 and episode metadata remain provider-owned. Errors leave provider content usable.
 The TV browser must reach `api.themoviedb.org` and `image.tmdb.org` directly.
 
+## Hardware update on 2026-10-25
+
+The user enabled Developer Mode and supplied the pairing passphrase. The CLI
+target `iptvnator-lg-bx` now connects to `192.168.178.44:9922` as `prisoner`.
+System information confirms OLED55BX9LB, SDK 5.6.2 and firmware 04.64.00.
+Prototype 0.1.1 (revision `845dd7af3bfe59391fc885d9e715cd13320cdb3e`) installed
+and launched successfully. Its IPK SHA-256 is
+`271ec54220bd99cb2c4ab3464c3d961a5d6418892aeed408d48c2a660aca8a93`.
+
+The actual TV debugger reports Chrome 68.0.3440.106, a 1920×1080 viewport,
+rendered Sources/Add a source headings, one native video element and zero
+visible alert elements. The first-launch screenshot was visually inspected
+and saved locally at `dist/tv-verification/lg-first-launch.png`. Several menu
+Unicode icons show missing-glyph squares on this device; this remains a UI
+follow-up. No provider credentials or backend were configured during this
+installation. This verifies installation and first-screen rendering, not
+physical remote operation, provider/media playback, cold relaunch persistence
+or TMDB connectivity. The remaining checklist below still applies.
+
 ## Hardware status on 2026-10-21
 
 Device: LG OLED55BX9LB, firmware 04.64.00, previously discovered at
