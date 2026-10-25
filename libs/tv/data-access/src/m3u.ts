@@ -1,6 +1,8 @@
 import { isLikelyM3uVod } from '@iptvnator/shared/m3u-utils';
 import {
     Catalog,
+    CatalogSort,
+    sortCatalog,
     Kind,
     Media,
     Source,
@@ -53,7 +55,9 @@ export class M3uProvider implements ProviderClient {
         kind: Kind,
         category: string,
         page: number,
-        query: string
+        query: string,
+        _signal?: AbortSignal,
+        sort: CatalogSort = 'recent'
     ): Promise<Catalog> {
         const all = this.items.filter((i) => i.kind === kind);
         const categories = Array.from(
@@ -65,7 +69,10 @@ export class M3uProvider implements ProviderClient {
                 i.title.toLowerCase().includes(query.toLowerCase())
         );
         return {
-            items: items.slice(page * 60, (page + 1) * 60),
+            items: sortCatalog(
+                items,
+                kind === 'live' ? 'provider' : sort
+            ).slice(page * 60, (page + 1) * 60),
             total: items.length,
             categories,
             page,

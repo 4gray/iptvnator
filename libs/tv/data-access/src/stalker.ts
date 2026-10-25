@@ -11,6 +11,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     Catalog,
+    CatalogSort,
     Kind,
     Media,
     Source,
@@ -83,7 +84,8 @@ export class StalkerProvider implements ProviderClient {
         category: string,
         page: number,
         query: string,
-        signal: AbortSignal
+        signal: AbortSignal,
+        sort: CatalogSort = 'recent'
     ): Promise<Catalog> {
         const type =
             kind === 'movie' ? 'vod' : kind === 'live' ? 'itv' : 'series';
@@ -105,6 +107,9 @@ export class StalkerProvider implements ProviderClient {
                 category: category || '*',
                 genre: category || '*',
                 search: query,
+                ...(kind !== 'live' && sort !== 'provider'
+                    ? { sortby: sort === 'recent' ? 'added' : 'name' }
+                    : {}),
             },
             page,
             signal

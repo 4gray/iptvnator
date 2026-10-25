@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Catalog, ProviderClient, LatestRequest } from '@iptvnator/tv/util';
+import {
+    Catalog,
+    CatalogSort,
+    ProviderClient,
+    LatestRequest,
+} from '@iptvnator/tv/util';
 import { Route } from './navigation';
 const empty = (): Catalog => ({ items: [], total: 0, page: 0, categories: [] });
 /** One active query survives detail navigation; a new query cancels its append lane. */
@@ -8,7 +13,8 @@ export function useCatalog(
     provider: { current?: ProviderClient },
     ready: number,
     source: string,
-    finishFocus: () => void
+    finishFocus: () => void,
+    sort: CatalogSort
 ) {
     const active = ['movies', 'series', 'search', 'live'].includes(route.view);
     const key = JSON.stringify([
@@ -16,6 +22,7 @@ export function useCatalog(
         route.kind,
         route.category,
         route.query,
+        sort,
         ready,
     ]);
     const [state, setState] = useState({
@@ -29,8 +36,16 @@ export function useCatalog(
     const snapshot = useRef(state);
     snapshot.current = state;
     const request = useRef(false);
-    const latest = useRef({ key, route, provider, ready, active, finishFocus });
-    latest.current = { key, route, provider, ready, active, finishFocus };
+    const latest = useRef({
+        key,
+        route,
+        provider,
+        ready,
+        active,
+        finishFocus,
+        sort,
+    });
+    latest.current = { key, route, provider, ready, active, finishFocus, sort };
     async function load(append: boolean) {
         const current = latest.current;
         if (
@@ -54,7 +69,8 @@ export function useCatalog(
                 current.route.category,
                 page,
                 current.route.query,
-                job.signal
+                job.signal,
+                current.sort
             );
             if (!lane.current.owns(job) || current.key !== latest.current.key)
                 return;

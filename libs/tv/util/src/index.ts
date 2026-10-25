@@ -1,3 +1,8 @@
+import {
+    CatalogSort,
+    CatalogSortPreferences,
+    normalizeCatalogSort,
+} from './catalog-sort';
 export type Kind = 'live' | 'movie' | 'series' | 'episode';
 export type Provider = 'xtream' | 'stalker' | 'm3u';
 export interface Source {
@@ -23,6 +28,7 @@ export interface Media {
     providerId: string;
     kind: Kind;
     title: string;
+    addedAt?: number;
     poster?: string;
     backdrop?: string;
     description?: string;
@@ -67,7 +73,8 @@ export interface ProviderClient {
         category: string,
         page: number,
         query: string,
-        signal: AbortSignal
+        signal: AbortSignal,
+        sort?: CatalogSort
     ): Promise<Catalog>;
     details(item: Media, signal: AbortSignal): Promise<Media>;
     episodes(item: Media, signal: AbortSignal): Promise<Media[]>;
@@ -89,6 +96,7 @@ export interface UserData {
     favorites: Media[];
     history: Progress[];
     positions: Record<string, Progress>;
+    catalogSort: CatalogSortPreferences;
     layout: 'cinema' | 'shelf';
     epg: boolean;
     tmdb: { enabled: boolean; apiKey: string; language: string };
@@ -101,6 +109,7 @@ export const initialData = (): UserData => ({
     favorites: [],
     history: [],
     positions: {},
+    catalogSort: { movie: 'recent', series: 'recent' },
     layout: 'cinema',
     epg: true,
     tmdb: { enabled: false, apiKey: '', language: 'en' },
@@ -157,6 +166,10 @@ export function recordProgress(data: UserData, progress: Progress): UserData {
 }
 export function hydrateUserData(saved: Partial<UserData>): UserData {
     const data = { ...initialData(), ...saved };
+    data.catalogSort = {
+        movie: normalizeCatalogSort(saved.catalogSort?.movie),
+        series: normalizeCatalogSort(saved.catalogSort?.series),
+    };
     data.tmdb = { ...initialData().tmdb, ...saved.tmdb };
     if (!saved.positions) {
         data.positions = {};
@@ -182,3 +195,5 @@ export function removeSourceData(data: UserData, sourceId: string): UserData {
 }
 export { parseSourceDraft, type SourceDraft } from './source-draft';
 export * from './settings-draft';
+
+export * from './catalog-sort';

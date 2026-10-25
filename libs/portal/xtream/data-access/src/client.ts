@@ -102,3 +102,5 @@ export class XtreamClient extends XtreamEpgNormalizer {
         );
     }
 }
+
+export { xtreamCatalogTimestamp } from './lib/xtream-catalog-date';

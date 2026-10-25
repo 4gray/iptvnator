@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
     Kind,
+    CatalogSortPreferences,
     LatestRequest,
     Media,
     Program,
@@ -19,7 +20,8 @@ export function useContent(
     setError: (s: string) => void,
     pendingFocus: { current: string },
     sourceId: string,
-    pendingScroll: { current?: number }
+    pendingScroll: { current?: number },
+    sorts: CatalogSortPreferences
 ) {
     const key = JSON.stringify([
         sourceId,
@@ -170,7 +172,16 @@ export function useContent(
             lane.cancel();
         };
     }, [selected?.id, epgEnabled, ready]);
-    const catalog = useCatalog(route, provider, ready, sourceId, finishFocus);
+    const catalog = useCatalog(
+        route,
+        provider,
+        ready,
+        sourceId,
+        finishFocus,
+        route.kind === 'movie' || route.kind === 'series'
+            ? sorts[route.kind]
+            : 'provider'
+    );
     return {
         ...catalog,
         home,

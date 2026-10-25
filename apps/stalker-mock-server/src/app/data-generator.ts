@@ -58,6 +58,7 @@ export interface RawRadioStation extends RawTemporaryLinkFlags {
 }
 
 export interface RawVodItem {
+    added?: string;
     id: string;
     name: string;
     o_name: string;
@@ -81,6 +82,7 @@ export interface RawVodItem {
 }
 
 export interface RawSeriesItem {
+    added?: string;
     id: string;
     name: string;
     o_name: string;

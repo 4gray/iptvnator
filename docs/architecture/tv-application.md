@@ -136,6 +136,26 @@ pruning rows. Home's editorial rails remain capped previews. Provider APIs that
 return whole catalogs/episode arrays still do so; this is not a claim that every
 provider supports network pagination. Guide/search work remains debounced.
 
+Movie/series catalogs default to recently added and offer title A–Z or provider
+order. The two choices are persisted separately, additively hydrated for older
+TV data, and published only after storage commits. Sort is part of the request
+identity: changing it aborts an append, resets the scroll/window, and starts the
+new order at its first page. Details/Back and relaunch preserve the selected mode.
+
+Stalker sends `sortby=added` (descending on the portal) or `sortby=name` before
+server pagination; provider order omits the parameter. Its page cache already
+keys all parameters, including sort. This follows the existing Angular Stalker
+request and the middleware's [VOD implementation](https://github.com/iptvhakr/stalker_portal/blob/master/server/lib/vod.class.php).
+Portals that ignore ordering cannot be globally repaired by sorting one page.
+Xtream sorts the complete fetched catalog before taking a client page. Its
+framework-free `xtreamCatalogTimestamp` uses the shared epoch validity policy,
+accepts provider ISO dates and falls back from missing series `added` to
+`last_modified`, with an on-screen explanation. Release year is never recency.
+Missing/invalid dates go last; ties explicitly preserve provider ordinal because
+Chromium 68 does not promise stable native sorting. M3U without addition dates
+keeps playlist order with a visible explanation; alphabetical VOD remains
+available. Live channel order and season/episode numbering are unaffected.
+
 `iptvnator-tv-user-data` is a separate IndexedDB database (schema 1 and payload
 version 1). Sources, active source, backend settings, favorites, history and
 positions survive browser relaunch. Updates serialize and become visible only

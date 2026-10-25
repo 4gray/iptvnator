@@ -49,7 +49,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         setError,
         pendingFocus,
         data.activeId,
-        pendingScroll
+        pendingScroll,
+        data.catalogSort
     );
     const report = () =>
         setError(

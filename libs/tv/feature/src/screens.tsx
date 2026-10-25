@@ -1,3 +1,4 @@
+import { CatalogOrder, CatalogSortNotice } from './catalog-order';
 import { Empty, Hero, VirtualCollection, Poster } from '@iptvnator/tv/ui';
 import { Media } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
@@ -171,8 +172,12 @@ export function CatalogScreen({ tv }: { tv: TvModel }) {
                             ))}
                         </select>
                     </label>
+                    {r.kind === 'movie' || r.kind === 'series' ? (
+                        <CatalogOrder tv={tv} kind={r.kind} />
+                    ) : null}
                 </div>
             ) : null}
+            {!favorites ? <CatalogSortNotice tv={tv} /> : null}
             <p class="muted">
                 {total} titles ·{' '}
                 {tv.data.sources.find((s) => s.id === tv.data.activeId)?.name}

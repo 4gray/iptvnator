@@ -1,9 +1,12 @@
 import {
     XtreamClient,
+    xtreamCatalogTimestamp,
     resolveXtreamVodPlaybackSource,
 } from '@iptvnator/portal/xtream/client';
 import {
     Catalog,
+    CatalogSort,
+    sortCatalog,
     Kind,
     Media,
     Source,
@@ -46,6 +49,7 @@ export class XtreamProvider implements ProviderClient {
             providerId,
             kind,
             title: text(raw.name ?? raw.title),
+            addedAt: xtreamCatalogTimestamp(raw, kind === 'series'),
             poster: artwork(raw.stream_icon ?? raw.cover),
             category: text(raw.category_id),
             backdrop: artwork(
@@ -63,7 +67,8 @@ export class XtreamProvider implements ProviderClient {
         category: string,
         page: number,
         query: string,
-        signal: AbortSignal
+        signal: AbortSignal,
+        sort: CatalogSort = 'recent'
     ): Promise<Catalog> {
         const type = kind === 'movie' ? 'vod' : kind;
         const key = type;
@@ -92,7 +97,10 @@ export class XtreamProvider implements ProviderClient {
                     m.title.toLowerCase().includes(query.toLowerCase())
             );
         return {
-            items: items.slice(page * 60, (page + 1) * 60),
+            items: sortCatalog(
+                items,
+                kind === 'live' ? 'provider' : sort
+            ).slice(page * 60, (page + 1) * 60),
             total: items.length,
             page,
             categories,
