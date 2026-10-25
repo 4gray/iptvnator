@@ -54,6 +54,7 @@
         (contextDrawerToggleRequested)="contextDrawer.toggle()"
         (searchChanged)="facade.onSearchInput($event)"
         (searchSubmitted)="facade.onSearchEnter($event)"
+        (globalSearchRequested)="facade.openGlobalSearch()"
         (commandPaletteRequested)="facade.openCommandPalette()"
         (shortcutsRequested)="keyboardShortcuts.openShortcutsDialog()"
         (addPlaylistRequested)="facade.openAddPlaylistDialog()"
