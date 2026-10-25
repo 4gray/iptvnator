@@ -97,6 +97,21 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(emitted).toEqual(['matrix']);
     });
 
+    it('opens global content search rather than the command palette on inactive search fields', () => {
+        fixture.componentRef.setInput('canUseSearch', false);
+        fixture.detectChanges();
+        const contentSearch = jest.fn();
+        const commands = jest.fn();
+        component.globalSearchRequested.subscribe(contentSearch);
+        component.commandPaletteRequested.subscribe(commands);
+
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input[type="search"]');
+        input.click();
+
+        expect(contentSearch).toHaveBeenCalledTimes(1);
+        expect(commands).not.toHaveBeenCalled();
+    });
+
     it('focuses and selects the search input on request', () => {
         const input: HTMLInputElement = fixture.nativeElement.querySelector(
             'input[type="search"]'
