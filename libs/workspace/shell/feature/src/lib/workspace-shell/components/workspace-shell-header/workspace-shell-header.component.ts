@@ -161,6 +161,13 @@ export class WorkspaceShellHeaderComponent {
         return !!inputElement && target === inputElement;
     }
 
+    onSearchClick(): void {
+        // Some routes have no inline search results (notably M3U catalogs).
+        // Clicking the visible field must not be a dead end: open the same
+        // searchable command palette as Ctrl+K.
+        if (!this.canUseSearch()) this.commandPaletteRequested.emit();
+    }
+
     onSearchInput(event: Event): void {
         const target = event.target as HTMLInputElement | null;
         this.searchChanged.emit(target?.value ?? '');

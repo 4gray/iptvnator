@@ -57,7 +57,8 @@ export class WorkspaceShellHeaderService {
         const context = this.routeState.currentContext();
         const action = this.headerContext.action();
 
-        if (!action || context?.provider !== 'playlists') {
+        if (!action || context?.provider !== 'playlists' ||
+            action.disabled?.()) {
             return null;
         }
 

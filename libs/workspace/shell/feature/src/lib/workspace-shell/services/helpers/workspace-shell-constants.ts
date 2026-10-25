@@ -35,6 +35,8 @@ export const RAIL_TOOLTIP_KEYS: Readonly<
     Partial<Record<PortalRailSection, string>>
 > = {
     vod: 'WORKSPACE.SHELL.RAIL_MOVIES',
+    movies: 'WORKSPACE.SHELL.RAIL_MOVIES',
+    unclassified: 'WORKSPACE.SHELL.RAIL_UNCLASSIFIED',
     live: 'WORKSPACE.SHELL.RAIL_LIVE',
     itv: 'WORKSPACE.SHELL.RAIL_LIVE',
     radio: 'WORKSPACE.SHELL.RAIL_RADIO',

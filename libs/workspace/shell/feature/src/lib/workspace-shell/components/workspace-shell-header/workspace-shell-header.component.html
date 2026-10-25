@@ -83,7 +83,8 @@
                 [value]="searchQuery()"
                 (input)="onSearchInput($event)"
                 (keydown.enter)="onSearchEnter($event)"
-                [disabled]="!canUseSearch()"
+                [readOnly]="!canUseSearch()"
+                (click)="onSearchClick()"
                 [placeholder]="searchPlaceholder() | translate"
                 [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
             />
