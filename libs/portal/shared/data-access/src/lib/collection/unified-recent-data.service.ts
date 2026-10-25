@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { firstValueFrom, map } from 'rxjs';
+import { rememberLastPlayedLive } from '@iptvnator/shared/interfaces';
 import {
     DatabaseService,
     PlaylistsService,
@@ -266,6 +267,9 @@ export class UnifiedRecentDataService {
             );
 
             this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
+            if (item.radio !== 'true') {
+                rememberLastPlayedLive({ sourceType: 'm3u', playlistId: item.playlistId, itemId: item.streamUrl });
+            }
 
             return {
                 ...item,
@@ -302,6 +306,9 @@ export class UnifiedRecentDataService {
                 }
             }
 
+            if (item.contentType === 'live' && item.xtreamId != null) {
+                rememberLastPlayedLive({ sourceType: 'xtream', playlistId: item.playlistId, itemId: String(item.xtreamId) });
+            }
             return {
                 ...item,
                 contentId: contentId ?? item.contentId,
@@ -338,6 +345,9 @@ export class UnifiedRecentDataService {
         );
 
         this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
+        if (item.stalkerId != null && item.radio !== 'true') {
+            rememberLastPlayedLive({ sourceType: 'stalker', playlistId: item.playlistId, itemId: String(item.stalkerId) });
+        }
 
         return {
             ...item,
