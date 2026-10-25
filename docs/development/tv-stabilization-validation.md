@@ -72,10 +72,13 @@ target rebuilds the Electron main process and Angular renderer first.
 
 ## Hardware and publication boundary
 
-The paired LG is reachable. A read-only debugger inspection found IPTVnator in
-the background with no active media, still on the 0.1.11 bundle. This follow-up
-does not foreground or install over the user's current screen without their
-answer to the pending device-check question. The 0.1.12 package is built locally.
+The paired LG is reachable. The initial read-only debugger inspection found
+IPTVnator in the background with no active media, on the 0.1.11 bundle.
+Following the user's explicit installation request on 2026-10-25, the package
+below was installed and launched on `iptvnator-lg-bx` (192.168.178.44).
+The device's installed-app metadata confirms version 0.1.12. Installation and
+launch succeeded; playback acceptance remains with the user and is not implied
+by these deployment checks.
 
 The earlier native error 4 remains unresolved. Next hardware work is to diagnose
 provider media access independently of catalog/EPG, then repeat real-channel
