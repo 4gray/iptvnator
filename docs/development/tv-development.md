@@ -6,12 +6,14 @@ is the canonical runtime/provider/persistence contract.
 
 ```sh
 pnpm nx serve tv
+pnpm nx build tv-setup # needed before launching backend source directly
 CLIENT_URL=http://localhost:4310 PORT=3333 IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1 TSX_TSCONFIG_PATH=tsconfig.base.json node --import tsx apps/web-backend/src/main.ts
+pnpm nx run tv-setup:typecheck
 pnpm nx run tv:typecheck
 pnpm nx run tv-tests:typecheck
 pnpm nx run tv-e2e:typecheck
 pnpm nx test tv
-pnpm nx run-many -t lint -p tv,tv-feature,tv-ui,tv-data-access,tv-util,tv-tests,tv-e2e
+pnpm nx run-many -t lint -p tv,tv-setup,tv-feature,tv-ui,tv-data-access,tv-util,tv-tests,tv-e2e,web-backend
 pnpm nx e2e tv-e2e
 pnpm nx run tv:package
 ```
@@ -25,7 +27,7 @@ LAN/private targets require the backend's documented private-network opt-in.
 
 `tv-e2e` owns isolated ports 4311, 3433, 3420 and 3421. It starts the built TV
 client, actual web backend, and existing Stalker/Xtream mocks. Its explicit Nx
-dependencies include all four projects. Provider catalog/auth/EPG requests go
+dependencies include these projects and the phone setup application. Provider catalog/auth/EPG requests go
 through the actual backend. The isolated test backend also permits the `null`
 Origin for the packaged `file://` connection test; a real deployment must allow
 the actual TV app Origin explicitly. Synthetic media is local WebM, redirected from
@@ -35,23 +37,43 @@ BX's Chromium 68 engine, native HLS, transport stream decoding or MAG headers.
 `tv-playlist.m3u` and `tv-test-media.webm` are local mock-server fixtures only.
 
 The package target produces
-`dist/tv-package/com.iptvnator.tv.prototype_0.1.1_all.ipk` with the pinned webOS
+`dist/tv-package/com.iptvnator.tv.prototype_0.1.2_all.ipk` with the pinned webOS
 CLI. Inspect it with:
 
 ```sh
-pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.1_all.ipk
+pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.2_all.ipk
 pnpm exec ares-setup-device --list
 ```
 
 Only after the user supplies an enabled Developer Mode target and pairing:
 
 ```sh
-pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.1_all.ipk
+pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.2_all.ipk
 pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 ```
 
 Do not root, wake, reconfigure or pair a television without appropriate scope.
 Do not copy unrelated credentials into fixtures or diagnostic scripts.
+
+## Add sources from a phone
+
+Install the matching TV and backend builds. `pnpm nx build web-backend` first
+builds `tv-setup` and copies its assets into `dist/apps/web-backend/tv-setup`;
+ship that directory alongside `main.cjs`. Nx serve/test targets also build the
+phone assets. Direct `node --import tsx` launches need the explicit build above.
+For a packaged TV, allow `file://com.iptvnator.tv.prototype-webos` in `CLIENT_URL`.
+
+Sources automatically looks for a backend if none is saved. Settings and Sources
+also expose Find backend, manual URL/token entry, and a verified connection
+indicator. A Docker/reverse-proxy address can include `/api`; QR form assets and
+requests resolve relative to that backend prefix. See the architecture contract
+for discovery limits. Discovery does not start or install a backend.
+
+After connection, select Add from phone, scan the QR on the same home network,
+choose M3U/Xtream/Stalker, and submit. Confirm Add source on the TV. The phone
+reports success only after TV storage commits. Closing the TV setup cancels the
+link; expired links require a fresh QR. Reloading the phone page also requires
+rescanning because its temporary capability is held only in memory.
 
 ## TMDB setup
 
@@ -76,7 +98,8 @@ rendered Sources/Add a source headings, one native video element and zero
 visible alert elements. The first-launch screenshot was visually inspected
 and saved locally at `dist/tv-verification/lg-first-launch.png`. Several menu
 Unicode icons show missing-glyph squares on this device; this remains a UI
-follow-up. No provider credentials or backend were configured during this
+follow-up, resolved by SVG icons in the [0.1.2 report](tv-phone-validation.md).
+No provider credentials or backend were configured during this
 installation. This verifies installation and first-screen rendering, not
 physical remote operation, provider/media playback, cold relaunch persistence
 or TMDB connectivity. The remaining checklist below still applies.
@@ -114,3 +137,6 @@ the remaining Angular Stalker Escape failure, and the separate hardware gate.
 
 The [backdrop and TMDB follow-up report](tv-metadata-validation.md) records the
 0.1.1 package checks separately from the original MVP and real LG validation.
+
+The [phone setup and discovery report](tv-phone-validation.md) records the
+0.1.2 package checks and their separate real-device results.

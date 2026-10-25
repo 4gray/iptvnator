@@ -1,3 +1,4 @@
+import { useBackend } from './use-backend';
 import { firstRoute, type Route, type View } from './navigation';
 export type { View } from './navigation';
 import { useUserData } from './user-data';
@@ -37,6 +38,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         setError,
         () => tick((t) => t + 1)
     );
+    const backend = useBackend(data, storageReady, update);
     const content = useContent(
         route,
         provider,
@@ -267,11 +269,11 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             setError('Source selection was not saved.');
         }
     }
-    async function saveSource(source: Source, backend: string) {
+    async function saveSource(source: Source, address: string) {
         try {
+            if (!(await backend.connect(address))) return;
             await update((d) => ({
                 ...d,
-                backend,
                 sources: [
                     ...d.sources.filter((s) => s.id !== source.id),
                     source,
@@ -286,6 +288,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     }
     return {
         retryPlayback,
+        backend,
         data,
         route,
         setRoute,

@@ -1,3 +1,5 @@
+import { BackendConnection } from './backend-connection';
+import { PhoneSetup } from './phone-setup';
 import { normalizeStalkerMacAddress } from '@iptvnator/shared/interfaces';
 import { useState } from 'preact/hooks';
 import {
@@ -96,6 +98,7 @@ export function Sources({ tv }: { tv: TvModel }) {
                     </div>
                 ))}
             </div>
+            <PhoneSetup tv={tv} />
             <div class="filters">
                 {(['xtream', 'stalker', 'm3u'] as Provider[]).map((p) => (
                     <button
@@ -115,20 +118,7 @@ export function Sources({ tv }: { tv: TvModel }) {
                 key={`${type}:${editing?.id ?? 'new'}`}
             >
                 <h2>{editing ? 'Edit source' : 'Add a source'}</h2>
-                <label>
-                    IPTVnator backend URL
-                    <input
-                        name="backend"
-                        type="url"
-                        required
-                        defaultValue={tv.data.backend}
-                        placeholder="http://your-server:3333"
-                    />
-                </label>
-                <p class="muted">
-                    Catalog requests and login details go to this backend. Video
-                    is loaded directly from your provider.
-                </p>
+                <BackendConnection tv={tv} />
                 <label>
                     Name
                     <input name="name" required defaultValue={editing?.name} />

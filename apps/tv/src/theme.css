@@ -972,3 +972,81 @@ footer {
         bottom: 35px;
     }
 }
+
+.backend-connection {
+    max-width: 900px;
+    margin: 24px 0 32px;
+    padding: 24px;
+    border: 1px solid var(--tv-line);
+    border-radius: 12px;
+    background: var(--tv-surface);
+}
+.backend-connection label {
+    display: block;
+    margin: 18px 0;
+}
+.backend-connection input {
+    width: 100%;
+}
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--tv-muted);
+    margin-bottom: 18px;
+}
+.connection-status.connected {
+    color: var(--tv-accent);
+}
+.connection-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+}
+.connected .connection-dot {
+    background: currentColor;
+}
+.backend-results {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+}
+.phone-setup {
+    margin: 28px 0;
+    padding: 26px 0;
+    border-top: 1px solid var(--tv-line);
+    border-bottom: 1px solid var(--tv-line);
+}
+.phone-setup h2 {
+    margin-top: 0;
+}
+.phone-pairing {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+.pairing-qr {
+    width: 300px;
+    height: 300px;
+    object-fit: contain;
+    background: white;
+    border-radius: 8px;
+}
+.phone-review {
+    flex: 1;
+    min-width: 300px;
+}
+
+.phone-pairing > * {
+    margin-right: 28px;
+    margin-bottom: 18px;
+}
+.connection-status > svg,
+.connection-status > .connection-dot {
+    flex-shrink: 0;
+    margin-right: 12px;
+}

@@ -1,6 +1,6 @@
+import { BackendConnection } from './backend-connection';
 import { DirectAccessProbe } from './direct-probe';
 import { TmdbSettings } from './tmdb-settings';
-import { httpUrl } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
 export function Settings({ tv }: { tv: TvModel }) {
     const save = (event: SubmitEvent) => {
@@ -8,8 +8,6 @@ export function Settings({ tv }: { tv: TvModel }) {
         const form = new FormData(event.currentTarget as HTMLFormElement);
         tv.update((d) => ({
             ...d,
-            backend: httpUrl(String(form.get('backend'))),
-            backendToken: String(form.get('token') ?? ''),
             layout: form.get('layout') === 'shelf' ? 'shelf' : 'cinema',
             epg: form.has('epg'),
         })).catch(() => tv.setError('Settings could not be saved.'));
@@ -17,6 +15,7 @@ export function Settings({ tv }: { tv: TvModel }) {
     return (
         <>
             <h1>Settings</h1>
+            <BackendConnection tv={tv} label="Backend URL" />
             <form class="source-form" onSubmit={save}>
                 <label>
                     Home composition
@@ -24,23 +23,6 @@ export function Settings({ tv }: { tv: TvModel }) {
                         <option value="cinema">Кинозал · Cinema</option>
                         <option value="shelf">Витрина · Showcase</option>
                     </select>
-                </label>
-                <label>
-                    Backend URL
-                    <input
-                        type="url"
-                        name="backend"
-                        required
-                        defaultValue={tv.data.backend}
-                    />
-                </label>
-                <label>
-                    Backend access token (optional)
-                    <input
-                        name="token"
-                        type="password"
-                        defaultValue={tv.data.backendToken}
-                    />
                 </label>
                 <label class="check">
                     <input

@@ -1,0 +1,20 @@
+{
+    "name": "tv-setup",
+    "projectType": "application",
+    "sourceRoot": "apps/tv-setup/src",
+    "tags": ["scope:tv", "domain:tv", "type:app"],
+    "targets": {
+        "build": {
+            "cache": true,
+            "inputs": ["production", "^production"],
+            "outputs": ["{workspaceRoot}/dist/apps/tv-setup"],
+            "command": "vite build --config apps/tv-setup/vite.config.ts"
+        },
+        "typecheck": {
+            "command": "tsc -p apps/tv-setup/tsconfig.app.json --noEmit"
+        },
+        "lint": {
+            "command": "eslint \"apps/tv-setup/**/*.ts\""
+        }
+    }
+}

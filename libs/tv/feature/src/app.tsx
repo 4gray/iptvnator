@@ -6,17 +6,17 @@ import { Settings } from './settings';
 import { Home, CatalogScreen } from './screens';
 import { Detail } from './detail';
 import { Live } from './live';
-import { Backdrop } from '@iptvnator/tv/ui';
+import { Backdrop, TvIcon } from '@iptvnator/tv/ui';
 import { useMetadata } from './use-metadata';
-const navigation: [View, string, string][] = [
-    ['home', '⌂', 'Home'],
-    ['live', '▣', 'TV'],
-    ['movies', '▤', 'Movies'],
-    ['series', '▥', 'Series'],
-    ['favorites', '♡', 'Favorites'],
-    ['search', '⌕', 'Search'],
-    ['sources', '⊞', 'Sources'],
-    ['settings', '⚙', 'Settings'],
+const navigation: [View, string][] = [
+    ['home', 'Home'],
+    ['live', 'TV'],
+    ['movies', 'Movies'],
+    ['series', 'Series'],
+    ['favorites', 'Favorites'],
+    ['search', 'Search'],
+    ['sources', 'Sources'],
+    ['settings', 'Settings'],
 ];
 export function TvApp() {
     const video = useRef<HTMLVideoElement>(null);
@@ -91,14 +91,14 @@ export function TvApp() {
                     ip<span>tv</span>nator<small>TV EDITION</small>
                 </div>
                 <nav aria-label="Main navigation">
-                    {navigation.map(([view, icon, label]) => (
+                    {navigation.map(([view, label]) => (
                         <button
                             data-focus={`nav:${view}`}
                             aria-current={r.view === view ? 'page' : undefined}
                             onClick={() => tv.navigate(view)}
                         >
                             <span class="nav-icon" aria-hidden="true">
-                                {icon}
+                                <TvIcon name={view} />
                             </span>
                             {label}
                         </button>

@@ -172,6 +172,9 @@ importers:
       proxy-from-env:
         specifier: 2.1.0
         version: 2.1.0
+      qrcode:
+        specifier: 1.5.4
+        version: 1.5.4
       rxjs:
         specifier: 7.8.2
         version: 7.8.2
@@ -353,6 +356,9 @@ importers:
       '@types/proxy-from-env':
         specifier: 1.0.4
         version: 1.0.4
+      '@types/qrcode':
+        specifier: 1.5.5
+        version: 1.5.5
       '@types/video.js':
         specifier: 7.3.58
         version: 7.3.58
@@ -4615,6 +4621,9 @@ packages:
 
   '@types/proxy-from-env@1.0.4':
     resolution: {integrity: sha512-TPR9/bCZAr3V1eHN4G3LD3OLicdJjqX1QRXWuNcCYgE66f/K8jO2ZRtHxI2D9MbnuUP6+qiKSS8eUHp6TFHGCw==}
+
+  '@types/qrcode@1.5.5':
+    resolution: {integrity: sha512-CdfBi/e3Qk+3Z/fXYShipBT13OJ2fDO2Q2w5CIP5anLTLIndQG9z6P1cnm+8zCWSpm5dnxMFd/uREtb0EXuQzg==}
 
   '@types/qs@6.14.0':
     resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
@@ -14731,6 +14740,10 @@ snapshots:
   '@types/parse-json@4.0.2': {}
 
   '@types/proxy-from-env@1.0.4':
+    dependencies:
+      '@types/node': 20.19.9
+
+  '@types/qrcode@1.5.5':
     dependencies:
       '@types/node': 20.19.9
 

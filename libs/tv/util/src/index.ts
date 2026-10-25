@@ -180,3 +180,4 @@ export function removeSourceData(data: UserData, sourceId: string): UserData {
         history: data.history.filter((h) => h.item.sourceId !== sourceId),
     };
 }
+export { parseSourceDraft, type SourceDraft } from './source-draft';

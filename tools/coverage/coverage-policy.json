@@ -378,6 +378,12 @@
                 "root": "apps/electron-backend-e2e",
                 "validationCommand": "pnpm nx run electron-backend-e2e:e2e",
                 "reason": "Playwright semantic flow coverage is reported separately."
+            },
+            {
+                "name": "tv-setup",
+                "root": "apps/tv-setup",
+                "validationCommand": "pnpm nx build tv-setup",
+                "reason": "Small phone-only companion UI; browser pairing flows in tv-e2e validate its behavior. No Jest unit target."
             }
         ],
         "tierC": [

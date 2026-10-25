@@ -576,6 +576,22 @@ instance is restricted to trusted users and intentionally needs private network
 IPTV targets. For providers using private certificate authorities, mount the CA
 bundle into the container and set `NODE_EXTRA_CA_CERTS` to that mounted path.
 
+## TV phone setup routes
+
+The backend ships the `tv-setup` Nx application's assets beside `main.cjs`.
+`/tv/setup` serves a phone form; a reverse proxy prefix such as `/api` is retained
+by relative asset and API URLs. `/tv/connection` is a public, credential-free
+protocol discovery response. `/tv/connection/check` and session creation require
+the configured server access token and permitted TV Origin.
+
+The TV session router precedes the storage access guard because phone/TV polling
+uses separate short-lived capabilities, not the global server token. Every
+session operation checks the correct role capability. It does not expose storage
+or provider routes. Drafts live only in bounded backend memory until TV
+confirmation, cancellation or five-minute expiry. The
+[TV architecture](tv-application.md#backend-discovery-and-phone-setup) owns the
+session, receipt, discovery and local persistence contract.
+
 ## Validation
 
 Use the narrow validation ladder for self-hosted changes:

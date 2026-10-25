@@ -23,3 +23,5 @@ export { StalkerSession } from './stalker-session';
 export { stalkerEpisodes } from './stalker-series';
 export { probeDirect } from './direct-probe';
 export { TvMetadata, checkTmdbKey } from './tmdb';
+export * from './backend';
+export * from './pairing';

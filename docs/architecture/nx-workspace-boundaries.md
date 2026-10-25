@@ -227,7 +227,9 @@ Domain constraints in the same rule are additive to type constraints. If an
 import violates either family, move the contract or implementation to its
 proper owner instead of weakening a constraint.
 
-The independent TV application uses `scope:tv` and `domain:tv`. Its domain
+The independent TV application and its `tv-setup` phone companion use
+`scope:tv` and `domain:tv`. The companion has `type:app`; it is a build asset
+dependency of `web-backend`, not an imported application module. Its domain
 constraint permits TV, TMDB, provider, M3U and shared-contract libraries, while the
 same type constraints still apply. TV runtime imports additionally reject
 Angular, Electron and Node. The framework-free provider sub-entrypoints are

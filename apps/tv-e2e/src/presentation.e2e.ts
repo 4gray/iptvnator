@@ -33,7 +33,10 @@ test('remote arrows can leave source fields and reach native disclosure controls
     const backend = page.getByLabel('IPTVnator backend URL');
     await backend.focus();
     await page.keyboard.press('ArrowDown');
-    await expect(page.getByLabel('Name', { exact: true })).toBeFocused();
+    await expect(
+        page.getByText('Backend access token (if required)', { exact: true })
+    ).toBeFocused();
+    await page.getByLabel('Name', { exact: true }).focus();
     await page.keyboard.press('ArrowLeft');
     await expect(page.getByLabel('Name', { exact: true })).toBeFocused();
     await page.keyboard.press('ArrowDown');
@@ -41,7 +44,9 @@ test('remote arrows can leave source fields and reach native disclosure controls
     await page.getByRole('button', { name: 'STALKER', exact: true }).click();
     await page.getByLabel('MAC address').focus();
     await page.keyboard.press('ArrowDown');
-    const disclosure = page.locator('summary');
+    const disclosure = page.getByText('Existing MAG device identity', {
+        exact: true,
+    });
     await expect(disclosure).toBeFocused();
     await page.keyboard.press('Enter');
     await page.keyboard.press('ArrowDown');

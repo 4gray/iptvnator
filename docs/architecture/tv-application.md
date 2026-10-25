@@ -59,6 +59,42 @@ M3U URL imports use the existing backend parser and shared VOD detection.
 Groups and recognized standalone VOD are exposed. Standalone episode URLs do
 not acquire an invented series hierarchy. XMLTV and DRM are excluded.
 
+## Backend discovery and phone setup
+
+Sources and Settings verify the backend identity (`/tv/connection`, protocol 1)
+and its authorized API check before displaying Connected. Saved addresses are
+checked on launch and every 30 seconds while visible. Editing either address or
+token invalidates the indicator and cancels stale checks. This TV package needs
+the matching backend version; older backends without these routes must be updated.
+
+With no saved address, the TV reads its current network through the read-only
+webOS connection-manager service. Discovery probes only `iptvnator.local` and,
+when a private IPv4 /24 or smaller subnet is available, that local subnet on
+ports 3333, 3335 and 4333 (`/api`). Twelve concurrent requests, 750 ms per probe
+and a 55-second search deadline bound the work. Discovery sends no credentials.
+A single unprotected match is checked and saved automatically; multiple matches
+require selection and protected servers require their access token. Other
+subnets, IPv6, unavailable platform APIs, custom ports and failed searches keep
+manual entry available. This is bounded HTTP discovery, not universal mDNS/SSDP.
+
+`apps/tv-setup` owns the lightweight phone form. The web backend builds and ships
+its HTML/JS/CSS as assets and mounts the session API in
+`apps/web-backend/src/app/tv-setup`. A TV creates a five-minute session after
+backend authorization. Separate random capabilities authorize the TV and phone;
+the QR carries only the phone capability in a URL fragment, removed from the
+address bar after loading. No global backend token is sent to the phone.
+Session creation is rate-limited; at most 32 sessions exist in backend memory.
+Restart, expiry, rejection or cancellation discards pending credentials.
+Use a trusted local backend/network, or HTTPS when deployed beyond it.
+
+The phone accepts M3U URLs, Xtream accounts and Stalker/MAG identities. It sends
+one narrowed source draft; the TV shows its name, provider and hostname for
+confirmation. Existing Stalker identity/password bytes are preserved. Only a
+committed TV IndexedDB write produces a Saved receipt. Failed writes remain
+retryable, and a stable session-derived source ID prevents retry duplicates.
+The phone never reads source credentials back. QR transfer is source entry,
+not account synchronization, playlist-file upload or a media relay.
+
 ## Playback and local data
 
 One `HTMLVideoElement` exists for preview and fullscreen. Focus movement never
