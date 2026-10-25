@@ -84,16 +84,26 @@ export async function findInvalidTaskGraphs(projectGraph) {
 
     return playwrightTargets(projectGraph).flatMap(({ project, target }) => {
         try {
-            assertTaskGraphDoesNotContainInvalidTargets(
-                createTaskGraph(
-                    projectGraph,
-                    {},
-                    [project],
-                    [target],
-                    undefined,
-                    {}
-                )
+            const graph = createTaskGraph(
+                projectGraph,
+                {},
+                [project],
+                [target],
+                undefined,
+                {}
             );
+            assertTaskGraphDoesNotContainInvalidTargets(graph);
+            if (
+                project === 'tv-e2e' &&
+                (target === 'e2e' || target.startsWith('e2e-ci--src/'))
+            ) {
+                for (const dependency of ['tv:build', 'tv-setup:build']) {
+                    if (!graph.tasks[dependency])
+                        throw new Error(
+                            `TV browser tests require ${dependency}`
+                        );
+                }
+            }
             return [];
         } catch (error) {
             return [{ task: `${project}:${target}`, message: error.message }];

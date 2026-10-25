@@ -19,6 +19,8 @@ export function useUserData(
     const storage = useRef(new UserDataStorage());
     const repo = useRef<UserDataRepository>();
     const player = useRef<NativePlayer>();
+    const callbacks = useRef({ report, tick, saveFailure });
+    callbacks.current = { report, tick, saveFailure };
     if (!repo.current)
         repo.current = new UserDataRepository(storage.current, setData);
     const update = (change: (d: UserData) => UserData) =>
@@ -48,9 +50,9 @@ export function useUserData(
                         ? d
                         : recordProgress(d, p)
                 ),
-            report,
-            tick,
-            saveFailure
+            (message) => callbacks.current.report(message),
+            () => callbacks.current.tick(),
+            (message, retry) => callbacks.current.saveFailure(message, retry)
         );
         return () => {
             player.current?.dispose();

@@ -213,7 +213,9 @@ It keeps the current native video mounted and playing. Its own category/catalog,
 schedule requests and selection never mutate playback merely through focus. OK on
 any channel/programme focuses Watch live; only that action resolves playback and
 opens fullscreen. Fullscreen Back restores the Live TV Guide control after a
-grid-initiated switch. Failed resolution keeps the guide usable. The chosen category is
+grid-initiated switch. Closing the grid or opening its categories cancels any
+pending Watch live resolution without stopping the existing channel. Failed
+resolution keeps the guide usable. The chosen category is
 retained with playback for later drawer entry and retry. Back from the grid's
 category list returns to its grid, then Back closes the overlay to its origin.
 

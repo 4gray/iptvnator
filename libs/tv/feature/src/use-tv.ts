@@ -160,8 +160,10 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     async function play(
         item: Media,
         category = route.category,
-        origin = focusKey()
+        origin = focusKey(),
+        signal?: AbortSignal
     ) {
+        if (signal?.aborted) return false;
         playback.current.cancel();
         failedResolution.current = undefined;
         if (playing?.id === item.id && item.kind === 'live') {
@@ -174,6 +176,10 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         }
         const lane = playback.current;
         const job = lane.start();
+        const cancel = () => {
+            if (lane.owns(job)) lane.cancel();
+        };
+        signal?.addEventListener('abort', cancel);
         setError('');
         try {
             const resolved = await provider.current!.resolve(item, job.signal);
@@ -204,6 +210,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                 );
             }
             return false;
+        } finally {
+            signal?.removeEventListener('abort', cancel);
         }
     }
     function retryPlayback() {

@@ -112,21 +112,30 @@ export function GridSchedule({
         });
     };
     const mounted = useRef(true);
+    const playback = useRef<AbortController>();
     const [starting, setStarting] = useState(false);
     useLayoutEffect(
         () => () => {
             mounted.current = false;
+            playback.current?.abort();
         },
         []
     );
     const watch = async () => {
         if (!channel) return;
         setStarting(true);
-        tv.setSelected(channel);
-        const started = await tv.play(channel, category, 'live-grid-guide');
+        playback.current?.abort();
+        playback.current = new AbortController();
+        const started = await tv.play(
+            channel,
+            category,
+            'live-grid-guide',
+            playback.current.signal
+        );
         if (!mounted.current) return;
         setStarting(false);
         if (started) {
+            tv.setSelected(channel);
             close();
             tv.setFullscreen(true);
             restoreFocus('player-toggle');

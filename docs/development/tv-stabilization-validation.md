@@ -25,6 +25,9 @@ directory migration. Frozen dependencies were reinstalled after the merge.
 - Recovery buttons retry the failed save, selection or playback operation.
   A progress save can be retried after leaving the player; a newer saved position
   wins over the old retry. Stale playback notices clear when leaving the session.
+- Native player callbacks use current playback state. Closing the grid or opening
+  its category list cancels a pending channel resolution before it can replace
+  the player. Split TV browser targets build both TV and phone assets.
 - The configured home server is probed for source-library support. Sharing
   sources remains explicit; favorites/history/progress remain local to the TV.
 - Backend split-test expectations and the shared EPG coverage classification
@@ -38,10 +41,13 @@ The read-protection regression failed against the old repository implementation.
 Web backend: 237 tests passed. Related provider/shared/EPG unit suites and web and
 Electron TypeScript checks pass.
 
-The complete TV browser suite passes 77 scenarios across M3U, Xtream and Stalker,
-including six recovery/onboarding scenarios. These run against the real local
+The complete TV browser suite passes 80 scenarios across M3U, Xtream and Stalker,
+including six recovery/onboarding scenarios and three review regressions. These run against the real local
 backend and mock providers, with synthetic media in modern Chromium. They do not
 certify webOS decoding or physical remote behavior.
+The separately invoked phone-setup split target passes all eight scenarios,
+building both clients first. All 125 inferred Playwright task graphs pass in
+local and CI configuration; no GitHub CI was dispatched.
 
 The full Tier A coverage run passes all 36 projects. Merged coverage is 84.89%
 statements, 75.85% branches, 83.20% functions and 85.25% lines. Coverage health
@@ -73,7 +79,12 @@ of this validation. Local evidence is held outside tracked source under
 `/tmp/iptvnator-tv-*.log`; the build artifact is
 `dist/tv-package/com.iptvnator.tv.prototype_0.1.12_all.ipk`.
 
-IPK SHA-256: `5081ff5c5d813b86354857de9a4dc7fc81d8362ea491e812d99dd46f6708090f`.
+IPK SHA-256: `49ebb6bf278ff03a092b38a86e255e04bb7ebea61ce7fcbe1da3ac8ea0496ecf`.
 The local Greptile CLI is unavailable; no installation or account setup was
-attempted. Codex review runs after the implementation commit, with its result
-recorded separately below when complete.
+attempted. Codex round 1 reviewed `aa8e09b7e` against master and reported three
+P2 findings: stale native error callbacks, abandoned guide playback resolution
+and missing phone assets in split E2E targets. All three were accepted and fixed;
+the added regressions cover native retry, both guide exit paths and the Nx graph.
+The native retry regression fails before its fix. Subsequent review results and
+the final tested commit are recorded in the implementation thread's completion
+report rather than implying that the first review was clean.

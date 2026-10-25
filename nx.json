@@ -84,7 +84,9 @@
             },
             {
                 "filter": { "projects": ["tv-e2e"] },
-                "dependsOn": [{ "projects": ["tv"], "target": "build" }]
+                "dependsOn": [
+                    { "projects": ["tv", "tv-setup"], "target": "build" }
+                ]
             }
         ]
     },
