@@ -87,7 +87,12 @@ export function GridSchedule({
     const channel = items[navigation.selection.row];
     const schedule = guide.schedules.get(channel?.id);
     const program =
-        schedule?.programs.find((p) => p.id === navigation.selection.key) ??
+        schedule?.programs.find(
+            (p) =>
+                p.id === navigation.selection.key &&
+                p.start < axis.endMs &&
+                p.end > axis.startMs
+        ) ??
         gridProgramAt(
             schedule?.programs ?? [],
             axis,

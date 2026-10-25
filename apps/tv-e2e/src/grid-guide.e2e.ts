@@ -26,6 +26,39 @@ const epg = (prefix: string, stream: string) => {
     };
 };
 
+test('guide details never retain a selected programme outside the visible time window', async ({
+    page,
+}) => {
+    await start(page);
+    await page.route(`${backend}/xtream?**`, (route) => {
+        const params = new URL(route.request().url()).searchParams;
+        const today = epg('Today only', params.get('stream_id') ?? '');
+        today.payload.epg_listings = today.payload.epg_listings.slice(0, 48);
+        return params.get('action') === 'get_short_epg'
+            ? route.fulfill({
+                  json: today,
+              })
+            : route.fallback();
+    });
+    await addSource(page, 'xtream');
+    await playLive(page);
+    await page.locator('[data-focus="player-grid"]').click();
+    const grid = guide(page);
+    await expect(grid.locator('[data-focus="grid-close"]')).toBeFocused();
+    const programme = grid.locator('.grid-program[data-grid-row="0"]').first();
+    await programme.click();
+    await expect(grid.locator('.grid-details h2')).toContainText('Today only');
+    await grid.getByRole('button', { name: 'Next day', exact: true }).click();
+    await expect(grid.locator('.grid-empty').first()).toContainText(
+        'No programme supplied'
+    );
+    await expect(grid.locator('.grid-details h2')).toHaveText('Live TV');
+    await grid
+        .getByRole('button', { name: 'Previous day', exact: true })
+        .click();
+    await expect(grid.locator('.grid-details h2')).toContainText('Today only');
+});
+
 for (const provider of ['xtream', 'stalker', 'm3u'] as const) {
     test(`${provider} grid browses without replacing video and Watch live switches explicitly`, async ({
         page,

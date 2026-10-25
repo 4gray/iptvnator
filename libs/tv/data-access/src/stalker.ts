@@ -59,7 +59,10 @@ export class StalkerProvider implements ProviderClient {
             sourceId: this.source.id,
             providerId: text(id),
             kind: actualKind,
-            title: text(raw.o_name ?? raw.name ?? raw.title),
+            title:
+                [raw.o_name, raw.name, raw.title]
+                    .map(text)
+                    .find((value) => value.trim()) ?? '',
             poster: resolveStalkerArtwork(
                 this.source.endpoint ?? this.source.url,
                 raw.cover,

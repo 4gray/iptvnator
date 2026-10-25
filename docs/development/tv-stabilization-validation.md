@@ -35,14 +35,14 @@ directory migration. Frozen dependencies were reinstalled after the merge.
 
 ## Local checks
 
-Node 22.23.2 / pnpm 10.33.0. TV unit tests: 66 passed, including storage-read
+Node 22.23.2 / pnpm 10.33.0. TV unit tests: 67 passed, including storage-read
 protection, bounded target repair and progress-save retry after player teardown.
 The read-protection regression failed against the old repository implementation.
 Web backend: 237 tests passed. Related provider/shared/EPG unit suites and web and
 Electron TypeScript checks pass.
 
-The complete TV browser suite passes 80 scenarios across M3U, Xtream and Stalker,
-including six recovery/onboarding scenarios and three review regressions. These run against the real local
+The complete TV browser suite passes 82 scenarios across M3U, Xtream and Stalker,
+including six recovery/onboarding scenarios and five review regressions. These run against the real local
 backend and mock providers, with synthetic media in modern Chromium. They do not
 certify webOS decoding or physical remote behavior.
 The separately invoked phone-setup split target passes all eight scenarios,
@@ -79,7 +79,7 @@ of this validation. Local evidence is held outside tracked source under
 `/tmp/iptvnator-tv-*.log`; the build artifact is
 `dist/tv-package/com.iptvnator.tv.prototype_0.1.12_all.ipk`.
 
-IPK SHA-256: `49ebb6bf278ff03a092b38a86e255e04bb7ebea61ce7fcbe1da3ac8ea0496ecf`.
+IPK SHA-256: `af3a4a089c8d6ef57efc183a54901d181bc4c8bcacf4aa5d8690b708b8cba703`.
 The local Greptile CLI is unavailable; no installation or account setup was
 attempted. Codex round 1 reviewed `aa8e09b7e` against master and reported three
 P2 findings: stale native error callbacks, abandoned guide playback resolution
@@ -88,3 +88,11 @@ the added regressions cover native retry, both guide exit paths and the Nx graph
 The native retry regression fails before its fix. Subsequent review results and
 the final tested commit are recorded in the implementation thread's completion
 report rather than implying that the first review was clean.
+
+Round 2 reviewed `32bd8c206` and reported three further P2 findings: source edits
+rewrote unchanged MAC bytes, empty Stalker original titles hid the supplied name,
+and retained guide selections showed details outside the visible time window.
+All were accepted and fixed. Their regression tests fail before each fix; the
+MAC flow uses a disconnected server-library source and also checks intentional
+MAC changes. Guide coverage checks both leaving and returning to the original
+day. The title contract is exercised for Live, movies and series.

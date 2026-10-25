@@ -187,6 +187,48 @@ test('Stalker sort is sent for every page and page cache cannot leak a previous 
     assert.ok(lists.some((p) => p.p === 2 && p.sortby === 'added'));
     provider.dispose();
 });
+test('Stalker catalogs use the first nonblank title across live, movies and series', async () => {
+    const transport = new Transport((p) =>
+        ['get_categories', 'get_genres'].includes(String(p.action))
+            ? { js: [] }
+            : {
+                  js: {
+                      data: [
+                          { id: '1', o_name: '', name: 'Provider name' },
+                          {
+                              id: '2',
+                              o_name: '   ',
+                              name: '  ',
+                              title: 'Fallback title',
+                          },
+                          {
+                              id: '3',
+                              o_name: 'Original title',
+                              name: 'Translated title',
+                          },
+                      ],
+                      max_page_items: 14,
+                      total_items: 3,
+                  },
+              }
+    );
+    const provider = createProvider(
+        { ...source, provider: 'stalker', full: false, endpoint: source.url },
+        transport,
+        async () => undefined
+    );
+    try {
+        for (const kind of ['live', 'movie', 'series'] as const) {
+            const result = await provider.catalog(kind, '', 0, '', signal);
+            assert.deepEqual(
+                result.items.map((item) => item.title),
+                ['Provider name', 'Fallback title', 'Original title']
+            );
+        }
+    } finally {
+        provider.dispose();
+    }
+});
 test('M3U without added metadata retains source order for recent and sorts titles across all pages', async () => {
     const transport = new Transport(() => ({
         playlist: {

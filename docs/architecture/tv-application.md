@@ -48,6 +48,9 @@ never sent as Xtream IDs.
 Stalker uses the existing authentication implementation with a narrow transport
 interface, observed full/simple endpoint classification, persisted idempotent
 tokens, one shared repair attempt, MAG profile/identity rules and watchdog.
+Editing a source preserves unchanged MAC bytes; only a new or explicitly edited
+MAC is normalized. Catalog titles choose the first nonblank original name,
+name or title supplied by the portal.
 Device IDs/signatures are explicit source fields, never generated or bound
 silently. Regular, embedded VOD and lazy Ministra series use the existing series
 adapters; the latter no longer imports an Angular utility just for its flag
@@ -218,6 +221,8 @@ pending Watch live resolution without stopping the existing channel. Failed
 resolution keeps the guide usable. The chosen category is
 retained with playback for later drawer entry and retry. Back from the grid's
 category list returns to its grid, then Back closes the overlay to its origin.
+Programme details retain a selection only while it overlaps the visible time
+window; moving to a day without supplied programmes clears the old details.
 
 Rows advance through provider pages as the viewport approaches the end; at most
 13 channel rows (12 plus a retained selection) and 65 programme buttons per row

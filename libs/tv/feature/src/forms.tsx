@@ -23,6 +23,7 @@ export function Sources({ tv }: { tv: TvModel }) {
         setFailure('');
         const values = new FormData(event.currentTarget as HTMLFormElement);
         const field = (key: string) => String(values.get(key) ?? '').trim();
+        const enteredMac = String(values.get('macAddress') ?? '');
         try {
             const source: Source = {
                 id:
@@ -43,8 +44,10 @@ export function Sources({ tv }: { tv: TvModel }) {
                 ...(type === 'stalker'
                     ? {
                           macAddress:
-                              normalizeStalkerMacAddress(field('macAddress')) ??
-                              field('macAddress'),
+                              editing && enteredMac === editing.macAddress
+                                  ? editing.macAddress
+                                  : (normalizeStalkerMacAddress(enteredMac) ??
+                                    field('macAddress')),
                           serialNumber: field('serialNumber'),
                           deviceId1: field('deviceId1'),
                           deviceId2: field('deviceId2'),

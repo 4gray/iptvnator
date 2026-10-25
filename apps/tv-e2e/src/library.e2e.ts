@@ -45,7 +45,12 @@ async function snapshot(page: Page) {
         async () =>
             new Promise<{
                 activeId: string;
-                sources: { id: string; libraryId?: string; name: string }[];
+                sources: {
+                    id: string;
+                    libraryId?: string;
+                    name: string;
+                    macAddress?: string;
+                }[];
                 library?: { instanceId: string };
             }>((resolve) => {
                 const req = indexedDB.open('iptvnator-tv-user-data');
@@ -65,6 +70,56 @@ test.beforeEach(async ({ request }) => {
     expect(
         (await request.delete(`${server}/v1/playlists`, { headers })).ok()
     ).toBeTruthy();
+});
+test('renaming a retained server source preserves its MAC; an explicit MAC edit normalizes it', async ({
+    page,
+    request,
+}) => {
+    const original = '00:1a:79:00:00:03';
+    await put(request, 'mac-edit', {
+        portalUrl: `${stalker}/server/load.php`,
+        macAddress: original,
+    });
+    await start(page);
+    await addSource(page, 'xtream');
+    const pane = await connect(page);
+    await pane.getByRole('button', { name: 'Disconnect library' }).click();
+    await expect(pane.getByRole('status')).toContainText('Disconnected');
+    await nav(page, 'Sources');
+    await page
+        .locator('.source-row')
+        .filter({ hasText: 'Shared mac-edit' })
+        .getByRole('button', { name: 'Edit', exact: true })
+        .click();
+    await page.getByLabel('MAC address').focus();
+    await page.keyboard.press('Tab');
+    await page.getByLabel('Name', { exact: true }).fill('Renamed portal');
+    await page.getByRole('button', { name: 'Save and connect' }).click();
+    await expect
+        .poll(
+            async () =>
+                (await snapshot(page)).sources.find(
+                    (s) => s.name === 'Renamed portal'
+                )?.macAddress
+        )
+        .toBe(original);
+    await page.reload();
+    await nav(page, 'Sources');
+    await page
+        .locator('.source-row')
+        .filter({ hasText: 'Renamed portal' })
+        .getByRole('button', { name: 'Edit', exact: true })
+        .click();
+    await page.getByLabel('MAC address').fill('00-1a-79-00-00-04');
+    await page.getByRole('button', { name: 'Save and connect' }).click();
+    await expect
+        .poll(
+            async () =>
+                (await snapshot(page)).sources.find(
+                    (s) => s.name === 'Renamed portal'
+                )?.macAddress
+        )
+        .toBe('00:1A:79:00:00:04');
 });
 test('shared Xtream, Stalker and M3U sources load, retain local identity and survive relaunch', async ({
     page,
