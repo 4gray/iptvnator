@@ -543,6 +543,10 @@ describe('ChannelListContainerComponent', () => {
             'missing-url',
             'duplicate-url',
         ]);
+        // visibleChannelList$ is backed by Angular's toObservable(signal):
+        // flush change detection so the channel update reaches the stream
+        // before firstValueFrom observes its replayed value.
+        fixture.detectChanges();
         // The asynchronous XMLTV identity pass can read channel URLs once
         // independently of the favorites projection; finish it first.
         await settleEpgAliasMicrotasks();
