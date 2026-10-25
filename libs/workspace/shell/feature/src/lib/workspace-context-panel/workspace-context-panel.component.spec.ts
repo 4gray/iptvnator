@@ -240,6 +240,35 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(router.navigate).not.toHaveBeenCalled();
     });
 
+    it('renders the category search and sort actions disabled while the categories load', () => {
+        // Present from the skeleton on, so the header row keeps its width
+        // when the categories arrive instead of growing by two buttons.
+        const loaded = xtreamCategories();
+        fixture.componentRef.setInput('section', 'vod');
+        xtreamCategories.set([]);
+        xtreamIsLoadingCategories.set(true);
+        fixture.detectChanges();
+
+        const actions = () =>
+            Array.from(
+                fixture.nativeElement.querySelectorAll(
+                    '.context-header__action'
+                )
+            ) as HTMLButtonElement[];
+        expect(actions()).toHaveLength(3);
+        expect(actions().every((button) => button.disabled)).toBe(true);
+        expect(fixture.componentInstance.focusTarget()).toBeNull();
+
+        xtreamCategories.set(loaded);
+        xtreamIsLoadingCategories.set(false);
+        fixture.detectChanges();
+
+        expect(actions()).toHaveLength(3);
+        expect(actions()[0].disabled).toBe(false);
+        expect(actions()[1].disabled).toBe(false);
+        expect(fixture.componentInstance.focusTarget()).toBe(actions()[0]);
+    });
+
     it('keeps local xtream loading states quiet when no import is running', () => {
         fixture.componentRef.setInput('section', 'vod');
         xtreamIsImporting.set(false);
@@ -340,11 +369,14 @@ describe('WorkspaceContextPanelComponent', () => {
     });
 
     it.each([
-        { id: 7, name: 'Alpha', top: 520 },
-        { id: 8, name: 'Zulu', top: 2420 },
+        // Alpha's row is already fully visible: clicking it only stops
+        // any in-flight scroll at the current position (scrollTop 500).
+        { id: 7, name: 'Alpha', scroll: { behavior: 'instant', top: 500 } },
+        // Zulu's row is below the fold: it is centred into view.
+        { id: 8, name: 'Zulu', scroll: { behavior: 'smooth', top: 2420 } },
     ])(
-        'scrolls to the selected local category $name when provider IDs collide after sorting',
-        async ({ id, name, top }) => {
+        'reveals the selected local category $name when provider IDs collide after sorting',
+        async ({ id, name, scroll }) => {
             fixture.componentRef.setInput('section', 'live');
             xtreamSelectedTypeContentState.set('ready');
             // SQLite IDs drive selection; provider IDs can belong to another row.
@@ -385,10 +417,7 @@ describe('WorkspaceContextPanelComponent', () => {
             await fixture.whenStable();
 
             expect(selected.getAttribute('aria-current')).toBe('true');
-            expect(container.scrollTo).toHaveBeenCalledWith({
-                behavior: 'smooth',
-                top,
-            });
+            expect(container.scrollTo).toHaveBeenCalledWith(scroll);
         }
     );
 
@@ -1007,7 +1036,7 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(dialog.open).toHaveBeenCalledWith(
             expect.any(Function),
             expect.objectContaining({
-                width: '500px',
+                width: '560px',
                 maxWidth: 'calc(100vw - 32px)',
             })
         );

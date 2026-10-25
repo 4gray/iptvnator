@@ -22,6 +22,7 @@ export enum Language {
     PORTUGUESE_BRAZIL = 'pt-BR',
     GREEK = 'el',
     HUNGARIAN = 'hu',
+    UKRAINIAN = 'uk',
 }
 
 const SUPPORTED_LANGUAGES = new Set<string>(Object.values(Language));

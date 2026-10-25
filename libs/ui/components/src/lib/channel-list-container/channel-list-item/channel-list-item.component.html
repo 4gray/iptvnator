@@ -17,6 +17,7 @@
         type="button"
         class="channel-content"
         [attr.aria-label]="displayName()"
+        [attr.aria-disabled]="disabled() || null"
     >
         <div class="channel-logo-shell" aria-hidden="true">
             @if (showLogoFallback()) {
@@ -50,7 +51,9 @@
                     }}</span>
                 }
             </div>
-            @if (showEpg()) {
+            @if (statusLabel()) {
+                <div class="epg-title">{{ statusLabel() }}</div>
+            } @else if (showEpg()) {
                 @if (epgProgram(); as program) {
                     <div class="epg-title">
                         {{ program.title }}

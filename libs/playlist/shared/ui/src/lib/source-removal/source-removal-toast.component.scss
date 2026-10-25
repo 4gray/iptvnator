@@ -1,0 +1,9 @@
+// The frame (`panelClass: 'app-toast'`) is the global kit toast in
+// `styles.scss`; only the content's own styles live here.
+.source-removal-toast__undo {
+    font-weight: 600;
+}
+
+.source-removal-toast__close {
+    color: var(--app-body-color);
+}

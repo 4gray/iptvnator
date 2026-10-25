@@ -1,3 +1,5 @@
+@use '../../../../styles/app-controls' as controls;
+
 .seasons-section {
     width: 100%;
 }
@@ -69,64 +71,10 @@
         min-width: 0;
     }
 
-    // Segmented list/grid switch: a 2px-padded track with 30×26 segments;
-    // the checked one is a neutral raised segment with full-contrast ink.
+    // The list/grid switch: the kit's segmented control with 30×26
+    // icon-only segments, 32px tall like the season picker in this header.
     .view-toggle mat-button-toggle-group {
-        gap: 2px;
-        height: auto;
-        padding: 2px;
-        overflow: visible;
-        border: 1px solid
-            color-mix(in srgb, var(--app-on-surface) 14%, transparent);
-        border-radius: 8px;
-        background: var(--app-widget-bg);
-
-        ::ng-deep {
-            .mat-button-toggle {
-                border: 0;
-                border-radius: 6px;
-                background: transparent;
-                color: var(--app-eyebrow-color);
-
-                .mat-button-toggle-button {
-                    width: 30px;
-                    height: 26px;
-                    padding: 0;
-                }
-
-                .mat-button-toggle-label-content {
-                    display: grid;
-                    place-items: center;
-                    padding: 0;
-                    line-height: 26px;
-                }
-
-                mat-icon {
-                    width: 16px;
-                    height: 16px;
-                    font-size: 16px;
-                    line-height: 16px;
-                    color: inherit;
-                }
-
-                &:hover:not(.mat-button-toggle-checked) {
-                    color: var(--app-heading-color);
-                }
-
-                &.mat-button-toggle-checked {
-                    background: color-mix(
-                        in srgb,
-                        var(--app-on-surface) 12%,
-                        transparent
-                    );
-                    color: var(--app-heading-color);
-                }
-            }
-
-            .mat-button-toggle + .mat-button-toggle {
-                border-left: 0;
-            }
-        }
+        @include controls.segmented-control(26px, 16px, 30px);
     }
 }
 

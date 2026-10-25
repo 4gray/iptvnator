@@ -23,6 +23,7 @@ export const REMOTE_CONTROL_TRANSLATIONS: readonly string[] = [
     'pt-BR',
     'ru',
     'tr',
+    'uk',
     'zh',
     'zhtw',
 ];

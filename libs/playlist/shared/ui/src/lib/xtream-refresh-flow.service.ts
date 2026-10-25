@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -11,6 +11,7 @@ import {
     isDbAbortError,
     PlaybackPositionService,
     resetHostConnectivityGuard,
+    SourceActivityService,
     XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -79,6 +80,7 @@ export class XtreamRefreshFlowService {
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
+    private readonly activity = inject(SourceActivityService);
 
     /**
      * Playlists with a destructive run in flight, across every entry point.
@@ -91,7 +93,30 @@ export class XtreamRefreshFlowService {
      * losing favorites, history, hidden categories and playback positions on
      * re-import. This service is the only place that sees both.
      */
-    private readonly activeRefreshPlaylistIds = new Set<string>();
+    private readonly activeRefreshPlaylistIds = signal<ReadonlySet<string>>(
+        new Set()
+    );
+
+    /**
+     * Whether a destructive run is in flight for the playlist. Opening the
+     * playlist meanwhile would start its import against a half-deleted
+     * catalog, before the user data to restore has been parked.
+     */
+    isRunning(playlistId: string): boolean {
+        return this.activeRefreshPlaylistIds().has(playlistId);
+    }
+
+    private setRunning(playlistId: string, running: boolean): void {
+        this.activeRefreshPlaylistIds.update((current) => {
+            const next = new Set(current);
+            if (running) {
+                next.add(playlistId);
+            } else {
+                next.delete(playlistId);
+            }
+            return next;
+        });
+    }
 
     /**
      * Asks for confirmation, then deletes and re-imports the playlist. Callers
@@ -119,8 +144,11 @@ export class XtreamRefreshFlowService {
         item: PlaylistMeta,
         reporter: XtreamRefreshProgressReporter
     ): Promise<void> {
+        // The shared registry also holds deletes, the startup auto-refresh
+        // and M3U refreshes from either entry point.
         if (
-            this.activeRefreshPlaylistIds.has(item._id) ||
+            this.isRunning(item._id) ||
+            this.activity.isBusy(item._id) ||
             reporter.isBusy(item._id)
         ) {
             return;
@@ -130,7 +158,8 @@ export class XtreamRefreshFlowService {
             this.databaseService.createOperationId('xtream-refresh');
         const run: XtreamRefreshRun = { playlistId: item._id, operationId };
         reporter.begin(run);
-        this.activeRefreshPlaylistIds.add(item._id);
+        this.setRunning(item._id, true);
+        const release = this.activity.begin([item._id]);
 
         try {
             // Before anything destructive: this deletes the cached catalog and
@@ -151,6 +180,17 @@ export class XtreamRefreshFlowService {
                 { duration: 2000 }
             );
             await reporter.waitForVisibleProgress?.();
+
+            // Migrate an older parked favorite list before replacing its state.
+            // A durable receipt prevents replay after an explicit user removal.
+            const pending = this.pendingRestoreService.getOrThrow(item._id);
+            if (pending) {
+                await this.databaseService.restoreXtreamFavoriteSnapshots(
+                    item._id,
+                    pending.favorites,
+                    pending.favoritesRestoreId
+                );
+            }
 
             // Delete content/categories and update the timestamp in parallel —
             // all three operations are fully independent.
@@ -204,7 +244,8 @@ export class XtreamRefreshFlowService {
                 );
             }
         } finally {
-            this.activeRefreshPlaylistIds.delete(item._id);
+            this.setRunning(item._id, false);
+            release();
             reporter.end(run);
         }
     }

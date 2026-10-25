@@ -38,6 +38,8 @@ export class ContentCardComponent {
 
     /** Title to display */
     readonly title = input.required<string>();
+    readonly disabled = input(false);
+    readonly statusLabel = input('');
 
     /** Content type (live, movie, series) */
     readonly type = input<string>();
@@ -106,7 +108,7 @@ export class ContentCardComponent {
     }
 
     onCardClick(): void {
-        this.cardClick.emit();
+        if (!this.disabled()) this.cardClick.emit();
     }
 
     /**
@@ -116,7 +118,7 @@ export class ContentCardComponent {
      */
     onCardKey(event: Event): void {
         event.preventDefault();
-        this.cardClick.emit();
+        this.onCardClick();
     }
 
     onRemoveClick(event: Event): void {

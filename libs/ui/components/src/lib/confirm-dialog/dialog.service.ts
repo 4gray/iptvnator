@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import {
+import { dialogSize } from '../dialog-shell/dialog-size';
+import { LazyMatDialog } from '../lazy-dialog/lazy-mat-dialog';
+import type {
     ConfirmDialogComponent,
     ConfirmDialogData,
 } from './confirm-dialog.component';
@@ -9,22 +10,42 @@ import {
     providedIn: 'root',
 })
 export class DialogService {
-    private dialog = inject(MatDialog);
+    private readonly lazyDialog = inject(LazyMatDialog);
 
     /**
-     * Opens the confirm dialog with provided data
+     * The dynamic import; a field so specs can substitute it. The component
+     * loads with the first confirmation: this service is created with the
+     * app, so a static import would put the component, Material's dialog
+     * and buttons on the initial path.
+     */
+    loadConfirmDialog = () => import('./confirm-dialog.component');
+
+    /**
+     * Opens the confirm dialog with provided data. The returned promise
+     * settles once the dialog is open; a failed chunk load is logged, and
+     * the action is not performed.
      * @param data dialog meta info
      */
-    openConfirmDialog(data: ConfirmDialogData): void {
-        const dialogRef = this.dialog.open<
+    async openConfirmDialog(data: ConfirmDialogData): Promise<void> {
+        let dialogModule: Awaited<ReturnType<typeof this.loadConfirmDialog>>;
+        let dialog: Awaited<ReturnType<LazyMatDialog['resolve']>>;
+        try {
+            [dialog, dialogModule] = await Promise.all([
+                this.lazyDialog.resolve(),
+                this.loadConfirmDialog(),
+            ]);
+        } catch (error) {
+            console.error('Could not open the confirmation dialog:', error);
+            return;
+        }
+        const dialogRef = dialog.open<
             ConfirmDialogComponent,
             ConfirmDialogData
-        >(ConfirmDialogComponent, {
+        >(dialogModule.ConfirmDialogComponent, {
+            ...dialogSize('sm'),
             data,
-            // Wide enough for two side-by-side action buttons with translated
-            // labels; 300px forced them to wrap into a vertical stack.
-            width: data.width ?? '420px',
-            maxWidth: 'calc(100vw - 32px)',
+            // A caller may still ask for a wider dialog (a long message).
+            ...(data.width ? { width: data.width } : {}),
         });
         dialogRef
             .afterClosed()

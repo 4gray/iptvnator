@@ -254,7 +254,7 @@ export default [
         },
     },
     {
-        // CLAUDE.md file-size rule for production code: target under 300 lines,
+        // AGENTS.md file-size rule for production code: target under 300 lines,
         // hard maximum 400. Files that predate the rule are baselined below.
         files: ['**/*.ts', '**/*.tsx'],
         ignores: TEST_FILE_GLOBS,

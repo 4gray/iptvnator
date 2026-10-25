@@ -250,6 +250,7 @@
     .mat-mdc-dialog-surface,
     .mdc-dialog__surface {
         background: transparent !important;
+        border: 0;
         box-shadow: none !important;
         border-radius: 14px !important;
         overflow: visible;

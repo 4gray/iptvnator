@@ -274,6 +274,12 @@ export class UnifiedRecentDataService {
         }
 
         if (item.sourceType === 'xtream') {
+            const playedContent = {
+                title: item.name,
+                posterUrl: item.logo ?? item.posterUrl ?? undefined,
+                categoryId: item.categoryId,
+                ...item.xtreamIdentity,
+            };
             const contentId =
                 item.contentId ??
                 (item.xtreamId != null
@@ -289,7 +295,9 @@ export class UnifiedRecentDataService {
                 } else {
                     await this.xtreamDataSource.addRecentItem(
                         { id: contentId, type: item.contentType },
-                        item.playlistId
+                        item.playlistId,
+                        undefined,
+                        playedContent
                     );
                 }
             }
@@ -491,6 +499,11 @@ export class UnifiedRecentDataService {
                 item.xtream_id
             ),
             name: item.title,
+            catalogStatus: item.catalog_status,
+            xtreamIdentity: {
+                tmdbId: item.tmdb_id ?? undefined,
+                releaseYear: item.release_year ?? undefined,
+            },
             contentType,
             sourceType: 'xtream',
             playlistId,

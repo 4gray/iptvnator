@@ -40,7 +40,11 @@ function createSqliteMock(
         const rule = rules.find(([pattern]) => compact.includes(pattern));
 
         return {
-            all: jest.fn(() => []),
+            all: jest.fn(() =>
+                compact === "PRAGMA table_info('favorites')"
+                    ? [{ name: 'xtream_id' }]
+                    : []
+            ),
             get: jest.fn(),
             run: jest.fn(),
             ...(rule?.[1] ?? {}),
@@ -299,7 +303,7 @@ describe('runMigrations Xtream cache deduplication', () => {
                 'SELECT id FROM content WHERE category_id = ?',
                 { all: () => [{ id: 10 }, { id: 11 }] },
             ],
-            ['INSERT INTO favorites', { run: moveFavoritesRun }],
+            ['UPDATE OR IGNORE favorites', { run: moveFavoritesRun }],
             [
                 'DELETE FROM favorites WHERE content_id = ?',
                 { run: deleteFavoritesRun },
@@ -358,7 +362,12 @@ describe('content title FTS tokenizer upgrade', () => {
             expect.stringContaining("tokenize='trigram remove_diacritics 1'")
         );
         expect(rebuild.run).toHaveBeenCalled();
-        expect(marker.run).toHaveBeenCalled();
+        // The rebuild also covers the plain index migration; without its
+        // record the next launch rebuilds the whole index again.
+        expect(marker.run.mock.calls).toEqual([
+            ['migration:content-title-fts-remove-diacritics:v1'],
+            ['migration:content-title-fts-trigram:v1'],
+        ]);
         // One transaction, so a rejected CREATE rolls the drop back and the
         // working index survives.
         expect(transaction).toHaveBeenCalled();

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -13,7 +13,13 @@ import {
     switchMap,
     throwError,
 } from 'rxjs';
-import { DataService } from '@iptvnator/services';
+import {
+    DataService,
+    isBackendUrl,
+    isGatewayOutage,
+    isServerAccessChallenge,
+    ServerStorageStatusService,
+} from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
     ERROR,
@@ -79,10 +85,11 @@ interface ProviderTargetRegistration {
 export class PwaService extends DataService {
     private messageListeners = new Map<string, EventListener>();
     private readonly http = inject(HttpClient);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly snackBar = inject(LazySnackBar);
     private readonly store = inject(Store);
     private readonly swUpdate = inject(SwUpdate);
     private readonly translateService = inject(TranslateService);
+    private readonly serverStatus = inject(ServerStorageStatusService);
     private readonly logger = createLogger('PwaService');
     private readonly providerTargetIds = new Map<string, Promise<string>>();
     private readonly silentXtreamActions = new Set<string>([
@@ -95,25 +102,34 @@ export class PwaService extends DataService {
         XtreamCodeActions.GetSimpleDateTable,
     ]);
 
-    /** Proxy URL to avoid CORS issues */
-    corsProxyUrl = getRuntimeBackendUrl();
+    /** The backend's URL as configured: `/` for the page's own origin. */
+    private readonly backendUrl = getRuntimeBackendUrl();
+
+    /**
+     * Proxy URL to avoid CORS issues, without trailing slashes: paths are
+     * appended to it, and `BACKEND_URL=/` must give `/xtream`, never the
+     * protocol-relative `//xtream` (another host).
+     */
+    corsProxyUrl = this.backendUrl.replace(/\/+$/, '');
 
     constructor() {
         super();
     }
 
+    /** The page reload; a field so specs can substitute it. */
+    reloadWindow: () => void = () => window.location.reload();
+
     /** Uses service worker mechanism to check for available application updates */
     checkUpdates() {
         this.swUpdate.versionUpdates.subscribe(() => {
-            this.snackBar
+            void this.snackBar
                 .open(
                     this.translateService.instant('UPDATE_AVAILABLE'),
                     this.translateService.instant('REFRESH')
                 )
-                .onAction()
-                .subscribe(() => {
-                    window.location.reload();
-                });
+                .then((ref) =>
+                    ref?.onAction().subscribe(() => this.reloadWindow())
+                );
         });
     }
 
@@ -133,8 +149,10 @@ export class PwaService extends DataService {
         }
 
         if (type === PLAYLIST_UPDATE) {
-            this.refreshPlaylist(payload as Partial<Playlist & { id: string }>);
-            return undefined as T;
+            // Settles when the refresh does, so callers keep the source busy.
+            return this.refreshPlaylist(
+                payload as Partial<Playlist & { id: string }>
+            ) as T;
         }
 
         if (type === XTREAM_REQUEST) {
@@ -195,7 +213,7 @@ export class PwaService extends DataService {
         );
 
         try {
-            const response = await fetch(
+            const response = await this.backendFetch(
                 `${this.corsProxyUrl}/connectivity-guard/reset`,
                 {
                     body: JSON.stringify({ url: payload.url }),
@@ -215,17 +233,40 @@ export class PwaService extends DataService {
         }
     }
 
-    refreshPlaylist(payload?: Partial<Playlist & { id: string }>) {
+    /** Resolves once the backend has answered, whether it succeeded or not. */
+    refreshPlaylist(
+        payload?: Partial<Playlist & { id: string }>
+    ): Promise<void> {
         if (!payload?.url || !payload?.id) {
-            return;
+            return Promise.resolve();
         }
 
         const playlistId = payload.id;
+        const { url, userAgent } = payload;
 
-        this.getPlaylistFromUrl(payload.url, payload.userAgent)
-            .pipe(
-                catchError((error) => {
-                    this.snackBar.open(
+        return new Promise<void>((resolve) => {
+            this.getPlaylistFromUrl(url, userAgent).subscribe({
+                next: (playlist: Playlist) => {
+                    this.store.dispatch(
+                        PlaylistActions.updatePlaylist({
+                            playlist,
+                            playlistId,
+                            refreshEpg: true,
+                        })
+                    );
+
+                    void this.snackBar.open(
+                        this.translateService.instant(
+                            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
+                        ),
+                        undefined,
+                        { duration: 2000 }
+                    );
+                },
+                error: (error: unknown) => {
+                    // Redacted: the error can carry the playlist URL.
+                    this.logger.error('Playlist refresh error:', error);
+                    void this.snackBar.open(
                         this.appendProviderErrorCode(
                             this.getPlaylistRefreshErrorMessage(error),
                             error
@@ -235,26 +276,11 @@ export class PwaService extends DataService {
                             duration: 5000,
                         }
                     );
-                    return throwError(() => error);
-                })
-            )
-            .subscribe((playlist: Playlist) => {
-                this.store.dispatch(
-                    PlaylistActions.updatePlaylist({
-                        playlist,
-                        playlistId,
-                        refreshEpg: true,
-                    })
-                );
-
-                this.snackBar.open(
-                    this.translateService.instant(
-                        'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                    ),
-                    undefined,
-                    { duration: 2000 }
-                );
+                    resolve();
+                },
+                complete: () => resolve(),
             });
+        });
     }
 
     private getPlaylistRefreshErrorMessage(error: unknown): string {
@@ -290,7 +316,7 @@ export class PwaService extends DataService {
         this.getPlaylistFromUrl(payload.url, payload.userAgent)
             .pipe(
                 catchError((error) => {
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.appendProviderErrorCode(
                             this.getErrorMessageByStatusCode(
                                 this.extractHttpStatusCode(error)
@@ -373,6 +399,7 @@ export class PwaService extends DataService {
     }
 
     async forwardXtreamRequest(payload: {
+        userAgent?: string;
         connectionTest?: boolean;
         url: string;
         params: Record<string, string>;
@@ -404,6 +431,9 @@ export class PwaService extends DataService {
             const requestParams = {
                 targetId,
                 ...payload.params,
+                ...(payload.userAgent?.trim()
+                    ? { userAgent: payload.userAgent.trim() }
+                    : {}),
                 ...(payload.connectionTest ? { connectionTest: 'true' } : {}),
             };
             const requestPayload = {
@@ -503,7 +533,7 @@ export class PwaService extends DataService {
             }
 
             this.logger.error('Xtream request error:', normalizedMessage);
-            this.snackBar.open(
+            void this.snackBar.open(
                 this.translateService.instant('PORTALS.REQUEST_ERRORS.XTREAM', {
                     message: normalizedMessage,
                 }),
@@ -637,7 +667,7 @@ export class PwaService extends DataService {
             logPortalDebugRequest(context);
 
             // Make the fetch request
-            const response = await fetch(requestUrl);
+            const response = await this.backendFetch(requestUrl, {});
 
             if (!response.ok) {
                 throw new Error(
@@ -697,7 +727,7 @@ export class PwaService extends DataService {
             this.logger.error('Stalker request error:', err);
 
             if (!payload.silent) {
-                this.snackBar.open(
+                void this.snackBar.open(
                     this.translateService.instant(
                         'PORTALS.REQUEST_ERRORS.STALKER',
                         {
@@ -789,4 +819,67 @@ export class PwaService extends DataService {
     getAppEnvironment(): string {
         return 'pwa';
     }
+
+    /**
+     * The stored server token, only while server mode runs for this
+     * backend and only for a request that goes to it: a token kept from
+     * another backend must not reach this one, nor any other host.
+     */
+    private serverAccessToken(url: string): string | null {
+        return isBackendUrl(url, this.backendUrl)
+            ? this.serverStatus.accessToken()
+            : null;
+    }
+
+    /**
+     * `fetch` to the backend with the server token, telling the server
+     * session what any backend call can show: a token changed on the
+     * server, or an outage (no answer, or a gateway's 502/503/504), after
+     * which the instance is checked before the token goes out again. A
+     * timeout of this page's own is no outage: the backend may be slow.
+     */
+    private async backendFetch(
+        url: string,
+        init: RequestInit
+    ): Promise<Response> {
+        const token = this.serverAccessToken(url);
+        let response: Response;
+        try {
+            response = await fetch(url, {
+                ...init,
+                headers: {
+                    ...(init.headers as Record<string, string> | undefined),
+                    ...bearer(token),
+                },
+            });
+        } catch (error) {
+            if (!(
+                error instanceof DOMException && error.name === 'AbortError'
+            )) {
+                this.serverStatus.reportOffline();
+            }
+            throw error;
+        }
+        if (
+            isGatewayOutage(
+                response.status,
+                response.headers?.get('content-type')
+            )
+        ) {
+            this.serverStatus.reportOffline();
+        } else if (
+            response.status === 401 &&
+            isServerAccessChallenge(
+                response.status,
+                response.headers.get('WWW-Authenticate')
+            )
+        ) {
+            this.serverStatus.reportAccessDenied(token);
+        }
+        return response;
+    }
+}
+
+function bearer(token: string | null): Record<string, string> {
+    return token ? { Authorization: `Bearer ${token}` } : {};
 }

@@ -4,10 +4,7 @@
     <app-workspace-shell-rail-links [links]="workspaceLinks()" />
 
     @if (primaryContextLinks().length > 0) {
-        <div
-            class="rail-context-region"
-            [class]="railProviderClass()"
-        >
+        <div class="rail-context-region" [class]="railProviderClass()">
             <app-workspace-shell-rail-links
                 activeClass="is-active"
                 [selectedSection]="selectedSection()"
@@ -26,6 +23,20 @@
     }
 
     <div class="rail-footer">
+        @if (serverState() !== 'inactive') {
+            <a
+                class="rail-shortcut nav-item rail-server"
+                routerLink="/workspace/settings/server"
+                [attr.data-state]="serverState()"
+                [matTooltip]="serverLabelKey() | translate"
+                [matTooltipPosition]="'right'"
+                [attr.aria-label]="serverLabelKey() | translate"
+                data-test-id="rail-server-status"
+            >
+                <mat-icon>{{ serverIcon() }}</mat-icon>
+                <span class="rail-server__dot" aria-hidden="true"></span>
+            </a>
+        }
         <a
             class="rail-shortcut nav-item"
             routerLink="/workspace/settings"

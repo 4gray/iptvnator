@@ -3,10 +3,12 @@ import {
     epgSourceGeneration,
     requestEpgSource,
     retireEpgSource,
+    retireAllEpgSources,
 } from './epg-source-generation';
 import { BrowserWindow } from 'electron';
 import { EpgWorkerRuntime } from './epg-worker-runtime';
 import { runEpgFetch } from './epg-fetch-operation';
+import { EpgFetchQueue } from './epg-fetch-queue';
 import {
     DENY_ALL_EPG_LOCAL_SOURCES,
     EPG_LOCAL_SOURCE_REFUSED_MESSAGE,
@@ -29,9 +31,17 @@ export interface EpgProgressStats {
 
 export class EpgWorkerService {
     private readonly fetchedUrls = new Set<string>();
+    private readonly fetchQueue = new EpgFetchQueue();
     private readonly workers = new Map<string, Worker>();
     private readonly inFlightFetches = new Map<string, Promise<void>>();
     private readonly inFlightSourceClears = new Map<string, Promise<void>>();
+
+    private readonly workerFetches = new Map<string, Promise<void>>();
+    private globalClear: Promise<void> | undefined;
+
+    waitForGlobalClear(): Promise<void> | undefined {
+        return this.globalClear;
+    }
 
     private readonly runtime: EpgWorkerRuntime;
 
@@ -47,7 +57,7 @@ export class EpgWorkerService {
     }
 
     markFetchedUrl(url: string): void {
-        this.fetchedUrls.add(url);
+        if (!this.globalClear) this.fetchedUrls.add(url);
     }
 
     deleteFetchedUrl(url: string): void {
@@ -81,27 +91,16 @@ export class EpgWorkerService {
 
     async fetchEpgFromUrl(
         url: string,
-        options: ElectronBridgeTrustOptions = {}
+        options: ElectronBridgeTrustOptions = {},
+        force = false
     ): Promise<void> {
         url = url.trim();
         const generation = requestEpgSource(url);
-        const clear = this.inFlightSourceClears.get(url);
+        const clear = this.globalClear ?? this.inFlightSourceClears.get(url);
         if (clear) {
             await clear.catch(() => undefined);
-            if (generation !== epgSourceGeneration(url)) {
-                this.sendProgressToRenderer(
-                    url,
-                    'cancelled',
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    generation
-                );
-                return;
-            }
-            return this.fetchEpgFromUrl(url, options);
+            if (this.cancelIfRetired(url, generation)) return;
+            return this.fetchEpgFromUrl(url, options, force);
         }
         // A second request for an URL that is already being fetched must not
         // spawn a competing worker: both would parse and write the same EPG
@@ -112,10 +111,22 @@ export class EpgWorkerService {
         // must keep awaiting that termination window.
         const inFlight = this.inFlightFetches.get(url);
         if (inFlight) {
+            if (
+                force &&
+                this.workerFetches.has(url) &&
+                !this.workers.has(url)
+            ) {
+                // Terminal progress has already been delivered. Sharing this
+                // shutdown-only promise would strand the new request at queued.
+                await inFlight.catch(() => undefined);
+                if (this.cancelIfRetired(url, generation)) return;
+                return this.fetchEpgFromUrl(url, options, force);
+            }
             epgLogger.log(this.loggerLabel, 'Reusing in-flight EPG fetch');
             return inFlight;
         }
 
+        if (force) this.fetchedUrls.delete(url);
         if (this.fetchedUrls.has(url)) {
             epgLogger.log(
                 this.loggerLabel,
@@ -126,7 +137,8 @@ export class EpgWorkerService {
 
         const fetchPromise = this.startFetch(url, options, generation).finally(
             () => {
-                this.inFlightFetches.delete(url);
+                if (this.inFlightFetches.get(url) === fetchPromise)
+                    this.inFlightFetches.delete(url);
             }
         );
         this.inFlightFetches.set(url, fetchPromise);
@@ -140,6 +152,21 @@ export class EpgWorkerService {
      */
     localSourceAuthorizer: EpgLocalSourceAuthorizer =
         DENY_ALL_EPG_LOCAL_SOURCES;
+
+    private cancelIfRetired(url: string, generation: number): boolean {
+        if (generation === epgSourceGeneration(url)) return false;
+        this.sendProgressToRenderer(
+            url,
+            'cancelled',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            generation
+        );
+        return true;
+    }
 
     private async startFetch(
         url: string,
@@ -162,19 +189,7 @@ export class EpgWorkerService {
             // The prompt can stay open for a while; a source retired
             // meanwhile (settings save, reconciliation) must end as
             // cancelled rather than start an import the clear then awaits.
-            if (generation !== epgSourceGeneration(url)) {
-                this.sendProgressToRenderer(
-                    url,
-                    'cancelled',
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    generation
-                );
-                return;
-            }
+            if (this.cancelIfRetired(url, generation)) return;
             if (!allowed) {
                 epgLogger.log(
                     this.loggerLabel,
@@ -193,44 +208,90 @@ export class EpgWorkerService {
             }
             workerOptions = { ...trustOptions, allowLocalFile: true };
         }
-        return runEpgFetch(url, workerOptions, {
+        return this.fetchQueue.run(() =>
+            this.startWorkerFetch(url, workerOptions, generation)
+        );
+    }
+
+    private async startWorkerFetch(
+        url: string,
+        workerOptions: ElectronBridgeTrustOptions,
+        generation: number
+    ): Promise<void> {
+        if (this.cancelIfRetired(url, generation)) return;
+        // A prior terminal fetch can settle even after its shutdown failed.
+        // Retry that shutdown before admitting another SQLite writer.
+        let shutdown = this.runtime.drainTerminations();
+        while (shutdown) {
+            try {
+                await shutdown;
+            } catch (error) {
+                if (this.cancelIfRetired(url, generation)) return;
+                this.sendProgressToRenderer(
+                    url,
+                    'error',
+                    undefined,
+                    error instanceof Error ? error.message : String(error)
+                );
+                throw error;
+            }
+            if (this.cancelIfRetired(url, generation)) return;
+            shutdown = this.runtime.drainTerminations();
+        }
+        const workerFetch = runEpgFetch(url, workerOptions, {
             runtime: this.runtime,
             workers: this.workers,
             fetchedUrls: this.fetchedUrls,
             loggerLabel: this.loggerLabel,
             fetchTimeoutMs: this.fetchTimeoutMs,
             sendProgressToRenderer: this.sendProgressToRenderer.bind(this),
+        }).finally(() => {
+            if (this.workerFetches.get(url) === workerFetch)
+                this.workerFetches.delete(url);
         });
+        this.workerFetches.set(url, workerFetch);
+        return workerFetch;
     }
 
-    async clearEpgData(): Promise<void> {
-        return this.runtime.runClearWorker({
-            timeoutLabel: 'EPG clear',
-            exitLabel: 'Clear worker',
-            readyMessage: { type: 'CLEAR_EPG' },
-            completeWorkerLabel: 'completed clear',
-            failedWorkerLabel: 'failed clear',
-            erroredWorkerLabel: 'errored clear',
-            onComplete: async (worker) => {
-                epgLogger.log(this.loggerLabel, 'EPG data cleared via worker');
-                this.fetchedUrls.clear();
-                // Resolve only after every interrupted fetch worker has exited
-                // too — they may still hold the SQLite lock the caller expects
-                // to be free.
-                const terminations = [...this.workers.values()].map(
-                    (runningWorker) =>
-                        this.runtime.terminateWorker(
-                            runningWorker,
-                            'fetch during clear'
-                        )
-                );
-                this.workers.clear();
-                terminations.push(
-                    this.runtime.terminateWorker(worker, 'completed clear')
-                );
-                await Promise.all(terminations);
-            },
+    clearEpgData(): Promise<void> {
+        retireAllEpgSources();
+        this.fetchedUrls.clear();
+        if (this.globalClear) return this.globalClear;
+        // Snapshot existing source clears: later ones wait for this barrier.
+        const sourceClears = [...this.inFlightSourceClears.values()];
+        const operation = Promise.resolve().then(async () => {
+            // Termination must succeed before deleting data. Keep failed workers
+            // tracked so a subsequent clear can retry stopping them.
+            await this.runtime.stopAllWorkers(this.workers.values());
+            await Promise.all(
+                [...this.workerFetches.values()].map((fetch) =>
+                    fetch.catch(() => undefined)
+                )
+            );
+            await Promise.all(
+                sourceClears.map((clear) => clear.catch(() => undefined))
+            );
+            await this.runtime.stopAllWorkers([]);
+            this.inFlightFetches.clear();
+            this.workers.clear();
+            await this.runtime.runClearWorker({
+                timeoutLabel: 'EPG clear',
+                exitLabel: 'Clear worker',
+                readyMessage: { type: 'CLEAR_EPG' },
+                completeWorkerLabel: 'completed clear',
+                failedWorkerLabel: 'failed clear',
+                erroredWorkerLabel: 'errored clear',
+                onComplete: async (worker) => {
+                    this.fetchedUrls.clear();
+                    await this.runtime.stopAllWorkers([worker]);
+                },
+            });
         });
+        const clear = operation.finally(() => {
+            if (this.globalClear === clear) this.globalClear = undefined;
+        });
+        this.globalClear = clear;
+        return clear;
     }
 
     async clearEpgDataForSource(sourceUrl: string): Promise<void> {
@@ -242,10 +303,13 @@ export class EpgWorkerService {
         retireEpgSource(normalizedSourceUrl);
         this.fetchedUrls.delete(normalizedSourceUrl);
         const previous = this.inFlightSourceClears.get(normalizedSourceUrl);
-        const operation = previous
-            ? previous
-                  .catch(() => undefined)
-                  .then(() => this.startSourceClear(normalizedSourceUrl))
+        const barriers = [previous, this.globalClear].filter(
+            (operation): operation is Promise<void> => !!operation
+        );
+        const operation = barriers.length
+            ? Promise.all(
+                  barriers.map((barrier) => barrier.catch(() => undefined))
+              ).then(() => this.startSourceClear(normalizedSourceUrl))
             : this.startSourceClear(normalizedSourceUrl);
         const clear = operation.finally(() => {
             if (this.inFlightSourceClears.get(normalizedSourceUrl) === clear)
@@ -256,16 +320,24 @@ export class EpgWorkerService {
     }
 
     private async startSourceClear(normalizedSourceUrl: string): Promise<void> {
-        const inFlight = this.inFlightFetches.get(normalizedSourceUrl);
+        const inFlight = this.workerFetches.get(normalizedSourceUrl);
         const runningWorker = this.workers.get(normalizedSourceUrl);
         if (runningWorker) {
+            await this.runtime.stopAllWorkers([runningWorker]);
             this.workers.delete(normalizedSourceUrl);
-            await this.runtime.terminateWorker(runningWorker, 'source clear');
         }
         // Error/timeout handlers may already have removed the worker from the
         // lookup, but its fetch promise still owns asynchronous termination.
         if (inFlight) await inFlight.catch(() => undefined);
+        this.inFlightFetches.delete(normalizedSourceUrl);
 
+        // A settled fetch/clear can still own a failed shutdown. Recheck after
+        // each wait so another termination cannot be overtaken by this writer.
+        let shutdown = this.runtime.drainTerminations();
+        while (shutdown) {
+            await shutdown;
+            shutdown = this.runtime.drainTerminations();
+        }
         return this.runtime.runClearWorker({
             timeoutLabel: 'EPG source clear',
             exitLabel: 'Source clear worker',
@@ -282,10 +354,7 @@ export class EpgWorkerService {
                     'EPG data cleared for source via worker'
                 );
                 this.fetchedUrls.delete(normalizedSourceUrl);
-                await this.runtime.terminateWorker(
-                    worker,
-                    'completed source clear'
-                );
+                await this.runtime.stopAllWorkers([worker]);
             },
         });
     }

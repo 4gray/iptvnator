@@ -293,6 +293,9 @@ Implemented behavior:
 - Channel up/down and number select navigate `visibleChannels()` — the
   search-filtered, mode-conditionally sorted list derived by the same
   `deriveVisibleFavoriteChannels` helper the rendered sidebar uses
+- Up/down skips favorites marked missing or unknown. Number select and status
+  retain the full visible list's numbering; selecting an unavailable row by
+  number does nothing.
 - Remote actions play via the same path as an explicit double-click
   (`activateItem(item, false, true)`), so external MPV/VLC starts
   immediately
@@ -336,7 +339,7 @@ Implemented UI behavior:
   The phone never sees the desktop language setting, so the app shell picks
   the first browser language with a translation
   (`resolveRemoteControlLanguage`, English otherwise) and sets `<html lang>`
-  to it.
+  to it. Ukrainian browser preferences (`uk` and `uk-UA`) load `uk.json`.
 - Polls `/status` every 2s
 - Uses action wrapper to refresh status after command execution
 

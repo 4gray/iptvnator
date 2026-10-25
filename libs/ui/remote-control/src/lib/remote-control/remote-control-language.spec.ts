@@ -9,6 +9,8 @@ describe('resolveRemoteControlLanguage', () => {
     it.each([
         [['de-DE', 'en'], 'de', 'de-DE'],
         [['fr'], 'fr', 'fr'],
+        [['uk-UA', 'en'], 'uk', 'uk-UA'],
+        [['uk'], 'uk', 'uk'],
         [['zh-TW'], 'zhtw', 'zh-TW'],
         [['zh-Hant-HK'], 'zhtw', 'zh-Hant-HK'],
         [['zh-CN'], 'zh', 'zh-CN'],

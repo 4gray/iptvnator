@@ -1,0 +1,225 @@
+@use '@angular/material' as mat;
+@use '../../../../styles/app-controls' as controls;
+
+// Unencapsulated (see the component): every selector carries the
+// `app-dialog` prefix.
+app-dialog-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    // An opener without a `maxHeight` leaves the pane unbounded, so the
+    // shell caps itself at the viewport minus the preset's margins and the
+    // surface borders; only the body scrolls. A pane limit tighter than
+    // this reaches the shell through the chain below.
+    max-height: calc(100vh - 34px);
+
+    // The shell draws its own section paddings and headline. Material's
+    // paddings, text sizes and the 40px headline strut are overridden on
+    // the shell only, so a dialog without it keeps Material's layout.
+    @include mat.dialog-overrides(
+        (
+            headline-padding: 0,
+            content-padding: 20px,
+            with-actions-content-padding: 20px,
+            actions-padding: 14px 20px,
+            actions-alignment: flex-end,
+            supporting-text-size: 13.5px,
+            supporting-text-line-height: 21px,
+        )
+    );
+}
+
+.app-dialog__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px 56px 16px 20px;
+    border-bottom: 1px solid var(--app-widget-header-border);
+}
+
+.app-dialog__icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--app-list-selected-bg);
+    color: var(--app-list-selected-fg);
+
+    .mat-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+        line-height: 20px;
+    }
+
+    &--warn {
+        background: var(--app-danger-surface);
+        color: var(--app-danger-text);
+    }
+}
+
+.app-dialog__heading {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+// Material names and pads the title from `.mat-mdc-dialog-container
+// .mat-mdc-dialog-title`; the header prefix matches that specificity.
+// A heading may be provider text (an episode's file name, a channel name)
+// with no break opportunity: it wraps anywhere rather than running under
+// the close button.
+.app-dialog__header .app-dialog__title {
+    margin: 0;
+    padding: 0;
+    color: var(--app-heading-color);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+
+    &::before {
+        display: none;
+    }
+}
+
+.app-dialog__subtitle {
+    margin: 3px 0 0;
+    color: var(--app-body-color);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+// The opener's `maxHeight` reaches Material's surface (`max-height:
+// inherit`), a flex column, but the dialog component between the surface
+// and the shell, and a form around the shell, are blocks that never shrink
+// below their content: a limit tighter than the cap above (an opener's
+// `90vh`) would leave the surface scrolling the whole dialog, with the
+// header's top cut off. Those ancestors become shrinkable flex columns, so
+// the shell sizes from the surface and only the body scrolls.
+.mat-mdc-dialog-surface :has(app-dialog-shell) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.app-dialog__body {
+    // Flex sizes the body to what is left under the cap; Material's own
+    // 65vh limit would leave the surface to scroll past it.
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+
+    // A child cannot size itself from the body's height (a flex item's
+    // height is indefinite for percentages), so a column body lets the
+    // child flex to the space left and own the scrolling instead.
+    &--column {
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+.app-dialog__header-end {
+    flex: none;
+    align-self: center;
+
+    &:empty {
+        display: none;
+    }
+}
+
+.app-dialog__close {
+    position: absolute;
+    top: 14px;
+    inset-inline-end: 14px;
+    @include controls.ghost-icon-button(32px, 18px);
+}
+
+.app-dialog__footer {
+    gap: 8px;
+    min-height: 0;
+    border-top: 1px solid var(--app-widget-header-border);
+
+    // The gap spaces the buttons; Material's sibling margin would double it.
+    .mat-mdc-button-base + .mat-mdc-button-base {
+        margin-left: 0;
+    }
+
+    .app-dialog__footer-spacer {
+        flex: 1 1 auto;
+    }
+
+    // The slot wrappers add no box: their buttons are the row's items.
+    [appDialogFooter],
+    [appDialogFooterStart] {
+        display: contents;
+    }
+
+    // The kit's footer: a ghost dismiss, one accent primary, a secondary
+    // action beside it when needed. Destructive buttons keep their tint.
+    .mat-mdc-button:not(.app-destructive-button) {
+        @include controls.ghost-button(md);
+    }
+
+    .mat-mdc-unelevated-button:not(.app-destructive-button):not(
+            .app-dialog__secondary
+        ) {
+        @include controls.accent-button(md);
+    }
+
+    .app-dialog__secondary {
+        @include controls.secondary-button(md);
+    }
+}
+
+// Narrow windows: the header-end content (a platform chip, a status) drops
+// under the heading instead of squeezing it against the close button.
+@media (max-width: 640px) {
+    .app-dialog__header {
+        flex-wrap: wrap;
+    }
+
+    .app-dialog__header-end {
+        flex-basis: 100%;
+        align-self: flex-start;
+    }
+}
+
+// Short windows: a stacked footer can take most of the cap and leave the
+// body a sliver, so the cap comes off and Material's surface scrolls the
+// whole dialog as the single scroll owner, as it did before the shell.
+// A dialog without a footer has no such footer to protect and keeps its
+// header in place with the body scrolling: the header close is its only
+// in-dialog dismissal, and a scrolling surface would carry it away.
+@media (max-height: 600px) {
+    app-dialog-shell:not(.app-dialog--footerless) {
+        max-height: none;
+        // Not shrunk by the surface either: it scrolls the whole shell.
+        flex-shrink: 0;
+
+        .app-dialog__body {
+            flex: none;
+            overflow: visible;
+        }
+    }
+}
+
+// Phone: one full-width action per row, in DOM order.
+@media (max-width: 480px) {
+    .app-dialog__footer {
+        flex-direction: column;
+        align-items: stretch;
+
+        .app-dialog__footer-spacer {
+            display: none;
+        }
+
+        .mat-mdc-button-base {
+            width: 100%;
+        }
+    }
+}

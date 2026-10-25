@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
-import { createConnection } from 'net';
 import {
+    ExternalPlayerSession,
     PlayerContentInfo,
     readExternalPlayerErrorCode,
 } from '@iptvnator/shared/interfaces';
@@ -28,15 +28,25 @@ import {
     buildPlayerStartError,
     externalPlayerSessions,
     maskUrlForLogs,
-    sendPlaybackPositionUpdate,
     sendPlayerErrorNotification,
     traceExternalPlayer,
 } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 import {
+    assertQueuedLaunchAllowed,
+    MpvLaunchQueue,
+    QueuedMpvLaunch,
+    settleCancelledQueuedLaunch,
+} from './mpv-launch-queue';
+import {
     MpvReusableProcess,
     MpvReuseAttemptState,
 } from './mpv-reusable-process';
+import { attachMpvOutputHandlers } from './mpv-output-errors';
+import {
+    startPositionPolling,
+    stopPositionPolling,
+} from './mpv-position-polling';
 
 export interface OpenExternalPlayerRequest {
     url: string;
@@ -51,120 +61,11 @@ export interface OpenExternalPlayerRequest {
 }
 
 const reusableMpvProcess = new MpvReusableProcess();
-let positionPollingInterval: NodeJS.Timeout | null = null;
-// The first poll waits for MPV to open its IPC socket. The handle is kept so
-// a player that exits during that wait does not start an orphaned interval.
-let positionPollingDelay: NodeJS.Timeout | null = null;
-
 function getMpvPath(options: PlayerPathOptions = {}): string {
     return (
         normalizeCustomPlayerPath(store.get(MPV_PLAYER_PATH)) ??
         getDefaultMpvPath(options)
     );
-}
-
-async function getMpvProperty(
-    socketPath: string,
-    property: string
-): Promise<number | null> {
-    return new Promise((resolve) => {
-        const client = createConnection(socketPath);
-        const request =
-            JSON.stringify({
-                command: ['get_property', property],
-            }) + '\n';
-
-        let data = '';
-
-        client.on('connect', () => {
-            client.write(request);
-        });
-
-        const timeoutHandle = setTimeout(() => {
-            client.destroy();
-            resolve(null);
-        }, 2000);
-
-        client.on('data', (chunk) => {
-            data += chunk.toString();
-            if (data.includes('\n')) {
-                clearTimeout(timeoutHandle);
-                try {
-                    const lines = data.split('\n');
-                    for (const line of lines) {
-                        if (!line.trim()) continue;
-                        const response = JSON.parse(line);
-                        if (response.data !== undefined) {
-                            client.destroy();
-                            resolve(response.data);
-                            return;
-                        }
-                    }
-                } catch {
-                    // Ignore partial JSON while MPV is still writing.
-                }
-            }
-        });
-
-        client.on('end', () => {
-            clearTimeout(timeoutHandle);
-            if (data && !data.includes('\n')) {
-                try {
-                    const response = JSON.parse(data);
-                    resolve(response.data ?? null);
-                } catch {
-                    resolve(null);
-                }
-            }
-        });
-
-        client.on('error', () => {
-            clearTimeout(timeoutHandle);
-            resolve(null);
-        });
-    });
-}
-
-function stopPositionPolling(): void {
-    if (positionPollingDelay) {
-        clearTimeout(positionPollingDelay);
-        positionPollingDelay = null;
-    }
-    if (positionPollingInterval) {
-        clearInterval(positionPollingInterval);
-        positionPollingInterval = null;
-    }
-}
-
-function shouldIgnoreMpvStdoutLine(line: string): boolean {
-    return /^(\(Paused\)\s*)?AV:\s/.test(line);
-}
-
-function startPositionPolling(
-    socketPath: string,
-    contentInfo: PlayerContentInfo,
-    sessionId: string
-): void {
-    stopPositionPolling();
-
-    positionPollingDelay = setTimeout(() => {
-        positionPollingDelay = null;
-        positionPollingInterval = setInterval(async () => {
-            try {
-                const position = await getMpvProperty(socketPath, 'time-pos');
-                const duration = await getMpvProperty(socketPath, 'duration');
-
-                if (position !== null) {
-                    sendPlaybackPositionUpdate(sessionId, contentInfo, {
-                        positionSeconds: Math.floor(position),
-                        durationSeconds: duration ? Math.floor(duration) : null,
-                    });
-                }
-            } catch {
-                stopPositionPolling();
-            }
-        }, 5000);
-    }, 2000);
 }
 
 export function setMpvReuseInstance(reuseInstance: boolean): void {
@@ -186,33 +87,71 @@ export function setMpvReuseInstance(reuseInstance: boolean): void {
  * app and keeps playing after quit.
  */
 export function shutdownMpvSession(): void {
+    mpvLaunchQueue.cancelAll();
     reusableMpvProcess.stopStored(
         'kill reused mpv process on app shutdown',
         stopPositionPolling
     );
 }
 
-export async function openMpvPlayer({
-    url,
-    title,
-    thumbnail,
-    userAgent,
-    referer,
-    origin,
-    contentInfo,
-    startTime,
-    headers,
-}: OpenExternalPlayerRequest) {
-    externalPlayerProcessTeardownGate.assertLaunchAllowed();
+// MPV launches run one at a time; see MpvLaunchQueue. Each launch begins its
+// session at once, so the newest launch is the active one Stop targets.
+const mpvLaunchQueue = new MpvLaunchQueue(() =>
+    reusableMpvProcess.storedOwnerSessionId()
+);
+
+export function openMpvPlayer(
+    request: OpenExternalPlayerRequest
+): Promise<ExternalPlayerSession> {
+    try {
+        externalPlayerProcessTeardownGate.assertLaunchAllowed();
+    } catch (error) {
+        return Promise.reject(error);
+    }
     const displacedSessionId = externalPlayerSessions.getActiveSessionId();
-    const previousProcessSessionId = reusableMpvProcess.currentSessionId();
     const session = externalPlayerSessions.beginSession({
         player: 'mpv',
-        title,
-        thumbnail,
-        streamUrl: url,
-        contentInfo,
+        title: request.title,
+        thumbnail: request.thumbnail,
+        streamUrl: request.url,
+        contentInfo: request.contentInfo,
     });
+    return mpvLaunchQueue.enqueue(session, (queue) =>
+        launchMpvPlayer(request, session, displacedSessionId, queue)
+    );
+}
+
+async function launchMpvPlayer(
+    {
+        url,
+        title,
+        userAgent,
+        referer,
+        origin,
+        contentInfo,
+        startTime,
+        headers,
+    }: OpenExternalPlayerRequest,
+    session: ExternalPlayerSession,
+    displacedSessionId: string | null,
+    queue: QueuedMpvLaunch
+): Promise<ExternalPlayerSession> {
+    const current = externalPlayerSessions.getSession(session.id);
+    // Stopped while it waited in the queue, directly or by a later Stop.
+    if (current?.status === 'closed') return current;
+    if (queue.queued && queue.cancelled()) {
+        return settleCancelledQueuedLaunch(session, queue.pendingStop());
+    }
+    if (queue.queued) {
+        // The last started launch owns the child the gate waits for; the
+        // session displaced at enqueue time is the fallback.
+        assertQueuedLaunchAllowed(session, [
+            queue.lastStartedSessionId(),
+            displacedSessionId,
+        ]);
+    }
+    queue.markInFlight();
+    const previousProcessSessionId = reusableMpvProcess.currentSessionId();
     const reuseState: MpvReuseAttemptState = {
         teardownUnconfirmed: false,
         contentMutated: false,
@@ -356,61 +295,7 @@ export async function openMpvPlayer({
                 stdio: reuseInstance ? ['ignore', 'pipe', 'pipe'] : 'ignore',
             });
 
-            if (proc.stdout) {
-                proc.stdout.on('data', (data) => {
-                    const lines = data
-                        .toString()
-                        .split('\n')
-                        .map((line) => line.trim())
-                        .filter(Boolean);
-
-                    for (const output of lines) {
-                        if (shouldIgnoreMpvStdoutLine(output)) {
-                            continue;
-                        }
-
-                        traceExternalPlayer('mpv stdout', { output });
-
-                        if (
-                            output.includes('Failed to open') ||
-                            output.includes('Error opening') ||
-                            output.includes('Protocol not found') ||
-                            output.includes('Connection refused') ||
-                            output.includes('error') ||
-                            output.includes('403') ||
-                            output.includes('404')
-                        ) {
-                            console.error('[MPV ERROR from stdout]:', output);
-                            sendPlayerErrorNotification('MPV', output);
-                        }
-                    }
-                });
-            }
-
-            if (proc.stderr) {
-                proc.stderr.on('data', (data) => {
-                    const output = data.toString().trim();
-                    if (output) {
-                        console.error('[MPV stderr]:', output);
-
-                        if (
-                            output.includes('Failed to open') ||
-                            output.includes(
-                                'Exiting... (Errors when loading file)'
-                            ) ||
-                            output.includes('Error opening') ||
-                            output.includes('Protocol not found') ||
-                            output.includes('Connection refused') ||
-                            output.includes('error') ||
-                            output.includes('403') ||
-                            output.includes('404')
-                        ) {
-                            console.error('[MPV ERROR]:', output);
-                            sendPlayerErrorNotification('MPV', output);
-                        }
-                    }
-                });
-            }
+            attachMpvOutputHandlers(proc);
 
             proc.on('error', (err) => {
                 console.error('Failed to start MPV player:', err);

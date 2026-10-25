@@ -36,7 +36,7 @@ const rows = [
   { label: 'Search across every source', cells: [true, false] },
   { label: 'Local catalog for instant opening', cells: ['Local database', 'Browser storage'] },
   { label: 'Opening a playlist file from the system', cells: [true, false] },
-  { label: 'Reachable from other devices', cells: [false, true], note: 'This is the one thing the browser version does better.' },
+  { label: 'Reachable from other devices', cells: [false, true], note: 'This is the one thing the browser version does better: the container keeps one library on the server for every device.' },
   { label: 'Installation', cells: ['Installer or package', 'One container you run yourself'] },
 ];
 
@@ -73,7 +73,7 @@ const faq: FaqEntry[] = [
   },
   {
     q: 'Can I use both at once?',
-    a: 'Yes, but they do not share data. The desktop app keeps a local database on your machine and the browser version keeps its data in that browser, so sources, favorites and history exist separately in each.',
+    a: 'Yes, but they do not share data. The desktop app keeps a local database on your machine, and the browser version keeps its library on the server you run, shared by every browser that opens that server. A playlist backup from Settings → Backup moves sources between the two.',
   },
   {
     q: 'Is the browser version safe to expose to the internet?',

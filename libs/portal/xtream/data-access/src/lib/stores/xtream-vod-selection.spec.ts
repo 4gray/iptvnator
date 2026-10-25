@@ -28,6 +28,28 @@ describe('Xtream VOD selection helpers', () => {
         );
     });
 
+    it('strips provider stand-ins from the detail info it publishes', () => {
+        const selection = buildXtreamVodSelection(
+            {
+                info: {
+                    name: 'Placeholder Film',
+                    releasedate: 'N/A',
+                    rating_imdb: 'N/A',
+                    director: '-',
+                },
+            } as unknown as Parameters<typeof buildXtreamVodSelection>[0],
+            undefined,
+            42
+        );
+
+        expect(selection.info).toEqual({
+            name: 'Placeholder Film',
+            releasedate: '',
+            rating_imdb: '',
+            director: '',
+        });
+    });
+
     it('keeps a complete detail playback pair ahead of a catalog collision', () => {
         const catalogItem = {
             stream_id: 42,

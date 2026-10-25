@@ -933,7 +933,7 @@ be.
   the shared ≥90 % `watched` rule; the playing row is the one whose id equals
   `contentInfo.contentXtreamId`.
 - Body: `app-fullscreen-episode-panel` stamps `SeasonTabsComponent` (the
-  detail page's tabs: pills up to six seasons, a dropdown beyond, watched
+  detail page's tabs: segmented tabs up to four seasons, a menu beyond, watched
   check marks, the "Back to playing episode" chip) over the selected season's
   rows: a 16:9 still or, without one, a large numeral tile so the no-TMDB
   case still looks designed; the `S01E03` label, runtime, watched check or

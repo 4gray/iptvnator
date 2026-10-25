@@ -5,6 +5,7 @@ export interface XtreamAccountInfoDialogPlaylist {
     serverUrl: string;
     username: string;
     password: string;
+    userAgent?: string;
 }
 
 export interface XtreamAccountInfoDialogData {

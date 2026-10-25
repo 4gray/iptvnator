@@ -10,7 +10,6 @@ import { JOURNEY_CD_TICK_COUNTER_KEY } from './journey-renderer-probe';
 
 interface TargetConfiguration {
     configurations?: Record<string, Record<string, unknown>>;
-    defaultConfiguration?: string;
     dependsOn?: unknown;
     executor?: unknown;
     options?: Record<string, unknown>;
@@ -163,12 +162,7 @@ test('only the web performance build installs the tick counter the journeys read
     for (const [name, configuration] of Object.entries(
         webProject.targets['build'].configurations ?? {}
     )) {
-        if (
-            name === 'electron-performance' ||
-            name === 'electron-performance-zoneless'
-        ) {
-            continue;
-        }
+        if (name === 'electron-performance') continue;
         assert.doesNotMatch(
             JSON.stringify(configuration['fileReplacements'] ?? []),
             /environment\.performance/,
@@ -186,12 +180,7 @@ test('only development web builds provide the NgRx store devtools', () => {
         replace: 'apps/web/src/environments/store-devtools.providers.ts',
         with: 'apps/web/src/environments/store-devtools.providers.dev.ts',
     };
-    // electron-e2e-zoneless is electron-e2e plus the zoneless swap.
-    const developmentConfigurations = new Set([
-        'development',
-        'electron-e2e',
-        'electron-e2e-zoneless',
-    ]);
+    const developmentConfigurations = new Set(['development', 'electron-e2e']);
 
     assert.match(
         readFileSync(join(environments, 'store-devtools.providers.ts'), 'utf8'),
@@ -230,42 +219,23 @@ test('only development web builds provide the NgRx store devtools', () => {
     }
 });
 
-// Plan item C6 measures zoneless change detection behind a build-time flag:
-// each *-zoneless configuration is its base configuration plus one swap of
-// the change-detection providers, and nothing else selects that swap.
-test('the zoneless flag is opt-in through the *-zoneless web configurations only', () => {
-    const configurations = webProject.targets['build'].configurations ?? {};
-    const zonelessReplacement = {
-        replace: 'apps/web/src/environments/change-detection.providers.ts',
-        with: 'apps/web/src/environments/change-detection.providers.zoneless.ts',
-    };
+// Plan item C6: the renderer runs zoneless. A zone.js polyfill or a zone
+// provider would bring back a tick after every macrotask and make the
+// change-detection tick counters racy again.
+test('the web app bootstraps zoneless without the zone.js polyfill', () => {
+    const build = webProject.targets['build'];
+    const configurations = Object.entries(build.configurations ?? {});
 
-    for (const base of ['electron-performance', 'electron-e2e']) {
-        const baseConfiguration = configurations[base];
-        const zoneless = configurations[`${base}-zoneless`];
-        assert.ok(zoneless, `web:build must define ${base}-zoneless`);
-        assert.ok(baseConfiguration, `web:build must define ${base}`);
-        const { fileReplacements: baseReplacements, ...baseRest } =
-            baseConfiguration;
-        const { fileReplacements, ...rest } = zoneless;
-        assert.deepEqual(rest, baseRest, base);
-        assert.deepEqual(fileReplacements, [
-            ...((baseReplacements as unknown[] | undefined) ?? []),
-            zonelessReplacement,
-        ]);
+    assert.equal(build.options?.['polyfills'], undefined);
+    for (const [name, configuration] of configurations) {
+        assert.equal(configuration['polyfills'], undefined, name);
     }
-    for (const [name, configuration] of Object.entries(configurations)) {
-        if (name.endsWith('-zoneless')) continue;
-        assert.doesNotMatch(
-            JSON.stringify(configuration['fileReplacements'] ?? []),
-            /change-detection\.providers/,
-            name
-        );
-    }
-    assert.equal(
-        webProject.targets['build'].defaultConfiguration,
-        'production'
+    const appConfig = readFileSync(
+        join(workspaceRoot, 'apps/web/src/app/app.config.ts'),
+        'utf8'
     );
+    assert.match(appConfig, /provideZonelessChangeDetection\(\)/);
+    assert.doesNotMatch(appConfig, /provideZoneChangeDetection/);
 });
 
 test('the resolved web build cache output is the renderer directory', () => {

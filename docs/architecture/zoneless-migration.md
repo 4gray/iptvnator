@@ -40,11 +40,11 @@ must be ticked here.
 
 ## PR sequence
 
-1. [ ] Keep `@ngrx/store-devtools` out of production bundles (#1810, open). Not a
+1. [x] Keep `@ngrx/store-devtools` out of production bundles (#1810). Not a
    zone change; it lowered `renderer.initialBytes` before the migration
    starts moving it.
 2. [x] This inventory and its guard spec.
-3. [ ] Per-project PRs, in this order, each converting the project's Eager
+3. [x] Per-project PRs (#1818 to #1823), in this order, each converting the project's Eager
    components and fixing its zone-dependent sites while zone.js stays on:
    `libs/ui/*`, `libs/workspace/*`, `libs/playlist/*`, `libs/portal/*`,
    playback (`libs/ui/playback`, `libs/playlist/m3u/feature-player`),
@@ -54,14 +54,14 @@ must be ticked here.
    `fileReplacements` flag, off by default; the three implemented journeys
    (J1-J3; J4 is still planned) and the Electron E2E suite run with it on
    (see [Zoneless flag](#zoneless-flag)).
-5. [ ] Flag on by default, `zone.js` out of `polyfills`, new tick baselines
+5. [x] Flag on by default, `zone.js` out of `polyfills`, new tick baselines
    (`renderer.cdTicksIdle30s` and any counter that becomes deterministic once
    the zone.js race is gone).
 
 ## Eager components
 
 65 production files, 66 components (`epg-progress-panel.component.ts` holds
-two). Tick an entry by deleting `changeDetection: ChangeDetectionStrategy.Eager`
+two); two have since been deleted (the old Sources row and its health dot). Tick an entry by deleting `changeDetection: ChangeDetectionStrategy.Eager`
 (or setting OnPush) once its template state is signals, signal inputs or
 explicitly marked. The guard spec compares the unticked entries with the
 files whose component metadata still sets
@@ -127,7 +127,7 @@ picker), so each marks itself on the form's `events` through
 - [x] `libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts` (idle audit root)
 - [x] `libs/workspace/shell/feature/src/lib/workspace-sources/workspace-sources.component.ts`
 
-### libs/playlist (14)
+### libs/playlist (12)
 
 - [x] `libs/playlist/import/feature/src/lib/add-playlist-dialog/add-playlist-dialog.component.ts`
 - [x] `libs/playlist/import/feature/src/lib/auto-import/auto-import.component.ts`
@@ -140,9 +140,7 @@ picker), so each marks itself on the form's `events` through
 - [x] `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts`
 - [x] `libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.component.ts`
 - [x] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts`
-- [x] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts`
 - [x] `libs/playlist/shared/ui/src/lib/source-health/source-cleanup-dialog.component.ts`
-- [x] `libs/playlist/shared/ui/src/lib/source-health/source-health-indicator.component.ts`
 
 `libs/playlist/m3u/feature-player` (2) goes with the playback PR.
 
@@ -173,7 +171,7 @@ the field a signal (or a `computed`), or writes it through one.
 | --- | --- | --- | --- |
 | [x] | `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts` `onChannelNumberInput`/`clearChannelNumberInput` | 2 s `window.setTimeout` hides the channel-number overlay through plain `showChannelNumberOverlay`/`channelNumberInput` | playback |
 | [x] | same file, `applySettings` and the settings `effect()` | IndexedDB `storage.get(...).subscribe` and an effect assign plain `playerSettings`, which picks the player in the template | playback |
-| [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts` `checkPortalStatus` | plain `portalStatus` assigned after `await` in `ngOnInit` (PWA only: skipped when source health is supported) | playlist |
+| [x] | `libs/portal/shared/data-access/src/lib/source-status.service.ts` `checkPortal` (replaced the old Sources row's `checkPortalStatus`) | the PWA Xtream portal status lands after `await`; it is written to a signal | playlist |
 | [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts` (EPG clear and EPG file pick handlers) | plain `playlist` reassigned after `await` | playlist |
 | [x] | `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.ts` (device-id derivation) | `form.patchValue` after `await`; no fix needed: while derivation is on `hasManualDeviceIds` is false whatever the IDs are, the controls write their own DOM values, and typing goes through value-accessor listeners that mark the view | playlist |
 | [x] | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` (favorites load) | `favorites` Map filled in a `subscribe` without `markForCheck`; the component is OnPush already, so this is a latent bug today | portal |
@@ -185,9 +183,10 @@ the field a signal (or a `computed`), or writes it through one.
 
 ## Explicit zone and change-detector calls
 
-They keep working under zoneless (`NgZone` becomes `NoopNgZone`, so `run`
-and `runOutsideAngular` just call through). Remove them in the flip PR, not
-before: with zone.js on they still matter.
+They kept working under zoneless (`NgZone` becomes `NoopNgZone`, so `run`
+and `runOutsideAngular` just call through) and were removed in the flip PR,
+because with zone.js on they still mattered. The embedded MPV position poll's
+spec case that asserted `runOutsideAngular` went with it.
 
 - [x] `apps/web/src/app/settings/settings-unload-guard.service.ts`: two
   `zone.run` calls around the window-close dialog (IPC
@@ -196,10 +195,10 @@ before: with zone.js on they still matter.
   `runOutsideAngular(() => setInterval(...))` for the position poll;
   `embedded-mpv-session-controller.position.spec.ts` asserts the call and
   changes with it.
-- [ ] `libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.ts`:
+- [x] `libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.ts`:
   18 `ngZone.run(() => signal.set(...))` calls, all redundant around signal
   writes.
-- [ ] `libs/workspace/dashboard/data-access/src/lib/dashboard-source-expiry.service.ts`:
+- [x] `libs/workspace/dashboard/data-access/src/lib/dashboard-source-expiry.service.ts`:
   one `ngZone.run` around a signal update.
 - `ChangeDetectorRef` in `stalker-live-stream-layout.component.ts`
   (4 × `markForCheck`, 1 × `detectChanges` before measuring a row) and
@@ -235,46 +234,31 @@ their events arrive over IPC.
 
 ## Build, tests and runtime details
 
-- [ ] `provideServiceWorker(..., { registrationStrategy:
+- `provideServiceWorker(..., { registrationStrategy:
   'registerWhenStable:30000' })`: under zoneless "stable" means no pending
-  tasks. The 30 s bound still registers the worker; check the PWA build in
-  the flag PR.
-- [ ] `change-detection-tick-counter.ts` wraps `ApplicationRef._tick`, which
+  tasks; the 30 s bound registers the worker even if a task stays pending.
+- [x] `change-detection-tick-counter.ts` wraps `ApplicationRef._tick`, which
   the zoneless scheduler also calls, so the counters stay comparable.
-- [ ] Specs that need zone.js: `fakeAsync` in
+- Specs that need zone.js: `fakeAsync` in
   `playlist-switcher.component.spec.ts` and `stalker-live-navigation.spec.ts`,
-  `waitForAsync` in 13 files. They keep `zone.js/testing` until rewritten;
-  removing zone.js from the build polyfills does not affect them.
-- [ ] Unreferenced leftovers to delete in the flip PR:
+  `waitForAsync` in 13 files. They keep `zone.js/testing` (and the `zone.js`
+  package) until rewritten; the build polyfills do not affect them.
+  `apps/remote-control-web` still bootstraps with zone.js.
+- [x] Unreferenced leftovers deleted in the flip PR:
   `apps/web/src/polyfills.ts`, `apps/web/src/polyfills-test.ts`,
   `apps/web/src/setup-jest.ts` (no project, tsconfig or Jest config uses
   them).
 
 ## Zoneless flag
 
-`app.config.ts` takes its change-detection providers from
-`apps/web/src/environments/change-detection.providers.ts`
-(`provideZoneChangeDetection({ eventCoalescing: true })`). The
-`electron-performance-zoneless` and `electron-e2e-zoneless` web
-configurations are their base configuration plus one `fileReplacements`
-swap to `change-detection.providers.zoneless.ts`
-(`provideZonelessChangeDetection()`); a test in
-`performance-build-config.spec.ts` pins that and refuses the swap in any
-other configuration. zone.js stays in the polyfills, so these builds log
-NG0914 in dev mode and nothing schedules through the zone. The Electron app
-loads the renderer from `dist/apps/web`, so rebuilding only the web app
-switches an existing Electron build:
-
-```bash
-pnpm nx run electron-backend:build-performance          # or build-e2e
-pnpm nx run web:build:electron-performance-zoneless     # or electron-e2e-zoneless
-cd apps/electron-backend-e2e
-../../node_modules/.bin/playwright test --config=playwright.journeys.config.ts
-../../node_modules/.bin/playwright test --grep-invert packaged
-```
-
-Do not run `pnpm run perf:journeys` or `pnpm nx run electron-backend-e2e:e2e`
-afterwards: their build dependencies restore the zone.js renderer.
+Between #1824 and the flip, `app.config.ts` took its change-detection
+providers from `environments/change-detection.providers.ts`, and two
+`*-zoneless` web configurations swapped in `provideZonelessChangeDetection()`
+so the journeys and the Electron E2E suite could run zoneless before anything
+shipped it. The flip PR removed the flag: `app.config.ts` provides
+`provideZonelessChangeDetection()` directly, `apps/web` builds without the
+`zone.js` polyfill, and `performance-build-config.spec.ts` fails if either
+comes back.
 
 First measurement (macOS, 2026-10-04, the six OnPush PRs merged locally on
 the flag branch; the same integration build measured with the flag off and
@@ -307,8 +291,11 @@ passed zoneless: external-player launch states and the MPV/VLC DASH
 fallbacks in `dash-clearkey`, the MPV double-click gate in `settings`,
 `remote-control`, `picture-in-picture` and `stream-info`. Their state reaches
 the renderer over IPC into signals and never ran in the zone. Embedded MPV
-playback itself is covered only by the packaged frame-copy E2E, which these
-runs left out; run it on a packaged zoneless build before the flip.
+playback itself is covered only by the packaged frame-copy E2E: it passed on a
+packaged zoneless Linux x64 build from throwaway draft #1832 (see the comment
+on #1824), with every packaging job and 8 of 9 cross-platform E2E shards green
+(the ninth failed `dashboard-hero-legibility`, which failed the same day on
+zone.js PRs too).
 
 ## Measuring a PR
 
@@ -316,6 +303,25 @@ Build `electron-performance` and run the journeys as described in
 [performance journeys](performance-journeys.md), then paste
 `renderer.cdTicksToFirstCard`, `renderer.cdTicksIdle30s`,
 `renderer.cdTicksToFirstPage` and `renderer.cdTicksToPlaying` before and
-after. While zone.js is on, removing Eager does not change the number of
-ticks, only the work per tick; expect the counters to stay put until the flag
-PR and the template work (DOM mutations, profile time) to drop.
+after. Until the flip, while zone.js was on, removing Eager did not change
+the number of ticks, only the work per tick. Since the flip (#1929)
+`renderer.cdTicksToFirstCard` (5, with one tick of slack for the lazy
+Material chunk since #1931), `renderer.cdTicksIdle30s` (3) and
+`renderer.cdTicksToFirstPage` (9) are ratchet baselines: a change that adds a
+tick to launch, to the idle dashboard or to opening a source fails the
+journeys job.
+
+Canonical runner (`Performance ratchet` dispatched on #1929, three runs, five
+iterations each) against `master` the same day with zone.js:
+
+| Counter | `master` (zone.js) | #1929 (zoneless) |
+| --- | --- | --- |
+| `renderer.cdTicksToFirstCard` | 31 (2026-10-04) | 5 |
+| `renderer.cdTicksIdle30s` | 1 to 4 | 3 |
+| `renderer.cdTicksToFirstPage` | 22 | 9 |
+| `renderer.cdTicksToPlaying` | 15 to 17 | 7 or 8 |
+| `renderer.initialBytes` | 1,596,201 | 1,545,931 |
+| J3 `clickToPlayingMs` p50 | 151.6, 159.2, 185.7 | 128.0, 178.6, 189.5 |
+
+J3 wall clock is in the same range, so the local rise measured on the flag
+PR was machine load.

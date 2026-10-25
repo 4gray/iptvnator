@@ -405,6 +405,7 @@ sometimes only respond to that misspelled action.
 | `tzoffset:tzoffset`       | 6006  | live:2, vod:1, series:1    | 3         | active         |
 | `emptyvod:emptyvod`       | 7007  | 2 each                     | 5         | active         |
 | `marketing:marketing`     | 8020  | live:4, vod:4, series:4    | curated   | active         |
+| `streamdrop:streamdrop`   | 8181  | series:1                   | 1         | active         |
 | `expired:expired`         | 4004  | 4 each                     | 10        | Expired        |
 | `inactive:inactive`       | 5005  | 4 each                     | 10        | Disabled       |
 | `<any other>`             | hash  | 6 each                     | 30        | active         |
@@ -427,6 +428,17 @@ Timeshift URLs of `epg` and `epglong` play the local MPEG-TS clip
 `LONG_PROGRAMME_TITLE`, a 120-character title, on the past programme, for
 the catch-up seek bar's label bounds; `epg:epg` keeps its short titles,
 which other tests assert verbatim.
+
+### `streamdrop:streamdrop` fixture details
+
+Its three episodes play the local 60 s Matroska clip
+(`src/fixtures/episode.mkv`, generation command in the fixtures README) with
+byte ranges, but `dropping-episode.ts` cuts the first response that reaches
+35 % of the file and answers 403 for the next 4 s, so ffmpeg's own HTTP
+reconnect fails and mpv reports EOF mid-episode. `POST /reset` re-arms the
+drop. The Electron E2E `embedded-mpv-series-stream-drop.e2e.ts` uses it to
+check that Embedded MPV resumes the episode instead of autoplaying the next
+one (issue #1902).
 
 ### `marketing:marketing` fixture details
 

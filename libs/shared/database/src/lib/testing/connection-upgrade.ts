@@ -1,3 +1,4 @@
+import { verifyFavoriteMigrationRollback } from './favorites-migration-rollback';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import Database from 'better-sqlite3';
@@ -25,7 +26,6 @@ function seed(sqlite: Database.Database) {
         VALUES (1, 'saved', 'Movies', 'movies', 42, 1);
         INSERT INTO content (id, category_id, title, xtream_id, type, added)
         VALUES (1, 1, 'Saved movie', 7, 'movie', '1700000000');
-        INSERT INTO favorites (content_id, playlist_id) VALUES (1, 'saved');
         INSERT INTO recently_viewed (content_id, playlist_id) VALUES (1, 'saved');
         INSERT INTO playback_positions
             (playlist_id, content_xtream_id, content_type, position_seconds, duration_seconds)
@@ -33,6 +33,18 @@ function seed(sqlite: Database.Database) {
         INSERT INTO downloads (playlist_id, xtream_id, content_type, title, url, status)
         VALUES ('saved', 7, 'vod', 'Saved movie', 'https://source.invalid/movie', 'completed');
     `);
+    const favoriteColumns = sqlite.pragma('table_info(favorites)') as {
+        name: string;
+    }[];
+    const durable = favoriteColumns.some(({ name }) => name === 'xtream_id');
+    sqlite.exec(
+        durable
+            ? `INSERT INTO favorites (id, content_id, playlist_id, added_at, position, xtream_id, type, title) VALUES (42, 1, 'saved', '2025-01-01', 9, 7, 'movie', 'Saved movie')`
+            : `INSERT INTO favorites (id, content_id, playlist_id, added_at) VALUES (42, 1, 'saved', '2025-01-01')`
+    );
+    if (favoriteColumns.some(({ name }) => name === 'position')) {
+        sqlite.exec('UPDATE favorites SET position = 9');
+    }
     const columns = sqlite.pragma('table_info(content)') as { name: string }[];
     if (columns.some(({ name }) => name === 'epg_channel_id')) {
         sqlite.exec("UPDATE content SET epg_channel_id = 'retained-epg-id'");
@@ -71,6 +83,30 @@ function seed(sqlite: Database.Database) {
     }
 }
 
+const titleIndexRebuilds: string[] = [];
+
+/**
+ * Every full rebuild of the title FTS index goes through `prepare`. A profile
+ * needs one; another on a later launch re-indexes the whole catalog on the
+ * main thread before the app can read anything.
+ */
+function countTitleIndexRebuilds(connection: Database.Database): void {
+    const prepare = connection.prepare;
+    connection.prepare = function countingPrepare(
+        this: Database.Database,
+        sql: string
+    ) {
+        if (
+            /content_title_fts\(content_title_fts\)\s+VALUES\s+\('rebuild'\)/.test(
+                sql
+            )
+        ) {
+            titleIndexRebuilds.push(sql);
+        }
+        return prepare.call(this, sql);
+    } as typeof connection.prepare;
+}
+
 /**
  * The performance capture counts one `exec` call as one SQL statement
  * (apps/electron-backend/src/app/workers/database-worker-sql-statement-count.ts),
@@ -81,6 +117,7 @@ function seed(sqlite: Database.Database) {
 function requireSingleStatementExec(): string[] {
     const batches: string[] = [];
     setDatabaseConnectionObserver((connection) => {
+        countTitleIndexRebuilds(connection);
         const exec = connection.exec;
         connection.exec = function singleStatementExec(sql: string) {
             try {
@@ -112,6 +149,18 @@ function epgIndex(sqlite: Database.Database) {
             "SELECT sql, rootpage FROM sqlite_master WHERE name = 'idx_content_epg_channel'"
         )
         .get();
+}
+
+function foreignKeyViolations(sqlite: Database.Database) {
+    // Rebuilding a table can reorder its FK definitions without changing the
+    // affected row or parent, so compare identities rather than FK ordinals.
+    return (
+        sqlite.pragma('foreign_key_check') as {
+            table: string;
+            rowid: number;
+            parent: string;
+        }[]
+    ).map(({ table, rowid, parent }) => ({ table, rowid, parent }));
 }
 
 function verifyCurrentSchema(sqlite: Database.Database) {
@@ -148,6 +197,11 @@ function verifyCurrentSchema(sqlite: Database.Database) {
 
 async function main() {
     const fixture = process.argv[2];
+    if (fixture === 'rollback') {
+        verifyFavoriteMigrationRollback();
+        process.stdout.write('upgrade verified');
+        return;
+    }
     assert(
         process.env['IPTVNATOR_E2E_DATA_DIR'],
         'Never open the user database'
@@ -166,7 +220,21 @@ async function main() {
     legacy.pragma('foreign_keys = ON');
     if (fixture !== 'fresh') legacy.exec(readFileSync(fixture, 'utf8'));
     seed(legacy);
+    if (process.argv[3] === 'orphans') {
+        legacy.pragma('foreign_keys = OFF');
+        legacy.exec(`INSERT INTO favorites (id, content_id, playlist_id, added_at)
+            VALUES (43, 1, 'deleted-playlist', '2024-01-01')`);
+        legacy.pragma('foreign_keys = ON');
+    }
     const before = snapshot(legacy);
+    const originalViolations = foreignKeyViolations(legacy);
+    if (process.argv[3] === 'deduplicate') {
+        legacy.exec(`INSERT INTO categories (id, playlist_id, name, type, xtream_id, hidden)
+            VALUES (2, 'saved', 'Movies', 'movies', 42, 1);
+            INSERT INTO content (id, category_id, title, xtream_id, type, added)
+            VALUES (2, 2, 'Original favorite title', 7, 'movie', '1700000000');
+            UPDATE favorites SET content_id = 2;`);
+    }
     const originalIndex = epgIndex(legacy);
     legacy.close();
 
@@ -189,7 +257,37 @@ async function main() {
                 for (const { query, rows } of before) {
                     assert.deepEqual(sqlite.prepare(query).all(), rows, query);
                 }
-                assert.deepEqual(sqlite.pragma('foreign_key_check'), []);
+                assert.deepEqual(
+                    sqlite
+                        .prepare(
+                            'SELECT id, content_id, playlist_id, xtream_id, type, title, added_at FROM favorites'
+                        )
+                        .get(),
+                    {
+                        id: 42,
+                        content_id: 1,
+                        playlist_id: 'saved',
+                        xtream_id: 7,
+                        type: 'movie',
+                        title:
+                            process.argv[3] === 'deduplicate'
+                                ? 'Original favorite title'
+                                : 'Saved movie',
+                        added_at: '2025-01-01',
+                    }
+                );
+                const favoriteForeignKeys = sqlite.pragma(
+                    'foreign_key_list(favorites)'
+                ) as { from: string; on_delete: string }[];
+                assert.equal(
+                    favoriteForeignKeys.find((key) => key.from === 'content_id')
+                        ?.on_delete,
+                    'SET NULL'
+                );
+                assert.deepEqual(
+                    foreignKeyViolations(sqlite),
+                    originalViolations
+                );
                 assert.deepEqual(sqlite.pragma('integrity_check'), [
                     { integrity_check: 'ok' },
                 ]);
@@ -229,6 +327,11 @@ async function main() {
         execBatches,
         [],
         'Initialization must pass one SQL statement per exec call'
+    );
+    assert.equal(
+        titleIndexRebuilds.length,
+        1,
+        'The title index must be rebuilt once per profile, not on every launch'
     );
     process.stdout.write('upgrade verified');
 }

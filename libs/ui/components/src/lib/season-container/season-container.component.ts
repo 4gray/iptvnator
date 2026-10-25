@@ -59,6 +59,7 @@ import {
     buildWatchedEpisodePosition,
     resolveEpisodeInfo,
 } from './season-watch-toggle.util';
+import { dialogSize } from '../dialog-shell/dialog-size';
 
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
 
@@ -412,6 +413,7 @@ export class SeasonContainerComponent implements OnInit {
         event.stopPropagation();
         this.dialog
             .open(EpisodeInfoDialogComponent, {
+                ...dialogSize('md'),
                 data: buildEpisodeInfoDialogData(
                     episode,
                     this.selectedSeason()

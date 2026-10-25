@@ -28,6 +28,10 @@ import {
 } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
+import {
+    DialogFooterDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 export interface CategoryManagementDialogData {
     playlistId: string;
@@ -44,6 +48,8 @@ interface CategoryWithSelection extends XCategoryFromDb {
 @Component({
     selector: 'app-category-management-dialog',
     imports: [
+        DialogFooterDirective,
+        DialogShellComponent,
         MatDialogModule,
         MatButtonModule,
         MatCheckboxModule,

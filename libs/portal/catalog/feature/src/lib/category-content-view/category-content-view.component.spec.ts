@@ -113,6 +113,16 @@ describe('CategoryContentViewComponent', () => {
         getItemProgress: jest.fn().mockReturnValue({}),
     };
 
+    /** Opens the rating thresholds from the open refine menu. */
+    const openRatingSubmenu = () => {
+        (
+            document.querySelector(
+                '.refine-rating-trigger'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+    };
+
     beforeEach(async () => {
         routeReady.set(true);
         playlist.set(null);
@@ -320,10 +330,15 @@ describe('CategoryContentViewComponent', () => {
         refineButton?.click();
         fixture.detectChanges();
 
-        const overlayText = document.body.textContent ?? '';
+        let overlayText = document.body.textContent ?? '';
         expect(overlayText).toContain('WORKSPACE.REFINE_SORT_SECTION');
         expect(overlayText).toContain('WORKSPACE.SORT_DATE_DESC');
         expect(overlayText).toContain('WORKSPACE.REFINE_RATING_SECTION');
+        // The thresholds wait in a submenu, so the menu fits a short window.
+        expect(overlayText).not.toContain('WORKSPACE.FILTER_RATING_ANY');
+
+        openRatingSubmenu();
+        overlayText = document.body.textContent ?? '';
         expect(overlayText).toContain('WORKSPACE.FILTER_RATING_ANY');
     });
 
@@ -446,6 +461,13 @@ describe('CategoryContentViewComponent', () => {
             ) as HTMLButtonElement
         ).click();
         fixture.detectChanges();
+        // The row that opens the thresholds names the active one.
+        expect(
+            document
+                .querySelector('.refine-rating-trigger .refine-rating-value')
+                ?.textContent?.trim()
+        ).toBe('8.0+');
+        openRatingSubmenu();
 
         const groups = Array.from(
             document.querySelectorAll<HTMLElement>(
@@ -481,7 +503,9 @@ describe('CategoryContentViewComponent', () => {
             'false WORKSPACE.FILTER_RATING_MIN',
         ]);
         expect(
-            document.querySelectorAll('.refine-menu [mat-menu-item]')
+            document.querySelectorAll(
+                '.refine-menu [mat-menu-item]:not(.refine-rating-trigger)'
+            )
         ).toHaveLength(
             document.querySelectorAll('.refine-menu [role="menuitemradio"]')
                 .length
@@ -790,6 +814,26 @@ describe('CategoryContentViewComponent', () => {
             infiniteFixture.componentInstance.onItemClick({ xtream_id: 42 });
 
             expect(catalog.saveScrollPosition).toHaveBeenCalledWith(333);
+        });
+
+        it('saves the offset the grid last reported when it is destroyed detached', () => {
+            const infiniteFixture = createInfiniteFixture();
+            infiniteFixture.detectChanges();
+            const grid = infiniteFixture.nativeElement.querySelector(
+                'app-grid-list'
+            ) as HTMLElement;
+            // A detached element reports scrollTop 0, as in a browser.
+            Object.defineProperty(grid, 'scrollTop', {
+                configurable: true,
+                get: () => (grid.isConnected ? 420 : 0),
+            });
+            grid.dispatchEvent(new Event('scroll'));
+
+            // The view's DOM leaves the document before ngOnDestroy runs.
+            infiniteFixture.nativeElement.remove();
+            infiniteFixture.destroy();
+
+            expect(catalog.saveScrollPosition).toHaveBeenCalledWith(420);
         });
 
         it('consumes a saved scroll position once the list is rendered', () => {

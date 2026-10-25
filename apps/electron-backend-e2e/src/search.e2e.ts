@@ -456,6 +456,69 @@ test.describe('Electron Workspace Search', () => {
         }
     });
 
+    test('@search @xtream excludes hidden VOD categories from root search', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const sample = await fetchXtreamVodFixture(request);
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await addXtreamPortal(app.mainWindow, {
+                password: xtreamSearchPassword,
+                username: xtreamSearchUsername,
+            });
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await openWorkspaceSection(app.mainWindow, 'Movies');
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/xtreams\/[^/]+\/vod$/
+            );
+
+            const contentLayout = app.mainWindow.locator(
+                '.category-content-layout'
+            );
+            await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
+            await expect(contentLayout).toContainText(
+                flexibleTextPattern(sample.targetTitle),
+                { timeout: 20000 }
+            );
+            await fillWorkspaceSearch(app.mainWindow, '');
+
+            await app.mainWindow
+                .getByRole('button', {
+                    name: 'Manage categories',
+                    exact: true,
+                })
+                .click();
+            const dialog = app.mainWindow
+                .locator('mat-dialog-container')
+                .last();
+            await expect(dialog).toBeVisible();
+            const category = dialog.locator(
+                `.category-item[data-category-id="${sample.categoryId}"]`
+            );
+            await expect(category).toBeVisible();
+            await category.getByRole('checkbox').uncheck();
+            await dialog
+                .getByRole('button', { name: 'Save', exact: true })
+                .click();
+            await expect(dialog).toBeHidden();
+
+            await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
+            await expectWorkspaceSearchScope(
+                app.mainWindow,
+                'Movies / All items'
+            );
+            await expect(contentLayout).not.toContainText(
+                flexibleTextPattern(sample.targetTitle)
+            );
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('@search @xtream filters live root and category scopes while preserving playback sidebar', async ({
         dataDir,
         request,

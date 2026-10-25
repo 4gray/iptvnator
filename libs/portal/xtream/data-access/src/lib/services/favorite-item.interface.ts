@@ -1,5 +1,8 @@
+import type { XtreamFavoriteCatalogStatus } from '@iptvnator/shared/interfaces';
 export interface FavoriteItem {
-    content_id: number;
+    content_id: number | null;
+    favorite_id?: number;
+    catalog_status?: XtreamFavoriteCatalogStatus;
     playlist_id: string;
     type: 'live' | 'movie' | 'vod' | 'series';
     title: string;

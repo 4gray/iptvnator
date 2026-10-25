@@ -13,7 +13,10 @@ import {
     Playlist,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
-import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
+import {
+    PORTAL_PLAYBACK_POSITIONS,
+    getOpenCollectionDetailItemState,
+} from '@iptvnator/portal/shared/util';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DashboardDataService,
@@ -243,6 +246,8 @@ describe('DashboardDataService', () => {
     beforeEach(() => {
         Object.defineProperty(window, 'electron', {
             value: {
+                dbGetPlaylist: jest.fn(),
+                dbRestoreXtreamFavorites: jest.fn(),
                 dbGetRecentlyViewed: jest.fn(),
                 dbClearRecentlyViewed: jest.fn(),
                 dbGetAllGlobalFavorites: jest.fn(),
@@ -632,6 +637,46 @@ describe('DashboardDataService', () => {
         ).toHaveLength(1);
     });
 
+    it('keeps an unresolved favorite readable and removable without opening its details', async () => {
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: null,
+                category_id: null,
+                favorite_id: 71,
+                catalog_status: 'missing',
+                title: 'Saved ABC',
+                xtream_id: 501,
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+                added_at: '2026-02-02T10:00:00.000Z',
+                poster_url: 'https://example.test/abc.jpg',
+            },
+        ]);
+        await service.reloadGlobalFavorites();
+        const item = service
+            .globalFavoriteItems()
+            .find((row) => row.source === 'xtream');
+        if (!item) throw new Error('Expected the saved Xtream favorite');
+        expect(item).toMatchObject({
+            id: 'favorite:71',
+            title: 'Saved ABC',
+            catalogStatus: 'missing',
+            favorite_id: 71,
+        });
+        expect(service.getGlobalFavoriteLink(item)).toEqual([
+            '/workspace/global-favorites',
+        ]);
+        expect(service.getGlobalFavoriteNavigationState(item)).toEqual({
+            collectionViewState: { scope: 'all', selectedContentType: 'movie' },
+        });
+        await service.removeGlobalFavorite(item);
+        expect(dbServiceMock.removeFromFavorites).toHaveBeenCalledWith(
+            { favoriteId: 71 },
+            'xtream-1'
+        );
+    });
+
     it('includes PWA Xtream favorites from the active data source', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,
@@ -829,6 +874,7 @@ describe('DashboardDataService', () => {
             'global-favorites',
         ]);
         expect(service.getGlobalFavoriteNavigationState(movieItem!)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     uid: 'xtream::xtream-1::movie:5001',
@@ -1093,6 +1139,7 @@ describe('DashboardDataService', () => {
         expect(seriesPos?.seasonNumber).toBe(2);
         expect(seriesPos?.episodeNumber).toBe(4);
         expect(service.getRecentItemNavigationState(series)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     contentType: 'series',
@@ -1139,7 +1186,10 @@ describe('DashboardDataService', () => {
         // Hold every answer: asked one after another, the second playlist
         // would not be asked until the first had answered, and a DB worker
         // busy with a long request would delay the set once per playlist.
-        const pending = new Map<string, (rows: PlaybackPositionData[]) => void>();
+        const pending = new Map<
+            string,
+            (rows: PlaybackPositionData[]) => void
+        >();
         playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
             (playlistId: string) =>
                 new Promise<PlaybackPositionData[]>((resolve) => {
@@ -1312,6 +1362,7 @@ describe('DashboardDataService', () => {
             expect.objectContaining({
                 link: ['/workspace', 'global-recent'],
                 state: {
+                    collectionViewState: { scope: 'all' },
                     openCollectionDetailItem: expect.objectContaining({
                         item: expect.objectContaining({
                             sourceType: 'stalker',
@@ -1384,6 +1435,7 @@ describe('DashboardDataService', () => {
         // The episode id must not be promoted to a series id: no resume
         // target, and the detail item keeps its original identifier.
         expect(service.getRecentItemNavigationState(series)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     contentType: 'series',
@@ -1485,6 +1537,7 @@ describe('DashboardDataService', () => {
         expect(position?.seasonNumber).toBe(3);
         expect(position?.episodeNumber).toBe(7);
         expect(service.getRecentItemNavigationState(series)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     contentType: 'series',
@@ -1594,6 +1647,46 @@ describe('DashboardDataService', () => {
                     password: 'cw-pass',
                 },
             ]);
+        });
+
+        it('does not request continuation episodes for retained unavailable history', async () => {
+            Object.defineProperty(window, 'electron', {
+                value: undefined,
+                configurable: true,
+            });
+            const rows = [
+                {
+                    ...recentRow(
+                        1,
+                        'Missing series',
+                        'series',
+                        200,
+                        '2026-10-04'
+                    ),
+                    catalog_status: 'missing',
+                },
+                {
+                    ...recentRow(
+                        2,
+                        'Unknown series',
+                        'series',
+                        300,
+                        '2026-10-03'
+                    ),
+                    catalog_status: 'unknown',
+                },
+            ];
+            xtreamDataSourceMock.getRecentItems.mockImplementation(
+                async (playlistId: string) =>
+                    playlistId === PLAYLIST ? rows : []
+            );
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                episodePosition(201, 200, 1887, 1942, '2026-10-04'),
+                episodePosition(301, 300, 1887, 1942, '2026-10-03'),
+            ]);
+            await loadDashboard();
+            expect(service.globalRecentVodItems()).toHaveLength(2);
+            expect(seriesEpisodesMock.request).not.toHaveBeenCalled();
         });
 
         it('lists only the titles the user has not finished', async () => {
@@ -1706,6 +1799,7 @@ describe('DashboardDataService', () => {
             expect(
                 service.getRecentItemResumeNavigation(nextEpisode)?.state
             ).toMatchObject({
+                collectionViewState: { scope: 'all' },
                 openCollectionDetailItem: {
                     seriesResume: {
                         seriesXtreamId: 200,
@@ -1739,6 +1833,38 @@ describe('DashboardDataService', () => {
                             `2026-10-0${id - 200}T08:00:00Z`
                         )
                     )
+                );
+            });
+
+            it('uses an edited playlist User-Agent for episode lookups', async () => {
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    { status: 'failed' }
+                );
+                await loadDashboard();
+                playlistsSignal.set(
+                    playlistsSignal().map((playlist) =>
+                        playlist._id === PLAYLIST
+                            ? {
+                                  ...playlist,
+                                  userAgent:
+                                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                              }
+                            : playlist
+                    )
+                );
+                TestBed.tick();
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(2);
+                expect(seriesEpisodesMock.request).toHaveBeenLastCalledWith(
+                    [
+                        expect.objectContaining({
+                            credentials: expect.objectContaining({
+                                userAgent:
+                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            }),
+                        }),
+                    ],
+                    expect.any(Number)
                 );
             });
 
@@ -2507,44 +2633,60 @@ describe('DashboardDataService', () => {
         ).toEqual(['xtream-1', 'stalker-1', 'm3u-1']);
     });
 
-    it('includes PWA Xtream recent items from the active data source', async () => {
-        Object.defineProperty(window, 'electron', {
-            value: undefined,
-            configurable: true,
-        });
-        xtreamDataSourceMock.getRecentItems.mockResolvedValue([
-            {
-                id: 91,
-                category_id: 18,
-                title: 'Recent Movie',
-                rating: '7.8',
-                viewed_at: '2026-04-21T10:00:00.000Z',
-                poster_url: 'https://example.com/recent-movie.png',
-                xtream_id: 7001,
-                type: 'movie',
-            },
-        ]);
-
-        await service.reloadGlobalRecentItems();
-
-        expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
-            'xtream-1'
-        );
-        expect(dbServiceMock.getGlobalRecentlyViewed).not.toHaveBeenCalled();
-        expect(service.globalRecentItems()).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
+    it.each(['present', 'missing', 'unknown'] as const)(
+        'carries %s PWA Recent availability through the dashboard handoff',
+        async (catalogStatus) => {
+            Object.defineProperty(window, 'electron', {
+                value: undefined,
+                configurable: true,
+            });
+            xtreamDataSourceMock.getRecentItems.mockResolvedValue([
+                {
                     id: 91,
+                    catalog_status: catalogStatus,
+                    category_id: 18,
                     title: 'Recent Movie',
-                    type: 'movie',
-                    playlist_id: 'xtream-1',
-                    playlist_name: 'Xtream Playlist',
-                    source: 'xtream',
+                    rating: '7.8',
                     viewed_at: '2026-04-21T10:00:00.000Z',
-                }),
-            ])
-        );
-    });
+                    poster_url: 'https://example.com/recent-movie.png',
+                    xtream_id: 7001,
+                    type: 'movie',
+                },
+            ]);
+
+            await service.reloadGlobalRecentItems();
+
+            expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
+                'xtream-1'
+            );
+            expect(
+                dbServiceMock.getGlobalRecentlyViewed
+            ).not.toHaveBeenCalled();
+            expect(service.globalRecentItems()).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        id: 91,
+                        catalogStatus,
+                        title: 'Recent Movie',
+                        type: 'movie',
+                        playlist_id: 'xtream-1',
+                        playlist_name: 'Xtream Playlist',
+                        source: 'xtream',
+                        viewed_at: '2026-04-21T10:00:00.000Z',
+                    }),
+                ])
+            );
+            const item = service
+                .globalRecentItems()
+                .find((row) => row.id === 91);
+            if (!item) throw new Error('Missing recent item');
+            expect(
+                getOpenCollectionDetailItemState(
+                    service.getRecentItemDetailNavigationState(item)
+                )?.item.catalogStatus
+            ).toBe(catalogStatus);
+        }
+    );
 
     it('loads PWA Xtream recent items for multiple playlists in parallel', async () => {
         Object.defineProperty(window, 'electron', {
@@ -2778,6 +2920,7 @@ describe('DashboardDataService', () => {
             'global-recent',
         ]);
         expect(service.getRecentItemNavigationState(movieItem!)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     uid: 'xtream::xtream-1::movie:7001',

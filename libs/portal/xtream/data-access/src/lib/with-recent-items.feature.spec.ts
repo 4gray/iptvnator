@@ -128,6 +128,39 @@ describe('withRecentItems', () => {
         });
     });
 
+    it('records the played SQLite duplicate using its displayed identity', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (_id, _playlist, _type, identity) => ({
+                id: identity?.tmdbId === 100 ? 2 : 1,
+            })
+        );
+        const playedContent = {
+            title: 'Displayed original',
+            tmdbId: 100,
+            releaseYear: 1995,
+        };
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'movie',
+            playlist: signal({ id: 'p' }),
+            playedContent,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            42,
+            'p',
+            'movie',
+            { tmdbId: 100, releaseYear: 1995 }
+        );
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 2, type: 'movie' },
+            'p',
+            undefined,
+            playedContent
+        );
+    });
+
     it('looks recent items up with the requested content type before saving one', async () => {
         dataSource.getContentByXtreamId.mockResolvedValue({
             id: 3941697,
@@ -232,6 +265,41 @@ describe('withRecentItems', () => {
             { id: 3941697, type: 'series' },
             'playlist-1',
             'https://example.com/krypton-backdrop.png'
+        );
+    });
+
+    it('backfills a cold PWA Recent item by typed provider identity', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        await store.backfillContentMetadata({
+            xtreamId: 290,
+            contentType: 'series',
+            playlist: signal({ id: 'playlist-1' }),
+            patch: { tmdbId: 200 },
+        });
+        expect(dataSource.setContentMetadataIfMissing).toHaveBeenCalledWith(
+            { id: 290, type: 'series' },
+            'playlist-1',
+            { tmdbId: 200 }
+        );
+    });
+
+    it('backfills the displayed native duplicate rather than the first provider-ID row', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (_id, _playlist, _type, identity) => ({
+                id: identity?.tmdbId === 100 ? 2 : 1,
+            })
+        );
+        await store.backfillContentMetadata({
+            xtreamId: 42,
+            contentType: 'movie',
+            playlist: signal({ id: 'p1' }),
+            patch: { tmdbId: 100, releaseYear: 1995 },
+        });
+        expect(dataSource.setContentMetadataIfMissing).toHaveBeenCalledWith(
+            { id: 2, type: 'movie' },
+            'p1',
+            { tmdbId: 100, releaseYear: 1995 }
         );
     });
 
@@ -364,5 +432,26 @@ describe('withRecentItems', () => {
                 title: 'Krypton',
             }),
         ]);
+    });
+    it('forwards played metadata even when a cold PWA lookup has no row', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        const playedContent = {
+            title: 'Replacement',
+            tmdbId: 200,
+            posterUrl: 'replacement.jpg',
+        };
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'movie',
+            playlist: signal({ id: 'playlist-1' }),
+            playedContent,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 42, type: 'movie' },
+            'playlist-1',
+            undefined,
+            playedContent
+        );
     });
 });

@@ -93,6 +93,10 @@ app-workspace-shell-context-sidebar {
 
     position: relative;
     display: grid;
+    // Server banner (empty unless the self-hosted server is offline), then
+    // the scroller.
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     min-width: 0;
     min-height: 0;
     border-radius: var(--workspace-content-radius) 0 0 0;
@@ -114,6 +118,20 @@ app-workspace-shell-context-sidebar {
         clip-path: inset(0);
         pointer-events: none;
     }
+
+    // While the frame slides into place beside a context panel that appeared
+    // or left (LayoutSlideDirective), its old width is wider than the new
+    // one, so the side it moves away from would show the body colour. The
+    // content surface extends over that strip until the slide ends.
+    &.layout-slide-active::after {
+        content: '';
+        position: absolute;
+        inset: 0 calc(-1 * var(--layout-slide-end, 0px)) 0
+            calc(-1 * var(--layout-slide-start, 0px));
+        z-index: -1;
+        background: var(--app-content-bg, var(--mat-sys-surface));
+        pointer-events: none;
+    }
 }
 
 .workspace-content {
@@ -123,6 +141,39 @@ app-workspace-shell-context-sidebar {
     min-height: 0;
     overflow: auto;
     background: var(--app-content-bg, var(--mat-sys-surface));
+}
+
+// The offline banner has no stylesheet of its own: a component stylesheet
+// adds a <style> to every launch, which the launch journey counts. Its
+// elements are the banner's, hence ::ng-deep under this host.
+:host ::ng-deep app-workspace-shell-server-banner {
+    display: block;
+    min-width: 0;
+
+    .server-banner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 16px;
+        background: var(--app-expiry-warn-surface);
+        border-bottom: 1px solid var(--app-separator);
+        color: var(--app-heading-color);
+        font-size: 0.88rem;
+
+        mat-icon {
+            flex-shrink: 0;
+            color: var(--app-expiry-warn-text);
+        }
+
+        .server-banner__text {
+            min-width: 0;
+        }
+
+        button {
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+    }
 }
 
 @media (max-width: 780px) {

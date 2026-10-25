@@ -16,7 +16,10 @@ interface LiveHistoryContext {
 export function liveHistoryTestCases(context: () => LiveHistoryContext): void {
     it('records typed live history only after its own playback session confirms', () => {
         const { component, xtreamStore } = context();
-        component.playLive(sampleChannel, true);
+        component.playLive(
+            { ...sampleChannel, tmdb_id: 100, release_year: 2020 },
+            true
+        );
         const gate = TestBed.inject(PlaybackHistoryGate);
         expect(xtreamStore.addRecentItem).not.toHaveBeenCalled();
         gate.confirm({
@@ -29,6 +32,10 @@ export function liveHistoryTestCases(context: () => LiveHistoryContext): void {
             expect.objectContaining({
                 xtreamId: 101,
                 contentType: 'live',
+                playedContent: expect.objectContaining({
+                    tmdbId: 100,
+                    releaseYear: 2020,
+                }),
             })
         );
         expect(xtreamStore.addRecentItem.mock.calls[0][0].playlist()).toEqual(
