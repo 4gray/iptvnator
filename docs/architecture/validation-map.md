@@ -400,7 +400,7 @@ not app unit/E2E. Tooling validation still requires its own focused tests.
 
 `pnpm run agents:validate` checks root instruction budgets/imports and guidance
 navigation links/anchors. `pnpm run skills:validate` checks skill frontmatter,
-length, paths and release mirrors. Both tooling suites run through
+length, paths, required release skills and Claude symlinks. Both tooling suites run through
 `pnpm nx test repository-skills`; syntax checks use
 `pnpm nx lint repository-skills`. The CI guidance check runs regardless of the
 Nx affected set. Semantic preservation of moved contracts is a review task;

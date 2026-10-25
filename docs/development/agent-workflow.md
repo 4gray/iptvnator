@@ -42,9 +42,9 @@ set **Project instructions** to **claude-md-and-agents-md** in `/config`.
 Personal ~/.claude/CLAUDE.md and .claude/rules/ can remain alongside AGENTS.md.
 Start a new session after upgrading and check the AGENTS.md loading notice.
 
-Release skills remain mirrored in `.claude/skills/`; their `.codex/skills/`
-copies must stay byte-identical. Read other repository skills from the paths
-in the context map.
+Repository skills are shared with Codex from `.agents/skills/`. Each skill has
+a relative directory symlink in `.claude/skills/`, so both agents load the same
+source. See [Repository skills](#repository-skills) for maintenance and checkout setup.
 
 ## Guidance validation
 
@@ -201,11 +201,30 @@ in or onboard an account on the maintainer's behalf.
 
 ## Repository skills
 
-Repository skills live under `.codex/skills/`. Descriptions are trigger-only,
+Repository skills live under `.agents/skills/`. Descriptions are trigger-only,
 begin with `Use when`, and each skill is at most 500 words. Frontmatter owns
 trigger descriptions; avoid copying them into navigation prose. Skills provide
 workflow and links to authoritative contracts, not a second contract copy.
-`release-cut` and `release-notes` have byte-identical `.claude/skills/` mirrors.
+Codex discovers this directory directly. Claude Code discovers the relative
+symlinks in `.claude/skills/`; do not keep separate skill copies or restore the
+old Codex skills directory. Edit only the canonical sources. When adding a skill,
+add its directory symlink and opt that link into `.gitignore` alongside the
+existing shared skills. Personal Claude skills remain ignored.
+
+For example, from the repository root:
+
+```bash
+ln -s ../../.agents/skills/my-skill .claude/skills/my-skill
+```
+
+Git must check out directory symlinks as symlinks. On Windows, enable Developer
+Mode or run with symlink privileges and clone with `git -c core.symlinks=true clone`;
+for an existing checkout, enable `core.symlinks` and re-check out the tracked links
+after preserving local changes. Plain text link placeholders do not load as skills.
+The validator checks every shared skill's relative Claude link and retains the
+required release skills. Historical plans and migration ledgers keep their original
+paths as an audit record; use the context map for current locations.
+
 Run `pnpm run skills:validate` after changing a committed skill or a literal
 path it documents. New guidance tooling belongs to the existing
 `repository-skills` Nx project; no new project is needed for another validator.
