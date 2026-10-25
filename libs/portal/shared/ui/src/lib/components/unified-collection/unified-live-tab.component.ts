@@ -60,6 +60,7 @@ import {
     UnifiedLiveTimeshift,
 } from './unified-live-catchup';
 import { createUnifiedLiveChannelRows } from './unified-live-channel-rows';
+import { exactEpgNameAliasesRevision } from '@iptvnator/m3u-state';
 import { createUnifiedLiveEpgMap } from './unified-live-epg-map';
 import { createUnifiedLiveEpgView } from './unified-live-epg-view';
 import { createUnifiedLiveRecording } from './unified-live-recording-metadata';
@@ -252,6 +253,9 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     constructor() {
         effect(() => {
             const items = this.items();
+            // XMLTV aliases may arrive after the global Favorites mount.
+            // Refresh resolved keys when First Exact Match finishes building.
+            exactEpgNameAliasesRevision();
             if (this.supportsEpg) {
                 this.epgPrograms.load(items);
             } else {
