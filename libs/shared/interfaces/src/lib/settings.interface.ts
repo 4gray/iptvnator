@@ -38,6 +38,7 @@ export function reportsPlaybackFailures(
 export enum StartupBehavior {
     FirstView = 'first-view',
     RestoreLastView = 'restore-last-view',
+    PlayLastChannel = 'play-last-channel',
 }
 
 /**
