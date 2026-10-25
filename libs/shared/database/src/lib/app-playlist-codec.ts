@@ -170,6 +170,10 @@ export function buildPlaylistRow(
             playlist['recentlyViewed'] !== undefined
                 ? JSON.stringify(playlist['recentlyViewed'])
                 : undefined,
+        m3uContentOverrides:
+            playlist['m3uContentOverrides'] !== undefined
+                ? JSON.stringify(playlist['m3uContentOverrides'])
+                : undefined,
         payload: JSON.stringify(playlist),
         lastUsage: getStringValue(playlist['lastUsage']) ?? nowIso,
     };
@@ -200,6 +204,9 @@ export function parseAppPlaylist(
     const base = payload && typeof payload === 'object' ? payload : {};
     const favorites = parseJsonValue<unknown[]>(row.favorites, []);
     const recentlyViewed = parseJsonValue<unknown[]>(row.recentlyViewed, []);
+    const m3uContentOverrides = row.m3uContentOverrides
+        ? parseJsonValue<Record<string, string>>(row.m3uContentOverrides, {})
+        : (base['m3uContentOverrides'] ?? {});
     const epgUrls = getStringArrayValue(
         row.epgUrls
             ? parseJsonValue<unknown[]>(row.epgUrls, [])
@@ -244,6 +251,7 @@ export function parseAppPlaylist(
             importDate,
         favorites,
         recentlyViewed,
+        m3uContentOverrides,
         autoRefresh: row.autoRefresh ?? Boolean(base['autoRefresh']),
         url:
             row.type === PLAYLIST_TYPES.M3U_URL

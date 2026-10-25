@@ -243,6 +243,7 @@ export async function getAppPlaylistMetas(db: AppDatabase) {
             position: schema.playlists.position,
             favorites: schema.playlists.favorites,
             recentlyViewed: schema.playlists.recentlyViewed,
+            m3uContentOverrides: schema.playlists.m3uContentOverrides,
             lastUsage: schema.playlists.lastUsage,
         })
         .from(schema.playlists);

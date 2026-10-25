@@ -42,6 +42,7 @@ const PLAYLISTS_COLUMNS: readonly (readonly [
     ['position', 'INTEGER'],
     ['favorites', 'TEXT'],
     ['recently_viewed', 'TEXT'],
+    ['m3u_content_overrides', 'TEXT'],
     ['last_usage', 'TEXT'],
     ['payload', 'TEXT'],
 ];

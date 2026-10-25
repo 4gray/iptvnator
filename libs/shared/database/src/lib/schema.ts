@@ -52,6 +52,7 @@ export const playlists = sqliteTable('playlists', {
     position: integer('position'),
     favorites: text('favorites'),
     recentlyViewed: text('recently_viewed'),
+    m3uContentOverrides: text('m3u_content_overrides'),
     lastUsage: text('last_usage'),
     // Last on purpose: see PLAYLISTS_COLUMNS in connection.ts.
     payload: text('payload'),

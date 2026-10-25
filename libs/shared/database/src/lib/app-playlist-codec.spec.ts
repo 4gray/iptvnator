@@ -35,6 +35,7 @@ describe('app playlist codec', () => {
         lastUsage: '2026-10-02T00:00:00.000Z',
         favorites: ['https://example.test/a'],
         recentlyViewed: [],
+        m3uContentOverrides: { '["sample-key"]': 'movies' },
         autoRefresh: true,
         hiddenGroupTitles: ['Adult'],
         playlist: {
@@ -78,6 +79,7 @@ describe('app playlist codec', () => {
             title: 'Family',
             count: 1,
             favorites: ['https://example.test/a'],
+            m3uContentOverrides: { '["sample-key"]': 'movies' },
             url: 'https://example.test/list.m3u',
         });
         expect(meta['playlist']).toBeUndefined();

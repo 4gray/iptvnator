@@ -367,6 +367,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE playlists ADD COLUMN position INTEGER`,
     `ALTER TABLE playlists ADD COLUMN favorites TEXT`,
     `ALTER TABLE playlists ADD COLUMN recently_viewed TEXT`,
+    // M3U manual content classifications must survive lightweight metadata reads.
+    `ALTER TABLE playlists ADD COLUMN m3u_content_overrides TEXT`,
     `ALTER TABLE playlists ADD COLUMN payload TEXT`,
     // v1.2.1: Keep M3U-detected EPG URLs available in lightweight playlist metadata
     `ALTER TABLE playlists ADD COLUMN epg_urls TEXT`,
