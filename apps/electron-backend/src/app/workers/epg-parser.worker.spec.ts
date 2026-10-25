@@ -5,6 +5,7 @@ const postMessage = jest.fn();
 const insertChannels = jest.fn();
 const insertPrograms = jest.fn();
 const closeDatabase = jest.fn();
+const commitImport = jest.fn();
 const openEpgSourceStream = jest.fn();
 let handleMessage: (message: { type: string; url: string }) => Promise<void>;
 
@@ -25,8 +26,11 @@ jest.mock('./worker-runtime-paths', () => ({
 }));
 jest.mock('./epg-database', () => ({
     EpgDatabase: jest.fn().mockImplementation(() => ({
-        insertChannels,
-        insertPrograms,
+        createImport: () => ({
+            insertChannels,
+            insertPrograms,
+            commit: commitImport,
+        }),
         close: closeDatabase,
     })),
 }));
@@ -93,6 +97,7 @@ describe('EPG worker UTF-8 input', () => {
                 url: sourceUrl,
                 stats: { totalChannels: 1, totalPrograms: 1 },
             });
+            expect(commitImport).toHaveBeenCalledTimes(1);
             expect(closeDatabase).toHaveBeenCalledTimes(1);
         }
     );
@@ -119,6 +124,7 @@ describe('EPG worker UTF-8 input', () => {
         expect(postMessage).not.toHaveBeenCalledWith(
             expect.objectContaining({ type: 'EPG_COMPLETE' })
         );
+        expect(commitImport).not.toHaveBeenCalled();
         expect(insertChannels).not.toHaveBeenCalled();
         expect(closeDatabase).toHaveBeenCalled();
     });

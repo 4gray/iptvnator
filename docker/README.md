@@ -17,7 +17,11 @@ for the default Docker deployment.
 The Docker image runs the browser PWA, not the Electron desktop application.
 That means:
 
-- EPG/XMLTV panels and multi-EPG views are not available in the self-hosted PWA.
+- Xtream and Stalker sources show their provider's programme guide: the
+  current show under each live channel and the guide beside the player.
+  Settings → EPG offers the guide layout and a time offset. XMLTV guides (M3U
+  EPG sources, the programme guide and EPG channel mapping) are not available
+  in the self-hosted PWA yet.
 - With server storage (the image default) playlists, M3U favorites and
   history, and Xtream favorites, recently viewed items and playback positions
   live on the server, and every browser that opens the instance shares them.

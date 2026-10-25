@@ -267,6 +267,7 @@ export class AccountInfoComponent {
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,
+                userAgent: playlist.userAgent?.trim() || undefined,
             });
 
             this.accountInfo.set(accountInfo);

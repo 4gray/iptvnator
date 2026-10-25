@@ -1,3 +1,4 @@
+import type { StalkerRequestOptions } from './stalker-request-options';
 import { Injectable, Injector, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistsService } from '@iptvnator/services';
@@ -7,11 +8,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { StalkerPortalDiscoveryService } from './stalker-portal-discovery.service';
-import {
-    getStalkerRequestErrorStatus,
-    isStalkerAuthFailureMessage,
-    isStalkerAuthFailureResponse,
-} from './stalker-portal-discovery.utils';
+import { shouldAttemptStalkerPortalRepair } from './stalker-portal-repair-trigger';
 import {
     getStalkerPortalIdentityFromPlaylist,
     stalkerIdentityFingerprint,
@@ -240,43 +237,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
      * a portal that is temporarily down must not be reclassified.
      */
     shouldAttemptRepair(playlist: PlaylistMeta, failure: unknown): boolean {
-        if (!playlist._id || !playlist.portalUrl || !playlist.macAddress) {
-            return false;
-        }
-
-        if (isStalkerAuthFailureResponse(failure)) {
-            return true;
-        }
-
-        const status = getStalkerRequestErrorStatus(failure);
-        if (status === 404 || status === 401 || status === 403) {
-            // 404: the persisted endpoint does not exist on this server.
-            // 401/403: a token-free-classified playlist hit an HTTP auth
-            // gate — discovery classifies these endpoints as auth-required,
-            // so the repair must be allowed to reach it.
-            return true;
-        }
-
-        if (
-            failure !== null &&
-            typeof failure === 'object' &&
-            'message' in failure
-        ) {
-            const message = String(
-                (failure as { message?: unknown }).message ?? ''
-            );
-            // The SAME failure set the session service uses for error
-            // messages — authentication wraps structured denials as
-            // `Error('Profile error: Access denied.')` or
-            // `Error('Profile error: Invalid token')`, and a narrower
-            // pattern here would let those bypass the repair entirely.
-            return (
-                isStalkerAuthFailureMessage(message) ||
-                /handshake failed/i.test(message)
-            );
-        }
-
-        return false;
+        return shouldAttemptStalkerPortalRepair(playlist, failure);
     }
 
     /**
@@ -287,19 +248,23 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
      * has another cause, e.g. an expired subscription), or a repair for
      * this playlist already ran this session.
      */
-    async repairPortal(playlist: PlaylistMeta): Promise<PlaylistMeta | null> {
+    async repairPortal(
+        playlist: PlaylistMeta,
+        options: StalkerRequestOptions = {}
+    ): Promise<PlaylistMeta | null> {
         const playlistId = playlist._id;
         if ((this.editFenceCounts.get(playlistId) ?? 0) > 0) {
             return null;
         }
 
         return this.repairAuthority.run(playlistId, () =>
-            this.repairPortalWithAuthority(playlist)
+            this.repairPortalWithAuthority(playlist, options)
         );
     }
 
     private async repairPortalWithAuthority(
-        playlist: PlaylistMeta
+        playlist: PlaylistMeta,
+        options: StalkerRequestOptions
     ): Promise<PlaylistMeta | null> {
         const playlistId = playlist._id;
         const editGeneration = this.editGenerations.get(playlistId) ?? 0;
@@ -361,7 +326,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         const authenticationFence =
             this.stalkerSession.beginPortalRepairDiscovery(playlistId);
         const run = authenticationFence.drained.then(() =>
-            this.runRepair(playlist, editGeneration)
+            this.runRepair(playlist, editGeneration, options)
         );
         try {
             return await run;
@@ -384,7 +349,8 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
 
     private async runRepair(
         playlist: PlaylistMeta,
-        editGeneration: number
+        editGeneration: number,
+        options: StalkerRequestOptions
     ): Promise<PlaylistMeta | null> {
         // A request sent before an explicit Edit can fail only after that Edit
         // commits and releases its fence. Verify the caller still owns the
@@ -408,6 +374,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
                 // probe reports `login-required` and such a source could
                 // never be repaired, even though the playlist holds a
                 // working login.
+                ...(options.silent ? { silent: true } : {}),
                 credentials: {
                     username: playlist.username,
                     password: playlist.password,

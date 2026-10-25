@@ -96,7 +96,13 @@ count. A window launched through `launchElectronApp` therefore always reports
 even when hidden or minimized. Tests of hidden-window behavior launch through
 `apps/electron-backend-e2e/src/electron-unautomated-launch.ts`, which spawns
 the app without Playwright and evaluates over raw CDP sockets
-(`window-visibility.e2e.ts` is the example).
+(`window-visibility.e2e.ts` is the example). The helper matches the packaged
+renderer directory, including routed URLs: Angular may replace `index.html`
+with `/workspace/dashboard` before CDP discovers the page. On macOS the
+visibility tests wait for native window focus before hiding or minimizing;
+the initial `visible` document state alone does not establish that Cocoa has
+activated the window. Run these tests with an unlocked desktop session so
+native focus and visibility transitions can complete.
 
 The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
 even when the smoke fails. Check the paused-frame screenshot and trace before

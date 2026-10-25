@@ -120,7 +120,11 @@ export function withStalkerEpg() {
                     stalkerSession,
                     portalRepair,
                 };
-                const supportsEpg = (): boolean => runtime.supportsEpg;
+                // Portal EPG needs only the Stalker transport (Electron IPC or
+                // the PWA's backend proxy). Manual mappings read uploaded
+                // XMLTV and keep the XMLTV gate in applyMappedItvEpg.
+                const supportsProviderEpg = (): boolean =>
+                    runtime.supportsProviderEpg;
 
                 // Manual EPG mapping overrides (uploaded XMLTV programs keyed
                 // by the normalized Stalker channel id). Kept outside the
@@ -164,7 +168,8 @@ export function withStalkerEpg() {
                     return executeStalkerRequest<StalkerEpgResponse>(
                         requestDeps,
                         playlist,
-                        queryParams
+                        queryParams,
+                        { silent: true }
                     );
                 };
 
@@ -172,7 +177,7 @@ export function withStalkerEpg() {
                     channelId: number | string,
                     size: number
                 ): Promise<EpgItem[]> => {
-                    if (!supportsEpg()) {
+                    if (!supportsProviderEpg()) {
                         return [];
                     }
 
@@ -230,7 +235,7 @@ export function withStalkerEpg() {
 
                         const playlistId = String(playlist._id);
                         const generation = cacheGeneration;
-                        if (!supportsEpg()) {
+                        if (!supportsProviderEpg()) {
                             patchState(store, {
                                 bulkItvEpgByChannel: {},
                                 bulkItvEpgLoaded: true,
@@ -304,7 +309,10 @@ export function withStalkerEpg() {
                     async applyMappedItvEpg(
                         channelIds: ReadonlyArray<string | number>
                     ): Promise<void> {
-                        if (!epgBridge.supportsEpgMapping || !supportsEpg()) {
+                        if (
+                            !epgBridge.supportsEpgMapping ||
+                            !runtime.supportsEpg
+                        ) {
                             return;
                         }
                         const playlist = storeContext.currentPlaylist();

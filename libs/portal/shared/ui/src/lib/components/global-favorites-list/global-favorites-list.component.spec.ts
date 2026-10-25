@@ -5,15 +5,43 @@ import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { ChannelDetailsDialogComponent } from '@iptvnator/ui/components';
 import { UnifiedFavoriteChannel } from '@iptvnator/portal/shared/util';
-import { Channel } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { GlobalFavoritesListComponent } from './global-favorites-list.component';
 
 describe('GlobalFavoritesListComponent', () => {
     let fixture: ComponentFixture<GlobalFavoritesListComponent>;
     let dialog: { open: jest.Mock };
+    let runtime: {
+        supportsEpg: boolean;
+        supportsProviderEpg: boolean;
+        supportsEpgMapping: boolean;
+    };
+
+    /** The rendered row whose channel name is `name`. */
+    function rowNamed(name: string): HTMLElement {
+        const rows = Array.from(
+            fixture.nativeElement.querySelectorAll(
+                '.channel-list-item'
+            ) as NodeListOf<HTMLElement>
+        );
+        const row = rows.find(
+            (element) =>
+                element.querySelector('.channel-name')?.textContent?.trim() ===
+                name
+        );
+        if (!row) {
+            throw new Error(`No row named ${name}`);
+        }
+        return row;
+    }
 
     beforeEach(async () => {
+        runtime = {
+            supportsEpg: false,
+            supportsProviderEpg: true,
+            supportsEpgMapping: false,
+        };
         dialog = {
             open: jest.fn(),
         };
@@ -36,11 +64,71 @@ describe('GlobalFavoritesListComponent', () => {
                         resolvedEpgOffsetMinutes: signal(0),
                     },
                 },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: runtime,
+                },
             ],
         }).compileComponents();
 
         fixture = TestBed.createComponent(GlobalFavoritesListComponent);
     });
+
+    it.each(['favorites', 'recent'])(
+        'reads %s portal programmes only from their own playlist and source',
+        (mode) => {
+            fixture.componentRef.setInput('mode', mode);
+            const channels = [
+                buildChannel('a', 'First', {
+                    sourceType: 'xtream',
+                    playlistId: 'one',
+                    xtreamId: 7,
+                    tvgId: 'same',
+                }),
+                buildChannel('b', 'Second', {
+                    sourceType: 'xtream',
+                    playlistId: 'two',
+                    xtreamId: 7,
+                    tvgId: 'same',
+                }),
+                buildChannel('c', 'Third', {
+                    sourceType: 'stalker',
+                    playlistId: 'one',
+                    stalkerId: 7,
+                    tvgId: 'same',
+                }),
+            ];
+            fixture.componentRef.setInput('channels', channels);
+            fixture.componentRef.setInput(
+                'epgMap',
+                new Map([
+                    [
+                        JSON.stringify(['xtream', 'one', '7']),
+                        airingProgram('First show'),
+                    ],
+                    [
+                        JSON.stringify(['xtream', 'two', '7']),
+                        airingProgram('Second show'),
+                    ],
+                    [
+                        JSON.stringify(['stalker', 'one', '7']),
+                        airingProgram('Third show'),
+                    ],
+                    ['same', airingProgram('Wrong show')],
+                ])
+            );
+            fixture.detectChanges();
+            expect(
+                rowNamed('First').querySelector('.epg-title')?.textContent
+            ).toContain('First show');
+            expect(
+                rowNamed('Second').querySelector('.epg-title')?.textContent
+            ).toContain('Second show');
+            expect(
+                rowNamed('Third').querySelector('.epg-title')?.textContent
+            ).toContain('Third show');
+        }
+    );
 
     it('keeps only history removal in the context menu of an unavailable live Recent row', async () => {
         const item = buildChannel('gone', 'Gone channel', {
@@ -163,6 +251,62 @@ describe('GlobalFavoritesListComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.epg-placeholder')
         ).toBeNull();
+    });
+
+    it('gives Xtream and Stalker rows the provider programme line and keeps M3U rows compact without XMLTV', () => {
+        fixture.componentRef.setInput('channels', [
+            buildChannel('x', 'Xtream Live', {
+                sourceType: 'xtream',
+                xtreamId: 7,
+                tvgId: '7',
+            }),
+            buildChannel('s', 'Stalker Live', {
+                sourceType: 'stalker',
+                stalkerId: '9',
+                tvgId: '9',
+            }),
+            buildChannel('m', 'M3U Live'),
+        ]);
+        fixture.componentRef.setInput(
+            'epgMap',
+            new Map([
+                [
+                    JSON.stringify(['xtream', 'playlist-1', '7']),
+                    airingProgram('Xtream Show'),
+                ],
+                [
+                    JSON.stringify(['stalker', 'playlist-1', '9']),
+                    airingProgram('Stalker Show'),
+                ],
+            ])
+        );
+        fixture.detectChanges();
+
+        expect(
+            rowNamed('Xtream Live').querySelector('.epg-title')?.textContent
+        ).toContain('Xtream Show');
+        expect(
+            rowNamed('Stalker Live').querySelector('.epg-title')?.textContent
+        ).toContain('Stalker Show');
+        expect(rowNamed('M3U Live').classList.contains('compact')).toBe(true);
+    });
+
+    it('gives M3U rows their programme line when XMLTV is available', () => {
+        runtime.supportsEpg = true;
+        fixture.destroy();
+        fixture = TestBed.createComponent(GlobalFavoritesListComponent);
+        fixture.componentRef.setInput('channels', [
+            buildChannel('m', 'M3U Live', { tvgId: 'm3u.tv' }),
+        ]);
+        fixture.componentRef.setInput(
+            'epgMap',
+            new Map([['m3u.tv', airingProgram('M3U Show')]])
+        );
+        fixture.detectChanges();
+
+        expect(
+            rowNamed('M3U Live').querySelector('.epg-title')?.textContent
+        ).toContain('M3U Show');
     });
 
     it('preserves incoming recent order when a favorites sort mode is set', () => {
@@ -390,5 +534,17 @@ function buildM3uChannel(id: string, name: string): Channel {
         },
         radio: 'false',
         epgParams: '',
+    };
+}
+
+function airingProgram(title: string): EpgProgram {
+    const now = Date.now();
+    return {
+        start: new Date(now - 10 * 60_000).toISOString(),
+        stop: new Date(now + 10 * 60_000).toISOString(),
+        channel: 'test-channel',
+        title,
+        desc: null,
+        category: null,
     };
 }

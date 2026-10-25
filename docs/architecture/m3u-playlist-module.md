@@ -730,10 +730,11 @@ with a plain `@if (epgViewMode() === 'list') { <app-epg-list-view … /> } @else
 `epgViewMode` from `SettingsStore` (a signal), so flipping the setting swaps the
 panel live. The setting flows end-to-end (`Settings.epgViewMode` →
 `DEFAULT_SETTINGS` → `SettingsStore`/`StorageMap` → the segmented control in
-`settings-epg-section`) and needs no backend change. The control is
-**Electron-only in practice** — the EPG settings section (and the form control)
-is gated behind `supportsEpg`, which is false in PWA; there the stored value
-simply stays at the `'timeline'` default.
+`settings-epg-section`) and needs no backend change. The control and the
+offset below are the EPG page's display rows: they render wherever a guide
+exists (`SettingsFormFacade.supportsEpgDisplay`, XMLTV or a portal's own),
+including the browser PWA, while the page's XMLTV rows (sources, Xtream
+preference, clear data) need the import and data-management bridges.
 
 ### EPG display offset
 
@@ -787,8 +788,8 @@ rather than a wrong one; under a negative offset the short-EPG window is widened
 instead (`shortEpgWindowSize`, 15-minute slots, capped at 50 — the sidebar queue,
 the active channel's panel fallback and the collection resolver all use it) so
 it still reaches the programme on air, and preview cache entries are tagged with
-the offset they were fetched for. Like the view mode, the control is Electron-only in practice —
-it sits behind `supportsEpg`.
+the offset they were fetched for. Like the view mode, the control renders
+wherever a guide exists, the browser PWA's provider guides included.
 
 Both components stay presentation-focused; the reusable, view-agnostic pieces
 (shared by the timeline and the list) are split out and re-exported from
@@ -1775,6 +1776,38 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 4. Effects persist the two user-mutation actions; hydration is reducer-only
 
 ### XMLTV source lifecycle
+
+The parser worker stages incoming channel and programme batches in
+connection-private, file-backed SQLite temporary tables. It publishes the new
+guide only after the stream and XML parser finish successfully with at least one
+channel. Source replacement, channel provenance/freshness, programmes and FTS
+updates commit in one transaction; an insert failure rolls back the entire
+replacement. A truncated stream, invalid XML, empty feed or worker terminated
+before publication leaves the previous guide available. Temporary rows disappear
+when the worker connection closes. Downloads do not hold the live database write lock, and the
+final commit reads bounded batches instead of loading the whole feed into JS
+memory. The existing source isolation and seven-day archive policy still apply.
+UTF-8 decoding retains partial code points across decoded stream chunks. Progress
+counts describe staged rows, not visible rows; success is sent only after commit
+and connection close. An empty feed remains an error. Channel-only feeds keep
+the existing replacement semantics.
+
+Temporary storage grows with the serialized feed (in addition to live database
+and WAL space); its SQLite page cache is capped at 2 MiB, not its disk usage.
+The final publication holds the writer transaction for the complete replacement,
+so other writers can wait up to their busy timeout or fail and retry. WAL readers
+continue seeing the preceding committed guide. A terminated worker inside the
+transaction rolls it back; once SQLite commits, the new guide is valid. Source
+removal and Clear All still retire generations and await confirmed worker exit
+before deleting rows, including when termination races publication. Imports
+remain serialized by `EpgWorkerService`; do not bypass its shutdown barriers.
+
+`epg-import-atomicity.spec.ts` exercises the real parser worker and native SQLite,
+including a termination barrier after a full publication batch, retry, source
+freshness, archive retention and FTS integrity. `epg-import-atomicity.e2e.ts`
+covers renderer IPC errors, retry and removal during staging. `epg.e2e.ts`
+asserts that Refresh All and Clear All observe staging progress while live rows
+remain unchanged; batch progress must never be used as a live-row-count barrier.
 
 Electron treats `Settings.epgUrl` as the committed global source list. Removing
 an input is a draft edit; only a successful IndexedDB write authorizes source

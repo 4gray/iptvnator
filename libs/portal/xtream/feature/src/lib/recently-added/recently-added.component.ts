@@ -44,6 +44,8 @@ const RECENTLY_ADDED_ITEMS_LIMIT = 30;
 })
 export class RecentlyAddedComponent {
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly getVisibleContentByType =
+        this.xtreamStore.getVisibleContentByType();
     private readonly router = inject(Router);
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly translate = inject(TranslateService);
@@ -52,17 +54,17 @@ export class RecentlyAddedComponent {
 
     readonly recentlyAddedLive = computed(() =>
         this.getRecentlyAdded(
-            this.xtreamStore.liveStreams() as RecentlyAddedItem[]
+            this.getVisibleContentByType('live') as RecentlyAddedItem[]
         )
     );
     readonly recentlyAddedVod = computed(() =>
         this.getRecentlyAdded(
-            this.xtreamStore.vodStreams() as RecentlyAddedItem[]
+            this.getVisibleContentByType('vod') as RecentlyAddedItem[]
         )
     );
     readonly recentlyAddedSeries = computed(() =>
         this.getRecentlyAdded(
-            this.xtreamStore.serialStreams() as RecentlyAddedItem[],
+            this.getVisibleContentByType('series') as RecentlyAddedItem[],
             true
         )
     );

@@ -52,9 +52,16 @@ export class SettingsSearchService {
 
     capabilities(): SettingsSearchCapabilities {
         const runtime = this.runtime;
+        const epgSources =
+            runtime.supportsEpgImport && runtime.supportsEpgDataManagement;
         return {
             desktop: runtime.isElectron,
-            epg: runtime.supportsEpgImport && runtime.supportsEpgDataManagement,
+            epg: epgSources,
+            // Same rule as SettingsFormFacade.supportsEpgDisplay.
+            'epg-display':
+                epgSources ||
+                runtime.supportsEpg ||
+                runtime.supportsProviderEpg,
             'remote-control': runtime.supportsRemoteControl,
             'startup-window-mode': runtime.supportsStartupWindowMode,
             'portal-connectivity-guard':

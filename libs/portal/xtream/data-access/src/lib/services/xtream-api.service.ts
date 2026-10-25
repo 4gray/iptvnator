@@ -20,6 +20,7 @@ import { XtreamAccountInfo } from '../account-info/account-info.interface';
  * Xtream API credentials
  */
 export interface XtreamCredentials {
+    userAgent?: string;
     allowedOutputFormats?: string[];
     serverUrl: string;
     username: string;
@@ -98,7 +99,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         for (const action of XTREAM_ACCOUNT_ACTIONS) {
             try {
                 const response = await this.sendRequest<XtreamAccountInfo>(
-                    credentials.serverUrl,
+                    credentials,
                     {
                         ...(action ? { action } : {}),
                         username: credentials.username,
@@ -141,7 +142,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         };
 
         const response = await this.sendRequest(
-            credentials.serverUrl,
+            credentials,
             {
                 action: actionMap[type],
                 username: credentials.username,
@@ -161,7 +162,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         options?: XtreamRequestOptions
     ): Promise<XtreamLiveStream[]> {
         const response = await this.sendRequest(
-            credentials.serverUrl,
+            credentials,
             {
                 action: XtreamCodeActions.GetLiveStreams,
                 username: credentials.username,
@@ -181,7 +182,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         options?: XtreamVodCatalogRequestOptions
     ): Promise<XtreamVodStream[]> {
         const response = await this.sendRequest(
-            credentials.serverUrl,
+            credentials,
             {
                 action: XtreamCodeActions.GetVodStreams,
                 username: credentials.username,
@@ -222,7 +223,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         options?: XtreamRequestOptions
     ): Promise<XtreamSerieItem[]> {
         const response = await this.sendRequest(
-            credentials.serverUrl,
+            credentials,
             {
                 action: XtreamCodeActions.GetSeries,
                 username: credentials.username,
@@ -261,7 +262,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         options?: XtreamRequestOptions
     ): Promise<XtreamVodDetails> {
         return this.sendRequest(
-            credentials.serverUrl,
+            credentials,
             {
                 action: XtreamCodeActions.GetVodInfo,
                 username: credentials.username,
@@ -281,7 +282,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         options?: XtreamRequestOptions
     ): Promise<XtreamSerieDetails> {
         return this.sendRequest(
-            credentials.serverUrl,
+            credentials,
             {
                 action: XtreamCodeActions.GetSeriesInfo,
                 username: credentials.username,
@@ -303,7 +304,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         options?: XtreamRequestOptions
     ): Promise<EpgItem[]> {
         const response: EpgResponse = await this.sendRequest(
-            credentials.serverUrl,
+            credentials,
             {
                 action: XtreamCodeActions.GetShortEpg,
                 username: credentials.username,
@@ -331,7 +332,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
     ): Promise<EpgItem[]> {
         try {
             const response: EpgResponse = await this.sendRequest(
-                credentials.serverUrl,
+                credentials,
                 {
                     action: XtreamCodeActions.GetSimpleDataTable,
                     username: credentials.username,
@@ -352,7 +353,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         }
 
         const fallbackResponse: EpgResponse = await this.sendRequest(
-            credentials.serverUrl,
+            credentials,
             {
                 action: XtreamCodeActions.GetSimpleDateTable,
                 username: credentials.username,
@@ -372,11 +373,11 @@ export class XtreamApiService extends XtreamEpgNormalizer {
      * Send request via IPC to avoid CORS issues
      */
     private async sendRequest<TResponse>(
-        url: string,
+        credentials: XtreamCredentials,
         params: Record<string, string | number>,
         options?: XtreamRequestOptions
     ): Promise<TResponse> {
-        const normalizedUrl = normalizeXtreamServerUrl(url);
+        const normalizedUrl = normalizeXtreamServerUrl(credentials.serverUrl);
         const serializedParams: Record<string, string> = {};
         Object.entries(params).forEach(([key, value]) => {
             const serializedValue = String(value);
@@ -388,6 +389,9 @@ export class XtreamApiService extends XtreamEpgNormalizer {
 
         const response = (await this.dataService.sendIpcEvent(XTREAM_REQUEST, {
             url: normalizedUrl,
+            ...(credentials.userAgent?.trim()
+                ? { userAgent: credentials.userAgent.trim() }
+                : {}),
             params: serializedParams,
             requestId: options?.requestId,
             sessionId: options?.sessionId,

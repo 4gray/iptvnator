@@ -426,6 +426,7 @@ The name **"IPTVnator"** and the IPTVnator logo are unregistered trademarks of t
 
 Start with the [task context map](docs/maintenance/agent-context-map.md) to find
 the authoritative contract and validation for your area. Common agent rules are
-in [AGENTS.md](AGENTS.md); Claude Code imports that same file. Development and
+in [AGENTS.md](AGENTS.md); Claude Code reads that same file directly (see
+[Claude Code setup](docs/development/agent-workflow.md#claude-code)). Development and
 documentation-maintenance conventions live in the
 [agent workflow](docs/development/agent-workflow.md).

@@ -235,7 +235,7 @@ export class SettingsComponent
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
-        supportsEpg: this.supportsEpg,
+        supportsEpg: this.form.supportsEpgDisplay,
         supportsRemoteControl: this.supportsRemoteControl,
         supportsServerStorage: this.supportsServerStorage,
     });

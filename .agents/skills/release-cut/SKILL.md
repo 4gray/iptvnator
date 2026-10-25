@@ -86,4 +86,4 @@ Missing CHANGELOG section: regenerate, commit, delete the bad tag locally and
 remotely only after resolving its exact target, then retag. Never publish a
 draft until the source archive and Snap contract pass.
 
-The `.codex` and `.claude` copies of this skill must remain byte-identical.
+Canonical source: `.agents/skills/`; Claude Code follows a symlink.

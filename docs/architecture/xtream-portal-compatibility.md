@@ -464,7 +464,48 @@ targets. Those targets are validated when registered and revalidated before the
 `/xtream` proxy request, including protocol, URL credentials, DNS resolution,
 and private-network checks.
 
+## Provider EPG
+
+Xtream EPG comes from the portal itself. `get_short_epg` feeds the
+channel-row previews (`EpgQueueService`: three items, two requests in flight)
+and the collection previews (`StreamResolverService`). `get_simple_data_table`,
+falling back to the legacy `get_simple_date_table`, feeds the live EPG panel
+(`withEpg().loadEpg()`) and the collection detail panel. All of them use the
+ordinary `XTREAM_REQUEST` transport, so they are gated on
+`RuntimeCapabilitiesService.supportsProviderEpg`. It is true in the browser
+PWA, where `PwaService` forwards to the backend `/xtream` proxy, and in
+Electron when the `xtreamRequest` and `stalkerRequest` preload methods exist.
+Both runtimes send the EPG actions as silent background requests (no error
+snackbar) through the same per-host connectivity guard as the catalog. Only
+connection-level failures count, so a panel that answers EPG requests slowly
+or with an error status cannot fast-fail playback.
+
+The local XMLTV parts keep the XMLTV capabilities and stay off in the PWA:
+the `epg_channel_id` fallback and `preferUploadedEpgOverXtream`
+(`XtreamXmltvFallbackService`), and manual EPG mapping (`supportsEpgMapping`).
+The PWA hides the catch-up actions of the EPG panel (watch, copy, download):
+`RuntimeCapabilitiesService.supportsProviderCatchUp` is false there until a
+manual check against a real provider shows that the browser players play the
+REST MPEG-TS timeshift URL the PWA falls back to (see Catch-Up Playback URLs).
+It gates `archivePlaybackAvailable` (Live TV) and `timelineArchiveAvailable`
+(Favorites/Recent); the desktop app keeps all three actions.
+
 ## User-Agent
+
+Xtream account, catalog, detail, EPG, and source-health API requests carry the
+playlist's trimmed `userAgent` separately from provider query parameters.
+Credentials built for selected-channel and channel-list EPG, account dialogs,
+PWA collections/category loading, category guards, and dashboard episode lookups
+retain that value. Dashboard episode request identity includes the User-Agent so
+an edited value retries a blocked lookup without waiting for the old cooldown.
+Add/Edit connection tests use the current form value. Electron chooses a nonblank
+override before `XTREAM_CLIENT_USER_AGENT`. The PWA proxy
+accepts the override as a control parameter, removes it from the provider query,
+and sends it as `User-Agent`. Blank overrides retain each transport's fallback.
+Passive status caches and in-flight checks include the normalized User-Agent, so
+changing it cannot reuse a refusal from the previous client identity.
+The shared source-status service forwards the same override for browser-build
+status indicators in the Sources page and playlist switcher, including rechecks.
 
 Electron's `XTREAM_REQUEST` and stream-probe handlers plus fresh Xtream movie
 and series-episode download requests share the exported
@@ -479,7 +520,7 @@ same IPTV-player fallback, while a still-identifiable Stalker row remains
 unchanged. Some Xtream
 panels sit behind a WAF (e.g. Cloudflare) configured to challenge
 generic/incomplete browser-looking User-Agents while allowlisting known IPTV
-player clients; a player-style User-Agent (currently a VLC signature) avoids
+player clients; a player-style User-Agent (currently a VLC signature) can avoid
 that challenge page, whereas a browser-looking but non-browser TLS/HTTP client
 (axios/curl with a Chrome or empty User-Agent) can be blocked even though a
 real browser or a VLC-style client passes. Keep all three request sites using
