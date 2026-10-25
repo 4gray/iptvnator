@@ -214,7 +214,9 @@ async function validateClaudeLinks(rootDir, skillDirectories) {
             diagnostics.push(
                 `${claudePath}: must be a directory symlink to ${expectedTarget}`
             );
-        } else if ((await readlink(absolutePath)) !== expectedTarget) {
+        } else if (
+            (await readlink(absolutePath)).split(sep).join('/') !== expectedTarget
+        ) {
             diagnostics.push(
                 `${claudePath}: symlink must target ${expectedTarget}`
             );
