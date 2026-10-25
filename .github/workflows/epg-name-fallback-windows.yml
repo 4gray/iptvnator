@@ -127,7 +127,7 @@ jobs:
             - name: Upload unsigned Windows installer
               uses: actions/upload-artifact@v7
               with:
-                  name: IPTVnator-M3U-Catalog-v0.25.0-catalog.3-Windows-x64
+                  name: IPTVnator-M3U-Catalog-v0.25.0-catalog.4-Windows-x64
                   path: dist/executables/**/*windows-x64-setup.exe
                   if-no-files-found: error
                   retention-days: 14
