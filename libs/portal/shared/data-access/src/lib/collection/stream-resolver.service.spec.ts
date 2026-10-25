@@ -490,7 +490,9 @@ describe('StreamResolverService', () => {
         );
         // The mapping resolved via XMLTV, so no provider EPG call is needed.
         expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
-        expect(epgMap.get('Mapped Channel')).toMatchObject({
+        expect(
+            epgMap.get(JSON.stringify(['xtream', 'xtream-1', '7']))
+        ).toMatchObject({
             title: 'Mapped Program',
         });
     });
@@ -534,7 +536,9 @@ describe('StreamResolverService', () => {
         ]);
 
         expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledTimes(1);
-        expect(epgMap.get('77')).toMatchObject({
+        expect(
+            epgMap.get(JSON.stringify(['stalker', 'stalker-1', '77']))
+        ).toMatchObject({
             title: 'Mapped Stalker Program',
         });
         // The mapped channel resolves from uploaded XMLTV — the portal
@@ -580,7 +584,9 @@ describe('StreamResolverService', () => {
             } satisfies UnifiedCollectionItem,
         ]);
 
-        expect(epgMap.get('77')).toMatchObject({
+        expect(
+            epgMap.get(JSON.stringify(['stalker', 'stalker-1', '77']))
+        ).toMatchObject({
             title: 'Stalker Live',
             channel: '77',
         });

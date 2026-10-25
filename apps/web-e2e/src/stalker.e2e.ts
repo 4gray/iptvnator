@@ -1401,3 +1401,34 @@ test.describe('@stalker full portal authentication', () => {
         );
     });
 });
+
+test('@stalker @epg PWA keeps failed background guides off the snackbar', async ({
+    page,
+}) => {
+    let rejectedGuides = 0;
+    await page.route('**/localhost:3000/stalker**', async (route) => {
+        const action = new URL(route.request().url()).searchParams.get(
+            'action'
+        );
+        if (action === 'get_epg_info' || action === 'get_short_epg') {
+            rejectedGuides++;
+            await route.fulfill({
+                status: 500,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Guide unavailable' }),
+            });
+        } else await route.fallback();
+    });
+    await addStalkerPortal(page);
+    await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await page.locator('.category-item').nth(1).click();
+    const channels = page.locator(
+        'app-stalker-live-stream-layout [data-test-id="channel-item"]'
+    );
+    await expect(channels.first()).toBeVisible();
+    await expect.poll(() => rejectedGuides).toBeGreaterThan(1);
+    await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
+    await channels.first().click();
+    await expect(page.locator('app-web-player-view')).toBeVisible();
+    await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
+});

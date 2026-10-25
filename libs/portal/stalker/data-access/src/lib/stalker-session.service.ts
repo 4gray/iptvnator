@@ -1,3 +1,4 @@
+import type { StalkerRequestOptions } from './stalker-authenticated-request-client';
 import { Injectable, Injector, inject } from '@angular/core';
 import {
     isFullStalkerPortalPlaylist,
@@ -573,12 +574,14 @@ export class StalkerSessionService {
     async makeAuthenticatedRequest<T>(
         playlist: Playlist,
         params: Record<string, string | number>,
-        retryOnAuthFailure = true
+        retryOnAuthFailure = true,
+        options: StalkerRequestOptions = {}
     ): Promise<T> {
         return this.requestClient.request<T>(
             playlist,
             params,
-            retryOnAuthFailure
+            retryOnAuthFailure,
+            options
         );
     }
 }

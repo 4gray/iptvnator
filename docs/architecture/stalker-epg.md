@@ -298,6 +298,13 @@ EPG requests follow the standard Stalker request path:
 | Full Stalker portal   | `StalkerSessionService.makeAuthenticatedRequest()` |
 | Simple Stalker portal | `DataService.sendIpcEvent(STALKER_REQUEST)`        |
 
+Both `get_epg_info` and `get_short_epg` are background work and pass
+`{ silent: true }` through `executeStalkerRequest`. Direct and authenticated
+requests, auth renewal and portal-repair retries retain that option. Electron
+and PWA transports still reject failures so bulk/short fallback logic works,
+but do not open error snackbars for each failed preview. The collection
+resolver's short-EPG requests use the same option.
+
 No EPG-specific transport exists. `STALKER_REQUEST` goes through the Electron
 Stalker request handler on the desktop and through `PwaService` and the web
 backend's `/stalker` proxy in the browser PWA. EPG actions are not treated

@@ -100,6 +100,27 @@ describe('withStalkerEpg', () => {
         store = TestBed.inject(TestStalkerEpgStore);
     });
 
+    it.each([true, false])(
+        'keeps failed bulk and short EPG silent (XMLTV=%s)',
+        async (supportsXmltv) => {
+            runtimeSupportsEpg = supportsXmltv;
+            dataService.sendIpcEvent.mockRejectedValue(
+                new Error('EPG unsupported')
+            );
+
+            await store.ensureBulkItvEpg(168);
+            await store.fetchChannelEpg('10001');
+
+            expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
+            for (const [, payload] of dataService.sendIpcEvent.mock.calls) {
+                expect(payload).toEqual(
+                    expect.objectContaining({ silent: true })
+                );
+            }
+            expect(store.bulkItvEpgLoaded()).toBe(true);
+        }
+    );
+
     it('fetches fallback short EPG via get_short_epg', async () => {
         dataService.sendIpcEvent.mockResolvedValue({
             js: {

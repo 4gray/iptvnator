@@ -1,3 +1,7 @@
+import {
+    collectionEpgKey,
+    UnifiedCollectionItem,
+} from '@iptvnator/portal/shared/util';
 import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
@@ -84,14 +88,18 @@ describe('DashboardPortalLiveEpgService', () => {
         sourceRevision = 0;
         supportsProviderEpg = true;
         sourceChanged = new Subject<void>();
-        loadEpgForItems = jest.fn((items: { tvgId?: string }[]) => {
+        loadEpgForItems = jest.fn((items: UnifiedCollectionItem[]) => {
             const key = `xtream::p::${items[0].tvgId}`;
             return new Promise<Map<string, EpgProgram | null>>(
                 (resolve, reject) => {
                     deferred.push({
                         key,
                         resolve: (value) =>
-                            resolve(new Map([[String(items[0].tvgId), value]])),
+                            resolve(
+                                new Map([
+                                    [collectionEpgKey(items[0]) ?? '', value],
+                                ])
+                            ),
                         reject,
                     });
                 }

@@ -43,6 +43,7 @@ import {
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
     UnifiedFavoriteChannel,
+    collectionEpgKey,
 } from '@iptvnator/portal/shared/util';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -152,7 +153,7 @@ export class GlobalFavoritesListComponent {
         });
 
         return sorted.map((ch) => {
-            const epgKey = ch.tvgId?.trim() || ch.name?.trim();
+            const epgKey = collectionEpgKey(ch);
             const currentEpgProgram = epgKey
                 ? (epgMap.get(epgKey) ?? null)
                 : null;

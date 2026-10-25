@@ -55,6 +55,7 @@ describe('UnifiedLiveTabComponent', () => {
     let stripCountryPrefix: ReturnType<typeof signal<boolean>>;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
+        loadEpgItems: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
         resolveXtreamCatchupUrl: jest.Mock;
         loadM3uProgramsForItem: jest.Mock;
@@ -79,6 +80,14 @@ describe('UnifiedLiveTabComponent', () => {
         localStorage.removeItem('live-epg-panel-state');
 
         streamResolver = {
+            loadEpgItems: jest.fn(
+                async () =>
+                    (
+                        await streamResolver.resolveLiveDetail.mock.results.at(
+                            -1
+                        )?.value
+                    )?.epgItems ?? []
+            ),
             resolveLiveDetail: jest.fn(),
             resolveM3uPlaybackDetail: jest.fn(),
             resolveXtreamCatchupUrl: jest.fn().mockResolvedValue(null),
@@ -888,8 +897,12 @@ describe('UnifiedLiveTabComponent', () => {
                 streamUrl: 'https://example.com/xtream.m3u8',
                 title: 'Xtream Live',
             },
-            epgItems: [buildEpgItem('Xtream Show')],
+            epgItems: [],
         });
+
+        streamResolver.loadEpgItems.mockResolvedValue([
+            buildEpgItem('Xtream Show'),
+        ]);
 
         fixture.componentRef.setInput('items', [item]);
         fixture.detectChanges();
@@ -900,6 +913,7 @@ describe('UnifiedLiveTabComponent', () => {
         await fixture.whenStable();
 
         expect(component.supportsEpg).toBe(false);
+        expect(streamResolver.loadEpgItems).toHaveBeenCalledWith(item);
         expect(streamResolver.loadEpgForItems).toHaveBeenCalledWith([item]);
         const timeline = fixture.debugElement.query(
             By.directive(StubEpgTimelineComponent)

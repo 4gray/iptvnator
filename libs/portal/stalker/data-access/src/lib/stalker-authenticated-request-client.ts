@@ -10,6 +10,11 @@ import { isStalkerAuthorizationFailure } from './stalker-response-classification
 import { stalkerSessionFingerprint } from './stalker-session-store';
 import type { StalkerTokenCache } from './stalker-token-cache';
 
+export interface StalkerRequestOptions {
+    /** Background failures still reject but never show a transport snackbar. */
+    silent?: boolean;
+}
+
 /** Authenticated request + one-shot session renewal shared by all callers. */
 export class StalkerAuthenticatedRequestClient {
     constructor(
@@ -27,16 +32,15 @@ export class StalkerAuthenticatedRequestClient {
     async request<T>(
         playlist: Playlist,
         params: Record<string, string | number>,
-        retryOnAuthFailure = true
+        retryOnAuthFailure = true,
+        options: StalkerRequestOptions = {}
     ): Promise<T> {
         // Bind the whole request to one immutable connection snapshot. An
         // Edit can replace the authoritative endpoint/mode while transport is
         // in flight; its old response must never reach a store or player.
         const configuration = { ...playlist } as Playlist;
-        const sessionFingerprint =
-            stalkerSessionFingerprint(configuration);
-        const { token, serialNumber } =
-            await this.ensureToken(configuration);
+        const sessionFingerprint = stalkerSessionFingerprint(configuration);
+        const { token, serialNumber } = await this.ensureToken(configuration);
 
         try {
             const response = await this.dataService.sendIpcEvent<T>(
@@ -45,6 +49,7 @@ export class StalkerAuthenticatedRequestClient {
                     url: configuration.portalUrl,
                     macAddress: configuration.macAddress,
                     params,
+                    ...(options.silent ? { silent: true } : {}),
                     token,
                     ...(serialNumber ? { serialNumber } : {}),
                 }
@@ -56,7 +61,8 @@ export class StalkerAuthenticatedRequestClient {
                     params,
                     token,
                     response,
-                    retryOnAuthFailure
+                    retryOnAuthFailure,
+                    options
                 );
             }
             return response;
@@ -73,7 +79,12 @@ export class StalkerAuthenticatedRequestClient {
                     retryOnAuthFailure &&
                     isFullStalkerPortalPlaylist(configuration)
                 ) {
-                    return this.request<T>(configuration, params, false);
+                    return this.request<T>(
+                        configuration,
+                        params,
+                        false,
+                        options
+                    );
                 }
             }
             // Transport evidence (especially HTTP 401/403) is consumed by
@@ -87,11 +98,12 @@ export class StalkerAuthenticatedRequestClient {
         params: Record<string, string | number>,
         failedToken: string | null,
         failure: unknown,
-        retryOnAuthFailure: boolean
+        retryOnAuthFailure: boolean,
+        options: StalkerRequestOptions
     ): Promise<T> {
         this.tokens.retireFailed(playlist._id, failedToken);
         if (retryOnAuthFailure && isFullStalkerPortalPlaylist(playlist)) {
-            return this.request<T>(playlist, params, false);
+            return this.request<T>(playlist, params, false, options);
         }
 
         const failureBody = extractStalkerAuthFailureBody(failure) ?? undefined;

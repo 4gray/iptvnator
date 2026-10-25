@@ -168,7 +168,8 @@ export function withStalkerEpg() {
                     return executeStalkerRequest<StalkerEpgResponse>(
                         requestDeps,
                         playlist,
-                        queryParams
+                        queryParams,
+                        { silent: true }
                     );
                 };
 

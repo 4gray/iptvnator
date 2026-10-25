@@ -380,6 +380,9 @@ all, and none inside the hero.
           by the collection uid — favourites and recent rows of one channel
           share the answer. Radio rows and rows without a usable provider id
           get no entry. Cards carry that key as `liveEpgSourceKey`.
+          The resolver's result map is read through `collectionEpgKey`, shared
+          with favorites/recent: source type, playlist ID and provider channel
+          ID must all match, so two portals reusing an ID cannot share a guide.
         - `lib-dashboard-rail` reports the cards inside its track viewport
           (plus ~one card of `rootMargin`) through `visibleCardsChanged`, from
           an `IntersectionObserver` rooted at the track; without the API every

@@ -244,6 +244,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         isSelecting: this.isSelecting,
         generation: this.generation,
         supportsEpg: this.supportsEpg,
+        supportsProviderEpg: this.supportsProviderEpg,
         isRadioDetail: (detail) => this.view.isRadioDetail(detail),
         shouldOpenExternalPlayback: (detail, startPlayback) =>
             this.view.shouldOpenExternalPlayback(detail, startPlayback),

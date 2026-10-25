@@ -1,3 +1,4 @@
+import type { StalkerRequestOptions } from '../../stalker-authenticated-request-client';
 import { DataService } from '@iptvnator/services';
 import {
     isFullStalkerPortalPlaylist,
@@ -107,12 +108,21 @@ export async function ensureStalkerSession(
 async function dispatchStalkerRequest<T>(
     deps: StalkerRequestDeps,
     playlist: PlaylistMeta,
-    params: Record<string, string | number>
+    params: Record<string, string | number>,
+    options: StalkerRequestOptions = {}
 ): Promise<T> {
     if (isFullStalkerPortalPlaylist(playlist)) {
+        if (!options.silent) {
+            return deps.stalkerSession.makeAuthenticatedRequest<T>(
+                toStalkerSessionPlaylist(playlist),
+                params
+            );
+        }
         return deps.stalkerSession.makeAuthenticatedRequest<T>(
             toStalkerSessionPlaylist(playlist),
-            params
+            params,
+            true,
+            options
         );
     }
 
@@ -127,6 +137,7 @@ async function dispatchStalkerRequest<T>(
         url: playlist.portalUrl,
         macAddress: playlist.macAddress,
         params,
+        ...(options.silent ? { silent: true } : {}),
     });
     // Re-check after transport: Edit may have committed while the direct
     // request was in flight. In simple mode this guard remains network-free.
@@ -169,7 +180,8 @@ async function dispatchStalkerRequest<T>(
 export async function executeStalkerRequest<T>(
     deps: StalkerRequestDeps,
     playlist: PlaylistMeta,
-    params: Record<string, string | number>
+    params: Record<string, string | number>,
+    options: StalkerRequestOptions = {}
 ): Promise<T> {
     await deps.portalRepair?.waitForPendingRepair?.(playlist._id);
     const effective = deps.portalRepair
@@ -180,13 +192,19 @@ export async function executeStalkerRequest<T>(
         const response = await dispatchStalkerRequest<T>(
             deps,
             effective,
-            params
+            params,
+            options
         );
 
         if (deps.portalRepair?.shouldAttemptRepair(effective, response)) {
             const repaired = await deps.portalRepair.repairPortal(effective);
             if (repaired) {
-                return dispatchStalkerRequest<T>(deps, repaired, params);
+                return dispatchStalkerRequest<T>(
+                    deps,
+                    repaired,
+                    params,
+                    options
+                );
             }
         }
 
@@ -195,7 +213,12 @@ export async function executeStalkerRequest<T>(
         if (deps.portalRepair?.shouldAttemptRepair(effective, error)) {
             const repaired = await deps.portalRepair.repairPortal(effective);
             if (repaired) {
-                return dispatchStalkerRequest<T>(deps, repaired, params);
+                return dispatchStalkerRequest<T>(
+                    deps,
+                    repaired,
+                    params,
+                    options
+                );
             }
         }
 

@@ -6,6 +6,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     buildCollectionUid,
+    collectionEpgKey,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 
@@ -49,14 +50,13 @@ export function buildDashboardPortalLiveEpgEntry(
 }
 
 /**
- * The resolver keys its map by the item's `tvgId`; the entry sets it to the
- * provider id, so a missing key means "asked, nothing on air".
+ * Read the same source/playlist/channel identity the collection resolver writes.
  */
 export function resolveDashboardPortalLiveEpgProgram(
     epgMap: ReadonlyMap<string, EpgProgram | null>,
     entry: DashboardPortalLiveEpgEntry
 ): EpgProgram | null {
-    const key = entry.item.tvgId?.trim();
+    const key = collectionEpgKey(entry.item);
     return key ? (epgMap.get(key) ?? null) : null;
 }
 

@@ -92,6 +92,18 @@ handler as the header Back.
   one Back arrow returns to the list from either state, while Escape and the
   now-playing bar's Close button close the inline player. See
   [Embedded Inline Playback](./embedded-inline-playback.md).
+- Live collection playback resolves without awaiting EPG
+  (`resolveLiveDetail(item, { includeEpg: false })`). Once that detail is
+  mounted, `UnifiedLiveSelection` hydrates M3U or portal programmes separately;
+  `loadEpgItems` never resolves or launches playback. A guide response must
+  still own both the selection generation and the exact mounted detail before
+  it can update the panel. Switching, closing or destroying the selection
+  invalidates pending answers, and guide failures leave playback running.
+- Live preview results use `collectionEpgKey` in portal shared util.
+  Xtream/Stalker results include source type, playlist ID and provider channel
+  ID, independently of collection UIDs, names or `tvgId`. Resolver writes,
+  favorites/recent rows and dashboard reads share that helper; XMLTV lookup
+  and mapping keys remain separate from result identity.
 - Favorites and recently viewed collections now use collection-owned inline detail
   for non-live Xtream and Stalker items.
 - Provider-scoped collection routes fall back to the matching global collection

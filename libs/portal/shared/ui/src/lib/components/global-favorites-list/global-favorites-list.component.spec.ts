@@ -74,6 +74,62 @@ describe('GlobalFavoritesListComponent', () => {
         fixture = TestBed.createComponent(GlobalFavoritesListComponent);
     });
 
+    it.each(['favorites', 'recent'])(
+        'reads %s portal programmes only from their own playlist and source',
+        (mode) => {
+            fixture.componentRef.setInput('mode', mode);
+            const channels = [
+                buildChannel('a', 'First', {
+                    sourceType: 'xtream',
+                    playlistId: 'one',
+                    xtreamId: 7,
+                    tvgId: 'same',
+                }),
+                buildChannel('b', 'Second', {
+                    sourceType: 'xtream',
+                    playlistId: 'two',
+                    xtreamId: 7,
+                    tvgId: 'same',
+                }),
+                buildChannel('c', 'Third', {
+                    sourceType: 'stalker',
+                    playlistId: 'one',
+                    stalkerId: 7,
+                    tvgId: 'same',
+                }),
+            ];
+            fixture.componentRef.setInput('channels', channels);
+            fixture.componentRef.setInput(
+                'epgMap',
+                new Map([
+                    [
+                        JSON.stringify(['xtream', 'one', '7']),
+                        airingProgram('First show'),
+                    ],
+                    [
+                        JSON.stringify(['xtream', 'two', '7']),
+                        airingProgram('Second show'),
+                    ],
+                    [
+                        JSON.stringify(['stalker', 'one', '7']),
+                        airingProgram('Third show'),
+                    ],
+                    ['same', airingProgram('Wrong show')],
+                ])
+            );
+            fixture.detectChanges();
+            expect(
+                rowNamed('First').querySelector('.epg-title')?.textContent
+            ).toContain('First show');
+            expect(
+                rowNamed('Second').querySelector('.epg-title')?.textContent
+            ).toContain('Second show');
+            expect(
+                rowNamed('Third').querySelector('.epg-title')?.textContent
+            ).toContain('Third show');
+        }
+    );
+
     it('keeps only history removal in the context menu of an unavailable live Recent row', async () => {
         const item = buildChannel('gone', 'Gone channel', {
             sourceType: 'xtream',
@@ -214,8 +270,14 @@ describe('GlobalFavoritesListComponent', () => {
         fixture.componentRef.setInput(
             'epgMap',
             new Map([
-                ['7', airingProgram('Xtream Show')],
-                ['9', airingProgram('Stalker Show')],
+                [
+                    JSON.stringify(['xtream', 'playlist-1', '7']),
+                    airingProgram('Xtream Show'),
+                ],
+                [
+                    JSON.stringify(['stalker', 'playlist-1', '9']),
+                    airingProgram('Stalker Show'),
+                ],
             ])
         );
         fixture.detectChanges();
