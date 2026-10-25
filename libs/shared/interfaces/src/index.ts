@@ -29,6 +29,7 @@ export * from './lib/indexed-db.config';
 export * from './lib/ipc-command.class';
 export * from './lib/ipc-commands';
 export * from './lib/language.enum';
+export * from './lib/last-played-live.util';
 export * from './lib/m3u-favorite-channel.interface';
 export * from './lib/parental-lock.util';
 export * from './lib/parental-lock-pin.util';
