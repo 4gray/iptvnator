@@ -533,6 +533,7 @@ describe('ensurePlaylistsPayloadLast', () => {
         'position',
         'favorites',
         'recently_viewed',
+        'm3u_content_overrides',
         'last_usage',
         'payload',
     ];

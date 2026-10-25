@@ -57,6 +57,7 @@ function rebuildLegacyPlaylists(options: {
             ALTER TABLE playlists ADD COLUMN detected_epg_urls TEXT;
             ALTER TABLE playlists ADD COLUMN manual_epg_urls TEXT;
             ALTER TABLE playlists ADD COLUMN disabled_epg_urls TEXT;
+            ALTER TABLE playlists ADD COLUMN m3u_content_overrides TEXT;
             CREATE TABLE favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 content_id INTEGER NOT NULL,
@@ -64,11 +65,11 @@ function rebuildLegacyPlaylists(options: {
                 FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
             );
             INSERT INTO playlists (id, name, type, url, last_usage, count, payload,
-                epg_urls, detected_epg_urls, manual_epg_urls, disabled_epg_urls)
+                epg_urls, detected_epg_urls, manual_epg_urls, disabled_epg_urls, m3u_content_overrides)
             VALUES ('m3u', 'Saved list', 'm3u-url', 'https://list.invalid/a.m3u',
                 '2026-01-01T00:00:00.000Z', 2, '{"channels":[{"name":"One"},{"name":"Two"}]}',
                 '["https://epg.invalid/a.xml"]', '["https://epg.invalid/b.xml"]',
-                '["https://epg.invalid/c.xml"]', '[]');
+                '["https://epg.invalid/c.xml"]', '[]', '{"manual-item":"movies"}');
             INSERT INTO playlists (id, name, type, serverUrl, username, password)
             VALUES ('xtream', 'Saved source', 'xtream', 'https://source.invalid', 'user', 'secret');
             INSERT INTO favorites (content_id, playlist_id) VALUES (1, 'm3u'), (2, 'xtream');
@@ -141,6 +142,7 @@ const expectedPlaylists = [
         detected_epg_urls: '["https://epg.invalid/b.xml"]',
         manual_epg_urls: '["https://epg.invalid/c.xml"]',
         disabled_epg_urls: '[]',
+        m3u_content_overrides: '{"manual-item":"movies"}',
     }),
     expect.objectContaining({
         id: 'xtream',
@@ -168,7 +170,7 @@ describe('ensurePlaylistsPayloadLast on real SQLite', () => {
 
         expect(outcome.warnings).toEqual([]);
         expect(outcome.columns.at(-1)).toBe('payload');
-        expect(outcome.columns).toHaveLength(28);
+        expect(outcome.columns).toHaveLength(29);
         expect(outcome.playlists).toEqual(expectedPlaylists);
         // Not cascaded away by the drop, and the orphan it found does not
         // block the rebuild.
@@ -189,7 +191,7 @@ describe('ensurePlaylistsPayloadLast on real SQLite', () => {
                 '[DB] playlists payload-last rebuild failed:'
             ),
         ]);
-        expect(outcome.columns.at(-1)).toBe('disabled_epg_urls');
+        expect(outcome.columns.at(-1)).toBe('m3u_content_overrides');
         expect(outcome.tableSql).toContain('payload TEXT, epg_urls TEXT');
         expect(outcome.playlists).toEqual(expectedPlaylists);
         expect(outcome.favorites).toEqual(expectedFavorites);
