@@ -150,3 +150,62 @@ identity. Older saved TV episodes refresh their exact parent-scoped coordinates
 without changing persisted identity/progress. Two TV unit cases cover new and
 legacy entries; the upstream Angular resolver tests exercise the same helper.
 This integration and correction are also outside the five-round review cap.
+
+
+## Publication follow-up
+
+On 2026-10-25 the maintainer authorized publishing this experimental TV branch
+and merging through a pull request, and waived another full local review round.
+The five prior Codex rounds and their twelve fixed findings above remain the
+review evidence; there is no claim of a clean final independent-review verdict.
+Greptile is still unavailable. The separate settings-category worktree is not
+included in this pull request.
+
+Runtime revision `27c36b1dc` merges upstream `703a7e1a9` into the TV branch without
+conflicts. Frozen dependencies were reinstalled, lockfiles match, and Nx
+project discovery passes. Subsequent publication edits only change documentation
+and the browser regression's synchronization; runtime source stays at that
+validated revision. The repository is public and its default branch is `master`;
+automatic PR/master CI triggers were inspected before publication.
+
+The old Angular Stalker watched-menu failure was reproduced three times with
+exactly one closing CDK backdrop still in the DOM after its menu row disappeared.
+The detail shell deliberately ignores Escape while a backdrop exists. The test
+now awaits that backdrop's removal before sending the second Escape; its detail
+count, URL and original-card assertions are unchanged. Three focused repetitions
+then pass. This is a test synchronization correction, with no runtime behavior
+change or lowered gate.
+
+Final local gates:
+
+- Tier A coverage passes all 36 projects and existing thresholds: statements
+  84.91%, branches 75.91%, functions 83.21%, lines 85.27%. Coverage health has
+  three nonfatal same-name-spec warnings for the upstream components barrel,
+  removed view-in-portal component and handoff token.
+- All 59 affected lint targets pass, plus lint after the E2E correction.
+  Web/Electron runtime typing, TV/phone/test typing, and all 41 spec programs
+  pass.
+- All 79 TV unit cases pass. All 90 TV browser cases pass; the final Nx invocation
+  reuses the successful same-input result from the preceding watchdog validation.
+- All 74 Chromium Stalker/Xtream/provider-EPG scenarios pass on `6e305d654`,
+  including the formerly failing watched-menu flow in its full serial suite.
+- Four Electron Stalker lazy-series regressions pass after fresh Electron/Angular
+  builds, including old favorites/recent entries after restart.
+- Production TV/backend builds, classic ES2018 verification and IPK packaging
+  pass. Dependency alignment, all 128 E2E task graphs, stylesheet inputs/font
+  weights, release notes and agent/skill validation pass.
+
+An initial targeted browser invocation accidentally selected all three configured
+browsers: Chromium's two watched-menu cases passed, while four Firefox/WebKit
+launches could not run because those browser binaries are not installed. They
+are not counted as application failures or passing coverage; the final browser
+scope is explicitly Chromium, matching the repository's documented local gate.
+
+Real LG evidence is in [the Live investigation](tv-live-playback-investigation.md).
+Installed 0.1.14 plays First Channel, First Channel HD and Setanta; the final
+observed First Channel run reached 96.406 seconds with readyState 4/no alert.
+The first First Channel start immediately after installation still failed before
+Retry; that residual is retained. XMLTV/archive support, viewing-data sync and
+general provider/codec certification are outside this experimental merge.
+The NAS and the primary checkout remain unchanged. Existing `.changes/tv-*.md`
+notes cover runtime behavior; publication docs/test-only edits need no new note.

@@ -75,6 +75,11 @@ isolation. The test and its expectations are unchanged. A baseline run on the
 unmodified source revision has not been performed, so this report does not
 claim it is a pre-existing failure. This remains an unresolved validation result.
 
+Publication follow-up: the closing CDK backdrop was still present after the menu
+row disappeared, so it correctly owned the next Escape. The test now waits for
+backdrop removal before asserting detail dismissal. See
+[the final validation](tv-stabilization-validation.md#publication-follow-up).
+
 ## Hardware gate
 
 No TV is paired in webOS CLI. Read-only probes of `192.168.178.44` ports 9922,
