@@ -40,6 +40,26 @@ verify `/api/tv/connection` reports protocol 1 and pairing support, and include
 TV sources/favorites/progress still live locally; pointing at the NAS does not
 enable the PWA's server-storage synchronization in the TV client.
 
+### Follow-up TODO
+
+- [ ] Deploy the matching TV backend on the always-on Synology NAS, initially
+  alongside the existing self-hosted PWA. Preserve the current service and its
+  data volume, configure TV CORS and automatic restart, verify TV connection,
+  phone setup and provider requests, then switch the TV from the temporary Mac
+  backend. Deployment is pending; the existing NAS image lacks the TV routes.
+- [ ] Add an optional TV "Server library" mode using the existing `/v1`
+  server-storage API. Start with shared M3U, Xtream and Stalker sources, explicit
+  local-source import/merge and a refresh action with connection/last-sync status.
+  Preserve server source IDs, provider authentication fields and existing local
+  data; define deletion, offline and conflict behavior before enabling writes.
+  Map favorites, history and resume separately against each provider's existing
+  server representation rather than treating them as already interoperable.
+  The TV API proxy and library server may initially be separate endpoints;
+  a single compatible deployment can eventually provide both. Reuse framework-free
+  contracts without importing Angular services into the TV client.
+
+These are follow-up tasks, not capabilities of the installed TV package.
+
 If the backend stopped or restarted, restore it and select Retry connection
 on the TV. Connected is a backend health/auth check, not proof that the portal
 has reconnected. See the architecture contract for the current retry limits.
