@@ -280,6 +280,8 @@ Timeout preserves the previous saved position. Retry playback reads that
 position again, including records whose duration was unknown; completed items
 still restart. Stop/source replacement cancels the retry timer. Positive timeline
 seeks use the same confirmation path; explicit seek-to-zero starts over.
+Remote Stop (413) tears down the stream and returns focus to its origin or
+channel. Back from fullscreen Live returns to the ongoing preview instead.
 
 Single-line text fields keep Left/Right caret movement and use Up/Down for
 spatial focus. Native select controls keep Up/Down for choices and leave with
@@ -299,6 +301,8 @@ from details retains the active query's loaded items, identity and scroll offset
 heights: at most 60 poster cards, 20 channel rows, 30 compact channel cards or
 30 episode rows. Favorites and supplied episode arrays use the same scroll
 window instead of page buttons.
+Deferred row navigation retains its originating focused element. Moving focus
+elsewhere cancels that move, so a delayed append cannot steal search focus.
 Arrow Left/Right stays in the current grid row when a neighbor exists;
 Up/Down moves by logical row and loads the next batch when necessary;
 scroll and Magic Remote pointer use the same viewport. Focus never starts a

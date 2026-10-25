@@ -1,6 +1,65 @@
 import { expect, test } from '@playwright/test';
-import { addSource, backend, start } from './helpers';
+import { addSource, backend, nav, start } from './helpers';
 import { playLive } from './live-media';
+
+test('remote Stop tears down fullscreen live playback instead of returning to preview', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'xtream');
+    const video = await playLive(page);
+    await page.evaluate(() =>
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', { keyCode: 413, bubbles: true })
+        )
+    );
+    await expect(video).not.toHaveAttribute('src');
+    await expect
+        .poll(() => video.evaluate((v: HTMLVideoElement) => v.paused))
+        .toBe(true);
+    await expect(page.locator('.native-player')).toBeHidden();
+    await expect(page.locator('.channel').first()).toBeFocused();
+});
+
+test('delayed catalog append does not steal focus after moving to search', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'xtream', { username: 'large', password: 'large' });
+    await nav(page, 'Movies');
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    let requested = false;
+    await page.route(`${backend}/xtream?**`, async (route) => {
+        if (
+            new URL(route.request().url()).searchParams.get('action') ===
+            'get_vod_categories'
+        ) {
+            requested = true;
+            await held;
+        }
+        await route.continue();
+    });
+    try {
+        await page.locator('.poster-card[data-virtual-index="59"]').focus();
+        await page.keyboard.press('ArrowDown');
+        await expect.poll(() => requested).toBe(true);
+        const search = page.getByLabel('Search this source');
+        await search.focus();
+        await expect(search).toBeInViewport();
+        release();
+        await expect(page.locator('.virtual-collection')).toHaveAttribute(
+            'data-loaded',
+            '120'
+        );
+        await expect(search).toBeFocused();
+        await expect(search).toBeInViewport();
+    } finally {
+        release();
+    }
+});
 
 test('native playback error retries the currently playing channel', async ({
     page,

@@ -47,7 +47,7 @@ export function VirtualCollection<T extends { id: string }>({
         columns: initialColumns,
         step: layout === 'channels' ? 95 : layout === 'episodes' ? 200 : 430,
     }));
-    const pending = useRef<number>();
+    const pending = useRef<{ index: number; origin: HTMLElement }>();
     const focusAfterRender = useRef<number>();
     const latest = useRef({ items, more, busy, error, loadMore, windowed });
     latest.current = { items, more, busy, error, loadMore, windowed };
@@ -130,21 +130,30 @@ export function VirtualCollection<T extends { id: string }>({
             frame = requestAnimationFrame(measure);
         };
         update.current = schedule;
+        const cancelPendingFocus = (event: FocusEvent) => {
+            if (pending.current && event.target !== pending.current.origin)
+                pending.current = undefined;
+        };
+        document.addEventListener('focusin', cancelPendingFocus);
         root.addEventListener('scroll', schedule);
         window.addEventListener('resize', schedule);
         schedule();
         return () => {
             cancelAnimationFrame(frame);
+            document.removeEventListener('focusin', cancelPendingFocus);
             root.removeEventListener('scroll', schedule);
             window.removeEventListener('resize', schedule);
         };
     }, [layout]);
     useLayoutEffect(() => {
-        if (pending.current !== undefined && pending.current < items.length) {
-            focusAfterRender.current = pending.current;
+        const move = pending.current;
+        if (move && document.activeElement !== move.origin)
+            pending.current = undefined;
+        else if (move && move.index < items.length) {
+            focusAfterRender.current = move.index;
             setWindow((w) => ({
                 ...w,
-                row: Math.max(0, Math.floor(pending.current! / w.columns) - 2),
+                row: Math.max(0, Math.floor(move.index / w.columns) - 2),
             }));
             pending.current = undefined;
         }
@@ -219,7 +228,7 @@ export function VirtualCollection<T extends { id: string }>({
                     } else if (down && more && !error) {
                         event.preventDefault();
                         event.stopPropagation();
-                        pending.current = next;
+                        pending.current = { index: next, origin: target };
                         if (!busy) loadMore();
                     }
                 }

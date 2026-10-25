@@ -9,13 +9,9 @@ import { useContent } from './use-content';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useProvider } from './use-provider';
 import { useSourceNavigation } from './use-source-navigation';
+import { useTvRemote } from './use-tv-remote';
 import { LatestRequest, Media, Source } from '@iptvnator/tv/util';
-import {
-    focusKey,
-    installRemote,
-    platformBack,
-    restoreFocus,
-} from '@iptvnator/tv/ui';
+import { focusKey, platformBack, restoreFocus } from '@iptvnator/tv/ui';
 export function useTv(video: { current: HTMLVideoElement | null }) {
     const [route, setRoute] = useState(firstRoute);
     const { error, errorRetry, errorRetryLabel, setError, clearError } =
@@ -279,24 +275,20 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         } else if (route.view !== 'home') navigate('home');
         else platformBack();
     }
-    const latest = useRef({ back, fullscreen, player: player.current });
-    latest.current = { back, fullscreen, player: player.current };
-    useEffect(
-        () =>
-            installRemote(
-                () => latest.current.back(),
-                () => latest.current.fullscreen,
-                (code) => {
-                    const p = latest.current.player;
-                    if (code === 415) p?.resume();
-                    if (code === 19) p?.pause();
-                    if (code === 413) latest.current.back();
-                    if (code === 412) p?.seek(-10);
-                    if (code === 417) p?.seek(10);
-                }
-            ),
-        []
-    );
+    function stopRemote() {
+        stop();
+        if (fullscreen)
+            restoreFocus(
+                playerOrigin.current,
+                playing?.kind === 'live' ? playing.id : 'detail-play'
+            );
+    }
+    useTvRemote({
+        back,
+        stop: stopRemote,
+        fullscreen,
+        player: player.current,
+    });
     async function favorite(item: Media) {
         try {
             await update((d) => ({

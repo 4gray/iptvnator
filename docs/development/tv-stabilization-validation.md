@@ -41,8 +41,8 @@ The read-protection regression failed against the old repository implementation.
 Web backend: 237 tests passed. Related provider/shared/EPG unit suites and web and
 Electron TypeScript checks pass.
 
-The complete TV browser suite passes 85 scenarios across M3U, Xtream and Stalker,
-including six recovery/onboarding scenarios and eight review regressions. These run against the real local
+The complete TV browser suite passes 87 scenarios across M3U, Xtream and Stalker,
+including six recovery/onboarding scenarios and ten review regressions. These run against the real local
 backend and mock providers, with synthetic media in modern Chromium. They do not
 certify webOS decoding or physical remote behavior.
 The separately invoked phone-setup split target passes all eight scenarios,
@@ -83,7 +83,7 @@ of this validation. Local evidence is held outside tracked source under
 `/tmp/iptvnator-tv-*.log`; the build artifact is
 `dist/tv-package/com.iptvnator.tv.prototype_0.1.12_all.ipk`.
 
-IPK SHA-256: `368611240e4ec2a7a03ef52fdb7a37b2088c350c746ded1c1131d3f298df6cd0`.
+IPK SHA-256: `81a2bcbe32605210377212a3f4af69a145faace14a656e5488ef9085c6722e34`.
 The local Greptile CLI is unavailable; no installation or account setup was
 attempted. Codex round 1 reviewed `aa8e09b7e` against master and reported three
 P2 findings: stale native error callbacks, abandoned guide playback resolution
@@ -116,3 +116,18 @@ connection readiness. New browser checks exercise a second retry after a failed
 one and two sources with overlapping provider IDs, including Back and saved
 playback identity. The independent shared EPG coverage correction described
 above is behavior preserving and uses the same public entry point.
+
+Round 5 reviewed `7e2baed06` and found two P2 cases: remote Stop returned Live
+to preview without ending playback, and a delayed catalog append stole focus
+after the user moved to search. Both regressions fail before the fixes. Stop now
+tears down playback and restores focus; deferred row navigation is cancelled
+when focus moves away from its origin. The existing positive test for remote
+navigation across a loaded boundary also passes. After extracting the event
+binding hook, all 35 matching remote/fullscreen/Back/resume browser cases pass. Remote event binding is extracted
+into a small hook to keep production files within the repository line limit.
+
+All twelve findings across the five Codex rounds were accepted and fixed.
+The repository's local review policy stops after five rounds. These final two
+fixes have automated regression coverage but have not received a sixth independent
+review; the branch does not claim a clean final-review verdict. Greptile remains
+unavailable. No push or PR was attempted.
