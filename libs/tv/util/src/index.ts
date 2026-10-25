@@ -213,3 +213,5 @@ export * from './settings-draft';
 export * from './catalog-sort';
 export { continueWatching } from './continue-watching';
 export * from './programme-guide';
+
+export * from './grid-guide';

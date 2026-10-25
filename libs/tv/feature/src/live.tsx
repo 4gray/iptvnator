@@ -7,11 +7,13 @@ export function Live({
     browse,
     overlayOpen,
     openGuide,
+    openGrid,
 }: {
     tv: TvModel;
     browse: ReturnType<typeof useLiveBrowse>;
     overlayOpen: boolean;
     openGuide: () => void;
+    openGrid: () => void;
 }) {
     const guide = useRef<HTMLDivElement>(null);
     useEffect(() => {
@@ -57,6 +59,9 @@ export function Live({
                 <div class="section-title">
                     <h2>{selected?.title ?? 'Programme guide'}</h2>
                     <div class="actions">
+                        <button data-focus="live-grid-guide" onClick={openGrid}>
+                            TV Guide
+                        </button>
                         <button
                             data-focus="live-expand-guide"
                             onClick={openGuide}

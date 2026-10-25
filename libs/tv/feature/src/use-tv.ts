@@ -30,7 +30,11 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const [, tick] = useState(0);
     const provider = useRef<ProviderClient>();
     const playback = useRef(new LatestRequest());
-    const failedResolution = useRef<Media>();
+    const failedResolution = useRef<{
+        item: Media;
+        category: string;
+        origin: string;
+    }>();
     const stack = useRef<{ route: Route; focus: string; scroll: number }[]>([]);
     const playerOrigin = useRef('');
     const playingCategory = useRef('');
@@ -187,26 +191,30 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         setRoute({ ...route, view: 'detail', item });
         restoreFocus('detail-play', '', 0);
     }
-    async function play(item: Media) {
+    async function play(
+        item: Media,
+        category = route.category,
+        origin = focusKey()
+    ) {
         playback.current.cancel();
         failedResolution.current = undefined;
         if (playing?.id === item.id && item.kind === 'live') {
             if (!fullscreen) {
-                playerOrigin.current = focusKey();
+                playerOrigin.current = origin;
                 setFullscreen(true);
                 restoreFocus('player-toggle');
             }
-            return;
+            return true;
         }
         const lane = playback.current;
         const job = lane.start();
         setError('');
         try {
             const resolved = await provider.current!.resolve(item, job.signal);
-            if (!lane.owns(job)) return;
-            playerOrigin.current = focusKey();
+            if (!lane.owns(job)) return false;
+            playerOrigin.current = origin;
             setPlaying(item);
-            if (item.kind === 'live') playingCategory.current = route.category;
+            if (item.kind === 'live') playingCategory.current = category;
             if (item.kind !== 'live') {
                 setFullscreen(true);
                 restoreFocus('player-toggle');
@@ -219,18 +227,24 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     ? p.seconds
                     : 0
             );
+            return lane.owns(job);
         } catch {
             if (lane.owns(job)) {
-                failedResolution.current = item;
+                failedResolution.current = { item, category, origin };
                 setError(
                     'Playback could not be resolved. Check the source and retry.'
                 );
             }
+            return false;
         }
     }
     function retryPlayback() {
         if (failedResolution.current) {
-            void play(failedResolution.current);
+            void play(
+                failedResolution.current.item,
+                failedResolution.current.category,
+                failedResolution.current.origin
+            );
             return;
         }
         if (playing) {
@@ -332,6 +346,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     }
     return {
         library,
+        guideClient: ready ? provider.current : undefined,
         retryPlayback,
         restoreKey: pendingFocus.current,
         restoreScroll: pendingScroll.current,

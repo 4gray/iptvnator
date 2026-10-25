@@ -179,7 +179,7 @@ changing EPG content cannot resize or move the preview. The guide is a named,
 focusable region: Up/Down scroll its contents, Up at the beginning exits, and
 Left/Right use spatial navigation. Preview and channel actions remain fixed.
 
-Live fullscreen offers Channels and Programme controls. With controls hidden,
+Live fullscreen offers Channels, Programme and TV Guide controls. With controls hidden,
 Left opens the channel drawer directly; pointer users select Channels. The drawer
 starts in the playing category and focuses the playing item. A playing item beyond
 loaded provider pages appears once as a pinned row rather than crawling the catalog.
@@ -195,7 +195,43 @@ are mounted. Midnight-spanning programmes belong to their start date. Empty,
 disabled and failed guide requests remain separate from playback. The compact
 preview remains limited to 12 rows; this change does not extend provider coverage:
 Xtream still requests short EPG, Stalker uses its existing bulk/short fallback,
-and M3U XMLTV remains excluded. Multi-channel timeline UI is a separate follow-up.
+and M3U XMLTV remains excluded.
+
+TV Guide opens the multi-channel grid from Live preview, fullscreen or the drawer.
+It keeps the current native video mounted and playing. Its own category/catalog,
+schedule requests and selection never mutate playback merely through focus. OK on
+any channel/programme focuses Watch live; only that action resolves playback and
+opens fullscreen. Fullscreen Back restores the Live TV Guide control after a
+grid-initiated switch. Failed resolution keeps the guide usable. The chosen category is
+retained with playback for later drawer entry and retry. Back from the grid's
+category list returns to its grid, then Back closes the overlay to its origin.
+
+Rows advance through provider pages as the viewport approaches the end; at most
+13 channel rows (12 plus a retained selection) and 65 programme buttons per row
+(64 plus a selected dense-schedule item) are mounted. The opening playing channel
+stays pinned at the same index, with its catalog duplicate removed. A two-hour
+axis supports programme-by-programme Left/Right, time-aligned Up/Down, Now, earlier/
+later windows and local-calendar day steps. Programme details retain original
+start/end values even when blocks cross midnight or the viewport. Programme
+windows outside supplied data display an empty state, not fabricated listings.
+This does not add archive/catch-up playback, date-specific provider requests,
+XMLTV, or extend Xtream's existing short-guide coverage.
+
+`@iptvnator/shared/epg` is the pure `shared-epg` Nx utility (shared-contracts domain).
+Both Angular EPG and TV use its epoch-ms axis projection, half-hour ticks and
+render clipping. The Angular module preserves its existing exports and adapters;
+TV imports no Angular components, services or barrels. Elapsed ticks preserve DST
+transitions; day navigation changes the local calendar date.
+
+Grid EPG uses one sequential request lane for the current row window, a 150 ms
+viewport debounce, a 10-second per-row abort deadline, and at most 60 cached channel
+schedules. Closing, category/source changes and superseding windows cancel owned
+requests; late responses cannot publish. The foreground minute tick rechecks only
+visible rows, with a five-minute cache age and manual Refresh guide. Refresh keeps
+old programmes visible while loading and restores a replaced programme's focus.
+Stalker's bulk cache independently deduplicates concurrent callers and expires
+on demand after five minutes. Cancelling one subscriber leaves the others alive;
+the final cancellation and provider disposal abort/fence the shared request.
 
 An overlay owns directional and Tab focus, including hidden page/control exclusion.
 Closing restores its opening control. EPG publication is keyed to the selected

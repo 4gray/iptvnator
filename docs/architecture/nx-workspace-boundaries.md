@@ -201,6 +201,12 @@ which holds "recently viewed" writes until playback is confirmed. It is kept
 out of `@iptvnator/services` on purpose: that barrel ships in the initial
 bundle, and this project is only reached from lazy player and portal code.
 
+`libs/shared/epg` is the pure `shared-epg` utility project, imported through
+`@iptvnator/shared/epg` (scope:shared, domain:shared-contracts, type:util).
+It owns epoch-millisecond time-axis projection, ticks and clipping used by Angular
+EPG and the independent TV grid. Provider parsing, Angular controllers and Preact
+navigation remain with their respective adapters and feature projects.
+
 ## Project Tags
 
 Every Nx project keeps one tag from each family in `project.json`:

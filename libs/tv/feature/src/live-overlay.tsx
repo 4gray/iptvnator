@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { focusKey, restoreFocus } from '@iptvnator/tv/ui';
 import { LiveChannels } from './live-channels';
+import { GridGuide } from './grid-guide';
 import { ProgrammeGuide } from './programme-guide';
 import type { TvModel } from './use-tv';
 import type { useLiveBrowse } from './use-live-browse';
 
 type Browse = ReturnType<typeof useLiveBrowse>;
-type Panel = 'channels' | 'guide' | undefined;
+type Panel = 'channels' | 'guide' | 'grid' | undefined;
 /** Overlays own Back before the player, without replacing its video element. */
 export function useLiveOverlay(tv: TvModel, browse: Browse) {
     const [panel, setPanel] = useState<Panel>();
@@ -27,7 +28,11 @@ export function useLiveOverlay(tv: TvModel, browse: Browse) {
         else if (tv.fullscreen && tv.playing) tv.setSelected(tv.playing);
         setPanel(next);
         restoreFocus(
-            next === 'guide' ? 'guide-close' : (tv.playing?.id ?? ''),
+            next === 'grid'
+                ? 'grid-close'
+                : next === 'guide'
+                  ? 'guide-close'
+                  : (tv.playing?.id ?? ''),
             'channels-close'
         );
     };
@@ -45,7 +50,14 @@ export function useLiveOverlay(tv: TvModel, browse: Browse) {
             if (current.panel && back) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
-                current.close();
+                const nested = document.querySelector('.grid-guide');
+                if (
+                    !nested ||
+                    nested.dispatchEvent(
+                        new Event('tv-overlay-back', { cancelable: true })
+                    )
+                )
+                    current.close();
             } else if (
                 !current.panel &&
                 current.tv.fullscreen &&
@@ -80,6 +92,7 @@ export function useLiveOverlay(tv: TvModel, browse: Browse) {
         panel,
         close,
         openGuide: () => open('guide'),
+        openGrid: () => open('grid'),
         openChannels: () => open('channels'),
     };
 }
@@ -102,13 +115,17 @@ export function LiveOverlay({
                 role="dialog"
                 aria-modal="true"
                 aria-label={
-                    overlay.panel === 'guide'
-                        ? 'Expanded programme guide'
-                        : 'Channel browser'
+                    overlay.panel === 'grid'
+                        ? 'Multi-channel programme guide'
+                        : overlay.panel === 'guide'
+                          ? 'Expanded programme guide'
+                          : 'Channel browser'
                 }
                 data-tv-modal
             >
-                {overlay.panel === 'guide' ? (
+                {overlay.panel === 'grid' ? (
+                    <GridGuide tv={tv} close={overlay.close} />
+                ) : overlay.panel === 'guide' ? (
                     <ProgrammeGuide
                         programs={tv.epg}
                         channel={tv.selected}
@@ -129,6 +146,12 @@ export function LiveOverlay({
                                 Programme
                             </button>
                         </div>
+                        <button
+                            class="drawer-grid-button"
+                            onClick={overlay.openGrid}
+                        >
+                            TV Guide
+                        </button>
                         <LiveChannels tv={tv} browse={browse} overlay />
                         {tv.error ? (
                             <p role="alert">

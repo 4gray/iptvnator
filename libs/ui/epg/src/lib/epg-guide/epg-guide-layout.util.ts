@@ -1,5 +1,12 @@
 import { EpgProgram } from '@iptvnator/shared/interfaces';
-import { addDays, addMinutes } from 'date-fns';
+import { addDays } from 'date-fns';
+export {
+    buildGuideTicks,
+    guideNowLeftPx,
+    guideTrackWidthPx,
+    guideXForMs,
+    type EpgGuideTick,
+} from '@iptvnator/shared/epg';
 import { parseEpgDateKey } from '../epg-date';
 import {
     buildTimelineBlocks,
@@ -9,8 +16,6 @@ import {
     buildTimelineRenderItems,
     TimelineRenderBlock,
 } from '../epg-timeline/epg-timeline-render.util';
-
-const HOUR_MS = 3_600_000;
 
 /** Pixels per hour. */
 export const EPG_GUIDE_ZOOM_MIN = 120;
@@ -41,12 +46,6 @@ export interface EpgGuideDayAxis extends TimelineAxis {
     readonly dayKey: string;
 }
 
-export interface EpgGuideTick {
-    readonly ms: number;
-    readonly leftPx: number;
-    readonly kind: 'hour' | 'half';
-}
-
 export interface EpgGuideRowLayoutOptions {
     readonly axis: EpgGuideDayAxis;
     readonly hourWidthPx: number;
@@ -68,60 +67,6 @@ export function buildGuideDayAxis(dayKey: string): EpgGuideDayAxis {
         startMs: start.getTime(),
         endMs: addDays(start, 1).getTime(),
     };
-}
-
-export function guideTrackWidthPx(
-    axis: TimelineAxis,
-    hourWidthPx: number
-): number {
-    return ((axis.endMs - axis.startMs) / HOUR_MS) * hourWidthPx;
-}
-
-export function guideXForMs(
-    axis: TimelineAxis,
-    ms: number,
-    hourWidthPx: number
-): number {
-    return ((ms - axis.startMs) / HOUR_MS) * hourWidthPx;
-}
-
-/** x of the now-line, or null when "now" is not on the selected day. */
-export function guideNowLeftPx(
-    axis: TimelineAxis,
-    nowMs: number,
-    hourWidthPx: number
-): number | null {
-    if (nowMs < axis.startMs || nowMs >= axis.endMs) {
-        return null;
-    }
-    return guideXForMs(axis, nowMs, hourWidthPx);
-}
-
-/**
- * Ticks every 30 minutes from the axis start until the axis end, which — on a
- * DST transition day — is not a multiple of 1440 minutes of wall-clock time.
- * Iterating by adding 30-minute steps to the start `Date` (rather than
- * looping a fixed minute count) keeps every tick's local time correct across
- * the transition.
- */
-export function buildGuideTicks(
-    axis: TimelineAxis,
-    hourWidthPx: number
-): EpgGuideTick[] {
-    const ticks: EpgGuideTick[] = [];
-    const start = new Date(axis.startMs);
-    for (let index = 0; ; index += 1) {
-        const ms = addMinutes(start, index * 30).getTime();
-        if (ms >= axis.endMs) {
-            break;
-        }
-        ticks.push({
-            ms,
-            leftPx: guideXForMs(axis, ms, hourWidthPx),
-            kind: new Date(ms).getMinutes() === 0 ? 'hour' : 'half',
-        });
-    }
-    return ticks;
 }
 
 /**

@@ -21,6 +21,7 @@ import {
     identity,
 } from '@iptvnator/tv/util';
 import { StalkerSession } from './stalker-session';
+import { StalkerEpgBulk } from './stalker-epg-bulk';
 import { stalkerEpisodes, unwrap } from './stalker-series';
 import { ProviderTransport } from './transport';
 export class StalkerProvider implements ProviderClient {
@@ -32,13 +33,14 @@ export class StalkerProvider implements ProviderClient {
     };
     private session: StalkerSession;
     private pages: StalkerPagedCatalog;
-    private bulk?: Record<string, unknown>;
+    private bulk: StalkerEpgBulk;
     constructor(
         private source: Source,
         transport: ProviderTransport,
         save: (s: Source) => Promise<void>
     ) {
         this.session = new StalkerSession(source, transport, save);
+        this.bulk = new StalkerEpgBulk(this.session);
         this.pages = new StalkerPagedCatalog((params, signal) =>
             this.session.request(params, signal)
         );
@@ -140,20 +142,15 @@ export class StalkerProvider implements ProviderClient {
         return stalkerEpisodes(this.session, this.source, item, signal);
     }
     async epg(item: Media, signal: AbortSignal) {
-        if (!this.bulk) {
-            try {
-                this.bulk = unwrap(
-                    await this.session.request(
-                        { type: 'itv', action: 'get_epg_info', period: 168 },
-                        signal
-                    )
-                ) as Record<string, unknown>;
-            } catch {
-                if (signal.aborted)
-                    throw new DOMException('Aborted', 'AbortError');
-            }
+        let bulk: Record<string, unknown> = {};
+        try {
+            bulk = await this.bulk.get(signal);
+        } catch (error) {
+            if (signal.aborted || (error as Error)?.name === 'AbortError')
+                throw new DOMException('Aborted', 'AbortError');
         }
-        let data = rows(this.bulk?.[item.providerId]);
+        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+        let data = rows(bulk[item.providerId]);
         if (!data.length)
             data = rows(
                 unwrap(
@@ -241,6 +238,7 @@ export class StalkerProvider implements ProviderClient {
         };
     }
     dispose() {
+        this.bulk.dispose();
         this.session.dispose();
         this.pages.clear();
     }

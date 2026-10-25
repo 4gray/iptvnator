@@ -165,6 +165,7 @@ export function TvApp() {
                         browse={browse}
                         overlayOpen={overlay.panel === 'channels'}
                         openGuide={overlay.openGuide}
+                        openGrid={overlay.openGrid}
                     />
                 ) : r.view === 'favorites' ? (
                     <Favorites tv={tv} />
@@ -195,6 +196,12 @@ export function TvApp() {
                                         onClick={overlay.openChannels}
                                     >
                                         Channels
+                                    </button>
+                                    <button
+                                        data-focus="player-grid"
+                                        onClick={overlay.openGrid}
+                                    >
+                                        TV Guide
                                     </button>
                                     <button
                                         data-focus="player-guide"
