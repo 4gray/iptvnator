@@ -135,7 +135,8 @@ describe('Video.js player setup', () => {
             )
         ).toBe(true);
         expect(isMpegTsSource).toHaveBeenCalledWith(
-            'https://example.test/live.ts'
+            'https://example.test/live.ts',
+            undefined
         );
     });
 

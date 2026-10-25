@@ -22,6 +22,10 @@ function listSources(dir: string, extension: string): string[] {
         .map((file) => resolve(dir, file));
 }
 
+function posixRelative(file: string): string {
+    return relative(LIB_DIR, file).split(sep).join('/');
+}
+
 function read(file: string): string {
     return stripComments(readFileSync(file, 'utf8'));
 }
@@ -80,7 +84,7 @@ describe('player watch-progress colour', () => {
                     /([^{}]*__progress-(?:bar|fill))\s*\{([^}]*)\}/g
                 ),
             ].map(([, selector, body]) => ({
-                fill: `${relative(LIB_DIR, file)} ${selector.trim()}`,
+                fill: `${posixRelative(file)} ${selector.trim()}`,
                 background: body.match(
                     /background(?:-color)?:\s*([^;]+);/
                 )?.[1],
@@ -115,7 +119,7 @@ describe('player watch-progress colour', () => {
                 !file.startsWith(CONTROLS_DIR + sep) &&
                 read(file).includes('var(--pc-progress')
         );
-        expect(readers.map((file) => relative(LIB_DIR, file)).sort()).toEqual([
+        expect(readers.map((file) => posixRelative(file)).sort()).toEqual([
             'fullscreen-episode-panel/fullscreen-episode-panel.component.scss',
             'portal-inline-player/up-next-rail.component.scss',
         ]);
@@ -148,7 +152,7 @@ describe('player watch-progress colour', () => {
         ];
         const offenders = sources
             .filter((file) => /#e50914|#ff0000\b/i.test(read(file)))
-            .map((file) => relative(LIB_DIR, file));
+            .map((file) => posixRelative(file));
 
         expect(sources.length).toBeGreaterThan(50);
         expect(offenders).toEqual([]);

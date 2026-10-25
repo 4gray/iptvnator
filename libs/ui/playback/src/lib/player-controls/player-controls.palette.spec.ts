@@ -66,6 +66,9 @@ function over(color: { rgb: Rgb; alpha: number }, frame: Rgb): Rgb {
 
 /** The declarations of the first rule whose selector list is exactly `selector`. */
 function ruleBody(source: string, selector: string): string {
+    // Git on Windows may check out SCSS with CRLF; normalize before matching
+    // multi-line selector lists without changing their actual CSS semantics.
+    source = source.replace(/\r\n/g, '\n');
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return (
         source.match(

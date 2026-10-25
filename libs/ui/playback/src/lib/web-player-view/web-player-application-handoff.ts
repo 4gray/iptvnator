@@ -7,7 +7,6 @@ import {
 } from './playback-recovery-session';
 import type { WebPlayerApplicationToken } from './web-player-application-state';
 import { isAmbiguousStreamUrl, probeAmbiguousStreamFormat } from './ambiguous-stream-format.util';
-import { InlinePlaybackPlayer } from '@iptvnator/playback/util';
 import {
     createVideoJsOptions,
     createWebPlayerChannel,
@@ -60,7 +59,7 @@ export class WebPlayerApplicationHandoffCoordinator {
             });
         };
         const acceptWithFormat = (): void => {
-            if (binding.target !== InlinePlaybackPlayer.VideoJs ||
+            if (binding.target !== 'videojs' ||
                 !isAmbiguousStreamUrl(playback.streamUrl)) {
                 acceptSource();
                 return;
