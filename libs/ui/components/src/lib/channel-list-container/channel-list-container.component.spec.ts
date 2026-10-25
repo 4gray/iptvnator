@@ -68,6 +68,14 @@ function createTrackedUrlChannel(
     return channel;
 }
 
+/**
+ * XMLTV alias resolution awaits a bridge Promise.all before dispatching its
+ * first current-programme batch. Tests must observe that real async boundary.
+ */
+async function settleEpgAliasMicrotasks(): Promise<void> {
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+}
+
 describe('ChannelListContainerComponent', () => {
     let fixture: ComponentFixture<ChannelListContainerComponent>;
     let dispatch: jest.Mock;
@@ -323,7 +331,7 @@ describe('ChannelListContainerComponent', () => {
         expect(fixture.componentInstance.itemSize()).toBe(68);
     });
 
-    it('enables EPG rows and scopes lookups when the active M3U playlist has detected EPG URLs', () => {
+    it('enables EPG rows and scopes lookups when the active M3U playlist has detected EPG URLs', async () => {
         runtimeCapabilities.supportsEpg = true;
         storageGet.mockReturnValue(of({ epgUrl: [] }));
         activePlaylistSignal.set({
@@ -340,6 +348,7 @@ describe('ChannelListContainerComponent', () => {
         ];
 
         expect(fixture.componentInstance.shouldShowEpg()).toBe(true);
+        await settleEpgAliasMicrotasks();
         expect(epgService.getCurrentProgramsForChannels).toHaveBeenCalledWith(
             ['guide-news'],
             { sourceUrls: ['https://playlist.example.com/guide.xml'] }
@@ -350,7 +359,7 @@ describe('ChannelListContainerComponent', () => {
         );
     });
 
-    it('drops a superseded EPG refresh that completes after the newer one', () => {
+    it('drops a superseded EPG refresh that completes after the newer one', async () => {
         runtimeCapabilities.supportsEpg = true;
         storageGet.mockReturnValue(
             of({ epgUrl: ['https://global.example.com/guide.xml'] })
@@ -375,8 +384,10 @@ describe('ChannelListContainerComponent', () => {
             createChannel('guide-news', 'https://example.com/news.m3u8'),
         ];
         fixture.componentInstance.channelList = channels;
+        await settleEpgAliasMicrotasks();
         // A second fetch (e.g. the display offset changed) supersedes the first.
         fixture.componentInstance.channelList = channels;
+        await settleEpgAliasMicrotasks();
         expect(
             fixture.componentInstance.channelEpgMap().get('guide-news')?.title
         ).toBe('Fresh');
@@ -390,7 +401,7 @@ describe('ChannelListContainerComponent', () => {
         ).toBe('Fresh');
     });
 
-    it('refreshes visible channel EPG when playlist EPG URLs arrive after channels', () => {
+    it('refreshes visible channel EPG when playlist EPG URLs arrive after channels', async () => {
         runtimeCapabilities.supportsEpg = true;
         storageGet.mockReturnValue(of({ epgUrl: [] }));
 
@@ -398,6 +409,7 @@ describe('ChannelListContainerComponent', () => {
         fixture.componentInstance.channelList = [
             createChannel('guide-news', 'https://example.com/news.m3u8'),
         ];
+        await settleEpgAliasMicrotasks();
         expect(epgService.getCurrentProgramsForChannels).toHaveBeenCalledWith(
             ['guide-news'],
             undefined
@@ -413,6 +425,7 @@ describe('ChannelListContainerComponent', () => {
             epgUrls: ['https://playlist.example.com/guide.xml'],
         } as PlaylistMeta);
         fixture.detectChanges();
+        await settleEpgAliasMicrotasks();
 
         expect(epgService.getCurrentProgramsForChannels).toHaveBeenCalledWith(
             ['guide-news'],
@@ -424,7 +437,7 @@ describe('ChannelListContainerComponent', () => {
         );
     });
 
-    it('debounces visible channel EPG row refreshes after EPG imports complete', () => {
+    it('debounces visible channel EPG row refreshes after EPG imports complete', async () => {
         jest.useFakeTimers();
         try {
             runtimeCapabilities.supportsEpg = true;
@@ -440,6 +453,7 @@ describe('ChannelListContainerComponent', () => {
             fixture.componentInstance.channelList = [
                 createChannel('guide-news', 'https://example.com/news.m3u8'),
             ];
+            await settleEpgAliasMicrotasks();
             epgService.getCurrentProgramsForChannels.mockClear();
 
             epgService.epgAvailable$.next(true);
@@ -451,6 +465,7 @@ describe('ChannelListContainerComponent', () => {
             ).not.toHaveBeenCalled();
 
             jest.advanceTimersByTime(1);
+            await settleEpgAliasMicrotasks();
 
             expect(
                 epgService.getCurrentProgramsForChannels
@@ -512,6 +527,9 @@ describe('ChannelListContainerComponent', () => {
             'missing-url',
             'duplicate-url',
         ]);
+        // The asynchronous XMLTV identity pass can read channel URLs once
+        // independently of the favorites projection; finish it first.
+        await settleEpgAliasMicrotasks();
         urlReadCount = 0;
 
         const favorites = await firstValueFrom(
