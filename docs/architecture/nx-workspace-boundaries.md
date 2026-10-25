@@ -168,6 +168,13 @@ Run `pnpm run deps:mpegts:test` after mpegts.js updates; CI runs it too. It
 rejects a version with no patch entry and a bundle that still carries the
 buffering guard. Retire the patch once mpegts.js aborts a buffering fetch itself.
 
+`apps/electron-backend-e2e/src/mpegts-stalled-stream.e2e.ts` also checks the
+behavior in the real Electron app: a local server sends valid MPEG-TS media,
+then leaves the response open without more data. Switching to another channel
+must close that response before the app shuts down and play the new channel
+without an unhandled renderer error. Run it with
+`pnpm nx run electron-backend-e2e:e2e-ci--src/mpegts-stalled-stream.e2e.ts`.
+
 ## Placement Decision
 
 - `apps/` owns runtime applications, development servers, E2E applications,
