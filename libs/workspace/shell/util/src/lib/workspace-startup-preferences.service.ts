@@ -3,6 +3,8 @@ import { firstValueFrom } from 'rxjs';
 import { PlaylistsService, SettingsStore } from '@iptvnator/services';
 import {
     StartupBehavior,
+    readLastPlayedLive,
+    prepareStartupLastLive,
 } from '@iptvnator/shared/interfaces';
 import { parseWorkspaceShellRoute } from './navigation/workspace-shell-route.utils';
 
@@ -18,6 +20,20 @@ export class WorkspaceStartupPreferencesService {
 
         const showDashboard = this.showDashboard();
         const firstViewPath = this.getFirstAvailableWorkspacePath(showDashboard);
+
+        if (this.startupBehavior() === StartupBehavior.PlayLastChannel) {
+            const last = readLastPlayedLive();
+            if (last) {
+                try {
+                    const playlists = await firstValueFrom(this.playlistsService.getAllPlaylists());
+                    if (playlists.some((playlist) => playlist._id === last.playlistId)) {
+                        prepareStartupLastLive(last);
+                        return '/workspace/global-recent';
+                    }
+                } catch { /* A removed/unavailable source falls back safely. */ }
+            }
+            return firstViewPath;
+        }
 
         if (this.startupBehavior() !== StartupBehavior.RestoreLastView) {
             return firstViewPath;
