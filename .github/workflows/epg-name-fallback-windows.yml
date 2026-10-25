@@ -70,6 +70,18 @@ jobs:
             - name: Test playback MIME routing and web engines
               run: pnpm nx test ui-playback --skip-nx-cache
 
+            - name: Test shared playlist DB persistence and migrations
+              run: pnpm nx test database --runInBand --skip-nx-cache
+
+            - name: Test Electron lightweight playlist metadata reads
+              run: pnpm exec jest --config apps/electron-backend/jest.config.ts --runInBand --runTestsByPath apps/electron-backend/src/app/database/operations/playlist.operations.spec.ts
+
+            - name: Test M3U channel list and context menus
+              run: pnpm nx test components --skip-nx-cache
+
+            - name: Test workspace header and navigation
+              run: pnpm nx test workspace-shell-feature --runInBand --skip-nx-cache
+
             - name: Test M3U routes and player
               run: pnpm nx test playlist-m3u-feature-player --skip-nx-cache
 
@@ -115,7 +127,7 @@ jobs:
             - name: Upload unsigned Windows installer
               uses: actions/upload-artifact@v7
               with:
-                  name: IPTVnator-M3U-Catalog-v0.25.0-catalog.2-Windows-x64
+                  name: IPTVnator-M3U-Catalog-v0.25.0-catalog.3-Windows-x64
                   path: dist/executables/**/*windows-x64-setup.exe
                   if-no-files-found: error
                   retention-days: 14

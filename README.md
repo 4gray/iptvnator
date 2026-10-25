@@ -517,3 +517,28 @@ Work in the [experimental development branch](https://github.com/mkaand/iptvnato
 - A limited HTTP HEAD check for ambiguous/PHP Video.js streams can detect HLS or MPEG-TS MIME types. Explicit TS/HLS files are unchanged. Unknown/failed checks keep original behavior.
 - No authorization credentials, response bodies, URLs, or private test fixtures are logged by this check. CORS, provider authentication, unsupported codecs, and invalid MSE streams are not bypassed.
 - Preview must pass CI and real Windows acceptance before merging or publishing a stable release.
+
+## Catalog.3 integrated Windows package
+
+Catalog.3 consolidates the M3U improvements on the feature branch pending
+Windows acceptance: persistent playlist-local manual content classifications,
+Ctrl-click selection and batch classification, clickable global search, corrected
+Movies/Unclassified rail tooltips, a usable EPG grid icon before selecting a
+channel, and Series TMDB posters/details (opt-in and page-bounded).
+
+**Favorites EPG:** The root Favorites view now resolves XMLTV only for live
+channels plus explicitly bookmarked non-live entries, rather than submitting
+the entire mixed M3U movie/episode inventory to current-programme matching.
+EPG channel keys and stored manual matching priorities are unchanged.
+
+**HTTP playback/PiP:** Script and extensionless URLs can use Video.js's
+MIME-aware HLS/TS handling. When HTML5 is selected for one of these ambiguous
+sources, the compatible Video.js engine is used for that source, retaining the
+HTML video Picture-in-Picture path. Embedded MPV still does not offer native
+PiP. This is not a guarantee that providers returning HTTP 403, inaccessible
+CORS responses or incompatible codecs will work in a browser engine.
+
+All generated test URLs are synthetic. No private provider endpoints or secrets
+are checked into this repository. The setup EXE is an unsigned Windows x64
+artifact and remains subject to real-playlist acceptance before it replaces
+the existing stable fork.

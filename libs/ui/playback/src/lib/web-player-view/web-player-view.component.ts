@@ -201,18 +201,23 @@ export class WebPlayerViewComponent implements OnDestroy {
     // reach an already-mounted player without a remount. A saved managed
     // MPV/VLC retains the mounted engine (resolveRenderableWebPlayer),
     // because this view can neither render nor launch external players.
-    private readonly renderablePlayer = linkedSignal({
-        source: () =>
-            this.playerOverride() ??
-            this.settingsStore.player?.() ??
-            VideoPlayer.VideoJs,
-        computation: (preferred, previous) => {
-            const resolved = resolveRenderableWebPlayer(preferred, previous);
+    private readonly renderablePlayer = linkedSignal<
+        { configured: VideoPlayer; streamUrl: string },
+        VideoPlayer
+    >({
+        source: () => ({
+            configured: this.playerOverride() ??
+                this.settingsStore.player?.() ??
+                VideoPlayer.VideoJs,
+            streamUrl: this.streamUrl(),
+        }),
+        computation: ({ configured, streamUrl }, previous) => {
+            const resolved = resolveRenderableWebPlayer(configured, previous);
             // For server-script/extensionless HTTP media, Video.js has a
             // MIME-aware HLS/TS path and provides standard HTML video PiP.
             // Do not force Chromium HTML5 down a guessed MPEG-TS loader.
             if (resolved === VideoPlayer.Html5Player &&
-                isAmbiguousStreamUrl(this.streamUrl())) {
+                isAmbiguousStreamUrl(streamUrl)) {
                 return VideoPlayer.VideoJs;
             }
             return resolved;
