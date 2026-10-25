@@ -123,11 +123,15 @@ test('featured episode resumes the saved episode after relaunch', async ({
 }) => {
     await start(page);
     await addSource(page, 'xtream');
-    await watch(page, 0, true);
+    const seriesTitle = await watch(page, 0, true);
     await page.reload();
     await expect(page.locator('.hero-position')).toContainText('S1 · E1');
     await expect(page.locator('.hero-switcher')).toHaveCount(0);
     const title = await page.locator('.hero h1').innerText();
+    expect(title).toBe(seriesTitle);
+    await expect(page.locator('.resume-card strong').first()).toHaveText(
+        seriesTitle
+    );
     await page.locator('[data-focus="hero-resume"]').click();
     await expect(page.locator('.player-bottom h1')).toHaveText(title);
     await expect

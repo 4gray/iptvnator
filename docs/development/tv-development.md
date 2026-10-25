@@ -78,18 +78,18 @@ BX's Chromium 68 engine, native HLS, transport stream decoding or MAG headers.
 `tv-playlist.m3u` and `tv-test-media.webm` are local mock-server fixtures only.
 
 The package target produces
-`dist/tv-package/com.iptvnator.tv.prototype_0.1.15_all.ipk` with the pinned webOS
+`dist/tv-package/com.iptvnator.tv.prototype_0.1.16_all.ipk` with the pinned webOS
 CLI. Inspect it with:
 
 ```sh
-pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.15_all.ipk
+pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.16_all.ipk
 pnpm exec ares-setup-device --list
 ```
 
 Only after the user supplies an enabled Developer Mode target and pairing:
 
 ```sh
-pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.15_all.ipk
+pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.16_all.ipk
 pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 ```
 
@@ -126,8 +126,11 @@ the phone. Saving requires a committed TV write; declining changes nothing.
 In Settings > Metadata · TMDB, enable metadata, enter your own v3 API key or
 v4 read access token, choose a language, optionally check the key, then save.
 No real key is bundled or needed by automated tests. Home's featured title and
-movie/series details gain artwork and descriptions; catalog rows, live channels
-and episode metadata remain provider-owned. Errors leave provider content usable.
+movie/series details gain artwork, descriptions and available cast/directors or
+creators. The selected season also gains available episode stills/descriptions
+and non-generic names. Catalog rows, live channels, episode identity and commands
+remain provider-owned. Errors leave provider content usable. Key validation does
+not enable metadata: save the opt-in switch and check its saved state message.
 The TV browser must reach `api.themoviedb.org` and `image.tmdb.org` directly.
 
 ## Hardware update on 2026-10-25

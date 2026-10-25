@@ -35,6 +35,10 @@ test('TV enrichment patches editorial fields only and skips live or disabled req
             backdrop_path: '/wide.jpg',
             poster_path: '/poster.jpg',
             original_language: 'en',
+            credits: {
+                cast: [{ name: 'Keanu Reeves' }],
+                crew: [{ name: 'Lana Wachowski', job: 'Director' }],
+            },
         })
     );
     const signal = new AbortController().signal;
@@ -52,6 +56,9 @@ test('TV enrichment patches editorial fields only and skips live or disabled req
     assert.equal(fetch.mock.calls.length, 0);
     const enriched = (await metadata.enrich(item, signal)).item;
     assert.equal(enriched.description, 'TMDB plot');
+    assert.equal(enriched.metadata?.cast[0].name, 'Keanu Reeves');
+    assert.equal(enriched.metadata?.authors[0].name, 'Lana Wachowski');
+    assert.equal(enriched.metadata?.authorRole, 'Directors');
     assert.equal(
         enriched.backdrop,
         'https://image.tmdb.org/t/p/w1280/wide.jpg'

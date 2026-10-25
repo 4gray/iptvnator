@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { continueWatching, initialData, Progress } from '@iptvnator/tv/util';
+import {
+    continueWatching,
+    initialData,
+    Progress,
+    recoverSeriesContext,
+    mediaTitle,
+} from '@iptvnator/tv/util';
 const progress = (
     id: string,
     updated: number,
@@ -18,6 +24,45 @@ const progress = (
     duration: 3600,
     updated,
     ...extra,
+});
+test('historical episodes gain their exact parent title without changing identity, resume or commands', () => {
+    const data = initialData();
+    data.activeId = 'a';
+    const saved = progress('ep', 42);
+    saved.item = {
+        ...saved.item,
+        kind: 'episode',
+        title: 'Episode 1',
+        parentId: 'show',
+        season: 1,
+        episode: 1,
+        raw: { cmd: 'unchanged-command', series: 1 },
+    };
+    data.history = [saved];
+    data.positions.ep = saved;
+    data.favorites = [saved.item];
+    const parent = {
+        ...saved.item,
+        id: 'show',
+        kind: 'series' as const,
+        title: 'Ted Lasso s04',
+        year: '2026',
+        poster: 'https://example.test/show.jpg',
+    };
+    assert.equal(
+        recoverSeriesContext(data, [{ ...parent, sourceId: 'other' }]),
+        data
+    );
+    const next = recoverSeriesContext(data, [parent]);
+    assert.equal(mediaTitle(next.history[0].item), 'Ted Lasso s04');
+    assert.equal(next.history[0].item.title, 'Episode 1');
+    assert.equal(next.positions.ep.seconds, saved.seconds);
+    assert.equal(next.positions.ep.updated, 42);
+    assert.equal(next.positions.ep.item.raw, saved.item.raw);
+    assert.equal(next.favorites[0].seriesTitle, parent.title);
+    assert.equal(next.favorites[0].id, saved.item.id);
+    assert.equal(recoverSeriesContext(next, [parent]), next);
+    assert.equal(data.history[0], saved);
 });
 test('continuation is source-scoped, newest first, limited and never mutates saved history', () => {
     const data = initialData();

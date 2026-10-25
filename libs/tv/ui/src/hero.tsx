@@ -1,4 +1,4 @@
-import type { Media, Progress } from '@iptvnator/tv/util';
+import { mediaTitle, type Media, type Progress } from '@iptvnator/tv/util';
 export function Hero({
     item,
     open,
@@ -29,11 +29,11 @@ export function Hero({
                         ? 'PICK UP WHERE YOU LEFT OFF'
                         : 'YOUR OWN CINEMA'}
                 </span>
-                <h1>{item?.title ?? 'Make yourself at home.'}</h1>
+                <h1>{item ? mediaTitle(item) : 'Make yourself at home.'}</h1>
                 {progress ? (
                     <div class="hero-position">
                         {progress.item.kind === 'episode'
-                            ? `S${progress.item.season ?? 1} · E${progress.item.episode ?? 1} · `
+                            ? `S${progress.item.season ?? 1} · E${progress.item.episode ?? 1} · ${item?.title || progress.item.title} · `
                             : ''}
                         {Math.floor(progress.seconds / 60)} min watched
                         {progress.duration > 0 ? (

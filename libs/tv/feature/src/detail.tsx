@@ -1,16 +1,32 @@
 import { useState } from 'preact/hooks';
 import { Empty, VirtualCollection } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
-export function Detail({ tv }: { tv: TvModel }) {
+import { TvMetadata } from '@iptvnator/tv/data-access';
+import { mediaTitle } from '@iptvnator/tv/util';
+import { MetadataCredits } from './metadata-credits';
+import { useEpisodeMetadata } from './use-episode-metadata';
+export function Detail({
+    tv,
+    metadataClient,
+}: {
+    tv: TvModel;
+    metadataClient: TvMetadata;
+}) {
     const [season, setSeason] = useState<number>();
     const item = tv.selected ?? tv.route.item;
-    if (!item || item.sourceId !== tv.data.activeId) return null;
     const seasons = Array.from(
         new Set(tv.episodes.map((e) => e.season ?? 1))
     ).sort((a, b) => a - b);
     const currentSeason =
         season && seasons.includes(season) ? season : seasons[0];
-    const episodes = tv.episodes.filter(
+    const metadata = useEpisodeMetadata(
+        item,
+        tv.episodes,
+        currentSeason,
+        metadataClient
+    );
+    if (!item || item.sourceId !== tv.data.activeId) return null;
+    const episodes = metadata.items.filter(
         (e) => (e.season ?? 1) === currentSeason
     );
     const saved = tv.data.favorites.some((m) => m.id === item.id);
@@ -29,7 +45,13 @@ export function Detail({ tv }: { tv: TvModel }) {
                         {item.kind.toUpperCase()}{' '}
                         {item.year ? `· ${item.year}` : ''}
                     </span>
-                    <h1>{item.title}</h1>
+                    <h1>{mediaTitle(item)}</h1>
+                    {item.kind === 'episode' ? (
+                        <div class="muted">
+                            S{item.season ?? 1} · E{item.episode ?? 1} ·{' '}
+                            {item.title}
+                        </div>
+                    ) : null}
                     <p>
                         {item.description ||
                             'Your provider has not supplied a description for this title.'}
@@ -61,6 +83,7 @@ export function Detail({ tv }: { tv: TvModel }) {
                     </div>
                 </div>
             </section>
+            <MetadataCredits item={item} />
             {item.kind === 'series' ? (
                 <section>
                     <div class="section-title">
@@ -80,6 +103,15 @@ export function Detail({ tv }: { tv: TvModel }) {
                             </select>
                         </label>
                     </div>
+                    {metadata.failed ? (
+                        <p role="status" class="metadata-notice">
+                            Episode metadata is unavailable. Showing provider
+                            episodes.{' '}
+                            <button onClick={metadata.retry}>
+                                Retry episode metadata
+                            </button>
+                        </p>
+                    ) : null}
                     <VirtualCollection
                         key={`${item.id}:${currentSeason}`}
                         layout="episodes"
@@ -91,16 +123,39 @@ export function Detail({ tv }: { tv: TvModel }) {
                                 class="episode"
                                 onClick={() => tv.play(e)}
                             >
-                                <span class="episode-number">
-                                    {String(e.episode ?? 1).padStart(2, '0')}
+                                {e.poster ? (
+                                    <img
+                                        key={e.poster}
+                                        class="episode-still"
+                                        src={e.poster}
+                                        alt=""
+                                        loading="lazy"
+                                        onError={(event) => {
+                                            event.currentTarget.style.display =
+                                                'none';
+                                        }}
+                                    />
+                                ) : null}
+                                <span class="episode-copy">
+                                    <span class="episode-number">
+                                        {String(e.episode ?? 1).padStart(
+                                            2,
+                                            '0'
+                                        )}
+                                    </span>
+                                    <strong>{e.title}</strong>
+                                    {e.description ? (
+                                        <span class="episode-description">
+                                            {e.description}
+                                        </span>
+                                    ) : null}
+                                    <small>
+                                        {tv.data.positions[e.id]?.seconds
+                                            ? 'Resume episode'
+                                            : 'Watch episode'}{' '}
+                                        →
+                                    </small>
                                 </span>
-                                <strong>{e.title}</strong>
-                                <small>
-                                    {tv.data.positions[e.id]?.seconds
-                                        ? 'Resume episode'
-                                        : 'Watch episode'}{' '}
-                                    →
-                                </small>
                             </button>
                         )}
                     />

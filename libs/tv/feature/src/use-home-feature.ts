@@ -33,6 +33,8 @@ export function useHomeFeature(tv: TvModel) {
         if (!original) return undefined;
         return {
             ...original,
+            seriesTitle: original.seriesTitle || parent?.title,
+            seriesYear: original.seriesYear || parent?.year,
             poster: storedMediaPoster(original, source) || parent?.poster,
             backdrop: original.backdrop || parent?.backdrop,
             description: original.description || parent?.description,

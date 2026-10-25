@@ -141,6 +141,7 @@ export class XtreamProvider implements ProviderClient {
         Object.keys(data.episodes ?? {}).forEach((season) =>
             rows(data.episodes?.[season]).forEach((r) => {
                 const providerId = text(r.id);
+                const info = (r.info ?? {}) as Record<string, unknown>;
                 result.push({
                     ...this.media(r, 'episode'),
                     id: identity(
@@ -150,6 +151,11 @@ export class XtreamProvider implements ProviderClient {
                     ),
                     providerId,
                     parentId: item.id,
+                    seriesTitle: item.title,
+                    seriesYear: item.year,
+                    poster: artwork(info.movie_image) || detail.poster,
+                    description: text(info.plot ?? info.description),
+                    backdrop: detail.backdrop,
                     season: Number(r.season ?? season),
                     episode: Number(r.episode_num),
                     title: text(r.title) || `Episode ${r.episode_num}`,

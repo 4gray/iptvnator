@@ -14,6 +14,8 @@ import { Detail } from './detail';
 import { Live } from './live';
 import { Backdrop, TvIcon } from '@iptvnator/tv/ui';
 import { useMetadata } from './use-metadata';
+import { useSeriesContext } from './use-series-context';
+import { mediaTitle } from '@iptvnator/tv/util';
 const navigation: [View, string][] = [
     ['home', 'Home'],
     ['live', 'TV'],
@@ -32,6 +34,7 @@ export function TvApp() {
     });
     const video = useRef<HTMLVideoElement>(null);
     const tv = useTv(video);
+    useSeriesContext(tv);
     const browse = useLiveBrowse(tv);
     const overlay = useLiveOverlay(tv, browse);
     useEffect(() => {
@@ -207,7 +210,11 @@ export function TvApp() {
                 ) : r.view === 'favorites' ? (
                     <Favorites tv={tv} />
                 ) : r.view === 'detail' ? (
-                    <Detail key={r.item?.id} tv={display} />
+                    <Detail
+                        key={r.item?.id}
+                        tv={display}
+                        metadataClient={metadata.client}
+                    />
                 ) : (
                     <CatalogScreen tv={tv} />
                 )}
@@ -260,7 +267,10 @@ export function TvApp() {
                                     ? `SEASON ${current.season} · EPISODE ${current.episode}`
                                     : 'IPTVNATOR TV'}
                             </span>
-                            <h1>{current?.title}</h1>
+                            <h1>{current && mediaTitle(current)}</h1>
+                            {current?.kind === 'episode' ? (
+                                <p>{current.title}</p>
+                            ) : null}
                             <div class="actions">
                                 <button
                                     data-focus="player-toggle"

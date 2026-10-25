@@ -42,6 +42,15 @@ export interface Media {
     season?: number;
     episode?: number;
     parentId?: string;
+    /** Parent editorial context is independent of episode identity and playback. */
+    seriesTitle?: string;
+    seriesYear?: string;
+    metadata?: {
+        tmdbId: number;
+        cast: { name: string; character?: string; profileUrl: string | null }[];
+        authors: { name: string; profileUrl: string | null }[];
+        authorRole: 'Creators' | 'Directors';
+    };
     raw: Record<string, unknown>;
 }
 export interface Category {
@@ -212,6 +221,7 @@ export * from './settings-draft';
 
 export * from './catalog-sort';
 export { continueWatching } from './continue-watching';
+export * from './series-context';
 export * from './programme-guide';
 
 export * from './grid-guide';

@@ -41,6 +41,8 @@ Framework-free code lives in `libs/shared/tmdb/` (`@iptvnator/shared/tmdb`,
 `scope:shared`, `domain:tmdb`, `type:data-access`). It owns the API client,
 ID resolver, movie/TV metadata orchestration and the pure configuration,
 matching, credits, cache-payload and language-fallback helpers listed below.
+`TmdbSeasonClient` owns lazy per-season requests, language-scoped caching and
+original-language text fallback for both the Angular facade and TV adapter.
 `TmdbApiClient` accepts optional request cancellation; `TmdbMetadataClient`
 accepts runtime/cache interfaces and a sanitized failure callback. A bounded
 `TmdbMemoryCache` serves the TV runtime. Pure helper tests live with this core.
@@ -192,6 +194,11 @@ For mixed catalogs, a Cyrillic search that has no confident Ukrainian match
 retries in Russian. Each language keeps its own cached verdict; a cached
 Ukrainian miss still permits the Russian lookup. Transient API errors do not
 trigger a retry in another language.
+Latin provider titles also retry a confident miss in `en-US` when the preferred
+language is different. This covers English translations of foreign shows whose
+localized and original names both differ (for example, The Chestnut Man).
+The same strict title/year gate applies, each language caches its own verdict,
+and details still use the user's selected metadata language.
 
 ## Details Fetch and Localization
 

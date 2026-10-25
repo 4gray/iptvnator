@@ -412,6 +412,12 @@ parent artwork fills missing episode covers without requesting a new catalog.
 Historical Stalker history/favorites recover missing covers from their saved raw
 fields through the provider artwork resolver, without rewriting saved commands,
 positions or credentials.
+Episode mappings persist `seriesTitle` and `seriesYear` independently of their
+episode title, parent-scoped ID and command. Home, resume cards and the player
+show the parent title with separate episode information. Historical records gain
+this context when their exact source/parent appears in Home, a catalog, favorites
+or the selected series; unavailable parent names are not guessed. This additive
+repair also updates retained positions without changing seconds or timestamps.
 
 Home features up to three recently watched, unfinished titles from the active
 source. A series contributes its latest watched episode; a completed latest
@@ -442,10 +448,20 @@ desktop default. Requests go directly to TMDB, independently of the provider bac
 `@iptvnator/shared/tmdb` owns the framework-free API client, title/year confidence
 matching, dead provider-ID recovery, language fallback and metadata orchestration.
 The TV adapter enriches the Home feature and selected movie/series details for
-all providers. It only replaces artwork and description; provider identity,
-stream ID/extension pairs, episode hierarchy and playback commands stay authoritative.
-Live channels and episodes do not trigger enrichment. Whole-catalog enrichment,
-TMDB discovery, people, trailers and episode metadata are not included here.
+all providers, including episode features with saved parent titles. Artwork,
+description and displayed cast/directors/creators come from the shared merge
+helpers; provider identity, stream ID/extension pairs, episode hierarchy and
+playback commands stay authoritative. Movie directors and series creators have
+distinct labels; a TV series has no invented show-level director.
+The selected season loads through shared `TmdbSeasonClient`, with the existing
+language cache/fallback and explicit single-season title-marker correction.
+Episodes match by number within that season. TMDB fills descriptions/stills and
+generic titles; meaningful provider titles and every playback coordinate remain
+unchanged. Missing TMDB episodes/fields leave provider content usable. Live
+channels, whole-catalog enrichment, discovery, person pages and trailers remain
+outside this TV integration.
+Settings distinguishes key validation from saved enablement and warns about
+unsaved changes; checking a key does not enable enrichment automatically.
 
 Provider content renders before metadata. Each selection has cancellation and
 an eight-second deadline; obsolete responses cannot overwrite the current view.

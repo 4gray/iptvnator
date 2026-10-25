@@ -206,6 +206,9 @@ export async function stalkerEpisodes(
                 season: e.season,
                 episode: e.episode_num,
                 parentId: item.id,
+                seriesTitle: item.title,
+                seriesYear: item.year,
+                backdrop: item.backdrop,
                 poster: item.poster,
                 raw: {
                     cmd: e.originalCmd,

@@ -28,6 +28,58 @@ function client(signal?: AbortSignal) {
 }
 afterEach(() => jest.restoreAllMocks());
 
+it('retries an English provider title in English when localized and original names cannot corroborate it', async () => {
+    const requests: string[] = [];
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const url = new URL(String(input));
+        requests.push(`${url.pathname}:${url.searchParams.get('language')}`);
+        if (url.pathname.includes('/search/'))
+            return Response.json({
+                results: [
+                    {
+                        id: 127865,
+                        name:
+                            url.searchParams.get('language') === 'en-US'
+                                ? 'The Chestnut Man'
+                                : 'Каштановый человечек',
+                        original_name: 'Kastanjemanden',
+                        first_air_date: '2021-09-29',
+                    },
+                ],
+            });
+        return Response.json({
+            id: 127865,
+            name: 'Каштановый человечек',
+            overview: 'Russian plot',
+            original_language: 'ru',
+        });
+    });
+    const api = new TmdbApiClient();
+    const cache = new TmdbMemoryCache();
+    const russian = {
+        ...runtime,
+        appLanguage: () => 'ru',
+        language: () => 'ru-RU',
+    };
+    const metadata = new TmdbMetadataClient(
+        russian,
+        api,
+        cache,
+        new TmdbIdResolver(russian, api, cache)
+    );
+    expect(
+        (await metadata.enrichTv({ title: 'The Chestnut Man s02', year: 2026 }))
+            ?.id
+    ).toBe(127865);
+    expect(requests).toEqual([
+        '/3/search/tv:ru-RU',
+        '/3/search/tv:en-US',
+        '/3/tv/127865:ru-RU',
+    ]);
+    await metadata.enrichTv({ title: 'The Chestnut Man s02', year: 2026 });
+    expect(requests).toHaveLength(3);
+});
+
 it('recovers dead provider IDs, caches confident searches and reuses detail metadata', async () => {
     const requests: string[] = [];
     jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {

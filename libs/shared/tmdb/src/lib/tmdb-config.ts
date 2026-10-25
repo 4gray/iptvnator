@@ -91,14 +91,16 @@ export function tmdbSearchLanguageForTitle(
     return appTmdbLanguage;
 }
 
-/** Try Ukrainian first, then Russian for mixed Cyrillic provider catalogs. */
+/** Retry translated provider titles in English without relaxing match confidence. */
 export function tmdbSearchLanguagesForTitle(
     title: string,
     appLanguage: Language | string | null | undefined
 ): readonly string[] {
     const preferred = tmdbSearchLanguageForTitle(title, appLanguage);
-    return preferred === 'uk-UA' && CYRILLIC_PATTERN.test(title)
-        ? [preferred, 'ru-RU']
+    if (CYRILLIC_PATTERN.test(title))
+        return preferred === 'uk-UA' ? [preferred, 'ru-RU'] : [preferred];
+    return preferred !== 'en-US' && /[a-z]/i.test(title)
+        ? [preferred, 'en-US']
         : [preferred];
 }
 
