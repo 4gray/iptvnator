@@ -8,6 +8,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
+import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import {
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
@@ -1355,7 +1356,7 @@ export class StreamResolverService {
         item: UnifiedCollectionItem
     ): string {
         return (
-            channel?.tvg?.id?.trim() ||
+            (channel ? resolveChannelEpgLookupKey(channel) : '') ||
             item.tvgId?.trim() ||
             channel?.tvg?.name?.trim() ||
             channel?.name?.trim() ||
