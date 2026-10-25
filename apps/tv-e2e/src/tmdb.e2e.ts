@@ -84,7 +84,7 @@ test('@tmdb opt-in, key validation, language and relaunch preserve provider iden
         'TMDB description'
     );
     await page.getByRole('button', { name: 'Watch now' }).click();
-    await expect(page.locator('video')).toHaveAttribute(
+    await expect(page.locator('video[src], video source')).toHaveAttribute(
         'src',
         /\/movie\/marketing\/marketing\/\d+\.mkv$/
     );

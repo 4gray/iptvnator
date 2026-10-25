@@ -176,6 +176,9 @@ are outside the approved MVP.
 
 ## Implementation verification
 
+The [Stalker Live investigation](tv-live-playback-investigation.md) compares TV
+and Electron link resolution and records the still-open signed-HLS hardware gate.
+
 The [dated verification report](tv-validation.md) records completed local checks,
 the remaining Angular Stalker Escape failure, and the separate hardware gate.
 

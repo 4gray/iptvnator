@@ -41,12 +41,17 @@ test('Live categories use large rows, remote Back restores category/channel focu
     const channelKey = await channel.getAttribute('data-focus');
     await page.keyboard.press('Enter');
     await expect(page.locator('.native-player.preview')).toBeVisible();
-    const src = await page.locator('video').getAttribute('src');
+    const src = await page
+        .locator('video[src], video source')
+        .getAttribute('src');
     await page.keyboard.press('Escape');
     await expect(
         page.locator('[data-focus=' + JSON.stringify(categoryKey) + ']')
     ).toBeFocused();
-    await expect(page.locator('video')).toHaveAttribute('src', src!);
+    await expect(page.locator('video[src], video source')).toHaveAttribute(
+        'src',
+        src!
+    );
     await page.keyboard.press('Enter');
     await expect(
         page.locator('[data-focus=' + JSON.stringify(channelKey) + ']')
@@ -61,7 +66,10 @@ test('Live categories use large rows, remote Back restores category/channel focu
     await page.getByRole('button', { name: 'Back to categories' }).click();
     await page.locator('[data-focus="live-category:"]').click();
     await expect(page.locator('.channel').first()).toBeFocused();
-    await expect(page.locator('video')).toHaveAttribute('src', src!);
+    await expect(page.locator('video[src], video source')).toHaveAttribute(
+        'src',
+        src!
+    );
 });
 
 test('Live uses remaining screen height and EPG scroll never moves the preview or columns', async ({
@@ -173,7 +181,7 @@ test('many Live categories are windowed and restore a distant category; empty gr
     expect(await page.locator('.live-category').count()).toBeLessThanOrEqual(
         20
     );
-    await expect(page.locator('video')).not.toHaveAttribute('src');
+    await expect(page.locator('video[src], video source')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(page.locator('.hero')).toBeVisible();
 });
@@ -231,5 +239,5 @@ test('Live category round trip restores a scrolled channel window without starti
         .poll(() => page.locator('.channels').evaluate((e) => e.scrollTop))
         .toBeGreaterThan(scroll - 120);
     expect(await page.locator('.channel').count()).toBeLessThanOrEqual(20);
-    await expect(page.locator('video')).not.toHaveAttribute('src');
+    await expect(page.locator('video[src], video source')).toHaveCount(0);
 });

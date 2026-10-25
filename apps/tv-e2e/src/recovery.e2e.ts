@@ -164,7 +164,7 @@ test('abandoned playback resolution cannot open a player after navigation', asyn
     await nav(page, 'Series');
     await expect(page.locator('.poster-card')).not.toHaveCount(0);
     await expect(page.locator('.fullscreen')).toHaveCount(0);
-    await expect(page.locator('video')).not.toHaveAttribute('src');
+    await expect(page.locator('video[src], video source')).toHaveCount(0);
 });
 test('Back cancels a pending playback resolution before it can publish fullscreen', async ({
     page,
@@ -218,7 +218,7 @@ test('Back cancels a pending playback resolution before it can publish fullscree
         );
         await expect(page.locator('.poster-card')).not.toHaveCount(0);
         await expect(page.locator('.fullscreen')).toHaveCount(0);
-        await expect(page.locator('video')).not.toHaveAttribute('src');
+        await expect(page.locator('video[src], video source')).toHaveCount(0);
     } finally {
         release();
     }

@@ -426,6 +426,14 @@ Referer or User-Agent headers. A tokenized `create_link` URL may work directly;
 a provider requiring those headers needs a separately designed media relay.
 No relay or transcoder is included in this prototype.
 
+HLS URLs whose pathname ends in `.m3u8` use a native `<source>` with explicit
+`application/vnd.apple.mpegurl` before `load()`, following LG's native transport
+selection contract. This alone does not solve every signed-link rejection;
+provider session and media access still require separate checks. Query parameters remain unchanged;
+other URLs retain native format detection. Stop/switch removes both `src` and
+child sources, and source-level errors reach the playback retry UI. This does
+not add headers, rewrite manifests or proxy media.
+
 Settings exposes an opt-in direct catalog request and a separate media HEAD
 probe. A readable HEAD response establishes HTTP reachability only, not native
 codec, audio, seek or HLS support. A failed CORS probe does not prove native

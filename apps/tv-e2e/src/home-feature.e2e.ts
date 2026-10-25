@@ -76,7 +76,7 @@ test('home features three unfinished titles with manual wrap, remote focus, deta
     await page.keyboard.press('Escape');
     await expect(page.locator('[data-focus="hero"]')).toBeFocused();
     await expect(heading).toHaveText(titles[1]);
-    await expect(page.locator('video')).not.toHaveAttribute('src');
+    await expect(page.locator('video[src], video source')).toHaveCount(0);
     for (const width of [1920, 1280, 960]) {
         await page.setViewportSize({ width, height: 1080 });
         const geometry = await page.locator('.hero').evaluate((hero) => {

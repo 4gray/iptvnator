@@ -13,7 +13,7 @@ test('remote Stop tears down fullscreen live playback instead of returning to pr
             new KeyboardEvent('keydown', { keyCode: 413, bubbles: true })
         )
     );
-    await expect(video).not.toHaveAttribute('src');
+    await expect(page.locator('video[src], video source')).toHaveCount(0);
     await expect
         .poll(() => video.evaluate((v: HTMLVideoElement) => v.paused))
         .toBe(true);
@@ -67,7 +67,9 @@ test('native playback error retries the currently playing channel', async ({
     await start(page);
     await addSource(page, 'stalker');
     const video = await playLive(page);
-    const original = await video.getAttribute('src');
+    const original = await page
+        .locator('video[src], video source')
+        .getAttribute('src');
     const loads = await video.getAttribute('data-loads');
     await video.evaluate((v) => v.dispatchEvent(new Event('error')));
     const controls = page.locator('.player-controls');
@@ -76,7 +78,10 @@ test('native playback error retries the currently playing channel', async ({
     );
     await controls.getByRole('button', { name: 'Retry playback' }).click();
     await expect.poll(() => video.getAttribute('data-loads')).not.toBe(loads);
-    await expect(video).toHaveAttribute('src', original!);
+    await expect(page.locator('video[src], video source')).toHaveAttribute(
+        'src',
+        original!
+    );
     await expect
         .poll(() =>
             video.evaluate(
@@ -87,6 +92,29 @@ test('native playback error retries the currently playing channel', async ({
     await expect(controls.getByRole('alert')).toHaveCount(0);
 });
 
+test('HLS source rejection exposes retry and replaces the failed source', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'xtream');
+    const video = await playLive(page);
+    const source = page.locator('video source');
+    await expect(source).toHaveCount(1);
+    const loads = await video.getAttribute('data-loads');
+    await source.evaluate((s) => s.dispatchEvent(new Event('error')));
+    const controls = page.locator('.player-controls');
+    await expect(controls.getByRole('alert')).toContainText(
+        'could not be played'
+    );
+    await controls.getByRole('button', { name: 'Retry playback' }).click();
+    await expect.poll(() => video.getAttribute('data-loads')).not.toBe(loads);
+    await expect(source).toHaveCount(1);
+    await expect
+        .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+        .toBeGreaterThan(0.1);
+    await expect(controls.getByRole('alert')).toHaveCount(0);
+});
+
 for (const exit of ['close', 'categories'] as const) {
     test(`abandoning grid through ${exit} cancels a pending channel resolution`, async ({
         page,
@@ -94,7 +122,9 @@ for (const exit of ['close', 'categories'] as const) {
         await start(page);
         await addSource(page, 'stalker');
         const video = await playLive(page);
-        const original = await video.getAttribute('src');
+        const original = await page
+            .locator('video[src], video source')
+            .getAttribute('src');
         const loads = await video.getAttribute('data-loads');
         await page.locator('[data-focus="player-grid"]').click();
         const grid = page.getByRole('dialog', {
@@ -140,7 +170,9 @@ for (const exit of ['close', 'categories'] as const) {
             await expect.poll(() => settled).toBe(true);
             await page.waitForTimeout(250);
             await expect(video).toHaveAttribute('data-loads', loads!);
-            await expect(video).toHaveAttribute('src', original!);
+            await expect(
+                page.locator('video[src], video source')
+            ).toHaveAttribute('src', original!);
             expect(
                 await video.evaluate((v: HTMLVideoElement) => v.paused)
             ).toBe(false);

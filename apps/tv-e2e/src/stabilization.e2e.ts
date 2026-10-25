@@ -43,12 +43,17 @@ test('returning to the app preserves an existing playback session without resolv
     await addSource(page, 'xtream');
     await nav(page, 'TV');
     await page.locator('.channel').first().click();
-    await expect(page.locator('video')).toHaveAttribute('src', /live/);
+    await expect(page.locator('video[src], video source')).toHaveAttribute(
+        'src',
+        /live/
+    );
     let registrations = 0;
     page.on('request', (request) => {
         if (request.url().endsWith('/provider-targets')) registrations++;
     });
-    const before = await page.locator('video').getAttribute('src');
+    const before = await page
+        .locator('video[src], video source')
+        .getAttribute('src');
     await page.evaluate(() => {
         Object.defineProperty(document, 'hidden', {
             configurable: true,
@@ -62,7 +67,10 @@ test('returning to the app preserves an existing playback session without resolv
         document.dispatchEvent(new Event('visibilitychange'));
         window.dispatchEvent(new Event('online'));
     });
-    await expect(page.locator('video')).toHaveAttribute('src', before!);
+    await expect(page.locator('video[src], video source')).toHaveAttribute(
+        'src',
+        before!
+    );
     expect(registrations).toBe(0);
 });
 

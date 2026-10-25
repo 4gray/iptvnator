@@ -8,7 +8,7 @@ test('Stalker lazy episodes resolve their own media file when another show owns 
     await nav(page, 'Movies');
     await page.getByRole('button', { name: /Fixture Alpha/ }).click();
     await page.locator('.episode').first().click();
-    await expect(page.locator('video')).toHaveAttribute(
+    await expect(page.locator('video[src], video source')).toHaveAttribute(
         'src',
         /\/stream\/issue1844\/10\/1\.mp4$/
     );
@@ -25,10 +25,10 @@ test('Xtream: source, live preview/fullscreen, movie, episode, favorites and rel
     const first = page.locator('.channel').first();
     const id = await first.getAttribute('data-focus');
     await first.focus();
-    await expect(page.locator('video')).not.toHaveAttribute('src');
+    await expect(page.locator('video[src], video source')).toHaveCount(0);
     await first.click();
     await expect(page.locator('.native-player.preview')).toBeVisible();
-    await expect(page.locator('video')).toHaveAttribute(
+    await expect(page.locator('video[src], video source')).toHaveAttribute(
         'src',
         /\/live\/.+\.m3u8$/
     );

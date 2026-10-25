@@ -88,7 +88,7 @@ export class NativePlayer {
         if (item.kind !== 'live' && Number.isFinite(resume) && resume > 0)
             this.startRestore(resume);
         this.confirmed = false;
-        this.video.src = playback.url;
+        this.setSource(playback.url);
         this.video.load();
         try {
             await this.video.play();
@@ -101,6 +101,28 @@ export class NativePlayer {
                 );
         }
         this.changed();
+    }
+    private setSource(url: string) {
+        let hls = false;
+        try {
+            hls = /\.m3u8$/i.test(new URL(url).pathname);
+        } catch {
+            // Keep the native URL handling for sources without a known format.
+        }
+        if (!hls) {
+            this.video.src = url;
+            return;
+        }
+        // webOS 5 can reject signed master playlists when it guesses the
+        // transport from video.src. Select native HLS before the first load.
+        const source = this.video.ownerDocument.createElement('source');
+        source.src = url;
+        source.type = 'application/vnd.apple.mpegurl';
+        source.addEventListener('error', () => {
+            // A rejected <source> need not emit an error on <video>.
+            if (source.parentNode === this.video) this.handlers.error();
+        });
+        this.video.appendChild(source);
     }
     persist() {
         const item = this.item;
@@ -128,6 +150,9 @@ export class NativePlayer {
         this.generation++;
         this.video.pause();
         this.video.removeAttribute('src');
+        this.video
+            .querySelectorAll('source')
+            .forEach((source) => source.remove());
         this.video.load();
     }
     resume() {

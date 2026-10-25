@@ -103,7 +103,7 @@ test('favorites separate movies, series and compact TV cards, preserving detail 
     ).toBeLessThan(130);
     await page.locator('.channel-card').hover();
     await expect(page.locator('.channel-card')).toBeFocused();
-    await expect(page.locator('video')).not.toHaveAttribute('src');
+    await expect(page.locator('video[src], video source')).toHaveCount(0);
     await page.reload();
     await expect(page.locator('.loading')).toBeHidden();
     await nav(page, 'Favorites');

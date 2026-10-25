@@ -35,6 +35,18 @@ export async function prepareLiveMedia(page: Page) {
                         encodeURIComponent(value)
                 ),
         });
+        // Explicit HLS sources use the same real decoder fixture. Chromium's
+        // WebM playback checks switching/lifecycle, not webOS HLS support.
+        const append = v.appendChild.bind(v);
+        v.appendChild = <T extends Node>(node: T): T => {
+            if (node instanceof HTMLSourceElement) {
+                node.src =
+                    'http://127.0.0.1:3421/tv-test-media.webm?channel=' +
+                    encodeURIComponent(node.src);
+                node.type = 'video/webm';
+            }
+            return append(node);
+        };
         v.loop = true;
         v.dataset.loads = '0';
         v.addEventListener('loadstart', () => {
