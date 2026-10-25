@@ -1554,6 +1554,10 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   malformed, and empty responses never fall back to an invented
   `/media/file_<episode_id>.mpg` or the saved parent command. File resolution
   and `create_link` use the existing authenticated/repair request pipeline.
+  For file rows with `protocol: custom`, their raw URL-valued command must
+  become `/media/file_<file.id>.mpg` before `create_link`, matching Ministra's
+  reference player. Only a valid returned file ID is accepted; the episode ID
+  is never substituted.
 - The extra file lookup is covered by the pending playback ownership guard:
   changes to the selected source/show, episode command, or provider
   coordinates discard its result before inline or external playback starts.

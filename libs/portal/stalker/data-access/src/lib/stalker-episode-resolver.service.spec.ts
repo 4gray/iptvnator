@@ -118,6 +118,48 @@ describe('StalkerEpisodeResolver', () => {
         expect(sendIpcEvent).not.toHaveBeenCalled();
     });
 
+    it.each(['201', 201])(
+        'uses actual custom-protocol file ID %s for create_link',
+        async (id) => {
+            sendIpcEvent.mockResolvedValue({
+                js: {
+                    data: [
+                        {
+                            id,
+                            is_file: true,
+                            protocol: 'custom',
+                            cmd: 'http://storage.example.test/alpha.mp4',
+                        },
+                    ],
+                },
+            });
+            await expect(
+                resolver.resolveCommand(playlist, episode())
+            ).resolves.toBe('/media/file_201.mpg');
+        }
+    );
+
+    it.each([undefined, '', 'invalid', '../101', 0])(
+        'rejects a custom-protocol file without a valid file ID: %s',
+        async (id) => {
+            sendIpcEvent.mockResolvedValue({
+                js: {
+                    data: [
+                        {
+                            id,
+                            is_file: true,
+                            protocol: 'custom',
+                            cmd: 'http://storage.example.test/alpha.mp4',
+                        },
+                    ],
+                },
+            });
+            await expect(
+                resolver.resolveCommand(playlist, episode())
+            ).rejects.toThrow('nothing_to_play');
+        }
+    );
+
     it('uses the authenticated request pipeline in full portal mode', async () => {
         makeAuthenticatedRequest.mockResolvedValue({
             js: [{ is_file: '1', cmd: '/media/file_201.mpg' }],
@@ -188,7 +230,16 @@ describe('StalkerEpisodeResolver', () => {
     it('downloads using the resolved file command and the captured playlist', async () => {
         sendIpcEvent
             .mockResolvedValueOnce({
-                js: { data: [{ is_file: true, cmd: '/media/file_201.mpg' }] },
+                js: {
+                    data: [
+                        {
+                            id: '201',
+                            is_file: true,
+                            protocol: 'custom',
+                            cmd: 'http://storage.example.test/alpha.mp4',
+                        },
+                    ],
+                },
             })
             .mockResolvedValueOnce({
                 js: { cmd: 'http://cdn.example.test/alpha/1.mp4' },

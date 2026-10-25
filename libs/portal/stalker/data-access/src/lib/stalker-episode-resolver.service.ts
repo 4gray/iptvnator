@@ -87,7 +87,16 @@ export class StalkerEpisodeResolver {
             )
                 continue;
             const cmd = command(file['cmd']);
-            if (cmd) return cmd;
+            if (!cmd) continue;
+            if (file['protocol'] === 'custom') {
+                // Ministra exposes a raw URL, but create_link still needs the
+                // actual media-file ID (as in the reference player's is_file branch).
+                const fileId = String(file['id'] ?? '');
+                if (/^[1-9]\d*$/.test(fileId))
+                    return `/media/file_${fileId}.mpg`;
+                continue;
+            }
+            return cmd;
         }
         throw new Error('nothing_to_play');
     }

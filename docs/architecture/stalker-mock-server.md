@@ -665,3 +665,10 @@ and real external players were not run; download command/link preparation
 and the shared handoff path have focused unit coverage. At this local
 validation stage, no push, PR, merge, issue closure or public comment had been
 performed.
+
+The first local Codex review identified a custom-protocol compatibility case:
+Ministra returns a raw URL for those file rows, but `create_link` expects the
+actual file ID. The resolver now builds the file command from that returned
+ID for `protocol: custom`, following the reference player's `is_file` branch.
+Regression tests cover string/numeric IDs, invalid/missing IDs and the full
+download preparation path; they failed before this correction.
