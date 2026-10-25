@@ -44,19 +44,20 @@ and [companion container instructions](../../docker/tv/README.md).
 
 ### Follow-up TODO
 
-- [ ] Deploy the matching TV backend on the always-on Synology NAS, initially
-  alongside the existing self-hosted PWA. Preserve the current service and its
-  data volume, configure TV CORS and automatic restart, verify TV connection,
-  phone setup and provider requests, then switch the TV from the temporary Mac
-  backend. Deployment is pending; the existing NAS image lacks the TV routes.
+- [x] Deploy the matching TV backend alongside the existing Synology PWA.
+  The companion on port 4335 is healthy, uses automatic restart and supplies TV
+  CORS. The real LG now uses its provider backend and server-library gateway;
+  catalog requests, QR session creation/cancellation and app relaunch pass.
+  The existing PWA on port 4333 and its data volume remain unchanged. See the
+  [deployment verification](tv-library-validation.md#real-lg).
 - [x] Add optional TV server sources: M3U/Xtream/Stalker, explicit copy of a
   local source, cached reads, refresh/status, instance checks and identity-safe
   disconnect. See the server library contract above for conflict/deletion rules.
 - [ ] Add shared favorites, history and resume, with provider-specific mapping
   and conflict/offline tests; these remain local on TV.
 
-Server sources are implemented in 0.1.9; NAS installation and cross-device viewing
-state remain separate follow-ups.
+Server sources and NAS deployment are verified in 0.1.9. Cross-device viewing
+state remains a separate follow-up.
 
 If the backend stopped or restarted, restore it and select Retry connection
 on the TV. Connected is a backend health/auth check, not proof that the portal
