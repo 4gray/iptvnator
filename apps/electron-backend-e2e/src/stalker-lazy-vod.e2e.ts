@@ -132,6 +132,8 @@ for (const collection of ['favorites', 'recentlyViewed'] as const) {
                 macAddress: mac,
                 name: 'Old lazy VOD source',
             });
+            // Closing the add dialog precedes the router navigation on slower hosts.
+            await app.mainWindow.waitForURL(/\/workspace\/stalker\/[^/]+\//);
             const playlistId = /\/stalker\/([^/]+)/.exec(
                 new URL(app.mainWindow.url()).pathname
             )?.[1];
