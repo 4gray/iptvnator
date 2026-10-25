@@ -5,6 +5,7 @@ import {
     type APIRequestContext,
 } from '@playwright/test';
 import { addSource, backend, nav, stalker, start, xtream } from './helpers';
+import type { UserData } from '@iptvnator/tv/util';
 const server = 'http://127.0.0.1:3434';
 const headers = { Authorization: 'Bearer tv-library-test' };
 const libraryDocument = (id: string, fields: Record<string, unknown> = {}) => ({
@@ -43,17 +44,7 @@ async function connect(page: Page) {
 async function snapshot(page: Page) {
     return page.evaluate(
         async () =>
-            new Promise<{
-                activeId: string;
-                sources: {
-                    id: string;
-                    libraryId?: string;
-                    name: string;
-                    macAddress?: string;
-                }[];
-                library?: { instanceId: string };
-                history: { item: { sourceId: string } }[];
-            }>((resolve) => {
+            new Promise<UserData>((resolve) => {
                 const req = indexedDB.open('iptvnator-tv-user-data');
                 req.onsuccess = () => {
                     const db = req.result;
@@ -177,12 +168,24 @@ test('library removal of the active source resets Live categories for the replac
         'All channels'
     );
 });
-test('renaming a retained server source preserves its MAC; an explicit MAC edit normalizes it', async ({
+test('renaming a retained server source preserves MAG identity; an explicit MAC edit normalizes it', async ({
     page,
     request,
 }) => {
-    const original = '00:1a:79:00:00:03';
+    const original = '00:1a:79:19:44:03';
+    const identity = {
+        serialNumber: ' serial ',
+        deviceId1: ' device-1 ',
+        deviceId2: ' device-2 ',
+        signature1: ' signature-1 ',
+        signature2: ' signature-2 ',
+    };
     await put(request, 'mac-edit', {
+        stalkerSerialNumber: identity.serialNumber,
+        stalkerDeviceId1: identity.deviceId1,
+        stalkerDeviceId2: identity.deviceId2,
+        stalkerSignature1: identity.signature1,
+        stalkerSignature2: identity.signature2,
         portalUrl: `${stalker}/server/load.php`,
         macAddress: original,
     });
@@ -209,6 +212,9 @@ test('renaming a retained server source preserves its MAC; an explicit MAC edit 
                 )?.macAddress
         )
         .toBe(original);
+    expect(
+        (await snapshot(page)).sources.find((s) => s.name === 'Renamed portal')
+    ).toMatchObject(identity);
     await page.reload();
     await nav(page, 'Sources');
     await page
@@ -216,7 +222,10 @@ test('renaming a retained server source preserves its MAC; an explicit MAC edit 
         .filter({ hasText: 'Renamed portal' })
         .getByRole('button', { name: 'Edit', exact: true })
         .click();
-    await page.getByLabel('MAC address').fill('00-1a-79-00-00-04');
+    expect(
+        (await snapshot(page)).sources.find((s) => s.name === 'Renamed portal')
+    ).toMatchObject(identity);
+    await page.getByLabel('MAC address').fill('00-1a-79-19-44-04');
     await page.getByRole('button', { name: 'Save and connect' }).click();
     await expect
         .poll(
@@ -225,7 +234,7 @@ test('renaming a retained server source preserves its MAC; an explicit MAC edit 
                     (s) => s.name === 'Renamed portal'
                 )?.macAddress
         )
-        .toBe('00:1A:79:00:00:04');
+        .toBe('00:1A:79:19:44:04');
 });
 test('shared Xtream, Stalker and M3U sources load, retain local identity and survive relaunch', async ({
     page,
@@ -465,4 +474,62 @@ test('a library reply cannot interrupt playback or reconnect after disconnect', 
     ).toContainText('Disconnected');
     expect((await snapshot(page)).library).toBeUndefined();
     expect((await snapshot(page)).sources[0].name).toBe('TV xtream');
+});
+
+test('repointing a server row separates old favorites and resume from the new account', async ({
+    page,
+    request,
+}) => {
+    await put(request, 'account', {
+        serverUrl: xtream,
+        username: 'user1',
+        password: 'pass1',
+    });
+    await start(page);
+    await addSource(page, 'xtream');
+    await connect(page);
+    const original = (await snapshot(page)).activeId;
+    await nav(page, 'Movies');
+    await page.locator('.poster-card').first().click();
+    await page
+        .getByRole('button', { name: '♡ Add to favorites', exact: true })
+        .click();
+    await expect
+        .poll(async () => (await snapshot(page)).favorites.length)
+        .toBe(1);
+    await page.locator('[data-focus="detail-play"]').click();
+    await expect
+        .poll(async () => (await snapshot(page)).history[0]?.item.sourceId)
+        .toBe(original);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.detail-hero')).toBeVisible();
+    const savedFavorite = (await snapshot(page)).favorites[0];
+    await put(request, 'account', {
+        serverUrl: xtream,
+        username: 'large',
+        password: 'large',
+    });
+    await page.evaluate(() =>
+        document.dispatchEvent(new Event('visibilitychange'))
+    );
+    await expect
+        .poll(async () => (await snapshot(page)).activeId)
+        .not.toBe(original);
+    await expect(page.locator('.detail-hero')).toHaveCount(0);
+    const replacement = (await snapshot(page)).activeId;
+    expect((await snapshot(page)).favorites[0]).toEqual(savedFavorite);
+    expect((await snapshot(page)).history[0].item.sourceId).toBe(original);
+    await nav(page, 'Favorites');
+    await expect(page.locator('.poster-card')).toHaveCount(0);
+    await nav(page, 'Movies');
+    await page.locator('.poster-card').first().click();
+    await page.locator('[data-focus="detail-play"]').click();
+    await expect
+        .poll(async () => (await snapshot(page)).history[0]?.item.sourceId)
+        .toBe(replacement);
+    await page.reload();
+    await expect
+        .poll(async () => (await snapshot(page)).activeId)
+        .toBe(replacement);
+    expect((await snapshot(page)).favorites[0]).toEqual(savedFavorite);
 });

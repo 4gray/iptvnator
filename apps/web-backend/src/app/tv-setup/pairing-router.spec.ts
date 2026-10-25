@@ -100,3 +100,36 @@ it('bounds JSON bodies and never exposes malformed request contents', async () =
         expect(await response.text()).not.toContain('do-not-log');
     });
 });
+
+it('shares a bounded setup asset budget and ignores spoofed forwarding headers', async () => {
+    await withServer(createWebBackendApp(), async (base) => {
+        const assets = ['/setup', '/setup.css', '/setup.js'];
+        for (let index = 0; index < 60; index++) {
+            const response = await fetch(`${base}/tv${assets[index % 3]}`);
+            expect(response.status).toBe(200);
+            await response.arrayBuffer();
+        }
+        for (const asset of assets) {
+            const response = await fetch(`${base}/tv${asset}`, {
+                headers: { 'X-Forwarded-For': '192.0.2.123' },
+            });
+            expect(response.status).toBe(429);
+            expect(Number(response.headers.get('retry-after'))).toBeGreaterThan(
+                0
+            );
+            expect(response.headers.get('cache-control')).toBe('no-store');
+            expect(await response.json()).toEqual({
+                message: 'Too many setup requests. Try again shortly.',
+            });
+        }
+        // Discovery and active pairing polling do not consume the asset budget.
+        expect((await fetch(`${base}/tv/connection`)).status).toBe(200);
+        const session = await fetch(`${base}/tv/pairing`, { method: 'POST' });
+        expect(session.status).toBe(201);
+        const created = (await session.json()) as CreatedSession;
+        const poll = await fetch(`${base}/tv/pairing/${created.id}/tv`, {
+            headers: { 'X-TV-Pairing': created.tvToken },
+        });
+        expect(poll.status).toBe(200);
+    });
+});

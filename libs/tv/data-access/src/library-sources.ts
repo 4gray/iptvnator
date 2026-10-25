@@ -121,12 +121,30 @@ export function mergeLibrary(
     incoming: Source[]
 ): UserData {
     const originals = { ...settings.originals };
+    let activeId = data.activeId;
     const available = data.sources.slice();
     const sources = incoming.map((remote) => {
         const existing =
             available.find((s) => s.libraryId === remote.libraryId) ??
             available.find((s) => !s.libraryId && sameLibrarySource(s, remote));
         if (!existing) return remote;
+        const sameAccount =
+            sameLibrarySource(existing, remote) ||
+            (existing.provider === 'm3u' &&
+                remote.provider === 'm3u' &&
+                !existing.url &&
+                !remote.url);
+        if (existing.libraryId && !sameAccount) {
+            // A library row can be repointed to another account. Keep old viewing
+            // data under its old ID; never interpret it through the replacement.
+            const next = {
+                ...remote,
+                id: `tv-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            };
+            if (activeId === existing.id) activeId = next.id;
+            // Leave the old entry available so a linked local original is restored below.
+            return next;
+        }
         available.splice(available.indexOf(existing), 1);
         if (!existing.libraryId) originals[existing.id] = existing;
         const next = { ...remote, id: existing.id };
@@ -170,8 +188,8 @@ export function mergeLibrary(
         ...data,
         sources,
         library: { ...settings, originals, lastSync: Date.now() },
-        activeId: sources.some((s) => s.id === data.activeId)
-            ? data.activeId
+        activeId: sources.some((s) => s.id === activeId)
+            ? activeId
             : (sources[0]?.id ?? ''),
     };
 }

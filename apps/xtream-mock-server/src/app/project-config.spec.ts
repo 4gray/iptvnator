@@ -187,7 +187,7 @@ describe('Nx E2E task dependencies', () => {
         ]);
         expect(perFileDefaultFor('web-e2e')?.dependsOn).toEqual([]);
         expect(perFileDefaultFor('tv-e2e')?.dependsOn).toEqual([
-            { projects: ['tv'], target: 'build' },
+            { projects: ['tv', 'tv-setup'], target: 'build' },
         ]);
     });
 });

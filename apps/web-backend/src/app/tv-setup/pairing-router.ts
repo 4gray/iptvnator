@@ -3,6 +3,7 @@ import express, {
     type RequestHandler,
     type ErrorRequestHandler,
 } from 'express';
+import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { createAccessGuard } from '../storage/access-guard';
 import { PairingError, PairingStore } from './pairing-store';
 import { resolve } from 'node:path';
@@ -44,13 +45,23 @@ export function mountTvSetup(
     router.get('/connection/check', cors, guard, (_req, res) =>
         res.json({ service: 'iptvnator', connected: true })
     );
-    router.get('/setup', (_req, res) =>
+    const setupAssetsLimit = rateLimit({
+        windowMs: 60_000,
+        limit: 60,
+        standardHeaders: 'draft-8',
+        legacyHeaders: false,
+        // Do not trust client-supplied forwarding headers. Proxy peers share a budget.
+        keyGenerator: (req) =>
+            ipKeyGenerator(req.socket.remoteAddress ?? 'unknown'),
+        message: { message: 'Too many setup requests. Try again shortly.' },
+    });
+    router.get('/setup', setupAssetsLimit, (_req, res) =>
         res.sendFile(resolve(assets, 'index.html'), { dotfiles: 'allow' })
     );
-    router.get('/setup.css', (_req, res) =>
+    router.get('/setup.css', setupAssetsLimit, (_req, res) =>
         res.sendFile(resolve(assets, 'setup.css'), { dotfiles: 'allow' })
     );
-    router.get('/setup.js', (_req, res) =>
+    router.get('/setup.js', setupAssetsLimit, (_req, res) =>
         res.sendFile(resolve(assets, 'setup.js'), { dotfiles: 'allow' })
     );
     router.options('/pairing', cors);

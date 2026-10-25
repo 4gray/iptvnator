@@ -58,7 +58,9 @@ Stalkinator's provider-compatibility behavior; native LG acceptance and the
 remaining first-launch failure are recorded in
 [the investigation](../development/tv-live-playback-investigation.md).
 Editing a source preserves unchanged MAC bytes; only a new or explicitly edited
-MAC is normalized. Catalog titles choose the first nonblank original name,
+MAC is normalized. Manual source saves preserve serial/device/signature bytes,
+including leading/trailing spaces, just like phone and library imports.
+Catalog titles choose the first nonblank original name,
 name or title supplied by the portal.
 Device IDs/signatures are explicit source fields, never generated or bound
 silently. Regular, embedded VOD and lazy Ministra series use the existing series
@@ -115,6 +117,11 @@ backend authorization. Separate random capabilities authorize the TV and phone;
 the QR carries only the phone capability in a URL fragment, removed from the
 address bar after loading. No global backend token is sent to the phone.
 Session creation is rate-limited; at most 32 sessions exist in backend memory.
+The public setup HTML, JS and CSS share a 60-request/minute in-memory budget
+per direct network peer (IPv6 grouped by /56); excess requests receive HTTP 429
+with Retry-After. Forwarded client-address headers do not change this identity;
+clients behind one reverse proxy share its budget. Discovery and active pairing
+polling keep their separate behavior.
 Restart, expiry, rejection or cancellation discards pending credentials.
 Use a trusted local backend/network, or HTTPS when deployed beyond it.
 
@@ -153,6 +160,11 @@ TV sessions survive unchanged connection fields. Shared framework-free
 `sourceIdentity` matches accounts using the same rules as PWA migration. A matching
 local source retains its TV media ID and an original configuration copy; new entries
 have an instance/playlist-scoped ID plus the original server playlist ID.
+If an existing server row changes provider account (provider/URL, Xtream username
+or Stalker MAC), TV allocates a fresh media ID and clears its old detail/navigation.
+Old favorites/history/positions remain under the old identity, never sent through
+the replacement account; a linked original local source is restored. Metadata,
+password refreshes and stored-file M3U content updates retain the media identity.
 
 The server controls linked source configuration. Edit/delete happen in the PWA;
 refresh applies changes and removes missing server entries, retaining local viewing

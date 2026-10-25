@@ -163,7 +163,7 @@ included in this pull request.
 
 Runtime revision `27c36b1dc` merges upstream `703a7e1a9` into the TV branch without
 conflicts. Frozen dependencies were reinstalled, lockfiles match, and Nx
-project discovery passes. Subsequent publication edits only change documentation
+project discovery passes. The first publication edits only change documentation
 and the browser regression's synchronization; runtime source stays at that
 validated revision. The repository is public and its default branch is `master`;
 automatic PR/master CI triggers were inspected before publication.
@@ -209,3 +209,53 @@ Retry; that residual is retained. XMLTV/archive support, viewing-data sync and
 general provider/codec certification are outside this experimental merge.
 The NAS and the primary checkout remain unchanged. Existing `.changes/tv-*.md`
 notes cover runtime behavior; publication docs/test-only edits need no new note.
+
+
+### Automatic PR review follow-up
+
+The first published head was `4d97adfd2`. Its automatic Codex review completed
+without findings. Greptile identified two additional cases, both accepted:
+server-row account replacement reused old media identity, and a manual source
+rename trimmed exact MAG serial/device/signature bytes. CodeQL also reported
+three unthrottled public setup-file handlers. No finding was dismissed or
+suppressed; another local CLI review round remains waived by the maintainer.
+
+The setup HTML/CSS/JS handlers now share an express-rate-limit 8.3.0 middleware,
+pinned explicitly beside Express. It admits 60 requests per minute per direct
+network peer, groups IPv6 subnets, ignores spoofed forwarding headers, returns
+429/Retry-After and leaves discovery/pairing polling available. The HTTP
+regression fails before the middleware and passes after it. All 238 backend
+tests pass, including actual file serving and capability polling after saturation.
+The affected backend coverage suite was rerun and merged with the other 35
+reports: statements 84.92%, branches 75.92%, functions 83.22%, lines 85.27%;
+coverage health passes with existing thresholds.
+
+Server account changes now receive fresh opaque TV media IDs. Old viewing data
+is retained separately and a linked local original is restored; ordinary renames,
+password rotation and stored-file M3U refreshes retain identity. Four new account
+cases fail against the previous merge implementation; six unit cases now cover
+Xtream/Stalker/provider changes, stable refresh and original-source recovery.
+The browser regression checks stale-detail dismissal, old favorites/history,
+new-account playback and identity across reload. The MAG rename regression
+first reproduces trimming of all five fields, then passes after preserving the
+raw form strings, including after reload and explicit MAC editing.
+
+These corrections are covered by `.changes/tv-phone-setup-request-limit.md` and
+`.changes/tv-source-account-identity.md`, with the canonical contracts updated.
+
+
+Final post-review validation passes 85 TV unit cases and all 91 TV browser cases,
+including account replacement and exact MAG preservation. The new MAG test uses
+its own mock MAC namespace: otherwise its intentionally pinned device identity
+contaminated later tests sharing the minimal account. The full isolated suite
+now passes without resetting or weakening provider authentication.
+
+The initial CI Tier B/C gate also exposed two stale assertions missed by the
+Tier A run: the extracted Xtream API no longer belongs in the max-lines baseline,
+and per-file TV E2E builds need both TV and phone assets. The baseline generator
+removes exactly that one exemption (54 remain); the test now asserts both build
+dependencies. No file-size/coverage/test threshold is raised. The full CI
+`check-coverage-policy.mjs --run-non-tier-a` command now passes locally, including
+both mock servers, lint tooling, packaging, release tooling and skills. Targeted
+runtime/spec typing, lint, backend coverage and production TV/backend/IPK builds
+also pass. These changes are sent together as one PR follow-up batch.

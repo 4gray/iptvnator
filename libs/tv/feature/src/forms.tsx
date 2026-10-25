@@ -22,7 +22,8 @@ export function Sources({ tv }: { tv: TvModel }) {
         event.preventDefault();
         setFailure('');
         const values = new FormData(event.currentTarget as HTMLFormElement);
-        const field = (key: string) => String(values.get(key) ?? '').trim();
+        const rawField = (key: string) => String(values.get(key) ?? '');
+        const field = (key: string) => rawField(key).trim();
         const enteredMac = String(values.get('macAddress') ?? '');
         try {
             const source: Source = {
@@ -48,11 +49,11 @@ export function Sources({ tv }: { tv: TvModel }) {
                                   ? editing.macAddress
                                   : (normalizeStalkerMacAddress(enteredMac) ??
                                     field('macAddress')),
-                          serialNumber: field('serialNumber'),
-                          deviceId1: field('deviceId1'),
-                          deviceId2: field('deviceId2'),
-                          signature1: field('signature1'),
-                          signature2: field('signature2'),
+                          serialNumber: rawField('serialNumber'),
+                          deviceId1: rawField('deviceId1'),
+                          deviceId2: rawField('deviceId2'),
+                          signature1: rawField('signature1'),
+                          signature2: rawField('signature2'),
                       }
                     : {}),
             };
