@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
-import { Worker } from 'node:worker_threads';
+import { runScenarioWorker } from './epg-scenario-worker';
 import { gzipSync } from 'node:zlib';
 import { getIptvnatorDatabasePath } from '@iptvnator/shared/database/path-utils';
 import { __databaseConnectionTestHooks } from '@iptvnator/shared/database';
@@ -15,8 +15,11 @@ export type EpgImportScenario =
     | 'malformed'
     | 'truncated'
     | 'gzip-error'
+    | 'gzip-corrupt'
     | 'write-error'
     | 'cancelled'
+    | 'cancelled-publish'
+    | 'retry'
     | 'empty';
 
 export async function runEpgImportScenario(
@@ -98,7 +101,7 @@ export async function runEpgImportScenario(
         UPDATE epg_channel_sources SET updated_at = '2000-01-01T00:00:00Z';
         INSERT INTO epg_channel_mappings (channel_key, epg_channel_id) VALUES ('manual', 'shared');
     `);
-    if (scenario === 'write-error')
+    if (scenario === 'write-error' || scenario === 'retry')
         sqlite.exec(`CREATE TRIGGER fail_fixture BEFORE INSERT ON epg_programs
         WHEN NEW.title = 'New 1000' BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END`);
     const snapshot = () => ({
@@ -142,10 +145,15 @@ export async function runEpgImportScenario(
             ? '<tv></tv>'
             : `<tv>${channels}${programmes}${ending}`;
     const gzip = gzipSync(xml);
+    if (scenario === 'gzip-corrupt') gzip[gzip.length - 8] ^= 0xff;
     pausedFeed = xml;
     writeFileSync(
         localFile,
-        scenario === 'gzip-error' ? gzip.subarray(0, gzip.length - 8) : xml
+        scenario === 'gzip-error'
+            ? gzip.subarray(0, gzip.length - 8)
+            : scenario === 'gzip-corrupt'
+              ? gzip
+              : xml
     );
     const bundle = join(directory, 'epg-parser.worker.cjs');
     buildSync({
@@ -161,55 +169,33 @@ export async function runEpgImportScenario(
         external: ['better-sqlite3'],
         tsconfig: resolve('tsconfig.base.json'),
     });
-    const worker = new Worker(bundle, {
-        execArgv: [],
-        resourceLimits: { maxOldGenerationSizeMb: 64 },
-        workerData: { nativeModuleSearchPaths: [resolve('node_modules')] },
-    });
-    let progressEvents = 0;
-    let workerError: string | undefined;
     try {
-        const outcome = await new Promise<string>((resolveOutcome, reject) => {
-            const timer = setTimeout(
-                () => reject(new Error('EPG worker timed out')),
-                90000
+        const workerResult = await runScenarioWorker(
+            bundle,
+            source,
+            sqlite,
+            scenario === 'cancelled'
+                ? 'download'
+                : scenario === 'cancelled-publish'
+                  ? 'publish'
+                  : undefined
+        );
+        const failedSnapshot = snapshot();
+        let retryResult:
+            Awaited<ReturnType<typeof runScenarioWorker>> | undefined;
+        if (scenario === 'retry') {
+            sqlite.exec('DROP TRIGGER fail_fixture');
+            retryResult = await runScenarioWorker(
+                bundle,
+                source,
+                sqlite,
+                undefined
             );
-            const finish = (type: string) => {
-                clearTimeout(timer);
-                resolveOutcome(type);
-            };
-            worker.on('message', (message) => {
-                if (message.type === 'READY')
-                    worker.postMessage({
-                        type: 'FETCH_EPG',
-                        url: source,
-                        options:
-                            scenario === 'cancelled'
-                                ? { trustedPrivateNetworkEpgUrls: [source] }
-                                : { allowLocalFile: true },
-                    });
-                else if (message.type === 'EPG_PROGRESS') {
-                    progressEvents++;
-                    if (scenario === 'cancelled') {
-                        // A download must not hold the live database write lock.
-                        sqlite.pragma('user_version = 1');
-                        finish('CANCELLED');
-                    }
-                } else if (
-                    message.type === 'EPG_COMPLETE' ||
-                    message.type === 'EPG_ERROR'
-                )
-                    finish(message.type);
-            });
-            worker.on('error', (error) => {
-                workerError = error.message;
-                finish('WORKER_ERROR');
-            });
-            worker.on('exit', (code) => {
-                if (code !== 0) finish('WORKER_ERROR');
-            });
-        });
-        await worker.terminate();
+        }
+        // Check the external-content FTS index against live rows, not only MATCH hits.
+        sqlite.exec(
+            "INSERT INTO epg_programs_fts(epg_programs_fts, rank) VALUES('integrity-check', 1)"
+        );
         const after = snapshot();
         const titles = sqlite
             .prepare(
@@ -224,9 +210,9 @@ export async function runEpgImportScenario(
             )
             .get();
         return {
-            outcome,
-            workerError,
-            progressEvents,
+            ...workerResult,
+            failedSnapshot,
+            retryResult,
             before,
             after,
             titles: titles.map((row) => row.title),
@@ -236,7 +222,6 @@ export async function runEpgImportScenario(
                 .get(),
         };
     } finally {
-        await worker.terminate();
         sqlite.close();
         if (server) {
             server.closeAllConnections();

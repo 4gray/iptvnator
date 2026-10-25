@@ -1786,6 +1786,27 @@ before publication leaves the previous guide available. Temporary rows disappear
 when the worker connection closes. Downloads do not hold the live database write lock, and the
 final commit reads bounded batches instead of loading the whole feed into JS
 memory. The existing source isolation and seven-day archive policy still apply.
+UTF-8 decoding retains partial code points across decoded stream chunks. Progress
+counts describe staged rows, not visible rows; success is sent only after commit
+and connection close. An empty feed remains an error. Channel-only feeds keep
+the existing replacement semantics.
+
+Temporary storage grows with the serialized feed (in addition to live database
+and WAL space); its SQLite page cache is capped at 2 MiB, not its disk usage.
+The final publication holds the writer transaction for the complete replacement,
+so other writers can wait up to their busy timeout or fail and retry. WAL readers
+continue seeing the preceding committed guide. A terminated worker inside the
+transaction rolls it back; once SQLite commits, the new guide is valid. Source
+removal and Clear All still retire generations and await confirmed worker exit
+before deleting rows, including when termination races publication. Imports
+remain serialized by `EpgWorkerService`; do not bypass its shutdown barriers.
+
+`epg-import-atomicity.spec.ts` exercises the real parser worker and native SQLite,
+including a termination barrier after a full publication batch, retry, source
+freshness, archive retention and FTS integrity. `epg-import-atomicity.e2e.ts`
+covers renderer IPC errors, retry and removal during staging. `epg.e2e.ts`
+asserts that Refresh All and Clear All observe staging progress while live rows
+remain unchanged; batch progress must never be used as a live-row-count barrier.
 
 Electron treats `Settings.epgUrl` as the committed global source list. Removing
 an input is a draft edit; only a successful IndexedDB write authorizes source

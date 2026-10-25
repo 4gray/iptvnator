@@ -44,6 +44,7 @@ describe('atomic XMLTV import through the real Electron parser worker', () => {
         'malformed',
         'truncated',
         'gzip-error',
+        'gzip-corrupt',
         'write-error',
         'empty',
     ] as const)(
@@ -72,7 +73,27 @@ describe('atomic XMLTV import through the real Electron parser worker', () => {
         expect(result.titles).not.toContain('Previous programme');
         expect(result.titles).not.toContain('Expired archive');
         expect(result.after.mappings).toEqual(result.before.mappings);
+        expect(result.after.provenance).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    source_url: 'other-source',
+                    updated_at: '2000-01-01T00:00:00Z',
+                }),
+                expect.objectContaining({
+                    channel_id: 'shared',
+                    display_name: 'Updated 0',
+                    updated_at: expect.not.stringMatching(/^2000-/),
+                }),
+            ])
+        );
         expect(result.fts).toEqual({ count: 1001 });
+    }, 30000);
+    it('keeps the existing channel-only feed semantics', () => {
+        const result = runScenario('valid', 0);
+        expect(result.outcome).toBe('EPG_COMPLETE');
+        expect(result.programmeCount).toEqual({ count: 2 });
+        expect(result.titles).toEqual(['Other programme', 'Previous archive']);
+        expect(result.fts).toEqual({ count: 0 });
     }, 30000);
     it('preserves the live guide when a worker is terminated during a download', () => {
         const result = runScenario('cancelled');
@@ -80,10 +101,35 @@ describe('atomic XMLTV import through the real Electron parser worker', () => {
         expect(result.progressEvents).toBeGreaterThan(0);
         expect(isDeepStrictEqual(result.after, result.before)).toBe(true);
     }, 30000);
+    it('rolls back termination after a full batch inside publication and keeps readers on the old guide', () => {
+        const result = runScenario('cancelled-publish');
+        expect(result.outcome).toBe('CANCELLED');
+        expect(isDeepStrictEqual(result.after, result.before)).toBe(true);
+        expect(result.fts).toEqual({ count: 0 });
+        expect(result.readDuringPublish).toEqual([
+            { title: 'Expired archive' },
+            { title: 'Other programme' },
+            { title: 'Previous archive' },
+            { title: 'Previous programme' },
+        ]);
+    }, 30000);
+    it('retries a failed publication with a fresh worker and no leaked staging data or locks', () => {
+        const result = runScenario('retry');
+        expect(result.outcome).toBe('EPG_ERROR');
+        expect(isDeepStrictEqual(result.failedSnapshot, result.before)).toBe(
+            true
+        );
+        expect(result.retryResult?.outcome).toBe('EPG_COMPLETE');
+        expect(result.fts).toEqual({ count: 1001 });
+        expect(result.programmeCount).toEqual({ count: 1003 });
+    }, 30000);
     it('imports 137,000 programmes with a 64 MiB V8 old-generation limit', () => {
         const result = runScenario('valid', 137000);
         expect(result.outcome).toBe('EPG_COMPLETE');
         expect(result.programmeCount).toEqual({ count: 137002 });
+        expect(result.metrics?.tempStore).toBe(1);
+        expect(result.metrics?.stagedBytes).toBeGreaterThan(2 * 1024 * 1024);
+        console.info('Large EPG publication metrics:', result.metrics);
         expect(result.fts).toEqual({ count: 137000 });
         expect(result.titles).toEqual(['Other programme', 'Previous archive']);
     }, 120000);
