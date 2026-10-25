@@ -25,7 +25,6 @@ import {
     PortalDetailShellComponent,
     SimilarRailComponent,
     type SimilarRailItem,
-    ViewInPortalActionComponent,
     VodMoreMenuComponent,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
@@ -82,7 +81,6 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
         MatIcon,
         NgTemplateOutlet,
         PortalDetailShellComponent,
-        ViewInPortalActionComponent,
         SlicePipe,
         TranslateModule,
         PortalInlinePlayerComponent,

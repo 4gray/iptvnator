@@ -159,9 +159,13 @@ test.describe('Electron Favorites', () => {
                         })
                         .click();
                 }
+                await expect(
+                    page.locator('app-view-in-portal-action')
+                ).toHaveCount(0);
+                await page.locator('[data-testid="vod-more-menu"]').click();
                 await page
-                    .getByRole('button', {
-                        name: 'View in portal',
+                    .getByRole('menuitem', {
+                        name: 'Open in Portal A',
                         exact: true,
                     })
                     .click();
