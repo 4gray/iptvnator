@@ -247,7 +247,7 @@
         "cookie": "2.0.1",
         "cors": "2.8.6",
         "drizzle-kit": "0.31.11",
-        "electron": "^43.3.0",
+        "electron": "^43.8.1",
         "electron-builder": "^26.15.7",
         "electron-playwright-helpers": "1.8.2",
         "esbuild": "0.28.2",
@@ -287,7 +287,7 @@
         "typescript": "6.0.3",
         "typescript-eslint": "^8.71.1",
         "yaml": "2.9.1",
-        "zod": "4.6.5"
+        "zod": "4.6.6"
     },
     "pnpm": {
         "overrides": {
