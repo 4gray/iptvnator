@@ -2,7 +2,8 @@ import { useNotice } from './use-notice';
 import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
-import { firstRoute, type Route, type View } from './navigation';
+import { firstRoute, type View } from './navigation';
+import { useRouteHistory } from './use-route-history';
 export type { View } from './navigation';
 import { useUserData } from './user-data';
 import { useContent } from './use-content';
@@ -28,7 +29,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         category: string;
         origin: string;
     }>();
-    const stack = useRef<{ route: Route; focus: string; scroll: number }[]>([]);
+    const { stack, visit } = useRouteHistory(route, setRoute);
     const playerOrigin = useRef('');
     const playingCategory = useRef('');
     const pendingFocus = useRef('');
@@ -151,14 +152,25 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             void play(item);
             return;
         }
-        stack.current.push({
-            route,
-            focus: focusKey(),
-            scroll: document.querySelector('main')?.scrollTop ?? 0,
-        });
+        visit({ ...route, view: 'detail', item }, 'detail-play');
         setSelected(item);
-        setRoute({ ...route, view: 'detail', item });
-        restoreFocus('detail-play', '', 0);
+    }
+    function openPerson(person: { tmdbId: number; name: string }) {
+        playback.current.cancel();
+        if (
+            !data.activeId ||
+            !Number.isInteger(person.tmdbId) ||
+            person.tmdbId <= 0
+        )
+            return;
+        visit(
+            {
+                ...route,
+                view: 'person',
+                person: { ...person, sourceId: data.activeId },
+            },
+            'person-back'
+        );
     }
     async function play(
         item: Media,
@@ -372,6 +384,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         player,
         navigate,
         open,
+        openPerson,
         play,
         back,
         stop,

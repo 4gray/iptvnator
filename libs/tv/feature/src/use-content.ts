@@ -196,6 +196,7 @@ export function useContent(
     );
     return {
         ...catalog,
+        finishFocus,
         home,
         episodes,
         epg,

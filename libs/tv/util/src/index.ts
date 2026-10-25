@@ -47,8 +47,17 @@ export interface Media {
     seriesYear?: string;
     metadata?: {
         tmdbId: number;
-        cast: { name: string; character?: string; profileUrl: string | null }[];
-        authors: { name: string; profileUrl: string | null }[];
+        cast: {
+            name: string;
+            character?: string;
+            profileUrl: string | null;
+            tmdbPersonId?: number;
+        }[];
+        authors: {
+            name: string;
+            profileUrl: string | null;
+            tmdbPersonId?: number;
+        }[];
         authorRole: 'Creators' | 'Directors';
     };
     raw: Record<string, unknown>;

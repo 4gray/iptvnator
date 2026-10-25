@@ -171,9 +171,11 @@ export interface TmdbPersonCredit {
     media_type?: string;
     /** Movie credits */
     title?: string;
+    original_title?: string;
     release_date?: string;
     /** TV credits */
     name?: string;
+    original_name?: string;
     first_air_date?: string;
     /** Acting credits (cast array) */
     character?: string;

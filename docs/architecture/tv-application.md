@@ -458,8 +458,20 @@ language cache/fallback and explicit single-season title-marker correction.
 Episodes match by number within that season. TMDB fills descriptions/stills and
 generic titles; meaningful provider titles and every playback coordinate remain
 unchanged. Missing TMDB episodes/fields leave provider content usable. Live
-channels, whole-catalog enrichment, discovery, person pages and trailers remain
+channels, whole-catalog enrichment, discovery and trailers remain
 outside this TV integration.
+Circular actor/director/creator controls open cached, language-scoped person
+details and the complete combined acting/directing/creating filmography. Missing
+photos keep initials. Selecting a filmography card searches only the current
+provider, trying display and original titles and paging its search results.
+Normalized title/year confidence keeps remakes and movie/series collisions
+separate; canonical numeric titles do not become release-year tags. Several
+equally strong versions require a choice. Found entries open actual provider
+details, preserving all stream coordinates and commands. A finished search with
+no match reports that the title is unavailable in this portal. Errors, repeated
+pages, the 20-page safety limit and the 15-second deadline report an incomplete
+search with retry. Cancellation, source changes and navigation discard obsolete
+results. Person/detail Back preserves card focus and scroll position.
 Settings distinguishes key validation from saved enablement and warns about
 unsaved changes; checking a key does not enable enrichment automatically.
 

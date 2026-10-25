@@ -83,7 +83,7 @@ export function Detail({
                     </div>
                 </div>
             </section>
-            <MetadataCredits item={item} />
+            <MetadataCredits item={item} open={tv.openPerson} />
             {item.kind === 'series' ? (
                 <section>
                     <div class="section-title">

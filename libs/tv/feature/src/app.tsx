@@ -16,6 +16,7 @@ import { Backdrop, TvIcon } from '@iptvnator/tv/ui';
 import { useMetadata } from './use-metadata';
 import { useSeriesContext } from './use-series-context';
 import { mediaTitle } from '@iptvnator/tv/util';
+import { PersonPage } from './person-page';
 const navigation: [View, string][] = [
     ['home', 'Home'],
     ['live', 'TV'],
@@ -209,6 +210,12 @@ export function TvApp() {
                     />
                 ) : r.view === 'favorites' ? (
                     <Favorites tv={tv} />
+                ) : r.view === 'person' ? (
+                    <PersonPage
+                        key={`${tv.data.activeId}:${r.person?.tmdbId}`}
+                        tv={tv}
+                        client={metadata.client}
+                    />
                 ) : r.view === 'detail' ? (
                     <Detail
                         key={r.item?.id}

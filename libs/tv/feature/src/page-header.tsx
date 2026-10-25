@@ -12,6 +12,7 @@ export function PageHeader({ tv }: { tv: TvModel }) {
         settings: 'Settings',
         home: '',
         detail: '',
+        person: '',
     }[view];
     const count =
         view === 'favorites'
@@ -21,8 +22,13 @@ export function PageHeader({ tv }: { tv: TvModel }) {
               : undefined;
     return (
         <header class="page-header">
-            {view === 'detail' ? (
-                <button data-focus="detail-back" onClick={tv.back}>
+            {view === 'detail' || view === 'person' ? (
+                <button
+                    data-focus={
+                        view === 'person' ? 'person-back' : 'detail-back'
+                    }
+                    onClick={tv.back}
+                >
                     ← Back
                 </button>
             ) : (

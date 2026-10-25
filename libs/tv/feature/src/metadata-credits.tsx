@@ -1,6 +1,13 @@
 import type { Media } from '@iptvnator/tv/util';
+import { PersonAvatar } from './person-avatar';
 
-export function MetadataCredits({ item }: { item: Media }) {
+export function MetadataCredits({
+    item,
+    open,
+}: {
+    item: Media;
+    open: (person: { tmdbId: number; name: string }) => void;
+}) {
     const metadata = item.metadata;
     if (!metadata) return null;
     const groups: [string, NonNullable<Media['metadata']>['cast']][] = [
@@ -16,23 +23,32 @@ export function MetadataCredits({ item }: { item: Media }) {
                         <ul class="people-list">
                             {members.map((person) => (
                                 <li>
-                                    {person.profileUrl ? (
-                                        <img
-                                            src={person.profileUrl}
-                                            alt=""
-                                            loading="lazy"
-                                            onError={(e) => {
-                                                e.currentTarget.style.display =
-                                                    'none';
-                                            }}
+                                    <button
+                                        class="person-chip"
+                                        data-focus={`person:${label}:${person.tmdbPersonId}`}
+                                        disabled={!person.tmdbPersonId}
+                                        aria-label={`View filmography: ${person.name}`}
+                                        onClick={() => {
+                                            if (person.tmdbPersonId)
+                                                open({
+                                                    tmdbId: person.tmdbPersonId,
+                                                    name: person.name,
+                                                });
+                                        }}
+                                    >
+                                        <PersonAvatar
+                                            name={person.name}
+                                            photo={person.profileUrl}
                                         />
-                                    ) : null}
-                                    <span>
-                                        <strong>{person.name}</strong>
-                                        {person.character ? (
-                                            <small>{person.character}</small>
-                                        ) : null}
-                                    </span>
+                                        <span>
+                                            <strong>{person.name}</strong>
+                                            {person.character ? (
+                                                <small>
+                                                    {person.character}
+                                                </small>
+                                            ) : null}
+                                        </span>
+                                    </button>
                                 </li>
                             ))}
                         </ul>

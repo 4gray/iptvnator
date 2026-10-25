@@ -4,6 +4,7 @@ import {
     TmdbMemoryCache,
     TmdbMetadataClient,
     TmdbSeasonClient,
+    TmdbPersonClient,
     enrichedCast,
     enrichedCreators,
     enrichedDirectors,
@@ -59,6 +60,15 @@ export class TvMetadata {
             appLanguage: () => this.settings.language,
             language: () => toTmdbLanguage(this.settings.language),
         };
+    }
+    getPerson(personId: number, signal: AbortSignal) {
+        return withDeadline(signal, (abort) =>
+            new TmdbPersonClient(
+                this.runtime(),
+                new TmdbApiClient(abort),
+                this.cache
+            ).getPersonDetails(personId)
+        );
     }
     async enrich(
         item: Media,
