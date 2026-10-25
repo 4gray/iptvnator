@@ -1553,6 +1553,23 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 - Lazy VOD-series episodes use scoped tracking IDs derived from the parent
   series ID, provider episode ID, season key, and episode number. The season
   key follows the mapping fallback (`season_number`, then name, then ID).
+- Lazy VOD playback and new downloads resolve commands through
+  `StalkerEpisodeResolver`. The mapper preserves an episode's own `cmd` and
+  provider `movie_id` (season `video_id`), `season_id`, and `episode_id`
+  separately from display numbers and tracking IDs. An explicit episode
+  command wins; otherwise `get_ordered_list` with all three coordinates
+  returns media files. The first usable video file in provider order wins
+  among quality/language variants. Subtitle, foreign-owner, missing-command,
+  malformed, and empty responses never fall back to an invented
+  `/media/file_<episode_id>.mpg` or the saved parent command. File resolution
+  and `create_link` use the existing authenticated/repair request pipeline.
+  For file rows with `protocol: custom`, their raw URL-valued command must
+  become `/media/file_<file.id>.mpg` before `create_link`, matching Ministra's
+  reference player. Only a valid returned file ID is accepted; the episode ID
+  is never substituted.
+- The extra file lookup is covered by the pending playback ownership guard:
+  changes to the selected source/show, episode command, or provider
+  coordinates discard its result before inline or external playback starts.
 - The previous season/episode hash remains available only as a compatibility
   alias in `legacyTrackingId`. The scoped ID is the in-memory episode key, and
   new playback positions always use it.
@@ -1570,8 +1587,8 @@ Series inline playback behavior is shared across all three modes:
 
 - `StalkerSeriesViewComponent` maps every mode into `mappedSeasons()` and uses
   two episode identities. A pending playback request keeps an exact,
-  request-local provider command or episode ID so command rotation and hash
-  collisions reject stale completion. Once mounted, the component freezes only
+  request-local provider command or lazy episode ID/command/provider
+  coordinates so command rotation and hash collisions reject stale completion. Once mounted, the component freezes only
   the credential-free structural identity and session key (source, normalized
   parent, mode, season key, season number, and episode number).
 - The mounted structural identity is re-resolved against the current
@@ -1616,6 +1633,14 @@ The VOD-series contract is cross-surface:
 
 - Favorites and recently viewed records preserve the raw `is_series` flag and
   VOD origin so reopening still uses the lazy Ministra resources.
+- The #1844 file-resolution fix needs no schema or saved-entry migration.
+  Existing favorites/recent snapshots with the lazy `is_series` marker reopen
+  the parent and load fresh seasons/episodes, including snapshots holding an
+  old synthesized parent `cmd`. Scoped and legacy progress IDs are unchanged.
+  Progress recorded while the wrong video was playing cannot be reliably
+  repaired automatically and is preserved. Existing download URLs and files
+  are also preserved: cancel/remove an affected old entry and enqueue a new
+  download from the series; Retry/Resume reuses the old stored URL.
 - `extractStalkerItemType()` normalizes those activity records to dashboard
   type `series`.
 - The dashboard resolves episode progress by the parent `seriesXtreamId` and

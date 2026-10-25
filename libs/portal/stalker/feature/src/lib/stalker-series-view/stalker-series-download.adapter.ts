@@ -28,6 +28,7 @@ export interface StalkerSeriesDownloadAdapterOptions {
     readonly language: string;
     readonly seriesId: number;
     readonly seriesMode: StalkerSeriesDownloadMode;
+    readonly resolveLazyUrl: (episode: StalkerMappedEpisode) => Promise<string>;
     readonly resolveUrl: (
         command: string,
         episodeNumber: number
@@ -84,13 +85,6 @@ function episodeInfo(
     return Array.isArray(episode.info) ? undefined : episode.info;
 }
 
-function playbackCommand(episode: XtreamSerieEpisode): string {
-    const mappedEpisode = episode as StalkerMappedEpisode;
-    return mappedEpisode.custom_sid === 'vod-series'
-        ? `/media/file_${mappedEpisode.originalId}.mpg`
-        : (mappedEpisode.originalCmd ?? '');
-}
-
 export function createStalkerSeriesDownloadAdapter(
     options: StalkerSeriesDownloadAdapterOptions
 ): SeasonEpisodeDownloadAdapter {
@@ -136,10 +130,14 @@ export function createStalkerSeriesDownloadAdapter(
             return {
                 identity,
                 prepare: async () => {
-                    const url = await options.resolveUrl(
-                        playbackCommand(episode),
-                        episodeNumber
-                    );
+                    const mapped = episode as StalkerMappedEpisode;
+                    const url =
+                        mapped.custom_sid === 'vod-series'
+                            ? await options.resolveLazyUrl(mapped)
+                            : await options.resolveUrl(
+                                  mapped.originalCmd ?? '',
+                                  episodeNumber
+                              );
                     if (!isPresent(url)) {
                         throw new Error('Unable to prepare episode download');
                     }

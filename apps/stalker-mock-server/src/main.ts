@@ -275,6 +275,13 @@ const GATED_STREAM_FIXTURES: Record<string, string> = {
     ),
 };
 
+app.get('/stream/issue1844/:show/:episode.mp4', (_req, res) => {
+    res.sendFile(GATED_STREAM_FIXTURES['video.mp4'], {
+        dotfiles: 'allow',
+        headers: { 'Content-Type': 'video/mp4' },
+    });
+});
+
 app.get('/stream/gated/:file', (req: Request, res: Response) => {
     const fixture = GATED_STREAM_FIXTURES[req.params['file'] ?? ''];
     if (!fixture) {

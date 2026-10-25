@@ -10,6 +10,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     StalkerStore,
+    StalkerEpisodeResolver,
     mapVodSeriesEpisodes,
     type StalkerMappedEpisode,
     type StalkerVodSource,
@@ -211,6 +212,17 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
             providers: [
+                {
+                    provide: StalkerEpisodeResolver,
+                    useValue: {
+                        resolveCommand: async (
+                            _playlist: unknown,
+                            episode: { originalId?: string }
+                        ) => `/media/file_${episode.originalId}.mpg`,
+                        resolveDownload: async () =>
+                            'https://cdn.example.test/episode.mpg',
+                    },
+                },
                 {
                     provide: StalkerStore,
                     useValue: {

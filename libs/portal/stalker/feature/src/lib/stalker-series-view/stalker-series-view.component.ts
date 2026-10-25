@@ -80,6 +80,7 @@ import {
     normalizeStalkerVodDetailsItem,
     StalkerSelectedVodItem,
     StalkerStore,
+    StalkerEpisodeResolver,
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
@@ -172,6 +173,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     readonly heroPresenter = inject(StalkerSeriesHeroPresenter);
     readonly menu = inject(StalkerSeriesMenuService);
+    private readonly episodeResolver = inject(StalkerEpisodeResolver);
     private readonly seasonContainerRef =
         viewChild<SeasonContainerComponent>('seasonContainer');
     private readonly positions = inject(StalkerSeriesPositionsService);
@@ -692,6 +694,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 'en',
             seriesId: this.toSeriesId(item?.id ?? 0),
             seriesMode: this.seriesMode(),
+            resolveLazyUrl: (episode) =>
+                this.episodeResolver.resolveDownload(playlist, episode),
             resolveUrl: (command, episodeNumber) =>
                 this.stalkerStore.fetchLinkToPlay(
                     playlist?.portalUrl ?? '',
@@ -967,9 +971,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         const mappedEpisode = episodeState.episode as StalkerMappedEpisode;
         const isLazyVod = mappedEpisode.custom_sid === 'vod-series';
-        const command = isLazyVod
-            ? `/media/file_${mappedEpisode.originalId ?? ''}.mpg`
-            : mappedEpisode.originalCmd;
+        const command = mappedEpisode.originalCmd;
         const title = isLazyVod
             ? `${item.info.name} - ${mappedEpisode.title || this.episodeLabel(episodeState.episodeNumber)}`
             : item.info.name;
@@ -1268,6 +1270,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const pendingSeriesId = this.currentSeriesKey();
         this.pendingStartSeriesIds.update((ids) => [...ids, pendingSeriesId]);
         try {
+            const episode = episodeState.episode as StalkerMappedEpisode;
+            if (episode.custom_sid === 'vod-series') {
+                cmd = await this.episodeResolver.resolveCommand(
+                    this.stalkerStore.currentPlaylist(),
+                    episode
+                );
+                if (!this.isPlaybackRequestCurrent(request)) return;
+            }
             const playback = await this.stalkerStore.resolveVodPlayback(
                 cmd,
                 title,
