@@ -103,5 +103,52 @@ repair the existing episode titles by visiting their parents, and verify Home
 plus saved resume after relaunch. Real season-4 episode descriptions/stills have
 not yet been inspected; a show listing ten episodes does not prove those fields
 exist. TMDB cannot supply fields absent from its selected show/season/language.
-Person pages, discovery, trailers and whole-catalog enrichment remain outside
-the TV integration. Movie directors and series creators remain distinct roles.
+At 0.1.16, person pages, discovery, trailers and whole-catalog enrichment remain
+outside the TV integration; the 0.1.17 follow-up below adds person pages. Movie directors and series creators remain distinct roles.
+
+## Person filmographies — prototype 0.1.17
+
+The requested follow-up adds person pages to the earlier 0.1.16 scope.
+Implementation revision: `71c52fe136f50e7b8005cbbfe7db246f13e59290` on the same
+isolated branch. Actor, movie-director and series-creator controls now have
+circular photos (or initials) and names, with a shared cached person client and
+complete filmography projection. Angular keeps its existing 80-credit default;
+TV requests all deduplicated acting/directing/creating credits and virtualizes
+its display.
+
+Choosing a filmography title searches only the active provider by display and
+original title. Normalization/year evidence distinguishes remakes and canonical
+numeric titles, and an exact title/year match may open immediately when a portal
+ignores search filtering. Provider versions can be chosen when several match.
+Found entries open provider details; TMDB IDs never become playback IDs. Only a
+finished empty search reports unavailable. Connection/incomplete-search failures
+have retry; cancellation, timeout and navigation cannot open obsolete results.
+Back restores card focus and scroll even for a distant virtualized card.
+
+Final local checks on that implementation:
+
+- TV unit tests: **96/96**; shared TMDB: **90/90**; Angular TMDB: **101/101**.
+- Affected lint: **9 projects pass**; TV, TV-tests and TV-E2E types pass.
+  Angular application entrypoint and both shared-TMDB/services spec programs
+  also pass after extraction of the shared person implementation.
+- Focused production-browser regression selection: **17/17 pass**, including
+  four person scenarios: real backend plus Xtream and Stalker mock lookups,
+  actor/director navigation, absent titles, retry/cancel, person API failure,
+  a 103-credit list and distant-card focus/scroll after detail Back.
+- Screenshots of circular people controls and filmographies at 1920/1280 px
+  are visually inspected; the checked layouts have no horizontal overflow.
+  Evidence uses fictional people, images and credentials under
+  `dist/.playwright/apps/tv-e2e/test-output/tmdb-person.e2e.ts-*`.
+- IPK packaging, classic deferred IIFE, ES2018 syntax and unsupported builtin
+  checks pass. Shared TMDB coverage: statements **80.38%**, branches **60.60%**,
+  functions **69.04%**, lines **80.65%**. No thresholds/baselines change.
+- A new user-facing release note and canonical TMDB/TV contracts are updated;
+  release-note, guidance and diff checks pass.
+
+Package: `dist/tv-package/com.iptvnator.tv.prototype_0.1.17_all.ipk`.
+SHA-256: `6addbbadcfab52646ad59185481f01de4fb3d6fec5fdcc0bdb1382b60a4904ef`.
+The LG Developer Mode port remains unavailable during this follow-up, so this
+package is **not installed or certified on the LG**. Real cast/director clicks,
+full person responses and provider title matching on that device remain pending.
+The earlier real API observations remain separate from these mocked browser
+checks. No push, CI, master merge or NAS deployment is performed.
