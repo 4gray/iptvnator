@@ -127,9 +127,11 @@ request loop. Source/category/query changes cancel the append lane. Returning
 from details retains the active query's loaded items, identity and scroll offset.
 
 `VirtualCollection` windows the DOM with measured row geometry and spacer
-heights: at most 60 poster cards, 20 channel rows or 30 episode rows. Favorites
-and supplied episode arrays use the same scroll window instead of page buttons.
-Arrow Up/Down moves by logical row and loads the next batch when necessary;
+heights: at most 60 poster cards, 20 channel rows, 30 compact channel cards or
+30 episode rows. Favorites and supplied episode arrays use the same scroll
+window instead of page buttons.
+Arrow Left/Right stays in the current grid row when a neighbor exists;
+Up/Down moves by logical row and loads the next batch when necessary;
 scroll and Magic Remote pointer use the same viewport. Focus never starts a
 stream. Resize and restoration are measured against the actual scroller before
 pruning rows. Home's editorial rails remain capped previews. Provider APIs that
@@ -175,8 +177,21 @@ Blank/placeholder fields fall through to screenshot/logo candidates; non-HTTP
 schemes and URL-embedded credentials are rejected. The existing Angular mapper
 re-exports its unchanged `makeAbsoluteUrl` helper from the extracted module.
 Poster boxes use a Chromium-68-compatible percentage ratio of 2:3 at every
-width, with `object-fit: cover`; live logos use a 16:9 box and `contain`.
+width, with `object-fit: cover`. Live logos use compact square boxes and
+`contain`, with a local SVG television icon for absent or failed images.
 An unavailable provider image keeps a text fallback and never blocks browsing.
+
+Section headings, counts and the source selector share a compact top row;
+filters follow directly below. Decorative top slogans and the prototype footer
+are absent. Favorites separates Movies, Series (including saved episodes) and
+TV within the active source. Movie/series posters retain their proportions;
+channels use horizontal cards. Detail Back restores the selected favorite type,
+item and scroll position. Home Continue watching pairs a 2:3 cover (or local
+fallback icon) with persisted progress and its existing resume action. Available
+parent artwork fills missing episode covers without requesting a new catalog.
+Historical Stalker history/favorites recover missing covers from their saved raw
+fields through the provider artwork resolver, without rewriting saved commands,
+positions or credentials.
 
 Home and details share a backdrop beginning at the top of the content viewport,
 behind the header. Left and bottom gradients keep text readable and fade into

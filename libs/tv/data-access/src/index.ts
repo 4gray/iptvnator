@@ -25,3 +25,4 @@ export { probeDirect } from './direct-probe';
 export { TvMetadata, checkTmdbKey } from './tmdb';
 export * from './backend';
 export * from './pairing';
+export { storedMediaPoster } from './stored-artwork';

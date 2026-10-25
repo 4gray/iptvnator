@@ -1,3 +1,5 @@
+import { PageHeader } from './page-header';
+import { Favorites } from './favorites';
 import { usePlayerControls } from './player-controls';
 import { useEffect, useRef } from 'preact/hooks';
 import { useTv, View } from './use-tv';
@@ -115,25 +117,7 @@ export function TvApp() {
                 class={cinematic ? `cinematic-page ${r.view}-page` : ''}
             >
                 {cinematic ? <Backdrop item={metadata.item} /> : null}
-                <header>
-                    <span class="brand-caption">THE EVENING IS YOURS</span>
-                    <select
-                        aria-label="Active source"
-                        value={tv.data.activeId}
-                        onChange={(event) => {
-                            void tv.switchSource(event.currentTarget.value);
-                        }}
-                    >
-                        {!tv.data.sources.length ? (
-                            <option value="">No source connected</option>
-                        ) : null}
-                        {tv.data.sources.map((s) => (
-                            <option value={s.id}>
-                                {s.name} · {s.provider.toUpperCase()}
-                            </option>
-                        ))}
-                    </select>
-                </header>
+                <PageHeader tv={tv} />
                 {metadata.failed ? (
                     <div class="metadata-notice" role="status">
                         TMDB is unavailable. Showing provider information.
@@ -162,15 +146,13 @@ export function TvApp() {
                     <Settings tv={tv} />
                 ) : r.view === 'live' ? (
                     <Live tv={tv} />
+                ) : r.view === 'favorites' ? (
+                    <Favorites tv={tv} />
                 ) : r.view === 'detail' ? (
                     <Detail key={r.item?.id} tv={display} />
                 ) : (
                     <CatalogScreen tv={tv} />
                 )}
-                <footer>
-                    <span>IPTVnator TV · Prototype</span>
-                    <span>Arrows · OK · Back</span>
-                </footer>
             </main>
             <div
                 class={`native-player ${tv.fullscreen ? 'fullscreen' : 'preview'}`}

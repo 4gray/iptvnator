@@ -14,7 +14,7 @@ export function VirtualCollection<T extends { id: string }>({
     render,
 }: {
     items: T[];
-    layout?: 'posters' | 'channels' | 'episodes';
+    layout?: 'posters' | 'channels' | 'episodes' | 'stations';
     more?: boolean;
     busy?: boolean;
     error?: string;
@@ -28,8 +28,10 @@ export function VirtualCollection<T extends { id: string }>({
     const initialColumns =
         layout === 'channels'
             ? 1
-            : layout === 'episodes'
-              ? 3
+            : layout === 'episodes' || layout === 'stations'
+              ? innerWidth <= 900
+                  ? 2
+                  : 3
               : innerWidth <= 900
                 ? 3
                 : innerWidth <= 1400
@@ -156,6 +158,27 @@ export function VirtualCollection<T extends { id: string }>({
                 const target = event.target as HTMLElement;
                 const down = event.key === 'ArrowDown' || event.keyCode === 40;
                 const up = event.key === 'ArrowUp' || event.keyCode === 38;
+                const right =
+                    event.key === 'ArrowRight' || event.keyCode === 39;
+                const left = event.key === 'ArrowLeft' || event.keyCode === 37;
+                if ((right || left) && target.dataset.virtualIndex) {
+                    const index = Number(target.dataset.virtualIndex);
+                    const next = index + (right ? 1 : -1);
+                    const sameRow =
+                        Math.floor(index / windowed.columns) ===
+                        Math.floor(next / windowed.columns);
+                    const destination = sameRow
+                        ? grid.current?.querySelector<HTMLElement>(
+                              `[data-virtual-index="${next}"]`
+                          )
+                        : null;
+                    if (destination) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        destination.focus();
+                        destination.scrollIntoView({ block: 'nearest' });
+                    }
+                }
                 if ((down || up) && target.dataset.virtualIndex) {
                     const next =
                         Number(target.dataset.virtualIndex) +
@@ -198,9 +221,11 @@ export function VirtualCollection<T extends { id: string }>({
                 class={
                     layout === 'posters'
                         ? 'poster-grid'
-                        : layout === 'episodes'
-                          ? 'episode-grid'
-                          : 'channel-window'
+                        : layout === 'stations'
+                          ? 'station-grid'
+                          : layout === 'episodes'
+                            ? 'episode-grid'
+                            : 'channel-window'
                 }
             >
                 {items.slice(start, end).map((item, offset) =>

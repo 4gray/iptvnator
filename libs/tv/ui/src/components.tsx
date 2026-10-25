@@ -1,3 +1,4 @@
+import { ChannelCard } from './channel-card';
 import { Media } from '@iptvnator/tv/util';
 export * from './focus';
 export function Poster({
@@ -11,10 +12,12 @@ export function Poster({
     saved?: boolean;
     'data-virtual-index'?: number;
 }) {
+    if (item.kind === 'live')
+        return <ChannelCard item={item} open={open} {...attributes} />;
     return (
         <button
             {...attributes}
-            class={`poster-card ${item.kind === 'live' ? 'is-live' : ''}`}
+            class="poster-card"
             data-focus={item.id}
             onClick={() => open(item)}
         >
@@ -33,19 +36,14 @@ export function Poster({
                 <small>
                     {item.kind === 'series'
                         ? 'SERIES'
-                        : item.kind === 'live'
-                          ? 'LIVE'
+                        : item.kind === 'episode'
+                          ? 'EPISODE'
                           : 'FILM'}
                 </small>
             </span>
             <strong>{item.title}</strong>
             <span class="muted">
-                {saved
-                    ? '♥ Saved'
-                    : item.year ||
-                      (item.kind === 'live'
-                          ? 'Live television'
-                          : 'From your source')}
+                {saved ? '♥ Saved' : item.year || 'From your source'}
             </span>
         </button>
     );

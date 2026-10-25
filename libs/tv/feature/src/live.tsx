@@ -1,11 +1,10 @@
-import { Empty, VirtualCollection } from '@iptvnator/tv/ui';
+import { Empty, VirtualCollection, ChannelLogo } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 export function Live({ tv }: { tv: TvModel }) {
     const r = tv.route;
     const selected = tv.selected;
     return (
         <>
-            <h1>Live television</h1>
             <p class="muted">
                 Choose a channel. Press OK to preview, and again to fill your
                 screen.
@@ -55,13 +54,7 @@ export function Live({ tv }: { tv: TvModel }) {
                                     <span class="channel-number">
                                         {String(n + 1).padStart(2, '0')}
                                     </span>
-                                    {item.poster ? (
-                                        <img src={item.poster} alt="" />
-                                    ) : (
-                                        <span class="channel-logo">
-                                            {item.title.slice(0, 1)}
-                                        </span>
-                                    )}
+                                    <ChannelLogo src={item.poster} />
                                     <span>
                                         <strong>{item.title}</strong>
                                         <small>

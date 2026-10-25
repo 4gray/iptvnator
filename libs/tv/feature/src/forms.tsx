@@ -65,7 +65,6 @@ export function Sources({ tv }: { tv: TvModel }) {
     }
     return (
         <>
-            <h1>Sources</h1>
             <p class="muted">Your subscriptions. Saved on this TV.</p>
             <div class="source-list">
                 {tv.data.sources.map((source) => (

@@ -16,9 +16,6 @@ export function Detail({ tv }: { tv: TvModel }) {
     const saved = tv.data.favorites.some((m) => m.id === item.id);
     return (
         <>
-            <button data-focus="detail-back" onClick={tv.back}>
-                ← Back
-            </button>
             <section class="detail-hero">
                 <div class="detail-poster">
                     {item.poster ? (

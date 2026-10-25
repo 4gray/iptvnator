@@ -197,22 +197,33 @@ main {
     margin-left: 230px;
     height: 100vh;
     overflow: auto;
-    padding: 0 56px 38px;
+    padding: 32px 56px 38px;
 }
-header {
+.page-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 122px;
-    margin-bottom: 22px;
+    min-height: 56px;
+    margin-bottom: 24px;
 }
-.brand-caption {
-    font-size: 14px;
-    letter-spacing: 4px;
+.page-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    min-width: 0;
+    margin-right: 28px;
+}
+.page-heading h1 {
+    margin: 0 24px 0 0;
+}
+.catalog-count {
     color: var(--tv-muted);
+    font-size: 18px;
+    white-space: nowrap;
 }
 header select {
-    max-width: 420px;
+    max-width: 360px;
+    flex-shrink: 0;
     font-size: 17px;
     background: rgba(11, 16, 15, 0.8);
 }
@@ -413,33 +424,141 @@ header select {
     padding-top: 150%;
 }
 .resume-card {
-    width: 310px;
-    min-width: 310px;
+    width: 400px;
+    min-width: 400px;
+    height: 186px;
     margin-right: 24px;
-    padding: 28px;
-    background: #192d22;
+    padding: 0;
+    display: flex;
+    align-items: stretch;
+    background: var(--tv-surface);
 }
-.resume-card strong {
+.resume-art {
+    width: 120px;
+    min-width: 120px;
+    height: 180px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tv-accent);
+    background: #263e31;
+}
+.resume-art > svg {
+    width: 40px;
+    height: 40px;
+}
+.resume-art img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.resume-copy {
+    min-width: 0;
+    padding: 18px;
+    flex: 1;
+}
+.resume-copy strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1.2;
+    height: 48px;
+    margin-bottom: 8px;
+}
+.resume-position,
+.resume-action {
     display: block;
-    margin-bottom: 20px;
-}
-.resume-card span {
-    font-size: 16px;
+    font-size: 15px;
     color: var(--tv-muted);
-    display: block;
+}
+.resume-action {
+    color: var(--tv-accent);
+    margin-top: 10px;
 }
 .resume-card progress {
+    display: block;
     width: 100%;
     height: 4px;
-    accent-color: var(--tv-accent);
-    margin-top: 20px;
+    border: 0;
+    margin-top: 12px;
+    -webkit-appearance: none;
+}
+.resume-card progress::-webkit-progress-bar {
+    background: var(--tv-line);
+}
+.resume-card progress::-webkit-progress-value {
+    background: var(--tv-accent);
+}
+.favorite-types {
+    display: flex;
+    margin: 0 0 28px;
+}
+.favorite-types button {
+    margin-right: 12px;
+    min-width: 150px;
+}
+.favorite-types span {
+    color: var(--tv-muted);
+    margin-left: 14px;
+    font-size: 17px;
+}
+.favorite-types button[aria-pressed='true'] {
+    background: #1a2d24;
+    color: var(--tv-accent);
+}
+.station-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-gap: 24px;
+    padding: 6px;
+}
+.channel-card {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    height: 116px;
+    padding: 18px;
+}
+.channel-card .channel-logo {
+    width: 64px;
+    height: 64px;
+    min-width: 64px;
+    margin-right: 18px;
+}
+.channel-card-copy {
+    min-width: 0;
+}
+.channel-card strong {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 21px;
+    font-weight: 500;
+}
+.channel-card small {
+    margin-top: 8px;
+    font-size: 15px;
+}
+.rail > .channel-card {
+    width: 320px;
+    min-width: 320px;
+    margin-right: 24px;
 }
 .catalog-filters {
     display: flex;
     align-items: end;
-    margin: 30px 0 12px;
+    margin: 0 0 20px;
 }
 .catalog-filters label {
+    margin-bottom: 0;
     width: 30%;
     margin-right: 24px;
 }
@@ -648,7 +767,6 @@ summary {
 .channel.is-playing {
     border-left: 5px solid var(--tv-accent);
 }
-.channel img,
 .channel-logo {
     width: 48px;
     height: 48px;
@@ -657,11 +775,21 @@ summary {
     flex-shrink: 0;
 }
 .channel-logo {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #283e31;
     color: var(--tv-accent);
+}
+.channel-logo img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #283e31;
 }
 .channel-number {
     font-size: 14px;
@@ -802,16 +930,6 @@ summary {
     opacity: 0;
     pointer-events: none;
 }
-footer {
-    display: flex;
-    justify-content: space-between;
-    border-top: 1px solid var(--tv-line);
-    padding-top: 28px;
-    margin-top: 56px;
-    font-size: 13px;
-    color: #7c9185;
-    letter-spacing: 2px;
-}
 @media (max-width: 1400px) {
     :root {
         font-size: 19px;
@@ -829,10 +947,10 @@ footer {
     }
     main {
         margin-left: 190px;
-        padding: 0 35px 30px;
+        padding: 28px 35px 30px;
     }
-    header {
-        min-height: 92px;
+    header select {
+        max-width: 280px;
     }
     h1 {
         font-size: 40px;
@@ -872,7 +990,6 @@ footer {
     .channel strong {
         font-size: 18px;
     }
-    .channel img,
     .channel-logo {
         width: 36px;
         height: 36px;
@@ -916,13 +1033,22 @@ footer {
     }
     main {
         margin-left: 90px;
-        padding: 0 24px 25px;
+        padding: 24px 24px 25px;
     }
-    .brand-caption {
-        display: none;
+    .page-header {
+        align-items: flex-start;
     }
-    header {
-        justify-content: flex-end;
+    header select {
+        max-width: 220px;
+    }
+    .page-heading h1 {
+        font-size: 34px;
+    }
+    .favorite-types button {
+        min-width: 0;
+    }
+    .station-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .hero {
         padding: 30px;

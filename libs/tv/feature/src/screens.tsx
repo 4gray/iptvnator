@@ -1,5 +1,12 @@
+import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import { CatalogOrder, CatalogSortNotice } from './catalog-order';
-import { Empty, Hero, VirtualCollection, Poster } from '@iptvnator/tv/ui';
+import {
+    Empty,
+    Hero,
+    VirtualCollection,
+    Poster,
+    ResumeCard,
+} from '@iptvnator/tv/ui';
 import { Media } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
 export function Home({ tv }: { tv: TvModel }) {
@@ -37,23 +44,22 @@ export function Home({ tv }: { tv: TvModel }) {
                     <h2>Continue watching</h2>
                     <div class="rail">
                         {history.map((p) => (
-                            <button
-                                class="resume-card"
-                                data-focus={p.item.id}
-                                onClick={() => tv.play(p.item)}
-                            >
-                                <strong>{p.item.title}</strong>
-                                <span>
-                                    {p.item.season
-                                        ? `S${p.item.season} · E${p.item.episode} · `
-                                        : ''}
-                                    {Math.floor(p.seconds / 60)} min watched
-                                </span>
-                                <progress
-                                    max={p.duration || 1}
-                                    value={p.seconds}
-                                />
-                            </button>
+                            <ResumeCard
+                                key={p.item.id}
+                                progress={p}
+                                play={tv.play}
+                                poster={
+                                    storedMediaPoster(
+                                        p.item,
+                                        tv.data.sources.find(
+                                            (s) => s.id === p.item.sourceId
+                                        )
+                                    ) ||
+                                    [...tv.home, ...tv.data.favorites].find(
+                                        (m) => m.id === p.item.parentId
+                                    )?.poster
+                                }
+                            />
                         ))}
                     </div>
                 </section>
@@ -96,110 +102,85 @@ export function Home({ tv }: { tv: TvModel }) {
 }
 export function CatalogScreen({ tv }: { tv: TvModel }) {
     const r = tv.route;
-    const favorites = r.view === 'favorites';
-    const list = favorites
-        ? tv.data.favorites.filter((m) => m.sourceId === tv.data.activeId)
-        : tv.catalog.items;
-    const total = favorites
-        ? tv.data.favorites.filter((m) => m.sourceId === tv.data.activeId)
-              .length
-        : tv.catalog.total;
+    const list = tv.catalog.items;
     return (
         <>
-            <h1>
-                {r.view === 'favorites'
-                    ? 'Favorites'
-                    : r.view === 'search'
-                      ? 'Find your next story.'
-                      : r.view === 'series'
-                        ? 'Series'
-                        : 'Movies'}
-            </h1>
-            {!favorites ? (
-                <div class="catalog-filters">
+            <div class="catalog-filters">
+                <label>
+                    Search this source
+                    <input
+                        type="search"
+                        aria-label="Search this source"
+                        value={r.query}
+                        onInput={(e) =>
+                            tv.setRoute({
+                                ...r,
+                                query: e.currentTarget.value,
+                                page: 0,
+                            })
+                        }
+                    />
+                </label>
+                {r.view === 'search' ? (
                     <label>
-                        Search this source
-                        <input
-                            type="search"
-                            aria-label="Search this source"
-                            value={r.query}
-                            onInput={(e) =>
-                                tv.setRoute({
-                                    ...r,
-                                    query: e.currentTarget.value,
-                                    page: 0,
-                                })
-                            }
-                        />
-                    </label>
-                    {r.view === 'search' ? (
-                        <label>
-                            Content
-                            <select
-                                aria-label="Content type"
-                                value={r.kind}
-                                onChange={(e) =>
-                                    tv.setRoute({
-                                        ...r,
-                                        kind: e.currentTarget
-                                            .value as typeof r.kind,
-                                        page: 0,
-                                        category: '',
-                                    })
-                                }
-                            >
-                                <option value="movie">Movies</option>
-                                <option value="series">Series</option>
-                                <option value="live">Live TV</option>
-                            </select>
-                        </label>
-                    ) : null}
-                    <label>
-                        Category
+                        Content
                         <select
-                            value={r.category}
+                            aria-label="Content type"
+                            value={r.kind}
                             onChange={(e) =>
                                 tv.setRoute({
                                     ...r,
-                                    category: e.currentTarget.value,
+                                    kind: e.currentTarget
+                                        .value as typeof r.kind,
                                     page: 0,
+                                    category: '',
                                 })
                             }
                         >
-                            <option value="">All categories</option>
-                            {tv.catalog.categories.map((c) => (
-                                <option value={c.id}>{c.name}</option>
-                            ))}
+                            <option value="movie">Movies</option>
+                            <option value="series">Series</option>
+                            <option value="live">Live TV</option>
                         </select>
                     </label>
-                    {r.kind === 'movie' || r.kind === 'series' ? (
-                        <CatalogOrder tv={tv} kind={r.kind} />
-                    ) : null}
-                </div>
-            ) : null}
-            {!favorites ? <CatalogSortNotice tv={tv} /> : null}
-            <p class="muted">
-                {total} titles ·{' '}
-                {tv.data.sources.find((s) => s.id === tv.data.activeId)?.name}
-            </p>
+                ) : null}
+                <label>
+                    Category
+                    <select
+                        value={r.category}
+                        onChange={(e) =>
+                            tv.setRoute({
+                                ...r,
+                                category: e.currentTarget.value,
+                                page: 0,
+                            })
+                        }
+                    >
+                        <option value="">All categories</option>
+                        {tv.catalog.categories.map((c) => (
+                            <option value={c.id}>{c.name}</option>
+                        ))}
+                    </select>
+                </label>
+                {r.kind === 'movie' || r.kind === 'series' ? (
+                    <CatalogOrder tv={tv} kind={r.kind} />
+                ) : null}
+            </div>
+            <CatalogSortNotice tv={tv} />
             <VirtualCollection
-                key={favorites ? tv.data.activeId : tv.catalogKey}
+                key={tv.catalogKey}
+                layout={r.kind === 'live' ? 'stations' : 'posters'}
                 items={list}
-                more={!favorites && tv.hasMore}
-                busy={!favorites && tv.catalogBusy}
-                error={favorites ? '' : tv.catalogError}
+                more={tv.hasMore}
+                busy={tv.catalogBusy}
+                error={tv.catalogError}
                 loadMore={tv.loadMore}
                 restoreKey={tv.restoreKey}
                 restoreScroll={tv.restoreScroll}
-                render={(item) => (
-                    <Poster item={item} open={tv.open} saved={favorites} />
-                )}
+                render={(item) => <Poster item={item} open={tv.open} />}
             />
             {!tv.busy && !list.length ? (
                 <Empty>
-                    {favorites
-                        ? 'Save a title or channel to see it here.'
-                        : 'No titles in this category. Try another category or search.'}
+                    No titles in this category. Try another category or search.
                 </Empty>
             ) : null}
         </>

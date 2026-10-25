@@ -22,7 +22,6 @@ export function Settings({ tv }: { tv: TvModel }) {
     };
     return (
         <>
-            <h1>Settings</h1>
             <BackendConnection tv={tv} label="Backend URL" />
             <PhoneSetup tv={tv} purpose="settings" />
             <form
