@@ -93,7 +93,28 @@ export function TvApp() {
                     button.focus({ preventScroll: true });
             }}
         >
-            <aside hidden={tv.fullscreen}>
+            {!tv.storageReady ? (
+                <section
+                    class="source-form storage-recovery"
+                    aria-label="Saved TV data"
+                >
+                    <h1>IPTVnator TV</h1>
+                    {tv.storageError ? (
+                        <>
+                            <p role="alert">{tv.storageError}</p>
+                            <button
+                                autoFocus
+                                onClick={() => void tv.retryStorage()}
+                            >
+                                Retry reading saved data
+                            </button>
+                        </>
+                    ) : (
+                        <p role="status">Loading saved TV data…</p>
+                    )}
+                </section>
+            ) : null}
+            <aside hidden={tv.fullscreen || !tv.storageReady}>
                 <div class="wordmark">
                     ip<span>tv</span>nator<small>TV EDITION</small>
                 </div>
@@ -118,7 +139,7 @@ export function TvApp() {
                 </div>
             </aside>
             <main
-                hidden={tv.fullscreen}
+                hidden={tv.fullscreen || !tv.storageReady}
                 class={
                     cinematic
                         ? `cinematic-page ${r.view}-page`
@@ -138,11 +159,19 @@ export function TvApp() {
                 {tv.error ? (
                     <div role="alert" class="error">
                         <span>{tv.error}</span>
-                        <button onClick={tv.retry}>Retry connection</button>
+                        {tv.errorRetry ? (
+                            <button onClick={tv.errorRetry}>
+                                {tv.errorRetryLabel}
+                            </button>
+                        ) : null}
+                        <button onClick={() => tv.setError('')}>Dismiss</button>
                         <button onClick={() => tv.navigate('sources')}>
                             Edit sources
                         </button>
                     </div>
+                ) : null}
+                {tv.reconnectStatus ? (
+                    <p role="status">{tv.reconnectStatus}</p>
                 ) : null}
                 {tv.busy ? (
                     <div class="loading" role="status">
@@ -289,8 +318,13 @@ export function TvApp() {
                             {tv.error ? (
                                 <div role="alert" class="error">
                                     {tv.error}
-                                    <button onClick={tv.retryPlayback}>
-                                        Retry playback
+                                    {tv.errorRetry ? (
+                                        <button onClick={tv.errorRetry}>
+                                            {tv.errorRetryLabel}
+                                        </button>
+                                    ) : null}
+                                    <button onClick={() => tv.setError('')}>
+                                        Dismiss
                                     </button>
                                 </div>
                             ) : null}

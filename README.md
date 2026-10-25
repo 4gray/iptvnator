@@ -141,10 +141,20 @@ every browser that opens it shares one library. The first browser that opens
 an updated instance offers to move the playlists it already has.
 
 The self-hosted image runs the browser PWA rather than the Electron desktop app:
-EPG/XMLTV panels, Embedded MPV, managed MPV/VLC launching, the download manager,
+M3U XMLTV, Embedded MPV, managed MPV/VLC launching, the download manager,
 and Electron remote-control features are not available there. If browser
 playback fails, copy the stream URL and open it manually in an external player
 such as MPV, VLC, or IINA.
+
+### Experimental webOS TV app
+
+The separate TV client supports remote and pointer navigation, M3U/Xtream/Stalker
+sources, native playback, local favorites/resume, phone setup and optional shared
+server sources. Xtream/Stalker provide the programme guide; M3U XMLTV and archive
+playback are not included. A matching IPTVnator backend is required. Viewing data
+stays on the TV, and native stream compatibility depends on the device/provider.
+See [TV setup and IPK build instructions](docs/development/tv-development.md)
+and the [TV architecture and limitations](docs/architecture/tv-application.md).
 
 ## Download
 

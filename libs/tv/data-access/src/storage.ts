@@ -38,7 +38,7 @@ export class UserDataStorage {
                 }
                 resolve(saved ? hydrateUserData(saved.data) : initialData());
             };
-            transaction.onerror = () =>
+            transaction.onerror = transaction.onabort = () =>
                 reject(new Error('Local TV data could not be read.'));
         });
     }
@@ -66,6 +66,7 @@ export class UserDataStorage {
 /** Serializes edits so simultaneous progress/favorite/source writes cannot clobber each other. */
 export class UserDataRepository {
     data = initialData();
+    private loaded = false;
     private pending = Promise.resolve();
     constructor(
         private storage: Pick<UserDataStorage, 'read' | 'write'>,
@@ -73,9 +74,14 @@ export class UserDataRepository {
     ) {}
     async load() {
         this.data = await this.storage.read();
+        this.loaded = true;
         this.changed(this.data);
     }
     update(change: (data: UserData) => UserData) {
+        if (!this.loaded)
+            return Promise.reject(
+                new Error('Load saved TV data before making changes.')
+            );
         const operation = this.pending.then(async () => {
             const next = change(this.data);
             await this.storage.write(next);

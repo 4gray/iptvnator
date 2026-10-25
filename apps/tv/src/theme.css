@@ -622,6 +622,10 @@ header select {
 .filters button {
     margin-right: 16px;
 }
+.storage-recovery {
+    margin: 8vh auto;
+    padding: 32px;
+}
 .source-form {
     max-width: 760px;
     border-top: 1px solid var(--tv-line);

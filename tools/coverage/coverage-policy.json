@@ -54,6 +54,13 @@
         "description": "Tier A projects collect and trend source coverage. Tier B projects are validated without percentage coverage. Tier C projects are excluded from the source coverage baseline.",
         "tierA": [
             {
+                "name": "shared-epg",
+                "root": "libs/shared/epg",
+                "sourceRoot": "libs/shared/epg/src",
+                "validationCommand": "pnpm nx test shared-epg",
+                "e2eTags": ["@epg"]
+            },
+            {
                 "name": "shared-tmdb",
                 "root": "libs/shared/tmdb",
                 "sourceRoot": "libs/shared/tmdb/src",

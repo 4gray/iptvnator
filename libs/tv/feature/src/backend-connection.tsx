@@ -1,5 +1,6 @@
 import { TvIcon } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
+import { HomeServer } from './home-server';
 export function BackendConnection({
     tv,
     label = 'IPTVnator backend URL',
@@ -10,6 +11,11 @@ export function BackendConnection({
     const b = tv.backend;
     return (
         <section class="backend-connection" aria-label="Backend connection">
+            <h2>Connect your home server</h2>
+            <p class="muted">
+                Find IPTVnator on your home network, or enter your server
+                address below.
+            </p>
             <div
                 class={`connection-status ${b.connected ? 'connected' : ''}`}
                 role="status"
@@ -81,6 +87,7 @@ export function BackendConnection({
                 address. Local search checks standard IPTVnator ports; you can
                 always enter another address.
             </p>
+            <HomeServer tv={tv} />
         </section>
     );
 }

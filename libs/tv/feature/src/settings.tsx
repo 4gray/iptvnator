@@ -8,6 +8,7 @@ import { TvModel } from './use-tv';
 export function Settings({ tv }: { tv: TvModel }) {
     const [layout, setLayout] = useState(tv.data.layout);
     const [epg, setEpg] = useState(tv.data.epg);
+    const [saved, setSaved] = useState(false);
     useEffect(() => {
         setLayout(tv.data.layout);
         setEpg(tv.data.epg);
@@ -15,11 +16,26 @@ export function Settings({ tv }: { tv: TvModel }) {
     const save = (event: SubmitEvent) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget as HTMLFormElement);
-        tv.update((d) => ({
-            ...d,
-            layout: form.get('layout') === 'shelf' ? 'shelf' : 'cinema',
-            epg: form.has('epg'),
-        })).catch(() => tv.setError('Settings could not be saved.'));
+        const persist = () =>
+            tv
+                .update((d) => ({
+                    ...d,
+                    layout: form.get('layout') === 'shelf' ? 'shelf' : 'cinema',
+                    epg: form.has('epg'),
+                }))
+                .then(() => {
+                    setSaved(true);
+                    tv.setError('');
+                })
+                .catch(() =>
+                    tv.setError(
+                        'Settings could not be saved.',
+                        () => void persist(),
+                        'Retry saving settings'
+                    )
+                );
+        setSaved(false);
+        void persist();
     };
     return (
         <>
@@ -60,6 +76,7 @@ export function Settings({ tv }: { tv: TvModel }) {
                     Show provider programme guide
                 </label>
                 <button class="primary">Save settings</button>
+                {saved ? <p role="status">Settings saved on this TV.</p> : null}
             </form>
             <DirectAccessProbe tv={tv} />
             <TmdbSettings tv={tv} />

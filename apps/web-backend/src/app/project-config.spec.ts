@@ -83,7 +83,10 @@ describe('Playwright web-backend launch', () => {
     );
     it('keeps TV backend launch isolated and packages the mobile companion', () => {
         const source = readSource('apps/tv-e2e/playwright.config.ts');
-        expect(source.split(launchCommand)).toHaveLength(2);
+        expect(source.split(launchCommand)).toHaveLength(3);
+        expect(source).toContain("PORT: '3434'");
+        expect(source).toContain("IPTVNATOR_STORAGE: 'server'");
+        expect(source).toContain("IPTVNATOR_ACCESS_TOKEN: 'tv-library-test'");
         expect(source).not.toMatch(/\bnx\b[^'"`\n]*web-backend/);
         expect(source).toContain("PORT: '3433'");
         expect(source).toContain("CLIENT_URL: 'http://127.0.0.1:4311,null'");

@@ -28,7 +28,11 @@ export class NativePlayer {
         readonly video: HTMLVideoElement,
         private save: (progress: Progress) => Promise<void>,
         private failure: (message: string) => void,
-        private changed: () => void
+        private changed: () => void,
+        private saveFailure: (
+            message: string,
+            retry: () => Promise<void>
+        ) => void = failure
     ) {
         this.handlers = {
             playing: () => {
@@ -108,9 +112,11 @@ export class NativePlayer {
         const duration = Number.isFinite(this.video.duration)
             ? this.video.duration
             : 0;
-        this.save({ item, seconds, duration, updated: Date.now() }).catch(() =>
-            this.failure(
-                'Viewing progress could not be saved. Free TV storage and retry.'
+        const progress = { item, seconds, duration, updated: Date.now() };
+        this.save(progress).catch(() =>
+            this.saveFailure(
+                'Viewing progress could not be saved. Free TV storage and retry.',
+                () => this.save(progress)
             )
         );
     }

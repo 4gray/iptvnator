@@ -9,10 +9,13 @@ import { initialData, recordProgress, UserData } from '@iptvnator/tv/util';
 export function useUserData(
     video: { current: HTMLVideoElement | null },
     report: (message: string) => void,
-    tick: () => void
+    tick: () => void,
+    saveFailure: (message: string, retry: () => Promise<void>) => void
 ) {
     const [data, setData] = useState(initialData);
     const [storageReady, setStorageReady] = useState(false);
+    const [storageError, setStorageError] = useState('');
+    const loading = useRef(false);
     const storage = useRef(new UserDataStorage());
     const repo = useRef<UserDataRepository>();
     const player = useRef<NativePlayer>();
@@ -20,24 +23,47 @@ export function useUserData(
         repo.current = new UserDataRepository(storage.current, setData);
     const update = (change: (d: UserData) => UserData) =>
         repo.current!.update(change);
-    useEffect(() => {
-        repo.current!.load()
-            .then(() => setStorageReady(true))
-            .catch(() =>
-                report(
-                    'Local TV storage is unavailable. Reload after freeing storage.'
-                )
+    async function retryStorage() {
+        if (loading.current || storageReady) return;
+        loading.current = true;
+        setStorageError('');
+        try {
+            await repo.current!.load();
+            setStorageReady(true);
+        } catch {
+            setStorageError(
+                'Saved TV data could not be read. Your data has not been replaced. Free storage if needed, then retry.'
             );
+        } finally {
+            loading.current = false;
+        }
+    }
+    useEffect(() => {
+        void retryStorage();
         player.current = new NativePlayer(
             video.current!,
-            (p) => update((d) => recordProgress(d, p)),
+            (p) =>
+                update((d) =>
+                    (d.positions[p.item.id]?.updated ?? 0) > p.updated
+                        ? d
+                        : recordProgress(d, p)
+                ),
             report,
-            tick
+            tick,
+            saveFailure
         );
         return () => {
             player.current?.dispose();
             storage.current.close();
         };
     }, []);
-    return { data, storageReady, repo, player, update };
+    return {
+        data,
+        storageReady,
+        storageError,
+        retryStorage,
+        repo,
+        player,
+        update,
+    };
 }

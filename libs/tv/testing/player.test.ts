@@ -32,6 +32,7 @@ test('native player records only confirmed playback, saves on pause and exposes 
     const saved: Progress[] = [];
     const errors: string[] = [];
     let fail = false;
+    let retrySave: (() => Promise<void>) | undefined;
     const player = new NativePlayer(
         video,
         async (p) => {
@@ -39,7 +40,11 @@ test('native player records only confirmed playback, saves on pause and exposes 
             saved.push(p);
         },
         (m) => errors.push(m),
-        () => undefined
+        () => undefined,
+        (message, retry) => {
+            errors.push(message);
+            retrySave = retry;
+        }
     );
     const item: Media = {
         id: 'm',
@@ -73,6 +78,13 @@ test('native player records only confirmed playback, saves on pause and exposes 
         const count = saved.length;
         player.persist();
         assert.equal(saved.length, count);
+        await Promise.resolve();
+        await Promise.resolve();
+        fail = false;
+        assert.ok(retrySave);
+        await retrySave();
+        assert.equal(saved.at(-1)?.seconds, 30);
+        assert.equal(saved.at(-1)?.item.id, item.id);
     } finally {
         player.dispose();
         dom.window.close();

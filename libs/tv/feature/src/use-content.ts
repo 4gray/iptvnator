@@ -186,7 +186,8 @@ export function useContent(
         finishFocus,
         route.kind === 'movie' || route.kind === 'series'
             ? sorts[route.kind]
-            : 'provider'
+            : 'provider',
+        setError
     );
     return {
         ...catalog,

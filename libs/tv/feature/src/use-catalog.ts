@@ -14,7 +14,8 @@ export function useCatalog(
     ready: number,
     source: string,
     finishFocus: () => void,
-    sort: CatalogSort
+    sort: CatalogSort,
+    reportConnection: (message: string) => void = () => undefined
 ) {
     const active = ['movies', 'series', 'search', 'live'].includes(route.view);
     const key = JSON.stringify([
@@ -44,8 +45,18 @@ export function useCatalog(
         active,
         finishFocus,
         sort,
+        reportConnection,
     });
-    latest.current = { key, route, provider, ready, active, finishFocus, sort };
+    latest.current = {
+        key,
+        route,
+        provider,
+        ready,
+        active,
+        finishFocus,
+        sort,
+        reportConnection,
+    };
     async function load(append: boolean) {
         const current = latest.current;
         if (
@@ -96,14 +107,20 @@ export function useCatalog(
             };
             snapshot.current = next;
             setState(next);
+            current.reportConnection('');
             if (!page) current.finishFocus();
         } catch {
-            if (lane.current.owns(job))
+            if (lane.current.owns(job)) {
+                if (!append)
+                    current.reportConnection(
+                        'Could not load titles. Check the connection and retry.'
+                    );
                 setState((s) => ({
                     ...s,
                     busy: false,
                     error: 'Could not load titles. Check the connection and retry.',
                 }));
+            }
         } finally {
             if (lane.current.owns(job)) request.current = false;
         }

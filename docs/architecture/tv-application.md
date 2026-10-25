@@ -77,13 +77,24 @@ require selection and protected servers require their access token. Other
 subnets, IPv6, unavailable platform APIs, custom ports and failed searches keep
 manual entry available. This is bounded HTTP discovery, not universal mDNS/SSDP.
 
-The 30-second backend check updates connection status only; it does not retry
-provider initialization or reload a failed catalog. Provider initialization runs
-on startup, source/backend changes and explicit Retry connection. That action
-recreates the provider transport, including backend target registrations, before
-reloading the current view. Stalker token repair/watchdog handles its own portal
-session, not an unavailable backend. Automatic provider reconnection with
-backoff and app-resume recovery is not implemented in this prototype.
+The 30-second backend check updates connection status independently. Failed
+provider initialization and initial catalog/detail loads retry after 2, 5, 10
+and 30 seconds, then stop with a manual recovery action. Retries pause while
+hidden, offline or in a playback session. Network/app return reinitializes an
+idle provider; it never automatically replaces an existing media session.
+Manual retry, a changed source/backend or network/app return resets the budget;
+a healthy minute also resets it. Failed appended pages retain their loaded rows
+and explicit Retry loading action. Reconnection recreates provider transport
+and reloads the current view. Missing backend target registrations are renewed
+once after a backend 404; upstream errors do not trigger target renewal.
+Transport requests have a 35-second deadline and refuse redirects.
+
+Sources and Settings offer the selected home server's shared library when its
+public instance endpoint verifies compatibility. The capability probe sends no
+token. Use this server's sources explicitly connects with the selected backend
+token; it never silently changes the source library. Separate library URLs and
+tokens remain available for companion deployments. Error notices own their
+recovery action: saving settings/favorites/progress does not reconnect providers.
 
 `apps/tv-setup` owns the lightweight phone form. The web backend builds and ships
 its HTML/JS/CSS as assets and mounts the session API in
@@ -301,6 +312,10 @@ version 1). Sources, active source, backend settings, favorites, history and
 positions survive browser relaunch. Updates serialize and become visible only
 when the read/write transaction completes. Quota, open and write failures are
 visible; the application never reports an uncommitted favorite as saved.
+Until the initial snapshot is successfully read, the repository rejects all
+writes and editing/navigation is hidden behind a storage recovery screen.
+Retry reading saved data reloads the original snapshot without clearing it.
+Aborted read transactions reject instead of leaving startup pending.
 History begins on `playing`, then saves every 10 seconds, on pause/leave/hide.
 Recent history is bounded to 200 entries; playback positions are retained
 independently, so an older title still resumes. Additive reads recover positions

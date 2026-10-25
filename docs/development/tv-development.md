@@ -59,9 +59,10 @@ and [companion container instructions](../../docker/tv/README.md).
 Server sources and NAS deployment are verified in 0.1.9. Cross-device viewing
 state remains a separate follow-up.
 
-If the backend stopped or restarted, restore it and select Retry connection
-on the TV. Connected is a backend health/auth check, not proof that the portal
-has reconnected. See the architecture contract for the current retry limits.
+After a temporary backend failure, the TV retries an idle failed connection
+four times with increasing delays. Retry connection starts a new budget.
+Connected is a backend health/auth check, not proof that the portal has
+reconnected. See the architecture contract for retry and playback ownership.
 
 `tv-e2e` owns isolated ports 4311, 3433, 3420 and 3421. It starts the built TV
 client, actual web backend, and existing Stalker/Xtream mocks. Its explicit Nx
@@ -75,18 +76,18 @@ BX's Chromium 68 engine, native HLS, transport stream decoding or MAG headers.
 `tv-playlist.m3u` and `tv-test-media.webm` are local mock-server fixtures only.
 
 The package target produces
-`dist/tv-package/com.iptvnator.tv.prototype_0.1.11_all.ipk` with the pinned webOS
+`dist/tv-package/com.iptvnator.tv.prototype_0.1.12_all.ipk` with the pinned webOS
 CLI. Inspect it with:
 
 ```sh
-pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.11_all.ipk
+pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.12_all.ipk
 pnpm exec ares-setup-device --list
 ```
 
 Only after the user supplies an enabled Developer Mode target and pairing:
 
 ```sh
-pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.11_all.ipk
+pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.12_all.ipk
 pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 ```
 
@@ -211,3 +212,7 @@ drawer and expanded single-channel guide checks, separately from hardware result
 
 [TV multi-channel guide validation](tv-grid-validation.md) records the 0.1.11
 grid, shared EPG geometry and provider-cache checks, separately from LG results.
+
+[TV stabilization validation](tv-stabilization-validation.md) records the 0.1.12
+master integration, storage protection, recovery and home-server onboarding,
+with the unresolved native playback checks kept separate.

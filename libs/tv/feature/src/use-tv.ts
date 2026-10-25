@@ -1,3 +1,5 @@
+import { useNotice } from './use-notice';
+import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
 import { firstRoute, type Route, type View } from './navigation';
@@ -5,13 +7,8 @@ export type { View } from './navigation';
 import { useUserData } from './user-data';
 import { useContent } from './use-content';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { createProvider, ProviderTransport } from '@iptvnator/tv/data-access';
-import {
-    LatestRequest,
-    Media,
-    ProviderClient,
-    Source,
-} from '@iptvnator/tv/util';
+import { useProvider } from './use-provider';
+import { LatestRequest, Media, Source } from '@iptvnator/tv/util';
 import {
     focusKey,
     installRemote,
@@ -20,15 +17,14 @@ import {
 } from '@iptvnator/tv/ui';
 export function useTv(video: { current: HTMLVideoElement | null }) {
     const [route, setRoute] = useState(firstRoute);
-    const [error, setError] = useState('');
-    const [ready, setReady] = useState(0);
+    const { error, errorRetry, errorRetryLabel, setError, clearError } =
+        useNotice();
+    const [connectionFailed, setConnectionFailed] = useState(false);
     const [retry, setRetry] = useState(0);
-    const [busy, setBusy] = useState(false);
     const [selected, setSelected] = useState<Media>();
     const [playing, setPlaying] = useState<Media>();
     const [fullscreen, setFullscreen] = useState(false);
     const [, tick] = useState(0);
-    const provider = useRef<ProviderClient>();
     const playback = useRef(new LatestRequest());
     const failedResolution = useRef<{
         item: Media;
@@ -40,13 +36,45 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const playingCategory = useRef('');
     const pendingFocus = useRef('');
     const pendingScroll = useRef<number>();
-    const { data, storageReady, repo, player, update } = useUserData(
+    const {
+        data,
+        storageReady,
+        storageError,
+        retryStorage,
+        repo,
+        player,
+        update,
+    } = useUserData(
         video,
-        setError,
-        () => tick((t) => t + 1)
+        (message) => setError(message, retryPlayback, 'Retry playback'),
+        () => tick((t) => t + 1),
+        (message, retrySave) =>
+            setError(
+                message,
+                () => {
+                    void retrySave()
+                        .then(() => clearError('Retry saving progress'))
+                        .catch(() => undefined);
+                },
+                'Retry saving progress'
+            )
     );
     const library = useLibrary(data, storageReady, !!playing, update);
     const backend = useBackend(data, storageReady, update);
+    const { provider, ready, busy, connectionKey, enabled } = useProvider(
+        data,
+        storageReady,
+        retry,
+        {
+            update,
+            report: reportConnection,
+            reset: () => {
+                stop();
+                setSelected(undefined);
+                player.current?.clearDiagnostic();
+            },
+        }
+    );
     const content = useContent(
         route,
         provider,
@@ -54,16 +82,21 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         selected,
         setSelected,
         data.epg,
-        setError,
+        reportConnection,
         pendingFocus,
         data.activeId,
         pendingScroll,
         data.catalogSort
     );
-    const report = () =>
-        setError(
-            'The request failed. Check your source and backend, then retry.'
-        );
+    function reportConnection(message: string) {
+        setConnectionFailed(!!message);
+        if (message) setError(message, retryConnection, 'Retry connection');
+        else clearError('Retry connection');
+    }
+    function retryConnection() {
+        recovery.resetReconnect();
+        setRetry((n) => n + 1);
+    }
     useEffect(() => {
         if (!storageReady) return;
         if (!data.sources.length) {
@@ -71,84 +104,17 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             restoreFocus('nav:sources');
         } else restoreFocus('nav:home');
     }, [storageReady]);
-    const active = data.sources.find((s) => s.id === data.activeId);
-    const fingerprint = active
-        ? JSON.stringify([
-              active.id,
-              active.url,
-              active.username,
-              active.password,
-              active.macAddress,
-              active.serialNumber,
-              active.deviceId1,
-              active.deviceId2,
-              active.signature1,
-              active.signature2,
-              active.userAgent,
-              active.referrer,
-              active.origin,
-          ])
-        : '';
-    useEffect(() => {
-        setReady(0);
-
-        setSelected(undefined);
-        setPlaying(undefined);
-        failedResolution.current = undefined;
-
-        playback.current.cancel();
-
-        player.current?.stop();
-        player.current?.clearDiagnostic();
-        provider.current?.dispose();
-        if (!storageReady || !active || !data.backend) return;
-        const abort = new AbortController();
-        const snapshot = { ...active };
-        const client = createProvider(
-            snapshot,
-            new ProviderTransport(data.backend, data.backendToken),
-            (source) =>
-                update((d) => ({
-                    ...d,
-                    sources: d.sources.map((s) =>
-                        s.id === source.id && !abort.signal.aborted
-                            ? {
-                                  ...s,
-                                  endpoint: source.endpoint,
-                                  full: source.full,
-                                  token: source.token,
-                              }
-                            : s
-                    ),
-                }))
-        );
-        provider.current = client;
-        setBusy(true);
-        setError('');
-        client
-            .connect(abort.signal)
-            .then(() => {
-                if (!abort.signal.aborted) setReady(retry + 1);
-            })
-            .catch(() => {
-                if (!abort.signal.aborted) report();
-            })
-            .finally(() => {
-                if (!abort.signal.aborted) setBusy(false);
-            });
-        return () => {
-            abort.abort();
-            client.dispose();
-        };
-    }, [
-        fingerprint,
-        active?.m3uItems,
-        data.backend,
-        data.backendToken,
-        storageReady,
-        retry,
-    ]);
+    const recovery = useReconnect({
+        key: connectionKey,
+        enabled,
+        failed: connectionFailed,
+        busy,
+        playing: !!playing,
+        ready,
+        retry: () => setRetry((n) => n + 1),
+    });
     function stop() {
+        clearError('Retry playback');
         failedResolution.current = undefined;
         playback.current.cancel();
         player.current?.stop();
@@ -232,7 +198,9 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             if (lane.owns(job)) {
                 failedResolution.current = { item, category, origin };
                 setError(
-                    'Playback could not be resolved. Check the source and retry.'
+                    'Playback could not be resolved. Check the source and retry.',
+                    retryPlayback,
+                    'Retry playback'
                 );
             }
             return false;
@@ -268,7 +236,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                         );
                     }
                 })
-                .catch(() => setError('Playback could not be restarted.'));
+                .catch(() => {
+                    if (playback.current.owns(job))
+                        setError(
+                            'Playback could not be restarted.',
+                            retryPlayback,
+                            'Retry playback'
+                        );
+                });
         }
     }
     function back() {
@@ -314,17 +289,27 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     ? d.favorites.filter((m) => m.id !== item.id)
                     : [...d.favorites, item],
             }));
+            clearError('Retry saving favorite');
         } catch {
-            setError('Favorite was not saved. Free TV storage and retry.');
+            setError(
+                'Favorite was not saved. Free TV storage and retry.',
+                () => void favorite(item),
+                'Retry saving favorite'
+            );
         }
     }
     async function switchSource(activeId: string) {
         stop();
         try {
             await update((d) => ({ ...d, activeId }));
+            clearError('Retry source selection');
             navigate('home');
         } catch {
-            setError('Source selection was not saved.');
+            setError(
+                'Source selection was not saved.',
+                () => void switchSource(activeId),
+                'Retry source selection'
+            );
         }
     }
     async function saveSource(source: Source, address: string) {
@@ -339,12 +324,20 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                 activeId: source.id,
             }));
             setRetry((n) => n + 1);
+            clearError('Retry saving source');
             navigate('home');
         } catch {
-            setError('Source was not saved. Free TV storage and retry.');
+            setError(
+                'Source was not saved. Free TV storage and retry.',
+                () => void saveSource(source, address),
+                'Retry saving source'
+            );
         }
     }
     return {
+        storageReady,
+        storageError,
+        retryStorage,
         library,
         guideClient: ready ? provider.current : undefined,
         retryPlayback,
@@ -355,6 +348,9 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         route,
         setRoute,
         error,
+        errorRetry,
+        errorRetryLabel,
+        reconnectStatus: recovery.reconnectStatus,
         setError,
         ready,
         ...content,
@@ -375,7 +371,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         saveSource,
         switchSource,
         update,
-        retry: () => setRetry((n) => n + 1),
+        retry: retryConnection,
     };
 }
 export type TvModel = ReturnType<typeof useTv>;
