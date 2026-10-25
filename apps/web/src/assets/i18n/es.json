@@ -1257,6 +1257,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "La actualización del estado de visto falló",
         "EPISODES_WATCHED": "{{count}} de {{total}} episodios vistos",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "La reproducción y la descarga no están disponibles: el proveedor no indicó la dirección o el formato del flujo.",
             "STATUS": "Metadatos del portal no disponibles",
             "NOTE": "Este portal no proporcionó metadatos extendidos.",
             "STREAM_ID": "ID del stream",

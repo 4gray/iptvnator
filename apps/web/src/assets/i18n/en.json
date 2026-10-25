@@ -1257,6 +1257,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "Updating the watched state failed",
         "EPISODES_WATCHED": "{{count}} of {{total}} episodes watched",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "Playback and download are unavailable: the provider did not supply a stream address or format.",
             "STATUS": "Portal metadata unavailable",
             "NOTE": "Extended metadata was not provided by this portal.",
             "STREAM_ID": "Stream ID",

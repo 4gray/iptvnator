@@ -1257,6 +1257,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "시청 상태 업데이트에 실패했습니다",
         "EPISODES_WATCHED": "{{total}}개 중 {{count}}개 에피소드 시청",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "재생 및 다운로드를 사용할 수 없습니다. 제공업체가 스트림 주소 또는 형식을 제공하지 않았습니다.",
             "STATUS": "포털 메타데이터를 사용할 수 없습니다",
             "NOTE": "이 포털에서 확장 메타데이터를 제공하지 않습니다.",
             "STREAM_ID": "스트림 ID",

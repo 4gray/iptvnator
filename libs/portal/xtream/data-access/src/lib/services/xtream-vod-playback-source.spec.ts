@@ -31,6 +31,36 @@ describe('resolveXtreamVodPlaybackSource', () => {
         });
     });
 
+    it.each([null, undefined, '', '   '])(
+        'uses an explicit direct source without extension %p',
+        (extension) => {
+            const item = createMovieDataDetails({
+                container_extension: extension as string,
+                direct_source: 'https://media.example/film?token=demo',
+            });
+            expect(resolveXtreamVodPlaybackSource(item)).toMatchObject({
+                streamId: 101,
+                directSource: 'https://media.example/film?token=demo',
+            });
+        }
+    );
+
+    it.each([
+        'javascript:alert(1)',
+        'file:///movie.mp4',
+        '/movie.mp4',
+        'invalid',
+    ])('rejects an unsafe direct source %s', (direct_source) => {
+        expect(
+            resolveXtreamVodPlaybackSource(
+                createMovieDataDetails({
+                    container_extension: '',
+                    direct_source,
+                })
+            )
+        ).toBeNull();
+    });
+
     it('falls back to catalog fields', () => {
         const item: XtreamVodPlaybackItem = {
             info: [],

@@ -1257,6 +1257,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "Aktualisierung des Status „angesehen“ fehlgeschlagen",
         "EPISODES_WATCHED": "{{count}} von {{total}} Folgen angesehen",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "Wiedergabe und Download sind nicht verfügbar: Der Anbieter hat keine Stream-Adresse oder kein Format geliefert.",
             "STATUS": "Portal-Metadaten fehlen",
             "NOTE": "Dieses Portal hat keine erweiterten Metadaten für diesen Titel geliefert.",
             "STREAM_ID": "Stream-ID",

@@ -1257,6 +1257,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "无法更新观看状态",
         "EPISODES_WATCHED": "已观看 {{count}} / {{total}} 集",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "无法播放或下载：服务提供商未提供流地址或格式。",
             "STATUS": "门户元数据不可用",
             "NOTE": "此门户未提供扩展元数据。",
             "STREAM_ID": "流 ID",

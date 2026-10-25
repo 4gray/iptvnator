@@ -1,5 +1,6 @@
 import {
     getXtreamVodInfo,
+    extractYear,
     XtreamVodDetails,
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
@@ -7,6 +8,10 @@ import {
     resolveXtreamVodPlaybackSource,
     XtreamVodPlaybackItem,
 } from '../services/xtream-vod-playback-source';
+import {
+    collectionSnapshotMatchesContent,
+    CollectionIdentity,
+} from '../data-sources/pwa-collection-identity';
 import { stripXtreamVodInfoPlaceholders } from './xtream-detail-metadata';
 
 export type XtreamVodSelection = XtreamVodDetails & {
@@ -28,9 +33,36 @@ export function buildXtreamVodSelection(
     vodId: string | number,
     recoveredCatalogItem?: XtreamVodStream
 ): XtreamVodSelection {
+    const detailStreamId =
+        vodDetails.movie_data?.stream_id ??
+        (vodDetails as XtreamVodPlaybackItem).stream_id;
+    if (detailStreamId != null && Number(detailStreamId) !== Number(vodId)) {
+        vodDetails = { info: [] };
+    }
+    const matches = (item: XtreamVodStream | undefined): boolean => {
+        if (!item || Number(item.xtream_id ?? item.stream_id) !== Number(vodId))
+            return false;
+        const info = getXtreamVodInfo(vodDetails);
+        return collectionSnapshotMatchesContent(
+            {
+                tmdb_id:
+                    info?.tmdb_id != null ? Number(info.tmdb_id) : undefined,
+                release_year: extractYear(info?.releasedate) ?? undefined,
+            },
+            item as XtreamVodStream & CollectionIdentity,
+            true
+        );
+    };
+    // A provider may reuse a numeric ID. Known conflicting catalog evidence
+    // cannot supply playback fields or presentation for this detail.
+    catalogItem = matches(catalogItem) ? catalogItem : undefined;
+    recoveredCatalogItem = matches(recoveredCatalogItem)
+        ? recoveredCatalogItem
+        : undefined;
     const detailItem = vodDetails as XtreamVodPlaybackItem;
+    const detailSource = resolveXtreamVodPlaybackSource(detailItem);
     const playbackSource =
-        resolveXtreamVodPlaybackSource(detailItem) ??
+        (detailSource?.streamId === Number(vodId) ? detailSource : null) ??
         resolveXtreamVodPlaybackSource(
             recoveredCatalogItem as unknown as XtreamVodPlaybackItem
         ) ??
@@ -46,10 +78,8 @@ export function buildXtreamVodSelection(
         ...(info ? { info: stripXtreamVodInfoPlaceholders(info) } : {}),
         stream_id: playbackSource?.streamId ?? Number(vodId),
         container_extension: playbackSource?.containerExtension ?? null,
-        xtream_id:
-            recoveredCatalogItem?.xtream_id ??
-            catalogItem?.xtream_id ??
-            Number(vodId),
+        direct_source: playbackSource?.directSource ?? '',
+        xtream_id: Number(vodId),
     };
 }
 

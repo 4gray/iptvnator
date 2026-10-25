@@ -596,11 +596,19 @@ throwing during playback.
 
 VOD playback uses the standard
 `/movie/{username}/{password}/{streamId}.{containerExtension}` URL after
-resolving the stream id and container extension as one source. Fields from
+resolving the stream id and container extension as one source. A provider's
+explicit absolute HTTP(S) `direct_source` is also a complete source when paired
+with a positive stream id; its address is used verbatim for playback and
+download, including when the extension is null, missing or blank. Other URL
+schemes and relative addresses are ignored. Fields from
 `movie_data` take priority, with the top-level catalog fields used as a
 fallback when extended metadata is absent or incomplete. A source requires a
-positive integer id and a non-empty container extension; otherwise URL
-construction returns an empty string.
+positive integer id and either a non-empty container extension or a valid direct
+address; otherwise URL construction returns an empty string. No container is
+guessed. Each candidate must belong to the requested provider stream id, and a
+catalog candidate with conflicting known TMDB/year identity cannot supply
+playback fields or presentation. This does not change durable favorite identity
+or make an unavailable saved favorite available.
 
 The Electron catalog cache does not persist the container extension. If the
 merged detail response and cached row still cannot resolve a source, the detail
@@ -621,7 +629,9 @@ lookup completes, then a successful result upgrades that same fallback
 reactively with playback actions. Detail, recovered, and cached
 playback fields remain separate candidates: the first complete pair wins, so
 two incomplete rows can never synthesize a source. A failed lookup leaves the
-already-rendered item safely unplayable. Detail requests are generation- and
+already-rendered item safely unplayable. A second identical `get_vod_info`
+request is not issued automatically after a fresh incomplete response; reopening
+the detail retries through the normal loader. Detail requests are generation- and
 playlist-guarded, and detail teardown invalidates the active generation, so a
 late response cannot replace a newer selection or repopulate a closed detail.
 In-memory VOD category and stream arrays record the playlist that populated
@@ -631,10 +641,20 @@ foreign playback extension, title, poster, category, or recommendation.
 
 Metadata availability and VOD playability are independent. An empty or sparse
 `get_vod_info` response keeps the curated fallback detail page, but that page
-offers the same Play/Resume, Favorite, and Download actions when the source
-resolves. An unresolved source exposes no actions. Playback and download
+offers the same Play/Resume and Download actions when the source resolves.
+Favorite and Watched are independent of stream availability and retain their
+typed playlist/provider identity and existing persistence/playback guards. An
+unresolved source keeps Play disabled with a translated explanation covering
+playback and download; it cannot launch a player or enqueue an empty address.
+A downloaded local copy remains playable. Playback and download
 descriptors also fall back to the catalog title and poster after `info` and
 `movie_data`.
+
+A new PWA favorite from a cold detail hydrates only its typed catalog when
+needed. When the initial detail backfill ran before catalog hydration, the
+explicit save applies that metadata to the compatible current row. Retained
+Favorite/Recent snapshots keep the existing identity, conflict and quota
+protection; adding a favorite cannot rewrite an older saved movie implicitly.
 
 Provider stand-ins in `get_vod_info` / `get_series_info` (`N/A`, `-`, an
 unrated `0` score) are emptied before the response becomes the store

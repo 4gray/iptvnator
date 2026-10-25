@@ -1257,6 +1257,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "Nie udało się zaktualizować stanu obejrzenia",
         "EPISODES_WATCHED": "Obejrzano {{count}} z {{total}} odcinków",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "Odtwarzanie i pobieranie są niedostępne: dostawca nie podał adresu lub formatu strumienia.",
             "STATUS": "Metadane portalu niedostępne",
             "NOTE": "Ten portal nie udostępnił rozszerzonych metadanych.",
             "STREAM_ID": "ID strumienia",
