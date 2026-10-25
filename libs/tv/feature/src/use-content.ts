@@ -39,7 +39,13 @@ export function useContent(
     const home = homeState.key === key ? homeState.value : [];
     const setHome = (value: Media[]) => setHomeState({ key, value });
     const [episodes, setEpisodes] = useState<Media[]>([]);
-    const [epg, setEpg] = useState<Program[]>([]);
+    const [guideState, setGuideState] = useState<{
+        id?: string;
+        programs: Program[];
+    }>({ programs: [] });
+    const epg = guideState.id === selected?.id ? guideState.programs : [];
+    const setEpg = (programs: Program[]) =>
+        setGuideState({ id: selected?.id, programs });
     const [epgError, setEpgError] = useState('');
     const [busy, setBusy] = useState(false);
     const browse = useRef(new LatestRequest());

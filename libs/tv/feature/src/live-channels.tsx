@@ -1,92 +1,23 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import {
-    ChannelLogo,
-    Empty,
-    focusKey,
-    restoreFocus,
-    VirtualCollection,
-} from '@iptvnator/tv/ui';
+import { ChannelLogo, Empty, VirtualCollection } from '@iptvnator/tv/ui';
 import type { TvModel } from './use-tv';
-
-const categoryKey = (id: string) => `live-category:${id}`;
-export function useLiveBrowse(tv: TvModel) {
-    const [categoriesOpen, setCategoriesOpen] = useState(true);
-    const categories = useRef(tv.catalog.categories);
-    if (tv.catalog.categories.length)
-        categories.current = tv.catalog.categories;
-    const categoryScroll = useRef(0);
-    const returning = useRef(false);
-    const channel = useRef({ key: '', scroll: 0 });
-    const pending = useRef<string | null>(null);
-    const [channelScroll, setChannelScroll] = useState(0);
-    function choose(id: string) {
-        categoryScroll.current =
-            document.querySelector('.channels')?.scrollTop ?? 0;
-        const same = id === tv.route.category;
-        pending.current = same ? channel.current.key : '';
-        setChannelScroll(same ? channel.current.scroll : 0);
-        setCategoriesOpen(false);
-        tv.setRoute({ ...tv.route, category: id, page: 0 });
-    }
-    function back() {
-        returning.current = true;
-        channel.current = {
-            key: tv.catalog.items.some((item) => item.id === focusKey())
-                ? focusKey()
-                : (tv.selected?.id ?? ''),
-            scroll: document.querySelector('.channels')?.scrollTop ?? 0,
-        };
-        setCategoriesOpen(true);
-    }
-    useEffect(() => {
-        if (categoriesOpen) return;
-        if (pending.current === null) return;
-        if (!tv.catalog.items.length && !tv.catalogError) return;
-        // Keep focus where the viewer moved while the catalog was loading.
-        if (
-            focusKey() === 'live-categories' ||
-            document.activeElement === document.body
-        )
-            restoreFocus(
-                pending.current || tv.catalog.items[0]?.id || '',
-                'live-categories'
-            );
-        pending.current = null;
-    }, [categoriesOpen, tv.catalog.items, tv.catalogError]);
-    useLayoutEffect(() => {
-        if (!categoriesOpen) restoreFocus('live-categories');
-        if (categoriesOpen && returning.current) {
-            returning.current = false;
-            restoreFocus(categoryKey(tv.route.category), categoryKey(''));
-        }
-    }, [categoriesOpen]);
-    return {
-        categoriesOpen,
-        categories: [
-            { id: '', name: 'All channels' },
-            ...categories.current,
-        ].map((c) => ({
-            ...c,
-            categoryId: c.id,
-            id: categoryKey(c.id),
-        })),
-        categoryName:
-            categories.current.find((c) => c.id === tv.route.category)?.name ??
-            'All channels',
-        categoryScroll: categoryScroll.current,
-        channelScroll,
-        channelKey: pending.current || channel.current.key,
-        choose,
-        back,
-    };
-}
+import { categoryKey, useLiveBrowse } from './use-live-browse';
 export function LiveChannels({
     tv,
     browse,
+    overlay = false,
 }: {
     tv: TvModel;
+    overlay?: boolean;
     browse: ReturnType<typeof useLiveBrowse>;
 }) {
+    const pinned =
+        overlay &&
+        tv.playing &&
+        tv.route.category === tv.playingCategory &&
+        !tv.catalog.items.some((item) => item.id === tv.playing?.id)
+            ? tv.playing
+            : undefined;
+    const items = pinned ? [pinned, ...tv.catalog.items] : tv.catalog.items;
     return (
         <section
             class="channel-pane"
@@ -110,7 +41,9 @@ export function LiveChannels({
                 <span class="muted">
                     {browse.categoriesOpen
                         ? 'Choose a category'
-                        : 'OK: preview · OK again: fullscreen'}
+                        : overlay
+                          ? 'OK: switch channel · Back: close'
+                          : 'OK: preview · OK again: fullscreen'}
                 </span>
             </div>
             <div
@@ -142,7 +75,7 @@ export function LiveChannels({
                 ) : (
                     <VirtualCollection
                         layout="channels"
-                        items={tv.catalog.items}
+                        items={items}
                         more={tv.hasMore}
                         busy={tv.catalogBusy}
                         error={tv.catalogError}
@@ -161,7 +94,11 @@ export function LiveChannels({
                                 }}
                             >
                                 <span class="channel-number">
-                                    {String(n + 1).padStart(2, '0')}
+                                    {item === pinned
+                                        ? '●'
+                                        : String(
+                                              n + 1 - (pinned ? 1 : 0)
+                                          ).padStart(2, '0')}
                                 </span>
                                 <ChannelLogo src={item.poster} />
                                 <span>
@@ -182,7 +119,7 @@ export function LiveChannels({
                 {!browse.categoriesOpen &&
                 !tv.busy &&
                 !tv.catalogError &&
-                !tv.catalog.items.length ? (
+                !items.length ? (
                     <Empty>No channels in this category.</Empty>
                 ) : null}
                 {browse.categoriesOpen && tv.catalogError ? (

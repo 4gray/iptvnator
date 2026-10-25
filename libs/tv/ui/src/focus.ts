@@ -6,8 +6,10 @@ export function focusKey() {
 export function restoreFocus(key: string, fallback = '', scroll?: number) {
     requestAnimationFrame(() => {
         const elements = Array.from(
-            document.querySelectorAll<HTMLElement>(selectors)
-        ).filter((e) => !!e.offsetWidth);
+            (
+                document.querySelector('[data-tv-modal]') ?? document
+            ).querySelectorAll<HTMLElement>(selectors)
+        ).filter((e) => !!e.offsetWidth && !e.closest('[hidden]'));
         const target =
             elements.find((e) => e.dataset.focus === key) ??
             elements.find((e) => e.dataset.focus === fallback) ??
@@ -69,9 +71,11 @@ export function installRemote(
         event.preventDefault();
         if (event.repeat && Date.now() - lastMove < 75) return;
         lastMove = Date.now();
-        const root = fullscreen()
-            ? document.querySelector('.player-controls')
-            : document;
+        const root =
+            document.querySelector('[data-tv-modal]') ??
+            (fullscreen()
+                ? document.querySelector('.player-controls')
+                : document);
         const candidates = Array.from(
             root?.querySelectorAll<HTMLElement>(selectors) ?? []
         ).filter(

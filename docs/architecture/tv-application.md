@@ -179,6 +179,30 @@ changing EPG content cannot resize or move the preview. The guide is a named,
 focusable region: Up/Down scroll its contents, Up at the beginning exits, and
 Left/Right use spatial navigation. Preview and channel actions remain fixed.
 
+Live fullscreen offers Channels and Programme controls. With controls hidden,
+Left opens the channel drawer directly; pointer users select Channels. The drawer
+starts in the playing category and focuses the playing item. A playing item beyond
+loaded provider pages appears once as a pinned row rather than crawling the catalog.
+Category browsing and focus never change playback; OK resolves a selected channel.
+The same native video element remains mounted. Back closes the overlay before
+leaving fullscreen; the category header changes groups within the drawer.
+The shared browse state retains loaded pages and scroll positions across surfaces.
+
+Expand guide in preview and Programme in fullscreen open the single-channel guide.
+It shows only supplied dates, with Now, programme details and independent scrolling.
+At most 21 programme rows (including a retained selection) and seven date buttons
+are mounted. Midnight-spanning programmes belong to their start date. Empty,
+disabled and failed guide requests remain separate from playback. The compact
+preview remains limited to 12 rows; this change does not extend provider coverage:
+Xtream still requests short EPG, Stalker uses its existing bulk/short fallback,
+and M3U XMLTV remains excluded. Multi-channel timeline UI is a separate follow-up.
+
+An overlay owns directional and Tab focus, including hidden page/control exclusion.
+Closing restores its opening control. EPG publication is keyed to the selected
+channel so an earlier channel's programme cannot flash while its replacement loads.
+The TV drawer uses a translucent dark gradient supported by Chromium 68; it does
+not depend on backdrop blur, animate full-screen surfaces or capture native video.
+
 Native VOD resume waits for confirmed playback and seek readiness, retries
 ignored/rejected assignments at most every 750 ms, and requires a subsequent
 media event at the requested position with seeking complete. Metadata alone is

@@ -1,8 +1,18 @@
-import { LiveChannels, useLiveBrowse } from './live-channels';
+import { LiveChannels } from './live-channels';
+import { useLiveBrowse } from './use-live-browse';
 import { useEffect, useRef } from 'preact/hooks';
 import { TvModel } from './use-tv';
-export function Live({ tv }: { tv: TvModel }) {
-    const browse = useLiveBrowse(tv);
+export function Live({
+    tv,
+    browse,
+    overlayOpen,
+    openGuide,
+}: {
+    tv: TvModel;
+    browse: ReturnType<typeof useLiveBrowse>;
+    overlayOpen: boolean;
+    openGuide: () => void;
+}) {
     const guide = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (guide.current) guide.current.scrollTop = 0;
@@ -26,7 +36,7 @@ export function Live({ tv }: { tv: TvModel }) {
                 }
             }}
         >
-            <LiveChannels tv={tv} browse={browse} />
+            {!overlayOpen ? <LiveChannels tv={tv} browse={browse} /> : <div />}
             <section class="live-information">
                 <div class="preview-placeholder">
                     {tv.playing ? (
@@ -46,16 +56,27 @@ export function Live({ tv }: { tv: TvModel }) {
                 </div>
                 <div class="section-title">
                     <h2>{selected?.title ?? 'Programme guide'}</h2>
-                    {selected ? (
+                    <div class="actions">
                         <button
-                            aria-label="Favorite channel"
-                            onClick={() => tv.favorite(selected)}
+                            data-focus="live-expand-guide"
+                            onClick={openGuide}
+                            disabled={!selected}
                         >
-                            {tv.data.favorites.some((m) => m.id === selected.id)
-                                ? '♥ Saved'
-                                : '♡ Save channel'}
+                            Expand guide ↗
                         </button>
-                    ) : null}
+                        {selected ? (
+                            <button
+                                aria-label="Favorite channel"
+                                onClick={() => tv.favorite(selected)}
+                            >
+                                {tv.data.favorites.some(
+                                    (m) => m.id === selected.id
+                                )
+                                    ? '♥ Saved'
+                                    : '♡ Save channel'}
+                            </button>
+                        ) : null}
+                    </div>
                 </div>
                 <div
                     class="programme-list"

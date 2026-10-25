@@ -30,8 +30,10 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const [, tick] = useState(0);
     const provider = useRef<ProviderClient>();
     const playback = useRef(new LatestRequest());
+    const failedResolution = useRef<Media>();
     const stack = useRef<{ route: Route; focus: string; scroll: number }[]>([]);
     const playerOrigin = useRef('');
+    const playingCategory = useRef('');
     const pendingFocus = useRef('');
     const pendingScroll = useRef<number>();
     const { data, storageReady, repo, player, update } = useUserData(
@@ -88,6 +90,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
 
         setSelected(undefined);
         setPlaying(undefined);
+        failedResolution.current = undefined;
 
         playback.current.cancel();
 
@@ -142,6 +145,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         retry,
     ]);
     function stop() {
+        failedResolution.current = undefined;
         playback.current.cancel();
         player.current?.stop();
         setPlaying(undefined);
@@ -184,10 +188,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         restoreFocus('detail-play', '', 0);
     }
     async function play(item: Media) {
+        playback.current.cancel();
+        failedResolution.current = undefined;
         if (playing?.id === item.id && item.kind === 'live') {
-            playerOrigin.current = focusKey();
-            setFullscreen(true);
-            restoreFocus('player-toggle');
+            if (!fullscreen) {
+                playerOrigin.current = focusKey();
+                setFullscreen(true);
+                restoreFocus('player-toggle');
+            }
             return;
         }
         const lane = playback.current;
@@ -198,6 +206,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             if (!lane.owns(job)) return;
             playerOrigin.current = focusKey();
             setPlaying(item);
+            if (item.kind === 'live') playingCategory.current = route.category;
             if (item.kind !== 'live') {
                 setFullscreen(true);
                 restoreFocus('player-toggle');
@@ -211,13 +220,19 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     : 0
             );
         } catch {
-            if (lane.owns(job))
+            if (lane.owns(job)) {
+                failedResolution.current = item;
                 setError(
                     'Playback could not be resolved. Check the source and retry.'
                 );
+            }
         }
     }
     function retryPlayback() {
+        if (failedResolution.current) {
+            void play(failedResolution.current);
+            return;
+        }
         if (playing) {
             const item = playing;
             setPlaying(undefined);
@@ -332,6 +347,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         selected,
         setSelected,
         playing,
+        playingCategory: playingCategory.current,
         fullscreen,
         setFullscreen,
         player,

@@ -63,6 +63,10 @@ export function VirtualCollection<T extends { id: string }>({
                 : document.querySelector('main')!;
         if (restoreScroll !== undefined) root.scrollTop = restoreScroll;
         let frame = 0;
+        let restoreChannel =
+            layout === 'channels' &&
+            restoreScroll === undefined &&
+            !!restoreKey;
         const measure = () => {
             const current = latest.current;
             const first = grid.current?.querySelector<HTMLElement>(
@@ -78,6 +82,15 @@ export function VirtualCollection<T extends { id: string }>({
             const gap =
                 parseFloat(style.rowGap) || (layout === 'channels' ? 9 : 0);
             const step = first.getBoundingClientRect().height + gap;
+            if (restoreChannel) {
+                const index = current.items.findIndex(
+                    (item) => item.id === restoreKey
+                );
+                if (index >= 0) {
+                    root.scrollTop = Math.max(0, index - 2) * step;
+                    restoreChannel = false;
+                }
+            }
             const relative = Math.max(
                 0,
                 root.getBoundingClientRect().top -

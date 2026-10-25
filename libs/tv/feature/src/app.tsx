@@ -1,3 +1,5 @@
+import { LiveOverlay, useLiveOverlay } from './live-overlay';
+import { useLiveBrowse } from './use-live-browse';
 import { useHomeFeature } from './use-home-feature';
 import { PageHeader } from './page-header';
 import { Favorites } from './favorites';
@@ -24,6 +26,8 @@ const navigation: [View, string][] = [
 export function TvApp() {
     const video = useRef<HTMLVideoElement>(null);
     const tv = useTv(video);
+    const browse = useLiveBrowse(tv);
+    const overlay = useLiveOverlay(tv, browse);
     useEffect(() => {
         const position = () => {
             const rect = document
@@ -73,7 +77,7 @@ export function TvApp() {
     const element = video.current;
     const controlsVisible = usePlayerControls(
         tv.fullscreen,
-        element?.paused ?? true
+        !!overlay.panel || (element?.paused ?? true)
     );
     const time = (seconds: number) =>
         Number.isFinite(seconds)
@@ -155,7 +159,13 @@ export function TvApp() {
                 ) : r.view === 'settings' ? (
                     <Settings tv={tv} />
                 ) : r.view === 'live' ? (
-                    <Live key={tv.data.activeId} tv={tv} />
+                    <Live
+                        key={tv.data.activeId}
+                        tv={tv}
+                        browse={browse}
+                        overlayOpen={overlay.panel === 'channels'}
+                        openGuide={overlay.openGuide}
+                    />
                 ) : r.view === 'favorites' ? (
                     <Favorites tv={tv} />
                 ) : r.view === 'detail' ? (
@@ -172,11 +182,28 @@ export function TvApp() {
                 {tv.fullscreen ? (
                     <div
                         class={`player-controls ${controlsVisible || tv.error ? '' : 'dormant'}`}
+                        hidden={!!overlay.panel}
                     >
                         <div class="player-top">
                             <button data-focus="player-back" onClick={tv.back}>
                                 ← Back
                             </button>
+                            {current?.kind === 'live' ? (
+                                <div class="actions">
+                                    <button
+                                        data-focus="player-channels"
+                                        onClick={overlay.openChannels}
+                                    >
+                                        Channels
+                                    </button>
+                                    <button
+                                        data-focus="player-guide"
+                                        onClick={overlay.openGuide}
+                                    >
+                                        Programme
+                                    </button>
+                                </div>
+                            ) : null}
                             <span>
                                 {current?.kind === 'live'
                                     ? 'LIVE TELEVISION'
@@ -264,6 +291,7 @@ export function TvApp() {
                     </div>
                 ) : null}
             </div>
+            <LiveOverlay tv={tv} browse={browse} overlay={overlay} />
         </div>
     );
 }
