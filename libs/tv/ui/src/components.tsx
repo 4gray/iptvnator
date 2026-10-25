@@ -48,41 +48,6 @@ export function Poster({
         </button>
     );
 }
-export function Hero({
-    item,
-    open,
-    compact = false,
-}: {
-    item?: Media;
-    open: (m: Media) => void;
-    compact?: boolean;
-}) {
-    return (
-        <section class={`hero ${compact ? 'compact' : ''}`}>
-            <div class="hero-copy">
-                <span class="eyebrow">YOUR OWN CINEMA</span>
-                <h1>{item?.title ?? 'Make yourself at home.'}</h1>
-                <p>
-                    {item?.description ||
-                        'Live television, films and stories from your own sources. Pick something worth staying in for.'}
-                </p>
-                {item ? (
-                    <button
-                        class="primary"
-                        data-focus="hero"
-                        onClick={() => open(item)}
-                    >
-                        Explore title →
-                    </button>
-                ) : null}
-            </div>
-            <span class="hero-number">
-                IPTV<span>NATOR</span>
-                <small>TV EDITION</small>
-            </span>
-        </section>
-    );
-}
 export function Empty({ children }: { children: preact.ComponentChildren }) {
     return <div class="empty">{children}</div>;
 }

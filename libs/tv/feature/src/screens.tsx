@@ -1,3 +1,4 @@
+import type { HomeFeature } from './use-home-feature';
 import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import { CatalogOrder, CatalogSortNotice } from './catalog-order';
 import {
@@ -9,18 +10,10 @@ import {
 } from '@iptvnator/tv/ui';
 import { Media } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
-export function Home({ tv }: { tv: TvModel }) {
+export function Home({ tv, feature }: { tv: TvModel; feature: HomeFeature }) {
     const items = tv.home;
     const sourceId = tv.data.activeId;
-    const history = tv.data.history
-        .filter(
-            (h) =>
-                h.item.sourceId === sourceId &&
-                h.item.kind !== 'live' &&
-                h.seconds > 0 &&
-                (!h.duration || h.duration - h.seconds > 15)
-        )
-        .slice(0, 8);
+    const history = feature.history;
     const rails: [string, Media[]][] = [
         [
             'Favorite channels',
@@ -35,7 +28,12 @@ export function Home({ tv }: { tv: TvModel }) {
     return (
         <>
             <Hero
-                item={items.find((m) => m.kind === 'movie') ?? items[0]}
+                item={feature.item}
+                progress={feature.progress}
+                play={tv.play}
+                index={feature.index}
+                count={feature.count}
+                select={feature.select}
                 open={tv.open}
                 compact={tv.data.layout === 'shelf'}
             />

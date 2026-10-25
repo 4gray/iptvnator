@@ -1,3 +1,4 @@
+import { useHomeFeature } from './use-home-feature';
 import { PageHeader } from './page-header';
 import { Favorites } from './favorites';
 import { usePlayerControls } from './player-controls';
@@ -48,13 +49,13 @@ export function TvApp() {
         };
     });
     const r = tv.route;
-    const hero = tv.home.find((item) => item.kind === 'movie') ?? tv.home[0];
+    const feature = useHomeFeature(tv);
     const cinematic = r.view === 'home' || r.view === 'detail';
     const metadata = useMetadata(
         r.view === 'detail'
             ? tv.selected
             : r.view === 'home'
-              ? hero
+              ? feature.item
               : undefined,
         tv.data.tmdb
     );
@@ -139,7 +140,10 @@ export function TvApp() {
                     </div>
                 ) : null}
                 {r.view === 'home' ? (
-                    <Home tv={display} />
+                    <Home
+                        tv={display}
+                        feature={{ ...feature, item: metadata.item }}
+                    />
                 ) : r.view === 'sources' ? (
                     <Sources tv={tv} />
                 ) : r.view === 'settings' ? (

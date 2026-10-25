@@ -197,3 +197,4 @@ export { parseSourceDraft, type SourceDraft } from './source-draft';
 export * from './settings-draft';
 
 export * from './catalog-sort';
+export { continueWatching } from './continue-watching';

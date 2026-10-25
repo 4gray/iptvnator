@@ -204,11 +204,25 @@ Historical Stalker history/favorites recover missing covers from their saved raw
 fields through the provider artwork resolver, without rewriting saved commands,
 positions or credentials.
 
+Home features up to three recently watched, unfinished titles from the active
+source. A series contributes its latest watched episode; a completed latest
+episode does not revive older unfinished episodes. Unknown-duration positions
+remain resumable. The Continue watching rail retains up to eight titles using
+the same grouping. Previous/Next controls wrap on OK or pointer click; there is
+no automatic rotation or playback on focus. Continue watching resolves the
+original saved media identity, while Details opens its provider detail view.
+Selection survives detail/player Back; source changes and relaunch start at the
+latest unfinished title. With no unfinished history, the first catalog movie
+(or first available item) remains the featured fallback. Artwork-only parent
+fallbacks and optional TMDB enrichment never replace saved playback commands.
+The hero's title/progress/actions remain usable while metadata loads or fails.
+
 Home and details share a backdrop beginning at the top of the content viewport,
 behind the header. Left and bottom gradients keep text readable and fade into
 the page background. There is no blurred panel or animated backdrop. Home
-publishes its catalog immediately, then requests the featured movie's provider
-details to obtain wide artwork. Missing images leave the text and controls usable.
+publishes its catalog immediately, then requests the fallback movie's provider
+details to obtain wide artwork. History uses its saved detail artwork, with
+available parent art for episodes. Missing images leave the controls usable.
 
 Settings exposes opt-in TMDB enrichment, a masked v3 key or v4 read token,
 metadata language, connection check and an explicit save result. These settings
