@@ -73,6 +73,10 @@ describe('M3U media catalog', () => {
         fixture.componentRef.setInput('kind', 'series');
         fixture.componentRef.setInput('channels', entries);
         fixture.detectChanges();
+        // The enrichment queue intentionally executes one request at a time.
+        // Angular whenStable() does not await this detached async pipeline;
+        // let the sequential Promise microtasks drain before asserting.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
         await fixture.whenStable();
         fixture.detectChanges();
 
