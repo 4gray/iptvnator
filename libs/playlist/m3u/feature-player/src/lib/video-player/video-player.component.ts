@@ -1,3 +1,4 @@
+import { rememberLastPlayedLive } from '@iptvnator/shared/interfaces';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import {
     Component,
@@ -1400,6 +1401,9 @@ export class VideoPlayerComponent
                 } as PlaylistMeta,
             })
         );
+        if (channel.radio !== 'true' && !isLikelyM3uVod(channel)) {
+            rememberLastPlayedLive({ sourceType: 'm3u', playlistId, itemId: channel.url });
+        }
     }
 
     private clearConsumedChannelOpenState(): void {
