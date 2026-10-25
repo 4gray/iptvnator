@@ -760,14 +760,16 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         }
     }
 
-    onContentTypeChanged(change: { channel: Channel; kind: M3uContentKind | null }): void {
+    onContentTypeChanged(change: { channels: Channel[]; kind: M3uContentKind | null }): void {
         const playlist = this.activePlaylist();
         if (!this.enableContentReclassification() || !playlist ||
             playlist.serverUrl || playlist.macAddress) return;
-        const key = m3uContentOverrideKey(change.channel);
         const overrides = { ...(playlist.m3uContentOverrides ?? {}) };
-        if (change.kind === null) delete overrides[key];
-        else overrides[key] = change.kind;
+        for (const channel of change.channels) {
+            const key = m3uContentOverrideKey(channel);
+            if (change.kind === null) delete overrides[key];
+            else overrides[key] = change.kind;
+        }
         this.store.dispatch(PlaylistActions.updatePlaylistMeta({
             playlist: { _id: playlist._id, m3uContentOverrides: overrides } as PlaylistMeta,
         }));

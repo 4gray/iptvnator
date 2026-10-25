@@ -5,6 +5,7 @@
     [cdkDragDisabled]="!isDraggable()"
     cdkDragPreviewContainer="parent"
     [class.active]="selected()"
+    [class.multi-selected]="markedForBulk()"
     (click)="onClick($event)"
     (dblclick)="onDoubleClick()"
     (contextmenu)="onContextMenu($event)"

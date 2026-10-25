@@ -105,10 +105,12 @@
                         ?.progressPercentage ?? 0
                 "
                 (clicked)="onChannelClick(channel)"
+                (ctrlSelected)="toggleBulkSelection(channel)"
                 (activated)="onChannelActivate(channel)"
                 (keyboardActivated)="channelPlaybackRequested.emit(channel)"
                 (contextMenuRequested)="onChannelContextMenu(channel, $event)"
                 [selected]="activeChannelUrl() === channel?.url"
+                [markedForBulk]="bulkSelections().has(bulkKey(channel))"
                 [showFavoriteButton]="true"
                 [isFavorite]="favoriteIds().has(channel?.url ?? '')"
                 (favoriteToggled)="onFavoriteToggle(channel, $event)"

@@ -14,7 +14,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import type { M3uContentKind } from '@iptvnator/shared/m3u-utils';
+import { m3uContentOverrideKey, type M3uContentKind } from '@iptvnator/shared/m3u-utils';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -99,7 +99,20 @@ export class AllChannelsViewComponent {
     readonly shouldShowEpg = input.required<boolean>();
     readonly openOnDoubleClick = input(false);
     readonly allowContentTypeChange = input(false);
-    readonly contentTypeChanged = output<{ channel: Channel; kind: M3uContentKind | null }>();
+    readonly contentTypeChanged = output<{ channels: Channel[]; kind: M3uContentKind | null }>();
+    readonly bulkSelections = signal<ReadonlyMap<string, Channel>>(new Map());
+    bulkKey(channel: Channel): string {
+        return m3uContentOverrideKey(channel);
+    }
+    toggleBulkSelection(channel: Channel): void {
+        if (!this.allowContentTypeChange()) return;
+        const next = new Map(this.bulkSelections());
+        const key = this.bulkKey(channel);
+        if (next.has(key)) next.delete(key);
+        else next.set(key, channel);
+        this.bulkSelections.set(next);
+    }
+
 
     /** Item size for virtual scroll */
     readonly itemSize = input.required<number>();
@@ -191,6 +204,7 @@ export class AllChannelsViewComponent {
     }
 
     onChannelClick(channel: Channel): void {
+        this.bulkSelections.set(new Map());
         this.channelSelected.emit(channel);
     }
 
@@ -211,6 +225,11 @@ export class AllChannelsViewComponent {
 
     onChannelContextMenu(channel: Channel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
+        // A right-click on an existing selection applies the command to it.
+        // A right-click elsewhere starts a single-item selection.
+        if (!this.bulkSelections().has(this.bulkKey(channel))) {
+            this.bulkSelections.set(new Map());
+        }
         this.channelContextMenu().open(event);
     }
 
@@ -228,7 +247,11 @@ export class AllChannelsViewComponent {
         const channel = this.contextMenuChannel();
         if (!channel) return;
         this.channelContextMenu().close();
-        this.contentTypeChanged.emit({ channel, kind });
+        const selected = this.bulkSelections();
+        const channels = selected.has(this.bulkKey(channel))
+            ? Array.from(selected.values()) : [channel];
+        this.bulkSelections.set(new Map());
+        this.contentTypeChanged.emit({ channels, kind });
     }
 
     openEpgMapping(): void {

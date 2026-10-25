@@ -57,6 +57,7 @@ export class ChannelListItemComponent {
     readonly showDetailsContextMenu = input(false);
     readonly isFavorite = input(false);
     readonly selected = input(false);
+    readonly markedForBulk = input(false);
     readonly showEpg = input(true);
     readonly isRadio = input(false);
     /** Shows the provider catch-up (archive) badge next to the channel name */
@@ -75,6 +76,7 @@ export class ChannelListItemComponent {
     readonly auxActionTooltip = input('');
 
     readonly clicked = output<void>();
+    readonly ctrlSelected = output<void>();
     /** Pointer double click; consumers retain their existing preference gate. */
     readonly activated = output<void>();
     /** Explicit keyboard playback, independent of the pointer double-click preference. */
@@ -132,7 +134,9 @@ export class ChannelListItemComponent {
             return;
         }
 
-        if (event?.detail === 0) {
+        if (event?.ctrlKey || event?.metaKey) {
+            this.ctrlSelected.emit();
+        } else if (event?.detail === 0) {
             this.keyboardActivated.emit();
         } else {
             this.clicked.emit();

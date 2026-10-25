@@ -394,3 +394,5 @@
     visibility: hidden;
     pointer-events: none;
 }
+
+.channel-list-item.multi-selected { background: var(--app-selection-surface); border-color: var(--app-selection-border); }
