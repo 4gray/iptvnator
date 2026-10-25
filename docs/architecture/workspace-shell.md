@@ -497,6 +497,19 @@ Search is shell-owned and route-aware:
     cancels any pending debounce, so the Enter key committing a trimmed term
     cannot be overwritten a moment later by the untrimmed keystroke still
     waiting behind it.
+11. Xtream and Stalker category scopes can be cleared by clicking anywhere on
+    the header scope chip or by clicking the selected sidebar category again.
+    Both actions merge the current input into the destination URL, including
+    text still waiting for the search debounce, and return to all items in the
+    current section. Clearing an empty input removes `q` while preserving other
+    query parameters. The clear control and action are limited to Xtream
+    `live`/`vod`/`series` and Stalker `itv`/`radio`/`vod`/`series`; retained
+    category state must not make collection or advanced-search scopes
+    dismissible. Live playback remains selected; VOD and series details
+    close when returning to the list. The category name and close icon form
+    one button with a neutral hover and keyboard-focus highlight that remains
+    visible in both themes; hovering the search field does not highlight it.
+    The all-items scope stays non-interactive.
 
 Rail navigation is also shell-owned:
 

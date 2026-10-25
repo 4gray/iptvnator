@@ -22,6 +22,7 @@ import {
     resolveSearchScopeLabel,
 } from './helpers/workspace-shell-search-labels';
 import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
+import { navigateToCategoryCleared } from '../../workspace-context-panel/workspace-context-panel-route.utils';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './workspace-shell-search-sync.service';
 
@@ -185,6 +186,75 @@ export class WorkspaceShellSearchService {
     readonly searchStatusLabel = computed(
         () => this.searchCapability().statusLabel
     );
+    readonly canClearCategoryScope = computed(() => {
+        const route = this.routeState.currentRoute();
+        const context = route.context;
+        if (route.kind !== 'portal' || !context) {
+            return false;
+        }
+
+        if (context.provider === 'xtreams') {
+            return (
+                (route.section === 'vod' ||
+                    route.section === 'series' ||
+                    route.section === 'live') &&
+                this.xtreamStore.selectedCategoryId() !== null
+            );
+        }
+
+        if (context.provider === 'stalker') {
+            const stalkerCat = this.stalkerStore.selectedCategoryId();
+            return (
+                (route.section === 'vod' ||
+                    route.section === 'series' ||
+                    route.section === 'itv' ||
+                    route.section === 'radio') &&
+                !!stalkerCat &&
+                stalkerCat !== '*'
+            );
+        }
+
+        return false;
+    });
+
+    clearCategoryScope(): void {
+        const route = this.routeState.currentRoute();
+        const context = route.context;
+        const section = route.section;
+        if (!context || !this.canClearCategoryScope()) {
+            return;
+        }
+
+        if (context.provider === 'xtreams') {
+            this.xtreamStore.setSelectedCategory(null);
+            if (section === 'vod' || section === 'series') {
+                this.xtreamStore.setSelectedItem(null);
+            }
+            navigateToCategoryCleared({
+                router: this.router,
+                provider: 'xtreams',
+                playlistId: context.playlistId,
+                section,
+                searchQuery: this.searchQuery(),
+            });
+            return;
+        }
+
+        if (context.provider === 'stalker') {
+            this.stalkerStore.setSelectedCategory('*');
+            this.stalkerStore.setPage(0);
+            if (section === 'vod' || section === 'series') {
+                this.stalkerStore.clearSelectedItem();
+            }
+            navigateToCategoryCleared({
+                router: this.router,
+                provider: 'stalker',
+                playlistId: context.playlistId,
+                section,
+                searchQuery: this.searchQuery(),
+            });
+        }
+    }
 
     onSearchInput(value: string): void {
         this.searchSync.onSearchInput(value);

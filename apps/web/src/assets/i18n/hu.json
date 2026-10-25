@@ -1840,6 +1840,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Szűrőpanel megjelenítése vagy elrejtése",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Szűrők",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Beállítási szakaszok paneljének megjelenítése vagy elrejtése",
+            "CLEAR_CATEGORY_FILTER": "Kategóriaszűrő törlése",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Beállítási szakaszok",
             "ADD_PLAYLIST_ALL": "Lejátszási lista hozzáadása",
             "ADD_PLAYLIST": "Lejátszási lista hozzáadása",

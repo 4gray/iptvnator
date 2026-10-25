@@ -1840,6 +1840,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "필터 패널 전환",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "필터",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "설정 섹션 패널 전환",
+            "CLEAR_CATEGORY_FILTER": "카테고리 필터 지우기",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "설정 섹션",
             "ADD_PLAYLIST_ALL": "재생목록 추가",
             "ADD_PLAYLIST": "재생목록 추가",

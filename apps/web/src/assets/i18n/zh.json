@@ -1840,6 +1840,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "切换筛选面板",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "筛选",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "切换设置栏目面板",
+            "CLEAR_CATEGORY_FILTER": "清除分类筛选",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "设置栏目",
             "ADD_PLAYLIST_ALL": "添加播放列表",
             "ADD_PLAYLIST": "添加播放列表",

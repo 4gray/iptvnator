@@ -1840,6 +1840,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Toggle the filters panel",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filters",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Toggle the settings sections panel",
+            "CLEAR_CATEGORY_FILTER": "Clear category filter",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Settings sections",
             "ADD_PLAYLIST_ALL": "Add playlist",
             "ADD_PLAYLIST": "Add playlist",

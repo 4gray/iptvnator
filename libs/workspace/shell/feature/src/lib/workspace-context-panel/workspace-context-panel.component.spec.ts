@@ -18,6 +18,7 @@ import {
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
 import { ParentalLockService } from '@iptvnator/services';
 import { WorkspaceContextPanelComponent } from './workspace-context-panel.component';
+import { WorkspaceShellSearchSyncService } from '../workspace-shell/services/workspace-shell-search-sync.service';
 
 const translations: Record<string, string> = {
     'WORKSPACE.CONTEXT.MANAGE_CATEGORIES': 'Manage categories',
@@ -163,6 +164,10 @@ describe('WorkspaceContextPanelComponent', () => {
         await TestBed.configureTestingModule({
             imports: [WorkspaceContextPanelComponent, NoopAnimationsModule],
             providers: [
+                {
+                    provide: WorkspaceShellSearchSyncService,
+                    useValue: { searchQuery: signal('') },
+                },
                 {
                     provide: TranslateService,
                     useValue: {

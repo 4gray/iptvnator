@@ -1840,6 +1840,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Mostra o nascondi il pannello dei filtri",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filtri",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Mostra o nascondi il pannello delle sezioni delle impostazioni",
+            "CLEAR_CATEGORY_FILTER": "Cancella filtro categoria",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Sezioni delle impostazioni",
             "ADD_PLAYLIST_ALL": "Aggiungi playlist",
             "ADD_PLAYLIST": "Aggiungi playlist",

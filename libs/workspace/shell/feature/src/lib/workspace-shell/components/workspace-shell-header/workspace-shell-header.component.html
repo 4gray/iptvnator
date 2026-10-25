@@ -69,15 +69,41 @@
     <!-- Settings search works without any playlist, so a fresh user can
          find settings before importing a first source. -->
     @if (!hasNoPlaylists() || isSettingsRoute()) {
-        <label class="search-field">
+        <label class="search-field" for="workspace-shell-search-input">
             <mat-icon>search</mat-icon>
             @if (searchScopeLabel()) {
-                <span class="search-chip search-chip--scope">
-                    {{ searchScopeLabel() }}
-                </span>
+                @if (canClearCategoryScope()) {
+                    <button
+                        type="button"
+                        class="search-chip search-chip--scope search-chip--dismissible"
+                        data-test-id="workspace-search-scope-clear"
+                        [matTooltip]="
+                            'WORKSPACE.SHELL.CLEAR_CATEGORY_FILTER' | translate
+                        "
+                        [attr.aria-label]="
+                            ('WORKSPACE.SHELL.CLEAR_CATEGORY_FILTER'
+                                | translate) +
+                            ': ' +
+                            searchScopeLabel()
+                        "
+                        (click)="onClearCategoryScope($event)"
+                    >
+                        <span class="search-chip__label">{{
+                            searchScopeLabel()
+                        }}</span>
+                        <mat-icon>close</mat-icon>
+                    </button>
+                } @else {
+                    <span class="search-chip search-chip--scope">
+                        <span class="search-chip__label">{{
+                            searchScopeLabel()
+                        }}</span>
+                    </span>
+                }
             }
             <input
                 #searchInput
+                id="workspace-shell-search-input"
                 type="search"
                 spellcheck="false"
                 [value]="searchQuery()"

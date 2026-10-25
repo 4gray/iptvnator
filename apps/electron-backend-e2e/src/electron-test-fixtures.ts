@@ -1875,7 +1875,9 @@ export async function expectWorkspaceSearchScope(
     expected: RegExp | string
 ): Promise<void> {
     await expect(
-        page.locator('app-workspace-shell-header .search-chip--scope')
+        page.locator(
+            'app-workspace-shell-header .search-chip--scope .search-chip__label'
+        )
     ).toHaveText(expected);
 }
 

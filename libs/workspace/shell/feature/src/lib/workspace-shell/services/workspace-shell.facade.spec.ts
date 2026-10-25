@@ -69,6 +69,10 @@ class MockXtreamStore {
     setCategorySearchTerm = jest.fn((term: string) =>
         this.categorySearchTerm.set(term)
     );
+    setSelectedCategory = jest.fn((id: number | null) =>
+        this.selectedCategoryId.set(id)
+    );
+    setSelectedItem = jest.fn();
     clearRecentItems = jest.fn();
 }
 
@@ -79,8 +83,14 @@ class MockStalkerStore {
         labelKey: null,
     });
     readonly itvFullListActive = signal(false);
+    readonly selectedCategoryId = signal<string | null>(null);
 
     setSearchPhrase = jest.fn((term: string) => this.searchPhrase.set(term));
+    setSelectedCategory = jest.fn((id: string) =>
+        this.selectedCategoryId.set(id)
+    );
+    setPage = jest.fn();
+    clearSelectedItem = jest.fn();
 }
 
 function createParseUrl(url: string): { queryParams: Record<string, unknown> } {
@@ -709,6 +719,34 @@ describe('WorkspaceShellFacade', () => {
 
         expect(facade.searchScopeLabel()).toBe(
             'WORKSPACE.SHELL.RAIL_MOVIES / Drama'
+        );
+    });
+
+    it('manages canClearCategoryScope and clears category scope in Xtream', () => {
+        const xtreamStore = TestBed.inject(
+            XtreamStore
+        ) as unknown as MockXtreamStore;
+        const router = TestBed.inject(Router);
+        const navigateSpy = jest.spyOn(router, 'navigate');
+
+        facade.currentUrl.set('/workspace/xtreams/pl-1/vod/7?q=neo');
+        searchSync.syncSearchFromRoute();
+        TestBed.flushEffects();
+
+        xtreamStore.selectedCategoryId.set(null);
+        expect(facade.canClearCategoryScope()).toBe(false);
+
+        xtreamStore.selectedCategoryId.set(7);
+        expect(facade.canClearCategoryScope()).toBe(true);
+
+        facade.clearCategoryScope();
+        expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(null);
+        expect(navigateSpy).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', 'pl-1', 'vod'],
+            expect.objectContaining({
+                queryParamsHandling: 'merge',
+                queryParams: { q: 'neo' },
+            })
         );
     });
 

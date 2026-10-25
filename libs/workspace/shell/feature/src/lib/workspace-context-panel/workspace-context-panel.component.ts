@@ -53,10 +53,14 @@ import {
     WorkspaceCategoryLockActionService,
 } from './workspace-category-lock-action.service';
 import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
-import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
+import {
+    hasActiveLiveCategoryRoute,
+    navigateToCategoryCleared,
+} from './workspace-context-panel-route.utils';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
 import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { WorkspaceShellSearchSyncService } from '../workspace-shell/services/workspace-shell-search-sync.service';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
 
@@ -100,6 +104,7 @@ export class WorkspaceContextPanelComponent {
     private readonly router = inject(Router);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly searchSync = inject(WorkspaceShellSearchSyncService);
     private readonly dialog = inject(MatDialog);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
@@ -683,6 +688,25 @@ export class WorkspaceContextPanelComponent {
         this.contextDrawer?.close();
         this.categorySelected.emit();
 
+        const currentSelectedId = this.xtreamSelectedCategoryId();
+        if (
+            currentSelectedId !== null &&
+            Number(currentSelectedId) === categoryId
+        ) {
+            this.xtreamStore.setSelectedCategory(null);
+            if (section === 'vod' || section === 'series') {
+                this.xtreamStore.setSelectedItem(null);
+            }
+            navigateToCategoryCleared({
+                router: this.router,
+                provider: 'xtreams',
+                playlistId: context.playlistId,
+                section,
+                searchQuery: this.searchSync.searchQuery(),
+            });
+            return;
+        }
+
         if (section === 'live') {
             this.xtreamStore.setSelectedCategory(categoryId);
             const liveRouteHasCategory = hasActiveLiveCategoryRoute(
@@ -724,6 +748,28 @@ export class WorkspaceContextPanelComponent {
 
         this.contextDrawer?.close();
         this.categorySelected.emit();
+
+        const currentSelectedId = this.stalkerSelectedCategoryId();
+        if (
+            currentSelectedId &&
+            currentSelectedId !== '*' &&
+            currentSelectedId === categoryId
+        ) {
+            this.stalkerStore.setSelectedCategory('*');
+            this.stalkerStore.setPage(0);
+            if (section === 'vod' || section === 'series') {
+                this.stalkerStore.clearSelectedItem();
+            }
+            navigateToCategoryCleared({
+                router: this.router,
+                provider: 'stalker',
+                playlistId: context.playlistId,
+                section,
+                searchQuery: this.searchSync.searchQuery(),
+            });
+            return;
+        }
+
         this.stalkerStore.setSelectedCategory(categoryId);
         this.stalkerStore.setPage(0);
 

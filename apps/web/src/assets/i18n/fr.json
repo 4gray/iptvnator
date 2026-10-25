@@ -1840,6 +1840,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Afficher ou masquer le panneau des filtres",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filtres",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Afficher ou masquer le panneau des sections des paramètres",
+            "CLEAR_CATEGORY_FILTER": "Effacer le filtre de catégorie",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Sections des paramètres",
             "ADD_PLAYLIST_ALL": "Ajouter une liste de lecture",
             "ADD_PLAYLIST": "Ajouter une liste de lecture",
