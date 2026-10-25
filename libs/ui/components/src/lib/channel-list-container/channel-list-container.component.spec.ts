@@ -11,7 +11,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { BehaviorSubject, firstValueFrom, of, Subject } from 'rxjs';
-import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -73,7 +73,7 @@ function createTrackedUrlChannel(
  * first current-programme batch. Tests must observe that real async boundary.
  */
 async function settleEpgAliasMicrotasks(): Promise<void> {
-    for (let i = 0; i < 6; i++) await Promise.resolve();
+    for (let i = 0; i < 24; i++) await Promise.resolve();
 }
 
 describe('ChannelListContainerComponent', () => {
@@ -143,6 +143,18 @@ describe('ChannelListContainerComponent', () => {
                 {
                     provide: EpgService,
                     useValue: epgService,
+                },
+                {
+                    // The list tests cover current-programme requests, not
+                    // the Electron IPC bridge or XMLTV identity importer.
+                    provide: EpgRuntimeBridgeService,
+                    useValue: {
+                        getEpgChannels: jest.fn().mockResolvedValue({ channels: [] }),
+                        getEpgMappingsBatch: jest.fn().mockResolvedValue({}),
+                        getProgramsForChannels: jest.fn().mockResolvedValue(null),
+                        supportsGuide: false,
+                        supportsEpgMapping: false,
+                    },
                 },
                 {
                     provide: PlaylistsService,
@@ -498,6 +510,10 @@ describe('ChannelListContainerComponent', () => {
     });
 
     it('maps favorite URLs with one channel lookup pass while preserving order and first duplicate match', async () => {
+        // Keep the channel list's independent XMLTV pass out of this
+        // performance assertion: only the Favorites projection is measured.
+        fixture.componentRef.setInput('enableEpg', false);
+        fixture.detectChanges();
         let urlReadCount = 0;
         const firstDuplicate = createTrackedUrlChannel(
             'first-duplicate',
