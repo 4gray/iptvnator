@@ -56,6 +56,32 @@ describe('M3U media catalog', () => {
         fixture.destroy();
     });
 
+    it('enriches series beyond the first eight visible cards', async () => {
+        const enrichTv = jest.fn().mockResolvedValue({
+            poster_path: '/test.jpg',
+            overview: 'A series',
+            vote_average: 8,
+            first_air_date: '2025-01-01',
+        });
+        TestBed.overrideProvider(TmdbEnrichmentService, {
+            useValue: { isEnabled: () => true, enrichTv },
+        });
+        const entries = Array.from({ length: 12 }, (_, i) =>
+            channel('Series ' + i + ' S01E01', String(i))
+        );
+        const fixture = TestBed.createComponent(M3uMediaCatalogComponent);
+        fixture.componentRef.setInput('kind', 'series');
+        fixture.componentRef.setInput('channels', entries);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelectorAll('.series-card')).toHaveLength(12);
+        expect(enrichTv).toHaveBeenCalledTimes(12);
+        expect(fixture.nativeElement.querySelectorAll('.series-card img')).toHaveLength(12);
+        fixture.destroy();
+    });
+
     it('opens series seasons and episodes, preserving the original Channel identity', () => {
         const entries = [
             channel('The Show S02E04', '4'),
