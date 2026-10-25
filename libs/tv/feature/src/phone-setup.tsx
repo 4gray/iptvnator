@@ -1,4 +1,5 @@
 import { PhoneReview } from './phone-review';
+import { PhoneSetupPanel } from './phone-setup-panel';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import QRCode from 'qrcode';
 import {
@@ -19,9 +20,11 @@ import { TvModel } from './use-tv';
 export function PhoneSetup({
     tv,
     purpose = 'source',
+    compact = false,
 }: {
     tv: TvModel;
     purpose?: SetupPurpose;
+    compact?: boolean;
 }) {
     const settings = purpose === 'settings';
     const [session, setSession] = useState<PairingSession>();
@@ -209,10 +212,10 @@ export function PhoneSetup({
     }
     return (
         <section
-            class="phone-setup"
+            class={`phone-setup ${compact ? 'compact-phone-setup' : ''}`}
             aria-label={settings ? 'Settings from phone' : 'Add from phone'}
         >
-            <div>
+            <div hidden={compact}>
                 <h2>
                     {settings
                         ? 'Set up from your phone'
@@ -239,7 +242,7 @@ export function PhoneSetup({
                           : 'Add from phone'}
                 </button>
             ) : (
-                <div class="phone-pairing">
+                <PhoneSetupPanel compact={compact}>
                     {state?.source || state?.settings ? (
                         <PhoneReview
                             state={state}
@@ -284,12 +287,10 @@ export function PhoneSetup({
                     >
                         Close setup
                     </button>
-                </div>
+                </PhoneSetupPanel>
             )}
             {!tv.backend.connected && !session ? (
-                <p class="muted">
-                    Connect a backend below to enable phone setup.
-                </p>
+                <p class="muted">Connect a backend to enable phone setup.</p>
             ) : null}
             {error ? <p role="alert">{error}</p> : null}
         </section>

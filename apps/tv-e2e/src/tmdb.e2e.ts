@@ -24,6 +24,9 @@ async function setup(page: Page) {
 }
 async function enable(page: Page, key = 'fake-tv-key') {
     await nav(page, 'Settings');
+    await page
+        .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
+        .click();
     await page.getByLabel('Use TMDB metadata').check();
     await page.getByLabel('TMDB API key or read access token').fill(key);
     await page.getByRole('button', { name: 'Save TMDB settings' }).click();
@@ -90,6 +93,9 @@ test('@tmdb opt-in, key validation, language and relaunch preserve provider iden
     );
     await page.reload();
     await nav(page, 'Settings');
+    await page
+        .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
+        .click();
     await expect(page.getByLabel('Use TMDB metadata')).toBeChecked();
     await expect(
         page.getByLabel('TMDB API key or read access token')

@@ -64,7 +64,9 @@ four times with increasing delays. Retry connection starts a new budget.
 Connected is a backend health/auth check, not proof that the portal has
 reconnected. See the architecture contract for retry and playback ownership.
 
-`tv-e2e` owns isolated ports 4311, 3433, 3420 and 3421. It starts the built TV
+`tv-e2e` owns isolated ports 4311, 3433, 3434, 3420 and 3421.
+Concurrent worktrees can set `TV_E2E_PORT_OFFSET=10000` to move these servers
+and the shared test helpers together without stopping an existing run. It starts the built TV
 client, actual web backend, and existing Stalker/Xtream mocks. Its explicit Nx
 dependencies include these projects and the phone setup application. Provider catalog/auth/EPG requests go
 through the actual backend. The isolated test backend also permits the `null`
@@ -219,3 +221,8 @@ grid, shared EPG geometry and provider-cache checks, separately from LG results.
 [TV stabilization validation](tv-stabilization-validation.md) records the 0.1.12
 master integration, storage protection, recovery and home-server onboarding,
 with the unresolved native playback checks kept separate.
+
+
+[TV Settings categories validation](tv-settings-validation.md) records the category
+layout, draft/save isolation, focus restoration, phone modal and local package
+checks. These changes have not been installed or tested on the real LG.

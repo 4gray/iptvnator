@@ -133,6 +133,21 @@ retryable, and a stable session-derived source ID prevents retry duplicates.
 The phone never reads source credentials back. QR transfer is source entry,
 not account synchronization, playlist-file upload or a media relay.
 
+Settings uses a fixed category column beside one independently scrolling panel:
+Connection (including direct diagnostics), Library & sync, Appearance, Programme
+guide, Metadata · TMDB and Your remote. Forms stay mounted while switching
+categories, preserving unsaved input. Appearance and programme-guide saves each
+patch only their own field in the current snapshot; hidden drafts are never
+submitted. Committed phone changes refresh the corresponding field drafts.
+Category, last control and panel scroll positions survive leaving and returning
+to Settings within the app session; these navigation hints contain no credentials.
+Right/OK enters the category's last available control, Left returns to its category
+except in text fields, and Back returns to categories before leaving Settings.
+Native text caret and select-choice keys retain the shared remote contract.
+Phone setup is a compact action available above every category; an open QR session
+owns modal directional focus. Its cancellation and committed-write rules remain
+unchanged. Panel layout uses Chromium-68-compatible flex and explicit dimensions.
+
 Settings has its own purpose-bound QR session for layout, EPG and TMDB
 preferences. The phone receives only nonsecret defaults and a has-key flag.
 An empty key field preserves the saved key; a replacement is visible only to
