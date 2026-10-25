@@ -257,6 +257,9 @@ describe('VideoPlayerComponent', () => {
     });
 
     it('opens the EPG grid from the header even before selecting a channel', () => {
+        // The playlist has channels although none is selected yet.
+        channels.set([sampleChannel]);
+        channels$.next([sampleChannel]);
         fixture.detectChanges();
         expect(headerContext.action()?.disabled?.()).toBe(false);
         headerContext.action()?.run();
