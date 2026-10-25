@@ -27,6 +27,10 @@ export function isAmbiguousStreamUrl(url: string): boolean {
     try {
         const parsed = new URL(url);
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+        // Explicit format declarations are authoritative even on PHP routes.
+        const format = (parsed.searchParams.get('format') ??
+            parsed.searchParams.get('type') ?? '').toLowerCase();
+        if (['hls', 'm3u8', 'mpegts', 'mp2t', 'ts'].includes(format)) return false;
         const extension = getPlaybackMediaExtensionFromUrl(url);
         // Script endpoints commonly serve HLS or TS regardless of .php.
         return !extension || extension === 'php' || extension === 'asp' ||

@@ -256,6 +256,15 @@ describe('VideoPlayerComponent', () => {
         window.electron = originalElectron;
     });
 
+    it('opens the EPG grid from the header even before selecting a channel', () => {
+        fixture.detectChanges();
+        expect(headerContext.action()?.disabled?.()).toBe(false);
+        headerContext.action()?.run();
+        fixture.detectChanges();
+        expect(component.guideOpen()).toBe(true);
+        component.closeGuide();
+    });
+
     it('registers and clears the workspace guide header shortcut', () => {
         fixture.detectChanges();
 

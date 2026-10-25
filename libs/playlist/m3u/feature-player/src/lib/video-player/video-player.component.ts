@@ -352,12 +352,11 @@ export class VideoPlayerComponent
     readonly selectedSidebarGroup = signal<string | null>(null);
     readonly canOpenGuide = computed(() => {
         const channel = this.activeChannel();
-        return (
-            this.supportsEpg &&
-            !!channel &&
-            channel.radio !== 'true' &&
-            !this.showMovieDetail()
-        );
+        // The guide is a channel discovery view too: the header grid
+        // should work before a live channel has been selected.
+        return this.supportsEpg &&
+            this.guideChannels().length > 0 &&
+            (!channel || (channel.radio !== 'true' && !this.showMovieDetail()));
     });
     /**
      * Programme shown in the docked strip (catch-up selection wins). The
