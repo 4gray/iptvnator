@@ -32,7 +32,7 @@ import {
     epgProviderClockMs,
     playlistDisplayLabel,
 } from '@iptvnator/shared/interfaces';
-import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
+import { exactEpgNameAliasesRevision, resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
@@ -133,6 +133,7 @@ export class GlobalFavoritesListComponent {
     readonly enrichedChannels = computed((): EnrichedUnifiedFavorite[] => {
         const epgMap = this.epgMap();
         this.progressTick();
+        exactEpgNameAliasesRevision();
 
         const sorted = deriveVisibleFavoriteChannels(this.channels(), {
             searchTerm: this.searchTermInput(),
@@ -142,7 +143,9 @@ export class GlobalFavoritesListComponent {
         });
 
         return sorted.map((ch) => {
-            const epgKey = ch.tvgId?.trim() || ch.name?.trim();
+            const epgKey = ch.m3uChannel
+                ? resolveChannelEpgLookupKey(ch.m3uChannel)
+                : ch.tvgId?.trim() || ch.name?.trim();
             const currentEpgProgram = epgKey
                 ? (epgMap.get(epgKey) ?? null)
                 : null;
