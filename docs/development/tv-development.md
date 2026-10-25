@@ -132,6 +132,8 @@ and non-generic names. Catalog rows, live channels, episode identity and command
 remain provider-owned. Errors leave provider content usable. Key validation does
 not enable metadata: save the opt-in switch and check its saved state message.
 The TV browser must reach `api.themoviedb.org` and `image.tmdb.org` directly.
+The [TMDB enrichment and series-title verification](tv-tmdb-enrichment-validation.md)
+records real API observations, regression checks and the separate 0.1.16 device gate.
 
 ## Hardware update on 2026-10-25
 
