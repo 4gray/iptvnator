@@ -121,6 +121,13 @@
     [enabled]="channelPanelAvailable()"
 />
 
+@if (autoRetryAttempt() > 0) {
+    <div class="web-player-auto-retry" role="status" aria-live="polite"
+         style="position:absolute;z-index:15;bottom:16px;left:16px;padding:8px 12px;border-radius:6px;background:rgba(12,16,28,.85);color:#fff;pointer-events:none">
+        Reconnecting live stream · Retry {{ autoRetryAttempt() }}/3
+    </div>
+}
+
 @if (visiblePlaybackDiagnostic(); as issue) {
     <app-playback-diagnostic-panel
         [diagnostic]="issue"
