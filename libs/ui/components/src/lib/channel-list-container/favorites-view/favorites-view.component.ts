@@ -90,6 +90,27 @@ export class FavoritesViewComponent {
 
     readonly contextMenuChannel = signal<Channel | null>(null);
 
+    /** Same on-device preference as global Favorites, without changing saved order. */
+    readonly sortMode = signal<'custom' | 'name-asc' | 'name-desc'>(
+        this.readSortMode()
+    );
+    readonly isManualSort = computed(() => this.sortMode() === 'custom');
+
+    setSortMode(value: string): void {
+        if (value !== 'custom' && value !== 'name-asc' && value !== 'name-desc') return;
+        this.sortMode.set(value);
+        try { localStorage.setItem('favorites-channel-sort-mode', value); }
+        catch { /* Non-persistent storage leaves visible order intact. */ }
+    }
+
+    private readSortMode(): 'custom' | 'name-asc' | 'name-desc' {
+        try {
+            const stored = localStorage.getItem('favorites-channel-sort-mode');
+            return stored === 'name-asc' || stored === 'name-desc' ? stored : 'custom';
+        } catch { return 'custom'; }
+    }
+
+
     readonly hasSearchTerm = computed(
         () => this.searchTerm().trim().length > 0
     );
@@ -97,14 +118,16 @@ export class FavoritesViewComponent {
         const favorites = this.favorites();
         const term = foldSearchText(this.searchTerm().trim());
 
-        if (!term) {
-            return favorites;
-        }
-
-        return favorites.filter((channel) =>
+        const filtered = term ? favorites.filter((channel) =>
             foldSearchText(
                 `${channel.name ?? ''} ${channel.group?.title ?? ''}`
             ).includes(term)
+        ) : favorites;
+        if (this.sortMode() === 'custom') return filtered;
+        const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+        const direction = this.sortMode() === 'name-asc' ? 1 : -1;
+        return [...filtered].sort((a, b) =>
+            direction * collator.compare(a.name ?? '', b.name ?? '')
         );
     });
 
@@ -189,7 +212,7 @@ export class FavoritesViewComponent {
     }
 
     onDrop(event: CdkDragDrop<Channel[]>): void {
-        if (this.hasSearchTerm()) {
+        if (this.hasSearchTerm() || !this.isManualSort()) {
             return;
         }
 
