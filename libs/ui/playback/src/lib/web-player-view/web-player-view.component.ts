@@ -63,6 +63,7 @@ import { createWebPlayerApplicationState } from './web-player-application-state'
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
 import { createChannelPanelAvailability } from './web-player-channel-panel-state';
 import { WebPlayerLiveAutoFormat } from './web-player-live-auto-format';
+import { isAmbiguousStreamUrl } from './ambiguous-stream-format.util';
 import { WebPlayerRecoveryController } from './web-player-recovery-controller';
 import {
     isPlaybackExternallyTransferable,
@@ -205,7 +206,17 @@ export class WebPlayerViewComponent implements OnDestroy {
             this.playerOverride() ??
             this.settingsStore.player?.() ??
             VideoPlayer.VideoJs,
-        computation: resolveRenderableWebPlayer,
+        computation: (preferred) => {
+            const resolved = resolveRenderableWebPlayer(preferred);
+            // For server-script/extensionless HTTP media, Video.js has a
+            // MIME-aware HLS/TS path and provides standard HTML video PiP.
+            // Do not force Chromium HTML5 down a guessed MPEG-TS loader.
+            if (resolved === VideoPlayer.Html5Player &&
+                isAmbiguousStreamUrl(this.streamUrl())) {
+                return VideoPlayer.VideoJs;
+            }
+            return resolved;
+        },
     });
     readonly selectedPlayer = computed<VideoPlayer>(() => {
         const temporary = this.recoverySession.temporaryPlayerOverride();

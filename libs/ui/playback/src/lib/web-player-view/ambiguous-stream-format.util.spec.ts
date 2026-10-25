@@ -11,6 +11,7 @@ describe('ambiguous stream routing', () => {
         expect(isAmbiguousStreamUrl('https://example.invalid/play.php?format=hls')).toBe(false);
         expect(isAmbiguousStreamUrl('file:///tmp/video')).toBe(false);
         expect(isAmbiguousStreamUrl('https://example.invalid/play.php?session=1')).toBe(true);
+        expect(isAmbiguousStreamUrl('https://example.invalid/play.php')).toBe(true);
     });
 
     it('recognizes only declared MIME types, without assuming PHP means TS', () => {

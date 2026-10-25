@@ -27,7 +27,10 @@ export function isAmbiguousStreamUrl(url: string): boolean {
     try {
         const parsed = new URL(url);
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
-        return !getPlaybackMediaExtensionFromUrl(url);
+        const extension = getPlaybackMediaExtensionFromUrl(url);
+        // Script endpoints commonly serve HLS or TS regardless of .php.
+        return !extension || extension === 'php' || extension === 'asp' ||
+            extension === 'aspx' || extension === 'cgi';
     } catch {
         return false;
     }
