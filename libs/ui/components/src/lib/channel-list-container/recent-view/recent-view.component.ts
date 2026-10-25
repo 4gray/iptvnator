@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
@@ -22,6 +21,7 @@ import {
     EpgProgram,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
+import { ChannelContextMenuComponent } from '../channel-context-menu/channel-context-menu.component';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
@@ -42,10 +42,10 @@ export interface RecentViewItem {
     styleUrls: ['./recent-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
         MatIconModule,
-        MatMenuModule,
         TranslatePipe,
     ],
 })
@@ -55,8 +55,9 @@ export class RecentViewComponent {
     private readonly settingsStore = inject(SettingsStore);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
 
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
 
     readonly recentItems = input.required<RecentViewItem[]>();
     readonly searchTerm = input('');
@@ -72,10 +73,6 @@ export class RecentViewComponent {
     readonly removeRecent = output<string>();
 
     readonly contextMenuChannel = signal<Channel | null>(null);
-    readonly contextMenuPosition = signal({
-        x: '0px',
-        y: '0px',
-    });
 
     readonly filteredRecentItems = computed(() => {
         const recentItems = this.recentItems();
@@ -141,19 +138,7 @@ export class RecentViewComponent {
 
     onChannelContextMenu(channel: Channel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     openEpgMapping(): void {
@@ -162,7 +147,7 @@ export class RecentViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const channelKey = resolveChannelEpgLookupKey(channel);
         if (!channelKey) {
             return;
@@ -180,12 +165,8 @@ export class RecentViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
-        });
+        this.channelContextMenu().close();
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     removeContextMenuChannel(): void {
@@ -194,7 +175,7 @@ export class RecentViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         this.removeRecent.emit(channel.url);
     }
 }

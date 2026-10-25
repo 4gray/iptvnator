@@ -17,7 +17,7 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -29,6 +29,7 @@ import {
     EpgProgram,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
+import { ChannelContextMenuComponent } from '../channel-context-menu/channel-context-menu.component';
 import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import {
     PlaylistChannelSortMode,
@@ -51,6 +52,8 @@ import {
     GroupManagementDialogComponent,
     GroupManagementDialogGroup,
 } from './group-management-dialog/group-management-dialog.component';
+import { dialogSize } from '../../dialog-shell/dialog-size';
+import { createGroupsRailReveal } from './groups-rail-reveal';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
 /** Rail width inside the fullscreen channel panel; see the `compact` input. */
@@ -75,6 +78,7 @@ interface FilteredGroupView {
     styleUrls: ['./groups-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelContextMenuComponent,
         CategoryLockMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
@@ -98,8 +102,9 @@ export class GroupsViewComponent {
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
     private readonly hostEl = inject(ElementRef<HTMLElement>);
 
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
     readonly groupSearchInput =
         viewChild<ElementRef<HTMLInputElement>>('groupSearchInput');
 
@@ -226,10 +231,6 @@ export class GroupsViewComponent {
     );
     readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 52));
     readonly contextMenuChannel = signal<Channel | null>(null);
-    readonly contextMenuPosition = signal({
-        x: '0px',
-        y: '0px',
-    });
 
     private previousActiveChannelUrl: string | undefined;
     private preservedContentWidth = 0;
@@ -279,48 +280,12 @@ export class GroupsViewComponent {
             this.selectedGroupChange.emit(this.selectedGroupKey());
         });
 
-        effect(() => {
-            const selectedGroupKey = this.selectedGroupKey();
-            if (selectedGroupKey == null) {
-                return;
-            }
-
-            queueMicrotask(() => {
-                const container = this.hostEl.nativeElement.querySelector(
-                    '.groups-nav-list'
-                ) as HTMLElement | null;
-                const candidates = Array.from(
-                    this.hostEl.nativeElement.querySelectorAll(
-                        '[data-group-key]'
-                    )
-                ) as HTMLElement[];
-                const selected =
-                    candidates.find(
-                        (candidate) =>
-                            candidate.dataset['groupKey'] === selectedGroupKey
-                    ) ?? null;
-
-                if (!container || !selected) {
-                    return;
-                }
-
-                const containerRect = container.getBoundingClientRect();
-                const selectedRect = selected.getBoundingClientRect();
-                const targetTop =
-                    container.scrollTop +
-                    (selectedRect.top - containerRect.top) -
-                    container.clientHeight / 2 +
-                    selectedRect.height / 2;
-                const maxScrollTop = Math.max(
-                    0,
-                    container.scrollHeight - container.clientHeight
-                );
-
-                container.scrollTo({
-                    behavior: 'smooth',
-                    top: Math.min(maxScrollTop, Math.max(0, targetTop)),
-                });
-            });
+        // Reveal lifecycle lives in its own controller: this component
+        // only wires its selection and rows to it.
+        createGroupsRailReveal({
+            host: this.hostEl.nativeElement,
+            selectedGroupKey: this.selectedGroupKey,
+            rowsChanged: () => this.filteredGroups(),
         });
 
         effect(() => {
@@ -584,9 +549,7 @@ export class GroupsViewComponent {
                 hiddenGroupTitles: this.hiddenGroupTitles(),
                 ...(lockedGroupTitles ? { lockedGroupTitles } : {}),
             },
-            width: '500px',
-            maxWidth: 'calc(100vw - 32px)',
-            maxHeight: '90vh',
+            ...dialogSize('md'),
         });
 
         dialogRef.afterClosed().subscribe((result) => {
@@ -647,19 +610,7 @@ export class GroupsViewComponent {
 
     onChannelContextMenu(channel: Channel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     openEpgMapping(): void {
@@ -668,7 +619,7 @@ export class GroupsViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const channelKey = resolveChannelEpgLookupKey(channel);
         if (!channelKey) {
             return;
@@ -686,12 +637,8 @@ export class GroupsViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
-        });
+        this.channelContextMenu().close();
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     /**

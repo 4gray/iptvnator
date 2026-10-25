@@ -1,4 +1,9 @@
-import { REDACTED_VALUE, redactSensitiveData } from './redact-sensitive-data';
+import {
+    isSensitiveKey,
+    REDACTED_VALUE,
+    redactSensitiveData,
+} from './redact-sensitive-data';
+import { decodeFully } from './url-credential-parts';
 
 const TEST_SECRETS = [
     'settings-api-key-secret',
@@ -298,6 +303,63 @@ describe('redactSensitiveData', () => {
 
         expect(output).not.toContain(username);
         expect(output).not.toContain(password);
+    });
+
+    it('redacts Xtream path credentials whatever the marker case', () => {
+        const output = serialized(
+            redactSensitiveData(
+                'https://example.com/LIVE/case-user-secret/case-pass-secret/1.ts'
+            )
+        );
+        expect(output).not.toContain('case-user-secret');
+        expect(output).not.toContain('case-pass-secret');
+    });
+
+    it('reads keys and path markers through every encoding layer', () => {
+        expect(isSensitiveKey('%2570assword')).toBe(true);
+        expect(isSensitiveKey('%252570assword')).toBe(true);
+        const output = serialized(
+            redactSensitiveData([
+                'https://proxy.example/list?%2570assword=layer-pass-secret&hd=1',
+                'https://example.com/%256Cive/layer-user-secret/layer-pw-secret/1.ts',
+            ])
+        );
+        expect(output).not.toContain('layer-pass-secret');
+        expect(output).not.toContain('layer-user-secret');
+        expect(output).not.toContain('layer-pw-secret');
+        expect(output).toContain('hd=1');
+    });
+
+    it('redacts an Xtream account hidden behind encoded separators', () => {
+        const output = serialized(
+            redactSensitiveData([
+                'https://example.com/live%2Fsep-user-secret%2Fsep-pass-secret%2F1.ts',
+                'https://example.com/live%252Fsep2-user-secret/sep2-pass-secret/1.ts',
+                'https://example.com/live/sep3-user-secret%2Fx/sep3-pass-secret/1.ts',
+            ])
+        );
+        for (const secret of [
+            'sep-user-secret',
+            'sep-pass-secret',
+            'sep2-user-secret',
+            'sep2-pass-secret',
+            'sep3-user-secret',
+            'sep3-pass-secret',
+        ]) {
+            expect(output).not.toContain(secret);
+        }
+    });
+
+    it('decodes within a bound and leaves a stray percent sign alone', () => {
+        expect(decodeFully('%25252570')).toBe('p');
+        expect(decodeFully('100%')).toBe('100%');
+        expect(decodeFully('plain')).toBe('plain');
+        // `%70` encoded eight more times: past the bound, still encoded.
+        let deep = '%70';
+        for (let round = 0; round < 8; round += 1) {
+            deep = deep.replace(/%/g, '%25');
+        }
+        expect(decodeFully(deep)).toContain('%');
     });
 
     it('does not mutate input and safely bounds cycles, depth, arrays, objects, and strings', () => {

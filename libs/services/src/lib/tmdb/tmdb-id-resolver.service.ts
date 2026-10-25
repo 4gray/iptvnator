@@ -5,7 +5,7 @@ import { TmdbCacheService } from './tmdb-cache.service';
 import {
     TMDB_MATCH_CACHE_TTL_MS,
     TMDB_NEGATIVE_MATCH_CACHE_TTL_MS,
-    tmdbSearchLanguageForTitle,
+    tmdbSearchLanguagesForTitle,
 } from './tmdb-config';
 import {
     SearchTitleVariant,
@@ -77,14 +77,31 @@ export class TmdbIdResolverService {
         variant: SearchTitleVariant,
         year: number | null
     ): Promise<number | null> {
-        // Cyrillic (and other non-app-script) titles search in their own
-        // language so TMDB returns comparable titles — see
-        // tmdbSearchLanguageForTitle. The cache row carries the same
-        // language, since the answer depends on it.
-        const language = tmdbSearchLanguageForTitle(
+        const languages = tmdbSearchLanguagesForTitle(
             variant.normalized,
             this.runtime.appLanguage()
         );
+        for (const language of languages) {
+            const resolved = await this.resolveVariantInLanguage(
+                mediaType,
+                variant,
+                year,
+                language
+            );
+            if (resolved !== null) {
+                return resolved;
+            }
+        }
+        return null;
+    }
+
+    /** Cache each language independently, including confirmed misses. */
+    private async resolveVariantInLanguage(
+        mediaType: TmdbMediaType,
+        variant: SearchTitleVariant,
+        year: number | null,
+        language: string
+    ): Promise<number | null> {
         const lookupKey = buildSearchLookupKey(variant.query, year);
 
         const cached = await this.cache.get(mediaType, lookupKey, language);

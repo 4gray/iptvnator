@@ -298,4 +298,76 @@ test.describe('Electron M3U group management', () => {
             await closeElectronApp(app);
         }
     });
+
+    test('keeps the search and bulk actions in view with many groups: the list scrolls, not the body', async ({
+        dataDir,
+    }) => {
+        // Eighty groups overflow the dialog's cap many times over. Only the
+        // list may scroll; the body itself holds still, so the search box
+        // and the bulk actions stay where they are.
+        const channels = Array.from({ length: 80 }, (_, index) => ({
+            groupTitle: `Group ${String(index + 1).padStart(2, '0')}`,
+            name: `Channel ${index + 1}`,
+            url: `https://streams.example.test/many-${index + 1}.m3u8`,
+        }));
+        const app = await launchElectronApp(dataDir);
+        try {
+            const filePath = writeTemporaryM3uFile(
+                dataDir,
+                'many-groups.m3u',
+                channels
+            );
+            await importM3uPlaylistFromNativeDialog(app, filePath);
+            await waitForM3uCatalog(app.mainWindow);
+            await app.mainWindow.setViewportSize({ width: 1280, height: 800 });
+            await openWorkspaceSection(app.mainWindow, 'Groups');
+            await app.mainWindow
+                .getByRole('button', { name: 'Manage groups', exact: true })
+                .click();
+            const dialog = app.mainWindow
+                .locator('mat-dialog-container')
+                .last();
+            await expect(dialog.locator('.group-item')).toHaveCount(80);
+
+            const geometry = () =>
+                dialog.evaluate((container) => {
+                    const body = container.querySelector(
+                        'mat-dialog-content'
+                    ) as HTMLElement;
+                    const list = container.querySelector(
+                        '.groups-list'
+                    ) as HTMLElement;
+                    const search = container.querySelector(
+                        '.search-inline'
+                    ) as HTMLElement;
+                    const bodyBox = body.getBoundingClientRect();
+                    const searchBox = search.getBoundingClientRect();
+                    return {
+                        bodyScrolls: body.scrollHeight > body.clientHeight + 1,
+                        listScrolls: list.scrollHeight > list.clientHeight + 1,
+                        searchInView:
+                            searchBox.top >= bodyBox.top - 0.5 &&
+                            searchBox.bottom <= bodyBox.bottom + 0.5,
+                        listRows: list.scrollTop,
+                    };
+                });
+
+            expect(await geometry()).toMatchObject({
+                bodyScrolls: false,
+                listScrolls: true,
+                searchInView: true,
+            });
+
+            // Scrolling to the last group moves the list only.
+            await dialog.locator('.group-item').last().scrollIntoViewIfNeeded();
+            const scrolled = await geometry();
+            expect(scrolled.listRows).toBeGreaterThan(0);
+            expect(scrolled).toMatchObject({
+                bodyScrolls: false,
+                searchInView: true,
+            });
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
 });

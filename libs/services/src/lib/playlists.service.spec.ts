@@ -1,5 +1,7 @@
 import { EMPTY, firstValueFrom, from, of } from 'rxjs';
 import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { reservePlaylistAuthority } from './playlist-cross-context-lock';
+import { PlaylistWriteConflict } from './playlist-storage-backend';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
@@ -57,7 +59,7 @@ describe('PlaylistsService', () => {
                 ...overrides,
             },
             snackBar: {
-                open: jest.fn(),
+                open: jest.fn().mockResolvedValue(null),
             },
             translateService: {
                 instant: jest.fn((key: string) => key),
@@ -66,6 +68,8 @@ describe('PlaylistsService', () => {
             electronMigrationPromise: null,
             indexedDbMigrationPromise: null,
             playlistWriteQueues: new Map(),
+            deletingAll: Promise.resolve(),
+            resets: 0,
             playlistDeleteCleanups: [],
         });
 
@@ -73,7 +77,10 @@ describe('PlaylistsService', () => {
     }
 
     it('announces a committed SQLite connection edit', async () => {
-        const playlist = { _id: 'source', url: 'https://old.test/list' } as Playlist;
+        const playlist = {
+            _id: 'source',
+            url: 'https://old.test/list',
+        } as Playlist;
         testWindow.electron = {
             dbGetAppState: jest.fn().mockResolvedValue('1'),
             dbSetAppState: jest.fn(),
@@ -84,8 +91,22 @@ describe('PlaylistsService', () => {
         const service = createService();
         const next = jest.fn();
         Object.assign(service, { healthEvidence: { connections: { next } } });
-        await firstValueFrom(service.updatePlaylistMeta({ ...playlist, title: 'Source', count: 0, importDate: '', autoRefresh: false, serverUrl: 'https://new.test' }));
-        expect(next).toHaveBeenCalledWith({ id: 'source', playlist: expect.objectContaining({ serverUrl: 'https://new.test' }) });
+        await firstValueFrom(
+            service.updatePlaylistMeta({
+                ...playlist,
+                title: 'Source',
+                count: 0,
+                importDate: '',
+                autoRefresh: false,
+                serverUrl: 'https://new.test',
+            })
+        );
+        expect(next).toHaveBeenCalledWith({
+            id: 'source',
+            playlist: expect.objectContaining({
+                serverUrl: 'https://new.test',
+            }),
+        });
     });
 
     it('announces committed deletion but does not retire health after a failed write', async () => {
@@ -95,9 +116,15 @@ describe('PlaylistsService', () => {
         await firstValueFrom(service.deletePlaylist('retired'));
         expect(next).toHaveBeenCalledWith({ id: 'retired' });
         next.mockClear();
-        const failed = createService({ delete: jest.fn(() => { throw new Error('write failed'); }) });
+        const failed = createService({
+            delete: jest.fn(() => {
+                throw new Error('write failed');
+            }),
+        });
         Object.assign(failed, { healthEvidence: { connections: { next } } });
-        await expect(firstValueFrom(failed.deletePlaylist('kept'))).rejects.toThrow();
+        await expect(
+            firstValueFrom(failed.deletePlaylist('kept'))
+        ).rejects.toThrow();
         expect(next).not.toHaveBeenCalled();
     });
 
@@ -552,6 +579,85 @@ describe('PlaylistsService', () => {
         expect(appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)).toBe(
             '1'
         );
+    });
+
+    describe('legacy Stalker portal flags on the server', () => {
+        // A desktop database copied to the server, from before the flag.
+        const copied = {
+            _id: 'stalker-1',
+            title: 'Copied Stalker',
+            count: 0,
+            importDate: new Date('2026-03-28T00:00:00.000Z').toISOString(),
+            lastUsage: new Date('2026-03-28T00:00:00.000Z').toISOString(),
+            autoRefresh: false,
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'http://example.com/stalker_portal/c/',
+        } as Playlist;
+
+        function serverService(
+            fresh: Playlist,
+            upsert: jest.Mock = jest.fn(async () => ({ success: true }))
+        ) {
+            const appState = new Map<string, string>();
+            const server = {
+                dbGetAppPlaylists: jest.fn(async () => [copied]),
+                // Another device may have changed it since the list read.
+                dbGetAppPlaylist: jest.fn(async () => fresh),
+                dbGetAppState: jest.fn(
+                    async (key: string) => appState.get(key) ?? null
+                ),
+                dbSetAppState: jest.fn(async (key: string, value: string) => {
+                    appState.set(key, value);
+                }),
+                dbUpsertAppPlaylist: upsert,
+                dbUpsertAppPlaylists: jest.fn(),
+                dbRecoverLegacyPlaylists: jest.fn(),
+            };
+            testWindow.electron = undefined;
+            const service = createService();
+            Object.assign(service as object, {
+                storageBackend: {
+                    kind: () => 'server',
+                    documentStore: () => server,
+                },
+            });
+            return { service, server, appState };
+        }
+
+        it('are written per row on a fresh read, as conditional mutations', async () => {
+            const edited = { ...copied, title: 'Renamed elsewhere' };
+            const { service, server, appState } = serverService(edited);
+
+            await firstValueFrom(service.getAllPlaylists());
+
+            // Never the stale list copy, never an unconditional bulk write.
+            expect(server.dbUpsertAppPlaylists).not.toHaveBeenCalled();
+            expect(server.dbUpsertAppPlaylist).toHaveBeenCalledWith({
+                ...edited,
+                isFullStalkerPortal: true,
+            });
+            expect(appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)).toBe(
+                '1'
+            );
+            // The desktop-only steps stay with the desktop.
+            expect(server.dbRecoverLegacyPlaylists).not.toHaveBeenCalled();
+        });
+
+        it('stay unflagged for the next start after a conflict', async () => {
+            const { service, appState } = serverService(
+                copied,
+                jest.fn(async () => {
+                    throw new PlaylistWriteConflict('stalker-1');
+                })
+            );
+            jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+            await firstValueFrom(service.getAllPlaylists());
+
+            expect(
+                appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)
+            ).toBeUndefined();
+        });
     });
 
     it('does not rerun the SQLite Stalker metadata migration after the flag is set', async () => {
@@ -1109,7 +1215,9 @@ describe('PlaylistsService', () => {
         ] as Playlist[];
         const dbService = {
             getAll: jest.fn(() => of([])),
-            getByID: jest.fn((_store: string, id: string) => of(playlists.find((p) => p._id === id))),
+            getByID: jest.fn((_store: string, id: string) =>
+                of(playlists.find((p) => p._id === id))
+            ),
             update: jest.fn((_storeName: string, playlist: Playlist) =>
                 of(playlist)
             ),
@@ -1142,19 +1250,32 @@ describe('PlaylistsService', () => {
         );
     });
 
-    it.each([false, true])('does not resurrect a deleted source when startup refresh finishes (SQLite=%s)', async (sqlite) => {
-        const upsert = jest.fn();
-        testWindow.electron = sqlite ? {
-            dbGetAppState: jest.fn().mockResolvedValue('1'), dbSetAppState: jest.fn(),
-            dbGetAppPlaylists: jest.fn().mockResolvedValue([]), dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
-            dbUpsertAppPlaylist: upsert,
-        } : undefined;
-        const update = jest.fn(() => of(undefined));
-        const service = createService({ update });
-        expect(await firstValueFrom(service.updateManyPlaylists([{ _id: 'deleted', autoRefresh: true } as Playlist]))).toEqual([]);
-        expect(update).not.toHaveBeenCalled();
-        expect(upsert).not.toHaveBeenCalled();
-    });
+    it.each([false, true])(
+        'does not resurrect a deleted source when startup refresh finishes (SQLite=%s)',
+        async (sqlite) => {
+            const upsert = jest.fn();
+            testWindow.electron = sqlite
+                ? {
+                      dbGetAppState: jest.fn().mockResolvedValue('1'),
+                      dbSetAppState: jest.fn(),
+                      dbGetAppPlaylists: jest.fn().mockResolvedValue([]),
+                      dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
+                      dbUpsertAppPlaylist: upsert,
+                  }
+                : undefined;
+            const update = jest.fn(() => of(undefined));
+            const service = createService({ update });
+            expect(
+                await firstValueFrom(
+                    service.updateManyPlaylists([
+                        { _id: 'deleted', autoRefresh: true } as Playlist,
+                    ])
+                )
+            ).toEqual([]);
+            expect(update).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
+        }
+    );
 
     it('short-circuits updateManyPlaylists when no playlists are provided', async () => {
         const dbService = {
@@ -1635,6 +1756,273 @@ describe('PlaylistsService', () => {
         );
     });
 
+    it('deletes everything only after queued writes, before later ones', async () => {
+        const order: string[] = [];
+        let finishWrite: () => void = () => undefined;
+        const electron = {
+            dbGetAppPlaylist: jest.fn(async () => {
+                order.push('read');
+                return { _id: 'p9', title: 'P', favorites: [] };
+            }),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async (key: string) =>
+                key === SQLITE_PLAYLIST_MIGRATION_FLAG ? '1' : null
+            ),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(
+                () =>
+                    new Promise<void>((resolve) => {
+                        order.push('write');
+                        finishWrite = () => resolve();
+                    })
+            ),
+            dbUpsertAppPlaylists: jest.fn(),
+            dbDeleteAllPlaylists: jest.fn(async () => {
+                order.push('delete all');
+            }),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+        // Microtasks only: a real timer would let other tests' late errors in.
+        const settle = async () => {
+            for (let i = 0; i < 50; i += 1) {
+                await Promise.resolve();
+            }
+        };
+
+        const first = firstValueFrom(
+            service.transformPlaylistFavorites('p9', (f) => [...f, 'a'])
+        );
+        await settle();
+        const removed = firstValueFrom(service.removeAll());
+        const later = firstValueFrom(
+            service.transformPlaylistFavorites('p9', (f) => [...f, 'b'])
+        );
+        await settle();
+        expect(order).toEqual(['read', 'write']);
+
+        finishWrite();
+        await first;
+        await removed;
+        await settle();
+        finishWrite();
+        await later;
+
+        expect(order).toEqual(['read', 'write', 'delete all', 'read', 'write']);
+    });
+
+    describe('Delete All with cross-context locks', () => {
+        /** Web Locks as far as these tests need: the barrier and free rows. */
+        function fakeLocks() {
+            let shared = 0;
+            let exclusive = false;
+            const waiting: (() => void)[] = [];
+            const changed = () => waiting.splice(0).forEach((wake) => wake());
+            const until = async (free: () => boolean) => {
+                while (!free()) {
+                    await new Promise<void>((wake) => waiting.push(wake));
+                }
+            };
+            const request = jest.fn(
+                async <T>(
+                    name: string,
+                    options: LockOptions,
+                    callback: (lock: Lock | null) => Promise<T>
+                ) => {
+                    const lock = {
+                        name,
+                        mode: options.mode ?? 'exclusive',
+                    } as Lock;
+                    if (name !== 'iptvnator:playlist-authority') {
+                        return callback(lock);
+                    }
+                    if (options.mode === 'shared') {
+                        await until(() => !exclusive);
+                        shared += 1;
+                        try {
+                            return await callback(lock);
+                        } finally {
+                            shared -= 1;
+                            changed();
+                        }
+                    }
+                    await until(() => !exclusive && shared === 0);
+                    exclusive = true;
+                    try {
+                        return await callback(lock);
+                    } finally {
+                        exclusive = false;
+                        changed();
+                    }
+                }
+            );
+            Object.defineProperty(globalThis.navigator, 'locks', {
+                configurable: true,
+                value: { request },
+            });
+        }
+
+        let finishWrite: () => void = () => undefined;
+        function store(slowWrites = false) {
+            const electron = {
+                dbGetAppPlaylist: jest.fn(async () => ({
+                    _id: 'p9',
+                    title: 'P',
+                    favorites: [],
+                })),
+                dbGetAppPlaylists: jest.fn(async () => []),
+                dbGetAppState: jest.fn(async (key: string) =>
+                    key === SQLITE_PLAYLIST_MIGRATION_FLAG ? '1' : null
+                ),
+                dbSetAppState: jest.fn(),
+                // Only the first write is slow.
+                dbUpsertAppPlaylist: jest.fn(() => {
+                    if (!slowWrites) {
+                        return Promise.resolve();
+                    }
+                    slowWrites = false;
+                    return new Promise<void>(
+                        (resolve) => (finishWrite = resolve)
+                    );
+                }),
+                dbUpsertAppPlaylists: jest.fn(),
+                dbDeletePlaylist: jest.fn(async () => undefined),
+                dbDeleteAllPlaylists: jest.fn(async () => undefined),
+            };
+            testWindow.electron = electron;
+            return electron;
+        }
+
+        const settle = async () => {
+            for (let i = 0; i < 100; i += 1) {
+                await Promise.resolve();
+            }
+        };
+
+        it('lets a repair holding its reservation write first', async () => {
+            fakeLocks();
+            const electron = store();
+            const service = createService();
+            const reservation = await reservePlaylistAuthority('p9');
+            if (reservation.status !== 'acquired') {
+                throw new Error('expected a reservation');
+            }
+
+            const removed = firstValueFrom(service.removeAll());
+            // The repair's conditional row write, under its reservation.
+            let written = false;
+            const repair = firstValueFrom(
+                service.transformPlaylistFavorites('p9', (f) => [...f, 'a'])
+            ).then(() => (written = true));
+            await settle();
+
+            expect(written).toBe(true);
+            expect(electron.dbDeleteAllPlaylists).not.toHaveBeenCalled();
+            reservation.release();
+            await repair;
+            await removed;
+            expect(electron.dbDeleteAllPlaylists).toHaveBeenCalled();
+        });
+
+        it('lets a repair write past later writes waiting for the reset', async () => {
+            fakeLocks();
+            const electron = store(true);
+            const service = createService();
+            // An earlier slow write that Delete All waits for.
+            const slow = firstValueFrom(
+                service.transformPlaylistFavorites('q1', (f) => [...f, 'a'])
+            );
+            await settle();
+            const removed = firstValueFrom(service.removeAll());
+            // A later write for P, which waits for the reset.
+            const later = firstValueFrom(
+                service.transformPlaylistFavorites('p9', (f) => [...f, 'b'])
+            );
+            // A repair reserves P before the reset takes its lock.
+            const reservation = await reservePlaylistAuthority('p9');
+            if (reservation.status !== 'acquired') {
+                throw new Error('expected a reservation');
+            }
+            let repaired = false;
+            const repair = firstValueFrom(
+                service.transformPlaylistFavorites('p9', (f) => [...f, 'r'])
+            ).then(() => {
+                repaired = true;
+                reservation.release();
+            });
+            await settle();
+
+            expect(repaired).toBe(true);
+            finishWrite();
+            await Promise.all([slow, repair, removed, later]);
+            expect(electron.dbDeleteAllPlaylists).toHaveBeenCalled();
+        });
+
+        it('lets a deletion queued behind a slow write finish first', async () => {
+            fakeLocks();
+            const electron = store(true);
+            const service = createService();
+
+            const slow = firstValueFrom(
+                service.transformPlaylistFavorites('p9', (f) => [...f, 'a'])
+            );
+            await settle();
+            const deleted = firstValueFrom(service.deletePlaylist('p9'));
+            let done = false;
+            const removed = firstValueFrom(service.removeAll()).then(
+                () => (done = true)
+            );
+            await settle();
+            finishWrite();
+            await settle();
+
+            // The deletion needs the shared lock: it cannot wait for a
+            // reset that waits for it.
+            expect(done).toBe(true);
+            await slow;
+            await deleted;
+            await removed;
+            expect(electron.dbDeletePlaylist).toHaveBeenCalledWith('p9');
+            expect(electron.dbDeleteAllPlaylists).toHaveBeenCalled();
+        });
+    });
+
+    it('runs a mutation again on a fresh read when the server refused it', async () => {
+        const versions = [
+            { _id: 'p9', title: 'P', favorites: ['a'] },
+            { _id: 'p9', title: 'P', favorites: ['a', 'theirs'] },
+        ] as unknown as Playlist[];
+        let reads = 0;
+        const electron = {
+            dbGetAppPlaylist: jest.fn(
+                async () => versions[Math.min(reads++, 1)]
+            ),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async (key: string) =>
+                key === SQLITE_PLAYLIST_MIGRATION_FLAG ? '1' : null
+            ),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest
+                .fn()
+                .mockRejectedValueOnce(new PlaylistWriteConflict('p9'))
+                .mockResolvedValue(undefined),
+            dbUpsertAppPlaylists: jest.fn(),
+        };
+        testWindow.electron = electron;
+
+        await firstValueFrom(
+            createService().transformPlaylistFavorites('p9', (favorites) => [
+                ...favorites,
+                'mine',
+            ])
+        );
+
+        expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledTimes(2);
+        expect(electron.dbUpsertAppPlaylist).toHaveBeenLastCalledWith(
+            expect.objectContaining({ favorites: ['a', 'theirs', 'mine'] })
+        );
+    });
+
     it('short-circuits removeFromPlaylistRecentlyViewedBatch when identities is empty', async () => {
         const existingPlaylist: Playlist = {
             _id: 'playlist-5',
@@ -1813,19 +2201,30 @@ describe('PlaylistsService', () => {
         );
     });
 
-    it.each([false, true])('does not recreate a removed source on singular refresh (SQLite: %s)', async (sqlite) => {
-        const upsert = jest.fn();
-        testWindow.electron = sqlite ? {
-            dbGetAllPlaylists: jest.fn().mockResolvedValue([]),
-            dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
-            dbUpsertAppPlaylist: upsert,
-        } as unknown as typeof testWindow.electron : undefined;
-        const update = jest.fn(() => of(undefined));
-        const service = createService({ update });
-        await expect(firstValueFrom(service.updatePlaylist('deleted', { _id: 'deleted' } as Playlist))).rejects.toThrow('Playlist no longer exists');
-        expect(update).not.toHaveBeenCalled();
-        expect(upsert).not.toHaveBeenCalled();
-    });
+    it.each([false, true])(
+        'does not recreate a removed source on singular refresh (SQLite: %s)',
+        async (sqlite) => {
+            const upsert = jest.fn();
+            testWindow.electron = sqlite
+                ? ({
+                      dbGetAllPlaylists: jest.fn().mockResolvedValue([]),
+                      dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
+                      dbUpsertAppPlaylist: upsert,
+                  } as unknown as typeof testWindow.electron)
+                : undefined;
+            const update = jest.fn(() => of(undefined));
+            const service = createService({ update });
+            await expect(
+                firstValueFrom(
+                    service.updatePlaylist('deleted', {
+                        _id: 'deleted',
+                    } as Playlist)
+                )
+            ).rejects.toThrow('Playlist no longer exists');
+            expect(update).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
+        }
+    );
     it('keeps hiddenGroupTitles when refreshing a playlist payload', async () => {
         const existingPlaylist: Playlist = {
             _id: 'playlist-2',

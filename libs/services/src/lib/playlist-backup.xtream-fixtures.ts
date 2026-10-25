@@ -97,6 +97,7 @@ export function createRestoreCollaborators() {
     let pendingSnapshot: XtreamPendingRestoreSnapshot | null = null;
     let lastConsumedRevision: number | null = null;
     const pendingRestoreService = {
+        getOrThrow: jest.fn(() => pendingSnapshot?.state ?? null),
         set: jest.fn(
             (
                 playlistId: string,
@@ -125,18 +126,13 @@ export function createRestoreCollaborators() {
                     ? 'consumed'
                     : 'superseded';
             }
-            if (
-                pendingSnapshot.revision !== expectedSnapshot.revision
-            ) {
+            if (pendingSnapshot.revision !== expectedSnapshot.revision) {
                 return 'superseded';
             }
 
             await apply(pendingSnapshot.state);
             if (
-                !pendingRestoreService.clear(
-                    playlistId,
-                    pendingSnapshot.state
-                )
+                !pendingRestoreService.clear(playlistId, pendingSnapshot.state)
             ) {
                 return 'consume-failed';
             }
@@ -158,11 +154,14 @@ export function createRestoreCollaborators() {
                 (_playlistId: string, type: string) =>
                     Promise.resolve(categoryRowsByType[type] ?? [])
             ),
-            getFavorites: jest.fn().mockResolvedValue([]),
+            getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
             getRecentItems: jest.fn().mockResolvedValue([]),
             getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
             hasXtreamCategories: jest.fn().mockResolvedValue(true),
             hasXtreamContent: jest.fn().mockResolvedValue(true),
+            restoreXtreamFavoriteSnapshots: jest
+                .fn()
+                .mockResolvedValue(undefined),
             restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },

@@ -172,8 +172,13 @@ when the provider's year is off by one.
 the _request_ language, so a Cyrillic query issued with `en-US` would come
 back with an English title and fail the exact-match gate.
 `tmdbSearchLanguageForTitle` detects Cyrillic queries and issues the search
-with `ru-RU` (unless the app language is already Cyrillic-based); details
-are still fetched in the app language afterwards.
+with `ru-RU` unless the app language is Russian (`ru-RU`), Belarusian
+(`be-BY`), or Ukrainian (`uk-UA`), in which case it keeps that language.
+Details are still fetched in the app language afterwards.
+For mixed catalogs, a Cyrillic search that has no confident Ukrainian match
+retries in Russian. Each language keeps its own cached verdict; a cached
+Ukrainian miss still permits the Russian lookup. Transient API errors do not
+trigger a retry in another language.
 
 ## Details Fetch and Localization
 
@@ -850,11 +855,13 @@ Contracts worth keeping:
   never been opened, and a provider's `"0"` all collapse to the same thing:
   no identity, and the title-only fallback.
 
-Not covered: rows whose detail page has never been opened, playlists
-refreshed after this landed (the columns are re-learned on the next detail
-open, same as `backdrop_url`), and the PWA — its catalog is a session-scoped
-cache rebuilt from the API on every load, so a stored id would never outlive
-the detail view that resolved it. All of them keep the title-only path.
+Rows whose detail page has never been opened keep the title-only fallback.
+Refreshed catalog rows re-learn missing metadata on the next detail open.
+The PWA also fills normalized identity on its session catalog and compatible
+persisted collection snapshots, including identity-only patches. Favorites retain
+that evidence across reload/refresh to detect reused provider IDs. Independent
+Recent snapshots are enriched separately; a conflicting replacement never supplies
+metadata to the older favorite. See [PWA collection persistence](xtream-portal-compatibility.md#pwa-collection-persistence).
 
 ### Stalker backdrops on activity rows
 

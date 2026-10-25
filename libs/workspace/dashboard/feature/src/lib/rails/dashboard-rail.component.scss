@@ -276,7 +276,11 @@
     transition:
         opacity 0.15s ease,
         transform 0.15s ease;
-    @include mat.icon-button-overrides((state-layer-size: 30px));
+    @include mat.icon-button-overrides(
+        (
+            state-layer-size: 30px,
+        )
+    );
 
     mat-icon {
         font-size: 18px;
@@ -289,19 +293,6 @@
     &:focus-visible {
         opacity: 1;
         transform: translateY(-1px);
-    }
-}
-
-.rail__menu-action--separated {
-    border-top: 1px solid var(--app-separator);
-    margin-top: 4px;
-}
-
-.rail__menu-action--danger {
-    color: var(--mat-sys-error);
-
-    mat-icon {
-        color: var(--mat-sys-error);
     }
 }
 

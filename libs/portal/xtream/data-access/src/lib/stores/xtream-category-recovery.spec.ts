@@ -1,5 +1,7 @@
 import { XtreamVodStream } from '@iptvnator/shared/interfaces';
 import { recoverXtreamVodCatalogItem } from './xtream-details-request';
+import { findCollectionItems } from '../data-sources/pwa-collection-identity';
+import type { XtreamContentItem } from '../data-sources/xtream-data-source.interface';
 
 describe('Xtream VOD category recovery', () => {
     const credentials = {
@@ -7,6 +9,69 @@ describe('Xtream VOD category recovery', () => {
         username: 'demo',
         password: 'secret',
     };
+
+    it.each(['10', undefined])(
+        'recovers a protected PWA snapshot through its current category instead of %s',
+        async (savedCategory) => {
+            const saved = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Saved title',
+                poster_url: 'saved.jpg',
+                tmdb_id: 100,
+                category_id: savedCategory,
+            } as XtreamContentItem;
+            const current = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Unconfirmed title',
+                poster_url: 'new.jpg',
+                category_id: '20',
+            } as XtreamContentItem;
+            const row = findCollectionItems(
+                ['movie:42'],
+                [current],
+                { 'movie:42': saved },
+                false
+            ).get('movie:42');
+            if (!row) throw new Error('Missing resolved favorite');
+            expect(row).toMatchObject({
+                title: 'Saved title',
+                poster_url: 'saved.jpg',
+                tmdb_id: 100,
+            });
+            const recovered = {
+                stream_id: 42,
+                container_extension: 'mp4',
+            } as XtreamVodStream;
+            const getVodStream = jest.fn(async (_credentials, _id, category) =>
+                Number(category) === 20 ? recovered : null
+            );
+            await expect(
+                recoverXtreamVodCatalogItem({
+                    apiService: { getVodStream },
+                    currentCategories: [],
+                    credentials,
+                    dataSource: {
+                        getAllCategories: jest.fn().mockResolvedValue([]),
+                        getCategories: jest
+                            .fn()
+                            .mockResolvedValue([
+                                { category_id: '10' },
+                                { category_id: '20' },
+                            ]),
+                    },
+                    isCurrent: () => true,
+                    playlistId: 'p1',
+                    routeCategoryId: row.category_id,
+                    vodId: 42,
+                })
+            ).resolves.toBe(recovered);
+            expect(getVodStream).toHaveBeenCalledWith(credentials, 42, '20');
+        }
+    );
 
     it('tries a local category mapping before a colliding provider id', async () => {
         const recoveredItem = {

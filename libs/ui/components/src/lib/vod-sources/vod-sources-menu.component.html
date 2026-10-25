@@ -98,21 +98,58 @@
         }
 
         @if (languages().length > 0) {
-            <select
-                class="sources-menu__lang"
-                [ngModel]="filters().language"
-                (ngModelChange)="setLanguageFilter($event)"
+            @let language = filters().language;
+            @let languageLabel =
+                language ?? ('PORTALS.MULTI_SOURCE.ALL_LANGUAGES' | translate);
+            <!-- A chip like its neighbours, with the kit's chevron: it opens
+                 the language menu. The name says what it picks. -->
+            <button
+                type="button"
+                class="filter-chip sources-menu__lang"
+                [class.filter-chip--on]="language !== null"
+                [matMenuTriggerFor]="languageMenu"
                 [attr.aria-label]="
-                    'PORTALS.MULTI_SOURCE.ALL_LANGUAGES' | translate
+                    ('PORTALS.MULTI_SOURCE.LANGUAGE' | translate) +
+                    ': ' +
+                    languageLabel
                 "
             >
-                <option [ngValue]="null">
-                    {{ 'PORTALS.MULTI_SOURCE.ALL_LANGUAGES' | translate }}
-                </option>
-                @for (lang of languages(); track lang) {
-                    <option [ngValue]="lang">{{ lang }}</option>
-                }
-            </select>
+                <span class="sources-menu__lang-label">{{
+                    languageLabel
+                }}</span>
+                <mat-icon class="sources-menu__lang-chevron" aria-hidden="true"
+                    >expand_more</mat-icon
+                >
+            </button>
+            <mat-menu #languageMenu="matMenu" class="sources-language-menu">
+                <div
+                    role="group"
+                    [attr.aria-label]="
+                        'PORTALS.MULTI_SOURCE.LANGUAGE' | translate
+                    "
+                >
+                    <button
+                        mat-menu-item
+                        [appMenuItemRadio]="language === null"
+                        (click)="setLanguageFilter(null)"
+                    >
+                        <mat-icon appMenuItemRadioCheck>check</mat-icon>
+                        <span>{{
+                            'PORTALS.MULTI_SOURCE.ALL_LANGUAGES' | translate
+                        }}</span>
+                    </button>
+                    @for (lang of languages(); track lang) {
+                        <button
+                            mat-menu-item
+                            [appMenuItemRadio]="language === lang"
+                            (click)="setLanguageFilter(lang)"
+                        >
+                            <mat-icon appMenuItemRadioCheck>check</mat-icon>
+                            <span>{{ lang }}</span>
+                        </button>
+                    }
+                </div>
+            </mat-menu>
         }
     </div>
 

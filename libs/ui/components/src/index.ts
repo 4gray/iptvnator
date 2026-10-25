@@ -1,4 +1,5 @@
 export * from './lib/channel-list-container/channel-list-container.component';
+export * from './lib/channel-list-container/channel-context-menu/channel-context-menu.component';
 export * from './lib/channel-list-container/channel-details-dialog/channel-details-dialog.component';
 export * from './lib/channel-list-container/epg-mapping-dialog/epg-mapping-dialog.component';
 export * from './lib/channel-list-container/channel-list-item/channel-list-item.component';
@@ -36,6 +37,7 @@ export * from './lib/watched-badge/watched-badge.component';
 export * from './lib/window-controls/window-controls.component';
 
 export * from './lib/channel-scroll-focus/channel-scroll-focus.directive';
+export * from './lib/scroll-position/create-scroll-position-preserver';
 export * from './lib/category-lock-menu/category-lock-menu.component';
 export * from './lib/menu-item-radio/menu-item-radio.directive';
 
@@ -56,3 +58,6 @@ export * from './lib/detail-ui/vod-more-menu.component';
 export * from './lib/detail-ui/vod-more-menu.model';
 export * from './lib/detail-ui/series-hero.state';
 export * from './lib/detail-ui/hero-trailer-backdrop.component';
+export * from './lib/dialog-shell/dialog-shell.component';
+export * from './lib/dialog-shell/dialog-shell.directives';
+export * from './lib/dialog-shell/dialog-size';

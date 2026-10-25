@@ -1,234 +1,232 @@
-<section mat-dialog-title class="account-dialog__hero">
-    <div class="account-dialog__hero-copy">
-        <div class="account-dialog__eyebrow">
-            <span class="account-dialog__eyebrow-mark"></span>
-            @if (accountInfo(); as info) {
-                {{ info.server_info.server_protocol || 'Xtream' }}
-                @if (info.server_info.timezone) {
-                    <span class="account-dialog__eyebrow-divider"></span>
-                    {{ info.server_info.timezone }}
+<app-dialog-shell
+    icon="account_circle"
+    [heading]="'XTREAM.ACCOUNT_INFO.TITLE' | translate"
+    [subtitle]="playlistLabel()"
+>
+    <!-- The slot wrapper stays outside the condition: a control-flow block
+         at the content's top level would be projected into the body. -->
+    <div appDialogHeaderEnd class="account-dialog__status-cluster">
+        @if (accountInfo(); as info) {
+            <span
+                class="account-dialog__status-pill"
+                [class.account-dialog__status-pill--active]="isActive()"
+            >
+                {{ info.user_info.status || '-' }}
+            </span>
+
+            @if (isTrial()) {
+                <span
+                    class="account-dialog__status-pill account-dialog__status-pill--trial"
+                >
+                    {{ 'XTREAM.ACCOUNT_INFO.TRIAL_ACCOUNT' | translate }}
+                </span>
+            }
+        }
+    </div>
+    <section class="account-dialog__hero">
+        <div class="account-dialog__hero-copy">
+            <div class="account-dialog__eyebrow">
+                <span class="account-dialog__eyebrow-mark"></span>
+                @if (accountInfo(); as info) {
+                    {{ info.server_info.server_protocol || 'Xtream' }}
+                    @if (info.server_info.timezone) {
+                        <span class="account-dialog__eyebrow-divider"></span>
+                        {{ info.server_info.timezone }}
+                    }
+                } @else {
+                    Xtream
+                }
+            </div>
+
+            @if (accountInfo()?.user_info?.message) {
+                <div class="account-dialog__message">
+                    {{ accountInfo()?.user_info?.message }}
+                </div>
+            } @else if (loadState() === 'loading') {
+                <p class="account-dialog__loading-copy">
+                    {{ 'LOADING' | translate }}...
+                </p>
+            }
+        </div>
+
+        <div class="account-dialog__hero-stats">
+            @if (loadState() === 'ready') {
+                @for (stat of heroStats(); track stat.labelKey) {
+                    <article class="account-stat">
+                        <div class="account-stat__icon">
+                            <mat-icon>{{ stat.icon }}</mat-icon>
+                        </div>
+                        <div class="account-stat__label">
+                            {{ stat.labelKey | translate }}
+                        </div>
+                        <div class="account-stat__value">
+                            {{ stat.value }}
+                        </div>
+                        @if (stat.meter !== null) {
+                            <div class="account-stat__meter">
+                                <span [style.width.%]="stat.meter"></span>
+                            </div>
+                        }
+                    </article>
                 }
             } @else {
-                Xtream
+                @for (item of skeletonStats; track item) {
+                    <div class="account-skeleton account-skeleton--stat"></div>
+                }
             }
         </div>
+    </section>
 
-        <div class="account-dialog__headline-row">
-            <div>
-                <h2 class="account-dialog__title">
-                    {{ 'XTREAM.ACCOUNT_INFO.TITLE' | translate }}
-                </h2>
-                <p class="account-dialog__subtitle">
-                    {{ playlistLabel() }}
+    <div class="account-dialog__content">
+        @if (loadState() === 'error') {
+            <section class="account-dialog__error-state">
+                <div class="account-dialog__error-icon">
+                    <mat-icon>signal_wifi_connected_no_internet_4</mat-icon>
+                </div>
+                <h3>
+                    {{
+                        (requestsPaused()
+                            ? 'PORTALS.REQUESTS_PAUSED.TITLE'
+                            : 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'
+                        ) | translate
+                    }}
+                </h3>
+                <p>
+                    {{
+                        (requestsPaused()
+                            ? 'PORTALS.REQUESTS_PAUSED.DESCRIPTION'
+                            : 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.DESCRIPTION'
+                        ) | translate
+                    }}
                 </p>
-            </div>
-
-            @if (accountInfo(); as info) {
-                <div class="account-dialog__status-cluster">
-                    <span
-                        class="account-dialog__status-pill"
-                        [class.account-dialog__status-pill--active]="isActive()"
-                    >
-                        {{ info.user_info.status || '-' }}
-                    </span>
-
-                    @if (isTrial()) {
-                        <span
-                            class="account-dialog__status-pill account-dialog__status-pill--trial"
-                        >
-                            {{
-                                'XTREAM.ACCOUNT_INFO.TRIAL_ACCOUNT' | translate
-                            }}
-                        </span>
-                    }
-                </div>
-            }
-        </div>
-
-        @if (accountInfo()?.user_info?.message) {
-            <div class="account-dialog__message">
-                {{ accountInfo()?.user_info?.message }}
-            </div>
+                <button mat-flat-button color="primary" (click)="reload()">
+                    {{
+                        (requestsPaused()
+                            ? 'PORTALS.REQUESTS_PAUSED.RETRY'
+                            : 'RETRY'
+                        ) | translate
+                    }}
+                </button>
+            </section>
         } @else if (loadState() === 'loading') {
-            <p class="account-dialog__loading-copy">
-                {{ 'LOADING' | translate }}...
-            </p>
-        }
-    </div>
-
-    <div class="account-dialog__hero-stats">
-        @if (loadState() === 'ready') {
-            @for (stat of heroStats(); track stat.labelKey) {
-                <article class="account-stat">
-                    <div class="account-stat__icon">
-                        <mat-icon>{{ stat.icon }}</mat-icon>
-                    </div>
-                    <div class="account-stat__label">
-                        {{ stat.labelKey | translate }}
-                    </div>
-                    <div class="account-stat__value">
-                        {{ stat.value }}
-                    </div>
-                    @if (stat.meter !== null) {
-                        <div class="account-stat__meter">
-                            <span [style.width.%]="stat.meter"></span>
-                        </div>
-                    }
-                </article>
-            }
-        } @else {
-            @for (item of skeletonStats; track item) {
-                <div class="account-skeleton account-skeleton--stat"></div>
-            }
-        }
-    </div>
-</section>
-
-<mat-dialog-content class="account-dialog__content">
-    @if (loadState() === 'error') {
-        <section class="account-dialog__error-state">
-            <div class="account-dialog__error-icon">
-                <mat-icon>signal_wifi_connected_no_internet_4</mat-icon>
+            <div class="account-dialog__grid">
+                @for (panel of skeletonPanels; track panel) {
+                    <section class="account-panel account-panel--loading">
+                        <div
+                            class="account-skeleton account-skeleton--heading"
+                        ></div>
+                        <div
+                            class="account-skeleton account-skeleton--row"
+                        ></div>
+                        <div
+                            class="account-skeleton account-skeleton--row"
+                        ></div>
+                        <div
+                            class="account-skeleton account-skeleton--row"
+                        ></div>
+                        <div
+                            class="account-skeleton account-skeleton--row short"
+                        ></div>
+                    </section>
+                }
             </div>
-            <h3>
-                {{
-                    (requestsPaused()
-                        ? 'PORTALS.REQUESTS_PAUSED.TITLE'
-                        : 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'
-                    ) | translate
-                }}
-            </h3>
-            <p>
-                {{
-                    (requestsPaused()
-                        ? 'PORTALS.REQUESTS_PAUSED.DESCRIPTION'
-                        : 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.DESCRIPTION'
-                    ) | translate
-                }}
-            </p>
-            <button mat-flat-button color="primary" (click)="reload()">
-                {{
-                    (requestsPaused()
-                        ? 'PORTALS.REQUESTS_PAUSED.RETRY'
-                        : 'RETRY'
-                    ) | translate
-                }}
-            </button>
-        </section>
-    } @else if (loadState() === 'loading') {
-        <div class="account-dialog__grid">
-            @for (panel of skeletonPanels; track panel) {
-                <section class="account-panel account-panel--loading">
-                    <div
-                        class="account-skeleton account-skeleton--heading"
-                    ></div>
-                    <div class="account-skeleton account-skeleton--row"></div>
-                    <div class="account-skeleton account-skeleton--row"></div>
-                    <div class="account-skeleton account-skeleton--row"></div>
-                    <div
-                        class="account-skeleton account-skeleton--row short"
-                    ></div>
+        } @else if (accountInfo(); as info) {
+            <div class="account-dialog__grid">
+                <section class="account-panel">
+                    <div class="account-panel__header">
+                        <p class="account-panel__eyebrow">
+                            {{ 'XTREAM.ACCOUNT_INFO.USER_INFO' | translate }}
+                        </p>
+                        <h3>{{ info.user_info.username || '-' }}</h3>
+                    </div>
+
+                    <dl class="account-detail-list">
+                        @for (row of userDetails(); track row.labelKey) {
+                            <div class="account-detail-row">
+                                <dt>{{ row.labelKey | translate }}</dt>
+                                <dd
+                                    [class.account-detail-row__value--mono]="
+                                        row.mono
+                                    "
+                                    [class.account-detail-row__value--accent]="
+                                        row.tone === 'accent'
+                                    "
+                                    [class.account-detail-row__value--positive]="
+                                        row.tone === 'positive'
+                                    "
+                                    [class.account-detail-row__value--warning]="
+                                        row.tone === 'warning'
+                                    "
+                                >
+                                    @if (row.translateValue) {
+                                        {{ row.value | translate }}
+                                    } @else {
+                                        {{ row.value }}
+                                    }
+                                </dd>
+                            </div>
+                        }
+                    </dl>
+
+                    <div class="account-chip-section">
+                        <p class="account-chip-section__label">
+                            {{
+                                'XTREAM.ACCOUNT_INFO.ALLOWED_FORMATS'
+                                    | translate
+                            }}
+                        </p>
+                        <div class="account-chip-group">
+                            @for (format of allowedFormats(); track format) {
+                                <span class="account-chip">
+                                    {{ format }}
+                                </span>
+                            } @empty {
+                                <span class="account-chip account-chip--muted">
+                                    -
+                                </span>
+                            }
+                        </div>
+                    </div>
                 </section>
-            }
-        </div>
-    } @else if (accountInfo(); as info) {
-        <div class="account-dialog__grid">
-            <section class="account-panel">
-                <div class="account-panel__header">
-                    <p class="account-panel__eyebrow">
-                        {{ 'XTREAM.ACCOUNT_INFO.USER_INFO' | translate }}
-                    </p>
-                    <h3>{{ info.user_info.username || '-' }}</h3>
-                </div>
 
-                <dl class="account-detail-list">
-                    @for (row of userDetails(); track row.labelKey) {
-                        <div class="account-detail-row">
-                            <dt>{{ row.labelKey | translate }}</dt>
-                            <dd
-                                [class.account-detail-row__value--mono]="
-                                    row.mono
-                                "
-                                [class.account-detail-row__value--accent]="
-                                    row.tone === 'accent'
-                                "
-                                [class.account-detail-row__value--positive]="
-                                    row.tone === 'positive'
-                                "
-                                [class.account-detail-row__value--warning]="
-                                    row.tone === 'warning'
-                                "
-                            >
-                                @if (row.translateValue) {
-                                    {{ row.value | translate }}
-                                } @else {
+                <section class="account-panel">
+                    <div class="account-panel__header">
+                        <p class="account-panel__eyebrow">
+                            {{ 'XTREAM.ACCOUNT_INFO.SERVER_INFO' | translate }}
+                        </p>
+                        <h3>{{ serverHost() }}</h3>
+                    </div>
+
+                    <dl class="account-detail-list">
+                        @for (row of serverDetails(); track row.labelKey) {
+                            <div class="account-detail-row">
+                                <dt>{{ row.labelKey | translate }}</dt>
+                                <dd
+                                    [class.account-detail-row__value--mono]="
+                                        row.mono
+                                    "
+                                >
                                     {{ row.value }}
-                                }
-                            </dd>
-                        </div>
-                    }
-                </dl>
-
-                <div class="account-chip-section">
-                    <p class="account-chip-section__label">
-                        {{ 'XTREAM.ACCOUNT_INFO.ALLOWED_FORMATS' | translate }}
-                    </p>
-                    <div class="account-chip-group">
-                        @for (format of allowedFormats(); track format) {
-                            <span class="account-chip">
-                                {{ format }}
-                            </span>
-                        } @empty {
-                            <span class="account-chip account-chip--muted">
-                                -
-                            </span>
+                                </dd>
+                            </div>
                         }
-                    </div>
-                </div>
-            </section>
+                    </dl>
 
-            <section class="account-panel">
-                <div class="account-panel__header">
-                    <p class="account-panel__eyebrow">
-                        {{ 'XTREAM.ACCOUNT_INFO.SERVER_INFO' | translate }}
-                    </p>
-                    <h3>{{ serverHost() }}</h3>
-                </div>
-
-                <dl class="account-detail-list">
-                    @for (row of serverDetails(); track row.labelKey) {
-                        <div class="account-detail-row">
-                            <dt>{{ row.labelKey | translate }}</dt>
-                            <dd
-                                [class.account-detail-row__value--mono]="
-                                    row.mono
-                                "
-                            >
-                                {{ row.value }}
-                            </dd>
+                    <div class="account-chip-section">
+                        <p class="account-chip-section__label">
+                            {{ 'XTREAM.ACCOUNT_INFO.PORTS' | translate }}
+                        </p>
+                        <div class="account-chip-group">
+                            @for (port of ports(); track port.labelKey) {
+                                <span class="account-chip account-chip--mono">
+                                    {{ port.labelKey | translate }}
+                                    {{ port.value }}
+                                </span>
+                            }
                         </div>
-                    }
-                </dl>
-
-                <div class="account-chip-section">
-                    <p class="account-chip-section__label">
-                        {{ 'XTREAM.ACCOUNT_INFO.PORTS' | translate }}
-                    </p>
-                    <div class="account-chip-group">
-                        @for (port of ports(); track port.labelKey) {
-                            <span class="account-chip account-chip--mono">
-                                {{ port.labelKey | translate }} {{ port.value }}
-                            </span>
-                        }
                     </div>
-                </div>
-            </section>
-        </div>
-    }
-</mat-dialog-content>
-
-<mat-dialog-actions class="account-dialog__actions">
-    <button mat-stroked-button mat-dialog-close class="account-dialog__close">
-        {{ 'CLOSE' | translate }}
-    </button>
-</mat-dialog-actions>
+                </section>
+            </div>
+        }
+    </div>
+</app-dialog-shell>

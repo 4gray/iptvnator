@@ -168,6 +168,7 @@ export function createDashboardContinueWatching(
                             serverUrl: playlist.serverUrl,
                             username: playlist.username,
                             password: playlist.password,
+                            userAgent: playlist.userAgent?.trim() || undefined,
                         },
                         // The list predates the episode played last.
                         ...(continuation?.kind === 'unknown' &&

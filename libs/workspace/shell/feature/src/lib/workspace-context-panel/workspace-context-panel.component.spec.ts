@@ -369,11 +369,14 @@ describe('WorkspaceContextPanelComponent', () => {
     });
 
     it.each([
-        { id: 7, name: 'Alpha', top: 520 },
-        { id: 8, name: 'Zulu', top: 2420 },
+        // Alpha's row is already fully visible: clicking it only stops
+        // any in-flight scroll at the current position (scrollTop 500).
+        { id: 7, name: 'Alpha', scroll: { behavior: 'instant', top: 500 } },
+        // Zulu's row is below the fold: it is centred into view.
+        { id: 8, name: 'Zulu', scroll: { behavior: 'smooth', top: 2420 } },
     ])(
-        'scrolls to the selected local category $name when provider IDs collide after sorting',
-        async ({ id, name, top }) => {
+        'reveals the selected local category $name when provider IDs collide after sorting',
+        async ({ id, name, scroll }) => {
             fixture.componentRef.setInput('section', 'live');
             xtreamSelectedTypeContentState.set('ready');
             // SQLite IDs drive selection; provider IDs can belong to another row.
@@ -414,10 +417,7 @@ describe('WorkspaceContextPanelComponent', () => {
             await fixture.whenStable();
 
             expect(selected.getAttribute('aria-current')).toBe('true');
-            expect(container.scrollTo).toHaveBeenCalledWith({
-                behavior: 'smooth',
-                top,
-            });
+            expect(container.scrollTo).toHaveBeenCalledWith(scroll);
         }
     );
 
@@ -1036,7 +1036,7 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(dialog.open).toHaveBeenCalledWith(
             expect.any(Function),
             expect.objectContaining({
-                width: '500px',
+                width: '560px',
                 maxWidth: 'calc(100vw - 32px)',
             })
         );

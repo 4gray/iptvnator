@@ -1,4 +1,5 @@
 @use '@angular/material' as mat;
+@use '../../../../../../../ui/styles/app-controls' as controls;
 @use '../../styles/skeleton';
 
 :host {
@@ -91,29 +92,25 @@
     margin-left: auto;
 }
 
+// The loading header holds the toggles' place: a segmented control's 32px
+// frame and 10px radius, as wide as the English controls (three content
+// types; This playlist / All playlists).
 .toggle-placeholder {
-    height: 43px;
-    width: 120px;
-    border-radius: 18px;
+    height: 32px;
+    width: 184px;
+    border-radius: 10px;
     background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
 
     &--scope {
-        width: 200px;
+        width: 222px;
     }
 }
 
+// The kit's segmented control at the small-button height, the content types
+// beside the scope (This playlist / All playlists).
 .content-toggle,
 .scope-toggle {
-    .toggle-label {
-        margin-left: 4px;
-        font-size: 0.75rem;
-    }
-
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-    }
+    @include controls.segmented-control(26px);
 }
 
 app-unified-live-tab,

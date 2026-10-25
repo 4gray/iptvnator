@@ -8,7 +8,12 @@ import {
     FullscreenOverlayContainer,
     OverlayContainer,
 } from '@angular/cdk/overlay';
-import { ApplicationConfig, inject, importProvidersFrom } from '@angular/core';
+import {
+    ApplicationConfig,
+    inject,
+    importProvidersFrom,
+    provideZonelessChangeDetection,
+} from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { provideEffects } from '@ngrx/effects';
@@ -30,7 +35,6 @@ import {
     DataService,
 } from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
-import { changeDetectionProviders } from '../environments/change-detection.providers';
 import { storeDevtoolsProviders } from '../environments/store-devtools.providers';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
@@ -75,6 +79,7 @@ const SUPPORTED_LANGS = new Set([
     'pt',
     'ru',
     'tr',
+    'uk',
     'zh',
     'zhtw',
 ]);
@@ -103,12 +108,14 @@ export function DataFactory() {
 
 export const appConfig: ApplicationConfig = {
     providers: [
-        ...changeDetectionProviders,
+        provideZonelessChangeDetection(),
         provideRouter(routes, withComponentInputBinding()),
         // No provideAnimations(): nothing declares an Angular animation
         // trigger, and Material 22 animates with CSS, reading
         // prefers-reduced-motion itself. The provider only put the 66 KB
-        // animation engine on the initial path.
+        // animation engine on the initial path, and its renderer deferred
+        // every DOM removal, so a routed page stayed beside the next one
+        // until the following tick (workspace-shell.md, "Route swaps").
         // CDK overlays (menus, tooltips, dialogs) live in a container under
         // <body>, which the browser hides behind an element in DOM fullscreen.
         // This container follows the fullscreen element instead, so the

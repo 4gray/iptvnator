@@ -7,6 +7,11 @@ import {
     ensurePlaylistsPayloadLast,
     playlistsTableSql,
 } from './playlists-table';
+import {
+    ensureDurableFavorites,
+    favoritesTableSql,
+    FAVORITES_RECEIPT_CLEANUP_TRIGGER,
+} from './favorites-table';
 import { xtreamCacheUniqueIndexesExist } from './xtream-cache-unique-indexes';
 /**
  * Database connection and initialization for IPTVnator
@@ -183,15 +188,8 @@ const CREATE_TABLE_STATEMENTS = [
       FOREIGN KEY (content_id) REFERENCES content (id) ON DELETE CASCADE,
       FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
   )`,
-    `CREATE TABLE IF NOT EXISTS favorites (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      content_id INTEGER NOT NULL,
-      playlist_id TEXT NOT NULL,
-      added_at TEXT DEFAULT (datetime('now')),
-      position INTEGER DEFAULT 0,
-      FOREIGN KEY (content_id) REFERENCES content(id) ON DELETE CASCADE,
-      FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
-  )`,
+    favoritesTableSql(),
+    FAVORITES_RECEIPT_CLEANUP_TRIGGER,
     `CREATE INDEX IF NOT EXISTS idx_content_type ON content(type)`,
     `CREATE INDEX IF NOT EXISTS idx_content_category ON content(category_id)`,
     `CREATE INDEX IF NOT EXISTS idx_categories_playlist ON categories(playlist_id)`,
@@ -377,6 +375,7 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE playlists ADD COLUMN disabled_epg_urls TEXT`,
     // v1.2.0 -> v1.3.0: Add position column to favorites for global favorites ordering
     `ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0`,
+    `ALTER TABLE favorites ADD COLUMN identity_conflict INTEGER NOT NULL DEFAULT 0`,
     // v1.4.0 -> v1.5.0: Preserve Xtream live metadata required for EPG/catch-up
     `ALTER TABLE content ADD COLUMN epg_channel_id TEXT`,
     `ALTER TABLE content ADD COLUMN tv_archive INTEGER`,
@@ -407,6 +406,7 @@ const INDEX_MIGRATION_STATEMENTS = [
     // v1.3.0 -> v1.4.0: Prevent duplicate Xtream categories/content rows
     `CREATE UNIQUE INDEX IF NOT EXISTS categories_playlist_type_xtream_unique ON categories(playlist_id, type, xtream_id)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS content_category_type_xtream_unique ON content(category_id, type, xtream_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS favorites_playlist_type_xtream_unique ON favorites(playlist_id, type, xtream_id)`,
     // v1.6.0 -> v1.7.0: Query global favorites in stable display order
     `CREATE INDEX IF NOT EXISTS favorites_playlist_position_idx ON favorites(playlist_id, position, added_at DESC)`,
     // v1.7.1 -> v1.7.2: Query playlist-scoped EPG by source URL and channel/time
@@ -550,11 +550,7 @@ function deduplicateXtreamCache(sqliteDb: Database.Database): void {
              ORDER BY id ASC`
         );
         const moveFavorites = sqliteDb.prepare(
-            `INSERT INTO favorites (content_id, playlist_id, added_at, position)
-             SELECT ?, playlist_id, added_at, COALESCE(position, 0)
-             FROM favorites
-             WHERE content_id = ?
-             ON CONFLICT(content_id, playlist_id) DO NOTHING`
+            `UPDATE OR IGNORE favorites SET content_id = ? WHERE content_id = ?`
         );
         const deleteFavorites = sqliteDb.prepare(
             `DELETE FROM favorites WHERE content_id = ?`
@@ -1183,6 +1179,8 @@ function runMigrations(sqliteDb: Database.Database): void {
     if (!upgradeContentTitleFtsTokenizer(sqliteDb)) {
         ensureContentTitleFts(sqliteDb);
     }
+    // Capture the favorited row's metadata before duplicate cache rows disappear.
+    ensureDurableFavorites(sqliteDb);
     deduplicateXtreamCache(sqliteDb);
     normalizeXtreamContentAddedEpochs(sqliteDb);
     runMigrationStatements(sqliteDb, INDEX_MIGRATION_STATEMENTS);

@@ -695,7 +695,17 @@ export class LiveStreamLayoutComponent
         if (startPlayback && streamUrl) {
             this.recordRecentItem(
                 streamUrl,
-                { xtreamId: item.xtream_id, contentType: 'live' },
+                {
+                    xtreamId: item.xtream_id,
+                    contentType: 'live',
+                    playedContent: {
+                        title: item.title ?? item.name ?? '',
+                        posterUrl: item.poster_url ?? item.stream_icon,
+                        categoryId: item.category_id,
+                        tmdbId: item.tmdb_id ?? undefined,
+                        releaseYear: item.release_year ?? undefined,
+                    },
+                },
                 this.usesEmbeddedPlayer()
                     ? this.playbackSessionKey()
                     : undefined
@@ -966,6 +976,7 @@ export class LiveStreamLayoutComponent
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,
+                userAgent: playlist.userAgent?.trim() || undefined,
             },
             item.xtream_id,
             startTimestamp,

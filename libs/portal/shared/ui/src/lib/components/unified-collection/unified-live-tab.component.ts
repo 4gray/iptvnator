@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -258,7 +259,15 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             }
 
             const activeUid = this.activeUid();
-            if (activeUid && !items.some((item) => item.uid === activeUid)) {
+            const selected = items.find((item) => item.uid === activeUid);
+            // During a switch the highlight belongs to the pending selection,
+            // while the mounted detail still belongs to the previous item.
+            const retainedUid = this.activeItem()?.uid;
+            const retained = items.find((item) => item.uid === retainedUid);
+            if (
+                (activeUid && (!selected || isCatalogUnavailable(selected))) ||
+                (retainedUid && (!retained || isCatalogUnavailable(retained)))
+            ) {
                 this.onClose();
             }
         });
@@ -319,7 +328,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
 
     async onChannelSelected(channel: UnifiedFavoriteChannel): Promise<void> {
         const item = this.itemFor(channel);
-        if (item) {
+        if (item && !isCatalogUnavailable(item)) {
             await this.selection.activate(item);
         }
     }
@@ -328,7 +337,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         channel: UnifiedFavoriteChannel
     ): Promise<void> {
         const item = this.itemFor(channel);
-        if (item) {
+        if (item && !isCatalogUnavailable(item)) {
             await this.selection.activate(item, false, true);
         }
     }
@@ -419,7 +428,9 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     }
 
     private openInPlaylist(item: UnifiedCollectionItem): void {
-        const target = getLiveCollectionPlaylistNavigation(item);
+        const current = this.items().find((row) => row.uid === item.uid);
+        if (!current || isCatalogUnavailable(current)) return;
+        const target = getLiveCollectionPlaylistNavigation(current);
         if (target) {
             void this.router.navigate(target.link, { state: target.state });
         }

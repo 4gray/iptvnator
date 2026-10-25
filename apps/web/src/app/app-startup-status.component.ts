@@ -5,20 +5,25 @@ import {
     inject,
     input,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
+import { NgTemplateOutlet } from '@angular/common';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { MatButton } from '@angular/material/button';
+import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { filter, map } from 'rxjs';
 import {
     PlaylistActions,
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
+import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
 
 /** The first route also waits for settings and XMLTV source reconciliation. */
 @Component({
     selector: 'app-startup-status',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButtonModule, TranslatePipe],
+    imports: [MatButton, NgTemplateOutlet, TranslatePipe],
     template: `
         @if (!complete()) {
             <section
@@ -94,9 +99,30 @@ import {
                     }}
                 </p>
                 @if (failed()) {
-                    <button mat-flat-button type="button" (click)="retry()">
-                        {{ 'RETRY' | translate }}
-                    </button>
+                    <!--
+                        Material's button loads with the failure branch so the
+                        first screen does not carry the button chunk. A native
+                        button retries while the chunk downloads and stays when
+                        the load fails.
+                    -->
+                    @defer (on immediate) {
+                        <button mat-flat-button type="button" (click)="retry()">
+                            {{ 'RETRY' | translate }}
+                        </button>
+                    } @placeholder {
+                        <ng-container [ngTemplateOutlet]="nativeRetry" />
+                    } @error {
+                        <ng-container [ngTemplateOutlet]="nativeRetry" />
+                    }
+                    <ng-template #nativeRetry>
+                        <button
+                            class="startup-retry-native"
+                            type="button"
+                            (click)="retry()"
+                        >
+                            {{ 'RETRY' | translate }}
+                        </button>
+                    </ng-template>
                 }
             </section>
         }
@@ -152,6 +178,19 @@ import {
         button {
             margin-top: 8px;
             app-region: no-drag;
+        }
+        /* The flat button's shape in the theme's colours, until the
+           Material button loads. */
+        .startup-retry-native {
+            height: 40px;
+            padding: 0 24px;
+            border: 0;
+            border-radius: 20px;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font: inherit;
+            font-weight: 500;
+            cursor: pointer;
         }
 
         /*
@@ -304,8 +343,23 @@ export class AppStartupStatusComponent {
         selectPlaylistsLoadingFlag
     );
     readonly failed = this.store.selectSignal(selectPlaylistsLoadFailed);
+    private readonly router = inject(Router);
+    private readonly url = toSignal(
+        this.router.events.pipe(
+            filter((event) => event instanceof NavigationEnd),
+            map((event) => event.urlAfterRedirects)
+        ),
+        { initialValue: this.router.url }
+    );
+    /**
+     * Server storage asking for a token: the playlists cannot load, and the
+     * sign-in page must stay up whatever its check reports.
+     */
+    private readonly onSignInPage = computed(() =>
+        this.url().startsWith(SERVER_SIGN_IN_PATH)
+    );
     readonly complete = computed(
-        () => this.routeReady() && this.sourcesReady()
+        () => this.routeReady() && (this.sourcesReady() || this.onSignInPage())
     );
 
     retry(): void {

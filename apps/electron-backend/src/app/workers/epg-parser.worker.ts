@@ -125,12 +125,14 @@ async function fetchAndParseEpgStreaming(
             PROGRAM_BATCH_SIZE
         );
 
-        const dataStream = decodedStream;
+        // Decode after decompression, retaining partial UTF-8 sequences
+        // between chunks and flushing the decoder before the end event.
+        const dataStream = decodedStream.setEncoding('utf8');
         stats = await new Promise<ReturnType<StreamingEpgParser['finish']>>(
             (resolve, reject) => {
-                dataStream.on('data', (chunk: Buffer) => {
+                dataStream.on('data', (chunk: string) => {
                     try {
-                        parser.write(chunk.toString('utf-8'));
+                        parser.write(chunk);
                     } catch (err) {
                         epgLogger.error(loggerLabel, 'Parse error:', err);
                         reject(err);

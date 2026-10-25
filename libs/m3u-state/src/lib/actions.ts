@@ -93,10 +93,3 @@ export const FavoritesActions = createActionGroup({
         'Hydrate Favorites': props<{ channelIds: string[] }>(),
     },
 });
-
-export const FilterActions = createActionGroup({
-    source: 'Filters',
-    events: {
-        'Set Selected Filters': props<{ selectedFilters: string[] }>(),
-    },
-});

@@ -1,3 +1,7 @@
+import {
+    isCatalogUnavailable,
+    XTREAM_FAVORITE_IDENTITY_CONFLICT,
+} from '@iptvnator/shared/interfaces';
 import { NgTemplateOutlet } from '@angular/common';
 import {
     AfterContentInit,
@@ -17,9 +21,10 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBar } from '@angular/material/progress-bar';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     ChannelListSkeletonComponent,
     MenuItemRadioCheckDirective,
@@ -104,6 +109,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly data = inject(UnifiedCollectionDataService);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly translate = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
@@ -228,6 +235,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             }),
     });
     private readonly detailState = createCollectionDetailState({
+        items: this.allItems,
+        isLoading: this.isLoading,
         mode: this.mode,
         portalType: this.portalType,
         detailTemplate: this.detailTemplate,
@@ -309,6 +318,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }
 
     onGridItemSelected(item: UnifiedCollectionItem): void {
+        if (isCatalogUnavailable(item)) return;
         this.viewStateSync.commitCurrent();
 
         if (this.detailState.canOpen(item)) {
@@ -338,7 +348,18 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             return;
         }
 
-        await this.data.toggleFavorite(item);
+        try {
+            await this.data.toggleFavorite(item);
+        } catch (error) {
+            const key =
+                error instanceof Error &&
+                error.message === XTREAM_FAVORITE_IDENTITY_CONFLICT
+                    ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
+                    : 'PORTALS.FAVORITE_SAVE_FAILED';
+            this.snackBar.open(this.translate.instant(key), undefined, {
+                duration: 6000,
+            });
+        }
     }
 
     clearAllCurrent(): void {

@@ -3,6 +3,7 @@ import type { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { PORTAL_SHELL_ACTIONS } from '@iptvnator/portal/shared/util/tokens';
 import { LazyMatDialog } from '@iptvnator/ui/components/lazy-dialog';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspaceAccountInfoData,
@@ -26,13 +27,9 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
             import('@iptvnator/playlist/import/feature'),
             (dialog, { AddPlaylistDialogComponent }) => {
                 dialog.open(AddPlaylistDialogComponent, {
-                    // Width sized for the 5-card method picker plus the
-                    // selected method's form below. Matches the v0.22
-                    // mockup; falls back to viewport-clamped width on
-                    // narrow screens so the grid can collapse via the
-                    // SCSS responsive breakpoints.
-                    width: '780px',
-                    maxWidth: '92vw',
+                    // The method-card grid collapses through its own
+                    // breakpoints inside the large preset.
+                    ...dialogSize('lg'),
                     data: type ? { type } : {},
                 });
             }
