@@ -1,5 +1,6 @@
 import { effect, inject, Signal, signal, untracked } from '@angular/core';
 import { StreamResolverService } from '@iptvnator/portal/shared/data-access';
+import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 
@@ -29,7 +30,16 @@ export function createUnifiedLiveEpgMap(options: {
         // under a previous display offset or item set — must not overwrite
         // the refreshed result when it completes last.
         const currentRequestId = ++requestId;
-        void streamResolver.loadEpgForItems(items).then((epgMap) => {
+        // Use the same First Exact Match / manual-mapping lookup identity as
+        // the original M3U channel list, not the raw provider tvg-id.
+        // The global Favorites rail otherwise loses EPG on channels such as
+        // TRT 1 HD while the source playlist's Favorites view succeeds.
+        const resolvedItems = items.map((item) =>
+            item.sourceType === 'm3u' && item.m3uChannel
+                ? { ...item, tvgId: resolveChannelEpgLookupKey(item.m3uChannel) }
+                : item
+        );
+        void streamResolver.loadEpgForItems(resolvedItems).then((epgMap) => {
             if (currentRequestId === requestId) {
                 programs.set(epgMap);
             }
