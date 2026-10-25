@@ -350,6 +350,11 @@ Collection behavior to preserve:
 
 Dashboard behavior to preserve:
 
+- A collection detail handoff shows the shared detail-shell skeleton while
+  the collection validates the saved item, then keeps that layout while the
+  provider detail module loads. Ordinary collection visits retain their list
+  or grid skeletons. The pending presentation must not open provider detail
+  before availability validation or bypass missing-favorite checks.
 - Dashboard `Global Favorites` and `Recently Watched` widgets should route
   Xtream movie/series items into `/workspace/global-favorites` or
   `/workspace/global-recent` with collection detail pre-opened from navigation
