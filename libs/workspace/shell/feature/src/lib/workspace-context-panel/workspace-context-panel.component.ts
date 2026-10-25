@@ -54,8 +54,8 @@ import {
 } from './workspace-category-lock-action.service';
 import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
 import {
+    clearCategoryScope,
     hasActiveLiveCategoryRoute,
-    navigateToCategoryCleared,
 } from './workspace-context-panel-route.utils';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
@@ -693,13 +693,10 @@ export class WorkspaceContextPanelComponent {
             currentSelectedId !== null &&
             Number(currentSelectedId) === categoryId
         ) {
-            this.xtreamStore.setSelectedCategory(null);
-            if (section === 'vod' || section === 'series') {
-                this.xtreamStore.setSelectedItem(null);
-            }
-            navigateToCategoryCleared({
+            clearCategoryScope({
                 router: this.router,
                 provider: 'xtreams',
+                store: this.xtreamStore,
                 playlistId: context.playlistId,
                 section,
                 searchQuery: this.searchSync.searchQuery(),
@@ -755,14 +752,10 @@ export class WorkspaceContextPanelComponent {
             currentSelectedId !== '*' &&
             currentSelectedId === categoryId
         ) {
-            this.stalkerStore.setSelectedCategory('*');
-            this.stalkerStore.setPage(0);
-            if (section === 'vod' || section === 'series') {
-                this.stalkerStore.clearSelectedItem();
-            }
-            navigateToCategoryCleared({
+            clearCategoryScope({
                 router: this.router,
                 provider: 'stalker',
+                store: this.stalkerStore,
                 playlistId: context.playlistId,
                 section,
                 searchQuery: this.searchSync.searchQuery(),

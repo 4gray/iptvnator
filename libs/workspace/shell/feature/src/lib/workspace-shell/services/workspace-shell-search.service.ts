@@ -22,7 +22,7 @@ import {
     resolveSearchScopeLabel,
 } from './helpers/workspace-shell-search-labels';
 import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
-import { navigateToCategoryCleared } from '../../workspace-context-panel/workspace-context-panel-route.utils';
+import { clearCategoryScope } from '../../workspace-context-panel/workspace-context-panel-route.utils';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './workspace-shell-search-sync.service';
 
@@ -226,13 +226,10 @@ export class WorkspaceShellSearchService {
         }
 
         if (context.provider === 'xtreams') {
-            this.xtreamStore.setSelectedCategory(null);
-            if (section === 'vod' || section === 'series') {
-                this.xtreamStore.setSelectedItem(null);
-            }
-            navigateToCategoryCleared({
+            clearCategoryScope({
                 router: this.router,
                 provider: 'xtreams',
+                store: this.xtreamStore,
                 playlistId: context.playlistId,
                 section,
                 searchQuery: this.searchQuery(),
@@ -241,14 +238,10 @@ export class WorkspaceShellSearchService {
         }
 
         if (context.provider === 'stalker') {
-            this.stalkerStore.setSelectedCategory('*');
-            this.stalkerStore.setPage(0);
-            if (section === 'vod' || section === 'series') {
-                this.stalkerStore.clearSelectedItem();
-            }
-            navigateToCategoryCleared({
+            clearCategoryScope({
                 router: this.router,
                 provider: 'stalker',
+                store: this.stalkerStore,
                 playlistId: context.playlistId,
                 section,
                 searchQuery: this.searchQuery(),

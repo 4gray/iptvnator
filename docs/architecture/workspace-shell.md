@@ -505,7 +505,8 @@ Search is shell-owned and route-aware:
     query parameters. The clear control and action are limited to Xtream
     `live`/`vod`/`series` and Stalker `itv`/`radio`/`vod`/`series`; retained
     category state must not make collection or advanced-search scopes
-    dismissible. Live playback remains selected; VOD and series details
+    dismissible. Both entry points share the provider-state reset and
+    navigation action. Live playback remains selected; VOD and series details
     close when returning to the list. The category name and close icon form
     one button with a neutral hover and keyboard-focus highlight that remains
     visible in both themes; hovering the search field does not highlight it.

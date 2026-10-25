@@ -332,17 +332,40 @@ test.describe('Electron Workspace Search', () => {
             const clearScope = app.mainWindow.getByTestId(
                 'workspace-search-scope-clear'
             );
-            const chipBackgroundPixel = async () =>
-                sharp(
-                    await clearScope.screenshot({
-                        animations: 'disabled',
-                        scale: 'css',
-                    })
-                )
+            const browserWindow = await app.electronApp.browserWindow(
+                app.mainWindow
+            );
+            const chipBackgroundPixel = async () => {
+                const clip = await clearScope.boundingBox();
+                if (!clip) {
+                    throw new Error('Category scope chip is not visible');
+                }
+                // Native capture preserves hover; CDP screenshots can clear it.
+                const screenshot = Buffer.from(
+                    await browserWindow.evaluate(
+                        async (window, rect) =>
+                            (await window.webContents.capturePage(rect))
+                                .resize({
+                                    width: rect.width,
+                                    height: rect.height,
+                                })
+                                .toPNG()
+                                .toString('base64'),
+                        {
+                            x: Math.floor(clip.x),
+                            y: Math.floor(clip.y),
+                            width: Math.ceil(clip.width),
+                            height: Math.ceil(clip.height),
+                        }
+                    ),
+                    'base64'
+                );
+                return sharp(screenshot)
                     .extract({ left: 5, top: 12, width: 1, height: 1 })
                     .removeAlpha()
                     .raw()
                     .toBuffer();
+            };
             for (const theme of ['light', 'dark'] as const) {
                 await applyTheme(app.mainWindow, theme);
                 await searchInput.click();
@@ -365,6 +388,11 @@ test.describe('Electron Workspace Search', () => {
                     'background-color',
                     idleBackground
                 );
+                await expect
+                    .poll(() =>
+                        clearScope.evaluate((el) => el.getAnimations().length)
+                    )
+                    .toBe(0);
                 const hoverPixel = await chipBackgroundPixel();
                 const backgroundChange = Math.max(
                     ...hoverPixel.map((channel, index) =>
@@ -405,9 +433,9 @@ test.describe('Electron Workspace Search', () => {
             await expect(
                 app.mainWindow.locator(headerSearchSelector)
             ).toHaveValue(resolvedTitles.targetTitle);
-            await expect(
-                app.mainWindow.locator('app-grid-list')
-            ).toContainText(flexibleTextPattern(resolvedTitles.targetTitle));
+            await expect(app.mainWindow.locator('app-grid-list')).toContainText(
+                flexibleTextPattern(resolvedTitles.targetTitle)
+            );
 
             for (const key of ['Enter', 'Space']) {
                 await clickCategoryByNameExact(
@@ -868,7 +896,10 @@ test.describe('Electron Workspace Search', () => {
             );
             await expect(headerBack).toBeVisible();
             await expect(
-                app.mainWindow.getByRole('button', { name: 'Back', exact: true })
+                app.mainWindow.getByRole('button', {
+                    name: 'Back',
+                    exact: true,
+                })
             ).toHaveCount(1);
             await headerBack.click();
             await expectPathname(app.mainWindow, /\/workspace\/dashboard$/);
@@ -1055,10 +1086,7 @@ test.describe('Electron Workspace Search', () => {
 
             await clickCategoryById(app.mainWindow, sample.categoryId);
             await openWorkspaceSection(app.mainWindow, 'Advanced search');
-            await expectWorkspaceSearchScope(
-                app.mainWindow,
-                'Advanced search'
-            );
+            await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
             await expect(
                 app.mainWindow.getByTestId('workspace-search-scope-clear')
             ).toHaveCount(0);
