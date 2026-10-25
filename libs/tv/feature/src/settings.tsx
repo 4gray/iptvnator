@@ -1,8 +1,16 @@
+import { useEffect, useState } from 'preact/hooks';
+import { PhoneSetup } from './phone-setup';
 import { BackendConnection } from './backend-connection';
 import { DirectAccessProbe } from './direct-probe';
 import { TmdbSettings } from './tmdb-settings';
 import { TvModel } from './use-tv';
 export function Settings({ tv }: { tv: TvModel }) {
+    const [layout, setLayout] = useState(tv.data.layout);
+    const [epg, setEpg] = useState(tv.data.epg);
+    useEffect(() => {
+        setLayout(tv.data.layout);
+        setEpg(tv.data.epg);
+    }, [tv.data.layout, tv.data.epg]);
     const save = (event: SubmitEvent) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget as HTMLFormElement);
@@ -16,10 +24,25 @@ export function Settings({ tv }: { tv: TvModel }) {
         <>
             <h1>Settings</h1>
             <BackendConnection tv={tv} label="Backend URL" />
-            <form class="source-form" onSubmit={save}>
+            <PhoneSetup tv={tv} purpose="settings" />
+            <form
+                class="source-form"
+                key={`${tv.data.layout}:${tv.data.epg}`}
+                onSubmit={save}
+            >
                 <label>
                     Home composition
-                    <select name="layout" defaultValue={tv.data.layout}>
+                    <select
+                        name="layout"
+                        value={layout}
+                        onChange={(event) =>
+                            setLayout(
+                                event.currentTarget.value === 'shelf'
+                                    ? 'shelf'
+                                    : 'cinema'
+                            )
+                        }
+                    >
                         <option value="cinema">Кинозал · Cinema</option>
                         <option value="shelf">Витрина · Showcase</option>
                     </select>
@@ -28,7 +51,10 @@ export function Settings({ tv }: { tv: TvModel }) {
                     <input
                         type="checkbox"
                         name="epg"
-                        defaultChecked={tv.data.epg}
+                        checked={epg}
+                        onChange={(event) =>
+                            setEpg(event.currentTarget.checked)
+                        }
                     />{' '}
                     Show provider programme guide
                 </label>

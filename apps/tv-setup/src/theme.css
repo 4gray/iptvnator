@@ -108,3 +108,14 @@ footer {
 [hidden] {
     display: none !important;
 }
+
+.check {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.check input {
+    width: 22px;
+    height: 22px;
+    margin: 0;
+}

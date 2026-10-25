@@ -1,4 +1,9 @@
-import { SourceDraft } from '@iptvnator/tv/util';
+import {
+    SourceDraft,
+    SettingsDraft,
+    SetupPurpose,
+    PhoneSettingsDefaults,
+} from '@iptvnator/tv/util';
 import { backendJson } from './backend';
 export interface PairingSession {
     id: string;
@@ -9,16 +14,24 @@ export interface PairingSession {
 export interface PairingState {
     status: 'waiting' | 'pending' | 'saved' | 'rejected' | 'cancelled';
     source?: SourceDraft;
+    purpose?: SetupPurpose;
+    settings?: SettingsDraft;
     expiresAt: number;
 }
 export function createPairing(
     backend: string,
     accessToken: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    purpose: SetupPurpose = 'source',
+    defaults?: PhoneSettingsDefaults
 ): Promise<PairingSession> {
     return backendJson(`${backend}/tv/pairing`, signal, {
         method: 'POST',
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ purpose, defaults }),
     });
 }
 export function pairingState(

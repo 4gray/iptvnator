@@ -10,6 +10,13 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
     const [checking, setChecking] = useState(false);
     const [saving, setSaving] = useState(false);
     const request = useRef<AbortController>();
+    useEffect(() => {
+        request.current?.abort();
+        setChecking(false);
+        setKey(tv.data.tmdb.apiKey);
+        setEnabled(tv.data.tmdb.enabled);
+        setLanguage(tv.data.tmdb.language);
+    }, [tv.data.tmdb.apiKey, tv.data.tmdb.enabled, tv.data.tmdb.language]);
     useEffect(() => () => request.current?.abort(), []);
     const check = async () => {
         request.current?.abort();

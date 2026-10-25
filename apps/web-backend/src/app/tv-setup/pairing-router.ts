@@ -54,8 +54,21 @@ export function mountTvSetup(
         res.sendFile(resolve(assets, 'setup.js'), { dotfiles: 'allow' })
     );
     router.options('/pairing', cors);
-    router.post('/pairing', cors, guard, (_req, res) =>
-        res.status(201).json(store.create(_req.ip ?? 'unknown'))
+    router.post(
+        '/pairing',
+        cors,
+        guard,
+        express.json({ limit: '16kb' }),
+        (_req, res) =>
+            res
+                .status(201)
+                .json(
+                    store.create(
+                        _req.ip ?? 'unknown',
+                        _req.body?.purpose ?? 'source',
+                        _req.body?.defaults
+                    )
+                )
     );
     router.use('/pairing', express.json({ limit: '16kb' }));
     router.options('/pairing/:id/tv', cors);

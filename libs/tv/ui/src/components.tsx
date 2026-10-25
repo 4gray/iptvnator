@@ -4,14 +4,17 @@ export function Poster({
     item,
     open,
     saved,
+    ...attributes
 }: {
     item: Media;
     open: (m: Media) => void;
     saved?: boolean;
+    'data-virtual-index'?: number;
 }) {
     return (
         <button
-            class="poster-card"
+            {...attributes}
+            class={`poster-card ${item.kind === 'live' ? 'is-live' : ''}`}
             data-focus={item.id}
             onClick={() => open(item)}
         >
@@ -84,33 +87,4 @@ export function Hero({
 }
 export function Empty({ children }: { children: preact.ComponentChildren }) {
     return <div class="empty">{children}</div>;
-}
-export function Pager({
-    page,
-    next,
-    previous,
-}: {
-    page: number;
-    next: boolean;
-    previous: (delta: number) => void;
-}) {
-    return (
-        <div class="pager">
-            <button
-                data-focus="previous-page"
-                disabled={!page}
-                onClick={() => previous(-1)}
-            >
-                ← Previous
-            </button>
-            <span>Page {page + 1}</span>
-            <button
-                data-focus="next-page"
-                disabled={!next}
-                onClick={() => previous(1)}
-            >
-                Next →
-            </button>
-        </div>
-    );
 }

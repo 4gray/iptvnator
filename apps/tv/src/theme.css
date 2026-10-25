@@ -350,7 +350,8 @@ header select {
     background: transparent;
 }
 .poster-art {
-    height: 280px;
+    height: 0;
+    padding-top: 150%;
     display: block;
     background: linear-gradient(145deg, #263e31, #141e1a);
     position: relative;
@@ -360,6 +361,8 @@ header select {
 }
 .poster-art img {
     position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -406,7 +409,8 @@ header select {
     padding: 8px 5px;
 }
 .poster-grid .poster-art {
-    height: 280px;
+    height: 0;
+    padding-top: 150%;
 }
 .resume-card {
     width: 310px;
@@ -852,15 +856,9 @@ footer {
     .poster-grid {
         grid-template-columns: repeat(5, minmax(0, 1fr));
     }
-    .poster-grid .poster-art {
-        height: 240px;
-    }
     .rail > .poster-card {
         min-width: 170px;
         width: 170px;
-    }
-    .rail .poster-art {
-        height: 240px;
     }
     .live-layout {
         grid-gap: 24px;
@@ -1049,4 +1047,23 @@ footer {
 .connection-status > .connection-dot {
     flex-shrink: 0;
     margin-right: 12px;
+}
+
+.virtual-collection .poster-grid {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+.load-more-status {
+    padding: 20px 0;
+    color: var(--tv-muted);
+}
+.virtual-collection .episode {
+    height: 220px;
+    overflow: hidden;
+}
+.virtual-collection .episode strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }

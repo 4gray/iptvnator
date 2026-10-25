@@ -288,6 +288,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     }
     return {
         retryPlayback,
+        restoreKey: pendingFocus.current,
+        restoreScroll: pendingScroll.current,
         backend,
         data,
         route,

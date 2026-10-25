@@ -95,6 +95,15 @@ retryable, and a stable session-derived source ID prevents retry duplicates.
 The phone never reads source credentials back. QR transfer is source entry,
 not account synchronization, playlist-file upload or a media relay.
 
+Settings has its own purpose-bound QR session for layout, EPG and TMDB
+preferences. The phone receives only nonsecret defaults and a has-key flag.
+An empty key field preserves the saved key; a replacement is visible only to
+the TV capability and never echoed in the review. The TV validates the narrow
+settings draft, requires a key when enabling metadata, and commits it atomically
+without changing sources/history. Source and settings sessions cannot exchange
+draft types. The same expiry, cancellation and committed-write receipt rules
+apply. Navigating away during a write waits for its outcome before acknowledging.
+
 ## Playback and local data
 
 One `HTMLVideoElement` exists for preview and fullscreen. Focus movement never
@@ -111,11 +120,21 @@ physical-device check.
 
 Separate request lanes own catalog/detail, EPG and playback resolution.
 Superseding requests abort transport and lose publication rights, even if a
-transport later delivers a response. Catalog pages render at most 60 Xtream/M3U
-items or at most 60 Stalker items, translating larger provider pages without
-gaps; episode views render at most 30 rows. Home rails are capped. Arrow
-navigation does not initiate catalog pagination. Guide focus and search
-requests are debounced and superseded work is cancelled.
+transport later delivers a response. Movies, series, search and live lists append
+provider pages near the scroll boundary. A failed append preserves loaded rows
+and exposes Retry loading; repeated/duplicate pages cannot create an endless
+request loop. Source/category/query changes cancel the append lane. Returning
+from details retains the active query's loaded items, identity and scroll offset.
+
+`VirtualCollection` windows the DOM with measured row geometry and spacer
+heights: at most 60 poster cards, 20 channel rows or 30 episode rows. Favorites
+and supplied episode arrays use the same scroll window instead of page buttons.
+Arrow Up/Down moves by logical row and loads the next batch when necessary;
+scroll and Magic Remote pointer use the same viewport. Focus never starts a
+stream. Resize and restoration are measured against the actual scroller before
+pruning rows. Home's editorial rails remain capped previews. Provider APIs that
+return whole catalogs/episode arrays still do so; this is not a claim that every
+provider supports network pagination. Guide/search work remains debounced.
 
 `iptvnator-tv-user-data` is a separate IndexedDB database (schema 1 and payload
 version 1). Sources, active source, backend settings, favorites, history and
@@ -129,6 +148,15 @@ from older TV snapshots that only contain history. Closing an OS process can los
 since the last committed write; asynchronous pagehide writes are best effort.
 
 ## Artwork and optional TMDB metadata
+
+Stalker artwork resolves portal-root and protocol-relative paths through the
+framework-free `resolveStalkerArtwork` helper in the provider client entrypoint.
+Blank/placeholder fields fall through to screenshot/logo candidates; non-HTTP
+schemes and URL-embedded credentials are rejected. The existing Angular mapper
+re-exports its unchanged `makeAbsoluteUrl` helper from the extracted module.
+Poster boxes use a Chromium-68-compatible percentage ratio of 2:3 at every
+width, with `object-fit: cover`; live logos use a 16:9 box and `contain`.
+An unavailable provider image keeps a text fallback and never blocks browsing.
 
 Home and details share a backdrop beginning at the top of the content viewport,
 behind the header. Left and bottom gradients keep text readable and fade into

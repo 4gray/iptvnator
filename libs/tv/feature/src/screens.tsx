@@ -1,4 +1,4 @@
-import { Empty, Hero, Pager, Poster } from '@iptvnator/tv/ui';
+import { Empty, Hero, VirtualCollection, Poster } from '@iptvnator/tv/ui';
 import { Media } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
 export function Home({ tv }: { tv: TvModel }) {
@@ -97,9 +97,7 @@ export function CatalogScreen({ tv }: { tv: TvModel }) {
     const r = tv.route;
     const favorites = r.view === 'favorites';
     const list = favorites
-        ? tv.data.favorites
-              .filter((m) => m.sourceId === tv.data.activeId)
-              .slice(r.page * 60, (r.page + 1) * 60)
+        ? tv.data.favorites.filter((m) => m.sourceId === tv.data.activeId)
         : tv.catalog.items;
     const total = favorites
         ? tv.data.favorites.filter((m) => m.sourceId === tv.data.activeId)
@@ -179,16 +177,19 @@ export function CatalogScreen({ tv }: { tv: TvModel }) {
                 {total} titles ·{' '}
                 {tv.data.sources.find((s) => s.id === tv.data.activeId)?.name}
             </p>
-            <div class="poster-grid">
-                {list.map((item) => (
-                    <Poster
-                        key={item.id}
-                        item={item}
-                        open={tv.open}
-                        saved={favorites}
-                    />
-                ))}
-            </div>
+            <VirtualCollection
+                key={favorites ? tv.data.activeId : tv.catalogKey}
+                items={list}
+                more={!favorites && tv.hasMore}
+                busy={!favorites && tv.catalogBusy}
+                error={favorites ? '' : tv.catalogError}
+                loadMore={tv.loadMore}
+                restoreKey={tv.restoreKey}
+                restoreScroll={tv.restoreScroll}
+                render={(item) => (
+                    <Poster item={item} open={tv.open} saved={favorites} />
+                )}
+            />
             {!tv.busy && !list.length ? (
                 <Empty>
                     {favorites
@@ -196,19 +197,6 @@ export function CatalogScreen({ tv }: { tv: TvModel }) {
                         : 'No titles in this category. Try another category or search.'}
                 </Empty>
             ) : null}
-            <Pager
-                page={r.page}
-                next={
-                    favorites
-                        ? (r.page + 1) * 60 < total
-                        : list.length > 0 &&
-                          (r.page + 1) * (tv.catalog.pageSize || 60) < total
-                }
-                previous={(delta) => {
-                    tv.setRoute({ ...r, page: r.page + delta });
-                    document.querySelector('main')?.scrollTo(0, 0);
-                }}
-            />
         </>
     );
 }

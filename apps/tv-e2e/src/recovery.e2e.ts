@@ -22,27 +22,38 @@ test('storage quota failure is visible and does not claim favorite persistence',
     await nav(page, 'Favorites');
     await expect(page.locator('.poster-card')).toHaveCount(0);
 });
-test('large catalog uses bounded pages and restores remote focus after detail', async ({
+test('large catalog loads on scroll with bounded DOM and restores remote focus after detail', async ({
     page,
 }) => {
     await start(page);
     await addSource(page, 'xtream', { username: 'large', password: 'large' });
     await nav(page, 'Movies');
     await expect(page.locator('.poster-card')).toHaveCount(60);
-    await page.getByRole('button', { name: 'Next →' }).click();
-    await expect(page.locator('.pager')).toContainText('Page 2');
-    await expect(page.locator('.loading')).toBeHidden();
+    await page.locator('main').evaluate((e) => {
+        e.scrollTop = e.scrollHeight;
+    });
+    await expect(page.locator('.virtual-collection')).toHaveAttribute(
+        'data-loaded',
+        '120'
+    );
     await expect(page.locator('.poster-card')).toHaveCount(60);
-    const first = page.locator('.poster-card').first();
+    const first = page.locator('.poster-card[data-virtual-index="62"]');
     await first.focus();
     const key = await first.getAttribute('data-focus');
     await expect(first).toBeFocused();
     await page.keyboard.press('ArrowRight');
-    await expect(page.locator('.poster-card').nth(1)).toBeFocused();
+    await expect(
+        page.locator('.poster-card[data-virtual-index="63"]')
+    ).toBeFocused();
+    const openedKey = await page
+        .locator('.poster-card:focus')
+        .getAttribute('data-focus');
     await page.keyboard.press('Enter');
     await expect(page.locator('.detail-hero')).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.locator('.poster-card').nth(1)).toBeFocused();
+    await expect(
+        page.locator(`.poster-card[data-focus=${JSON.stringify(openedKey)}]`)
+    ).toBeFocused();
     await expect(page.locator('.poster-card')).toHaveCount(60);
     expect(await page.locator('button').count()).toBeLessThan(90);
     expect(key).toBeTruthy();

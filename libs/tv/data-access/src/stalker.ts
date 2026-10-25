@@ -3,6 +3,7 @@ import {
     resolveStalkerPlaybackUrl,
     shouldResolveMovieFileId,
     StalkerPagedCatalog,
+    resolveStalkerArtwork,
 } from '@iptvnator/portal/stalker/client';
 import {
     isStalkerSeriesItem,
@@ -16,7 +17,6 @@ import {
     ProviderClient,
     rows,
     text,
-    artwork,
     identity,
 } from '@iptvnator/tv/util';
 import { StalkerSession } from './stalker-session';
@@ -57,7 +57,13 @@ export class StalkerProvider implements ProviderClient {
             providerId: text(id),
             kind: actualKind,
             title: text(raw.o_name ?? raw.name ?? raw.title),
-            poster: artwork(raw.cover ?? raw.screenshot_uri ?? raw.logo),
+            poster: resolveStalkerArtwork(
+                this.source.endpoint ?? this.source.url,
+                raw.cover,
+                raw.screenshot_uri,
+                raw.logo,
+                raw.poster_url
+            ),
             description: text(raw.description),
             year: text(raw.year),
             category: text(raw.category_id),
@@ -112,7 +118,18 @@ export class StalkerProvider implements ProviderClient {
         };
     }
     async details(item: Media) {
-        return item;
+        return {
+            ...item,
+            poster:
+                item.poster ??
+                resolveStalkerArtwork(
+                    this.source.endpoint ?? this.source.url,
+                    item.raw.cover,
+                    item.raw.screenshot_uri,
+                    item.raw.logo,
+                    item.raw.poster_url
+                ),
+        };
     }
     episodes(item: Media, signal: AbortSignal) {
         return stalkerEpisodes(this.session, this.source, item, signal);

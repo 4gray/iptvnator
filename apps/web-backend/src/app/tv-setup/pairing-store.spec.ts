@@ -22,6 +22,7 @@ it('isolates phone and TV capabilities and withholds secrets from phone status',
     store.submit(a.id, a.phoneToken, source);
     expect(store.read(a.id, a.phoneToken, 'phone')).toEqual({
         status: 'pending',
+        purpose: 'source',
         expiresAt: 5100,
     });
     expect(store.read(a.id, a.tvToken, 'tv').source).toMatchObject(source);
@@ -102,4 +103,41 @@ it('retains full Stalker identity and passwords while canonicalizing a newly ent
         deviceId1: ' device ',
         signature2: 'sig',
     });
+});
+
+it('binds settings to a separate purpose and reveals replacement keys only to the TV', () => {
+    const store = new PairingStore();
+    const defaults = {
+        layout: 'cinema' as const,
+        epg: true,
+        tmdb: { enabled: false, language: 'en', hasKey: true },
+    };
+    const session = store.create('settings', 'settings', defaults);
+    expect(store.read(session.id, session.phoneToken, 'phone')).toMatchObject({
+        purpose: 'settings',
+        defaults,
+    });
+    expect(() =>
+        store.submit(session.id, session.phoneToken, {
+            provider: 'm3u',
+            name: 'Unexpected',
+            url: 'https://example.com/a.m3u',
+        })
+    ).toThrow();
+    store.submit(session.id, session.phoneToken, {
+        layout: 'shelf',
+        epg: false,
+        tmdb: { enabled: true, language: 'ru', apiKey: 'replacement-secret' },
+    });
+    expect(
+        JSON.stringify(store.read(session.id, session.phoneToken, 'phone'))
+    ).not.toContain('replacement-secret');
+    expect(store.read(session.id, session.tvToken, 'tv')).toMatchObject({
+        settings: { tmdb: { apiKey: 'replacement-secret' } },
+    });
+    store.finish(session.id, session.tvToken, 'saved');
+    expect(store.read(session.id, session.tvToken, 'tv')).not.toHaveProperty(
+        'settings'
+    );
+    store.dispose();
 });

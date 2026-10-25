@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
-    Catalog,
     Kind,
     LatestRequest,
     Media,
@@ -9,12 +8,7 @@ import {
 } from '@iptvnator/tv/util';
 import { restoreFocus } from '@iptvnator/tv/ui';
 import type { Route } from './navigation';
-const emptyCatalog = (): Catalog => ({
-    items: [],
-    total: 0,
-    page: 0,
-    categories: [],
-});
+import { useCatalog } from './use-catalog';
 export function useContent(
     route: Route,
     provider: { current?: ProviderClient },
@@ -37,13 +31,6 @@ export function useContent(
         route.item?.id,
         ready,
     ]);
-    const [catalogState, setCatalogState] = useState({
-        key: '',
-        value: emptyCatalog(),
-    });
-    const catalog =
-        catalogState.key === key ? catalogState.value : emptyCatalog();
-    const setCatalog = (value: Catalog) => setCatalogState({ key, value });
     const [homeState, setHomeState] = useState<{ key: string; value: Media[] }>(
         { key: '', value: [] }
     );
@@ -73,15 +60,10 @@ export function useContent(
         const client = provider.current;
         const lane = browse.current;
         const job = lane.start();
-        setCatalog(emptyCatalog());
         setEpisodes([]);
-        if (
-            !ready ||
-            !client ||
-            ['sources', 'settings', 'favorites'].includes(route.view)
-        ) {
+        if (!ready || !client || !['home', 'detail'].includes(route.view)) {
             setBusy(false);
-            finishFocus();
+            if (route.view === 'favorites') finishFocus();
             return;
         }
         setBusy(true);
@@ -128,15 +110,6 @@ export function useContent(
                     const items = await client.episodes(detail, job.signal);
                     if (lane.owns(job)) setEpisodes(items);
                 }
-            } else {
-                const result = await client.catalog(
-                    route.kind,
-                    route.category,
-                    route.page,
-                    route.query,
-                    job.signal
-                );
-                if (lane.owns(job)) setCatalog(result);
             }
         };
         const timer = setTimeout(
@@ -197,5 +170,13 @@ export function useContent(
             lane.cancel();
         };
     }, [selected?.id, epgEnabled, ready]);
-    return { catalog, home, episodes, epg, epgError, busy };
+    const catalog = useCatalog(route, provider, ready, sourceId, finishFocus);
+    return {
+        ...catalog,
+        home,
+        episodes,
+        epg,
+        epgError,
+        busy: busy || catalog.catalogBusy,
+    };
 }

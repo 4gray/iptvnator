@@ -1,4 +1,4 @@
-import { Empty, Pager } from '@iptvnator/tv/ui';
+import { Empty, VirtualCollection } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 export function Live({ tv }: { tv: TvModel }) {
     const r = tv.route;
@@ -31,57 +31,55 @@ export function Live({ tv }: { tv: TvModel }) {
                         </select>
                     </label>
                     <div class="channels">
-                        {tv.catalog.items.map((item, n) => (
-                            <button
-                                class={`channel ${tv.playing?.id === item.id && tv.player.current?.hasConfirmedPlayback ? 'is-playing' : ''}`}
-                                data-focus={item.id}
-                                aria-pressed={selected?.id === item.id}
-                                onFocus={() => tv.setSelected(item)}
-                                onClick={() => {
-                                    tv.setSelected(item);
-                                    tv.play(item);
-                                }}
-                            >
-                                <span class="channel-number">
-                                    {String(
-                                        r.page * tv.catalog.items.length + n + 1
-                                    ).padStart(2, '0')}
-                                </span>
-                                {item.poster ? (
-                                    <img src={item.poster} alt="" />
-                                ) : (
-                                    <span class="channel-logo">
-                                        {item.title.slice(0, 1)}
+                        <VirtualCollection
+                            key={tv.catalogKey}
+                            layout="channels"
+                            items={tv.catalog.items}
+                            more={tv.hasMore}
+                            busy={tv.catalogBusy}
+                            error={tv.catalogError}
+                            loadMore={tv.loadMore}
+                            restoreKey={tv.restoreKey}
+                            restoreScroll={tv.restoreScroll}
+                            render={(item, n) => (
+                                <button
+                                    class={`channel ${tv.playing?.id === item.id && tv.player.current?.hasConfirmedPlayback ? 'is-playing' : ''}`}
+                                    data-focus={item.id}
+                                    aria-pressed={selected?.id === item.id}
+                                    onFocus={() => tv.setSelected(item)}
+                                    onClick={() => {
+                                        tv.setSelected(item);
+                                        tv.play(item);
+                                    }}
+                                >
+                                    <span class="channel-number">
+                                        {String(n + 1).padStart(2, '0')}
                                     </span>
-                                )}
-                                <span>
-                                    <strong>{item.title}</strong>
-                                    <small>
-                                        {tv.playing?.id === item.id
-                                            ? tv.player.current
-                                                  ?.hasConfirmedPlayback
-                                                ? '● Playing'
-                                                : 'Starting / paused'
-                                            : 'Live channel'}
-                                    </small>
-                                </span>
-                            </button>
-                        ))}
+                                    {item.poster ? (
+                                        <img src={item.poster} alt="" />
+                                    ) : (
+                                        <span class="channel-logo">
+                                            {item.title.slice(0, 1)}
+                                        </span>
+                                    )}
+                                    <span>
+                                        <strong>{item.title}</strong>
+                                        <small>
+                                            {tv.playing?.id === item.id
+                                                ? tv.player.current
+                                                      ?.hasConfirmedPlayback
+                                                    ? '● Playing'
+                                                    : 'Starting / paused'
+                                                : 'Live channel'}
+                                        </small>
+                                    </span>
+                                </button>
+                            )}
+                        />
                     </div>
                     {!tv.busy && !tv.catalog.items.length ? (
                         <Empty>No channels in this category.</Empty>
                     ) : null}
-                    <Pager
-                        page={r.page}
-                        next={
-                            tv.catalog.items.length > 0 &&
-                            (r.page + 1) * (tv.catalog.pageSize || 60) <
-                                tv.catalog.total
-                        }
-                        previous={(delta) =>
-                            tv.setRoute({ ...r, page: r.page + delta })
-                        }
-                    />
                 </section>
                 <section class="live-information">
                     <div class="preview-placeholder">

@@ -6,7 +6,12 @@ async function connect(page: Page) {
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await expect(page.locator('.connection-status')).toHaveText('Connected');
 }
-async function session(page: Page) {
+async function session(
+    page: Page
+): Promise<{ id: string; phoneToken: string; tvToken: string }> {
+    // This shared backend keeps the production six-session/minute limit.
+    // The full suite can legitimately exhaust it; wait for its fixed window.
+    test.setTimeout(100_000);
     const reply = page.waitForResponse(
         (r) =>
             r.url() === `${backend}/tv/pairing` &&
@@ -15,7 +20,13 @@ async function session(page: Page) {
     await page
         .getByRole('button', { name: 'Add from phone', exact: true })
         .click();
-    const data = await (await reply).json();
+    const response = await reply;
+    if (response.status() === 429) {
+        await page.waitForTimeout(60_000);
+        return session(page);
+    }
+    expect(response.status()).toBe(201);
+    const data = await response.json();
     await expect(page.locator('.pairing-qr')).toBeVisible();
     expect(await page.locator('.pairing-qr').getAttribute('src')).toMatch(
         /^data:image\/png;base64,/
@@ -133,7 +144,7 @@ test('quota failure keeps the phone pending; retry saves once and sends a receip
         await page
             .getByRole('button', { name: 'Add source', exact: true })
             .click();
-        await expect(page.getByRole('alert')).toContainText('not added');
+        await expect(page.getByRole('alert')).toContainText('not saved');
         await expect(phone.getByRole('status')).toContainText('Confirm');
         await page
             .getByRole('button', { name: 'Add source', exact: true })

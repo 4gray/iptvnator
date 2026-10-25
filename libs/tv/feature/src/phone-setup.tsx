@@ -1,3 +1,4 @@
+import { PhoneReview } from './phone-review';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import QRCode from 'qrcode';
 import {
@@ -7,10 +8,22 @@ import {
     PairingSession,
     PairingState,
 } from '@iptvnator/tv/data-access';
-import { parseSourceDraft } from '@iptvnator/tv/util';
+import {
+    parseSourceDraft,
+    applySettingsDraft,
+    phoneSettingsDefaults,
+    SetupPurpose,
+} from '@iptvnator/tv/util';
 import { restoreFocus } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
-export function PhoneSetup({ tv }: { tv: TvModel }) {
+export function PhoneSetup({
+    tv,
+    purpose = 'source',
+}: {
+    tv: TvModel;
+    purpose?: SetupPurpose;
+}) {
+    const settings = purpose === 'settings';
     const [session, setSession] = useState<PairingSession>();
     const [state, setState] = useState<PairingState>();
     const [qr, setQr] = useState('');
@@ -52,7 +65,9 @@ export function PhoneSetup({ tv }: { tv: TvModel }) {
             const next = await createPairing(
                 tv.data.backend,
                 tv.data.backendToken,
-                abort.signal
+                abort.signal,
+                purpose,
+                settings ? phoneSettingsDefaults(tv.data) : undefined
             );
             if (abort.signal.aborted) return;
             owner.current = { session: next, backend: tv.data.backend };
@@ -138,21 +153,30 @@ export function PhoneSetup({ tv }: { tv: TvModel }) {
                     abort.signal
                 );
                 if (abort.signal.aborted) return;
-                if (current.status !== 'pending' || !current.source)
+                if (
+                    current.status !== 'pending' ||
+                    (settings ? !current.settings : !current.source)
+                )
                     throw new Error('expired');
                 const source = {
-                    ...parseSourceDraft(current.source),
+                    ...(!settings ? parseSourceDraft(current.source) : {}),
                     id: `phone-${session.id}`,
                 };
                 pendingSave.current = tv
-                    .update((data) => ({
-                        ...data,
-                        activeId: source.id,
-                        sources: [
-                            ...data.sources.filter((s) => s.id !== source.id),
-                            source,
-                        ],
-                    }))
+                    .update((data) =>
+                        settings
+                            ? applySettingsDraft(data, current.settings)
+                            : {
+                                  ...data,
+                                  activeId: source.id,
+                                  sources: [
+                                      ...data.sources.filter(
+                                          (s) => s.id !== source.id
+                                      ),
+                                      source as import('@iptvnator/tv/util').Source,
+                                  ],
+                              }
+                    )
                     .then(() => {
                         saved.current = true;
                     });
@@ -169,25 +193,35 @@ export function PhoneSetup({ tv }: { tv: TvModel }) {
             setSession(undefined);
             setQr('');
             setState(undefined);
-            if (outcome === 'saved') tv.navigate('home');
+            if (outcome === 'saved')
+                tv.navigate(settings ? 'settings' : 'home');
             else restoreFocus('phone-start');
         } catch {
             if (!abort.signal.aborted)
                 setError(
                     saved.current
                         ? 'Saved on this TV. Retry to deliver confirmation to your phone.'
-                        : 'The source was not added. Check TV storage and connection, then retry.'
+                        : 'Changes were not saved. Check TV storage, connection and required fields, then retry.'
                 );
         } finally {
             if (!abort.signal.aborted) setBusy(false);
         }
     }
     return (
-        <section class="phone-setup" aria-label="Add from phone">
+        <section
+            class="phone-setup"
+            aria-label={settings ? 'Settings from phone' : 'Add from phone'}
+        >
             <div>
-                <h2>Add from your phone</h2>
+                <h2>
+                    {settings
+                        ? 'Set up from your phone'
+                        : 'Add from your phone'}
+                </h2>
                 <p class="muted">
-                    Scan, paste your source details, then confirm here.
+                    {settings
+                        ? 'Paste your TMDB key and adjust TV settings, then confirm here.'
+                        : 'Scan, paste your source details, then confirm here.'}
                 </p>
             </div>
             {!session ? (
@@ -198,48 +232,29 @@ export function PhoneSetup({ tv }: { tv: TvModel }) {
                     disabled={!tv.backend.connected || busy}
                     onClick={() => void start()}
                 >
-                    {busy ? 'Preparing QR…' : 'Add from phone'}
+                    {busy
+                        ? 'Preparing QR…'
+                        : settings
+                          ? 'Set up from phone'
+                          : 'Add from phone'}
                 </button>
             ) : (
                 <div class="phone-pairing">
-                    {state?.source ? (
-                        <div class="phone-review">
-                            <p class="eyebrow">RECEIVED FROM YOUR PHONE</p>
-                            <h3>{state.source.name}</h3>
-                            <p>
-                                {state.source.provider.toUpperCase()} ·{' '}
-                                {new URL(state.source.url).hostname}
-                            </p>
-                            <p class="muted">Add this source to your TV?</p>
-                            <div class="actions">
-                                <button
-                                    type="button"
-                                    class="primary"
-                                    data-focus="phone-confirm"
-                                    disabled={busy || !remaining}
-                                    onClick={() => void finish('saved')}
-                                >
-                                    {busy
-                                        ? 'Saving…'
-                                        : saved.current
-                                          ? 'Retry confirmation'
-                                          : 'Add source'}
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={busy || saved.current}
-                                    onClick={() => void finish('rejected')}
-                                >
-                                    Decline
-                                </button>
-                            </div>
-                        </div>
+                    {state?.source || state?.settings ? (
+                        <PhoneReview
+                            state={state}
+                            busy={busy}
+                            remaining={remaining}
+                            saved={saved.current}
+                            confirm={() => void finish('saved')}
+                            decline={() => void finish('rejected')}
+                        />
                     ) : (
                         <>
                             <img
                                 class="pairing-qr"
                                 src={qr}
-                                alt="Scan this QR code to add a source from your phone"
+                                alt="Scan this QR code to set up your TV from your phone"
                             />
                             <div>
                                 <h3>Open your phone’s camera</h3>

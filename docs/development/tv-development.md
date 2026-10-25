@@ -37,18 +37,18 @@ BX's Chromium 68 engine, native HLS, transport stream decoding or MAG headers.
 `tv-playlist.m3u` and `tv-test-media.webm` are local mock-server fixtures only.
 
 The package target produces
-`dist/tv-package/com.iptvnator.tv.prototype_0.1.2_all.ipk` with the pinned webOS
+`dist/tv-package/com.iptvnator.tv.prototype_0.1.3_all.ipk` with the pinned webOS
 CLI. Inspect it with:
 
 ```sh
-pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.2_all.ipk
+pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.3_all.ipk
 pnpm exec ares-setup-device --list
 ```
 
 Only after the user supplies an enabled Developer Mode target and pairing:
 
 ```sh
-pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.2_all.ipk
+pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.3_all.ipk
 pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 ```
 
@@ -74,6 +74,11 @@ choose M3U/Xtream/Stalker, and submit. Confirm Add source on the TV. The phone
 reports success only after TV storage commits. Closing the TV setup cancels the
 link; expired links require a fresh QR. Reloading the phone page also requires
 rescanning because its temporary capability is held only in memory.
+
+Settings > Set up from phone opens a separate QR form for TMDB, metadata
+language, home layout and EPG. Paste a new key or leave it blank to keep the
+TV's saved key, then choose Apply settings on TV. Existing keys never appear on
+the phone. Saving requires a committed TV write; declining changes nothing.
 
 ## TMDB setup
 
@@ -140,3 +145,6 @@ The [backdrop and TMDB follow-up report](tv-metadata-validation.md) records the
 
 The [phone setup and discovery report](tv-phone-validation.md) records the
 0.1.2 package checks and their separate real-device results.
+
+The [browsing, artwork and phone settings report](tv-browsing-validation.md)
+records the 0.1.3 follow-up, screenshots and hardware checks.

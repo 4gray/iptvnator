@@ -24,3 +24,4 @@ export {
     sortEpisodesByNumber,
 } from './lib/stores/utils/stalker-sorting';
 export { StalkerPagedCatalog } from './lib/stalker-paged-client';
+export { resolveStalkerArtwork } from './lib/stalker-artwork.utils';

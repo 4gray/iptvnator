@@ -1,9 +1,8 @@
 import { useState } from 'preact/hooks';
-import { Empty, Pager } from '@iptvnator/tv/ui';
+import { Empty, VirtualCollection } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 export function Detail({ tv }: { tv: TvModel }) {
     const [season, setSeason] = useState<number>();
-    const [episodePage, setEpisodePage] = useState(0);
     const item = tv.selected ?? tv.route.item;
     if (!item) return null;
     const seasons = Array.from(
@@ -76,7 +75,6 @@ export function Detail({ tv }: { tv: TvModel }) {
                                 value={currentSeason}
                                 onChange={(e) => {
                                     setSeason(Number(e.currentTarget.value));
-                                    setEpisodePage(0);
                                 }}
                             >
                                 {seasons.map((s) => (
@@ -85,42 +83,35 @@ export function Detail({ tv }: { tv: TvModel }) {
                             </select>
                         </label>
                     </div>
-                    <div class="episode-grid">
-                        {episodes
-                            .slice(episodePage * 30, (episodePage + 1) * 30)
-                            .map((e) => (
-                                <button
-                                    data-focus={e.id}
-                                    key={e.id}
-                                    class="episode"
-                                    onClick={() => tv.play(e)}
-                                >
-                                    <span class="episode-number">
-                                        {String(e.episode ?? 1).padStart(
-                                            2,
-                                            '0'
-                                        )}
-                                    </span>
-                                    <strong>{e.title}</strong>
-                                    <small>
-                                        {tv.data.positions[e.id]?.seconds
-                                            ? 'Resume episode'
-                                            : 'Watch episode'}{' '}
-                                        →
-                                    </small>
-                                </button>
-                            ))}
-                    </div>
+                    <VirtualCollection
+                        key={`${item.id}:${currentSeason}`}
+                        layout="episodes"
+                        items={episodes}
+                        render={(e) => (
+                            <button
+                                data-focus={e.id}
+                                key={e.id}
+                                class="episode"
+                                onClick={() => tv.play(e)}
+                            >
+                                <span class="episode-number">
+                                    {String(e.episode ?? 1).padStart(2, '0')}
+                                </span>
+                                <strong>{e.title}</strong>
+                                <small>
+                                    {tv.data.positions[e.id]?.seconds
+                                        ? 'Resume episode'
+                                        : 'Watch episode'}{' '}
+                                    →
+                                </small>
+                            </button>
+                        )}
+                    />
                     {!tv.busy && !episodes.length ? (
                         <Empty>
                             No episodes were supplied for this series.
                         </Empty>
                     ) : null}
-                    <Pager
-                        page={episodePage}
-                        next={(episodePage + 1) * 30 < episodes.length}
-                        previous={(n) => setEpisodePage((p) => p + n)}
-                    />
                 </section>
             ) : null}
         </>

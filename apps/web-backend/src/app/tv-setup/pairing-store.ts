@@ -1,5 +1,12 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { parseSourceDraft, SourceDraft } from '@iptvnator/tv/util';
+import {
+    parseSourceDraft,
+    SourceDraft,
+    parseSettingsDraft,
+    SettingsDraft,
+    SetupPurpose,
+    PhoneSettingsDefaults,
+} from '@iptvnator/tv/util';
 type Status = 'waiting' | 'pending' | 'saved' | 'rejected' | 'cancelled';
 interface Session {
     id: string;
@@ -8,6 +15,9 @@ interface Session {
     expiresAt: number;
     status: Status;
     source?: SourceDraft;
+    purpose: SetupPurpose;
+    defaults?: PhoneSettingsDefaults;
+    settings?: SettingsDraft;
     timer: ReturnType<typeof setTimeout>;
 }
 export class PairingError extends Error {
@@ -26,7 +36,30 @@ export class PairingStore {
         private readonly ttl = 5 * 60_000,
         private readonly now = Date.now
     ) {}
-    create(ip: string) {
+    create(
+        ip: string,
+        purpose: SetupPurpose = 'source',
+        defaults?: PhoneSettingsDefaults
+    ) {
+        if (!['source', 'settings'].includes(purpose))
+            throw new PairingError(400, 'Invalid setup purpose.');
+        let safeDefaults: PhoneSettingsDefaults | undefined;
+        if (purpose === 'settings') {
+            try {
+                const parsed = parseSettingsDraft(defaults);
+                safeDefaults = {
+                    layout: parsed.layout,
+                    epg: parsed.epg,
+                    tmdb: {
+                        enabled: parsed.tmdb.enabled,
+                        language: parsed.tmdb.language,
+                        hasKey: defaults?.tmdb.hasKey === true,
+                    },
+                };
+            } catch {
+                throw new PairingError(400, 'Invalid settings defaults.');
+            }
+        }
         this.sweep();
         const attempt = this.attempts.get(ip) ?? {
             count: 0,
@@ -52,6 +85,8 @@ export class PairingStore {
             phoneToken: token(),
             expiresAt: this.now() + this.ttl,
             status: 'waiting',
+            purpose,
+            defaults: safeDefaults,
             timer,
         };
         this.sessions.set(id, session);
@@ -62,6 +97,9 @@ export class PairingStore {
         const s = this.authorize(id, token, role);
         return {
             status: s.status,
+            purpose: s.purpose,
+            ...(s.defaults ? { defaults: s.defaults } : {}),
+            ...(role === 'tv' && s.settings ? { settings: s.settings } : {}),
             expiresAt: s.expiresAt,
             ...(role === 'tv' && s.source ? { source: s.source } : {}),
         };
@@ -71,7 +109,9 @@ export class PairingStore {
         if (s.status !== 'waiting')
             throw new PairingError(409, 'This link has already been used.');
         try {
-            s.source = parseSourceDraft(value);
+            if (s.purpose === 'settings')
+                s.settings = parseSettingsDraft(value);
+            else s.source = parseSourceDraft(value);
         } catch (error) {
             throw new PairingError(
                 400,
@@ -96,6 +136,7 @@ export class PairingStore {
             );
         s.status = outcome as Status;
         delete s.source;
+        delete s.settings;
         return { status: s.status };
     }
     dispose() {

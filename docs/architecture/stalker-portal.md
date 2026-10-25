@@ -50,6 +50,15 @@ below is reached as `/workspace/stalker/:id/…`.
 
 `/workspace/stalker/:id` itself redirects to `vod`.
 
+## Framework-free artwork
+
+`libs/portal/stalker/data-access/src/lib/stalker-artwork.utils.ts` owns the
+existing portal-root `makeAbsoluteUrl` helper, re-exported by the Angular content
+mapper for compatibility. The client sub-entrypoint exports
+`resolveStalkerArtwork` for TV: it resolves relative screenshot/logo paths,
+tries nonblank candidates in order and rejects unsafe URL schemes or embedded
+credentials. Artwork normalization does not change MAG identity or media URLs.
+
 ## Runtime Architecture
 
 1. Angular Stalker screens call methods/resources in `StalkerStore`.

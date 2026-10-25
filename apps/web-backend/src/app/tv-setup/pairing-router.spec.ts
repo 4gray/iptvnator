@@ -1,5 +1,7 @@
 import { createWebBackendApp } from '../web-backend-app';
 import { withServer } from '../web-backend-app.spec-helpers';
+import type { PairingStore } from './pairing-store';
+type CreatedSession = ReturnType<PairingStore['create']>;
 it('keeps server-token routes protected while delegating only a one-session phone capability', async () => {
     await withServer(
         createWebBackendApp({
@@ -32,7 +34,7 @@ it('keeps server-token routes protected while delegating only a one-session phon
                 },
             });
             expect(created.status).toBe(201);
-            const session = await created.json();
+            const session = (await created.json()) as CreatedSession;
             const phone = `${base}/tv/pairing/${session.id}/phone`;
             expect((await fetch(phone)).status).toBe(403);
             const posted = await fetch(phone, {
@@ -85,7 +87,7 @@ it('keeps server-token routes protected while delegating only a one-session phon
 it('bounds JSON bodies and never exposes malformed request contents', async () => {
     await withServer(createWebBackendApp(), async (base) => {
         const created = await fetch(`${base}/tv/pairing`, { method: 'POST' });
-        const s = await created.json();
+        const s = (await created.json()) as CreatedSession;
         const response = await fetch(`${base}/tv/pairing/${s.id}/phone`, {
             method: 'POST',
             headers: {
