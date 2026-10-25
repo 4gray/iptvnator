@@ -5,7 +5,7 @@ async function selectLanguage(page: Page, code: string) {
     await page.locator('[data-test-id="select-language"]').click();
     await page.locator(`mat-option[data-test-id="${code}"]`).click();
     const save = page.locator('[data-test-id="save-settings"]');
-    await save.click();
+    await save.click({ noWaitAfter: true });
     await expect(save).toBeHidden();
 }
 

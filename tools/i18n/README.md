@@ -118,6 +118,14 @@ The startup hint is refreshed immediately when the saved language is applied,
 so changing language in settings does not require a reload to prepare the next
 cold start. IndexedDB settings remain authoritative.
 
+The browser and Electron `portuguese-locales.e2e.ts` suites exercise regional
+selection and reload/restart with isolated profiles. Electron also checks a
+legacy `pt` IndexedDB record and preservation of unrelated settings on save.
+The delayed-locale unit test resolves Brazil before an earlier Portugal
+request, guarding the startup hint and final language against stale completion.
+Playlist backups carry EPG URLs, not language preferences (see the
+[backup contract](../../docs/architecture/playlist-backup-restore.md#app-settings)).
+
 Use these terms consistently in context:
 
 | English | Portugal | Brazil |
