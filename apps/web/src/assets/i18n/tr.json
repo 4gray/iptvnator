@@ -478,6 +478,7 @@
         "STARTUP_BEHAVIOR_DESCRIPTION": "IPTVnator'un ilk kullanılabilir çalışma alanı görünümünü mü açacağını yoksa bölüm düzeyindeki son görünümünüzü mü geri yükleyeceğini seçin. İlk görünüm, Pano etkinleştirildiğinde Pano, aksi takdirde Kaynaklar anlamına gelir.",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "İlk kullanılabilir görünüm",
         "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "Son görünümü geri yükle",
+        "STARTUP_BEHAVIOR_PLAY_LAST_CHANNEL": "Son canlı kanalı oynat",
         "STARTUP_WINDOW_MODE": "Başlangıçta pencere",
         "STARTUP_WINDOW_MODE_DESCRIPTION": "Masaüstü penceresinin nasıl açılacağını seçin: son boyutunda, ekranı kaplamış veya tam ekran. Bir sonraki başlatmada uygulanır. Tam ekrana girmek veya çıkmak için istediğiniz zaman F11 tuşuna basın.",
         "STARTUP_WINDOW_MODE_NORMAL": "Son pencere boyutu",
