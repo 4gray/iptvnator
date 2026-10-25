@@ -206,8 +206,8 @@ export class WebPlayerViewComponent implements OnDestroy {
             this.playerOverride() ??
             this.settingsStore.player?.() ??
             VideoPlayer.VideoJs,
-        computation: (preferred) => {
-            const resolved = resolveRenderableWebPlayer(preferred);
+        computation: (preferred, previous) => {
+            const resolved = resolveRenderableWebPlayer(preferred, previous);
             // For server-script/extensionless HTTP media, Video.js has a
             // MIME-aware HLS/TS path and provides standard HTML video PiP.
             // Do not force Chromium HTML5 down a guessed MPEG-TS loader.

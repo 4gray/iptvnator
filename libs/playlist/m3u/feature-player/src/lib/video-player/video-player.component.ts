@@ -731,9 +731,24 @@ export class VideoPlayerComponent
         return base === 'live' || base === 'movies' ||
             base === 'series' || base === 'unclassified' ? base : null;
     });
+    private readonly favoriteEpgKeys = this.store.selectSignal(selectFavorites);
+    /**
+     * The unrestricted M3U can have 80k+ movies and episodes. The root
+     * Favorites view must not send those entries to XMLTV bulk matching.
+     * Include actual live channels plus any bookmarked outliers; keep the
+     * original Channel objects and EPG per-entry identity.
+     */
     readonly sidebarChannels = computed(() => {
         const kind = this.categoryView();
-        return kind ? this.contentIndex()[kind] : this.channels();
+        if (kind) return this.contentIndex()[kind];
+        if (this.activeView() !== 'favorites') return this.channels();
+        const live = this.contentIndex().live;
+        const all = this.channels();
+        const favorites = new Set(this.favoriteEpgKeys());
+        if (favorites.size === 0) return live;
+        const seen = new Set(live.map(channel => channel.url));
+        const extras = all.filter(channel => favorites.has(channel.url) && !seen.has(channel.url));
+        return extras.length ? [...live, ...extras] : live;
     });
     readonly sidebarPresentationView = computed(() => {
         const view = this.activeView();
