@@ -16,6 +16,14 @@ The mock server enables:
 3. **Scenario-based testing** via predefined MAC addresses that map to specific data shapes
 4. **Screenshot-safe marketing capture** with committed fictional posters shared with the Xtream mock
 
+The TV-only `00:1a:79:00:00:0b` fixture supplies lazy Ministra VOD series
+with paged `is_season` and `is_episode` records (two rows per provider page).
+An episode-coordinate request returns an owned `is_file` row with a distinct
+file ID; clients must resolve this row before `create_link`.
+It exercises season/file resolution through the actual backend without changing
+the existing regular/embedded fixtures. TV media tests use a local WebM clip;
+they do not establish LG codec or protocol compatibility.
+
 ## Key Design Decisions
 
 ### Seeded Determinism (Not Per-Request Random)

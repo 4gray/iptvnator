@@ -8,7 +8,7 @@ import {
     StalkerVodSeriesSeason,
     StalkerVodSource,
 } from './models';
-import { isStalkerSeriesFlag } from './stalker-vod.utils';
+import { isStalkerSeriesFlag } from '@iptvnator/shared/interfaces';
 
 const naturalSeasonCollator = new Intl.Collator(undefined, {
     numeric: true,

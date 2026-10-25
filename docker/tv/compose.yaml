@@ -1,0 +1,21 @@
+name: iptvnator-tv
+services:
+  tv-backend:
+    image: iptvnator-tv:0.1.9
+    restart: unless-stopped
+    networks:
+      - library
+    ports:
+      - "4335:80"
+    environment:
+      TZ: Europe/Berlin
+      IPTVNATOR_STORAGE: none
+      IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: "0"
+      CLIENT_URL: "${TV_WEB_ORIGIN},file://com.iptvnator.tv.prototype-webos,null"
+      TV_WEB_ORIGIN: "${TV_WEB_ORIGIN}"
+      LIBRARY_UPSTREAM: "${LIBRARY_UPSTREAM}"
+
+networks:
+  library:
+    external: true
+    name: "${LIBRARY_NETWORK}"

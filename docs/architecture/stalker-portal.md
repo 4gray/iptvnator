@@ -50,6 +50,15 @@ below is reached as `/workspace/stalker/:id/…`.
 
 `/workspace/stalker/:id` itself redirects to `vod`.
 
+## Framework-free artwork
+
+`libs/portal/stalker/data-access/src/lib/stalker-artwork.utils.ts` owns the
+existing portal-root `makeAbsoluteUrl` helper, re-exported by the Angular content
+mapper for compatibility. The client sub-entrypoint exports
+`resolveStalkerArtwork` for TV: it resolves relative screenshot/logo paths,
+tries nonblank candidates in order and rejects unsafe URL schemes or embedded
+credentials. Artwork normalization does not change MAG identity or media URLs.
+
 ## Runtime Architecture
 
 1. Angular Stalker screens call methods/resources in `StalkerStore`.
@@ -916,6 +925,16 @@ the documented 120 s default. Failing to ping never invalidates the session —
 it only affects the portal's admin-panel "online" reporting — so ping failures
 are logged and never retried or escalated.
 
+The statement about online reporting describes reference middleware, not every
+provider fork. Stalkinator's `f854c63a` fix and the TV investigation document a
+provider whose Live media host rejects signed URLs until watchdog activation.
+Do not diagnose a media-host 403 as solely a codec/header problem or assume a
+successful `create_link` proves the portal playback session is active. The TV
+adapter uses the Live lifecycle described in
+[TV application](./tv-application.md#provider-contract); real LG observations
+and remaining limits are in
+[the investigation](../development/tv-live-playback-investigation.md).
+
 The periodic ping ticks in a dedicated worker (`createBackgroundInterval`,
 an inline blob worker allowed by the renderer CSP's `worker-src 'self' blob:`).
 After five minutes hidden and silent, Chromium wakes page timers at most once
@@ -1558,6 +1577,9 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   become `/media/file_<file.id>.mpg` before `create_link`, matching Ministra's
   reference player. Only a valid returned file ID is accepted; the episode ID
   is never substituted.
+  The framework-free `resolveStalkerEpisodeCommand` helper owns this selection
+  for both the Angular service and TV; each caller supplies its authenticated,
+  cancellable request pipeline.
 - The extra file lookup is covered by the pending playback ownership guard:
   changes to the selected source/show, episode command, or provider
   coordinates discard its result before inline or external playback starts.

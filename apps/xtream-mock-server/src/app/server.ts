@@ -1,3 +1,4 @@
+import { installTvFixtures } from './tv-fixtures.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import cors from 'cors';
@@ -84,6 +85,7 @@ export function createXtreamMockApp(
         installPerformanceControlRoutes(app, controller, options.control.token);
     }
     app.use(cors());
+    if (!controlEnabled) installTvFixtures(app);
     app.use(express.json());
 
     app.get('/health', (_request, response) => {

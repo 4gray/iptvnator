@@ -810,3 +810,12 @@ duplicate guard, queued choice), `serial-details-playback.service.spec.ts`
 `serial-details-menu.service.spec.ts` (launch-failure message, the rows held
 while a launch is pending) and, for the external-player and reset rows,
 `libs/ui/components/src/lib/detail-ui/series-hero.state.spec.ts`.
+
+## Framework-free TV catalog recency
+
+The provider client entrypoint exports `xtreamCatalogTimestamp` for the TV
+adapter. It uses the shared recently-added epoch validator, accepts ISO provider
+dates, and falls back to `last_modified` for series without a usable `added`
+value. It does not infer addition time from release dates or IDs. TV applies
+this timestamp before client pagination; see [TV application](tv-application.md).
+The Angular selection store's sort behavior is unchanged.

@@ -13,7 +13,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const CONFIG_PATH = 'libs/services/src/lib/tmdb/tmdb-config.ts';
+const CONFIG_PATH = 'libs/shared/tmdb/src/lib/tmdb-config.ts';
 const MARKER = "export const DEFAULT_TMDB_API_KEY = '';";
 
 const key = (process.env.TMDB_API_KEY ?? '').trim();

@@ -1,3 +1,4 @@
+import { installTvMinistraMedia } from './app/handlers/tv-ministra-fixture.js';
 import http from 'http';
 import { join } from 'node:path';
 import express, { Request, Response } from 'express';
@@ -309,6 +310,8 @@ app.get('/stream/gated/:file', (req: Request, res: Response) => {
         headers: { 'Content-Type': 'video/mp4' },
     });
 });
+
+installTvMinistraMedia(app);
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
