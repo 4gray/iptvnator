@@ -15,6 +15,7 @@ export function useProvider(
     const [ready, setReady] = useState(0);
     const [busy, setBusy] = useState(false);
     const provider = useRef<ProviderClient>();
+    const owner = useRef('');
     const callbacks = useRef(options);
     callbacks.current = options;
     const active = data.sources.find((s) => s.id === data.activeId);
@@ -36,6 +37,7 @@ export function useProvider(
               active.origin,
           ])
         : '';
+    const connectionKey = `${fingerprint}:${data.backend}:${data.backendToken}`;
     useEffect(() => {
         setReady(0);
 
@@ -65,6 +67,7 @@ export function useProvider(
                     ),
                 }))
         );
+        owner.current = connectionKey;
         provider.current = client;
         setBusy(true);
         callbacks.current.report('');
@@ -99,9 +102,9 @@ export function useProvider(
     ]);
     return {
         provider,
-        ready,
+        ready: owner.current === connectionKey ? ready : 0,
         busy,
-        connectionKey: `${fingerprint}:${data.backend}:${data.backendToken}`,
+        connectionKey,
         enabled: storageReady && !!active && !!data.backend,
     };
 }

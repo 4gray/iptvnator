@@ -4,7 +4,7 @@ import { TvModel } from './use-tv';
 export function Detail({ tv }: { tv: TvModel }) {
     const [season, setSeason] = useState<number>();
     const item = tv.selected ?? tv.route.item;
-    if (!item) return null;
+    if (!item || item.sourceId !== tv.data.activeId) return null;
     const seasons = Array.from(
         new Set(tv.episodes.map((e) => e.season ?? 1))
     ).sort((a, b) => a - b);

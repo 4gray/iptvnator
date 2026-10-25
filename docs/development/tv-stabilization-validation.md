@@ -41,8 +41,8 @@ The read-protection regression failed against the old repository implementation.
 Web backend: 237 tests passed. Related provider/shared/EPG unit suites and web and
 Electron TypeScript checks pass.
 
-The complete TV browser suite passes 83 scenarios across M3U, Xtream and Stalker,
-including six recovery/onboarding scenarios and six review regressions. These run against the real local
+The complete TV browser suite passes 85 scenarios across M3U, Xtream and Stalker,
+including six recovery/onboarding scenarios and eight review regressions. These run against the real local
 backend and mock providers, with synthetic media in modern Chromium. They do not
 certify webOS decoding or physical remote behavior.
 The separately invoked phone-setup split target passes all eight scenarios,
@@ -50,8 +50,12 @@ building both clients first. All 125 inferred Playwright task graphs pass in
 local and CI configuration; no GitHub CI was dispatched.
 
 The full Tier A coverage run passes all 36 projects. Merged coverage is 84.89%
-statements, 75.85% branches, 83.20% functions and 85.25% lines. Coverage health
-reports 23 same-name-spec warnings, not failures. TV uses its separately executed
+statements, 75.86% branches, 83.21% functions and 85.25% lines after rerunning
+the affected shared/Angular EPG coverage. Shared EPG implementation moved out
+of the coverage-excluded barrel into `timeline.ts`; its five geometry tests now
+measure 100% statements, branches, functions and lines. Existing Angular EPG
+tests also pass. Coverage health has a same-name-spec warning for the public
+barrel, not a failure. TV uses its separately executed
 Node test target and browser suite rather than claiming Tier A Jest coverage.
 
 Affected Nx lint/typechecks, production TV and backend builds, ES2018/classic
@@ -79,7 +83,7 @@ of this validation. Local evidence is held outside tracked source under
 `/tmp/iptvnator-tv-*.log`; the build artifact is
 `dist/tv-package/com.iptvnator.tv.prototype_0.1.12_all.ipk`.
 
-IPK SHA-256: `dd2d2d72e98eebbfb4e0195494d0e28bc2096f2ea915b8d64b7b8a96ca344bde`.
+IPK SHA-256: `368611240e4ec2a7a03ef52fdb7a37b2088c350c746ded1c1131d3f298df6cd0`.
 The local Greptile CLI is unavailable; no installation or account setup was
 attempted. Codex round 1 reviewed `aa8e09b7e` against master and reported three
 P2 findings: stale native error callbacks, abandoned guide playback resolution
@@ -103,3 +107,12 @@ EPG suppressed the short guide. Both were accepted and reproduced before fixes.
 Coverage now includes a live library deletion flow and invalid/past/future bulk
 guides, merge priority and short-guide failure. Existing EPG cache tests keep
 their lifecycle assertions and use an explicit clock for current coverage.
+
+Round 4 reviewed `80c7a52b7` and found a P1 blank fullscreen after failed retry,
+plus a P2 stale detail/playback identity after automatic source replacement.
+Both were accepted and reproduced before fixes. The player surface stays visible,
+source navigation is reset, and requests are guarded by source ownership and
+connection readiness. New browser checks exercise a second retry after a failed
+one and two sources with overlapping provider IDs, including Back and saved
+playback identity. The independent shared EPG coverage correction described
+above is behavior preserving and uses the same public entry point.

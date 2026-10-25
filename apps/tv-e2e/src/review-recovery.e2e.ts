@@ -90,3 +90,39 @@ for (const exit of ['close', 'categories'] as const) {
         }
     });
 }
+
+test('a failed fullscreen retry keeps recovery controls available for another attempt', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'stalker');
+    const video = await playLive(page);
+    let failed = true;
+    await page.route(`${backend}/stalker?**`, (route) =>
+        failed &&
+        new URL(route.request().url()).searchParams.get('action') ===
+            'create_link'
+            ? route.fulfill({ status: 503, body: 'Unavailable' })
+            : route.fallback()
+    );
+    await video.evaluate((v) => v.dispatchEvent(new Event('error')));
+    const controls = page.locator('.player-controls');
+    await controls.getByRole('button', { name: 'Retry playback' }).click();
+    await expect(controls.getByRole('alert')).toContainText(
+        'could not be restarted'
+    );
+    await expect(page.locator('.native-player.fullscreen')).toBeVisible();
+    await expect(
+        controls.getByRole('button', { name: 'Retry playback' })
+    ).toBeVisible();
+    failed = false;
+    await controls.getByRole('button', { name: 'Retry playback' }).click();
+    await expect
+        .poll(() =>
+            video.evaluate(
+                (v: HTMLVideoElement) => !v.paused && v.readyState >= 2
+            )
+        )
+        .toBe(true);
+    await expect(controls.getByRole('alert')).toHaveCount(0);
+});

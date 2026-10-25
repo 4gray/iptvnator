@@ -8,6 +8,7 @@ import { useUserData } from './user-data';
 import { useContent } from './use-content';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useProvider } from './use-provider';
+import { useSourceNavigation } from './use-source-navigation';
 import { LatestRequest, Media, Source } from '@iptvnator/tv/util';
 import {
     focusKey,
@@ -59,6 +60,11 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                 'Retry saving progress'
             )
     );
+    useSourceNavigation(data.activeId, route, setRoute, () => {
+        stack.current = [];
+        pendingFocus.current = '';
+        pendingScroll.current = undefined;
+    });
     const library = useLibrary(data, storageReady, !!playing, update);
     const backend = useBackend(data, storageReady, update);
     const { provider, ready, busy, connectionKey, enabled } = useProvider(
@@ -139,6 +145,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         restoreFocus(`nav:${view}`, '', 0);
     }
     function open(item: Media) {
+        if (item.sourceId !== data.activeId) return;
         playback.current.cancel();
         if (item.kind === 'live') {
             if (route.view !== 'live') {
@@ -163,7 +170,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         origin = focusKey(),
         signal?: AbortSignal
     ) {
-        if (signal?.aborted) return false;
+        if (!ready || item.sourceId !== data.activeId || signal?.aborted)
+            return false;
         playback.current.cancel();
         failedResolution.current = undefined;
         if (playing?.id === item.id && item.kind === 'live') {
@@ -215,6 +223,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         }
     }
     function retryPlayback() {
+        if (!ready) return;
         if (failedResolution.current) {
             void play(
                 failedResolution.current.item,
@@ -225,7 +234,6 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         }
         if (playing) {
             const item = playing;
-            setPlaying(undefined);
             player.current?.stop();
             const job = playback.current.start();
             provider.current

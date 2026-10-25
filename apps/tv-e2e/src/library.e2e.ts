@@ -7,7 +7,7 @@ import {
 import { addSource, backend, nav, stalker, start, xtream } from './helpers';
 const server = 'http://127.0.0.1:3434';
 const headers = { Authorization: 'Bearer tv-library-test' };
-const document = (id: string, fields: Record<string, unknown> = {}) => ({
+const libraryDocument = (id: string, fields: Record<string, unknown> = {}) => ({
     _id: id,
     title: `Shared ${id}`,
     importDate: '',
@@ -23,7 +23,7 @@ async function put(
 ) {
     const response = await request.put(`${server}/v1/playlists/${id}`, {
         headers,
-        data: document(id, fields),
+        data: libraryDocument(id, fields),
     });
     expect(response.ok()).toBeTruthy();
 }
@@ -52,6 +52,7 @@ async function snapshot(page: Page) {
                     macAddress?: string;
                 }[];
                 library?: { instanceId: string };
+                history: { item: { sourceId: string } }[];
             }>((resolve) => {
                 const req = indexedDB.open('iptvnator-tv-user-data');
                 req.onsuccess = () => {
@@ -70,6 +71,64 @@ test.beforeEach(async ({ request }) => {
     expect(
         (await request.delete(`${server}/v1/playlists`, { headers })).ok()
     ).toBeTruthy();
+});
+test('source replacement leaves stale details and keeps new playback under the replacement identity', async ({
+    page,
+    request,
+}) => {
+    for (const id of ['a', 'b'])
+        await put(request, id, {
+            serverUrl: xtream,
+            username: 'user1',
+            password: 'pass1',
+        });
+    await start(page);
+    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await page.getByRole('button', { name: 'Check and connect' }).click();
+    await connect(page);
+    await nav(page, 'Sources');
+    await page
+        .locator('.source-row')
+        .filter({ hasText: 'Shared a' })
+        .getByRole('button')
+        .first()
+        .click();
+    const original = (await snapshot(page)).activeId;
+    await nav(page, 'Movies');
+    await page.locator('.poster-grid .poster-card').first().click();
+    await expect(page.locator('.detail-hero')).toBeVisible();
+    expect(
+        (await request.delete(`${server}/v1/playlists/a`, { headers })).ok()
+    ).toBeTruthy();
+    await page.evaluate(() =>
+        document.dispatchEvent(new Event('visibilitychange'))
+    );
+    await expect
+        .poll(async () => (await snapshot(page)).activeId)
+        .not.toBe(original);
+    await expect(page.locator('.detail-hero')).toHaveCount(0);
+    await expect(page.locator('[data-focus="nav:home"]')).toHaveAttribute(
+        'aria-current',
+        'page'
+    );
+    const replacement = (await snapshot(page)).activeId;
+    await nav(page, 'Movies');
+    const card = page.locator('.poster-grid .poster-card').first();
+    const key = await card.getAttribute('data-focus');
+    await card.click();
+    await page.getByRole('button', { name: 'Watch now' }).click();
+    await expect
+        .poll(async () => (await snapshot(page)).history[0]?.item.sourceId)
+        .toBe(replacement);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-focus="detail-play"]')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(
+        page.locator('.poster-grid .poster-card').first()
+    ).toHaveAttribute('data-focus', key!);
+    await expect(
+        page.locator('.poster-grid .poster-card').first()
+    ).toBeFocused();
 });
 test('library removal of the active source resets Live categories for the replacement provider', async ({
     page,
@@ -340,7 +399,7 @@ test('a library reply cannot interrupt playback or reconnect after disconnect', 
         await route
             .fulfill({
                 json: [
-                    document('xtream', {
+                    libraryDocument('xtream', {
                         title: 'Late replacement',
                         serverUrl: 'http://example.invalid',
                         username: 'user1',

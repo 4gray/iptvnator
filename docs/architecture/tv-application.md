@@ -176,6 +176,11 @@ switches streams. First OK starts live preview; repeated OK opens fullscreen.
 Fullscreen Back restores the opening control, and detail Back restores item
 identity and catalog page. Controls appear on demand; remote media keys and
 native VOD seeking use the same adapter.
+Failed fullscreen stream re-resolution retains the player surface and recovery
+controls. Source changes clear source-owned route filters and Back history;
+stale details return Home. Detail and playback requests reject another source's
+media, and provider readiness is scoped to its source/backend identity before
+passive connection effects run.
 
 Live opens a large category list in its left pane. OK enters the selected
 category; its header button or Back within the Live panes returns to categories.
@@ -241,6 +246,7 @@ XMLTV, or extend Xtream's existing short-guide coverage.
 `@iptvnator/shared/epg` is the pure `shared-epg` Nx utility (shared-contracts domain).
 Both Angular EPG and TV use its epoch-ms axis projection, half-hour ticks and
 render clipping. The Angular module preserves its existing exports and adapters;
+`src/timeline.ts` owns implementation and coverage; `src/index.ts` only re-exports.
 TV imports no Angular components, services or barrels. Elapsed ticks preserve DST
 transitions; day navigation changes the local calendar date.
 

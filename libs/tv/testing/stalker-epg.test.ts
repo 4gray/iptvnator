@@ -20,7 +20,9 @@ const channel = (id: string): Media => ({
     title: `Channel ${id}`,
     raw: {},
 });
-beforeEach((context) => context.mock.method(Date, 'now', () => 150_000));
+beforeEach((context) => {
+    if ('mock' in context) context.mock.method(Date, 'now', () => 150_000);
+});
 const programme = (name: string) => ({
     name,
     descr: 'Description',

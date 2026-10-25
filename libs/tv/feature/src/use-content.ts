@@ -69,7 +69,12 @@ export function useContent(
         const lane = browse.current;
         const job = lane.start();
         setEpisodes([]);
-        if (!ready || !client || !['home', 'detail'].includes(route.view)) {
+        if (
+            !ready ||
+            !client ||
+            !['home', 'detail'].includes(route.view) ||
+            (route.view === 'detail' && route.item?.sourceId !== sourceId)
+        ) {
             setBusy(false);
             if (route.view === 'favorites') finishFocus();
             return;
