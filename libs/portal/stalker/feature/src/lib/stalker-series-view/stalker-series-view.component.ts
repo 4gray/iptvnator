@@ -39,7 +39,6 @@ import {
     SeasonContainerSeasonPlaybackToggleRequest,
     SeasonContainerSeriesPlaybackToggleRequest,
     SimilarRailComponent,
-    ViewInPortalActionComponent,
     VodMoreMenuComponent,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
@@ -154,7 +153,6 @@ interface StalkerSeriesPlaybackRequestContext {
         MetaChipComponent,
         PortalDetailShellComponent,
         SimilarRailComponent,
-        ViewInPortalActionComponent,
         VodMoreMenuComponent,
         PortalInlinePlayerComponent,
         TranslatePipe,

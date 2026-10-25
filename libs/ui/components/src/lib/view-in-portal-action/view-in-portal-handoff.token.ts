@@ -2,7 +2,7 @@ import { InjectionToken, Signal } from '@angular/core';
 
 /**
  * Contract a collection-detail host provides to surface the
- * "View in portal" action inside a projected detail view. The token is
+ * "View in portal" menu item inside a projected detail view. The token is
  * deliberately absent in router-mounted portal details, which is what keeps
  * the action scoped to inline collection contexts (global and portal-scoped
  * favorites/recent).

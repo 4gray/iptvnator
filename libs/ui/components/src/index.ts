@@ -16,7 +16,6 @@ export * from './lib/lazy-dialog/lazy-mat-dialog';
 export * from './lib/portal-detail-shell/content-about.component';
 export * from './lib/portal-detail-shell/detail-template.directives';
 export * from './lib/portal-detail-shell/portal-detail-shell.component';
-export * from './lib/view-in-portal-action/view-in-portal-action.component';
 export * from './lib/view-in-portal-action/view-in-portal-handoff.token';
 export * from './lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component';
 export * from './lib/password-visibility-toggle/password-visibility-toggle.directive';

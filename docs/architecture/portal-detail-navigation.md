@@ -151,15 +151,17 @@ handler as the header Back.
   host can resolve, but hides Offline/local/download presentation.
 - Inline collection details (global favorites/recent — which also receive the
   dashboard hero and Continue Watching handoffs — plus a portal's own
-  favorites/recent tabs) expose the same bridge as a separate-row hero action.
-  The shared `app-view-in-portal-action` (`libs/ui/components`) renders only
-  when a host provides `VIEW_IN_PORTAL_HANDOFF`; the two collection-detail
+  favorites/recent tabs) expose the same bridge in the hero’s “…” menu.
+  The shared `app-vod-more-menu` (`libs/ui/components`) adds a navigation group
+  before the provider actions only when a host provides `VIEW_IN_PORTAL_HANDOFF`
+  and the target is available. Its label includes the source name when known.
+  The two collection-detail
   wrappers (`xtream-collection-detail.component.ts`,
   `stalker-collection-detail.component.ts`) are the only providers, so
-  router-mounted category details never show the button. Targets come from
+  router-mounted category details never show the menu item. Targets come from
   `getUnifiedCollectionDetailNavigation()` (`libs/portal/shared/util`), which
   never degrades to a category- or section-only route: an Xtream item without a
-  resolvable category and positive item id keeps the button hidden. Unlike the
+  resolvable category and positive item id keeps the menu item hidden. Unlike the
   download handoff it does NOT pass `detailPresentation: 'provider-only'` — the
   item exists in the provider catalog and the full normal detail is desired.
   The Stalker handoff carries `stalkerReturnTo` so the portal detail's back
@@ -350,6 +352,11 @@ Collection behavior to preserve:
 
 Dashboard behavior to preserve:
 
+- A collection detail handoff shows the shared detail-shell skeleton while
+  the collection validates the saved item, then keeps that layout while the
+  provider detail module loads. Ordinary collection visits retain their list
+  or grid skeletons. The pending presentation must not open provider detail
+  before availability validation or bypass missing-favorite checks.
 - Dashboard `Global Favorites` and `Recently Watched` widgets should route
   Xtream movie/series items into `/workspace/global-favorites` or
   `/workspace/global-recent` with collection detail pre-opened from navigation

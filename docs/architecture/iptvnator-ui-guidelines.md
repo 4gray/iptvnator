@@ -1057,7 +1057,9 @@ If the label is too long for the rail, shorten the label key instead of shrinkin
 The action row never wraps on a desktop window: the primary, the Trailer
 button, then the 44px icon buttons and the "…" menu. Season and series
 actions (mark watched, download season, reset progress) live in that menu
-and drive the season container's presenters.
+and drive the season container's presenters. Collection details also keep
+“View in portal” in that menu, in a navigation group before the provider
+actions, regardless of how many hero buttons are visible.
 
 Every section below the hero (Episodes, Cast & crew, Similar) uses
 `app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular

@@ -29,6 +29,7 @@ import {
     ChannelListSkeletonComponent,
     MenuItemRadioCheckDirective,
     MenuItemRadioDirective,
+    PortalDetailShellComponent,
 } from '@iptvnator/ui/components';
 import {
     clearNavigationStateKeys,
@@ -92,6 +93,7 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
         MatTooltip,
         MenuItemRadioCheckDirective,
         MenuItemRadioDirective,
+        PortalDetailShellComponent,
         TranslatePipe,
         UnifiedGridTabComponent,
         UnifiedLiveTabComponent,
@@ -253,6 +255,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly selectedDetailItem = this.detailState.item;
     readonly selectedDetailSeriesResume = this.detailState.seriesResume;
     readonly detailContext = this.detailState.context;
+    readonly isDetailPending = this.detailState.isPending;
 
     constructor() {
         setupClearCollectionViewCommand({
