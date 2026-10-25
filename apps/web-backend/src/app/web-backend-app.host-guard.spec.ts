@@ -413,6 +413,94 @@ describe('web backend host connectivity guard', () => {
         );
     });
 
+    it('keeps playback going out after slow provider EPG requests on a live portal', async () => {
+        // A busy portal can take longer than the 15 s Stalker budget to build
+        // a week-long `get_epg_info`. It accepted both connections, so the
+        // timeouts say nothing about reachability: create_link still goes out.
+        const httpClient = new StubHttpClient();
+        httpClient.queueNetworkError(hostLevelFailure('ECONNABORTED'), {
+            connected: true,
+        });
+        httpClient.queueNetworkError(hostLevelFailure('ECONNABORTED'), {
+            connected: true,
+        });
+        httpClient.queueResponse({
+            js: { cmd: 'http://cdn.example/live.m3u8' },
+        });
+        const { guard } = createTestGuard();
+
+        await withServer(
+            createWebBackendApp({
+                hostGuard: guard,
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/portal.php'
+                );
+                const call = (query: string) =>
+                    fetch(
+                        `${baseUrl}/stalker?targetId=${targetId}&macAddress=00:1A:79:00:00:01&type=itv&${query}`
+                    );
+
+                await call('action=get_epg_info&period=168');
+                await call('action=get_epg_info&period=168');
+                const playback = await call(
+                    'action=create_link&cmd=ffrt4%3A%2F%2Fitv%2F1'
+                );
+
+                expect(httpClient.requests).toHaveLength(3);
+                expect(await playback.json()).toEqual({
+                    action: 'create_link',
+                    payload: { js: { cmd: 'http://cdn.example/live.m3u8' } },
+                });
+            }
+        );
+    });
+
+    it('keeps catalog requests going out after provider EPG answers with error statuses', async () => {
+        // Panels without the EPG actions answer 404 or 500. Any HTTP answer
+        // proves the host alive, so failing row previews never open the
+        // breaker for the catalog or playback of the same host.
+        const httpClient = new StubHttpClient();
+        httpClient.queueFailure(404, 'Not Found');
+        httpClient.queueFailure(500, 'Internal Server Error');
+        httpClient.queueFailure(404, 'Not Found');
+        httpClient.queueResponse([{ stream_id: 1, name: 'News' }]);
+        const { guard } = createTestGuard();
+
+        await withServer(
+            createWebBackendApp({
+                hostGuard: guard,
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://xtream.example'
+                );
+                const call = (query: string) =>
+                    fetch(
+                        `${baseUrl}/xtream?targetId=${targetId}&username=demo&password=secret&${query}`
+                    );
+
+                await call('action=get_short_epg&stream_id=1&limit=3');
+                await call('action=get_simple_data_table&stream_id=1');
+                await call('action=get_short_epg&stream_id=2&limit=3');
+                const catalog = await call('action=get_live_streams');
+
+                expect(httpClient.requests).toHaveLength(4);
+                expect(await catalog.json()).toEqual({
+                    action: 'get_live_streams',
+                    payload: [{ stream_id: 1, name: 'News' }],
+                });
+            }
+        );
+    });
+
     it('fast-fails an open host before spending a DNS lookup on it', async () => {
         // URL validation resolves the hostname, and a dead host is exactly
         // where DNS is slow or failing too. Checking the breaker after that

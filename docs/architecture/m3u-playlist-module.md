@@ -730,10 +730,11 @@ with a plain `@if (epgViewMode() === 'list') { <app-epg-list-view … /> } @else
 `epgViewMode` from `SettingsStore` (a signal), so flipping the setting swaps the
 panel live. The setting flows end-to-end (`Settings.epgViewMode` →
 `DEFAULT_SETTINGS` → `SettingsStore`/`StorageMap` → the segmented control in
-`settings-epg-section`) and needs no backend change. The control is
-**Electron-only in practice** — the EPG settings section (and the form control)
-is gated behind `supportsEpg`, which is false in PWA; there the stored value
-simply stays at the `'timeline'` default.
+`settings-epg-section`) and needs no backend change. The control and the
+offset below are the EPG page's display rows: they render wherever a guide
+exists (`SettingsFormFacade.supportsEpgDisplay`, XMLTV or a portal's own),
+including the browser PWA, while the page's XMLTV rows (sources, Xtream
+preference, clear data) need the import and data-management bridges.
 
 ### EPG display offset
 
@@ -787,8 +788,8 @@ rather than a wrong one; under a negative offset the short-EPG window is widened
 instead (`shortEpgWindowSize`, 15-minute slots, capped at 50 — the sidebar queue,
 the active channel's panel fallback and the collection resolver all use it) so
 it still reaches the programme on air, and preview cache entries are tagged with
-the offset they were fetched for. Like the view mode, the control is Electron-only in practice —
-it sits behind `supportsEpg`.
+the offset they were fetched for. Like the view mode, the control renders
+wherever a guide exists, the browser PWA's provider guides included.
 
 Both components stay presentation-focused; the reusable, view-agnostic pieces
 (shared by the timeline and the list) are split out and re-exported from

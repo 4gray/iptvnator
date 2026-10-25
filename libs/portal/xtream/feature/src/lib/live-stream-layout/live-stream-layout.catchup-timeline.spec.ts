@@ -79,7 +79,11 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     const databaseService = {
         getAllXtreamCategories: jest.fn(async () => [] as unknown[]),
     };
-    const runtime = { supportsXtreamSqliteDataSource: false };
+    const runtime = {
+        supportsXtreamSqliteDataSource: false,
+        supportsDownloads: true,
+        supportsProviderCatchUp: true,
+    };
     const xtreamStore = {
         getCategoriesBySelectedType: signal([
             { category_id: 1, category_name: 'News' },
@@ -108,6 +112,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
 
     beforeEach(async () => {
         epgItems.set([]);
+        runtime.supportsProviderCatchUp = true;
 
         await TestBed.configureTestingModule({
             imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
@@ -211,6 +216,23 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     const webPlayer = () =>
         fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
             .componentInstance as StubWebPlayerViewComponent;
+
+    it('offers archive playback where provider catch-up can play', () => {
+        expect(component.archivePlaybackAvailable()).toBe(true);
+        expect(component.archiveDownloadsAvailable()).toBe(true);
+    });
+
+    it('offers no archive playback or download where provider catch-up cannot play', () => {
+        // The computed reads the flag once; build the layout after the flip.
+        runtime.supportsProviderCatchUp = false;
+        fixture.destroy();
+        fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+
+        expect(component.archivePlaybackAvailable()).toBe(false);
+        expect(component.archiveDownloadsAvailable()).toBe(false);
+    });
 
     it('draws the archive window programmes until live playback resumes', async () => {
         epgItems.set([

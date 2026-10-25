@@ -43,6 +43,7 @@ describe('UnifiedLiveTabComponent open in playlist', () => {
     let navigate: jest.SpyInstance;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
+        loadEpgItems: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
         resolveXtreamCatchupUrl: jest.Mock;
         loadM3uProgramsForItem: jest.Mock;
@@ -56,6 +57,14 @@ describe('UnifiedLiveTabComponent open in playlist', () => {
         localStorage.removeItem('live-epg-panel-state');
 
         streamResolver = {
+            loadEpgItems: jest.fn(
+                async () =>
+                    (
+                        await streamResolver.resolveLiveDetail.mock.results.at(
+                            -1
+                        )?.value
+                    )?.epgItems ?? []
+            ),
             resolveLiveDetail: jest.fn(),
             resolveM3uPlaybackDetail: jest.fn(),
             resolveXtreamCatchupUrl: jest.fn().mockResolvedValue(null),
@@ -72,7 +81,7 @@ describe('UnifiedLiveTabComponent open in playlist', () => {
                 { provide: UnifiedRecentDataService, useValue: recentData },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { supportsEpg: true },
+                    useValue: { supportsEpg: true, supportsProviderEpg: true },
                 },
                 {
                     provide: SettingsStore,

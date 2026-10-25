@@ -4,10 +4,10 @@ import { expect, Page } from '@playwright/test';
  * Favorites → "Open in <portal>" → the same channel selected and playing in
  * the portal's ITV section (the live counterpart of "View in portal").
  *
- * Runs against the PWA, where the collection tab renders no EPG panel and
- * therefore no toolbar chip, so the row context menu is the entry point. The
- * mock portal answers `get_all_channels`, so the layout locates the channel
- * through the full ITV list and lands in its genre.
+ * The row context menu is the entry point: it works without selecting the
+ * row, unlike the EPG panel's "Open in" chip. The mock portal answers
+ * `get_all_channels`, so the layout locates the channel through the full ITV
+ * list and lands in its genre.
  *
  * Expects the portal to be imported already (`addStalkerPortal`).
  */

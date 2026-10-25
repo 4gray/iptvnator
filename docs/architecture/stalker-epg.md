@@ -296,10 +296,39 @@ EPG requests follow the standard Stalker request path:
 | Portal type           | Auth path                                          |
 | --------------------- | -------------------------------------------------- |
 | Full Stalker portal   | `StalkerSessionService.makeAuthenticatedRequest()` |
-| Simple Stalker portal | generic IPC request path via Electron              |
+| Simple Stalker portal | `DataService.sendIpcEvent(STALKER_REQUEST)`        |
 
-No EPG-specific backend transport was needed; the Electron Stalker request
-handler forwards portal params directly.
+Both `get_epg_info` and `get_short_epg` are background work and pass
+`{ silent: true }` through `executeStalkerRequest`. Direct and authenticated
+requests, auth renewal (handshake, profile and status-2 login) and portal-repair
+retries retain that option. A repair initiated by a background guide also
+passes it through endpoint discovery and its authentication confirmation. Authentication still coalesces by playlist/session
+identity, not by presentation policy; foreground callers keep their ordinary
+notification policy when they initiate the shared token request. Electron
+and PWA transports still reject failures so bulk/short fallback logic works,
+but do not open error snackbars for each failed preview. Raw authentication
+requests and login orchestration stay in `stalker-auth.api.ts`, with pure
+contracts and helpers in `stalker-auth.types.ts` and `stalker-auth.utils.ts`.
+The collection
+resolver's short-EPG requests use the same option.
+
+No EPG-specific transport exists. `STALKER_REQUEST` goes through the Electron
+Stalker request handler on the desktop and through `PwaService` and the web
+backend's `/stalker` proxy in the browser PWA. EPG actions are not treated
+differently from catalog requests, including by the per-host
+[connectivity guard](./host-connectivity-guard.md).
+
+## Runtime gating
+
+Portal EPG needs only the Stalker transport, so it is gated on
+`RuntimeCapabilitiesService.supportsProviderEpg`: true in the browser PWA and
+in Electron when the `xtreamRequest` and `stalkerRequest` preload methods
+exist. The gate covers `fetchChannelEpg`, `ensureBulkItvEpg`, the layout's
+eager bulk load, row previews, the EPG panel and its empty state
+(`provider-no-epg` means "no transport"), and the collection resolver's
+`loadStalkerEpgItems` / `loadStalkerEpgBatch`. Manual mapping overlays read
+uploaded XMLTV and stay behind `supportsEpgMapping` and `supportsEpg`, so the
+PWA shows the portal EPG without mapping.
 
 ## Fallback Behavior
 
@@ -357,8 +386,8 @@ right-click a channel in the ITV sidebar (or in global favorites) and pick
 - The collection views (global favorites/recent) resolve the same keys in
   `StreamResolverService` (`loadStalkerEpgItems` for the detail panel,
   `loadStalkerEpgBatch` + `prefetchEpgMappings` for row previews).
-- Everything is gated behind `supportsEpgMapping`, so the PWA never shows
-  the menu entry.
+- Everything is gated behind `supportsEpgMapping` (the store overlay also
+  behind `supportsEpg`), so the PWA never shows the menu entry.
 
 ## Future Enhancements
 

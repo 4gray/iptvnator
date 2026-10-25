@@ -70,6 +70,12 @@ timeouts but not the breaker, deliberately:
   retry is a regression, not a protection, and there is no natural reset site on
   that path the way portal Retry has one.
 
+Provider EPG actions (`get_short_epg`, `get_simple_data_table`,
+`get_epg_info`) are portal calls like any other, in both runtimes. They are
+admitted and counted by the same rules, so only a refused connection counts:
+a slow bulk guide after an accepted connection is inconclusive, and any
+4xx/5xx answer clears the record.
+
 ## Desktop preference and account feedback
 
 Settings > General > Portal connections offers **Pause requests to unavailable
@@ -413,7 +419,9 @@ module's contract that unreachable ≠ contacted-and-refused. The
   routes: the HTTP 200 refusal shape, that the outbound request really is
   skipped, that an open endpoint is refused before a DNS lookup is spent on it,
   redirect attribution, the discovery exemption, half-open, the reset endpoint,
-  and that playlist/EPG downloads are never fast-failed. The per-route timeouts
+  that playlist/EPG downloads are never fast-failed, and that failing provider
+  EPG requests (slow bulk guides, error statuses) never fast-fail playback or
+  catalog requests. The per-route timeouts
   are asserted in `web-backend-app.spec.ts`, which pins the whole outbound
   request shape.
 - `apps/web/src/app/services/pwa.service.spec.ts` — that a fast-fail reaches the

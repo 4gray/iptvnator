@@ -76,6 +76,7 @@
                             [epgUrl]="form.epgUrl"
                             [isClearingEpgData]="epg.isClearing()"
                             [canBrowseFiles]="epg.supportsFilePicker"
+                            [showsXmltvSources]="supportsEpg"
                             [epgViewModeOptions]="epgViewModeOptions"
                             (refreshEpg)="epg.refresh($event)"
                             (browseEpgSource)="epg.browse($event)"

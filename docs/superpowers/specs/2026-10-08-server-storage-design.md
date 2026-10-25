@@ -204,7 +204,7 @@ https://claude.ai/artifact/3WheJAgeNL5ag6kmtPrJcD
 | 1 | Seams, no behavior change: shared codec, `IPTVNATOR_DATA_DIR`, `PlaylistStorageBackend`, `USER_DATA_STORAGE`. | — |
 | 2a | Server storage in `web-backend`, Docker volume, nginx limits, docs. | — |
 | 2b | PWA server mode, migration, Settings → Server, rail/banner, sign-in, i18n, E2E, release note. | #305, #514 |
-| 3 | Server-side EPG for the PWA. | PWA EPG gap |
+| 3 | Server-side EPG for the PWA ([design](2026-10-15-server-epg-design.md)): provider EPG in every PWA, XMLTV imported on the server. | PWA EPG gap, #444, #1683 |
 | 4 | Electron connects to a server. | #1616 for NAS owners |
 
 ## 11. Risks

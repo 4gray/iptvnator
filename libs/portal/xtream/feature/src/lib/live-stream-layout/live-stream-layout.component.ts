@@ -214,7 +214,7 @@ export class LiveStreamLayoutComponent
             this.xtreamStore.selectItemsFromSelectedCategory() as XtreamChannelListItem[]
     );
     readonly isElectron = this.runtime.isElectron;
-    readonly supportsEpg = this.runtime.supportsEpg;
+    readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
     readonly workspaceSearchTerm = queryParamSignal(this.route, 'q', (value) =>
         (value ?? '').trim()
     );
@@ -321,6 +321,7 @@ export class LiveStreamLayoutComponent
     readonly archivePlaybackAvailable = computed(() => {
         const selectedItem = this.selectedLiveItem();
         return (
+            this.runtime.supportsProviderCatchUp &&
             Number(selectedItem?.tv_archive ?? 0) === 1 &&
             this.controlledArchiveDays() > 0
         );
