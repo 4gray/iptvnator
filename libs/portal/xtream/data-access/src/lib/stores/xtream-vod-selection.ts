@@ -40,7 +40,11 @@ export function buildXtreamVodSelection(
         vodDetails = { info: [] };
     }
     const matches = (item: XtreamVodStream | undefined): boolean => {
-        if (!item || Number(item.xtream_id ?? item.stream_id) !== Number(vodId))
+        if (
+            !item ||
+            Number(item.xtream_id ?? item.stream_id) !== Number(vodId) ||
+            (item.stream_id != null && Number(item.stream_id) !== Number(vodId))
+        )
             return false;
         const info = getXtreamVodInfo(vodDetails);
         return collectionSnapshotMatchesContent(

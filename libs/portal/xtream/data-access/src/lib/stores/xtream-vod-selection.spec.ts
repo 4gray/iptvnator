@@ -174,6 +174,25 @@ describe('Xtream VOD selection helpers', () => {
         expect(resolveXtreamVodPlaybackSource(selection)).toBeNull();
     });
 
+    it.each(['cached', 'recovered'])(
+        'rejects contradictory provider IDs in a %s candidate',
+        (kind) => {
+            const candidate = {
+                xtream_id: 42,
+                stream_id: 99,
+                container_extension: 'mp4',
+                direct_source: 'https://media.example/wrong',
+            } as XtreamVodStream;
+            const selection = buildXtreamVodSelection(
+                { info: [] },
+                kind === 'cached' ? candidate : undefined,
+                42,
+                kind === 'recovered' ? candidate : undefined
+            );
+            expect(resolveXtreamVodPlaybackSource(selection)).toBeNull();
+        }
+    );
+
     it('discards a detail response for another stream instead of relabeling its metadata', () => {
         const selection = buildXtreamVodSelection(
             {
