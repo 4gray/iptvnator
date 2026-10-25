@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { PlaylistsService, SettingsStore } from '@iptvnator/services';
-import { StartupBehavior } from '@iptvnator/shared/interfaces';
+import { StartupBehavior, rememberLastPlayedLive, consumeStartupLastLive } from '@iptvnator/shared/interfaces';
 import { WorkspaceStartupPreferencesService } from './workspace-startup-preferences.service';
 
 describe('WorkspaceStartupPreferencesService', () => {
@@ -16,6 +16,7 @@ describe('WorkspaceStartupPreferencesService', () => {
 
     beforeEach(() => {
         localStorage.clear();
+        sessionStorage.clear();
 
         playlistsService = {
             getAllPlaylists: jest.fn().mockReturnValue(
@@ -57,6 +58,33 @@ describe('WorkspaceStartupPreferencesService', () => {
         await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
             '/workspace/sources'
         );
+    });
+
+    it('opens the last successfully played live channel when its playlist exists', async () => {
+        settingsStore.startupBehavior.set(StartupBehavior.PlayLastChannel);
+        rememberLastPlayedLive({ sourceType: 'm3u', playlistId: 'playlist-1',
+            itemId: 'https://example.invalid/live.m3u8' });
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/global-recent'
+        );
+        expect(consumeStartupLastLive()).toEqual({
+            sourceType: 'm3u', playlistId: 'playlist-1',
+            itemId: 'https://example.invalid/live.m3u8',
+        });
+        expect(consumeStartupLastLive()).toBeNull();
+    });
+
+    it('does not attempt startup autoplay when a playlist was removed', async () => {
+        settingsStore.startupBehavior.set(StartupBehavior.PlayLastChannel);
+        playlistsService.getAllPlaylists.mockReturnValue(of([]));
+        rememberLastPlayedLive({ sourceType: 'm3u', playlistId: 'missing',
+            itemId: 'https://example.invalid/live.m3u8' });
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/dashboard'
+        );
+        expect(consumeStartupLastLive()).toBeNull();
     });
 
     it('restores the last route when restore-last-view is enabled', async () => {
