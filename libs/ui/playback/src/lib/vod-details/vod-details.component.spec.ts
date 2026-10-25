@@ -19,7 +19,6 @@ import {
     MetaChipComponent,
     PortalDetailShellComponent,
     SimilarRailComponent,
-    ViewInPortalActionComponent,
     VodMoreMenuComponent,
 } from '@iptvnator/ui/components';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
@@ -333,7 +332,6 @@ describe('VodDetailsComponent offline playback', () => {
                         MetaChipComponent,
                         PortalDetailShellComponent,
                         SimilarRailComponent,
-                        ViewInPortalActionComponent,
                         VodMoreMenuComponent,
                         StubPortalInlinePlayerComponent,
                         TranslatePipe,

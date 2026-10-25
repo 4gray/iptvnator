@@ -9,6 +9,7 @@ import {
     computed,
     ElementRef,
     input,
+    inject,
     output,
     signal,
     viewChild,
@@ -20,6 +21,7 @@ import type {
     VodSourceDescriptor,
     VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
+import { VIEW_IN_PORTAL_HANDOFF } from '../view-in-portal-action/view-in-portal-handoff.token';
 import { VodSourcesMenuComponent } from '../vod-sources/vod-sources-menu.component';
 import type {
     VodMoreMenuItem,
@@ -72,9 +74,35 @@ export class VodMoreMenuComponent {
 
     readonly isOpen = signal(false);
     readonly view = signal<MenuView>('menu');
-    readonly hasRows = computed(() =>
-        this.sections().some((section) => section.items.length > 0)
-    );
+    private readonly handoff = inject(VIEW_IN_PORTAL_HANDOFF, {
+        optional: true,
+    });
+    readonly menuSections = computed<readonly VodMoreMenuSection[]>(() => {
+        const sections = this.sections().filter(
+            (section) => section.items.length
+        );
+        if (!this.handoff?.viewInPortalAvailable()) {
+            return sections;
+        }
+        const name = this.handoff.viewInPortalPlaylistName();
+        return [
+            {
+                items: [
+                    {
+                        id: 'view-in-portal',
+                        labelKey: name
+                            ? 'PORTALS.VIEW_IN_PORTAL_TOOLTIP'
+                            : 'PORTALS.VIEW_IN_PORTAL',
+                        labelParams: name ? { name } : undefined,
+                        icon: 'open_in_new',
+                        testId: 'collection-view-in-portal',
+                    },
+                ],
+            },
+            ...sections,
+        ];
+    });
+    readonly hasRows = computed(() => this.menuSections().length > 0);
 
     private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
     private readonly trigger =
@@ -136,6 +164,12 @@ export class VodMoreMenuComponent {
             return;
         }
         this.close(true);
+        if (item.id === 'view-in-portal') {
+            if (this.handoff?.viewInPortalAvailable()) {
+                this.handoff.openInPortal();
+            }
+            return;
+        }
         this.selected.emit(item.id);
     }
 
