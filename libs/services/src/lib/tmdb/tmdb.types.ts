@@ -137,6 +137,13 @@ export interface TmdbTvDetails extends TmdbDetailsBase {
     seasons?: TmdbSeasonSummary[];
 }
 
+/** `/tv/{id}/external_ids` — other databases' ids for one show. */
+export interface TmdbTvExternalIds {
+    id?: number;
+    imdb_id?: string | null;
+    tvdb_id?: number | null;
+}
+
 export interface TmdbEpisode {
     episode_number: number;
     season_number?: number;

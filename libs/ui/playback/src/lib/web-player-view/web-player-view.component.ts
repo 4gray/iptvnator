@@ -41,6 +41,7 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import {
     type PlayerMediaTitle,
+    PlayerSkipSegment,
     PlayerUpNextItem,
     type PlayerTimelineSegment,
     WEB_PLAYER_SHARED_CONTROLS,
@@ -149,6 +150,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     /** Next episode for the shared controls' "Up next" card; series hosts only. */
     readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Intro / recap of this episode, for the "Skip intro" button. */
+    readonly skipSegments = input<readonly PlayerSkipSegment[] | null>(null);
     /** Catch-up programmes drawn as track segments; null draws one. */
     readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
         null

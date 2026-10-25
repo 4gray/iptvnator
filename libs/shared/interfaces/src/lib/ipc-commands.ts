@@ -157,3 +157,7 @@ export const WINDOW_SET_CLOSE_GUARD = 'WINDOW:SET_CLOSE_GUARD';
 export const WINDOW_CONFIRM_CLOSE = 'WINDOW:CONFIRM_CLOSE';
 export const WINDOW_CANCEL_CLOSE = 'WINDOW:CANCEL_CLOSE';
 export const WINDOW_CLOSE_REQUESTED = 'WINDOW:CLOSE_REQUESTED';
+
+// IntroDB intro/recap/outro timestamps, fetched by the main process because
+// the API's CORS policy only admits its own web origin
+export const INTRODB_GET_SEGMENTS = 'INTRODB:GET_SEGMENTS';

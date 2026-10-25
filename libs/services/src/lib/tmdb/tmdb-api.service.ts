@@ -9,6 +9,7 @@ import {
     TmdbSearchResult,
     TmdbSeasonDetails,
     TmdbTvDetails,
+    TmdbTvExternalIds,
 } from './tmdb.types';
 
 /**
@@ -100,6 +101,18 @@ export class TmdbApiService {
                 append_to_response:
                     'credits,aggregate_credits,videos,recommendations',
             },
+            apiKey
+        );
+    }
+
+    /** IMDb / TVDB ids of a show; the IMDb id keys IntroDB's segments. */
+    async getTvExternalIds(
+        tmdbId: number,
+        apiKey: string
+    ): Promise<TmdbTvExternalIds> {
+        return this.request<TmdbTvExternalIds>(
+            `/tv/${tmdbId}/external_ids`,
+            {},
             apiKey
         );
     }
@@ -210,9 +223,7 @@ export class TmdbApiService {
         const response = await fetch(url.toString(), {
             headers: {
                 accept: 'application/json',
-                ...(isBearerToken
-                    ? { authorization: `Bearer ${apiKey}` }
-                    : {}),
+                ...(isBearerToken ? { authorization: `Bearer ${apiKey}` } : {}),
             },
         });
 

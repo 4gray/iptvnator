@@ -602,6 +602,70 @@
                 </div>
             }
 
+            <!-- The skip button is part of the shared controls, and its IntroDB
+                 lookup runs in the Electron main process: the PWA never shows it. -->
+            @if (isDesktop() && supportsUpNextCard()) {
+                <div
+                    class="setting-item"
+                    data-setting-id="player-skip-intro"
+                    data-test-id="player-skip-intro-setting"
+                >
+                    <div class="setting-item__meta">
+                        <h4>
+                            {{ 'SETTINGS.PLAYER_SKIP_INTRO' | translate }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.PLAYER_SKIP_INTRO_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control setting-item__toggle">
+                        <mat-slide-toggle
+                            [aria-label]="
+                                'SETTINGS.PLAYER_SKIP_INTRO' | translate
+                            "
+                            formControlName="playerSkipIntro"
+                            data-test-id="player-skip-intro-toggle"
+                        ></mat-slide-toggle>
+                    </div>
+                </div>
+
+                @if (form().value.playerSkipIntro !== false) {
+                    <div
+                        class="setting-item"
+                        data-setting-id="player-auto-skip-intro"
+                        data-test-id="player-auto-skip-intro-setting"
+                    >
+                        <div class="setting-item__meta">
+                            <h4>
+                                {{
+                                    'SETTINGS.PLAYER_AUTO_SKIP_INTRO'
+                                        | translate
+                                }}
+                            </h4>
+                            <p>
+                                {{
+                                    'SETTINGS.PLAYER_AUTO_SKIP_INTRO_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control setting-item__toggle">
+                            <mat-slide-toggle
+                                [aria-label]="
+                                    'SETTINGS.PLAYER_AUTO_SKIP_INTRO'
+                                        | translate
+                                "
+                                formControlName="playerAutoSkipIntro"
+                                data-test-id="player-auto-skip-intro-toggle"
+                            ></mat-slide-toggle>
+                        </div>
+                    </div>
+                }
+            }
+
             @if (supportsFullscreenChannelPanel()) {
                 <div
                     class="setting-item"

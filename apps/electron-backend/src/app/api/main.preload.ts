@@ -14,6 +14,7 @@ import {
     APP_UPDATE_STATUS_CHANGED,
     ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
     ANNOUNCE_PLAYLIST_OPEN_LISTENER,
+    INTRODB_GET_SEGMENTS,
     OPEN_FILE,
     WINDOW_BACK_REQUESTED,
     WINDOW_GET_ZOOM_LEVEL,
@@ -68,6 +69,7 @@ import type {
     ExternalPlayerSession,
     GlobalSearchPaginationOptions,
     GlobalSearchResultSource,
+    IntroDbSegmentsRequest,
     PlaybackPositionData,
     PlayerContentInfo,
     Playlist,
@@ -784,6 +786,8 @@ const electronApi: ElectronBridgeApi = {
         method?: 'GET' | 'HEAD',
         headers?: StreamProbeHeaders
     ) => ipcRenderer.invoke('STREAM_PROBE_URL', { url, method, ...headers }),
+    getIntroDbSegments: (request: IntroDbSegmentsRequest) =>
+        ipcRenderer.invoke(INTRODB_GET_SEGMENTS, request),
     refreshPlaylist: (payload: PlaylistRefreshPayload) =>
         ipcRenderer.invoke('PLAYLIST:REFRESH', payload),
     cancelPlaylistRefresh: (operationId: string) =>
