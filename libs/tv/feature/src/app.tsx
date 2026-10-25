@@ -8,6 +8,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useTv, View } from './use-tv';
 import { Sources } from './forms';
 import { Settings } from './settings';
+import type { SettingsMemory } from './settings-navigation';
 import { Home, CatalogScreen } from './screens';
 import { Detail } from './detail';
 import { Live } from './live';
@@ -24,6 +25,11 @@ const navigation: [View, string][] = [
     ['settings', 'Settings'],
 ];
 export function TvApp() {
+    const settingsMemory = useRef<SettingsMemory>({
+        category: 'connection',
+        controls: {},
+        scroll: {},
+    });
     const video = useRef<HTMLVideoElement>(null);
     const tv = useTv(video);
     const browse = useLiveBrowse(tv);
@@ -143,9 +149,11 @@ export function TvApp() {
                 class={
                     cinematic
                         ? `cinematic-page ${r.view}-page`
-                        : r.view === 'live'
-                          ? 'live-page'
-                          : ''
+                        : r.view === 'settings'
+                          ? 'settings-page'
+                          : r.view === 'live'
+                            ? 'live-page'
+                            : ''
                 }
             >
                 {cinematic ? <Backdrop item={metadata.item} /> : null}
@@ -186,7 +194,7 @@ export function TvApp() {
                 ) : r.view === 'sources' ? (
                     <Sources tv={tv} />
                 ) : r.view === 'settings' ? (
-                    <Settings tv={tv} />
+                    <Settings tv={tv} memory={settingsMemory.current} />
                 ) : r.view === 'live' ? (
                     <Live
                         key={tv.data.activeId}

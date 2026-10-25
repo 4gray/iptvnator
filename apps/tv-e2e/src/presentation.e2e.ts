@@ -60,6 +60,7 @@ test('remote arrows can leave source fields and reach native disclosure controls
                 )
             )
     );
+    await page.getByRole('tab', { name: 'Appearance', exact: false }).click();
     const layout = page.getByLabel('Home composition');
     await layout.focus();
     expect(
@@ -145,6 +146,7 @@ test('cinema/showcase, direct catalog diagnostic and TV layout widths', async ({
     await expect(page.locator('.probe [role=status]')).toContainText(
         'directly readable'
     );
+    await page.getByRole('tab', { name: 'Appearance', exact: false }).click();
     await page.getByLabel('Home composition').selectOption('shelf');
     await page.getByRole('button', { name: 'Save settings' }).click();
     await nav(page, 'Home');

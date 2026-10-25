@@ -78,6 +78,7 @@ test('unavailable backend is recoverable and EPG failures do not gate playback',
     );
     await page.route(`${backend}/provider-targets`, (route) => route.abort());
     await nav(page, 'Settings');
+    await page.getByRole('tab', { name: 'Appearance', exact: false }).click();
     await page.getByRole('button', { name: 'Save settings' }).click();
     await nav(page, 'Sources');
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
