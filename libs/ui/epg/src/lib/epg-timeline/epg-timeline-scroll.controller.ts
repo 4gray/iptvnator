@@ -40,6 +40,7 @@ export class TimelineScrollController {
     private lastFocusKey: string | null = null;
     private lastScroller: HTMLElement | null = null;
     private lastAxisStartMs: number | null = null;
+    private viewedCentreMs: number | null = null;
 
     constructor(private readonly ctx: TimelineScrollContext) {}
 
@@ -63,6 +64,10 @@ export class TimelineScrollController {
     }
 
     scrollToOffset(offsetMin: number, frac: number, smooth = true): void {
+        if (frac === 0.5) {
+            this.viewedCentreMs =
+                this.ctx.axis().startMs + offsetMin * TIMELINE_MINUTE_MS;
+        }
         requestAnimationFrame(() => {
             const scroller = this.ctx.ribbon();
             if (!scroller) {
@@ -91,6 +96,11 @@ export class TimelineScrollController {
             const centerOffsetMin =
                 (scroller.scrollLeft + scroller.clientWidth / 2) /
                 this.ctx.scale();
+            if (this.ctx.axis().startMs === this.lastAxisStartMs) {
+                this.viewedCentreMs =
+                    this.ctx.axis().startMs +
+                    centerOffsetMin * TIMELINE_MINUTE_MS;
+            }
             const dayKey = dayKeyAtOffset(this.ctx.axis(), centerOffsetMin);
             // Skip gap days: committing a day with no programmes flips the host
             // to `empty-day` and unmounts the ribbon mid-scroll, stranding the
@@ -139,18 +149,31 @@ export class TimelineScrollController {
                 this.lastAxisStartMs !== null &&
                 axisStartMs !== this.lastAxisStartMs
             ) {
-                const shiftPx =
-                    ((this.lastAxisStartMs - axisStartMs) /
-                        TIMELINE_MINUTE_MS) *
-                    this.ctx.scale();
+                const viewedCentreMs = this.viewedCentreMs;
                 this.lastAxisStartMs = axisStartMs;
                 requestAnimationFrame(() => {
                     if (this.ctx.ribbon() !== scroller) return;
-                    scroller.scrollTo({
-                        left: Math.max(0, scroller.scrollLeft + shiftPx),
-                        behavior: 'auto',
-                    });
+                    if (viewedCentreMs !== null) {
+                        const centreOffsetMin =
+                            (viewedCentreMs - axisStartMs) / TIMELINE_MINUTE_MS;
+                        scroller.scrollTo({
+                            left: Math.max(
+                                0,
+                                centreOffsetMin * this.ctx.scale() -
+                                    scroller.clientWidth / 2
+                            ),
+                            behavior: 'auto',
+                        });
+                    } else {
+                        this.restorePosition();
+                    }
                 });
+            } else {
+                this.viewedCentreMs =
+                    axisStartMs +
+                    ((scroller.scrollLeft + scroller.clientWidth / 2) /
+                        this.ctx.scale()) *
+                        TIMELINE_MINUTE_MS;
             }
             return;
         }
