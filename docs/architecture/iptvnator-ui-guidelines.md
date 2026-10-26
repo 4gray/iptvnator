@@ -327,6 +327,13 @@ selection blue on its own tint is 3.3:1) and the selection colour in dark.
 
 ## Single-Choice Menus And Status Chips
 
+Catalog headers keep the category title/count on the left and the active
+refinement chips plus Refine on the right in one row when their content pane
+is wider than 640 px. At 640 px and below, the controls take a second row.
+Use the pane's container width, not the application window width; long category
+titles shrink with ellipsis instead of moving controls into an otherwise empty
+second row. Sort chips retain their short localized labels.
+
 Every `mat-menu` gets the kit panel from one global rule in `styles.scss`
 (`menu-panel` in `libs/ui/styles/_app-controls.scss`): a bordered 10px panel
 with 6px padding, 240–360px wide, 36px rows at 13px with 16px icons, the

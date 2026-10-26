@@ -41,6 +41,7 @@
 
 .category-title {
     @include panel.standard-panel-title();
+    max-width: 100%;
 }
 
 .category-subtitle {
@@ -201,38 +202,16 @@
     font-variant-numeric: tabular-nums;
 }
 
-@container category-content (max-width: 920px) {
-    .category-content-header {
-        grid-template-columns: minmax(0, 1fr) auto auto;
-        grid-template-areas:
-            'meta meta meta'
-            'refinements refinements refine';
-        padding: 8px 16px;
-        min-height: unset;
-    }
-
-    .active-refinements {
-        justify-self: stretch;
-        flex: 1 1 auto;
-        justify-content: flex-start;
-        max-width: none;
-    }
-
-    .refinement-chip {
-        max-width: min(220px, 100%);
-    }
-
-    .refine-action {
-        justify-self: end;
-    }
-}
-
+// Keep the title and controls together in tablet/desktop panes. Only a
+// genuinely narrow pane needs a second toolbar row; long titles can ellipsize.
 @container category-content (max-width: 640px) {
     .category-content-header {
         grid-template-columns: minmax(0, 1fr) auto;
         grid-template-areas:
             'meta meta'
             'refinements refine';
+        padding: 8px 16px;
+        min-height: unset;
     }
 
     .category-meta {
@@ -241,6 +220,10 @@
 
     .active-refinements {
         width: 100%;
+        justify-self: stretch;
+        flex: 1 1 auto;
+        justify-content: flex-start;
+        max-width: none;
     }
 
     .refinement-chip {
