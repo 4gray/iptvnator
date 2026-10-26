@@ -18,7 +18,7 @@
                 </div>
                 <div class="setting-item__control inline-actions">
                     <button
-                        mat-stroked-button
+                        mat-flat-button
                         class="inline-actions__button"
                         [disabled]="isRemovingAllPlaylists() || isExportingData()"
                         (click)="
@@ -30,7 +30,7 @@
                         {{ 'SETTINGS.IMPORT_DATA' | translate }}
                     </button>
                     <button
-                        mat-stroked-button
+                        mat-flat-button
                         class="inline-actions__button"
                         [class.inline-actions__button--busy]="isExportingData()"
                         [disabled]="isRemovingAllPlaylists() || isExportingData()"
