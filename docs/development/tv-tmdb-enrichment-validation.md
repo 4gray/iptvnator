@@ -354,3 +354,15 @@ workflows**, **101 TV unit tests**, affected lint and TV/spec/E2E types pass;
 package, release-note and guidance gates are repeated before committing for the
 next review. This is the sixth accepted finding across the three local rounds;
 none are declined.
+
+
+The fourth local review of `c90d8ba83` reproduces a pending search left busy
+when foreground reconnect replaces the provider. The hook now settles that
+request with retry, and navigation records the initiating filmography focus and
+scroll even when a successful result follows the Retry control. A real browser
+regression dispatches the network-return event during a held provider lookup,
+checks the retry state, completes the retry and verifies exact card/scroll Back.
+It fails before the fix and passes afterwards. **14/14 targeted TMDB workflows**,
+**101 TV unit tests**, all nine affected lint targets and the three TV type
+programs pass. This is the seventh accepted local-review finding; none are
+declined. The final package and committed branch enter the fifth local round.

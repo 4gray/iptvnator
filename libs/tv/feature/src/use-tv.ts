@@ -3,7 +3,7 @@ import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
 import { firstRoute, type View } from './navigation';
-import { useRouteHistory } from './use-route-history';
+import { useRouteHistory, type NavigationOrigin } from './use-route-history';
 export type { View } from './navigation';
 import { useUserData } from './user-data';
 import { useContent } from './use-content';
@@ -141,7 +141,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         });
         restoreFocus(`nav:${view}`, '', 0);
     }
-    function open(item: Media) {
+    function open(item: Media, origin?: NavigationOrigin) {
         if (item.sourceId !== data.activeId) return;
         playback.current.cancel();
         if (item.kind === 'live') {
@@ -152,7 +152,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             void play(item);
             return;
         }
-        visit({ ...route, view: 'detail', item }, 'detail-play');
+        visit({ ...route, view: 'detail', item }, 'detail-play', origin);
         setSelected(item);
     }
     function openPerson(person: { tmdbId: number; name: string }) {

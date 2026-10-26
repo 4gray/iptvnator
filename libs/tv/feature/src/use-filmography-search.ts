@@ -6,11 +6,13 @@ import {
 } from '@iptvnator/tv/data-access';
 import { restoreFocus } from '@iptvnator/tv/ui';
 import type { TvModel } from './use-tv';
+import type { NavigationOrigin } from './use-route-history';
 
 export const filmographyKey = (credit: ActorFilmographyCredit) =>
     `filmography:${credit.mediaType}:${credit.tmdbId}`;
 interface SearchState {
     credit: ActorFilmographyCredit;
+    origin: NavigationOrigin;
     busy: boolean;
     result?: FilmographyMatch;
     error?: boolean;
@@ -38,21 +40,29 @@ export function useFilmographySearch(tv: TvModel, memory: FilmographyMemory) {
             if (first) restoreFocus(first.id);
         }
     }, [state, person, memory]);
-    useLayoutEffect(
-        () => () => {
+    useLayoutEffect(() => {
+        setState((current) =>
+            current?.busy ? { ...current, busy: false, error: true } : current
+        );
+        return () => {
             request.current?.abort();
             request.current = undefined;
-        },
-        [provider, tv.data.activeId, tv.route.person?.tmdbId]
-    );
-    async function search(credit: ActorFilmographyCredit) {
+        };
+    }, [provider, tv.data.activeId, tv.route.person?.tmdbId]);
+    async function search(
+        credit: ActorFilmographyCredit,
+        origin: NavigationOrigin = {
+            focus: filmographyKey(credit),
+            scroll: document.querySelector('main')?.scrollTop ?? 0,
+        }
+    ) {
         request.current?.abort();
         const abort = new AbortController();
         request.current = abort;
-        setState({ credit, busy: true });
+        setState({ credit, origin, busy: true });
         const deadline = setTimeout(() => {
             if (request.current === abort) {
-                setState({ credit, busy: false, error: true });
+                setState({ credit, origin, busy: false, error: true });
                 request.current = undefined;
                 abort.abort();
             }
@@ -66,11 +76,11 @@ export function useFilmographySearch(tv: TvModel, memory: FilmographyMemory) {
                 abort.signal
             );
             if (request.current !== abort || abort.signal.aborted) return;
-            if (result.status === 'found') tv.open(result.item);
-            else setState({ credit, busy: false, result });
+            if (result.status === 'found') tv.open(result.item, origin);
+            else setState({ credit, origin, busy: false, result });
         } catch {
             if (request.current === abort)
-                setState({ credit, busy: false, error: true });
+                setState({ credit, origin, busy: false, error: true });
         } finally {
             clearTimeout(deadline);
         }

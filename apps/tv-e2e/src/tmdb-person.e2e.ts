@@ -372,6 +372,82 @@ test('@tmdb-person failed and cancelled portal searches cannot report absence or
     await expect(page.locator('.detail-hero')).toHaveCount(0);
 });
 
+test('@tmdb-person reconnecting settles a pending lookup and retry preserves the originating card', async ({
+    page,
+}) => {
+    await setup(page, 'stalker', true);
+    let release: (() => void) | undefined;
+    let blocked = true;
+    await page.route('**/stalker?**', async (route) => {
+        const url = new URL(route.request().url());
+        if (
+            url.searchParams.get('action') !== 'get_ordered_list' ||
+            url.searchParams.get('search') !== 'Unavailable Fixture'
+        )
+            return route.fallback();
+        if (blocked)
+            await new Promise<void>((resolve) => {
+                release = resolve;
+            });
+        await route.fulfill({
+            json: {
+                payload: {
+                    js: {
+                        data: [
+                            {
+                                id: 'reconnected-film',
+                                name: 'Unavailable Fixture',
+                                cmd: 'https://fixture.invalid/movie',
+                            },
+                        ],
+                        total_items: 1,
+                        max_page_items: 14,
+                    },
+                },
+            },
+        });
+    });
+    await page
+        .getByRole('button', { name: 'View filmography: Fixture Actor' })
+        .click();
+    await expect(page.locator('.person-page h2')).toContainText('103');
+    await page.locator('main').evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+    });
+    const card = page.locator('[data-focus="filmography:movie:502"]');
+    await expect(card).toBeVisible();
+    await card.scrollIntoViewIfNeeded();
+    const scroll = await page.locator('main').evaluate((el) => el.scrollTop);
+    await card.click();
+    await expect(page.locator('.filmography-status')).toContainText(
+        'Searching'
+    );
+    await expect.poll(() => !!release).toBe(true);
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect(
+        page.getByRole('button', { name: 'Retry portal search' })
+    ).toBeVisible();
+    await expect(page.locator('.filmography-status')).not.toContainText(
+        'not available'
+    );
+    await expect(page.locator('.loading')).toHaveCount(0);
+    blocked = false;
+    release?.();
+    await page.getByRole('button', { name: 'Retry portal search' }).click();
+    await expect(page.locator('.detail-hero h1')).toHaveText(
+        'Unavailable Fixture'
+    );
+    await page.keyboard.press('Escape');
+    await expect(card).toBeFocused();
+    await expect
+        .poll(async () =>
+            Math.abs(
+                (await page.locator('main').evaluate((el) => el.scrollTop)) -
+                    scroll
+            )
+        )
+        .toBeLessThan(8);
+});
 test('@tmdb-person provider choices survive a detail round trip and expire for a fresh person visit', async ({
     page,
 }) => {

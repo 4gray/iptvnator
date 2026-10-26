@@ -124,7 +124,8 @@ export function PersonPage({
                                         onClick={() =>
                                             lookup.state &&
                                             void lookup.search(
-                                                lookup.state.credit
+                                                lookup.state.credit,
+                                                lookup.state.origin
                                             )
                                         }
                                     >

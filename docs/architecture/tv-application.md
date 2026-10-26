@@ -497,6 +497,9 @@ results. Person/detail Back preserves card focus and scroll position.
 Provider-version choices live in an app-owned snapshot for that exact person
 route visit. New choices receive remote focus; returning from details restores
 the chooser and selected version, while a fresh person visit clears it.
+Replacing the provider settles pending searches with a retry action. Found
+results, including retries, return to the initiating filmography card and scroll
+position rather than an ephemeral status control.
 Focused biographies consume Up/Down to scroll their text; reaching an edge lets
 the next directional press leave the text and continue normal remote navigation.
 Settings distinguishes key validation from saved enablement and warns about
