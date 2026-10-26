@@ -54,9 +54,18 @@ function matchScore(
             compatibleYear(keys.trailingYear)
     );
     if (!exact && !base) return null;
+    const releaseTag = rawNames
+        .map(
+            (title) =>
+                title.match(
+                    /(?:\(|\[|\{)\s*((?:19|20)\d{2})\s*(?:\)|\]|\})/
+                )?.[1]
+        )
+        .find(Boolean);
     // A canonical numeric title (Blade Runner 2049) is not a release-year tag.
     const year =
         extractYear(item.year) ??
+        extractYear(releaseTag) ??
         (!exact ? (base?.trailingYear ?? null) : null);
     if (!compatibleYear(year)) return null;
     return year && credit.year

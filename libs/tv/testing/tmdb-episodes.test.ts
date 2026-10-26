@@ -164,3 +164,38 @@ test('missing, failing or cancelled season metadata keeps every provider episode
     );
     assert.equal(fetch.mock.calls.length, 1);
 });
+
+test('season slices keep markers from alternate raw provider names and preserve multi-season numbering', async (t) => {
+    const requests: string[] = [];
+    t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) => {
+        requests.push(new URL(String(input)).pathname);
+        return Response.json({
+            episodes: [{ episode_number: 1, name: 'Marked-season episode' }],
+        });
+    });
+    const show = {
+        ...parent,
+        title: 'Ted Lasso',
+        raw: { o_name: 'Ted Lasso', name: 'Ted Lasso s04' },
+        metadata: {
+            tmdbId: 97546,
+            cast: [],
+            authors: [],
+            authorRole: 'Creators' as const,
+        },
+    };
+    const metadata = new TvMetadata(settings);
+    const single = await metadata.enrichEpisodes(show, [episode], 1, signal());
+    assert.equal(single.items[0].title, 'Marked-season episode');
+    const multi = await metadata.enrichEpisodes(
+        show,
+        [episode, { ...episode, id: 'second-season', season: 2 }],
+        1,
+        signal()
+    );
+    assert.equal(multi.items[1].title, episode.title);
+    assert.deepEqual(requests, [
+        '/3/tv/97546/season/4',
+        '/3/tv/97546/season/1',
+    ]);
+});

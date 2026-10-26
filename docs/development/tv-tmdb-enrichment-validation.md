@@ -328,3 +328,16 @@ that unavailable reviewer to be reported without blocking Codex review. Local
 review logs remain outside the repository. The device observations and exact
 0.1.18 package/runtime provenance above keep their original revision scope;
 publication, final review and CI results are recorded with the PR head SHA.
+
+
+The second local Codex review of `ca6171ad7` finds two further input shapes:
+M3U release years stored only in bracketed title tags, and Stalker season
+markers present only in an alternate raw name. Both are accepted. Matching now
+checks explicit bracketed years before treating a year as unknown, and season
+selection uses `pickSeasonMarkedTitle` across all available provider title fields.
+Actual M3U and single/multi-season regressions fail before the fixes. Afterwards
+**101/101 TV unit tests**, **12/12 focused TMDB browser workflows**, affected
+nine-project lint and TV/spec/E2E types pass. The earlier full **116/116** TV
+browser run covers the remaining unchanged workflows. The 0.1.19 package is
+rebuilt and verified before the next committed-branch review; the master base
+remains `5b9724cb3`. No review finding is declined.

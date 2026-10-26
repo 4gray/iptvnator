@@ -85,3 +85,65 @@ for (const providerType of ['xtream', 'm3u'] as const) {
         }
     });
 }
+
+test('M3U release tags reject the wrong remake without treating canonical numeric titles as release years', async () => {
+    const source: Source = {
+        id: 'source',
+        name: 'Fixture',
+        provider: 'm3u',
+        url: 'https://provider.invalid/list.m3u',
+        m3uItems: [
+            'Dune (2021)',
+            'Dune [2021]',
+            'Dune {2021}',
+            'Blade Runner 2049',
+        ].map((name, index) => ({
+            name,
+            url: `https://media.invalid/film-${index}.mp4`,
+        })),
+    };
+    const client = createProvider(
+        source,
+        new Transport(),
+        async () => undefined
+    );
+    const signal = new AbortController().signal;
+    const credit = {
+        tmdbId: 841,
+        title: 'Dune',
+        mediaType: 'movie' as const,
+        year: 1984,
+        character: null,
+        crewJob: null,
+        posterUrl: null,
+    };
+    try {
+        await client.connect(signal);
+        assert.equal(
+            (await findFilmographyTitle(client, source.id, credit, signal))
+                .status,
+            'missing'
+        );
+        const modern = await findFilmographyTitle(
+            client,
+            source.id,
+            { ...credit, year: 2021 },
+            signal
+        );
+        assert.equal(modern.status, 'choices');
+        assert.equal(modern.status === 'choices' && modern.items.length, 3);
+        assert.equal(
+            (
+                await findFilmographyTitle(
+                    client,
+                    source.id,
+                    { ...credit, title: 'Blade Runner 2049', year: 2017 },
+                    signal
+                )
+            ).status,
+            'found'
+        );
+    } finally {
+        client.dispose();
+    }
+});

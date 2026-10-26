@@ -19,7 +19,10 @@ import {
     tmdbPosterUrl,
     tmdbStillUrl,
 } from '@iptvnator/shared/tmdb';
-import { resolveEnrichmentSeasonNumber } from '@iptvnator/shared/interfaces';
+import {
+    pickSeasonMarkedTitle,
+    resolveEnrichmentSeasonNumber,
+} from '@iptvnator/shared/interfaces';
 import { artwork, Media, UserData } from '@iptvnator/tv/util';
 
 /** The caller owns cancellation; the deadline also bounds offline/slow API calls. */
@@ -179,7 +182,16 @@ export class TvMetadata {
         return withDeadline(signal, async (abort) => {
             let failed = false;
             const number = resolveEnrichmentSeasonNumber({
-                rawTitle: parent.title,
+                rawTitle: pickSeasonMarkedTitle(
+                    ...[
+                        parent.title,
+                        parent.raw.name,
+                        parent.raw.o_name,
+                        parent.raw.title,
+                    ].filter(
+                        (title): title is string => typeof title === 'string'
+                    )
+                ),
                 providerSeasonNumber: season,
                 providerSeasonCount: new Set(owned.map((e) => e.season ?? 1))
                     .size,
