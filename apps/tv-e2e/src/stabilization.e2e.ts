@@ -147,6 +147,7 @@ test('settings write failure retries the save and never reconnects the provider'
             return put.apply(this, args);
         };
     });
+    await page.getByRole('tab', { name: 'Appearance', exact: false }).click();
     await page.getByLabel('Home composition').selectOption('shelf');
     await page
         .getByRole('button', { name: 'Save settings', exact: true })

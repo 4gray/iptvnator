@@ -1,3 +1,4 @@
+import { tvOrigins } from '../ports';
 import {
     test,
     expect,
@@ -6,7 +7,7 @@ import {
 } from '@playwright/test';
 import { addSource, backend, nav, stalker, start, xtream } from './helpers';
 import type { UserData } from '@iptvnator/tv/util';
-const server = 'http://127.0.0.1:3434';
+const server = tvOrigins.library;
 const headers = { Authorization: 'Bearer tv-library-test' };
 const libraryDocument = (id: string, fields: Record<string, unknown> = {}) => ({
     _id: id,
@@ -30,6 +31,9 @@ async function put(
 }
 async function connect(page: Page) {
     await nav(page, 'Settings');
+    await page
+        .getByRole('tab', { name: 'Library & sync', exact: false })
+        .click();
     const pane = page.getByRole('region', { name: 'Server library' });
     await pane.getByLabel('Library server URL').fill(server);
     await pane
@@ -291,6 +295,9 @@ test('shared Xtream, Stalker and M3U sources load, retain local identity and sur
         password: 'pass1',
     });
     await nav(page, 'Settings');
+    await page
+        .getByRole('tab', { name: 'Library & sync', exact: false })
+        .click();
     await page.getByRole('button', { name: 'Refresh library now' }).click();
     await expect
         .poll(async () =>
@@ -448,6 +455,9 @@ test('a library reply cannot interrupt playback or reconnect after disconnect', 
         .toBe('Shared xtream');
     await page.keyboard.press('Escape');
     await nav(page, 'Settings');
+    await page
+        .getByRole('tab', { name: 'Library & sync', exact: false })
+        .click();
     await expect(
         page.getByRole('region', { name: 'Server library' }).getByRole('alert')
     ).toContainText('deferred');

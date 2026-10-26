@@ -1,4 +1,5 @@
 import { PhoneReview } from './phone-review';
+import { PhoneInstructions, PhoneSetupPanel } from './phone-setup-panel';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import QRCode from 'qrcode';
 import {
@@ -19,9 +20,13 @@ import { TvModel } from './use-tv';
 export function PhoneSetup({
     tv,
     purpose = 'source',
+    compact = false,
+    onSettingsApplied,
 }: {
     tv: TvModel;
     purpose?: SetupPurpose;
+    compact?: boolean;
+    onSettingsApplied?: () => void;
 }) {
     const settings = purpose === 'settings';
     const [session, setSession] = useState<PairingSession>();
@@ -179,6 +184,8 @@ export function PhoneSetup({
                     )
                     .then(() => {
                         saved.current = true;
+                        // Receipt delivery can fail independently of this committed write.
+                        if (settings) onSettingsApplied?.();
                     });
                 await pendingSave.current;
             }
@@ -209,10 +216,10 @@ export function PhoneSetup({
     }
     return (
         <section
-            class="phone-setup"
+            class={`phone-setup ${compact ? 'compact-phone-setup' : ''}`}
             aria-label={settings ? 'Settings from phone' : 'Add from phone'}
         >
-            <div>
+            <div hidden={compact}>
                 <h2>
                     {settings
                         ? 'Set up from your phone'
@@ -239,7 +246,7 @@ export function PhoneSetup({
                           : 'Add from phone'}
                 </button>
             ) : (
-                <div class="phone-pairing">
+                <PhoneSetupPanel compact={compact}>
                     {state?.source || state?.settings ? (
                         <PhoneReview
                             state={state}
@@ -250,22 +257,7 @@ export function PhoneSetup({
                             decline={() => void finish('rejected')}
                         />
                     ) : (
-                        <>
-                            <img
-                                class="pairing-qr"
-                                src={qr}
-                                alt="Scan this QR code to set up your TV from your phone"
-                            />
-                            <div>
-                                <h3>Open your phone’s camera</h3>
-                                <p>Keep your phone on the same home network.</p>
-                                <p class="muted" role="status">
-                                    Waiting for your phone ·{' '}
-                                    {Math.floor(remaining / 60)}:
-                                    {String(remaining % 60).padStart(2, '0')}
-                                </p>
-                            </div>
-                        </>
+                        <PhoneInstructions qr={qr} remaining={remaining} />
                     )}
                     <button
                         type="button"
@@ -284,12 +276,10 @@ export function PhoneSetup({
                     >
                         Close setup
                     </button>
-                </div>
+                </PhoneSetupPanel>
             )}
             {!tv.backend.connected && !session ? (
-                <p class="muted">
-                    Connect a backend below to enable phone setup.
-                </p>
+                <p class="muted">Connect a backend to enable phone setup.</p>
             ) : null}
             {error ? <p role="alert">{error}</p> : null}
         </section>
