@@ -47,6 +47,31 @@
                     <div class="loading-state">
                         <mat-spinner diameter="48" />
                     </div>
+                } @else if (hasError()) {
+                    <div class="no-items search-error" role="alert">
+                        <mat-icon aria-hidden="true">cloud_off</mat-icon>
+                        <div class="no-items-content">
+                            <h3>
+                                {{
+                                    'PORTALS.SEARCH_VIEW.ERROR_TITLE'
+                                        | translate
+                                }}
+                            </h3>
+                            <p>
+                                {{
+                                    'PORTALS.SEARCH_VIEW.ERROR_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            mat-stroked-button
+                            (click)="retryClick.emit()"
+                        >
+                            {{ 'PORTALS.GRID.RETRY' | translate }}
+                        </button>
+                    </div>
                 } @else if (showResults) {
                     <!-- Results slot -->
                     <ng-content select="[results]" />

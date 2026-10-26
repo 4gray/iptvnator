@@ -22,6 +22,17 @@ Use it when changing existing views or introducing new list-based UI in the work
 5. Scroll ownership must be explicit.
    Headers stay visible. Lists scroll. Do not let nested panes compete for scroll.
 
+6. Normal text, including metadata and selected labels, keeps at least 4.5:1
+   contrast. Use `--app-muted-color` for secondary text and
+   `--app-selection-text-color` on tinted selections; the selection accent
+   remains the fill/progress role. Empty and source-drop states inherit the
+   application font stack, including its multilingual fallback.
+
+7. Workspace navigation stays compact and icon-only, with localized tooltips
+   and accessible names. Selection uses surface tint and a full outline,
+   without vertical accent strips or side-border imitations, including in
+   EPG rows.
+
 ## Angular Material's Role
 
 Decision of 2026-10-12. The repository has no ADR folder; decisions live in

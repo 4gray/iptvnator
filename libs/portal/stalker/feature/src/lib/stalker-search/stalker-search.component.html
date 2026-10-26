@@ -2,6 +2,8 @@
     [searchTerm]="searchTerm()"
     [resultsCount]="resultsCount"
     [isLoading]="isInitialSearchLoading()"
+    [hasError]="paging.searchError()"
+    (retryClick)="paging.retrySearchPage()"
     [showResultsCount]="true"
     [backAvailable]="true"
     [showDetails]="showingDetails"

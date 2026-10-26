@@ -363,6 +363,12 @@ mock's tolerant `/portal.php`, strict `/server/load.php`, and
 
 ## Store and Data Flow
 
+A failed first search page shows an explicit error and Retry in the shared
+search layout, retaining the term and selected content type. Retry resets the
+host connectivity guard before reloading the same page. Successful empty
+responses keep the ordinary no-matches state; failed appends retain loaded rows
+and their existing tail retry. New query/source identities clear obsolete errors.
+
 Stalker store is now feature-composed:
 
 - Facade: `libs/portal/stalker/data-access/src/lib/stalker.store.ts`

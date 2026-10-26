@@ -127,14 +127,14 @@
         p {
             font-size: 0.85rem;
             margin: 0;
-            opacity: 0.65;
+            color: var(--app-body-color);
         }
 
         .search-term-note {
             margin-top: 1rem;
             font-size: 0.9rem;
             font-style: italic;
-            opacity: 0.6;
+            color: var(--app-muted-color);
         }
     }
 
@@ -146,6 +146,10 @@
             opacity: 0.6;
         }
     }
+}
+
+.search-error button {
+    margin-top: 20px;
 }
 
 // Results grid mixin for consumers

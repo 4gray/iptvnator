@@ -1398,6 +1398,8 @@
             "NO_SEARCH_RESULTS": "Nic nie znaleziono. Spróbuj zmienić zapytanie wyszukiwania."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "Nie udało się wyszukać",
+            "ERROR_DESCRIPTION": "Zapytanie i filtry zostały zachowane. Spróbuj ponownie.",
             "INITIAL_TITLE": "Wyszukaj treści",
             "INITIAL_DESCRIPTION": "Wpisz co najmniej 3 znaki, aby wyszukać w telewizji na żywo, filmach i serialach.",
             "RESULTS_FOUND": "Znaleziono {{count}} wyników",
