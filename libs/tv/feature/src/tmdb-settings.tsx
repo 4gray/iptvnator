@@ -63,6 +63,7 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
                 <label class="check">
                     <input
                         type="checkbox"
+                        data-focus="tmdb:enabled"
                         checked={enabled}
                         onChange={(event) =>
                             setEnabled(event.currentTarget.checked)
@@ -75,6 +76,7 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
                     <input
                         type="password"
                         name="tmdb-key"
+                        data-focus="tmdb:key"
                         autoComplete="off"
                         required={enabled}
                         value={key}
@@ -89,6 +91,7 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
                 <label>
                     Metadata language
                     <select
+                        data-focus="tmdb:language"
                         value={language}
                         onChange={(event) =>
                             setLanguage(event.currentTarget.value)
@@ -110,12 +113,17 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
                 <div class="actions">
                     <button
                         type="button"
+                        data-focus="tmdb:check"
                         disabled={!key.trim() || checking}
                         onClick={check}
                     >
                         {checking ? 'Checking…' : 'Check TMDB key'}
                     </button>
-                    <button class="primary" disabled={saving}>
+                    <button
+                        class="primary"
+                        disabled={saving}
+                        data-focus="tmdb:save"
+                    >
                         {saving ? 'Saving…' : 'Save TMDB settings'}
                     </button>
                 </div>

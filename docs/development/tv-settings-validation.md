@@ -131,5 +131,28 @@ screenshots remain under `dist/tv-verification/settings-categories/`.
 Package: `dist/tv-package/com.iptvnator.tv.prototype_0.1.15_all.ipk`.
 SHA-256: `71c758d018df10bef27b437f7ec7d39bd5760304d10ee5c18d60500028a3412f`.
 No NAS service, desktop release, push, PR or merge was performed during this
-local installation. GitHub integration awaits the user's answer to the explicit
-publication-scope question because the initial task prohibited push/PR/merge.
+local installation. The user subsequently authorizes publication and merging through a PR on
+2026-10-26; the initial installation remains a local-package operation.
+
+
+## Publication follow-up — 2026-10-26
+
+The first local Codex review of `3c0677fb9` was interrupted by model capacity
+before a final verdict; it is not recorded as a clean review. Greptile CLI is
+not installed and was not installed or configured on the user's behalf.
+
+A dynamic-control focus issue investigated during that review is independently
+reproduced by a regression: two discovered backend buttons duplicate a retained
+control's positional focus key. Before the fix, 8 controls have only 7 unique
+keys, and returning can select the wrong control. Settings controls now declare
+stable semantic keys in their owning components; the positional assignment effect
+is removed. The new test checks uniqueness, an unchanged probe key, category Back
+and Right restoration, and leaving/re-entering Settings. It fails before the fix
+and passes afterwards. All six dedicated Settings E2E scenarios pass.
+
+
+After this focus correction, all 85 unit tests and all 97 TV browser E2E cases
+pass. The TV/feature/UI/data-access/util/tests/E2E/phone lint and available
+typechecks (12 tasks), production build, ES2018 audit, packaging, agent guidance
+and release notes validation pass again. The package remains the local 0.1.15
+prototype; no public package with that version has been published.

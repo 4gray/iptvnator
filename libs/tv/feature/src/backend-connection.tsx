@@ -30,6 +30,7 @@ export function BackendConnection({
             <label>
                 {label}
                 <input
+                    data-focus="backend:url"
                     name="backend"
                     type="url"
                     required
@@ -39,10 +40,13 @@ export function BackendConnection({
                 />
             </label>
             <details>
-                <summary>Backend access token (if required)</summary>
+                <summary data-focus="backend:token-details">
+                    Backend access token (if required)
+                </summary>
                 <label>
                     Backend access token
                     <input
+                        data-focus="backend:token"
                         name="backendToken"
                         type="password"
                         value={b.token}
@@ -56,6 +60,7 @@ export function BackendConnection({
             <div class="actions">
                 <button
                     type="button"
+                    data-focus="backend:connect"
                     onClick={() => void b.connect()}
                     disabled={!b.url}
                 >
@@ -63,6 +68,7 @@ export function BackendConnection({
                 </button>
                 <button
                     type="button"
+                    data-focus="backend:find"
                     onClick={() => (b.searching ? b.cancel() : void b.find())}
                 >
                     {b.searching ? 'Cancel search' : 'Find backend'}
@@ -74,6 +80,7 @@ export function BackendConnection({
                         <button
                             type="button"
                             key={info.url}
+                            data-focus={`backend:found:${info.url}`}
                             onClick={() => b.choose(info)}
                         >
                             {info.url}

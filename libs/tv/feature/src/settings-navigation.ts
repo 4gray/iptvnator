@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 
 export const settingsCategories = [
@@ -42,20 +42,6 @@ export function useSettingsNavigation(memory: SettingsMemory) {
             panel()
         )?.focus();
     };
-    useLayoutEffect(() => {
-        root.current
-            ?.querySelectorAll<HTMLElement>('[data-settings-panel]')
-            .forEach((element) => {
-                element
-                    .querySelectorAll<HTMLElement>(
-                        'button,input,select,summary'
-                    )
-                    .forEach((control, i) => {
-                        if (!control.dataset.focus)
-                            control.dataset.focus = `${element.id}:${i}`;
-                    });
-            });
-    });
     useEffect(() => {
         const frame = requestAnimationFrame(() => {
             const target = Array.from(

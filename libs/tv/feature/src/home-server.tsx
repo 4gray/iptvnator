@@ -40,6 +40,7 @@ export function HomeServer({ tv }: { tv: TvModel }) {
                 <>
                     <button
                         type="button"
+                        data-focus="home-server:connect"
                         disabled={tv.library.busy || !!tv.playing || linked}
                         onClick={() =>
                             void tv.library.connect(url, tv.data.backendToken)

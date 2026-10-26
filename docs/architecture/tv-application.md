@@ -141,6 +141,9 @@ patch only their own field in the current snapshot; hidden drafts are never
 submitted. Committed phone changes refresh the corresponding field drafts.
 Category, last control and panel scroll positions survive leaving and returning
 to Settings within the app session; these navigation hints contain no credentials.
+Controls declare stable focus keys in their owning components. Dynamic backend
+results have separate keys; inserting them must not renumber or reuse keys of
+existing controls.
 Right/OK enters the category's last available control, Left returns to its category
 except in text fields, and Back returns to categories before leaving Settings.
 Native text caret and select-choice keys retain the shared remote contract.

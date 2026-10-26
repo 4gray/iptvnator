@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { workspaceRoot } from '@nx/devkit';
-import { backend, nav, start } from './helpers';
+import { addSource, backend, nav, start } from './helpers';
 
 test('categories retain drafts and save only their own field across relaunch', async ({
     page,
@@ -226,4 +226,52 @@ test('library drafts and metadata write errors survive switching categories', as
     await expect(
         page.getByLabel('TMDB API key or read access token')
     ).toHaveValue('metadata-fixture');
+});
+
+test('dynamic backend results keep control focus keys unique and stable across return', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'xtream');
+    await nav(page, 'Settings');
+    const probe = page.getByRole('button', {
+        name: 'Test direct access',
+        exact: true,
+    });
+    const key = await probe.getAttribute('data-focus');
+    for (const port of [3333, 3335]) {
+        await page.route(
+            `http://iptvnator.local:${port}/tv/connection`,
+            (route) =>
+                route.fulfill({
+                    json: {
+                        service: 'iptvnator',
+                        protocol: 1,
+                        pairing: true,
+                        auth: 'token',
+                    },
+                })
+        );
+    }
+    await page.route('http://iptvnator.local:4333/**', (route) =>
+        route.abort()
+    );
+    await page
+        .getByRole('button', { name: 'Find backend', exact: true })
+        .click();
+    await expect(page.locator('.backend-results button')).toHaveCount(2);
+    await expect(probe).toHaveAttribute('data-focus', key!);
+    const keys = await page
+        .locator('#settings-panel-connection [data-focus]')
+        .evaluateAll((elements) =>
+            elements.map((element) => element.getAttribute('data-focus'))
+        );
+    expect(new Set(keys).size).toBe(keys.length);
+    await probe.focus();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('ArrowRight');
+    await expect(probe).toBeFocused();
+    await nav(page, 'Home');
+    await nav(page, 'Settings');
+    await expect(probe).toBeFocused();
 });
