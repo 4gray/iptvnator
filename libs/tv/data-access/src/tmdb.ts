@@ -3,12 +3,32 @@ import {
     TmdbIdResolver,
     TmdbMemoryCache,
     TmdbMetadataClient,
+    TmdbSeasonClient,
+    TmdbPersonClient,
+    enrichedCast,
+    enrichedCreators,
+    enrichedDirectors,
+    isGenericEpisodeTitle,
+    limitCast,
+    topCast,
+    unifiedTvCast,
+    type TmdbTvDetails,
     extractYear,
     toTmdbLanguage,
     tmdbBackdropUrl,
     tmdbPosterUrl,
+    tmdbStillUrl,
 } from '@iptvnator/shared/tmdb';
-import { artwork, Media, UserData } from '@iptvnator/tv/util';
+import {
+    pickSeasonMarkedTitle,
+    resolveEnrichmentSeasonNumber,
+} from '@iptvnator/shared/interfaces';
+import {
+    artwork,
+    Media,
+    UserData,
+    withSeriesContext,
+} from '@iptvnator/tv/util';
 
 /** The caller owns cancellation; the deadline also bounds offline/slow API calls. */
 async function withDeadline<T>(
@@ -38,25 +58,42 @@ export function checkTmdbKey(key: string, signal: AbortSignal) {
 export class TvMetadata {
     private readonly cache = new TmdbMemoryCache();
     constructor(private readonly settings: UserData['tmdb']) {}
+    private enabled() {
+        return this.settings.enabled && !!this.settings.apiKey.trim();
+    }
+    private runtime() {
+        return {
+            isEnabled: () => this.enabled(),
+            apiKey: () => this.settings.apiKey.trim(),
+            appLanguage: () => this.settings.language,
+            language: () => toTmdbLanguage(this.settings.language),
+        };
+    }
+    getPerson(personId: number, signal: AbortSignal) {
+        return withDeadline(signal, (abort) =>
+            new TmdbPersonClient(
+                this.runtime(),
+                new TmdbApiClient(abort),
+                this.cache
+            ).getPersonDetails(personId)
+        );
+    }
     async enrich(
         item: Media,
         signal: AbortSignal
     ): Promise<{ item: Media; failed: boolean }> {
         if (
-            !this.settings.enabled ||
-            !this.settings.apiKey.trim() ||
-            !['movie', 'series'].includes(item.kind) ||
+            !this.enabled() ||
+            !(
+                ['movie', 'series'].includes(item.kind) ||
+                (item.kind === 'episode' && item.seriesTitle)
+            ) ||
             signal.aborted
         )
             return { item, failed: false };
         return withDeadline(signal, async (abort) => {
             let failed = false;
-            const runtime = {
-                isEnabled: () => true,
-                apiKey: () => this.settings.apiKey.trim(),
-                appLanguage: () => this.settings.language,
-                language: () => toTmdbLanguage(this.settings.language),
-            };
+            const runtime = this.runtime();
             const api = new TmdbApiClient(abort);
             const client = new TmdbMetadataClient(
                 runtime,
@@ -71,12 +108,15 @@ export class TvMetadata {
                 { info?: Record<string, unknown> } | undefined;
             const info = payload?.info ?? item.raw;
             const query = {
-                title: item.title,
+                title: item.seriesTitle || item.title,
                 originalTitle:
                     typeof info.original_name === 'string'
                         ? info.original_name
                         : undefined,
-                year: extractYear(item.year, item.title),
+                year: extractYear(
+                    item.seriesYear || item.year,
+                    item.seriesTitle || item.title
+                ),
                 // Series provider IDs are not show-level TMDB IDs.
                 tmdbId:
                     item.kind === 'movie'
@@ -84,9 +124,9 @@ export class TvMetadata {
                         : undefined,
             };
             const details =
-                item.kind === 'series'
-                    ? await client.enrichTv(query)
-                    : await client.enrichMovie(query);
+                item.kind === 'movie'
+                    ? await client.enrichMovie(query)
+                    : await client.enrichTv(query);
             if (signal.aborted || abort.aborted || !details)
                 return {
                     item,
@@ -101,9 +141,110 @@ export class TvMetadata {
                     backdrop:
                         artwork(tmdbBackdropUrl(details.backdrop_path)) ??
                         item.backdrop,
-                    description: details.overview?.trim() || item.description,
+                    description:
+                        item.kind === 'episode'
+                            ? item.description || details.overview?.trim()
+                            : details.overview?.trim() || item.description,
+                    metadata: {
+                        tmdbId: details.id,
+                        cast: enrichedCast(
+                            item.kind === 'movie'
+                                ? topCast(details.credits)
+                                : limitCast(
+                                      unifiedTvCast(details as TmdbTvDetails)
+                                  )
+                        ),
+                        authors:
+                            item.kind === 'movie'
+                                ? enrichedDirectors(details.credits)
+                                : enrichedCreators(details as TmdbTvDetails),
+                        authorRole:
+                            item.kind === 'movie' ? 'Directors' : 'Creators',
+                    },
                 },
                 failed,
+            };
+        });
+    }
+
+    async enrichEpisodes(
+        parent: Media,
+        episodes: Media[],
+        season: number,
+        signal: AbortSignal
+    ) {
+        const owned = episodes.filter(
+            (e) => e.parentId === parent.id && e.sourceId === parent.sourceId
+        );
+        if (
+            !this.enabled() ||
+            parent.kind !== 'series' ||
+            !parent.metadata ||
+            !owned.length ||
+            signal.aborted
+        )
+            return { items: episodes, failed: false };
+        return withDeadline(signal, async (abort) => {
+            let failed = false;
+            const number = resolveEnrichmentSeasonNumber({
+                rawTitle: pickSeasonMarkedTitle(
+                    ...[
+                        parent.title,
+                        parent.raw.name,
+                        parent.raw.o_name,
+                        parent.raw.title,
+                    ].filter(
+                        (title): title is string => typeof title === 'string'
+                    )
+                ),
+                providerSeasonNumber: season,
+                providerSeasonCount: new Set(owned.map((e) => e.season ?? 1))
+                    .size,
+            });
+            const payload = await new TmdbSeasonClient(
+                this.runtime(),
+                new TmdbApiClient(abort),
+                this.cache,
+                () => {
+                    failed = true;
+                }
+            ).getSeason(parent.metadata!.tmdbId, number);
+            if (signal.aborted || abort.aborted || !payload)
+                return {
+                    items: episodes,
+                    failed: !signal.aborted && (failed || abort.aborted),
+                };
+            const byNumber = new Map(
+                (payload.episodes ?? []).map((e) => [e.episode_number, e])
+            );
+            return {
+                failed,
+                items: episodes.map((e) => {
+                    const match =
+                        e.parentId === parent.id &&
+                        e.sourceId === parent.sourceId &&
+                        (e.season ?? 1) === season
+                            ? byNumber.get(e.episode ?? -1)
+                            : undefined;
+                    return !match
+                        ? e
+                        : withSeriesContext(
+                              {
+                                  ...e,
+                                  title:
+                                      match.name?.trim() &&
+                                      isGenericEpisodeTitle(e.title)
+                                          ? match.name
+                                          : e.title,
+                                  description:
+                                      match.overview?.trim() || e.description,
+                                  episodeStill:
+                                      artwork(tmdbStillUrl(match.still_path)) ||
+                                      e.episodeStill,
+                              },
+                              parent
+                          );
+                }),
             };
         });
     }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import {
     Kind,
     CatalogSortPreferences,
@@ -64,7 +64,7 @@ export function useContent(
         setError(
             'The request failed. Check your source and backend, then retry.'
         );
-    useEffect(() => {
+    useLayoutEffect(() => {
         const client = provider.current;
         const lane = browse.current;
         const job = lane.start();
@@ -196,6 +196,8 @@ export function useContent(
     );
     return {
         ...catalog,
+        finishFocus,
+        cancelBrowse: () => browse.current.cancel(),
         home,
         episodes,
         epg,

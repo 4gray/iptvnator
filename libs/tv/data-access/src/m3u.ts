@@ -3,6 +3,7 @@ import {
     Catalog,
     CatalogSort,
     sortCatalog,
+    catalogTitleMatcher,
     Kind,
     Media,
     Source,
@@ -65,10 +66,10 @@ export class M3uProvider implements ProviderClient {
         const categories = Array.from(
             new Set(all.map((i) => i.category ?? '').filter(Boolean))
         ).map((id) => ({ id, name: id }));
+        const matchesTitle = catalogTitleMatcher(query);
         const items = all.filter(
             (i) =>
-                (!category || i.category === category) &&
-                i.title.toLowerCase().includes(query.toLowerCase())
+                (!category || i.category === category) && matchesTitle(i.title)
         );
         return {
             items: sortCatalog(

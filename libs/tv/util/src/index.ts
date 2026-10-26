@@ -35,6 +35,8 @@ export interface Media {
     title: string;
     addedAt?: number;
     poster?: string;
+    /** Episode landscape still, independent of its series cover. */
+    episodeStill?: string;
     backdrop?: string;
     description?: string;
     category?: string;
@@ -42,6 +44,26 @@ export interface Media {
     season?: number;
     episode?: number;
     parentId?: string;
+    /** Parent editorial context is independent of episode identity and playback. */
+    seriesTitle?: string;
+    seriesYear?: string;
+    /** Exact parent for Home details; excludes cached episode lists. */
+    parentSeries?: Media;
+    metadata?: {
+        tmdbId: number;
+        cast: {
+            name: string;
+            character?: string;
+            profileUrl: string | null;
+            tmdbPersonId?: number;
+        }[];
+        authors: {
+            name: string;
+            profileUrl: string | null;
+            tmdbPersonId?: number;
+        }[];
+        authorRole: 'Creators' | 'Directors';
+    };
     raw: Record<string, unknown>;
 }
 export interface Category {
@@ -70,6 +92,8 @@ export interface ProviderClient {
         live: boolean;
         movies: boolean;
         series: boolean;
+        /** Stalker may also expose series inside its VOD catalog. */
+        vodSeries?: boolean;
         epg: boolean;
     };
     connect(signal: AbortSignal): Promise<Source>;
@@ -154,6 +178,10 @@ export const text = (value: unknown) => (value == null ? '' : String(value));
 /** Owns a single lane. Superseded requests cannot publish even if transport ignores abort. */
 export class LatestRequest {
     private current?: AbortController;
+    /** Read-only identity of the current request, cleared on cancellation. */
+    get signal() {
+        return this.current?.signal;
+    }
     start() {
         this.current?.abort();
         return (this.current = new AbortController());
@@ -211,7 +239,9 @@ export { parseSourceDraft, type SourceDraft } from './source-draft';
 export * from './settings-draft';
 
 export * from './catalog-sort';
+export * from './catalog-query';
 export { continueWatching } from './continue-watching';
+export * from './series-context';
 export * from './programme-guide';
 
 export * from './grid-guide';

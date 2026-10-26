@@ -109,7 +109,7 @@ test('@tmdb opt-in, key validation, language and relaunch preserve provider iden
         .fill('eyJ.fake-tv-read-token');
     await page.getByRole('button', { name: 'Check TMDB key' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toHaveText(
-        'TMDB key is valid.'
+        'TMDB key is valid. Save your changes to use this key and language.'
     );
     const bearer = requests.find(
         (request) => request.authorization === 'Bearer eyJ.fake-tv-read-token'
