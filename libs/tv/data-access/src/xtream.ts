@@ -202,14 +202,16 @@ export class XtreamProvider implements ProviderClient {
         }
         if (!source)
             throw new Error(
-                'This movie has no complete stream ID and file extension.'
+                'This movie has no complete stream ID and file extension or direct address.'
             );
         return {
-            url: this.client.stream(
-                'movie',
-                source.streamId,
-                source.containerExtension
-            ),
+            url:
+                source.directSource ??
+                this.client.stream(
+                    'movie',
+                    source.streamId,
+                    source.containerExtension
+                ),
         };
     }
     dispose() {

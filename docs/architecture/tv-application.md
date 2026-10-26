@@ -40,7 +40,9 @@ is an explicit credential destination; use one you control. No API response,
 credential, portal URL or resolved stream URL is logged by the TV application.
 
 Xtream retains URL normalization, account status, complete VOD stream-ID and
-extension candidates, Unicode/base64 EPG and panel timezone conversion. EPG
+extension or explicit HTTP(S) direct-address candidates, Unicode/base64 EPG and
+panel timezone conversion. Direct addresses from loaded details, catalog rows or
+fresh detail responses are used without constructing a provider path. EPG
 normalization is extracted from `XtreamApiService`, whose existing API remains
 available. Provider stream paths retain source/type identity; local row IDs are
 never sent as Xtream IDs.
