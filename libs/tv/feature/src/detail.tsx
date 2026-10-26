@@ -1,4 +1,3 @@
-import { useState } from 'preact/hooks';
 import { Empty, VirtualCollection } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 import { TvMetadata } from '@iptvnator/tv/data-access';
@@ -8,11 +7,14 @@ import { useEpisodeMetadata } from './use-episode-metadata';
 export function Detail({
     tv,
     metadataClient,
+    season,
+    selectSeason,
 }: {
     tv: TvModel;
     metadataClient: TvMetadata;
+    season?: number;
+    selectSeason: (season: number) => void;
 }) {
-    const [season, setSeason] = useState<number>();
     const item = tv.selected ?? tv.route.item;
     const seasons = Array.from(
         new Set(tv.episodes.map((e) => e.season ?? 1))
@@ -100,7 +102,7 @@ export function Detail({
                                 aria-label="Season"
                                 value={currentSeason}
                                 onChange={(e) => {
-                                    setSeason(Number(e.currentTarget.value));
+                                    selectSeason(Number(e.currentTarget.value));
                                 }}
                             >
                                 {seasons.map((s) => (

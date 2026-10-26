@@ -12,6 +12,7 @@ import { Settings } from './settings';
 import type { SettingsMemory } from './settings-navigation';
 import { Home, CatalogScreen } from './screens';
 import { Detail } from './detail';
+import { useDetailSeason } from './use-detail-season';
 import { Live } from './live';
 import { Backdrop, TvIcon } from '@iptvnator/tv/ui';
 import { useMetadata } from './use-metadata';
@@ -40,6 +41,7 @@ export function TvApp() {
     });
     const video = useRef<HTMLVideoElement>(null);
     const tv = useTv(video);
+    const detailSeason = useDetailSeason(tv.route);
     useLuma(tv);
     const seriesDetails = useSeriesDetails(tv);
     useSeriesContext(tv);
@@ -231,6 +233,8 @@ export function TvApp() {
                         key={r.item?.id}
                         tv={display}
                         metadataClient={metadata.client}
+                        season={detailSeason.season}
+                        selectSeason={detailSeason.select}
                     />
                 ) : (
                     <CatalogScreen tv={tv} />

@@ -262,15 +262,18 @@ for (const provider of ['xtream', 'stalker'] as const) {
         const actor = page.getByRole('button', {
             name: 'View filmography: Fixture Actor',
         });
-        const geometry = await actor
-            .locator('.person-avatar')
-            .evaluate((el) => ({
-                width: el.clientWidth,
-                height: el.clientHeight,
-                radius: getComputedStyle(el).borderRadius,
-            }));
-        expect(geometry.width).toBe(geometry.height);
-        expect(geometry.radius).toBe('50%');
+        const avatar = actor.locator('.person-avatar');
+        await expect(avatar).toHaveCSS('border-radius', '50%');
+        await expect
+            .poll(() =>
+                avatar.evaluate(
+                    (el) =>
+                        el.isConnected &&
+                        el.clientWidth > 0 &&
+                        el.clientWidth === el.clientHeight
+                )
+            )
+            .toBe(true);
         await page.screenshot({
             path: testInfo.outputPath(`${provider}-people.png`),
         });
@@ -594,4 +597,96 @@ test('@tmdb-person complete filmography keeps virtualized card focus and scroll 
             )
         )
         .toBeLessThan(8);
+});
+
+test('@tmdb-person series keeps its selected season after visiting a person and resets for a fresh detail visit', async ({
+    page,
+}) => {
+    await setup(page, 'xtream');
+    await page.route('**/xtream?**', async (route) => {
+        if (
+            new URL(route.request().url()).searchParams.get('action') !==
+            'get_series_info'
+        )
+            return route.fallback();
+        const response = await route.fetch();
+        const body = await response.json();
+        const first = (
+            Object.values(body.payload.episodes)[0] as Record<string, unknown>[]
+        )[0];
+        body.payload.episodes = {
+            '1': [
+                {
+                    ...first,
+                    id: 'season-memory-1',
+                    season: 1,
+                    episode_num: 1,
+                    title: 'First season episode',
+                },
+            ],
+            '2': [
+                {
+                    ...first,
+                    id: 'season-memory-2',
+                    season: 2,
+                    episode_num: 1,
+                    title: 'Second season episode',
+                },
+            ],
+        };
+        await route.fulfill({ response, json: body });
+    });
+    await nav(page, 'Series');
+    const title = await page.locator('.poster-card strong').first().innerText();
+    const year =
+        (await page.locator('.poster-card .muted').first().innerText()).match(
+            /(?:19|20)\d{2}/
+        )?.[0] ?? '2020';
+    await page.route('https://api.themoviedb.org/3/**', (route) => {
+        const url = new URL(route.request().url());
+        if (url.pathname.includes('/person/')) return route.fallback();
+        return route.fulfill({
+            json: url.pathname.includes('/search/')
+                ? {
+                      results: [
+                          {
+                              id: 701,
+                              name: title,
+                              first_air_date: `${year}-01-01`,
+                          },
+                      ],
+                  }
+                : url.pathname.includes('/season/')
+                  ? { episodes: [] }
+                  : {
+                        id: 701,
+                        name: title,
+                        first_air_date: `${year}-01-01`,
+                        credits: {
+                            cast: [{ id: 10, name: 'Fixture Actor' }],
+                            crew: [],
+                        },
+                    },
+        });
+    });
+    await page.locator('.poster-card').first().click();
+    await page.getByLabel('Season', { exact: true }).selectOption('2');
+    await expect(page.locator('.episode strong')).toHaveText(
+        'Second season episode'
+    );
+    await page
+        .getByRole('button', { name: 'View filmography: Fixture Actor' })
+        .click();
+    await expect(page.locator('.person-page h1')).toHaveText('Fixture Actor');
+    await page.keyboard.press('Escape');
+    await expect(page.getByLabel('Season', { exact: true })).toHaveValue('2');
+    await expect(page.locator('.episode strong')).toHaveText(
+        'Second season episode'
+    );
+    await page.keyboard.press('Escape');
+    await page.locator('.poster-card').first().click();
+    await expect(page.getByLabel('Season', { exact: true })).toHaveValue('1');
+    await expect(page.locator('.episode strong')).toHaveText(
+        'First season episode'
+    );
 });

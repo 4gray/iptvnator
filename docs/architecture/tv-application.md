@@ -551,6 +551,8 @@ catalog is unsupported. Without a complete match, errors, repeated pages, the
 retry. Cancellation, source changes and navigation discard obsolete
 results. Person/detail Back preserves card focus and scroll position. Filmography
 cards reserve two subtitle lines to keep virtual row heights and scroll coordinates stable.
+The selected series season belongs to its detail-route visit: person-page Back
+restores it, while opening a fresh detail visit starts at the first available season.
 Back cancels pending detail browsing before restoring its previous route. Route
 commits also cancel browsing during layout cleanup, so a late detail response
 cannot consume the pending person-card focus before its filmography loads.

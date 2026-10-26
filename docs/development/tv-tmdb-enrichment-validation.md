@@ -595,3 +595,42 @@ renewed local-review cycle; the exact reviewed SHA/verdict is recorded in the PR
 The maintainer explicitly accepts opening the first suitable provider version,
 so that earlier requested behavior is not a publication blocker; the completed
 version chooser remains available.
+
+### Person-page Back retains the selected series season
+
+The following review of `1f074f672` reproduces Season 2 returning as Season 1
+after visiting a cast member. Detail's component-local state is lost when the
+person page replaces it. A regression fails before the fix at that exact value
+assertion. A small app-owned WeakMap now associates the selected season with its
+detail-route object; returning to that history entry restores the selection,
+while a fresh visit starts at the first available season. Abandoned entries are
+not retained, and no persisted user data or playback identity changes.
+
+The review also reproduces an avatar-test race: metadata replaces credits between
+locating and measuring the avatar, so a detached element reports an empty radius.
+Locator CSS assertions now retry, and polled geometry requires a connected,
+positive-sized square. Both provider avatar flows pass five repetitions each
+(**10/10**) after the correction. The season restoration/fresh-visit regression
+and both regular provider person flows pass (**3/3**).
+
+The maintainer has explicitly authorized fixing and continuing review through
+PR creation and merge. These two findings are fixed for the next committed-branch
+review. TV unit tests (**113**), nine affected lint targets, three TV type programs,
+**168 release notes** and guidance validation pass again. The canonical TV contract
+and existing navigation release note describe season restoration.
+
+The rebuilt 0.1.25 package and archived JavaScript pass the compatibility audits;
+these fingerprints supersede the earlier, undeployed 0.1.25 build:
+
+- IPK: `ced19e32703a2c79968cb1811331aabad025720bdebefebacbf5f6e2d4ee0cbd`.
+- Archived `index-DYfb_LDj.js`: `e002c707dcd5e3cd9c2c7df42f8bd3dd1225530110013c2f776b096a3beb0a05`.
+
+Root SSH still times out, so hardware evidence remains scoped to 0.1.24.
+
+The final-code full run passes **124/126** scenarios; both failures are artwork
+requests receiving HTTP 403 from an unrelated IPv6 listener on `localhost:4321`,
+which collides with the offset-900 mock server bound to IPv4. That listener is
+left untouched. On the established offset-700 ports, both artwork scenarios and
+the season/two-provider people flows pass (**5/5**). Thus all **126 TV scenarios**
+are verified on this code across the full run and the environment-isolated rerun;
+no assertion or application behavior is relaxed for the port collision.
