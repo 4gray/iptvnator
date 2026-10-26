@@ -447,3 +447,27 @@ use public file-level entries to keep deferred code out of bootstrap.
 After those import-boundary changes, mixed-runtime E2E passed all five
 scenarios again, and the production-PWA Chromium run passed all 14 scenarios.
 Release-note validation and the final translation checks pass as well.
+
+### Fifth local review: remaining pre-PR blockers
+
+Reviewed runtime revision: `ca65d2800a0de0a00714efc51180dccb381f9521`.
+Codex completed its fifth round and reproduced two accepted P2 findings:
+
+- [ ] Resolve a browser's temporary `pending:` discovery connection when a
+  recovered backend definitively reports `storage: none`. The current instance
+  assertion rejects before clearing the temporary connection, so the original
+  local library stays inaccessible until the user disconnects manually. A
+  confirmed source-server connection must still retain its current error policy.
+- [ ] During an awaited metadata-only source edit, preserve the newest local
+  parsed M3U payload, count, refresh timestamps and detected EPG sources. Another
+  tab without Web Locks can refresh the channels while the title PATCH is in
+  flight; the current merge retains activity but writes the older parsed snapshot
+  under the newly accepted source revision, preventing polling from repairing it.
+
+Both need regression coverage and another committed-branch review before push.
+The local-review workflow stops after five rounds with findings, so no branch
+push or PR creation has occurred. An explicit exception was requested before
+continuing that review/fix loop. Greptile CLI remains unavailable (exit 127).
+Fifth-round verdict: `/tmp/iptvnator-sync-pr-codex-5.out`; all validation results
+above remain passing for the reviewed runtime revision, but they do not cover
+these newly reproduced cases.
