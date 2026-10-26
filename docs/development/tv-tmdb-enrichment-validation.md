@@ -634,3 +634,37 @@ left untouched. On the established offset-700 ports, both artwork scenarios and
 the season/two-provider people flows pass (**5/5**). Thus all **126 TV scenarios**
 are verified on this code across the full run and the environment-isolated rerun;
 no assertion or application behavior is relaxed for the port collision.
+
+### Retained series-details retries cannot cross sources
+
+Review of `978f335bc` identifies a saved retry closure that still references the
+previous source after a source switch. The browser regression reproduces the
+blank main view: a fullscreen series-details save fails, the user switches to
+another source, and the retained Retry invokes the old source's navigation.
+
+Retry now delegates through the current render's handler, and the owned notice
+is retired when its route, source or client changes. Only the series-details
+notice is cleared. A successful same-source retry carries the original focus/
+scroll snapshot through the newer handler, preserving the initiating hero button.
+The regression first verifies that valid retry/Back behavior, then triggers an
+already-retained old click after changing sources and asserts the new Home remains
+visible, with no old detail route or error. It fails before the fix and passes
+after; the Xtream/Stalker successful transitions and held-lookup cancellation
+also pass (**4/4 focused scenarios**).
+
+TV unit tests (**113**), nine affected lint targets, three TV type programs,
+**168 release notes** and guidance validation pass. The existing navigation note
+and canonical TV contract now include retry ownership. Shared TMDB/Angular code
+is unchanged; its integrated 94/101-test evidence and coverage remain applicable.
+
+The final retry fix rebuilds the still-undeployed prototype 0.1.25. Its archived
+JavaScript passes the ES2018/unsupported-builtin audit, superseding the previous
+0.1.25 package fingerprints:
+
+- IPK: `b2ac0112b09c694e384d85c576a7a5fb5b3df504fd150f1fab3e854f126a9782`.
+- Archived `index-8zyFNvT_.js`: `a94e6cdfa1e084dbf75a197cbacb3b2bbcd6a1fc6bdae08409d76c27a616c125`.
+
+The complete final-code TV run on offset-700 ports passes **127/127 scenarios**
+in 3m49s. It includes the retained-retry regression, season restoration and all
+artwork checks in one run. The committed fixes enter the next local review;
+the exact reviewed/tested SHA and verdict are recorded in the PR description.

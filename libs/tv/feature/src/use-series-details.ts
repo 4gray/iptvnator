@@ -7,15 +7,19 @@ import {
     seriesForEpisode,
 } from '@iptvnator/tv/util';
 import { restoreFocus } from '@iptvnator/tv/ui';
-import { navigationOrigin } from './use-route-history';
+import { navigationOrigin, type NavigationOrigin } from './use-route-history';
 import type { TvModel } from './use-tv';
 
 export function useSeriesDetails(tv: TvModel) {
     const lane = useRef(new LatestRequest());
     const playerLookup = useRef<AbortController>();
+    const retryOpen = useRef(open);
+    retryOpen.current = open;
     const [busy, setBusy] = useState(false);
     useLayoutEffect(() => {
         setBusy(false);
+        // Obsolete notices must not retain a retry from a previous route/source.
+        if (tv.errorRetryLabel === 'Retry series details') tv.setError('');
         return () => {
             lane.current.cancel();
             playerLookup.current = undefined;
@@ -28,21 +32,23 @@ export function useSeriesDetails(tv: TvModel) {
             setBusy(false);
         }
     }, [tv.fullscreen, tv.playing?.id]);
-    async function open(episode: Media) {
+    async function open(episode: Media, retryOrigin?: NavigationOrigin) {
         if (episode.sourceId !== tv.data.activeId || episode.kind !== 'episode')
             return;
         const job = lane.current.start();
         playerLookup.current = tv.fullscreen ? job : undefined;
-        const origin = tv.fullscreen
-            ? {
-                  ...tv.playbackOrigin,
-                  focus: tv.playbackOrigin.focus || episode.id,
-              }
-            : navigationOrigin();
+        const origin =
+            retryOrigin ??
+            (tv.fullscreen
+                ? {
+                      ...tv.playbackOrigin,
+                      focus: tv.playbackOrigin.focus || episode.id,
+                  }
+                : navigationOrigin());
         const report = () =>
             tv.setError(
                 'Could not find the series details. You can still continue this episode.',
-                () => void open(episode),
+                () => void retryOpen.current(episode, origin),
                 'Retry series details'
             );
         const timer = setTimeout(() => {

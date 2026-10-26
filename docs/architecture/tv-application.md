@@ -479,8 +479,11 @@ are bounded to 20 pages per catalog and 15 seconds, preserve playback data,
 and offer an explicit retry through Details when recovery is unavailable.
 Fullscreen episode playback also has Series details: it saves/stops playback and
 opens the parent episode list. Exiting fullscreen cancels a pending parent lookup;
-its late response cannot navigate away from Home. Playback captures its actual initiating control
-and main scroll position before resolution; returning from series details restores
+its late response cannot navigate away from Home.
+Series-details retries use the current provider and retire with their route/source;
+a successful retry retains the original navigation focus and scroll.
+Playback captures its actual initiating control and main scroll position before
+resolution; returning from series details restores
 the hero Continue watching button or resume card that started it.
 Selection survives detail/player Back; source changes and relaunch start at the
 latest unfinished title. With no unfinished history, the first catalog movie

@@ -390,3 +390,80 @@ test('leaving fullscreen cancels a held historical series details lookup', async
         release();
     }
 });
+
+test('a retained series-details retry cannot reopen the previous source', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'xtream');
+    await watch(page, 13, true);
+    await addSource(page, 'm3u');
+    await nav(page, 'Home');
+    const sources = page.getByLabel('Active source', { exact: true });
+    const firstSource = await sources
+        .locator('option')
+        .filter({ hasText: 'TV xtream' })
+        .getAttribute('value');
+    const nextSource = await sources
+        .locator('option')
+        .filter({ hasText: 'TV m3u' })
+        .getAttribute('value');
+    await sources.selectOption(firstSource!);
+    await expect(page.locator('[data-focus="hero-resume"]')).toBeVisible();
+    await expect(page.locator('.loading')).toBeHidden();
+    const retry = page.getByRole('button', {
+        name: 'Retry series details',
+        exact: true,
+    });
+    async function failDetails() {
+        await page.locator('[data-focus="hero-resume"]').click();
+        await expect(
+            page.locator('[data-focus="player-series-details"]')
+        ).toBeVisible();
+        await page.evaluate(() => {
+            const original = IDBObjectStore.prototype.put;
+            window.addEventListener(
+                'release-fixture-quota',
+                () => {
+                    IDBObjectStore.prototype.put = original;
+                },
+                { once: true }
+            );
+            IDBObjectStore.prototype.put = function () {
+                throw new DOMException('Fixture quota', 'QuotaExceededError');
+            };
+        });
+        await page.locator('[data-focus="player-series-details"]').click();
+        await expect(retry).toBeVisible();
+        await page.evaluate(() =>
+            window.dispatchEvent(new Event('release-fixture-quota'))
+        );
+    }
+    await failDetails();
+    await retry.click();
+    await expect(
+        page.getByRole('heading', { name: 'Episodes', exact: true })
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-focus="hero-resume"]')).toBeFocused();
+    await failDetails();
+    const retained = await retry.elementHandle();
+    await sources.selectOption(nextSource!);
+    await expect(page.locator('.loading')).toBeHidden();
+    await expect(page.locator('.hero')).toBeVisible();
+    // An already queued click remains harmless after its original notice is retired.
+    await retained!.evaluate((button: HTMLButtonElement) => button.click());
+    await page.evaluate(
+        () =>
+            new Promise<void>((resolve) =>
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => resolve())
+                )
+            )
+    );
+    await expect(sources).toHaveValue(nextSource!);
+    await expect(page.locator('.hero')).toBeVisible();
+    await expect(page.locator('.detail-hero')).toHaveCount(0);
+    await expect(retry).toHaveCount(0);
+    await expect(page.locator('.error')).toBeHidden();
+});
