@@ -24,12 +24,14 @@ import { requestSourceServer } from './source-api';
 import {
     assertSourceInstance,
     sourceConnection,
+    sourceConnectionReadFailed,
     sourceProfileName,
     saveBrowserSourceConnection,
     tokenKey,
 } from './source-connection';
 import { SyncedPlaylistStore } from './synced-playlist-store';
 import { materializeSource } from './source-materializer';
+import { migrateLegacyPlaylistActivity } from './legacy-playlist-activity';
 
 @Injectable({ providedIn: 'root' })
 export class SourceSyncService {
@@ -43,6 +45,7 @@ export class SourceSyncService {
     private readonly cleanups =
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
     readonly connection = sourceConnection();
+    readonly connectionReadFailed = sourceConnectionReadFailed();
     readonly state = signal<
         'local' | 'connecting' | 'connected' | 'offline' | 'locked' | 'conflict'
     >('local');
@@ -65,10 +68,13 @@ export class SourceSyncService {
     private refreshing?: Promise<void>;
     private failures = 0;
     private nextPollAt = 0;
+    private browserProfile = false;
+    private metadataDirty = false;
 
     async initialize(): Promise<void> {
         if (!this.connection) return;
         const native = this.backend.localDocumentStore();
+        this.browserProfile = !native;
         const local = native
             ? { ...native }
             : indexedDbDocumentStore(this.db, sourceProfileName());
@@ -169,10 +175,20 @@ export class SourceSyncService {
                         this.nextPollAt = 0;
                         this.state.set('connected');
                         this.lastSync.set(Date.now());
+                        if (this.metadataDirty) {
+                            this.metadataDirty = false;
+                            this.changes.next();
+                        }
                         return;
                     }
                     const entries = (response.body as SourceInventory).entries;
-                    let changed = false;
+                    if (!wasReady && this.browserProfile)
+                        await migrateLegacyPlaylistActivity(
+                            this.store!.local,
+                            this.connection!,
+                            new Set(entries.map((entry) => entry.source.id))
+                        );
+                    let changed = this.metadataDirty;
                     for (const entry of entries) {
                         const current =
                             await this.store!.local.dbGetAppPlaylist(
@@ -215,8 +231,14 @@ export class SourceSyncService {
                     this.nextPollAt = 0;
                     this.state.set('connected');
                     this.lastSync.set(Date.now());
+                    this.metadataDirty = false;
                     if (changed || !wasReady) this.changes.next();
                 } catch (error) {
+                    if (
+                        error instanceof Error &&
+                        error.message === 'SOURCE_SYNC.LOCKED'
+                    )
+                        this.state.set('locked');
                     this.nextPollAt =
                         Date.now() +
                         Math.min(120000, 15000 * 2 ** this.failures++);
@@ -282,8 +304,10 @@ export class SourceSyncService {
                 );
                 throw new Error(`SOURCE_SYNC.${key}`);
             }
-            if (!['instance', 'list', 'get'].includes(request.operation))
+            if (!['instance', 'list', 'get'].includes(request.operation)) {
+                this.metadataDirty = true;
                 queueMicrotask(() => void this.refresh());
+            }
             return response;
         } catch (error) {
             const key =

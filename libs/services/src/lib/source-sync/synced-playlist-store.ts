@@ -1,14 +1,22 @@
 import {
-    applySourceDefinition,
-    sameSource,
-    sourceFromPlaylist,
     type Playlist,
     type SourceDefinition,
     type SourceServerRequest,
     type SourceServerResponse,
 } from '@iptvnator/shared/interfaces';
+import {
+    applySourceDefinition,
+    sameSource,
+    sourceFromPlaylist,
+} from '@iptvnator/shared/interfaces/source-definition';
 import type { PlaylistDocumentStore } from '../playlist-storage-backend';
 import { retainSourceProjection } from './retain-source-projection';
+import {
+    snapshotSourceRow,
+    assertSourceRowUnchanged,
+    stripSourceRowSnapshot,
+    preserveUnchangedDeviceFields,
+} from './source-row-snapshot';
 
 export type SourceRequest = (
     request: SourceServerRequest
@@ -77,7 +85,10 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
             delete meta.sourceRawM3u;
             return meta;
         });
-    dbGetAppPlaylist = (id: string) => this.local.dbGetAppPlaylist(id);
+    dbGetAppPlaylist = async (id: string) => {
+        const row = await this.local.dbGetAppPlaylist(id);
+        return row ? snapshotSourceRow(row) : null;
+    };
     dbGetAppState = (key: string) => this.local.dbGetAppState(key);
     dbSetAppState = (key: string, value: string) =>
         this.local.dbSetAppState(key, value);
@@ -125,13 +136,23 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 }
             }
             if (!accepted || !revision) throw new Error('SOURCE_SYNC.OFFLINE');
-            let next = applySourceDefinition(accepted, playlist);
+            let next = stripSourceRowSnapshot(
+                applySourceDefinition(accepted, playlist)
+            );
             next.sourceSyncBase = accepted;
             next.sourceSyncRevision = revision;
             // A local mutation based on an older snapshot cannot revert a remote edit.
             const merge = (latest: Playlist | null): Playlist => {
                 if (!latest && playlist.sourceSyncBase)
                     throw new Error('SOURCE_SYNC.CONFLICT');
+                if (baseline && sameSource(source, baseline))
+                    assertSourceRowUnchanged(latest, playlist);
+                else
+                    next = preserveUnchangedDeviceFields(
+                        latest,
+                        playlist,
+                        next
+                    );
                 return latest?.sourceSyncBase &&
                     baseline &&
                     sameSource(source, baseline) &&

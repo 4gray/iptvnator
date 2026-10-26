@@ -2224,6 +2224,7 @@
         }
     },
     "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "無法讀取已儲存的伺服器連線。請檢查瀏覽器儲存空間，或在伺服器設定中重新連線。",
         "TITLE": "伺服器",
         "DESCRIPTION": "透過自行架設的 IPTVnator 伺服器在裝置間共用來源。觀看活動保留在此裝置上。",
         "URL": "伺服器位址",

@@ -3,11 +3,11 @@ import { LazySnackBar } from '../lazy-snack-bar/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import {
-    applySourceDefinition,
     type Playlist,
     type SourceDefinition,
     type SourceServerRequest,
 } from '@iptvnator/shared/interfaces';
+import { applySourceDefinition } from '@iptvnator/shared/interfaces/source-definition';
 import { DataService } from '../data.service';
 import { PLAYLIST_DELETE_CLEANUP } from '../playlist-delete-cleanup.token';
 import { PlaylistStorageBackend } from '../playlist-storage-backend';
@@ -284,6 +284,28 @@ describe('source synchronization lifecycle', () => {
             duration: 7000,
         });
         expect(rows.get('a')?.title).toBe('NAS source');
+    });
+    it('publishes accepted metadata even when its saved revision makes the next inventory projection unnecessary', async () => {
+        inventory = [source];
+        const changed = jest.fn();
+        service.changes.subscribe(changed);
+        await service.initialize();
+        const implementation = request.getMockImplementation()!;
+        request.mockImplementation(async (command: SourceServerRequest) => {
+            if (command.operation === 'update') {
+                inventory = [command.source!];
+                revision = '"accepted"';
+                return { status: 200, body: command.source, etag: revision };
+            }
+            return implementation(command);
+        });
+        await store.dbUpsertAppPlaylist({
+            ...rows.get('a')!,
+            title: 'Updated here',
+        });
+        await service.refresh();
+        expect(rows.get('a')?.sourceSyncBase?.title).toBe('Updated here');
+        expect(changed).toHaveBeenCalledTimes(2);
     });
 
     it('keeps the selected cache isolated when a different NAS database appears at the same URL', async () => {

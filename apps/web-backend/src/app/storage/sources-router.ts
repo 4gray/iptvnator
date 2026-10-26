@@ -1,12 +1,14 @@
 import express, { Router, type Request, type Response } from 'express';
 import {
+    type Playlist,
+    type SourceDefinition,
+} from '@iptvnator/shared/interfaces';
+import {
     applySourceDefinition,
     sourceFromPlaylist,
     sourceFingerprint,
     validateSource,
-    type Playlist,
-    type SourceDefinition,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/source-definition';
 import { matchesEtag } from './etag-match';
 import {
     deleteAllPlaylistsWithState,

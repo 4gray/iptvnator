@@ -2224,6 +2224,7 @@
         }
     },
     "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "Kayıtlı sunucu bağlantısı kullanılamıyor. Tarayıcı depolamasını kontrol edin veya Sunucu ayarlarından yeniden bağlanın.",
         "TITLE": "Sunucu",
         "DESCRIPTION": "Kendi IPTVnator sunucunuzla kaynakları cihazlar arasında paylaşın. İzleme etkinliği bu cihazda kalır.",
         "URL": "Sunucu adresi",

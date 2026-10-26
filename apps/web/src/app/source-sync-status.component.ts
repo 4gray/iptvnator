@@ -1,122 +1,53 @@
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
-    ChangeDetectionStrategy,
-    Component,
-    inject,
-    signal,
-} from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { TranslateModule } from '@ngx-translate/core';
-import {
-    SourceSyncService,
-    tokenKey,
-    disconnectBrowserSourceConnection,
-} from '@iptvnator/services/source-sync';
+    sourceConnection,
+    sourceConnectionReadFailed,
+} from '@iptvnator/services/source-sync/connection';
+import { SourceSyncStatusViewComponent } from './source-sync-status-view.component';
 
-/** Available even when a first inventory read prevents workspace startup. */
+/** Keep server controls and Material off the standalone startup path. */
 @Component({
     selector: 'app-source-sync-status',
-    imports: [FormsModule, MatButtonModule, TranslateModule],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [SourceSyncStatusViewComponent, TranslatePipe],
     template: `
-        @if (sync.connection && sync.state() !== 'connected') {
-            <section
-                role="status"
-                class="server-status"
-                data-test-id="source-sync-status"
-            >
-                <span>{{
-                    sync.errorKey() || sync.stateKey() | translate
-                }}</span>
-                @if (sync.state() === 'locked') {
-                    <label
-                        >{{ 'SOURCE_SYNC.TOKEN' | translate }}
-                        <input
-                            type="password"
-                            autocomplete="off"
-                            [(ngModel)]="token"
-                        />
-                    </label>
-                }
-                <button
-                    mat-stroked-button
-                    type="button"
-                    [disabled]="busy()"
-                    (click)="retry()"
-                >
-                    {{ 'SOURCE_SYNC.REFRESH' | translate }}
-                </button>
-                <button
-                    mat-button
-                    type="button"
-                    [disabled]="busy()"
-                    (click)="disconnect()"
-                >
-                    {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
-                </button>
-            </section>
+        @defer (when available) {
+            <app-source-sync-status-view />
+        } @error {
+            @if (available) {
+                <section role="alert">
+                    <span>{{
+                        'SOURCE_SYNC.CONNECTION_RECOVERY' | translate
+                    }}</span>
+                    <button type="button" (click)="openSettings()">
+                        {{ 'SOURCE_SYNC.TITLE' | translate }}
+                    </button>
+                </section>
+            }
         }
     `,
-    styles: [
-        `
-            .server-status {
-                position: relative;
-                z-index: 20;
-                display: flex;
-                flex-wrap: wrap;
-                align-items: center;
-                gap: 12px;
-                padding: 12px 20px;
-                color: var(--app-on-surface);
-                background: var(--app-widget-bg);
-            }
-            button,
-            input {
-                app-region: no-drag;
-            }
-            input {
-                color: var(--app-on-surface);
-                background: var(--app-content-bg);
-            }
-        `,
-    ],
+    styles: `
+        section {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: var(--app-on-surface);
+            background: var(--app-widget-bg);
+        }
+        button {
+            app-region: no-drag;
+        }
+    `,
 })
 export class SourceSyncStatusComponent {
-    readonly sync = inject(SourceSyncService);
-    readonly busy = signal(false);
-    token = '';
+    readonly available = !!sourceConnection() || sourceConnectionReadFailed();
+    private readonly router = inject(Router);
 
-    async retry(): Promise<void> {
-        this.busy.set(true);
-        try {
-            if (this.token && this.sync.connection) {
-                if (window.electron?.sourceSyncConfigure)
-                    await window.electron.sourceSyncConfigure(
-                        this.sync.connection.apiUrl,
-                        this.token,
-                        false
-                    );
-                else
-                    sessionStorage.setItem(
-                        tokenKey(this.sync.connection.apiUrl),
-                        this.token
-                    );
-            }
-            await this.sync.refresh();
-        } catch {
-            this.sync.state.set('locked');
-        } finally {
-            this.token = '';
-            this.busy.set(false);
-        }
-    }
-
-    async disconnect(): Promise<void> {
-        if (window.electron?.sourceSyncDisconnect)
-            await window.electron.sourceSyncDisconnect();
-        else {
-            disconnectBrowserSourceConnection();
-            location.reload();
-        }
+    openSettings(): void {
+        void this.router.navigateByUrl('/workspace/settings/server');
     }
 }

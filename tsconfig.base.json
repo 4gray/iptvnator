@@ -144,10 +144,26 @@
             "@iptvnator/services/source-sync": [
                 "libs/services/src/lib/source-sync/index.ts"
             ],
-            "@iptvnator/services/pwa-xtream-backup-storage": ["libs/services/src/lib/pwa-xtream-backup-storage.ts"],
-            "@iptvnator/services/server-storage": ["libs/services/src/lib/server-storage/index.ts"],
+            "@iptvnator/services/source-sync/connection": [
+                "libs/services/src/lib/source-sync/source-connection.ts"
+            ],
+            "@iptvnator/services/source-sync/profile-user-data": [
+                "libs/services/src/lib/source-sync/source-profile-user-data.ts"
+            ],
+            "@iptvnator/services/pwa-xtream-backup-storage": [
+                "libs/services/src/lib/pwa-xtream-backup-storage.ts"
+            ],
+            "@iptvnator/services/server-storage": [
+                "libs/services/src/lib/server-storage/index.ts"
+            ],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
+            ],
+            "@iptvnator/shared/interfaces/source-definition": [
+                "libs/shared/interfaces/src/lib/source-definition.util.ts"
+            ],
+            "@iptvnator/shared/interfaces/provider-import": [
+                "libs/shared/interfaces/src/lib/provider-import-detection.util.ts"
             ],
             "@iptvnator/shared/interfaces/xtream-restore-state": [
                 "libs/shared/interfaces/src/lib/xtream-restore-state.util.ts"
@@ -187,18 +203,10 @@
             "@iptvnator/shared/marketing-fixtures": [
                 "./libs/shared/marketing-fixtures/src/index.ts"
             ],
-            "@iptvnator/tv/util": [
-                "libs/tv/util/src/index.ts"
-            ],
-            "@iptvnator/tv/data-access": [
-                "libs/tv/data-access/src/index.ts"
-            ],
-            "@iptvnator/tv/ui": [
-                "libs/tv/ui/src/index.ts"
-            ],
-            "@iptvnator/tv/feature": [
-                "libs/tv/feature/src/index.ts"
-            ],
+            "@iptvnator/tv/util": ["libs/tv/util/src/index.ts"],
+            "@iptvnator/tv/data-access": ["libs/tv/data-access/src/index.ts"],
+            "@iptvnator/tv/ui": ["libs/tv/ui/src/index.ts"],
+            "@iptvnator/tv/feature": ["libs/tv/feature/src/index.ts"],
             "@iptvnator/portal/xtream/client": [
                 "libs/portal/xtream/data-access/src/client.ts"
             ],

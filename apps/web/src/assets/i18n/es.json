@@ -2224,6 +2224,7 @@
         }
     },
     "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "La conexión guardada no está disponible. Revisa el almacenamiento del navegador o vuelve a conectarte en los ajustes del servidor.",
         "TITLE": "Servidor",
         "DESCRIPTION": "Comparte las fuentes de tu servidor IPTVnator entre dispositivos. La actividad de reproducción permanece en este dispositivo.",
         "URL": "Dirección del servidor",

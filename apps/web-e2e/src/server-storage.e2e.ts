@@ -133,6 +133,132 @@ test.describe('server storage @self-hosted @persistence', () => {
         await second.context().close();
     });
 
+    test('adopts legacy M3U and Stalker activity once for an established browser', async ({
+        browser,
+        request,
+    }) => {
+        const page = await newServerPage(browser);
+        const m3uId = 'legacy-m3u';
+        const stalkerId = 'legacy-stalker';
+        const stream = 'https://streams.example.test/legacy.ts';
+        const m3u = {
+            _id: m3uId,
+            title: 'Legacy M3U',
+            count: 1,
+            favorites: [stream],
+            recentlyViewed: [
+                {
+                    source: 'm3u',
+                    id: 'channel',
+                    url: stream,
+                    title: 'Legacy channel',
+                    category_id: 'live',
+                    added_at: '2026-10-26',
+                },
+            ],
+            playlist: {
+                header: { raw: '#EXTM3U' },
+                items: [{ id: 'channel', name: 'Legacy channel', url: stream }],
+            },
+        };
+        const stalker = {
+            _id: stalkerId,
+            title: 'Legacy Stalker',
+            portalUrl: 'https://portal.example.test/portal.php',
+            macAddress: '02:00:00:00:00:01',
+            favorites: [
+                {
+                    id: 'movie',
+                    name: 'Legacy movie',
+                    category_id: 'vod',
+                    cmd: 'legacy-command',
+                },
+            ],
+            recentlyViewed: [
+                {
+                    id: 'movie',
+                    name: 'Legacy watched',
+                    category_id: 'vod',
+                    cmd: 'legacy-command',
+                },
+            ],
+            stalkerToken: 'never-copy-this-session',
+        };
+        for (const row of [m3u, stalker])
+            expect(
+                (
+                    await request.put(
+                        `${STORAGE_BACKEND_URL}/v1/playlists/${row._id}`,
+                        { data: row }
+                    )
+                ).ok()
+            ).toBe(true);
+        const instance = await (
+            await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
+        ).json();
+        await page.addInitScript(
+            (id) => localStorage.setItem('iptvnator-server:cache-owner', id),
+            instance.instanceId
+        );
+        const legacyReads: string[] = [];
+        page.on('request', (outgoing) => {
+            if (
+                new URL(outgoing.url()).pathname === '/v1/playlists' &&
+                outgoing.method() === 'GET'
+            )
+                legacyReads.push(outgoing.url());
+        });
+        async function exportActivity() {
+            await page.goto('/workspace/settings/backup');
+            const downloading = page.waitForEvent('download');
+            await page
+                .getByRole('button', { name: 'Export', exact: true })
+                .click();
+            const path = await (await downloading).path();
+            if (!path) throw new Error('Missing local backup');
+            return JSON.parse(await readFile(path, 'utf8'));
+        }
+        try {
+            const first = await exportActivity();
+            const m3uEntry = first.playlists.find(
+                (row: { exportedId: string }) => row.exportedId === m3uId
+            );
+            const stalkerEntry = first.playlists.find(
+                (row: { exportedId: string }) => row.exportedId === stalkerId
+            );
+            expect(m3uEntry.userState).toMatchObject({
+                favorites: [stream],
+                recentlyViewed: [expect.objectContaining({ url: stream })],
+            });
+            expect(stalkerEntry.userState).toMatchObject({
+                favorites: [expect.objectContaining({ name: 'Legacy movie' })],
+                recentlyViewed: [
+                    expect.objectContaining({ name: 'Legacy watched' }),
+                ],
+            });
+            expect(JSON.stringify(first)).not.toContain(
+                'never-copy-this-session'
+            );
+            expect(
+                (
+                    await request.put(
+                        `${STORAGE_BACKEND_URL}/v1/playlists/${m3uId}`,
+                        { data: { ...m3u, favorites: [], recentlyViewed: [] } }
+                    )
+                ).ok()
+            ).toBe(true);
+            const second = await exportActivity();
+            expect(
+                second.playlists.find(
+                    (row: { exportedId: string }) => row.exportedId === m3uId
+                ).userState.favorites
+            ).toEqual([stream]);
+            expect(legacyReads).toHaveLength(1);
+        } finally {
+            await page.context().close();
+        }
+    });
+
     test('keeps the previous instance cache visible and exportable as local activity', async ({
         browser,
         request,

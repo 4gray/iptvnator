@@ -272,6 +272,21 @@ context panel use, out of that barrel for the same reason, and
 22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
 barrel.
 
+`@iptvnator/services/source-sync/connection` and
+`@iptvnator/services/source-sync/profile-user-data` expose the bootstrap helpers
+without the injectable synchronization service. The server initializer loads
+that service through a local dynamic-import wrapper, so standalone startup
+keeps the sync engine and the status panel's Material view off its initial path.
+
+`@iptvnator/shared/interfaces/source-definition` exposes portable source
+conversion/validation to the server adapters and deferred client sync code,
+without re-exporting those functions from the eager interfaces barrel.
+
+`@iptvnator/shared/interfaces/provider-import` keeps provider-message detection
+and its scanners with the lazy auto-import form. The eager interfaces barrel
+re-exports only their types; re-exporting the functions shares their code with
+the initial bundle.
+
 `@iptvnator/services/pwa-xtream-backup-storage` exposes the framework-free browser
 backup persistence implementation without re-exporting it from the eager services
 barrel. The injected backup service wraps it; deferred restore loads it through a

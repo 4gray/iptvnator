@@ -2224,6 +2224,7 @@
         }
     },
     "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "Zapisane połączenie z serwerem jest niedostępne. Sprawdź pamięć przeglądarki lub połącz się ponownie w ustawieniach serwera.",
         "TITLE": "Serwer",
         "DESCRIPTION": "Udostępniaj źródła z własnego serwera IPTVnator między urządzeniami. Aktywność oglądania pozostaje na tym urządzeniu.",
         "URL": "Adres serwera",

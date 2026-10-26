@@ -1,5 +1,5 @@
 import { AppConfig } from '../../environments/environment';
-import { sourceConnection } from '@iptvnator/services/source-sync';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 
 export interface IptvnatorRuntimeConfig {
     readonly BACKEND_URL?: string;

@@ -2224,6 +2224,7 @@
         }
     },
     "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "La connessione salvata non è disponibile. Controlla lo spazio del browser o riconnettiti nelle impostazioni del server.",
         "TITLE": "Server personale",
         "DESCRIPTION": "Condividi le sorgenti del server IPTVnator tra i dispositivi. I dati di riproduzione restano su questo dispositivo.",
         "URL": "Indirizzo del server",

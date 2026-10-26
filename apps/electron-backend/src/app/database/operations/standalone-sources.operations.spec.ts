@@ -9,10 +9,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-    sourceFromPlaylist,
-    type Playlist,
-} from '@iptvnator/shared/interfaces';
+import { type Playlist } from '@iptvnator/shared/interfaces';
+import { sourceFromPlaylist } from '@iptvnator/shared/interfaces/source-definition';
 import { getIptvnatorDataRoot } from '@iptvnator/shared/database/path-utils';
 import { readStandaloneSources } from './standalone-sources.operations';
 

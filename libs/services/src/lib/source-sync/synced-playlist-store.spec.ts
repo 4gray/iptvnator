@@ -1,11 +1,14 @@
 import {
-    applySourceDefinition,
-    sourceFromPlaylist,
     type Playlist,
     type SourceDefinition,
 } from '@iptvnator/shared/interfaces';
+import {
+    applySourceDefinition,
+    sourceFromPlaylist,
+} from '@iptvnator/shared/interfaces/source-definition';
 import type { PlaylistDocumentStore } from '../playlist-storage-backend';
 import { SyncedPlaylistStore } from './synced-playlist-store';
+import { PlaylistWriteConflict } from '../playlist-storage-backend';
 
 const source: SourceDefinition = {
     id: 'a',
@@ -60,6 +63,35 @@ function setup() {
 }
 
 describe('source synchronization with local activity', () => {
+    it('rejects a stale local activity snapshot so the complete mutation can retry on a fresh read', async () => {
+        const { store, rows, local, request } = setup();
+        const other = new SyncedPlaylistStore(
+            local,
+            request,
+            async (source, current) => applySourceDefinition(source, current)
+        );
+        const first = (await store.dbGetAppPlaylist('a'))!;
+        const stale = (await other.dbGetAppPlaylist('a'))!;
+        const recent = {
+            source: 'm3u' as const,
+            id: 'watched',
+            url: 'https://media.test/live',
+            title: 'Watched',
+            category_id: 'live' as const,
+            added_at: '2026-10-26',
+        };
+        await store.dbUpsertAppPlaylist({ ...first, favorites: ['saved'] });
+        await expect(
+            other.dbUpsertAppPlaylist({ ...stale, recentlyViewed: [recent] })
+        ).rejects.toBeInstanceOf(PlaylistWriteConflict);
+        const fresh = (await other.dbGetAppPlaylist('a'))!;
+        await other.dbUpsertAppPlaylist({ ...fresh, recentlyViewed: [recent] });
+        expect(rows.get('a')).toMatchObject({
+            favorites: ['saved'],
+            recentlyViewed: [{ id: 'watched' }],
+        });
+        expect(Object.getOwnPropertySymbols(rows.get('a')!)).toHaveLength(0);
+    });
     it("atomically preserves another tab's activity during materialization without Web Locks", async () => {
         const { rows, local, request } = setup();
         const atomic = {

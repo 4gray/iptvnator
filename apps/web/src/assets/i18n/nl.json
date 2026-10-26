@@ -2224,6 +2224,7 @@
         }
     },
     "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "De opgeslagen serververbinding is niet beschikbaar. Controleer de browseropslag of maak opnieuw verbinding via de serverinstellingen.",
         "TITLE": "Eigen server",
         "DESCRIPTION": "Deel bronnen op uw IPTVnator-server tussen apparaten. Kijkactiviteit blijft op dit apparaat.",
         "URL": "Serveradres",

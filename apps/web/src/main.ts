@@ -3,7 +3,7 @@ import { resolveRestoredRendererRoute } from '@iptvnator/shared/interfaces';
 import { registerAppDateLocale } from './app/app-date-locales';
 import { AppComponent } from './app/app.component';
 import { appConfig, getInitialLanguage } from './app/app.config';
-import { prepareSourceConnection } from '@iptvnator/services/source-sync';
+import { prepareSourceConnection } from '@iptvnator/services/source-sync/connection';
 
 // A reloaded packaged renderer arrives on index.html with the route it was
 // on carried in the query string (the Electron main process recovers the

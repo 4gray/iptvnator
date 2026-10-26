@@ -2224,6 +2224,7 @@
         }
     },
     "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "Die gespeicherte Serververbindung ist nicht verfügbar. Prüfe den Browser-Speicher oder verbinde dich in den Server-Einstellungen erneut.",
         "TITLE": "Eigener Server",
         "DESCRIPTION": "Gemeinsame Quellen auf Ihrem IPTVnator-Server für alle Geräte. Wiedergabedaten bleiben auf diesem Gerät.",
         "URL": "Serveradresse",

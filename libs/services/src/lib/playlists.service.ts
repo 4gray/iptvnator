@@ -51,6 +51,8 @@ import {
     PlaylistWriteConflict,
 } from './playlist-storage-backend';
 
+import { inheritSourceRowSnapshot } from './source-sync/source-row-snapshot';
+
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
     'm3u-playlists-stalker-metadata-v1';
@@ -392,13 +394,18 @@ export class PlaylistsService {
             }
 
             this.startupMetas = null;
-            let saved: Awaited<ReturnType<PlaylistDocumentStore['dbUpsertAppPlaylist']>>;
+            let saved: Awaited<
+                ReturnType<PlaylistDocumentStore['dbUpsertAppPlaylist']>
+            >;
             if (operationId === undefined) {
                 saved = await store.dbUpsertAppPlaylist(playlist);
             } else {
                 saved = await store.dbUpsertAppPlaylist(playlist, operationId);
             }
-            this.healthEvidence?.connections.next({ id: playlist._id, playlist });
+            this.healthEvidence?.connections.next({
+                id: playlist._id,
+                playlist,
+            });
             return saved?.playlist ?? playlist;
         });
     }
@@ -668,7 +675,7 @@ export class PlaylistsService {
                 currentPlaylist?.disabledEpgUrls,
         });
 
-        return {
+        return inheritSourceRowSnapshot(currentPlaylist, {
             ...currentPlaylist,
             ...updatedPlaylist,
             _id: playlistId,
@@ -691,7 +698,7 @@ export class PlaylistsService {
             disabledEpgUrls: epgSourceState.disabledEpgUrls,
             autoRefresh:
                 currentPlaylist?.autoRefresh ?? updatedPlaylist.autoRefresh,
-        };
+        });
     }
 
     updatePlaylist(
@@ -800,8 +807,12 @@ export class PlaylistsService {
         });
         return {
             ...playlist,
-            ...(updatedPlaylist.sourceSyncBase ? { sourceSyncBase: updatedPlaylist.sourceSyncBase } : {}),
-            ...(updatedPlaylist.sourceSyncRevision ? { sourceSyncRevision: updatedPlaylist.sourceSyncRevision } : {}),
+            ...(updatedPlaylist.sourceSyncBase
+                ? { sourceSyncBase: updatedPlaylist.sourceSyncBase }
+                : {}),
+            ...(updatedPlaylist.sourceSyncRevision
+                ? { sourceSyncRevision: updatedPlaylist.sourceSyncRevision }
+                : {}),
             ...(updatedPlaylist.title != null
                 ? { title: updatedPlaylist.title }
                 : {}),

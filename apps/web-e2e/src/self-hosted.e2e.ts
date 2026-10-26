@@ -142,6 +142,39 @@ test('@self-hosted runtime config points PWA calls at the monorepo backend', asy
     await expect(response).toBeOK();
 });
 
+for (const failure of ['invalid-json', 'storage-denied']) {
+    test(`@self-hosted connection recovery remains available after ${failure}`, async ({
+        page,
+    }) => {
+        if (failure === 'invalid-json') {
+            await page.evaluate(() =>
+                localStorage.setItem('iptvnator:source-server', '{broken')
+            );
+        } else {
+            await page.addInitScript(() => {
+                const getItem = Storage.prototype.getItem;
+                Storage.prototype.getItem = function (key: string) {
+                    if (key === 'iptvnator:source-server')
+                        throw new DOMException('Denied', 'SecurityError');
+                    return getItem.call(this, key);
+                };
+            });
+        }
+        await page.reload();
+        const recovery = page.locator(
+            '[data-test-id="source-connection-recovery"]'
+        );
+        await expect(recovery).toBeVisible();
+        await recovery
+            .getByRole('link', { name: 'Server', exact: true })
+            .click();
+        await expect(page).toHaveURL(/\/workspace\/settings\/server/);
+        await expect(
+            page.getByRole('button', { name: 'Connect', exact: true })
+        ).toBeVisible();
+    });
+}
+
 test('@self-hosted Xtream portal loads through web-backend proxy', async ({
     page,
 }) => {

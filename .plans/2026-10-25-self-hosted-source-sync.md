@@ -316,8 +316,9 @@ The PWA/Electron bootstrap now installs only the source-sync projection and
 device-local user storage. The older server API/client modules remain compatible
 for explicit consumers; their activity synchronization is not enabled alongside
 source sync. Legacy full-document reads materialize raw uploads for TV clients.
-Existing server user-state records are preserved rather than automatically
-copied into, or erased by, the new per-device profiles.
+Existing server user-state records are preserved. Established browsers adopt
+their legacy activity once during upgrade; new clients start with local activity
+and subsequent activity changes do not synchronize.
 
 
 ## Implementation and validation record
@@ -410,3 +411,39 @@ deletion tombstones without reading/uploading remote activity. Browser playlist
 commits preserve current activity atomically in IndexedDB; profile mutations
 also use Web Locks where available. Every accepted source creation reloads
 authoritative metadata so subsequent edits carry the original revision.
+
+The fourth review identified legacy browser PIN/lock migration, adoption of
+existing M3U/Stalker activity before the source-only projection, stale activity
+writes between tabs and bootstrap failures from malformed connection data or
+denied browser storage. Missing profile PIN/lock values now migrate once with
+fail-closed error handling. Established clients adopt legacy playlist activity
+once, validating the instance and retaining existing local rows; new clients
+and subsequent refreshes do not import remote activity. Stale local writes
+raise a conflict for the existing re-read/reapply retry. Connection failures
+leave the app and Server settings reachable through a recovery alert.
+
+Regression validation for these fixes passed 906 service unit tests, all five
+mixed PWA/Electron scenarios and 14 production-PWA Chromium scenarios, including
+legacy activity migration, denied storage and malformed saved configuration.
+The Ukrainian source-sync translation group was completed alongside the recovery
+message; all locale key and usage checks pass. The fifth committed-branch
+review remains the final pre-push gate after the checks below.
+
+The pre-push bundle check exposed eager Material controls and sync code on the
+standalone startup path. The status panel now defers its view, with a native
+settings fallback, and the initializer imports the sync service only for a
+selected server. The existing initial-bytes budget is retained.
+
+All 36 Tier A projects passed the full local run. After the bundle-boundary
+changes, the seven affected unit/coverage projects passed again and their
+reports were merged with the unchanged projects: statements 84.73%, branches
+75.71%, functions 82.99%, lines 85.10%. Coverage thresholds are unchanged;
+coverage health has advisory same-name-spec warnings for files covered by
+their owning suites and E2E. All 59 lint projects and 41 spec TypeScript
+programs pass. Production initial payload is 1,198,520 bytes, below the existing
+1,200,301-byte limit. Portable-source helpers and provider-message detection
+use public file-level entries to keep deferred code out of bootstrap.
+
+After those import-boundary changes, mixed-runtime E2E passed all five
+scenarios again, and the production-PWA Chromium run passed all 14 scenarios.
+Release-note validation and the final translation checks pass as well.

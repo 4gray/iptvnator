@@ -2224,6 +2224,7 @@
         }
     },
     "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "Saved server connection unavailable. Check browser storage or reconnect in Server settings.",
         "TITLE": "Server",
         "DESCRIPTION": "Share sources between devices connected to your self-hosted IPTVnator server. Viewing activity stays on this device.",
         "URL": "Server URL",

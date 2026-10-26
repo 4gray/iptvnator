@@ -1,11 +1,13 @@
 import {
-    applySourceDefinition,
-    sourceFromPlaylist,
-    sameSource,
     PlaylistUpdateState,
     type Playlist,
     type SourceDefinition,
 } from '@iptvnator/shared/interfaces';
+import {
+    applySourceDefinition,
+    sourceFromPlaylist,
+    sameSource,
+} from '@iptvnator/shared/interfaces/source-definition';
 import {
     createPlaylistObject,
     resolvePlaylistEpgSourceState,

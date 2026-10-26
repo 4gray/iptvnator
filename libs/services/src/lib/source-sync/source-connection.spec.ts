@@ -4,6 +4,7 @@ import {
     sourceConnection,
     sourceProfileName,
     tokenKey,
+    sourceConnectionReadFailed,
 } from './source-connection';
 
 describe('source server selection and authorization', () => {
@@ -17,6 +18,36 @@ describe('source server selection and authorization', () => {
     afterEach(() => {
         window.electron = originalElectron;
         globalThis.fetch = originalFetch;
+    });
+
+    it.each([
+        '{broken',
+        'null',
+        '{"apiUrl":"file:///tmp/api","instanceId":"nas"}',
+        '{"apiUrl":"https://nas.test"}',
+    ])(
+        'keeps bootstrap available when saved configuration is invalid: %s',
+        async (raw) => {
+            localStorage.setItem('iptvnator:source-server', raw);
+            await expect(prepareSourceConnection()).resolves.toBeUndefined();
+            expect(sourceConnection()).toBeNull();
+            expect(sourceConnectionReadFailed()).toBe(true);
+            expect(localStorage.getItem('iptvnator:source-server')).toBe(raw);
+        }
+    );
+    it('keeps standalone bootstrap available when browser storage is denied', async () => {
+        const denied = jest
+            .spyOn(Storage.prototype, 'getItem')
+            .mockImplementation(() => {
+                throw new Error('SecurityError');
+            });
+        try {
+            await expect(prepareSourceConnection()).resolves.toBeUndefined();
+            expect(sourceConnection()).toBeNull();
+            expect(sourceConnectionReadFailed()).toBe(true);
+        } finally {
+            denied.mockRestore();
+        }
     });
 
     it('preserves an explicitly configured bare backend URL and scopes its token to the API path', async () => {

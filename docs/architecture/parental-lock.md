@@ -46,6 +46,14 @@ follow in a second PR.
 | Relock timeout     | `Settings.parentalLockRelockMinutes`                                              | same                      |
 | Xtream query index | `categories.locked` column                                                        | none (filtered in memory) |
 
+In a selected source-server profile, the browser prefixes the PIN and lock
+keys with that instance. Before its first read or write, it copies missing
+profile values from the original device keys and then records one migration
+receipt. Existing profile values win, clearing locks does not reimport them,
+and the original keys remain available to the standalone profile. A failed
+read or copy uses the same fail-closed behavior as an unreadable lock store.
+These values never synchronize to the source server.
+
 The PIN is hashed with PBKDF2-SHA256 through WebCrypto
 (`parental-lock-pin.util.ts`, format `v1$<iterations>$<salt>$<hash>`), so
 Electron and PWA share one implementation. The hash is deliberately not part

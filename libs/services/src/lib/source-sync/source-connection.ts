@@ -7,8 +7,10 @@ import {
 const CONNECTION_KEY = 'iptvnator:source-server';
 const DISABLED_KEY = 'iptvnator:source-server-disabled';
 let selected: SourceServerConnection | null = null;
+let readFailed = false;
 
 export const sourceConnection = () => selected;
+export const sourceConnectionReadFailed = () => readFailed;
 export const sourceProfileName = () =>
     selected ? `iptvnator-server:${selected.instanceId}` : 'iptvnator';
 export const tokenKey = (apiUrl: string) => `iptvnator:server-token:${apiUrl}`;
@@ -21,8 +23,10 @@ export function assertSourceInstance(
         info?.service !== 'iptvnator' ||
         info.apiVersion !== 1 ||
         info.storage !== 'server' ||
+        typeof info.instanceId !== 'string' ||
         !info.instanceId ||
-        !info.capabilities?.includes(SOURCE_SYNC_CAPABILITY)
+        !Array.isArray(info.capabilities) ||
+        !info.capabilities.includes(SOURCE_SYNC_CAPABILITY)
     ) {
         throw new Error('SOURCE_SYNC.INCOMPATIBLE');
     }
@@ -33,32 +37,57 @@ export async function prepareSourceConnection(
     runtimeBackendUrl?: string
 ): Promise<void> {
     selected = null;
-    if (window.electron?.sourceSyncConnection) {
-        selected = window.electron.sourceSyncConnection();
+    readFailed = false;
+    try {
+        if (window.electron?.sourceSyncConnection) {
+            selected = window.electron.sourceSyncConnection();
+            return;
+        }
+        const saved = localStorage.getItem(CONNECTION_KEY);
+        if (saved) {
+            const connection = JSON.parse(saved) as SourceServerConnection;
+            if (
+                typeof connection.apiUrl !== 'string' ||
+                typeof connection.instanceId !== 'string' ||
+                !connection.instanceId
+            )
+                throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+            const apiUrl = new URL(connection.apiUrl);
+            if (
+                !['http:', 'https:'].includes(apiUrl.protocol) ||
+                apiUrl.username ||
+                apiUrl.password
+            )
+                throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+            selected = {
+                apiUrl: apiUrl.toString().replace(/\/$/, ''),
+                instanceId: connection.instanceId,
+            };
+            return;
+        }
+        if (!runtimeBackendUrl || localStorage.getItem(DISABLED_KEY)) return;
+    } catch {
+        readFailed = true;
         return;
     }
-    const saved = localStorage.getItem(CONNECTION_KEY);
-    if (saved) {
-        const connection = JSON.parse(saved) as SourceServerConnection;
-        const apiUrl = new URL(connection.apiUrl);
-        if (
-            !['http:', 'https:'].includes(apiUrl.protocol) ||
-            apiUrl.username ||
-            apiUrl.password
-        )
-            throw new Error('SOURCE_SYNC.INCOMPATIBLE');
-        selected = {
-            apiUrl: apiUrl.toString().replace(/\/$/, ''),
-            instanceId: connection.instanceId,
-        };
-        return;
-    }
-    if (!runtimeBackendUrl || localStorage.getItem(DISABLED_KEY)) return;
     // Runtime BACKEND_URL is already an API base (including a bare backend
     // in development); only manually entered app URLs gain /api.
-    const apiUrl = new URL(runtimeBackendUrl, location.href)
-        .toString()
-        .replace(/\/$/, '');
+    let apiUrl: string;
+    try {
+        const parsed = new URL(runtimeBackendUrl!, location.href);
+        if (
+            !['http:', 'https:'].includes(parsed.protocol) ||
+            parsed.username ||
+            parsed.password ||
+            parsed.search ||
+            parsed.hash
+        )
+            throw new Error('Invalid backend URL');
+        apiUrl = parsed.toString().replace(/\/$/, '');
+    } catch {
+        readFailed = true;
+        return;
+    }
     // A configured same-instance deployment stays in server mode on later failures.
     try {
         const response = await fetch(`${apiUrl}/v1/instance`, {
@@ -73,7 +102,11 @@ export async function prepareSourceConnection(
     } catch {
         selected = { apiUrl, instanceId: `pending:${apiUrl}` };
     }
-    localStorage.setItem(CONNECTION_KEY, JSON.stringify(selected));
+    try {
+        localStorage.setItem(CONNECTION_KEY, JSON.stringify(selected));
+    } catch {
+        readFailed = true;
+    }
 }
 
 export function saveBrowserSourceConnection(
@@ -86,9 +119,17 @@ export function saveBrowserSourceConnection(
 }
 
 export function disconnectBrowserSourceConnection(): void {
-    if (selected) sessionStorage.removeItem(tokenKey(selected.apiUrl));
-    localStorage.removeItem(CONNECTION_KEY);
-    localStorage.setItem(DISABLED_KEY, '1');
+    try {
+        if (selected) sessionStorage.removeItem(tokenKey(selected.apiUrl));
+    } catch {
+        /* Storage denied. */
+    }
+    try {
+        localStorage.removeItem(CONNECTION_KEY);
+        localStorage.setItem(DISABLED_KEY, '1');
+    } catch {
+        readFailed = true;
+    }
 }
 
 export function sourceAuthorization(url: string): Record<string, string> {
@@ -100,6 +141,10 @@ export function sourceAuthorization(url: string): Record<string, string> {
         !target.pathname.startsWith(`${backend.pathname.replace(/\/+$/, '')}/`)
     )
         return {};
-    const token = sessionStorage.getItem(tokenKey(selected.apiUrl));
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    try {
+        const token = sessionStorage.getItem(tokenKey(selected.apiUrl));
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+        return {};
+    }
 }

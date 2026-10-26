@@ -2224,6 +2224,7 @@
         }
     },
     "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "A mentett szerverkapcsolat nem érhető el. Ellenőrizze a böngésző tárhelyét, vagy csatlakozzon újra a szerverbeállításokban.",
         "TITLE": "Szerver",
         "DESCRIPTION": "Források megosztása az eszközök között a saját IPTVnator-szerverrel. A lejátszási adatok ezen az eszközön maradnak.",
         "URL": "Szerver címe",

@@ -1,12 +1,14 @@
 import { app, BrowserWindow, ipcMain, powerMonitor } from 'electron';
 import {
-    normalizeSourceServerUrl,
     SOURCE_SYNC_CAPABILITY,
-    validateSource,
     type ServerInstanceInfo,
     type SourceServerRequest,
     type SourceServerResponse,
 } from '@iptvnator/shared/interfaces';
+import {
+    normalizeSourceServerUrl,
+    validateSource,
+} from '@iptvnator/shared/interfaces/source-definition';
 import {
     SOURCE_SYNC_CONNECTION,
     SOURCE_SYNC_CONFIGURE,

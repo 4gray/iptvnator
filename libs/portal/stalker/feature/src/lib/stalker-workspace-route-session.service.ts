@@ -23,10 +23,8 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { SourceSyncService } from '@iptvnator/services/source-sync';
-import {
-    PlaylistMeta,
-    SOURCE_CONNECTION_FIELDS,
-} from '@iptvnator/shared/interfaces';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { SOURCE_CONNECTION_FIELDS } from '@iptvnator/shared/interfaces/source-definition';
 
 @Injectable()
 export class StalkerWorkspaceRouteSession {

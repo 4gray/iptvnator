@@ -42,7 +42,7 @@ import {
     createLogger,
 } from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
-import { sourceAuthorization } from '@iptvnator/services/source-sync';
+import { sourceAuthorization } from '@iptvnator/services/source-sync/connection';
 
 /**
  * How long to wait for the backend to forget a host before giving up.
