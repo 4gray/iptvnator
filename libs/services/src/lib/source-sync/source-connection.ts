@@ -14,7 +14,8 @@ export const sourceConnection = () => selected;
 export const sourceConnectionReadFailed = () => readFailed;
 export const sourceProfileName = () =>
     selected ? `iptvnator-server:${selected.instanceId}` : 'iptvnator';
-export const tokenKey = (apiUrl: string) => `iptvnator:server-token:${apiUrl}`;
+export const tokenKey = ({ apiUrl, instanceId }: SourceServerConnection) =>
+    `iptvnator:server-token:${JSON.stringify([apiUrl, instanceId])}`;
 
 export function assertSourceInstance(
     value: unknown
@@ -138,7 +139,7 @@ export function saveBrowserSourceConnection(
     }
     localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
     localStorage.removeItem(DISABLED_KEY);
-    sessionStorage.setItem(tokenKey(connection.apiUrl), token);
+    sessionStorage.setItem(tokenKey(connection), token);
 }
 
 export function disconnectBrowserSourceConnection(
@@ -163,7 +164,7 @@ export function disconnectBrowserSourceConnection(
         return false;
     }
     try {
-        if (selected) sessionStorage.removeItem(tokenKey(selected.apiUrl));
+        if (selected) sessionStorage.removeItem(tokenKey(selected));
     } catch {
         /* Storage denied. */
     }
@@ -212,7 +213,7 @@ export function assertSourceRequestAllowed(url: string): void {
 export function sourceAuthorization(url: string): Record<string, string> {
     if (!verified || !isSelectedBackend(url)) return {};
     try {
-        const token = sessionStorage.getItem(tokenKey(selected!.apiUrl));
+        const token = sessionStorage.getItem(tokenKey(selected!));
         return token ? { Authorization: `Bearer ${token}` } : {};
     } catch {
         return {};

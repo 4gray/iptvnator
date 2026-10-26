@@ -115,7 +115,7 @@ export class SourceSyncStatusViewComponent {
                     );
                 else
                     sessionStorage.setItem(
-                        tokenKey(this.sync.connection.apiUrl),
+                        tokenKey(this.sync.connection),
                         this.token
                     );
             }

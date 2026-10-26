@@ -675,3 +675,31 @@ pass. Merged coverage across 36 projects passes at statements 84.83%, branches
 75.80%, functions 83.05%, lines 85.20%, with an advisory same-name-spec warning
 for the converter covered by service tests and native E2E. Production initial
 bytes pass at 1,199,844 within the unchanged 1,200,301-byte limit.
+
+### Current-master integration and token ownership before review twelve
+
+Master advanced to `bc4d24e148a218b8c84603ac6ce6a802762da5e1` (PR #2008,
+contrast/search recovery). It merged without conflicts; frozen installation and
+Nx discovery were repeated and the installed lock matches. The seven changed
+unit projects, 22 Chromium scenarios, six mixed-runtime scenarios and the new
+light/dark/mobile workspace contrast E2E passed on the merge.
+
+An additional regression reproduced reuse of a previous instance's session
+token after another tab selected a replacement database at the same API address.
+Browser token keys now bind the API address and instance ID as a tuple, and
+all save, sign-in, promotion and disconnect paths use that binding. Unbound
+legacy entries are never forwarded automatically. The regression fails before
+the change and passes afterwards. A browser scenario also verifies that the
+replacement receives no old Authorization header, then connects successfully
+with its own explicitly entered token.
+
+Final merged checks before review twelve pass: 948 service tests, the complete
+web unit project, all seven changed upstream unit projects, 23 Chromium source/
+self-hosted/PWA scenarios, six mixed-runtime scenarios and the upstream
+light/dark/mobile workspace contrast E2E. Affected lint, application/spec/E2E
+type checks, 21-catalogue translation validation, 165 release notes and agent
+guidance pass. Merged coverage across 36 projects passes at statements 84.83%,
+branches 75.81%, functions 83.04%, lines 85.21%, with advisory private-helper/
+view spec warnings. The initial payload is 1,200,177 bytes within the unchanged
+1,200,301-byte limit. Physical NAS and packaged platform checks remain release
+follow-ups; no release or external deployment was performed.

@@ -28,7 +28,7 @@ describe('temporary source-server discovery recovery', () => {
     });
 
     it('clears only an unconfirmed selection and reloads back into the preserved standalone profile', async () => {
-        sessionStorage.setItem(tokenKey(connection.apiUrl), 'pending-token');
+        sessionStorage.setItem(tokenKey(connection), 'pending-token');
         const reload = jest.fn();
         expect(
             recoverPendingStatelessBackend(connection, stateless, reload)
@@ -38,7 +38,7 @@ describe('temporary source-server discovery recovery', () => {
         expect(
             localStorage.getItem('iptvnator:source-server-disabled')
         ).toBeNull();
-        expect(sessionStorage.getItem(tokenKey(connection.apiUrl))).toBeNull();
+        expect(sessionStorage.getItem(tokenKey(connection))).toBeNull();
         expect(sourceConnection()).toEqual(connection);
         await prepareSourceConnection();
         expect(sourceProfileName()).toBe('iptvnator');

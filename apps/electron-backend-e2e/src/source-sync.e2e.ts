@@ -35,15 +35,19 @@ async function browserClient(page: Page, apiUrl: string, token = '') {
             body: `window.__IPTVNATOR_CONFIG__ = ${JSON.stringify({ BACKEND_URL: apiUrl })};`,
         })
     );
-    if (token)
+    if (token) {
+        const { instanceId } = await (
+            await fetch(`${apiUrl}/v1/instance`)
+        ).json();
         await page.addInitScript(
-            ({ apiUrl, token }) =>
+            ({ apiUrl, instanceId, token }) =>
                 sessionStorage.setItem(
-                    `iptvnator:server-token:${apiUrl}`,
+                    `iptvnator:server-token:${JSON.stringify([apiUrl, instanceId])}`,
                     token
                 ),
-            { apiUrl, token }
+            { apiUrl, instanceId, token }
         );
+    }
     await page.goto(`${frontendUrl}/workspace/sources`);
     await expect(
         page.getByRole('button', { name: 'Add playlist', exact: true })

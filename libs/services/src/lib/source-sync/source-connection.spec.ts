@@ -68,7 +68,7 @@ describe('source server selection and authorization', () => {
         expect(sourceConnection()?.apiUrl).toBe('https://nas.test/backend');
         expect(sourceProfileName()).toBe('iptvnator-server:nas');
         sessionStorage.setItem(
-            tokenKey('https://nas.test/backend'),
+            tokenKey({ apiUrl: 'https://nas.test/backend', instanceId: 'nas' }),
             'synthetic-nas-token'
         );
         expect(
@@ -106,7 +106,10 @@ describe('source server selection and authorization', () => {
             JSON.stringify({ apiUrl: 'https://nas.test', instanceId: 'nas' })
         );
         await prepareSourceConnection();
-        sessionStorage.setItem(tokenKey('https://nas.test'), 'root-token');
+        sessionStorage.setItem(
+            tokenKey({ apiUrl: 'https://nas.test', instanceId: 'nas' }),
+            'root-token'
+        );
         expect(sourceAuthorization('https://nas.test/v1/sources')).toEqual({});
         verifySourceInstance({
             service: 'iptvnator',
@@ -140,7 +143,7 @@ describe('source server selection and authorization', () => {
             'iptvnator:source-server',
             JSON.stringify(connection)
         );
-        sessionStorage.setItem(tokenKey(connection.apiUrl), 'saved-secret');
+        sessionStorage.setItem(tokenKey(connection), 'saved-secret');
         await prepareSourceConnection();
         const proxy = 'https://nas.test/api/xtream';
         expect(sourceAuthorization(proxy)).toEqual({});
@@ -174,6 +177,39 @@ describe('source server selection and authorization', () => {
         await prepareSourceConnection();
         expect(sourceAuthorization(proxy)).toEqual({});
     });
+    it('never reuses another instance token after a different tab replaces the saved connection at the same URL', async () => {
+        const original = {
+            apiUrl: 'https://nas.test/api',
+            instanceId: 'original',
+        };
+        const info = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            capabilities: ['sources-v1'],
+        };
+        saveBrowserSourceConnection(original, 'old-instance-secret');
+        await prepareSourceConnection();
+        verifySourceInstance({ ...info, instanceId: original.instanceId });
+        const proxy = `${original.apiUrl}/xtream`;
+        expect(sourceAuthorization(proxy)).toEqual({
+            Authorization: 'Bearer old-instance-secret',
+        });
+        const replacement = { ...original, instanceId: 'replacement' };
+        localStorage.setItem(
+            'iptvnator:source-server',
+            JSON.stringify(replacement)
+        );
+        await prepareSourceConnection();
+        verifySourceInstance({ ...info, instanceId: replacement.instanceId });
+        expect(sourceAuthorization(proxy)).toEqual({});
+        saveBrowserSourceConnection(replacement, 'new-instance-secret');
+        await prepareSourceConnection();
+        verifySourceInstance({ ...info, instanceId: replacement.instanceId });
+        expect(sourceAuthorization(proxy)).toEqual({
+            Authorization: 'Bearer new-instance-secret',
+        });
+    });
     it.each(['connect', 'disconnect'])(
         'does not undo a newer %s when a pending selection resolves',
         (action) => {
@@ -197,7 +233,7 @@ describe('source server selection and authorization', () => {
             expect(
                 localStorage.getItem('iptvnator:source-server-disabled')
             ).toBe(action === 'disconnect' ? '1' : null);
-            expect(sessionStorage.getItem(tokenKey(pending.apiUrl))).toBeNull();
+            expect(sessionStorage.getItem(tokenKey(pending))).toBeNull();
         }
     );
     it('promotes a pending selection only while it remains selected', () => {

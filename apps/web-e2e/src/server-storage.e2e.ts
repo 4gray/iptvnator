@@ -278,7 +278,7 @@ test.describe('server storage @self-hosted @persistence', () => {
             await page.evaluate(
                 (apiUrl) =>
                     sessionStorage.setItem(
-                        `iptvnator:server-token:${apiUrl}`,
+                        `iptvnator:server-token:${JSON.stringify([apiUrl, JSON.parse(localStorage.getItem('iptvnator:source-server')!).instanceId])}`,
                         'synthetic-saved-secret'
                     ),
                 STORAGE_BACKEND_URL
@@ -350,7 +350,7 @@ test.describe('server storage @self-hosted @persistence', () => {
             await page.evaluate(
                 (apiUrl) =>
                     sessionStorage.setItem(
-                        `iptvnator:server-token:${apiUrl}`,
+                        `iptvnator:server-token:${JSON.stringify([apiUrl, JSON.parse(localStorage.getItem('iptvnator:source-server')!).instanceId])}`,
                         'synthetic-saved-secret'
                     ),
                 STORAGE_BACKEND_URL
@@ -405,6 +405,84 @@ test.describe('server storage @self-hosted @persistence', () => {
             await sourceRowByTitle(page, title).click();
             await expect(page.locator('app-playlist-error-view')).toBeVisible();
             expect(outgoing).toEqual([]);
+        } finally {
+            await page.context().close();
+        }
+    });
+
+    test('requires the new instance token after another tab replaces a connection at the same URL', async ({
+        browser,
+        request,
+    }) => {
+        const page = await newServerPage(browser);
+        try {
+            await openSources(page);
+            const original = await (
+                await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
+            ).json();
+            const replacement = {
+                apiUrl: STORAGE_BACKEND_URL,
+                instanceId: 'replacement-token-owner',
+            };
+            await page.evaluate(
+                ({ apiUrl, originalId, replacement }) => {
+                    sessionStorage.setItem(
+                        `iptvnator:server-token:${JSON.stringify([apiUrl, originalId])}`,
+                        'old-instance-secret'
+                    );
+                    // Another tab changes shared selection without changing this tab's session storage.
+                    localStorage.setItem(
+                        'iptvnator:source-server',
+                        JSON.stringify(replacement)
+                    );
+                },
+                {
+                    apiUrl: STORAGE_BACKEND_URL,
+                    originalId: original.instanceId,
+                    replacement,
+                }
+            );
+            await page.route(`${STORAGE_BACKEND_URL}/v1/instance`, (route) =>
+                route.fulfill({
+                    json: { ...original, instanceId: replacement.instanceId },
+                })
+            );
+            const credentials: Array<string | undefined> = [];
+            await page.route(`${STORAGE_BACKEND_URL}/v1/sources`, (route) => {
+                if (route.request().method() !== 'GET') return route.continue();
+                const authorization = route.request().headers()[
+                    'authorization'
+                ];
+                credentials.push(authorization);
+                const accepted = authorization === 'Bearer new-instance-token';
+                return route.fulfill({
+                    status: accepted ? 200 : 401,
+                    headers: {
+                        'Access-Control-Allow-Origin': new URL(page.url())
+                            .origin,
+                        'Access-Control-Expose-Headers': 'ETag',
+                        ETag: '"replacement-library"',
+                    },
+                    json: accepted ? { entries: [] } : { code: 'unauthorized' },
+                });
+            });
+            await page.reload();
+            const status = page.locator('[data-test-id="source-sync-status"]');
+            await expect(
+                status.locator('input[type="password"]')
+            ).toBeVisible();
+            expect(credentials).toEqual([undefined]);
+            await status
+                .locator('input[type="password"]')
+                .fill('new-instance-token');
+            await status
+                .getByRole('button', { name: 'Refresh', exact: true })
+                .click();
+            await expect(status).toHaveCount(0);
+            expect(credentials).toEqual([
+                undefined,
+                'Bearer new-instance-token',
+            ]);
         } finally {
             await page.context().close();
         }

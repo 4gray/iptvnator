@@ -214,6 +214,9 @@ anonymous instance probe verifies the selected identity. A mismatched or failed
 refresh or an instance-change rejection from a source mutation revokes that
 verification before propagating the error; cached sources remain readable, and
 requests resume only after a successful verification or explicit reconnection.
+Browser token entries are bound to both the API address and instance ID; a
+selection changed by another tab cannot reuse the prior instance's token.
+Unbound legacy entries are never forwarded automatically.
 Accepted source mutations schedule an immediate inventory refresh.
 Uploaded M3U text is fetched only for changed revisions and parsed locally;
 URL M3U snapshots are fetched through the runtime's provider transport.

@@ -173,7 +173,7 @@ export class SourceSyncService {
                                     instanceId: probe.body.instanceId!,
                                 },
                                 sessionStorage.getItem(
-                                    tokenKey(this.connection!.apiUrl)
+                                    tokenKey(this.connection!)
                                 ) ?? '',
                                 this.connection!
                             );
