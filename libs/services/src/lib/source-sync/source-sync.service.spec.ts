@@ -57,6 +57,7 @@ describe('source synchronization lifecycle', () => {
     let notify: jest.Mock;
     let request: jest.Mock;
     let fetchPlaylistDefinition: jest.Mock;
+    let persistReceipt: jest.Mock;
 
     beforeEach(() => {
         localStorage.clear();
@@ -68,6 +69,10 @@ describe('source synchronization lifecycle', () => {
         finish = jest.fn();
         notify = jest.fn();
         fetchPlaylistDefinition = jest.fn();
+        persistReceipt = jest.fn(async (_key: string, value: string) => {
+            receipt = value;
+            return { success: true };
+        });
         (sourceConnection as jest.Mock).mockReturnValue({
             apiUrl: 'https://nas.test/api',
             instanceId: 'nas',
@@ -116,10 +121,7 @@ describe('source synchronization lifecycle', () => {
                 return { success: true };
             },
             dbGetAppState: async () => receipt,
-            dbSetAppState: async (_key: string, value: string) => {
-                receipt = value;
-                return { success: true };
-            },
+            dbSetAppState: persistReceipt,
         };
         TestBed.configureTestingModule({
             providers: [
@@ -151,6 +153,35 @@ describe('source synchronization lifecycle', () => {
         service = TestBed.inject(SourceSyncService);
     });
     afterEach(() => TestBed.resetTestingModule());
+
+    it.each(['reject', 'unsuccessful'])(
+        'retries the inventory after a %s initialization receipt write without publishing false readiness',
+        async (failure) => {
+            inventory = [source];
+            if (failure === 'reject')
+                persistReceipt.mockRejectedValueOnce(
+                    new Error('synthetic storage failure')
+                );
+            else persistReceipt.mockResolvedValueOnce({ success: false });
+            const changed = jest.fn();
+            service.changes.subscribe(changed);
+            await service.initialize();
+            await service.refresh();
+            expect(service.state()).toBe('offline');
+            await expect(store.dbGetAppPlaylists()).rejects.toThrow(
+                'SOURCE_SYNC.OFFLINE'
+            );
+            expect(changed).not.toHaveBeenCalled();
+            expect(receipt).toBeNull();
+            await service.refresh();
+            expect(service.state()).toBe('connected');
+            await expect(store.dbGetAppPlaylists()).resolves.toHaveLength(1);
+            expect(receipt).toBe('1');
+            expect(changed).toHaveBeenCalledTimes(1);
+            await service.refresh();
+            expect(changed).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it('runs non-SQL cleanup hooks when a source is remotely deleted from a native projection', async () => {
         Object.assign(TestBed.inject(RuntimeCapabilitiesService), {

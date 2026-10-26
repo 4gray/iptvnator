@@ -249,11 +249,13 @@ export class SourceSyncService {
                             changed = true;
                         }
                     }
-                    this.store!.collectionRevision = response.etag;
-                    await this.store!.local.dbSetAppState(
+                    const receipt = await this.store!.local.dbSetAppState(
                         'source-sync-initialized',
                         '1'
                     );
+                    if (receipt?.success === false)
+                        throw new Error('SOURCE_SYNC.REQUEST_FAILED');
+                    this.store!.collectionRevision = response.etag;
                     this.store!.ready = true;
                     this.failures = 0;
                     this.nextPollAt = 0;

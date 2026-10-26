@@ -221,7 +221,10 @@ rejecting incomplete inventory after a failed projection, preserving the loading
 error instead of exposing a false empty library. Server
 settings bypass the source-loading screen and remain reachable through the
 connection banner. A successful projection publishes its inventory change to
-refresh mounted views. Electron Xtream metadata paths in `DatabaseService` use the same wrapper.
+refresh mounted views. Its collection revision advances only after the local
+initialization receipt is persisted, so a failed write retries the inventory
+instead of accepting HTTP 304 with an unreadable cache. Electron Xtream metadata
+paths in `DatabaseService` use the same wrapper.
 Source IDs are the server's IDs in every local projection. Inventory views reuse
 the native payload-free metadata API. Browser metadata omits parsed/raw M3U
 and source baselines; opening a shared editor loads one complete local row

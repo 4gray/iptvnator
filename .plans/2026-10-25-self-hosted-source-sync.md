@@ -884,3 +884,30 @@ targets, application/spec/E2E types, Material form-field/theme guards, Playwrigh
 task graphs, 169 release notes and agent guidance pass. Exact CI production
 initial bytes pass at 1,200,265 within the unchanged 1,200,301-byte limit.
 The base remains `197efc0ae2ac4f1d853edf07f21a52d59911092a` after fetching.
+
+### Local review sixteen: durable readiness before conditional refresh
+
+Codex reviewed `1bc7a94b21eca7d7a049a72da70ff4384a9d02eb` and reproduced one
+valid P2: a rejected initialization-receipt write left the collection ETag
+advanced while the store remained unreadable. A later HTTP 304 then reported
+connected without retrying the receipt or notifying views. The revision now
+advances only after receipt persistence succeeds. An explicit unsuccessful
+bridge result also remains a recoverable failure. Both new unit regressions
+fail before the fix and pass afterwards, covering recovery and a subsequent
+unchanged refresh without duplicate notifications. The native SQLite fault
+fixture also covers initialization-receipt writes during interrupted startup.
+
+An interrupted local test run left its synthetic backend alive, invalidating
+the next mixed suite by reusing that process's library. The owned leftover
+process was terminated. Fixture readiness now requires the spawned backend's
+own listening message before probing health, so another process cannot make a
+new fixture appear ready. No application data or developer server was touched.
+
+Final validation before review seventeen passes: all 11 mixed PWA/Electron
+scenarios and all 29 production PWA Chromium scenarios; all 992 service tests
+with coverage. The prior 564 web tests remain current for the unchanged web
+component code. Merged 36-project coverage passes at statements 84.95%,
+branches 75.99%, functions 83.13%, lines 85.33%. Owning lint, application and
+affected spec types, release notes and guidance pass. The exact CI production
+build passes its unchanged initial-byte limit at 1,200,269 / 1,200,301 bytes.
+The latest base fetch still resolves to `197efc0ae2ac4f1d853edf07f21a52d59911092a`.

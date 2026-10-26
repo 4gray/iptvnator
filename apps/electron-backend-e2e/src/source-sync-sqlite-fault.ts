@@ -3,15 +3,18 @@ import { workspaceRoot } from '@nx/devkit';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
-/** Fail real parental-store writes without preventing playlist deletion. */
-export function setSourceCleanupWriteFailure(
+/** Fail selected real state writes without preventing playlist projection. */
+export function setSourceStateWriteFailure(
     app: ElectronApplication,
     directory: string,
     instanceId: string,
-    enabled: boolean
+    enabled: boolean,
+    key:
+        | 'parental-lock:locks'
+        | 'source-sync-initialized' = 'parental-lock:locks'
 ): Promise<void> {
     return app.evaluate(
-        (_electron, { dependency, file, enabled }) => {
+        (_electron, { dependency, file, enabled, key }) => {
             const Database = process
                 .getBuiltinModule('module')
                 .createRequire(dependency)(dependency);
@@ -24,9 +27,9 @@ export function setSourceCleanupWriteFailure(
                 if (enabled)
                     db.exec(`
                 CREATE TRIGGER synthetic_sync_cleanup_insert BEFORE INSERT ON app_state
-                WHEN NEW.key = 'parental-lock:locks' BEGIN SELECT RAISE(ABORT, 'synthetic cleanup failure'); END;
+                WHEN NEW.key = '${key}' BEGIN SELECT RAISE(ABORT, 'synthetic state failure'); END;
                 CREATE TRIGGER synthetic_sync_cleanup_update BEFORE UPDATE ON app_state
-                WHEN NEW.key = 'parental-lock:locks' BEGIN SELECT RAISE(ABORT, 'synthetic cleanup failure'); END;
+                WHEN NEW.key = '${key}' BEGIN SELECT RAISE(ABORT, 'synthetic state failure'); END;
             `);
             } finally {
                 db.close();
@@ -42,6 +45,7 @@ export function setSourceCleanupWriteFailure(
                 'iptvnator.db'
             ),
             enabled,
+            key,
         }
     );
 }

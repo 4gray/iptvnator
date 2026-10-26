@@ -41,6 +41,13 @@ export async function startSourceSyncServer(token = '') {
                 async () => {
                     if (child.exitCode !== null)
                         throw new Error(`Test backend exited: ${output}`);
+                    // A leftover process on this port must not satisfy readiness.
+                    if (
+                        !output.includes(
+                            `listening on http://localhost:${port}`
+                        )
+                    )
+                        return 0;
                     try {
                         return (await fetch(`${apiUrl}/health`)).status;
                     } catch {
