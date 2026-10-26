@@ -93,6 +93,26 @@ describe('native source transport and connection IPC', () => {
         );
     });
 
+    it('returns a recovery error over synchronous IPC and accepts an explicit repair connection', async () => {
+        (readSourceServerConfig as jest.Mock).mockImplementation(() => {
+            throw new Error('bad JSON with credentials');
+        });
+        const sync = (ipcMain.on as jest.Mock).mock.calls.find(
+            ([name]) => name === SOURCE_SYNC_CONNECTION
+        )![1];
+        const event = { returnValue: undefined };
+        sync(event);
+        expect(event.returnValue).toEqual({
+            error: 'SOURCE_SYNC.INCOMPATIBLE',
+        });
+        await expect(
+            handler(SOURCE_SYNC_CONFIGURE)({}, connection.apiUrl, '', false)
+        ).rejects.toThrow('SOURCE_SYNC.INCOMPATIBLE');
+        await handler(SOURCE_SYNC_CONFIGURE)({}, connection.apiUrl, '', true);
+        expect(saveSourceServerConfig).toHaveBeenCalled();
+        expect(app.relaunch).toHaveBeenCalled();
+    });
+
     it('rejects arbitrary operations and non-source runtime fields before making a request', async () => {
         await expect(
             sourceServerRequest(connection.apiUrl, 'token', {

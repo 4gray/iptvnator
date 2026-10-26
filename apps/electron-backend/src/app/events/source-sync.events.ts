@@ -112,10 +112,14 @@ export function registerSourceSyncEvents(): void {
             window.webContents.send(SOURCE_SYNC_RESUME);
     });
     ipcMain.on(SOURCE_SYNC_CONNECTION, (event) => {
-        const config = readSourceServerConfig();
-        event.returnValue = config
-            ? { apiUrl: config.apiUrl, instanceId: config.instanceId }
-            : null;
+        try {
+            const config = readSourceServerConfig();
+            event.returnValue = config
+                ? { apiUrl: config.apiUrl, instanceId: config.instanceId }
+                : null;
+        } catch {
+            event.returnValue = { error: 'SOURCE_SYNC.INCOMPATIBLE' };
+        }
     });
     ipcMain.handle(
         SOURCE_SYNC_REQUEST,
@@ -133,7 +137,12 @@ export function registerSourceSyncEvents(): void {
     ipcMain.handle(
         SOURCE_SYNC_CONFIGURE,
         async (_event, url: string, token: string, restart: boolean) => {
-            const configured = readSourceServerConfig();
+            let configured: ReturnType<typeof readSourceServerConfig> = null;
+            try {
+                configured = readSourceServerConfig();
+            } catch {
+                if (!restart) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+            }
             const apiUrl =
                 configured?.apiUrl === url.replace(/\/$/, '')
                     ? configured.apiUrl

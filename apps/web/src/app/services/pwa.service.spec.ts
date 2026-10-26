@@ -26,6 +26,12 @@ import {
     writeServerAccessToken,
 } from '@iptvnator/services';
 import { PwaService } from './pwa.service';
+import {
+    prepareSourceConnection,
+    sourceAuthorization,
+    tokenKey,
+    verifySourceInstance,
+} from '@iptvnator/services/source-sync/connection';
 
 describe('PwaService', () => {
     let http: HttpTestingController;
@@ -698,6 +704,79 @@ describe('PwaService', () => {
             clearServerAccessToken();
         }
     });
+
+    it.each(['network', 'gateway'])(
+        'revokes the selected source identity after a raw-fetch %s outage and blocks a replacement',
+        async (failure) => {
+            const originalFetch = globalThis.fetch;
+            const originalElectron = window.electron;
+            const connection = {
+                apiUrl: 'https://nas.test/api',
+                instanceId: 'nas',
+            };
+            const instance = {
+                service: 'iptvnator',
+                apiVersion: 1,
+                storage: 'server',
+                instanceId: 'nas',
+                capabilities: ['sources-v1'],
+            };
+            const raw = service as unknown as {
+                backendFetch(url: string, init: RequestInit): Promise<Response>;
+            };
+            const url = `${connection.apiUrl}/stalker`;
+            try {
+                Reflect.deleteProperty(window, 'electron');
+                localStorage.setItem(
+                    'iptvnator:source-server',
+                    JSON.stringify(connection)
+                );
+                sessionStorage.setItem(tokenKey(connection), 'nas-secret');
+                await prepareSourceConnection();
+                verifySourceInstance(instance);
+                const fetchMock = jest.fn();
+                globalThis.fetch = fetchMock;
+                if (failure === 'network')
+                    fetchMock.mockRejectedValueOnce(new TypeError('offline'));
+                else
+                    fetchMock.mockResolvedValueOnce({
+                        status: 502,
+                        headers: new Headers({ 'content-type': 'text/html' }),
+                    });
+                await raw
+                    .backendFetch(url, {
+                        method: 'POST',
+                        body: 'provider-secret',
+                    })
+                    .catch(() => undefined);
+                expect(sourceAuthorization(url)).toEqual({});
+                fetchMock.mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({
+                        ...instance,
+                        instanceId: 'replacement',
+                    }),
+                });
+                await expect(
+                    raw.backendFetch(url, {
+                        method: 'POST',
+                        body: 'provider-secret',
+                    })
+                ).rejects.toThrow('SOURCE_SYNC.INSTANCE_CHANGED');
+                expect(fetchMock).toHaveBeenCalledTimes(2);
+                const [probeUrl, probeInit] = fetchMock.mock.calls[1];
+                expect(probeUrl).toBe(`${connection.apiUrl}/v1/instance`);
+                expect(probeInit.headers).toBeUndefined();
+                expect(probeInit.body).toBeUndefined();
+            } finally {
+                localStorage.clear();
+                sessionStorage.clear();
+                await prepareSourceConnection();
+                window.electron = originalElectron;
+                globalThis.fetch = originalFetch;
+            }
+        }
+    );
 
     it('reports a backend outage seen by its raw fetches', async () => {
         const status = TestBed.inject(ServerStorageStatusService);

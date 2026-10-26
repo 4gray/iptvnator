@@ -1,4 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+    mkdtempSync,
+    readFileSync,
+    rmSync,
+    writeFileSync,
+    readdirSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { safeStorage } from 'electron';
@@ -84,6 +90,31 @@ describe('source-server connection persistence', () => {
         activateSourceServerProfile();
         expect(process.env.IPTVNATOR_SOURCE_PROFILE).toBeUndefined();
     });
+    it.each([
+        '{truncated',
+        'null',
+        '{"apiUrl":"file:///private","instanceId":"a"}',
+    ])(
+        'opens a separate recovery profile and retains unreadable configuration: %s',
+        (raw) => {
+            const path = join(directory, 'source-server.json');
+            writeFileSync(path, raw);
+            process.env.IPTVNATOR_SOURCE_PROFILE = 'inherited';
+            expect(() => activateSourceServerProfile()).not.toThrow();
+            expect(process.env.IPTVNATOR_SOURCE_PROFILE).toMatch(
+                /^[a-f0-9]{64}$/
+            );
+            expect(() => readSourceServerConfig()).toThrow(
+                'SOURCE_SYNC.INCOMPATIBLE'
+            );
+            expect(readFileSync(path, 'utf8')).toBe(raw);
+            const recovery = process.env.IPTVNATOR_SOURCE_PROFILE;
+            saveSourceServerConfig(connection, '');
+            expect(readdirSync(directory)).toEqual(['source-server.json']);
+            activateSourceServerProfile();
+            expect(process.env.IPTVNATOR_SOURCE_PROFILE).not.toBe(recovery);
+        }
+    );
     it('removes the active profile before Electron relaunches after disconnect', () => {
         saveSourceServerConfig(connection, '');
         activateSourceServerProfile();

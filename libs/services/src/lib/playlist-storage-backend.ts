@@ -5,7 +5,10 @@ import type {
     Playlist,
 } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
-import { sourceConnection } from './source-sync/source-connection';
+import {
+    sourceConnection,
+    sourceConnectionReadFailed,
+} from './source-sync/source-connection';
 
 /**
  * Whole-playlist document persistence. The Electron preload implements it
@@ -90,13 +93,19 @@ export class PlaylistStorageBackend {
     }
 
     kind(): PlaylistStorageKind {
-        if (sourceConnection() || this.serverStore) return 'server';
+        if (
+            sourceConnection() ||
+            sourceConnectionReadFailed() ||
+            this.serverStore
+        )
+            return 'server';
         return this.runtime.supportsSqlite ? 'electron' : 'indexeddb';
     }
 
     /** The document store for `kind()`, or `null` for IndexedDB. */
     documentStore(): PlaylistDocumentStore | null {
-        if (sourceConnection()) return this.deferredStore;
+        if (sourceConnection() || sourceConnectionReadFailed())
+            return this.deferredStore;
         if (this.serverStore) return this.serverStore;
         return this.localDocumentStore();
     }

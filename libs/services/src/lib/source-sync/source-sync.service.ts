@@ -25,6 +25,7 @@ import {
     assertSourceInstance,
     verifySourceInstance,
     invalidateSourceVerification,
+    sourceVerificationEpoch,
     sourceConnection,
     sourceConnectionReadFailed,
     sourceProfileName,
@@ -75,7 +76,13 @@ export class SourceSyncService {
     private metadataDirty = false;
 
     async initialize(): Promise<void> {
-        if (!this.connection) return;
+        if (!this.connection) {
+            if (this.connectionReadFailed) {
+                this.state.set('offline');
+                this.backend.finishServerInitialization();
+            }
+            return;
+        }
         const native = this.backend.localDocumentStore();
         this.browserProfile = !native;
         const local = native
@@ -150,6 +157,7 @@ export class SourceSyncService {
                     const wasReady = this.store!.ready;
                     this.errorKey.set(null);
                     if (!this.store!.ready) this.state.set('connecting');
+                    const epoch = sourceVerificationEpoch();
                     const probe = await this.request({ operation: 'instance' });
                     if (
                         this.browserProfile &&
@@ -182,7 +190,7 @@ export class SourceSyncService {
                         }
                         throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
                     }
-                    verifySourceInstance(probe.body, this.connection);
+                    verifySourceInstance(probe.body, this.connection, epoch);
                     const response = await this.request({
                         operation: 'list',
                         revision: this.store!.pendingSources.size

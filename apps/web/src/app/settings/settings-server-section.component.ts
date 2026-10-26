@@ -121,11 +121,19 @@ export class SettingsServerSectionComponent {
     }
 
     async disconnect(): Promise<void> {
-        if (window.electron?.sourceSyncDisconnect)
-            await window.electron.sourceSyncDisconnect();
-        else {
-            disconnectBrowserSourceConnection();
-            location.reload();
+        this.busy.set(true);
+        try {
+            if (window.electron?.sourceSyncDisconnect)
+                await window.electron.sourceSyncDisconnect();
+            else {
+                if (!disconnectBrowserSourceConnection())
+                    throw new Error('SOURCE_SYNC.REQUEST_FAILED');
+                location.reload();
+            }
+        } catch (error) {
+            this.showError(error);
+        } finally {
+            this.busy.set(false);
         }
     }
 

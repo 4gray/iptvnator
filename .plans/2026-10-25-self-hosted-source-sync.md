@@ -703,3 +703,31 @@ branches 75.81%, functions 83.04%, lines 85.21%, with advisory private-helper/
 view spec warnings. The initial payload is 1,200,177 bytes within the unchanged
 1,200,301-byte limit. Physical NAS and packaged platform checks remain release
 follow-ups; no release or external deployment was performed.
+
+### Twelfth review fixes before review thirteen
+
+Codex reviewed `ea5e403705dd697674f6aaa2608704e40dbef4ba` and found two
+recovery gaps. Browser provider failures now revoke source identity verification
+for both HttpClient and raw fetch. Retrying waits for a deduplicated anonymous,
+uncached instance probe. A generation check prevents a late proof from reopening
+authorization after a newer outage. Existing inventory subscriptions and the
+proxy guard are deferred so standalone startup retains its payload budget.
+
+Unreadable native connection configuration now selects an isolated recovery
+profile instead of aborting startup or opening the standalone library. The
+settings page permits explicit repair/disconnection. Native saves use a flushed
+private temporary file and atomic rename. Synchronous preload errors are
+serialized without configuration contents. The native recovery E2E verifies
+retention of the original library and its restoration after disconnect/restart;
+the test owns the restart instead of spawning an untracked Electron process.
+
+Nine regression cases reproduce on the prior implementations (two raw-fetch,
+four HttpClient and three configuration cases). Affected full unit projects
+pass: 951 service, 563 web and 2,702 Electron backend tests. Merged 36-project
+coverage passes unchanged gates at statements 84.84%, branches 75.81%, functions
+83.05%, lines 85.22%, with advisory same-name-spec warnings for deferred wiring
+and its status view. Six existing mixed-runtime scenarios pass; the seventh,
+new recovery scenario passes after correcting test-owned relaunch. Application,
+spec/E2E types and owning lint pass. Two production browser outage/replacement
+scenarios were added for final validation. Master subsequently advanced with
+Vite 8.1.6, which will be included before the next local review.

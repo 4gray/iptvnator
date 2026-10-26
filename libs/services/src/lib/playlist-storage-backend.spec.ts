@@ -1,10 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { PlaylistStorageBackend } from './playlist-storage-backend';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
-import { sourceConnection } from './source-sync/source-connection';
+import {
+    sourceConnection,
+    sourceConnectionReadFailed,
+} from './source-sync/source-connection';
 
 jest.mock('./source-sync/source-connection', () => ({
     sourceConnection: jest.fn(() => null),
+    sourceConnectionReadFailed: jest.fn(() => false),
 }));
 
 describe('PlaylistStorageBackend', () => {
@@ -13,6 +17,7 @@ describe('PlaylistStorageBackend', () => {
 
     afterEach(() => {
         (sourceConnection as jest.Mock).mockReturnValue(null);
+        (sourceConnectionReadFailed as jest.Mock).mockReturnValue(false);
         testWindow.electron = originalElectron;
         TestBed.resetTestingModule();
     });
@@ -46,6 +51,19 @@ describe('PlaylistStorageBackend', () => {
 
         expect(backend.kind()).toBe('indexeddb');
         expect(backend.documentStore()).toBeNull();
+    });
+
+    it('rejects inventory reads during configuration recovery without opening the standalone store', async () => {
+        (sourceConnectionReadFailed as jest.Mock).mockReturnValue(true);
+        const bridge = { dbGetAppPlaylists: jest.fn() };
+        testWindow.electron = bridge;
+        const backend = create(true);
+        expect(backend.kind()).toBe('server');
+        backend.finishServerInitialization();
+        await expect(
+            backend.documentStore()!.dbGetAppPlaylists()
+        ).rejects.toThrow('SOURCE_SYNC.OFFLINE');
+        expect(bridge.dbGetAppPlaylists).not.toHaveBeenCalled();
     });
 
     it('selects server authority before early settings reads and waits for its first projection', async () => {

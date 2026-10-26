@@ -410,6 +410,100 @@ test.describe('server storage @self-hosted @persistence', () => {
         }
     });
 
+    for (const transport of ['provider-targets', 'stalker']) {
+        test(`blocks provider credentials after a ${transport} proxy outage reveals a replacement server`, async ({
+            browser,
+            request,
+        }) => {
+            const page = await newServerPage(browser);
+            const title = `Outage guarded ${transport}`;
+            const id = `outage-${transport}`;
+            expect(
+                (
+                    await request.put(
+                        `${STORAGE_BACKEND_URL}/v1/playlists/${id}`,
+                        {
+                            data: {
+                                _id: id,
+                                title,
+                                portalUrl: `http://localhost:${process.env['MOCK_PORT'] ?? '3210'}/portal.php`,
+                                macAddress: '00:1A:79:5F:00:02',
+                            },
+                        }
+                    )
+                ).ok()
+            ).toBe(true);
+            try {
+                await openSources(page);
+                const instance = await (
+                    await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
+                ).json();
+                await page.evaluate(
+                    ({ apiUrl, instanceId }) =>
+                        sessionStorage.setItem(
+                            `iptvnator:server-token:${JSON.stringify([apiUrl, instanceId])}`,
+                            'synthetic-nas-secret'
+                        ),
+                    {
+                        apiUrl: STORAGE_BACKEND_URL,
+                        instanceId: instance.instanceId,
+                    }
+                );
+                let outage = false;
+                const laterProxyCalls: string[] = [];
+                const probeTokens: Array<string | undefined> = [];
+                await page.route(
+                    `${STORAGE_BACKEND_URL}/v1/instance`,
+                    (route) => {
+                        probeTokens.push(
+                            route.request().headers()['authorization']
+                        );
+                        return route.fulfill({
+                            json: {
+                                ...instance,
+                                instanceId: outage
+                                    ? 'replacement'
+                                    : instance.instanceId,
+                            },
+                        });
+                    }
+                );
+                await page.route(
+                    `${STORAGE_BACKEND_URL}/${transport}*`,
+                    (route) => {
+                        outage = true;
+                        return route.fulfill({
+                            status: 502,
+                            contentType: 'text/html',
+                            body: 'Gateway unavailable',
+                        });
+                    }
+                );
+                page.on('request', (request) => {
+                    const url = new URL(request.url());
+                    if (
+                        outage &&
+                        url.origin === STORAGE_BACKEND_URL &&
+                        ['/provider-targets', '/stalker'].includes(url.pathname)
+                    )
+                        laterProxyCalls.push(request.url());
+                });
+                await sourceRowByTitle(page, title).click();
+                await expect.poll(() => outage).toBe(true);
+                await expect(
+                    page.locator('app-playlist-error-view')
+                ).toBeVisible();
+                expect(probeTokens.length).toBeGreaterThan(0);
+                expect(probeTokens.every((token) => token === undefined)).toBe(
+                    true
+                );
+                expect(laterProxyCalls).toEqual([]);
+            } finally {
+                await page.context().close();
+            }
+        });
+    }
+
     test('requires the new instance token after another tab replaces a connection at the same URL', async ({
         browser,
         request,

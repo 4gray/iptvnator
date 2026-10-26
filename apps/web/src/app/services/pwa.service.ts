@@ -42,7 +42,12 @@ import {
     createLogger,
 } from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
-import { sourceAuthorization, assertSourceRequestAllowed } from '@iptvnator/services/source-sync/connection';
+import {
+    sourceAuthorization,
+    isSourceBackendRequest,
+    invalidateSourceVerification,
+    assertSourceRequestAllowed,
+} from '@iptvnator/services/source-sync/connection';
 
 /**
  * How long to wait for the backend to forget a host before giving up.
@@ -138,7 +143,10 @@ export class PwaService extends DataService {
         return AppConfig.version;
     }
 
-    override fetchPlaylistDefinition(url: string, userAgent?: string): Promise<Playlist> {
+    override fetchPlaylistDefinition(
+        url: string,
+        userAgent?: string
+    ): Promise<Playlist> {
         return firstValueFrom(this.getPlaylistFromUrl(url, userAgent));
     }
 
@@ -222,7 +230,12 @@ export class PwaService extends DataService {
                 `${this.corsProxyUrl}/connectivity-guard/reset`,
                 {
                     body: JSON.stringify({ url: payload.url }),
-                    headers: { 'content-type': 'application/json', ...sourceAuthorization(`${this.corsProxyUrl}/connectivity-guard/reset`) },
+                    headers: {
+                        'content-type': 'application/json',
+                        ...sourceAuthorization(
+                            `${this.corsProxyUrl}/connectivity-guard/reset`
+                        ),
+                    },
                     redirect: 'error',
                     method: 'POST',
                     signal: controller.signal,
@@ -848,6 +861,8 @@ export class PwaService extends DataService {
         url: string,
         init: RequestInit
     ): Promise<Response> {
+        if (isSourceBackendRequest(url))
+            await (await import('./source-proxy')).ensureSourceProxy(url);
         assertSourceRequestAllowed(url);
         const token = this.serverAccessToken(url);
         let response: Response;
@@ -866,6 +881,7 @@ export class PwaService extends DataService {
                 error instanceof DOMException && error.name === 'AbortError'
             )) {
                 this.serverStatus.reportOffline();
+                if (isSourceBackendRequest(url)) invalidateSourceVerification();
             }
             throw error;
         }
@@ -876,6 +892,7 @@ export class PwaService extends DataService {
             )
         ) {
             this.serverStatus.reportOffline();
+            if (isSourceBackendRequest(url)) invalidateSourceVerification();
         } else if (
             response.status === 401 &&
             isServerAccessChallenge(

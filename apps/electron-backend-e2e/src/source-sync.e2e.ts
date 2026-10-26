@@ -1,5 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mkdtempSync, rmSync, writeFileSync, unlinkSync } from 'node:fs';
+import {
+    mkdtempSync,
+    rmSync,
+    writeFileSync,
+    unlinkSync,
+    readFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -618,6 +624,60 @@ test('keeps standalone pending favorites out of a server profile with the same s
     } finally {
         if (desktop) await closeElectronApp(desktop);
         await server.close();
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test('recovers from a truncated native connection without opening the original library @electron @persistence', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-sync-recovery-'));
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        desktop = await launchElectronApp(directory);
+        await openSources(desktop.mainWindow);
+        await addTextSource(desktop.mainWindow, 'Preserved standalone source');
+        await closeElectronApp(desktop);
+        desktop = undefined;
+        const path = join(directory, 'source-server.json');
+        writeFileSync(path, '{truncated');
+        desktop = await launchElectronApp(directory);
+        const page = desktop.mainWindow;
+        await expect(
+            page.getByTestId('source-connection-recovery')
+        ).toBeVisible();
+        await expect(
+            page.getByText('Preserved standalone source', { exact: true })
+        ).toHaveCount(0);
+        expect(
+            await page.evaluate(() => window.electron.dbGetAppPlaylists())
+        ).toEqual([]);
+        expect(readFileSync(path, 'utf8')).toBe('{truncated');
+        await page
+            .getByTestId('source-connection-recovery')
+            .getByRole('link')
+            .click();
+        await expect(page.getByTestId('source-server-connect')).toBeVisible();
+        // Keep the restart under the fixture's process ownership.
+        await desktop.electronApp.evaluate(({ app }) => {
+            app.relaunch = () => undefined;
+            app.exit = () => undefined;
+        });
+        await page
+            .getByRole('button', { name: 'Disconnect', exact: true })
+            .click();
+        await closeElectronApp(desktop);
+        desktop = undefined;
+        desktop = await launchElectronApp(directory);
+        await openSources(desktop.mainWindow);
+        await expect(
+            desktop.mainWindow
+                .getByText('Preserved standalone source', { exact: true })
+                .first()
+        ).toBeVisible();
+        await expect(
+            desktop.mainWindow.getByTestId('source-connection-recovery')
+        ).toHaveCount(0);
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
         rmSync(directory, { recursive: true, force: true });
     }
 });

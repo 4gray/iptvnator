@@ -65,19 +65,21 @@
                 <button
                     type="button"
                     mat-stroked-button
-                    [disabled]="busy()"
-                    (click)="disconnect()"
-                >
-                    {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
-                </button>
-                <button
-                    type="button"
-                    mat-stroked-button
                     [disabled]="busy() || sync.state() !== 'connected'"
                     (click)="previewImport()"
                     data-test-id="source-server-import"
                 >
                     {{ 'SOURCE_SYNC.IMPORT' | translate }}
+                </button>
+            }
+            @if (sync.connection || sync.connectionReadFailed) {
+                <button
+                    type="button"
+                    mat-stroked-button
+                    [disabled]="busy()"
+                    (click)="disconnect()"
+                >
+                    {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
                 </button>
             }
         </div>

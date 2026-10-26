@@ -8,6 +8,8 @@ import {
     verifySourceInstance,
     assertSourceRequestAllowed,
     saveBrowserSourceConnection,
+    invalidateSourceVerification,
+    sourceVerificationEpoch,
 } from './source-connection';
 
 describe('source server selection and authorization', () => {
@@ -51,6 +53,26 @@ describe('source server selection and authorization', () => {
         } finally {
             denied.mockRestore();
         }
+    });
+
+    it('uses an isolated recovery namespace when native connection reads fail', async () => {
+        window.electron = {
+            sourceSyncConnection: () => {
+                throw new Error('unreadable');
+            },
+        } as never;
+        await prepareSourceConnection();
+        expect(sourceConnectionReadFailed()).toBe(true);
+        expect(sourceProfileName()).toBe('iptvnator-recovery');
+    });
+
+    it('does not accept an identity proof started before a newer outage', async () => {
+        await prepareSourceConnection();
+        const epoch = sourceVerificationEpoch();
+        invalidateSourceVerification();
+        expect(() => verifySourceInstance({}, null, epoch)).toThrow(
+            'SOURCE_SYNC.OFFLINE'
+        );
     });
 
     it('preserves an explicitly configured bare backend URL and scopes its token to the API path', async () => {

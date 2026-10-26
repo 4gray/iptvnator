@@ -301,9 +301,15 @@ const frameZoomPorts = {
 };
 
 const electronApi: ElectronBridgeApi = {
-    sourceSyncConnection: () => ipcRenderer.sendSync(SOURCE_SYNC_CONNECTION),
-    sourceSyncRequest: (request) => ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
-    sourceSyncConfigure: (url, token, restart) => ipcRenderer.invoke(SOURCE_SYNC_CONFIGURE, url, token, restart),
+    sourceSyncConnection: () => {
+        const result = ipcRenderer.sendSync(SOURCE_SYNC_CONNECTION);
+        if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+        return result;
+    },
+    sourceSyncRequest: (request) =>
+        ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
+    sourceSyncConfigure: (url, token, restart) =>
+        ipcRenderer.invoke(SOURCE_SYNC_CONFIGURE, url, token, restart),
     sourceSyncDisconnect: () => ipcRenderer.invoke(SOURCE_SYNC_DISCONNECT),
     sourceSyncLocalSources: () => ipcRenderer.invoke(SOURCE_SYNC_LOCAL_SOURCES),
     onSourceSyncResume: (callback) => {

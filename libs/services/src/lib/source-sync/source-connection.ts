@@ -9,11 +9,17 @@ const DISABLED_KEY = 'iptvnator:source-server-disabled';
 let selected: SourceServerConnection | null = null;
 let readFailed = false;
 let verified = false;
+let verificationEpoch = 0;
 
 export const sourceConnection = () => selected;
 export const sourceConnectionReadFailed = () => readFailed;
+export const sourceVerificationEpoch = () => verificationEpoch;
 export const sourceProfileName = () =>
-    selected ? `iptvnator-server:${selected.instanceId}` : 'iptvnator';
+    selected
+        ? `iptvnator-server:${selected.instanceId}`
+        : readFailed
+          ? 'iptvnator-recovery'
+          : 'iptvnator';
 export const tokenKey = ({ apiUrl, instanceId }: SourceServerConnection) =>
     `iptvnator:server-token:${JSON.stringify([apiUrl, instanceId])}`;
 
@@ -39,7 +45,7 @@ export async function prepareSourceConnection(
     runtimeBackendUrl?: string
 ): Promise<void> {
     selected = null;
-    verified = false;
+    invalidateSourceVerification();
     readFailed = false;
     try {
         if (window.electron?.sourceSyncConnection) {
@@ -181,8 +187,10 @@ export function disconnectBrowserSourceConnection(
 /** A replacement database at the same address must never receive saved secrets. */
 export function verifySourceInstance(
     value: unknown,
-    expected = selected
+    expected = selected,
+    epoch = verificationEpoch
 ): void {
+    if (epoch !== verificationEpoch) throw new Error('SOURCE_SYNC.OFFLINE');
     verified = false;
     assertSourceInstance(value);
     if (value.instanceId !== expected?.instanceId)
@@ -192,9 +200,10 @@ export function verifySourceInstance(
 
 export function invalidateSourceVerification(): void {
     verified = false;
+    verificationEpoch++;
 }
 
-function isSelectedBackend(url: string): boolean {
+export function isSourceBackendRequest(url: string): boolean {
     if (!selected || window.electron?.sourceSyncConnection) return false;
     const target = new URL(url, location.href);
     const backend = new URL(selected.apiUrl);
@@ -206,12 +215,12 @@ function isSelectedBackend(url: string): boolean {
 
 /** Block the whole proxy call: its body/query may contain provider credentials. */
 export function assertSourceRequestAllowed(url: string): void {
-    if (isSelectedBackend(url) && !verified)
+    if (isSourceBackendRequest(url) && !verified)
         throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
 }
 
 export function sourceAuthorization(url: string): Record<string, string> {
-    if (!verified || !isSelectedBackend(url)) return {};
+    if (!verified || !isSourceBackendRequest(url)) return {};
     try {
         const token = sessionStorage.getItem(tokenKey(selected!));
         return token ? { Authorization: `Bearer ${token}` } : {};

@@ -179,6 +179,11 @@ silently select local storage. The recovery banner remains available even when
 the initial source inventory cannot load. Malformed saved connection data or
 unavailable browser storage does not prevent Angular bootstrap; a recovery
 alert links directly to the Server settings without discarding the saved data.
+An unreadable native `source-server.json` selects a separate recovery database
+and browser-storage namespace. Inventory reads fail closed while Server settings
+allow explicit reconnection or disconnection; the standalone library and prior
+server projections remain intact. Native configuration saves use a flushed
+private temporary file followed by an atomic rename.
 
 Settings → Data → Server connects a desktop or browser client, refreshes the
 library, previews/imports original local sources, and disconnects. Connection
@@ -214,6 +219,11 @@ anonymous instance probe verifies the selected identity. A mismatched or failed
 refresh or an instance-change rejection from a source mutation revokes that
 verification before propagating the error; cached sources remain readable, and
 requests resume only after a successful verification or explicit reconnection.
+Network and gateway outages from either browser provider transport also revoke
+verification. The next proxy request waits for a deduplicated anonymous,
+uncached instance probe. An outage generation prevents a late response from an
+older probe from restoring authorization after a newer failure. The proxy guard
+and inventory/view subscriptions load only for a selected server or recovery.
 Browser token entries are bound to both the API address and instance ID; a
 selection changed by another tab cannot reuse the prior instance's token.
 Unbound legacy entries are never forwarded automatically.
