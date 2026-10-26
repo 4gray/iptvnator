@@ -647,3 +647,31 @@ pass. The unchanged initial-byte limit passes at 1,199,678 bytes. Merged
 coverage across 36 projects passes at statements 84.82%, branches 75.79%,
 functions 83.05%, lines 85.20%, with advisory private-helper/view spec warnings.
 No coverage, payload or line-count gate was weakened.
+
+
+### Eleventh review fixes before review twelve
+
+Codex reviewed `74f5aaaef1f29d4e39cf64c8aa44a4acc856ee51` and reproduced
+two issues. A source mutation rejected with `409 instance_changed` now revokes
+verification immediately, before propagating the error, and preserves the
+identity-change recovery message. A unit regression and browser edit-to-proxy
+scenario verify that neither the NAS token nor provider credentials can be
+sent afterwards. Anonymous refresh probes keep checking the selected identity.
+
+The native pending-favorites converter now enumerates and reads the selected
+profile namespace, matching the pending-restore service. A standalone archive
+with an identical playlist ID can no longer seed the server-profile SQLite
+database. Regressions cover explicit playlist reads, collection-wide reads,
+profile-owned archives and preservation of the original archive. All five new
+unit cases fail before the fixes and pass afterwards. A new native E2E case
+checks the same-ID isolation through the real favorites view and SQLite bridge.
+
+Before review twelve, all 947 service tests pass, as do all 22 Chromium
+production PWA scenarios and all six mixed PWA/Electron scenarios. The native
+archive-isolation scenario confirms its source snapshot survives a full app
+restart while the server-profile favorites table remains empty. Affected
+lint and application/spec/E2E type checks, release notes and agent guidance
+pass. Merged coverage across 36 projects passes at statements 84.83%, branches
+75.80%, functions 83.05%, lines 85.20%, with an advisory same-name-spec warning
+for the converter covered by service tests and native E2E. Production initial
+bytes pass at 1,199,844 within the unchanged 1,200,301-byte limit.

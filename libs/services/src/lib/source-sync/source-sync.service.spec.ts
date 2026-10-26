@@ -13,7 +13,13 @@ import { PLAYLIST_DELETE_CLEANUP } from '../playlist-delete-cleanup.token';
 import { PlaylistStorageBackend } from '../playlist-storage-backend';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { requestSourceServer } from './source-api';
-import { sourceConnection } from './source-connection';
+import {
+    sourceConnection,
+    prepareSourceConnection,
+    saveBrowserSourceConnection,
+    sourceAuthorization,
+    assertSourceRequestAllowed,
+} from './source-connection';
 import { SourceSyncService } from './source-sync.service';
 import type { SyncedPlaylistStore } from './synced-playlist-store';
 
@@ -315,6 +321,45 @@ describe('source synchronization lifecycle', () => {
         inventory = [source];
         await service.refresh();
         expect(service.state()).toBe('connected');
+    });
+
+    it('revokes browser credentials immediately after a mutation detects a replacement instance', async () => {
+        const original = window.electron;
+        const connection = {
+            apiUrl: 'https://nas.test/api',
+            instanceId: 'nas',
+        };
+        try {
+            Reflect.deleteProperty(window, 'electron');
+            saveBrowserSourceConnection(connection, 'synthetic-token');
+            await prepareSourceConnection();
+            inventory = [source];
+            await service.initialize();
+            await service.refresh();
+            const proxy = `${connection.apiUrl}/xtream`;
+            expect(sourceAuthorization(proxy)).toEqual({
+                Authorization: 'Bearer synthetic-token',
+            });
+            request.mockResolvedValueOnce({
+                status: 409,
+                body: { code: 'instance_changed' },
+            });
+            await expect(
+                store.dbUpsertAppPlaylist({
+                    ...rows.get('a')!,
+                    title: 'Edited',
+                })
+            ).rejects.toThrow('SOURCE_SYNC.INSTANCE_CHANGED');
+            expect(sourceAuthorization(proxy)).toEqual({});
+            expect(() => assertSourceRequestAllowed(proxy)).toThrow(
+                'SOURCE_SYNC.INSTANCE_CHANGED'
+            );
+            expect(service.errorKey()).toBe('SOURCE_SYNC.INSTANCE_CHANGED');
+        } finally {
+            window.electron = original;
+            localStorage.clear();
+            sessionStorage.clear();
+        }
     });
 
     it('reports a stale edit and retains the accepted local projection', async () => {

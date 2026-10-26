@@ -1,6 +1,7 @@
 import { getXtreamPendingRestoreStorageKey } from '@iptvnator/shared/interfaces';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import { prepareSourceConnection } from './source-sync/source-connection';
+import { materializePendingXtreamFavorites } from './xtream-pending-favorites';
 import { sourceProfileStorageKey } from './source-sync/source-profile-storage';
 
 describe('legacy pending restores in a source-server profile', () => {
@@ -79,6 +80,73 @@ describe('legacy pending restores in a source-server profile', () => {
         ).toBeNull();
         expect(localStorage.getItem(key)).toBe(JSON.stringify(state));
     });
+    it.each([undefined, 'old-source'])(
+        'keeps native pending-favorites conversion out of standalone archives (filter %s)',
+        async (id) => {
+            window.electron = {
+                sourceSyncConnection: () => ({
+                    apiUrl: 'https://nas.test/api',
+                    instanceId: 'nas',
+                }),
+            } as unknown as typeof window.electron;
+            const bridge = {
+                dbGetPlaylist: jest
+                    .fn()
+                    .mockResolvedValue({ id: 'old-source', type: 'xtream' }),
+                dbRestoreXtreamFavorites: jest
+                    .fn()
+                    .mockResolvedValue({ success: true }),
+                dbReplaceAllPlaybackPositions: jest.fn(),
+            };
+            await materializePendingXtreamFavorites(bridge, id);
+            expect(bridge.dbRestoreXtreamFavorites).not.toHaveBeenCalled();
+            expect(localStorage.getItem(key)).toBe(JSON.stringify(state));
+        }
+    );
+    it.each([undefined, 'old-source'])(
+        'converts only the selected profile archive (filter %s)',
+        async (id) => {
+            window.electron = {
+                sourceSyncConnection: () => ({
+                    apiUrl: 'https://nas.test/api',
+                    instanceId: 'nas',
+                }),
+            } as unknown as typeof window.electron;
+            const profile = {
+                ...state,
+                favorites: [{ xtreamId: 84, contentType: 'movie' }],
+                favoritesRestoreId: 'profile-archive',
+            };
+            localStorage.setItem(
+                sourceProfileStorageKey(key),
+                JSON.stringify(profile)
+            );
+            localStorage.setItem(
+                `iptvnator-server:other:${key}`,
+                JSON.stringify({
+                    ...state,
+                    favorites: [{ xtreamId: 999, contentType: 'movie' }],
+                })
+            );
+            const bridge = {
+                dbGetPlaylist: jest
+                    .fn()
+                    .mockResolvedValue({ id: 'old-source', type: 'xtream' }),
+                dbRestoreXtreamFavorites: jest
+                    .fn()
+                    .mockResolvedValue({ success: true }),
+                dbReplaceAllPlaybackPositions: jest.fn(),
+            };
+            await materializePendingXtreamFavorites(bridge, id);
+            expect(bridge.dbRestoreXtreamFavorites).toHaveBeenCalledTimes(1);
+            expect(bridge.dbRestoreXtreamFavorites).toHaveBeenCalledWith(
+                'old-source',
+                profile.favorites,
+                'profile-archive'
+            );
+            expect(localStorage.getItem(key)).toBe(JSON.stringify(state));
+        }
+    );
     it.each(['snapshot', 'receipt'])(
         'rejects a migration when writing its %s silently does nothing',
         (part) => {

@@ -338,6 +338,10 @@ export class SourceSyncService {
                 error instanceof Error
                     ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0]
                     : undefined;
+            if (key === 'SOURCE_SYNC.INSTANCE_CHANGED') {
+                invalidateSourceVerification();
+                this.errorKey.set(key);
+            }
             if (key === 'SOURCE_SYNC.LOCKED') this.state.set('locked');
             if (!['locked', 'conflict'].includes(this.state()))
                 this.state.set('offline');

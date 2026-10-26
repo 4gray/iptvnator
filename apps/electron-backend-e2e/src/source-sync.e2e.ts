@@ -540,3 +540,80 @@ test('imports original browser sources once and returns to the preserved local l
         await server.close();
     }
 });
+
+test('keeps standalone pending favorites out of a server profile with the same source ID @electron @xtream @persistence', async ({
+    request,
+}) => {
+    const server = await startSourceSyncServer();
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-sync-pending-'));
+    const id = 'archive-collision';
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        expect(
+            (
+                await request.put(`${server.apiUrl}/v1/playlists/${id}`, {
+                    data: {
+                        _id: id,
+                        title: 'Isolated server source',
+                        serverUrl: 'https://provider.example.invalid',
+                        username: 'user',
+                        password: 'synthetic',
+                    },
+                })
+            ).ok()
+        ).toBe(true);
+        const instance = await (
+            await fetch(`${server.apiUrl}/v1/instance`)
+        ).json();
+        writeFileSync(
+            join(directory, 'source-server.json'),
+            JSON.stringify({
+                apiUrl: server.apiUrl,
+                instanceId: instance.instanceId,
+            })
+        );
+        desktop = await launchElectronApp(directory);
+        let page = desktop.mainWindow;
+        await openSources(page);
+        await expect(
+            page.getByText('Isolated server source', { exact: true }).first()
+        ).toBeVisible();
+        const archive = JSON.stringify({
+            favorites: [{ contentType: 'movie', xtreamId: 42 }],
+            favoritesRestoreId: 'standalone-archive',
+        });
+        await page.evaluate(
+            ({ id, archive }) =>
+                localStorage.setItem(`xtream-restore-${id}`, archive),
+            { id, archive }
+        );
+        await closeElectronApp(desktop);
+        desktop = undefined;
+        desktop = await launchElectronApp(directory);
+        page = desktop.mainWindow;
+        await openSources(page);
+        expect(
+            await page.evaluate(
+                (id) => localStorage.getItem(`xtream-restore-${id}`),
+                id
+            )
+        ).toBe(archive);
+        await openWorkspaceSection(page, 'Global favorites');
+        await expect(
+            page.getByRole('heading', { name: 'No favorites yet', exact: true })
+        ).toBeVisible();
+        expect(
+            await page.evaluate(() => window.electron.dbGetAllGlobalFavorites())
+        ).toEqual([]);
+        expect(
+            await page.evaluate(
+                (id) => localStorage.getItem(`xtream-restore-${id}`),
+                id
+            )
+        ).toBe(archive);
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        await server.close();
+        rmSync(directory, { recursive: true, force: true });
+    }
+});

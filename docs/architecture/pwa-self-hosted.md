@@ -211,8 +211,9 @@ polls every 15 seconds and also refreshes on focus, reconnect, visibility and
 Electron resume. Failures back off to two minutes; rejected tokens wait for
 sign-in. Browser credentials and provider-proxy requests are held until an
 anonymous instance probe verifies the selected identity. A mismatched or failed
-refresh revokes that verification; cached sources remain readable, and requests
-resume only after a successful verification or explicit reconnection.
+refresh or an instance-change rejection from a source mutation revokes that
+verification before propagating the error; cached sources remain readable, and
+requests resume only after a successful verification or explicit reconnection.
 Accepted source mutations schedule an immediate inventory refresh.
 Uploaded M3U text is fetched only for changed revisions and parsed locally;
 URL M3U snapshots are fetched through the runtime's provider transport.
@@ -251,7 +252,10 @@ the old cache remains intact. Parked Xtream restore archives adopt the matching
 legacy browser instance in the same way: strict reads verify both the scoped
 copy and its migration receipt, newer profile values win, and consumption
 cannot resurrect the original unprefixed archive. Unverified browsers and native
-profiles keep their original archives isolated. This Xtream migration reads no server user-state
+profiles keep their original archives isolated. Native pending-favorites
+conversion enumerates and reads the same selected profile namespace, including
+collection-wide reads; it never falls back to standalone archives.
+This Xtream migration reads no server user-state
 and uploads nothing. An established browser with evidence of having used the
 selected instance also adopts legacy M3U/Stalker favorites, recent items,
 hidden groups, ordering and curated EPG selections once from `/v1/playlists`, before projecting source definitions. It validates

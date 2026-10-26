@@ -4,6 +4,8 @@ import { expect, test } from './fixtures';
 import {
     addM3uUrlPlaylist,
     openSources,
+    openSourceEditor,
+    updateSourceDialog,
     sourceRowByTitle,
 } from './sources-pwa.helpers';
 
@@ -314,6 +316,93 @@ test.describe('server storage @self-hosted @persistence', () => {
             // an active portal can send anything to the replacement either.
             await page.reload();
             await expect(status).toContainText('The server identity changed');
+            await expect(page.locator('app-playlist-error-view')).toBeVisible();
+            expect(outgoing).toEqual([]);
+        } finally {
+            await page.context().close();
+        }
+    });
+
+    test('blocks provider credentials after an instance-change rejection from a source edit', async ({
+        browser,
+        request,
+    }) => {
+        const page = await newServerPage(browser);
+        const id = 'mutation-identity';
+        const title = 'Mutation guarded source';
+        expect(
+            (
+                await request.put(`${STORAGE_BACKEND_URL}/v1/playlists/${id}`, {
+                    data: {
+                        _id: id,
+                        title,
+                        serverUrl: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}`,
+                        username: 'user1',
+                        password: 'pass1',
+                    },
+                })
+            ).ok()
+        ).toBe(true);
+        try {
+            await openSources(page);
+            const dialog = await openSourceEditor(page, title);
+            await updateSourceDialog(dialog, { title: 'Rejected rename' });
+            await page.evaluate(
+                (apiUrl) =>
+                    sessionStorage.setItem(
+                        `iptvnator:server-token:${apiUrl}`,
+                        'synthetic-saved-secret'
+                    ),
+                STORAGE_BACKEND_URL
+            );
+            const instance = await (
+                await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
+            ).json();
+            let replaced = false;
+            await page.route(`${STORAGE_BACKEND_URL}/v1/instance`, (route) =>
+                replaced
+                    ? route.fulfill({
+                          json: {
+                              ...instance,
+                              instanceId: 'replacement-instance',
+                          },
+                      })
+                    : route.continue()
+            );
+            await page.route(
+                `${STORAGE_BACKEND_URL}/v1/sources/${id}`,
+                (route) => {
+                    if (route.request().method() !== 'PATCH')
+                        return route.continue();
+                    replaced = true;
+                    return route.fulfill({
+                        status: 409,
+                        json: { code: 'instance_changed' },
+                    });
+                }
+            );
+            const outgoing: string[] = [];
+            page.on('request', (request) => {
+                const url = new URL(request.url());
+                if (
+                    url.origin === STORAGE_BACKEND_URL &&
+                    ['/xtream', '/provider-targets'].includes(url.pathname)
+                )
+                    outgoing.push(request.url());
+            });
+            await dialog
+                .locator('mat-dialog-actions')
+                .getByRole('button', { name: 'Save', exact: true })
+                .click();
+            await expect(
+                page.locator('[data-test-id="source-sync-status"]')
+            ).toContainText('The server identity changed');
+            expect(replaced).toBe(true);
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
+            await expect(dialog).toBeHidden();
+            await sourceRowByTitle(page, title).click();
             await expect(page.locator('app-playlist-error-view')).toBeVisible();
             expect(outgoing).toEqual([]);
         } finally {
