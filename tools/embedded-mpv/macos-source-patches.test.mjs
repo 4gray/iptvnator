@@ -240,3 +240,35 @@ test('rejects a patch that did not land', () => {
         assert.equal(calls.length, 3);
     });
 });
+
+const macosBuilderSource = fs.readFileSync(
+    path.join(currentDir, 'build-macos-runtime.mjs'),
+    'utf8'
+);
+
+test('applies mpv patches between download and build', () => {
+    assert.match(
+        macosBuilderSource,
+        /import \{ applySourcePatches \} from '\.\/macos-source-patches\.mjs';/
+    );
+    const mainBlock = macosBuilderSource.slice(
+        macosBuilderSource.lastIndexOf('try {')
+    );
+    const downloadIndex = mainBlock.indexOf('downloadSources();');
+    const patchIndex = mainBlock.indexOf('applySourcePatches(');
+    const buildIndex = mainBlock.indexOf('buildRuntime();');
+    assert.ok(downloadIndex >= 0, 'downloadSources() runs in main block');
+    assert.ok(patchIndex > downloadIndex, 'patches follow the download');
+    assert.ok(buildIndex > patchIndex, 'the build follows the patches');
+});
+
+test('records applied patches in the mpv manifest block', () => {
+    const writeManifest = macosBuilderSource.slice(
+        macosBuilderSource.indexOf('function writeManifest()')
+    );
+    const mpvBlock = writeManifest.slice(
+        writeManifest.indexOf('mpv: {'),
+        writeManifest.indexOf('sourceDistribution:')
+    );
+    assert.match(mpvBlock, /localPatches: appliedMpvPatches/);
+});
