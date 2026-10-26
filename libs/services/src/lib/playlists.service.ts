@@ -51,7 +51,7 @@ import {
     PlaylistWriteConflict,
 } from './playlist-storage-backend';
 
-import { inheritSourceRowSnapshot } from './source-sync/source-row-snapshot';
+import { inheritSourceRowSnapshot } from './source-sync/source-row-snapshot-context';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =

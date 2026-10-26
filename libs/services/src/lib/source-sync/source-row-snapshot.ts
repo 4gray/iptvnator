@@ -2,12 +2,11 @@ import type { Playlist } from '@iptvnator/shared/interfaces';
 import { PlaylistWriteConflict } from '../playlist-storage-backend';
 import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
 
-// Enumerable symbols survive object spreads in renderer mutations, but never
-// JSON/structured-clone persistence, backups or source-definition requests.
-const READ_SNAPSHOT = Symbol('source-row-read-snapshot');
-type SnapshotPlaylist = Playlist & {
-    [READ_SNAPSHOT]?: { version: string; playlist: Playlist['playlist'] };
-};
+import {
+    READ_SNAPSHOT,
+    type SnapshotPlaylist,
+} from './source-row-snapshot-context';
+export { stripSourceRowSnapshot } from './source-row-snapshot-context';
 
 function readVersion(row: Playlist | null): string {
     if (!row) return 'null';
@@ -40,22 +39,6 @@ export function assertSourceRowUnchanged(
     const snapshot = (incoming as SnapshotPlaylist)[READ_SNAPSHOT];
     if (snapshot !== undefined && snapshot.version !== readVersion(current))
         throw new PlaylistWriteConflict(incoming._id);
-}
-
-export function stripSourceRowSnapshot(row: Playlist): Playlist {
-    const result: SnapshotPlaylist = { ...row };
-    delete result[READ_SNAPSHOT];
-    return result;
-}
-
-export function inheritSourceRowSnapshot(
-    current: Playlist | undefined,
-    next: Playlist
-): Playlist {
-    const result = stripSourceRowSnapshot(next) as SnapshotPlaylist;
-    const snapshot = (current as SnapshotPlaylist | undefined)?.[READ_SNAPSHOT];
-    if (snapshot !== undefined) result[READ_SNAPSHOT] = snapshot;
-    return result;
 }
 
 /** An awaited source edit must not replace activity it never changed. */

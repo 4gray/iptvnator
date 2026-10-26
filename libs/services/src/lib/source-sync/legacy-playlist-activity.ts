@@ -1,5 +1,4 @@
 import {
-    SERVER_USER_STATE_NAMESPACES,
     type Playlist,
     type SourceServerConnection,
 } from '@iptvnator/shared/interfaces';
@@ -10,32 +9,7 @@ import {
 import type { PlaylistDocumentStore } from '../playlist-storage-backend';
 import { assertSourceInstance, sourceAuthorization } from './source-connection';
 import { requestSourceServer } from './source-api';
-
-/** Presence on this device, not a server read, establishes an upgrading client. */
-function wasLegacyClient(instanceId: string): boolean {
-    if (localStorage.getItem('iptvnator-server:cache-owner') === instanceId)
-        return true;
-    if (
-        SERVER_USER_STATE_NAMESPACES.some(
-            (key) =>
-                localStorage.getItem(
-                    `iptvnator-server:cache:${instanceId}:${key}`
-                ) !== null
-        )
-    )
-        return true;
-    try {
-        const remembered = JSON.parse(
-            localStorage.getItem('iptvnator-server:instance') ?? 'null'
-        );
-        return (
-            remembered?.instance?.storage === 'server' &&
-            remembered.instance.instanceId === instanceId
-        );
-    } catch {
-        return false;
-    }
-}
+import { wasLegacySourceClient } from './legacy-source-client';
 
 /** One-time upgrade of old playlist activity; new devices never read this API. */
 export async function migrateLegacyPlaylistActivity(
@@ -46,7 +20,7 @@ export async function migrateLegacyPlaylistActivity(
     const marker = 'source-sync-legacy-playlist-activity';
     if (
         (await local.dbGetAppState(marker)) === '1' ||
-        !wasLegacyClient(connection.instanceId)
+        !wasLegacySourceClient(connection.instanceId)
     )
         return;
     const url = `${connection.apiUrl}/v1/playlists`;

@@ -503,3 +503,25 @@ notes. The production initial payload is 1,199,373 bytes against the unchanged
 regional language persistence), and all five mixed PWA/Electron scenarios pass
 again on the merged code. Physical NAS and packaged-platform smoke checks
 remain in the release follow-ups above.
+
+### Sixth review fixes before review seven
+
+Codex reviewed `18599d076644c8f8c35df88f3b1385bc274a591d` and identified
+two additional P2 cases: direct `crypto.randomUUID()` broke explicit source
+imports on insecure LAN origins, and the move to profile-scoped pending
+Xtream restore keys hid existing unprefixed archives. Both are addressed:
+imports use the shared insecure-context-safe generator; strict pending reads
+and writes adopt a verified legacy browser instance once, verify the copy
+and receipt, preserve newer profile values and original archives, and prevent
+consumed archives from resurfacing. Native and unverified profiles remain
+isolated. Regression tests reproduced both failures before the fix.
+
+The shared read-snapshot token and inheritance helper now have a small eager
+module; projection reconciliation stays with the deferred sync engine. The
+production initial payload is 1,199,068 bytes, within the unchanged limit.
+Services, web and both affected Xtream projects pass, and merged coverage
+passes at statements 84.79%, branches 75.76%, functions 83.00%, lines 85.17%.
+The Chromium run passes 17 scenarios, including replay-safe legacy archive
+exports and source import with `randomUUID` unavailable. All five mixed PWA/Electron scenarios pass again. Targeted lint, runtime
+and affected spec type checks, release notes and agent guidance pass before
+the seventh committed-branch review.

@@ -176,7 +176,11 @@ Xtream restore is type-aware end to end. The app no longer stores plain
 Runtime contract:
 
 - shared shape: `XtreamPendingRestoreState`
-- persisted in local storage by playlist ID
+- persisted in local storage by playlist ID; selected source-server profiles
+  prefix the key with their instance. A verified legacy browser instance adopts
+  its unprefixed archive once before strict reads or mutations. Migration verifies
+  the copy and receipt, preserves newer profile values and original archives,
+  and prevents consumed snapshots from being reimported.
 - consumed by:
     - Xtream refresh actions
     - settings backup import

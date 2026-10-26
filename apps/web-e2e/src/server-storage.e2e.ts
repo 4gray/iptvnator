@@ -337,11 +337,96 @@ test.describe('server storage @self-hosted @persistence', () => {
         }
     });
 
+    test('keeps a legacy pending Xtream restore authoritative in profile backup exports', async ({
+        browser,
+        request,
+    }) => {
+        const page = await newServerPage(browser);
+        const id = 'legacy-parked-restore';
+        expect(
+            (
+                await request.put(`${STORAGE_BACKEND_URL}/v1/playlists/${id}`, {
+                    data: {
+                        _id: id,
+                        title: 'Parked restore',
+                        serverUrl: 'https://unreachable.example.test',
+                        username: 'legacy',
+                        password: 'synthetic',
+                    },
+                })
+            ).ok()
+        ).toBe(true);
+        const instance = await (
+            await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
+        ).json();
+        await page.addInitScript(
+            ({ instanceId, id }) => {
+                localStorage.setItem(
+                    'iptvnator-server:cache-owner',
+                    instanceId
+                );
+                localStorage.setItem(
+                    `xtream-restore-${id}`,
+                    JSON.stringify({
+                        hiddenCategories: [],
+                        favorites: [
+                            {
+                                xtreamId: 987656,
+                                contentType: 'movie',
+                                snapshot: { title: 'Parked favorite' },
+                            },
+                        ],
+                        recentlyViewed: [],
+                        playbackPositions: [],
+                    })
+                );
+            },
+            { instanceId: instance.instanceId, id }
+        );
+        try {
+            for (let attempt = 0; attempt < 2; attempt++) {
+                await page.goto('/workspace/settings/backup');
+                const downloading = page.waitForEvent('download');
+                await page
+                    .getByRole('button', { name: 'Export', exact: true })
+                    .click();
+                const path = await (await downloading).path();
+                if (!path) throw new Error('Missing pending backup');
+                const exported = JSON.parse(await readFile(path, 'utf8'));
+                expect(exported.playlists[0].userState.favorites).toEqual([
+                    expect.objectContaining({
+                        xtreamId: 987656,
+                        contentType: 'movie',
+                        snapshot: { title: 'Parked favorite' },
+                    }),
+                ]);
+                expect(
+                    await page.evaluate(
+                        ({ instanceId, id }) =>
+                            localStorage.getItem(
+                                `iptvnator-server:${instanceId}:xtream-restore-${id}`
+                            ),
+                        { instanceId: instance.instanceId, id }
+                    )
+                ).not.toBeNull();
+                await page.reload();
+            }
+        } finally {
+            await page.context().close();
+        }
+    });
+
     test('imports browser sources explicitly without replacing the original profile', async ({
         browser,
         request,
     }) => {
         const page = await newServerPage(browser);
+        await page.addInitScript(() =>
+            Object.defineProperty(crypto, 'randomUUID', {
+                configurable: true,
+                value: undefined,
+            })
+        );
         await seedBrowserPlaylist(page, 'browser-only', 'Browser only');
 
         await page.goto('/workspace/sources');

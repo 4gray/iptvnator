@@ -223,7 +223,11 @@ Xtream local user-data keys with that profile. On upgrade, each activity
 namespace adopts this browser's existing `iptvnator-server:cache:<instanceId>`
 value once if the new profile has no value. Per-namespace migration markers
 preserve newer values and prevent cleared activity from being resurrected;
-the old cache remains intact. This Xtream migration reads no server user-state
+the old cache remains intact. Parked Xtream restore archives adopt the matching
+legacy browser instance in the same way: strict reads verify both the scoped
+copy and its migration receipt, newer profile values win, and consumption
+cannot resurrect the original unprefixed archive. Unverified browsers and native
+profiles keep their original archives isolated. This Xtream migration reads no server user-state
 and uploads nothing. An established browser with evidence of having used the
 selected instance also adopts legacy M3U/Stalker favorites and recent items
 once from `/v1/playlists`, before projecting source definitions. It validates

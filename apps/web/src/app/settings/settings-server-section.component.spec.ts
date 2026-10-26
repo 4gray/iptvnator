@@ -102,6 +102,31 @@ describe('source server settings', () => {
         expect(sync.refresh).toHaveBeenCalled();
     });
 
+    it('imports sources when randomUUID is absent on a plain-HTTP LAN page', async () => {
+        const previous = Object.getOwnPropertyDescriptor(crypto, 'randomUUID');
+        Object.defineProperty(crypto, 'randomUUID', {
+            configurable: true,
+            value: undefined,
+        });
+        try {
+            await fixture.componentInstance.previewImport();
+            await fixture.componentInstance.importSources();
+            expect(requestSourceServer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    operation: 'create',
+                    id: expect.stringMatching(
+                        /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
+                    ),
+                })
+            );
+            expect(fixture.componentInstance.message()).toBe(
+                'SOURCE_SYNC.IMPORTED'
+            );
+        } finally {
+            if (previous) Object.defineProperty(crypto, 'randomUUID', previous);
+            else Reflect.deleteProperty(crypto, 'randomUUID');
+        }
+    });
     it('keeps a failed import available for an idempotent retry', async () => {
         (requestSourceServer as jest.Mock).mockResolvedValueOnce({
             status: 503,

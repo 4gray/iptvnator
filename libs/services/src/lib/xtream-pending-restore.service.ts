@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
-import { sourceProfileStorageKey } from './source-sync/source-profile-storage';
+import { sourcePendingRestoreStorageKey } from './source-sync/source-pending-restore-key';
 import {
-    getXtreamPendingRestoreStorageKey,
     normalizeXtreamPendingRestoreState,
     XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
@@ -13,18 +12,13 @@ export interface XtreamPendingRestoreSnapshot {
 }
 
 export type XtreamPendingRestoreApplicationResult =
-    | 'consumed'
-    | 'superseded'
-    | 'consume-failed';
+    'consumed' | 'superseded' | 'consume-failed';
 
 @Injectable({
     providedIn: 'root',
 })
 export class XtreamPendingRestoreService {
-    private readonly restoreApplicationTails = new Map<
-        string,
-        Promise<void>
-    >();
+    private readonly restoreApplicationTails = new Map<string, Promise<void>>();
     private readonly restoreRevisions = new Map<
         string,
         { revision: number; serializedState: string }
@@ -51,7 +45,7 @@ export class XtreamPendingRestoreService {
         }
 
         const rawState = localStorage.getItem(
-            sourceProfileStorageKey(getXtreamPendingRestoreStorageKey(playlistId))
+            sourcePendingRestoreStorageKey(playlistId)
         );
         if (!rawState) {
             return null;
@@ -106,7 +100,7 @@ export class XtreamPendingRestoreService {
         const serializedState = JSON.stringify(normalizedState);
 
         try {
-            const storageKey = sourceProfileStorageKey(getXtreamPendingRestoreStorageKey(playlistId));
+            const storageKey = sourcePendingRestoreStorageKey(playlistId);
             localStorage.setItem(storageKey, serializedState);
             if (localStorage.getItem(storageKey) !== serializedState) {
                 return null;
@@ -139,10 +133,7 @@ export class XtreamPendingRestoreService {
         expectedSnapshot: XtreamPendingRestoreSnapshot,
         apply: (state: XtreamPendingRestoreState) => Promise<void>
     ): Promise<XtreamPendingRestoreApplicationResult> {
-        if (
-            !playlistId ||
-            expectedSnapshot.playlistId !== playlistId
-        ) {
+        if (!playlistId || expectedSnapshot.playlistId !== playlistId) {
             return 'consume-failed';
         }
 
@@ -154,16 +145,13 @@ export class XtreamPendingRestoreService {
                     ? 'consumed'
                     : 'superseded';
             }
-            if (
-                currentSnapshot.revision !== expectedSnapshot.revision
-            ) {
+            if (currentSnapshot.revision !== expectedSnapshot.revision) {
                 return 'superseded';
             }
 
             await apply(currentSnapshot.state);
 
-            const snapshotAfterApply =
-                this.getSnapshotOrThrow(playlistId);
+            const snapshotAfterApply = this.getSnapshotOrThrow(playlistId);
             if (
                 !snapshotAfterApply ||
                 snapshotAfterApply.revision !== expectedSnapshot.revision
@@ -206,7 +194,12 @@ export class XtreamPendingRestoreService {
             }
         }
 
-        const storageKey = sourceProfileStorageKey(getXtreamPendingRestoreStorageKey(playlistId));
+        let storageKey: string;
+        try {
+            storageKey = sourcePendingRestoreStorageKey(playlistId);
+        } catch {
+            return false;
+        }
         let tombstoneStored = false;
 
         // An empty value is already treated as "no pending restore" by get().

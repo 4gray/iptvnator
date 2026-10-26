@@ -10,7 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { TranslateModule } from '@ngx-translate/core';
-import { type Playlist } from '@iptvnator/shared/interfaces';
+import { createRandomId, type Playlist } from '@iptvnator/shared/interfaces';
 import {
     normalizeSourceServerUrl,
     sourceFromPlaylist,
@@ -147,7 +147,7 @@ export class SettingsServerSectionComponent {
             for (const playlist of this.preview() ?? []) {
                 const source = {
                     ...sourceFromPlaylist(playlist),
-                    id: crypto.randomUUID(),
+                    id: createRandomId(),
                 };
                 const response = await requestSourceServer({
                     operation: 'create',
