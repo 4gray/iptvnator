@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, from, Observable, of } from 'rxjs';
@@ -41,6 +41,8 @@ export class EpgService {
 
     constructor() {
         this.sourceSettings.changed$.subscribe(() => {
+            this.programRequestId++;
+            this.sourceRevision.update((revision) => revision + 1);
             this.clearCache();
             this.currentEpgPrograms.next([]);
             this.epgAvailable.next(true);
@@ -49,6 +51,8 @@ export class EpgService {
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
+    private programRequestId = 0;
+    readonly sourceRevision = signal(0);
 
     /** Channel icons/display names; same scope ladder as the programmes. */
     private readonly channelMetadata = new EpgChannelMetadataLookup(
@@ -176,6 +180,77 @@ export class EpgService {
                 this.epgAvailable.next(programs.length > 0);
                 this.currentEpgPrograms.next(programs);
             });
+    }
+
+    /** Load one displayed day through the guide's uncapped overlap query. */
+    async loadChannelProgramsForWindow(
+        channelId: string,
+        fromMs: number,
+        toMs: number,
+        playlistSourceUrls: string[] = [],
+        currentDayWindow?: { fromMs: number; toMs: number }
+    ): Promise<void> {
+        const requestId = ++this.programRequestId;
+        this.currentEpgPrograms.next([]);
+        const lookupKey = channelId.trim();
+        if (!this.epgBridge.supportsGuide || !lookupKey) {
+            return;
+        }
+
+        const playlistUrls = normalizeEpgUrls(playlistSourceUrls);
+        const globalUrls = this.getGlobalEpgSourceUrls(playlistUrls);
+        const scopes = playlistUrls.length
+            ? [playlistUrls, ...(globalUrls.length ? [globalUrls] : [])]
+            : [globalUrls];
+
+        try {
+            const loadWindow = async (startMs: number, endMs: number) => {
+                for (const sourceUrls of scopes) {
+                    const result = await this.epgBridge.getProgramsForChannels({
+                        channelIds: [lookupKey],
+                        fromMs: epgProviderClockMs(
+                            startMs,
+                            this.epgOffsetMinutes()
+                        ),
+                        toMs: epgProviderClockMs(
+                            endMs,
+                            this.epgOffsetMinutes()
+                        ),
+                        ...(sourceUrls.length ? { sourceUrls } : {}),
+                    });
+                    if (requestId !== this.programRequestId) return [];
+                    const programs = normalizeEpgPrograms(
+                        result?.[lookupKey] ?? []
+                    );
+                    if (programs.length > 0) return programs;
+                }
+                return [] as EpgProgram[];
+            };
+            const programs = await loadWindow(fromMs, toMs);
+            if (requestId !== this.programRequestId) return;
+            const currentPrograms = currentDayWindow
+                ? await loadWindow(
+                      currentDayWindow.fromMs,
+                      currentDayWindow.toMs
+                  )
+                : [];
+            if (requestId !== this.programRequestId) return;
+            const combined = Array.from(
+                new Map(
+                    [...programs, ...currentPrograms].map((program) => [
+                        `${program.channel}\n${program.start}\n${program.title}`,
+                        program,
+                    ])
+                ).values()
+            ).sort((left, right) => left.start.localeCompare(right.start));
+            this.currentEpgPrograms.next(combined);
+            this.epgAvailable.next(combined.length > 0);
+        } catch (error) {
+            if (requestId !== this.programRequestId) return;
+            console.error('EPG guide programme lookup error:', error);
+            this.showErrorSnackbar();
+            this.epgAvailable.next(false);
+        }
     }
 
     /**

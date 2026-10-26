@@ -216,6 +216,10 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
                     provide: EpgService,
                     useValue: {
                         currentEpgPrograms$: epgPrograms$.asObservable(),
+                        sourceRevision: signal(0),
+                        loadChannelProgramsForWindow: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
                         getChannelMetadataForChannels: () => of(new Map()),
                     },
                 },

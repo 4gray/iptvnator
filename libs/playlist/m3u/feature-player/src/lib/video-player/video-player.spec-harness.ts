@@ -8,11 +8,13 @@ import {
     selectChannelsLoading,
     selectCurrentEpgProgram,
     selectFavorites,
+    selectActivePlaylist,
 } from '@iptvnator/m3u-state';
 import {
     Channel,
     EpgProgram,
     ExternalPlayerSession,
+    PlaylistMeta,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { BehaviorSubject, EMPTY, of } from 'rxjs';
@@ -31,6 +33,7 @@ export const channelsLoading = signal(false);
 export const currentEpgProgram = signal<EpgProgram | null>(null);
 export const activeEpgProgram = signal<EpgProgram | null>(null);
 export const favoriteIds = signal<string[]>([]);
+export const activePlaylistMeta = signal<PlaylistMeta | null>(null);
 
 export const channels$ = new BehaviorSubject<Channel[]>([]);
 export const activeChannel$ = new BehaviorSubject<Channel | null>(null);
@@ -38,6 +41,8 @@ export const currentEpgProgram$ = new BehaviorSubject<EpgProgram | null>(null);
 export const epgPrograms$ = new BehaviorSubject<EpgProgram[]>([]);
 export const epgServiceMock = {
     currentEpgPrograms$: epgPrograms$.asObservable(),
+    sourceRevision: signal(0),
+    loadChannelProgramsForWindow: jest.fn().mockResolvedValue(undefined),
     getChannelMetadataForChannels: () => of(new Map()),
 };
 
@@ -65,6 +70,8 @@ export const storeMock = {
                 return activeEpgProgram;
             case selectFavorites:
                 return favoriteIds;
+            case selectActivePlaylist:
+                return activePlaylistMeta;
             default:
                 return signal(null);
         }

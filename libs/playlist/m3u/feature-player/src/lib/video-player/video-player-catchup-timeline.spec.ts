@@ -20,11 +20,13 @@ import {
 } from '@iptvnator/services';
 import {
     EpgProgram,
+    PlaylistMeta,
     Settings,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
 import {
+    activePlaylistMeta,
     activeEpgProgram,
     activePlaybackUrl,
     dataServiceMock,
@@ -100,6 +102,9 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
         activeEpgProgram.set(null);
         epgPrograms$.next([]);
         playlistId.set('playlist-1');
+        activePlaylistMeta.set(null);
+        epgServiceMock.loadChannelProgramsForWindow.mockClear();
+        epgServiceMock.sourceRevision.set(0);
         player.set(VideoPlayer.VideoJs);
         showCaptions.set(false);
         stripCountryPrefix.set(false);
@@ -205,6 +210,59 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
                 .componentInstance as StubWebPlayerViewComponent
         ).timelineSegments();
     };
+
+    it('requests the selected local day and refreshes when its effective sources change', () => {
+        activePlaylistMeta.set({
+            epgUrls: ['https://guide.example/a.xml'],
+            disabledEpgUrls: ['https://guide.example/disabled.xml'],
+        } as PlaylistMeta);
+        fixture.componentInstance.onLiveEpgSelectedDateChange('2026-10-25');
+        fixture.detectChanges();
+        expect(
+            epgServiceMock.loadChannelProgramsForWindow
+        ).toHaveBeenLastCalledWith(
+            'sample-tvg-id',
+            new Date('2026-10-25T00:00:00').getTime(),
+            new Date('2026-10-26T00:00:00').getTime(),
+            ['https://guide.example/a.xml'],
+            expect.anything()
+        );
+
+        activePlaylistMeta.set({
+            epgUrls: ['https://guide.example/b.xml'],
+        } as PlaylistMeta);
+        fixture.detectChanges();
+        expect(
+            epgServiceMock.loadChannelProgramsForWindow
+        ).toHaveBeenLastCalledWith(
+            'sample-tvg-id',
+            expect.any(Number),
+            expect.any(Number),
+            ['https://guide.example/b.xml'],
+            expect.anything()
+        );
+
+        epgServiceMock.sourceRevision.set(1);
+        fixture.detectChanges();
+        expect(
+            epgServiceMock.loadChannelProgramsForWindow
+        ).toHaveBeenCalledTimes(4);
+
+        syncStoreState({
+            ...sampleChannel,
+            tvg: { ...sampleChannel.tvg, id: 'another-channel' },
+        });
+        fixture.detectChanges();
+        expect(
+            epgServiceMock.loadChannelProgramsForWindow
+        ).toHaveBeenLastCalledWith(
+            'another-channel',
+            expect.any(Number),
+            expect.any(Number),
+            ['https://guide.example/b.xml'],
+            expect.anything()
+        );
+    });
 
     it('draws nothing during live playback', () => {
         epgPrograms$.next([programme('Picked', 0, 1)]);

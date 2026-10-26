@@ -185,6 +185,10 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                     provide: EpgService,
                     useValue: {
                         currentEpgPrograms$: of([] as EpgProgram[]),
+                        sourceRevision: signal(0),
+                        loadChannelProgramsForWindow: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
                         getChannelMetadataForChannels: () => of(new Map()),
                     },
                 },

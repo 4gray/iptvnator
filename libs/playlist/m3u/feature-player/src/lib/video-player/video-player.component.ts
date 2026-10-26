@@ -1,4 +1,5 @@
 import { AsyncPipe, CommonModule } from '@angular/common';
+import { addDays, format } from 'date-fns';
 import {
     Component,
     ElementRef,
@@ -49,6 +50,7 @@ import {
     EpgTimelineComponent,
     EpgTimelineEmptyReason,
     getTodayEpgDateKey,
+    parseEpgDateKey,
     persistEpgGuideDockCollapsed,
     restoreEpgGuideDockCollapsed,
     shiftEpgDateKey,
@@ -567,6 +569,9 @@ export class VideoPlayerComponent
         restoreLiveEpgPanelState()
     );
     readonly selectedLiveEpgDate = signal(getTodayEpgDateKey());
+    private readonly todayEpgDate = computed(() =>
+        format(new Date(this.epgNowMs()), 'yyyy-MM-dd')
+    );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
@@ -805,6 +810,40 @@ export class VideoPlayerComponent
                 30_000
             );
             onCleanup(() => clearInterval(intervalId));
+        });
+
+        // Query the displayed local day, including programmes across midnight.
+        // Re-read when the channel, day, source set or display offset changes.
+        effect(() => {
+            const channel = this.activeChannel();
+            const dayStart = parseEpgDateKey(this.selectedLiveEpgDate());
+            const dayEnd = addDays(dayStart, 1);
+            const todayKey = this.todayEpgDate();
+            const todayStart = parseEpgDateKey(todayKey);
+            const sourceUrls = this.activePlaylistMeta()?.epgUrls ?? [];
+            this.settingsStore.epgUrl?.();
+            this.epgService.sourceRevision();
+            this.epgOffsetMinutes();
+
+            if (!this.supportsEpg) {
+                return;
+            }
+            const channelId =
+                channel && channel.radio !== 'true'
+                    ? resolveChannelEpgLookupKey(channel)
+                    : '';
+            void this.epgService.loadChannelProgramsForWindow(
+                channelId ?? '',
+                dayStart.getTime(),
+                dayEnd.getTime(),
+                sourceUrls,
+                todayKey === this.selectedLiveEpgDate()
+                    ? undefined
+                    : {
+                          fromMs: todayStart.getTime(),
+                          toMs: addDays(todayStart, 1).getTime(),
+                      }
+            );
         });
 
         // Mirror the legacy uncontrolled epg-list store side effects so the

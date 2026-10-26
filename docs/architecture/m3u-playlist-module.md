@@ -736,14 +736,24 @@ exists (`SettingsFormFacade.supportsEpgDisplay`, XMLTV or a portal's own),
 including the browser PWA, while the page's XMLTV rows (sources, Xtream
 preference, clear data) need the import and data-management bridges.
 
+The M3U player's single-channel panel requests the selected local day through
+the guide window IPC. The window includes programmes crossing midnight and is
+converted to the provider clock using the display offset. It queries the
+playlist's enabled EPG URLs first, then Settings-managed global URLs when that
+day has no programme in the playlist sources. With neither source configured,
+it uses the existing unscoped fallback. A separate current-day read keeps the
+live programme available while another day is selected. Channel, day, source
+and offset changes issue a new request; an older response cannot replace it.
+The legacy `getChannelPrograms` IPC remains available to other callers.
+
 ### EPG display offset
 
 EPG display times also support a global **`Settings.epgOffsetMinutes`**
 correction (Settings → EPG → _EPG time offset_; whole minutes, clamped to ±720,
 default 0) for guides whose provider labels programme times with the wrong
 timezone. It is **display-only**: parsed XMLTV values, SQLite rows, catch-up
-URLs and recording snapshots keep the provider's own times, so changing it
-never needs a guide refresh.
+URLs and recording snapshots keep the provider's own times. Date-window reads
+are repeated at the adjusted provider clock when the offset changes.
 
 The contract lives in `libs/shared/interfaces/src/lib/epg-display-offset.util.ts`
 and has two equivalent forms — **display** (`epgDisplayTimeMs`: shift a
@@ -1042,7 +1052,7 @@ These URLs are playlist-scoped by default:
   and surface a stale (or no) current programme. After the scoped + legacy
   candidate queries, any candidate that resolved by id/display-name but still has
   no in-scope current programme is retried once **unscoped** (all sources),
-  mirroring the timeline's own unscoped `getChannelPrograms` lookup. This keeps
+  preserving the older unscoped single-channel lookup fallback. This keeps
   the channel-list "now" line consistent with the timeline when a channel's row
   and its programmes carry different `source_url` values (shared XMLTV ids across
   multiple imports), where the channel resolves in scope but its programmes are

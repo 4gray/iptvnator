@@ -29,11 +29,13 @@ describe('EpgService', () => {
         epgBridge = {
             fetchEpg: jest.fn().mockResolvedValue({ success: true }),
             getChannelPrograms: jest.fn().mockResolvedValue([]),
+            getProgramsForChannels: jest.fn().mockResolvedValue({}),
             getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
             supportsCurrentProgramBatch: false,
             supportsImport: false,
             supportsProgress: true,
             supportsProgramLookup: false,
+            supportsGuide: false,
         };
         snackBar = {
             open: jest.fn().mockResolvedValue(null),
@@ -291,6 +293,128 @@ describe('EpgService', () => {
 
         expect(result).toEqual(new Map());
         expect(epgBridge.getCurrentProgramsBatch).not.toHaveBeenCalled();
+    });
+
+    it('loads every programme in the selected window from the playlist source', async () => {
+        epgBridge.supportsGuide = true;
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['unrelated-guide'],
+        });
+        settingsStore.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        const programs = Array.from({ length: 620 }, (_, index) => ({
+            channel: 'shared-id',
+            start: new Date(Date.UTC(2026, 8, 6, 0, index)).toISOString(),
+            stop: new Date(Date.UTC(2026, 8, 6, 0, index + 1)).toISOString(),
+            title: `Programme ${index}`,
+        }));
+        (epgBridge.getProgramsForChannels as jest.Mock).mockResolvedValue({
+            'shared-id': programs,
+        });
+
+        await service.loadChannelProgramsForWindow(
+            'shared-id',
+            Date.UTC(2026, 8, 6),
+            Date.UTC(2026, 8, 7),
+            ['playlist-guide']
+        );
+
+        expect(epgBridge.getProgramsForChannels).toHaveBeenCalledWith({
+            channelIds: ['shared-id'],
+            fromMs: Date.UTC(2026, 8, 5, 23),
+            toMs: Date.UTC(2026, 8, 6, 23),
+            sourceUrls: ['playlist-guide'],
+        });
+        expect(await firstValueFrom(service.currentEpgPrograms$)).toHaveLength(
+            620
+        );
+        expect(epgBridge.getProgramsForChannels).toHaveBeenCalledTimes(1);
+        expect(epgBridge.getChannelPrograms).not.toHaveBeenCalled();
+    });
+
+    it('tries enabled global sources only when the playlist has no programmes for the day', async () => {
+        epgBridge.supportsGuide = true;
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['global-guide'],
+        });
+        const current = {
+            channel: 'shared-id',
+            start: '2026-09-06T01:00:00.000Z',
+            stop: '2026-09-06T02:00:00.000Z',
+            title: 'Global fallback',
+        };
+        (epgBridge.getProgramsForChannels as jest.Mock).mockImplementation(
+            async ({ sourceUrls }: { sourceUrls?: string[] }) => ({
+                'shared-id':
+                    sourceUrls?.[0] === 'global-guide' ? [current] : [],
+            })
+        );
+
+        await service.loadChannelProgramsForWindow(
+            'shared-id',
+            Date.UTC(2026, 8, 6),
+            Date.UTC(2026, 8, 7),
+            ['playlist-guide']
+        );
+
+        expect(
+            (epgBridge.getProgramsForChannels as jest.Mock).mock.calls.map(
+                ([request]) => request.sourceUrls
+            )
+        ).toEqual([['playlist-guide'], ['global-guide']]);
+        expect(await firstValueFrom(service.currentEpgPrograms$)).toMatchObject(
+            [{ title: 'Global fallback' }]
+        );
+    });
+
+    it('ignores an older day response after the selection changes', async () => {
+        epgBridge.supportsGuide = true;
+        let resolveOld!: (value: Record<string, EpgProgram[]>) => void;
+        (epgBridge.getProgramsForChannels as jest.Mock)
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveOld = resolve;
+                })
+            )
+            .mockResolvedValueOnce({
+                'channel-1': [
+                    {
+                        channel: 'channel-1',
+                        start: '2026-09-07T01:00:00.000Z',
+                        stop: '2026-09-07T02:00:00.000Z',
+                        title: 'New day',
+                    },
+                ],
+            });
+        const old = service.loadChannelProgramsForWindow(
+            'channel-1',
+            Date.UTC(2026, 8, 6),
+            Date.UTC(2026, 8, 7)
+        );
+        await service.loadChannelProgramsForWindow(
+            'channel-1',
+            Date.UTC(2026, 8, 7),
+            Date.UTC(2026, 8, 8)
+        );
+        resolveOld({ 'channel-1': [] });
+        await old;
+        expect(await firstValueFrom(service.currentEpgPrograms$)).toMatchObject(
+            [{ title: 'New day' }]
+        );
+    });
+
+    it('keeps a genuinely empty selected day empty without querying unrelated sources', async () => {
+        epgBridge.supportsGuide = true;
+        await service.loadChannelProgramsForWindow(
+            'shared-id',
+            Date.UTC(2026, 8, 10),
+            Date.UTC(2026, 8, 11),
+            ['enabled-guide']
+        );
+        expect(epgBridge.getProgramsForChannels).toHaveBeenCalledTimes(1);
+        expect(epgBridge.getProgramsForChannels).toHaveBeenCalledWith(
+            expect.objectContaining({ sourceUrls: ['enabled-guide'] })
+        );
+        expect(await firstValueFrom(service.currentEpgPrograms$)).toEqual([]);
     });
 
     it('returns null for current program lookup when the desktop bridge is unavailable', async () => {

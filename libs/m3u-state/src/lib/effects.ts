@@ -55,7 +55,6 @@ import {
     selectChannels,
     selectFavorites,
 } from './selectors';
-import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
 import {
     buildExternalPlayerPayload,
     type ExternalPlayerHeaderFallback,
@@ -208,12 +207,6 @@ export class PlaylistEffects {
             withLatestFrom(this.store.select(selectActivePlaylist)),
             map(([action, activePlaylist]) => {
                 const { channel } = action;
-
-                // Use modern EPG service to get channel programs
-                const channelId = resolveChannelEpgLookupKey(channel);
-                if (channelId) {
-                    this.epgService.getChannelPrograms(channelId);
-                }
 
                 void window.electron
                     ?.setUserAgent(

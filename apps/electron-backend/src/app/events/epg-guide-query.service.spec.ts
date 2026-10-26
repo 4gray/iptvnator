@@ -372,6 +372,31 @@ describeWithSqlite('guideWindowCondition rendered against SQLite', () => {
         expect(result).toEqual(['empty-row', 'null-row', 'u1-row']);
     });
 
+    it('returns a dense selected day after more than 500 older programmes without admitting other sources', () => {
+        const predicate = renderPredicate(['shared-id'], ['enabled-guide']);
+        const script = [
+            CREATE_TABLE,
+            `WITH RECURSIVE old(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM old WHERE n<500)
+             INSERT INTO epg_programs SELECT 'shared-id',
+             datetime('2026-08-15', '+' || n || ' minutes'),
+             datetime('2026-08-15', '+' || (n+1) || ' minutes'), 'enabled-guide' FROM old;`,
+            `WITH RECURSIVE today(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM today WHERE n<619)
+             INSERT INTO epg_programs SELECT 'shared-id',
+             datetime('2026-09-06', '+' || n || ' minutes'),
+             datetime('2026-09-06', '+' || (n+1) || ' minutes'), 'enabled-guide' FROM today;`,
+            `INSERT INTO epg_programs VALUES
+             ('shared-id','2026-09-05T23:59:00Z','2026-09-06T00:01:00Z','enabled-guide'),
+             ('shared-id','2026-09-06T12:00:00Z','2026-09-06T13:00:00Z','disabled-guide'),
+             ('shared-id','2026-09-06T12:00:00Z','2026-09-06T13:00:00Z','unrelated-guide'),
+             ('other-id','2026-09-06T12:00:00Z','2026-09-06T13:00:00Z','enabled-guide');`,
+            `SELECT count(*) FROM epg_programs WHERE ${predicate};`,
+        ].join('\n');
+        const count = execFileSync('sqlite3', [':memory:', script], {
+            encoding: 'utf8',
+        }).trim();
+        expect(count).toBe('621');
+    });
+
     it('keeps and drops the right rows around the 48 h prefilter slack', () => {
         const predicate = renderPredicate(['far-east', 'far-future', 'junk']);
         const result = matchingChannelIds(predicate, [
