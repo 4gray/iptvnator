@@ -83,6 +83,7 @@ export class EpgListViewComponent {
      * timeline's literal "Timeline" while in list mode. */
     readonly sourceLabel = input('Programme guide');
     readonly archivePlaybackAvailable = input(false);
+    readonly futurePlaybackAvailable = input(false);
     /** Source/channel identity captured by programme details, independent of playback. */
     readonly archiveDownloadAvailable = input(false);
     readonly archiveContextKey = input<string | null>(null);
@@ -135,6 +136,7 @@ export class EpgListViewComponent {
     readonly rows = computed<EpgListRow[]>(() =>
         buildEpgListRows(this.programs(), this.viewDayKey(), this.nowMs(), {
             archivePlaybackAvailable: this.archivePlaybackAvailable(),
+            futurePlaybackAvailable: this.futurePlaybackAvailable(),
             archiveDays: this.archiveDays(),
             activeProgram: this.activeProgram(),
             offsetMinutes: this.offsetMinutes(),

@@ -82,6 +82,12 @@ describe('epg-archive.util', () => {
             ).toBe(false);
         });
 
+        it('allows future programmes when the source offers future playback', () => {
+            expect(
+                canCatchUpProgramme('future', NOW + 60_000, true, 7, NOW, true)
+            ).toBe(true);
+        });
+
         it('denies when the start is outside the archive window', () => {
             expect(
                 canCatchUpProgramme('past', NOW - 8 * DAY_MS, true, 7, NOW)
@@ -114,6 +120,10 @@ describe('epg-archive.util', () => {
 
         it('offers no action for a future programme', () => {
             expect(epgDialogActionFor('future', false)).toBeNull();
+        });
+
+        it('offers playback for a future programme with a playable URL', () => {
+            expect(epgDialogActionFor('future', true)).toBe('timeshift');
         });
     });
 });

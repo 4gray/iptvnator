@@ -96,6 +96,7 @@ export class EpgTimelineComponent {
     readonly channelLogo = input('');
     readonly sourceLabel = input('Timeline');
     readonly archivePlaybackAvailable = input(false);
+    readonly futurePlaybackAvailable = input(false);
     /** Source/channel identity captured by programme details, independent of playback. */
     readonly archiveDownloadAvailable = input(false);
     readonly archiveContextKey = input<string | null>(null);
@@ -196,6 +197,7 @@ export class EpgTimelineComponent {
             allowGroup: this.scale() < TIMELINE_GROUP_ZOOM_MAX,
             nowMs: this.nowMs(),
             archivePlaybackAvailable: this.archivePlaybackAvailable(),
+            futurePlaybackAvailable: this.futurePlaybackAvailable(),
             archiveWindowStartMs: this.archiveWindowStartMs(),
         })
     );
@@ -346,11 +348,9 @@ export class EpgTimelineComponent {
 
     canCatchUp(block: TimelineBlock): boolean {
         return canCatchUpProgramme(
-            block.when,
-            block.startMs,
-            this.archivePlaybackAvailable(),
-            this.archiveDays(),
-            this.nowMs()
+            block.when, block.startMs,
+            this.archivePlaybackAvailable(), this.archiveDays(),
+            this.nowMs(), this.futurePlaybackAvailable()
         );
     }
 

@@ -127,6 +127,24 @@ describe('buildEpgListRows', () => {
         expect(noArchive[0].canCatchUp).toBe(false);
     });
 
+    it('offers a future row only when future playback is enabled', () => {
+        const future = [programAt(60, 5, 'Next clip')];
+        const options = {
+            ...DEFAULT_OPTS,
+            archivePlaybackAvailable: true,
+            archiveDays: 7,
+        };
+        expect(
+            buildEpgListRows(future, TODAY, NOW, options)[0].canCatchUp
+        ).toBe(false);
+        expect(
+            buildEpgListRows(future, TODAY, NOW, {
+                ...options,
+                futurePlaybackAvailable: true,
+            })[0].canCatchUp
+        ).toBe(true);
+    });
+
     it('marks the active programme', () => {
         const active = programAt(-180, 60, 'Past');
         const rows = buildEpgListRows(

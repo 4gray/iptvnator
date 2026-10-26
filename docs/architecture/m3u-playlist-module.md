@@ -865,7 +865,8 @@ action is reachable whichever view the setting selects.
   deliberate user action. See `TimelineScrollController.maybeAutoFocus` /
   `focusCurrentProgram` in `epg-timeline-scroll.controller.ts`.
 - **Controlled component.** `app-epg-timeline` is presentation-only: it takes
-  `programs`, `archivePlaybackAvailable`, `archiveDays`, `activeProgram`,
+  `programs`, `archivePlaybackAvailable`, `futurePlaybackAvailable`,
+  `archiveDays`, `activeProgram`,
   `isLivePlayback`, `loading`, `emptyReason`, `hasProgramsElsewhere`,
   `selectedDate`, `collapsed`,
   `summary` and emits `programActivated`, `returnToLive`, `selectedDateChange`,
@@ -892,9 +893,11 @@ action is reachable whichever view the setting selects.
   no-EPG-anywhere states and while loading. Return-to-live is a playback control
   (`!isLivePlayback()`) and is independent of EPG state.
 - **State-driven affordances.** Blocks are coloured past / now / future, with a
-  red "now" playhead. Catch-up "Watch" appears on past blocks — and as a
-  start-over replay button on the currently-airing block — only when
-  `archivePlaybackAvailable` (Xtream `tv_archive`, M3U `catchup-*`); Stalker is
+  red "now" playhead. Catch-up "Watch" appears on past blocks and as a
+  start-over replay button on the currently-airing block when
+  `archivePlaybackAvailable` (Xtream `tv_archive`, M3U `catchup-*`). M3U also
+  offers future programmes when catch-up playback is configured; URL resolution
+  failures use the existing snackbar. Stalker is
   schedule-only (dimmed past + a notice, no false buttons). The "i" button opens
   the shared `app-epg-item-description` dialog with a state-aware action.
 - **Empty / error states.** `emptyReason` selects one of six states
@@ -922,11 +925,11 @@ action is reachable whichever view the setting selects.
   (D) a px-per-minute **zoom** (tick density adapts via
   `timelineTickStepForScale`): the toolbar's icon-only zoom button cycles
   three presets — day overview (`1`) → by hour (`1.75`, the default) →
-  detailed (`3.4`, the scale a group chip expands to) — snapping a
+  detailed (`13.6`, the scale a group chip expands to), snapping a
   wheel-tuned scale to its band's successor (`TIMELINE_ZOOM_LEVELS`,
   `nextTimelineZoomScale`), while Ctrl/⌘ + wheel (and trackpad pinch) over
   the ribbon zooms continuously around the cursor within
-  `TIMELINE_ZOOM_MIN..MAX` and `preventDefault`s so Chromium never page-zooms
+  `TIMELINE_ZOOM_MIN..MAX` (`0.8..24`) and `preventDefault`s so Chromium never page-zooms
   the same gesture; the current level lives in the tooltip/`aria-label` and
   a `data-zoom-level` attribute; and (E) **grouping** of ≥4 consecutive short
   (<10 min) programmes into one dashed "N short" chip when zoomed out

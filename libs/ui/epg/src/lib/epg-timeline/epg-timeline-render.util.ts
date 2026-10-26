@@ -13,7 +13,7 @@ export const TIMELINE_MIN_BLOCK_WIDTH_PX = 40;
 export const TIMELINE_BLOCK_GAP_PX = 4;
 /** Zoom (px/min) bounds for the Ctrl/⌘ + wheel fine-tune gesture. */
 export const TIMELINE_ZOOM_MIN = 0.8;
-export const TIMELINE_ZOOM_MAX = 6;
+export const TIMELINE_ZOOM_MAX = 24;
 /**
  * Multiplicative zoom per wheel pixel: one mouse notch (~100px) is about
  * ×1.22, and a trackpad pinch (a few px per event) stays smooth.
@@ -33,12 +33,12 @@ export const TIMELINE_ZOOM_LEVELS: readonly {
 }[] = [
     { level: 'day', scale: 1 },
     { level: 'hours', scale: 1.75 },
-    { level: 'detail', scale: 3.4 },
+    { level: 'detail', scale: 13.6 },
 ];
 /** Below this zoom, dense runs of short programmes collapse into a group chip. */
 export const TIMELINE_GROUP_ZOOM_MAX = 1.3;
 /** Zoom applied when a group chip is expanded. */
-export const TIMELINE_GROUP_EXPAND_ZOOM = 3.4;
+export const TIMELINE_GROUP_EXPAND_ZOOM = 13.6;
 /** A programme is "short" below this duration (minutes). */
 export const TIMELINE_SHORT_MAX_MIN = 10;
 /** Minimum consecutive shorts before they group. */
@@ -55,7 +55,7 @@ export interface TimelineRenderBlock {
     readonly tier: TimelineTier;
     /** Live progress 0–100 for the on-now block, else 0. */
     readonly nowFillPercent: number;
-    /** Past programme playable from the catch-up archive. */
+    /** Programme playable from its catch-up URL. */
     readonly canCatchUp: boolean;
 }
 
@@ -77,6 +77,7 @@ export interface TimelineRenderOptions {
     readonly allowGroup?: boolean;
     readonly nowMs?: number;
     readonly archivePlaybackAvailable?: boolean;
+    readonly futurePlaybackAvailable?: boolean;
     /** Earliest start playable from the archive; -Infinity = whole past. */
     readonly archiveWindowStartMs?: number;
 }
@@ -134,6 +135,7 @@ function toRenderBlock(
     gapPx: number,
     nowMs: number,
     archivePlaybackAvailable: boolean,
+    futurePlaybackAvailable: boolean,
     archiveWindowStartMs: number
 ): TimelineRenderBlock {
     const rawWidth = Math.max(minWidthPx, block.durationMin * scale);
@@ -147,7 +149,9 @@ function toRenderBlock(
         nowFillPercent: nowFillFor(block, nowMs),
         canCatchUp:
             archivePlaybackAvailable &&
-            (block.when === 'past' || block.when === 'now') &&
+            (block.when === 'past' ||
+                block.when === 'now' ||
+                (block.when === 'future' && futurePlaybackAvailable)) &&
             block.startMs >= archiveWindowStartMs,
     };
 }
@@ -166,6 +170,7 @@ export function buildTimelineRenderItems(
     const allowGroup = options.allowGroup ?? false;
     const nowMs = options.nowMs ?? Date.now();
     const archiveAvailable = options.archivePlaybackAvailable ?? false;
+    const futureAvailable = options.futurePlaybackAvailable ?? false;
     const archiveWindowStartMs =
         options.archiveWindowStartMs ?? Number.NEGATIVE_INFINITY;
 
@@ -181,6 +186,7 @@ export function buildTimelineRenderItems(
                 gapPx,
                 nowMs,
                 archiveAvailable,
+                futureAvailable,
                 archiveWindowStartMs
             )
         );

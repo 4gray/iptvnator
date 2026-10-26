@@ -246,13 +246,13 @@ describe('epg-timeline.utils', () => {
 
         it('cycles to the next preset and wraps from detail to day', () => {
             expect(nextTimelineZoomScale(1)).toBe(1.75);
-            expect(nextTimelineZoomScale(1.75)).toBe(3.4);
-            expect(nextTimelineZoomScale(3.4)).toBe(1);
+            expect(nextTimelineZoomScale(1.75)).toBe(13.6);
+            expect(nextTimelineZoomScale(13.6)).toBe(1);
             // an expanded group chip sits on the detail preset, so the cycle
             // continues from there instead of re-entering "detail"
             expect(nextTimelineZoomScale(TIMELINE_GROUP_EXPAND_ZOOM)).toBe(1);
             // wheel-tuned values snap to the band's successor
-            expect(nextTimelineZoomScale(2.6)).toBe(3.4);
+            expect(nextTimelineZoomScale(2.6)).toBe(13.6);
             expect(nextTimelineZoomScale(5)).toBe(1);
         });
     });
@@ -312,6 +312,25 @@ describe('epg-timeline.utils', () => {
             expect(items[0].tier).toBe('narrow');
             // the long block (200px) keeps its full proportional content
             expect(items[1].tier).toBe('wide');
+        });
+
+        it('shows the watch action on future blocks only when enabled', () => {
+            const future = [
+                program(
+                    localIso(2026, 6, 28, 13),
+                    localIso(2026, 6, 28, 13, 5)
+                ),
+            ];
+            const axis = buildTimelineAxis(future, NOW);
+            const blocks = buildTimelineBlocks(future, axis, NOW);
+            const options = { nowMs: NOW, archivePlaybackAvailable: true };
+            const normal = buildTimelineRenderItems(blocks, 13.6, options);
+            const enabled = buildTimelineRenderItems(blocks, 13.6, {
+                ...options,
+                futurePlaybackAvailable: true,
+            });
+            expect((normal[0] as TimelineRenderBlock).canCatchUp).toBe(false);
+            expect((enabled[0] as TimelineRenderBlock).canCatchUp).toBe(true);
         });
 
         it('groups >=4 consecutive shorts when grouping is allowed', () => {

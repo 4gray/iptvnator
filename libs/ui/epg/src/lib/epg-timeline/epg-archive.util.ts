@@ -21,18 +21,21 @@ export function isWithinArchiveWindow(
     return startMs >= nowMs - archiveDays * DAY_MS;
 }
 
-/** Whether a programme is playable from the catch-up archive —
- *  both past programmes and the currently-airing programme (start-over). */
+/** Whether a programme can be played from its catch-up URL. Future playback
+ * is offered only when the host explicitly enables it. */
 export function canCatchUpProgramme(
     when: TimelineWhen,
     startMs: number,
     archivePlaybackAvailable: boolean,
     archiveDays: number,
-    nowMs: number
+    nowMs: number,
+    futurePlaybackAvailable = false
 ): boolean {
     return (
         archivePlaybackAvailable &&
-        (when === 'past' || when === 'now') &&
+        (when === 'past' ||
+            when === 'now' ||
+            (when === 'future' && futurePlaybackAvailable)) &&
         isWithinArchiveWindow(startMs, archiveDays, nowMs)
     );
 }

@@ -28,12 +28,13 @@ export interface EpgListRow {
     readonly progress: number | null;
     /** Matches the host's active programme (archive playback highlight). */
     readonly isActive: boolean;
-    /** Past programme playable from the catch-up archive. */
+    /** Programme playable from its catch-up URL. */
     readonly canCatchUp: boolean;
 }
 
 export interface BuildEpgListRowsOptions {
     readonly archivePlaybackAvailable: boolean;
+    readonly futurePlaybackAvailable?: boolean;
     readonly archiveDays: number;
     readonly activeProgram: EpgProgram | null;
     readonly offsetMinutes?: number;
@@ -143,7 +144,8 @@ export function buildEpgListRows(
                 startMs,
                 options.archivePlaybackAvailable,
                 options.archiveDays,
-                nowMs
+                nowMs,
+                options.futurePlaybackAvailable
             ),
         };
     });

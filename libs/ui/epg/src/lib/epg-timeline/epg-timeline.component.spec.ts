@@ -194,6 +194,26 @@ describe('EpgTimelineComponent', () => {
         expect(events).toEqual(['timeshift']);
     });
 
+    it('plays a future block only when the host offers future playback', () => {
+        setInputs({
+            programs: [programAt(60, 5, 'Next clip')],
+            archivePlaybackAvailable: true,
+            archiveDays: 7,
+        });
+        const future = component.blocks().find((b) => b.when === 'future');
+        expect(future).toBeDefined();
+        const events: string[] = [];
+        component.programActivated.subscribe((event) => events.push(event.type));
+
+        component.onBlockClick(future as TimelineBlock);
+        expect(events).toEqual([]);
+
+        setInputs({ futurePlaybackAvailable: true });
+        expect(component.canCatchUp(future as TimelineBlock)).toBe(true);
+        component.onBlockClick(future as TimelineBlock);
+        expect(events).toEqual(['timeshift']);
+    });
+
     it('emits returnToLive when the on-now block is clicked', () => {
         setInputs({ programs: [programAt(-30, 60, 'Live')] });
         const now = component.blocks().find((b) => b.when === 'now');
@@ -350,7 +370,7 @@ describe('EpgTimelineComponent', () => {
         expect(component.zoomLevel()).toBe('hours');
         component.cycleZoom();
         expect(component.zoomLevel()).toBe('detail');
-        expect(component.scale()).toBe(3.4);
+        expect(component.scale()).toBe(13.6);
     });
 
     function wheel(init: WheelEventInit): WheelEvent {

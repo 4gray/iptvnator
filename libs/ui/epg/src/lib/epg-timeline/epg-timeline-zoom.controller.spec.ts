@@ -48,6 +48,7 @@ describe('TimelineZoomController', () => {
     });
 
     it('clamps to the zoom bounds and ignores non-finite input', () => {
+        expect(TIMELINE_ZOOM_MAX).toBe(24);
         controller.zoomTo(99);
         expect(scale).toBe(TIMELINE_ZOOM_MAX);
         controller.zoomTo(-1);
@@ -119,7 +120,7 @@ describe('TimelineZoomController', () => {
     it('zooms without a rendered ribbon', () => {
         scroller = undefined;
         controller.cycle();
-        expect(scale).toBe(3.4);
+        expect(scale).toBe(13.6);
         expect(rafCallbacks).toHaveLength(0);
     });
 });
