@@ -104,6 +104,9 @@ test('@downloads @electron keeps download controls usable across themes and narr
         await capture(page, output, 'interaction-disabled.png');
         await expect(pause).toBeEnabled();
 
+        // Change the locale at desktop width: Windows title-bar controls
+        // overlap the global Settings shortcut in the narrow shell.
+        await page.setViewportSize({ width: 1280, height: 1000 });
         await openSettings(page);
         await page.getByTestId('select-language').click();
         await page.getByTestId('de').click();
