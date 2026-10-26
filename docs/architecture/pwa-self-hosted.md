@@ -200,7 +200,11 @@ settings button remains available if that view chunk fails to load.
 local. Source comparisons use SQLite's trimmed/nonempty representation for
 projected string columns, so normalized empty headers cannot turn offline
 activity into a source PATCH. Raw M3U and payload-only Stalker identity are
-compared verbatim. Bootstrap waits only for local profile readiness, then starts network
+compared verbatim. Nullable optional form fields are omitted from source
+definitions and compared as absent; the source API still rejects null input.
+Remote deletions run the shared cleanup hooks on both runtimes, including
+native parental-lock JSON/in-memory state in addition to SQL-owned sidecars.
+Bootstrap waits only for local profile readiness, then starts network
 refresh in the background. Slow URL providers cannot hold the app behind its
 splash: cached sources and settings remain accessible. An uninitialized cache
 defers its first inventory read until refresh settles; a failed projection

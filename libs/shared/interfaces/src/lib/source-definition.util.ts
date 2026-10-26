@@ -35,8 +35,9 @@ export function sourceFromPlaylist(
         title: playlist.title,
         kind,
     };
+    // Untyped editor controls and older rows can represent absent options as null.
     for (const key of SOURCE_CONNECTION_FIELDS) {
-        if (playlist[key] !== undefined)
+        if (playlist[key] != null)
             Object.assign(source, { [key]: playlist[key] });
     }
     if (kind === 'stalker')
@@ -125,7 +126,7 @@ const PROJECTED_SOURCE_STRINGS = new Set<keyof SourceDefinition>([
     'origin',
 ]);
 function sourceValue(source: SourceDefinition, key: keyof SourceDefinition) {
-    const value = source[key];
+    const value = source[key] ?? undefined;
     return PROJECTED_SOURCE_STRINGS.has(key) && typeof value === 'string'
         ? value.trim() || undefined
         : value;

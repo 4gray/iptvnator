@@ -25,6 +25,20 @@ const row: Playlist = {
 };
 
 describe('portable source definitions', () => {
+    it('compares absent nullable optional fields consistently while keeping API input validation strict', () => {
+        const source = sourceFromPlaylist(row);
+        const nullable = {
+            ...source,
+            stalkerSerialNumber: null,
+            userAgent: null,
+        };
+        expect(sameSource(source, nullable as never)).toBe(true);
+        expect(() => validateSource(nullable)).toThrow('Invalid source field');
+        expect(
+            sourceFromPlaylist({ ...row, isFullStalkerPortal: false })
+                .isFullStalkerPortal
+        ).toBe(false);
+    });
     it('compares SQLite-projected strings canonically without changing raw content or configured Stalker identity', () => {
         const source = {
             id: 'a',

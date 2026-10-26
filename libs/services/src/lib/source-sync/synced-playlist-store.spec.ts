@@ -1,11 +1,16 @@
 import {
     type Playlist,
     type SourceDefinition,
+    type SourceServerRequest,
 } from '@iptvnator/shared/interfaces';
 import {
     applySourceDefinition,
     sourceFromPlaylist,
+    validateSource,
 } from '@iptvnator/shared/interfaces/source-definition';
+import { FormControl, FormGroup } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
+import { PlaylistsService } from '../playlists.service';
 import type { PlaylistDocumentStore } from '../playlist-storage-backend';
 import { SyncedPlaylistStore } from './synced-playlist-store';
 import { PlaylistWriteConflict } from '../playlist-storage-backend';
@@ -48,7 +53,7 @@ function setup() {
         dbGetAppState: jest.fn(),
         dbSetAppState: jest.fn(),
     };
-    const request = jest.fn(async () => ({
+    const request = jest.fn(async (_command: SourceServerRequest) => ({
         status: 200,
         body: source,
         etag: '"2"',
@@ -63,6 +68,93 @@ function setup() {
 }
 
 describe('source synchronization with local activity', () => {
+    it.each([
+        { ...source },
+        {
+            id: 'a',
+            title: 'URL',
+            kind: 'm3u-url',
+            url: 'https://provider.test/list.m3u',
+        },
+        {
+            id: 'a',
+            title: 'Upload',
+            kind: 'm3u-text',
+            rawM3u: '#EXTM3U\nhttps://media.test/live',
+        },
+        {
+            id: 'a',
+            title: 'Portal',
+            kind: 'stalker',
+            portalUrl: 'https://portal.test',
+            macAddress: '00:1A:79:00:00:01',
+        },
+    ] as SourceDefinition[])(
+        'saves a $kind rename from nullable editor controls through playlist metadata and the source API',
+        async (definition) => {
+            const { store, rows, request } = setup();
+            rows.set('a', {
+                ...applySourceDefinition(definition),
+                favorites: ['private'],
+                sourceSyncBase: definition,
+                sourceSyncRevision: '"1"',
+            });
+            request.mockImplementation(async (command) => ({
+                status: 200,
+                body: validateSource(command.source),
+                etag: '"2"',
+            }));
+            const playlists = Object.create(
+                PlaylistsService.prototype
+            ) as PlaylistsService;
+            Object.assign(playlists, {
+                storageBackend: {
+                    kind: () => 'server',
+                    documentStore: () => store,
+                },
+                playlistWriteQueues: new Map(),
+                deletingAll: Promise.resolve(),
+                resets: 0,
+                electronMigrationPromise: Promise.resolve(),
+            });
+            // These are the optional controls constructed by PlaylistInfoComponent.
+            const form = new FormGroup({
+                title: new FormControl('Renamed source'),
+                stalkerSerialNumber: new FormControl<string | undefined>(
+                    undefined
+                ),
+                stalkerDeviceId1: new FormControl<string | undefined>(
+                    undefined
+                ),
+                stalkerDeviceId2: new FormControl<string | undefined>(
+                    undefined
+                ),
+                stalkerSignature1: new FormControl<string | undefined>(
+                    undefined
+                ),
+                stalkerSignature2: new FormControl<string | undefined>(
+                    undefined
+                ),
+            });
+            expect(form.getRawValue().stalkerSerialNumber).toBeNull();
+            await firstValueFrom(
+                playlists.updatePlaylistMeta({
+                    _id: 'a',
+                    ...form.getRawValue(),
+                } as never)
+            );
+            expect(request).toHaveBeenCalledTimes(1);
+            expect(request.mock.calls[0][0].source).toEqual({
+                ...definition,
+                title: 'Renamed source',
+            });
+            expect(rows.get('a')).toMatchObject({
+                title: 'Renamed source',
+                sourceSyncRevision: '"2"',
+                favorites: ['private'],
+            });
+        }
+    );
     it('uses native lightweight metadata without reading complete playlist documents', async () => {
         const { store, local } = setup();
         local.dbGetAppPlaylistMetas = jest.fn(async () => [

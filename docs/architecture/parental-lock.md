@@ -537,7 +537,8 @@ see the other's result instead of one shared snapshot; the dialogs pass a
 full list, which is the replacement they mean. A deleted playlist's locks leave
 the store through the `PLAYLIST_DELETE_CLEANUP` hook
 (`provideParentalLockPlaylistCleanup`, run by
-`PlaylistsService.deletePlaylist` for every single-playlist deletion; no
+`PlaylistsService.deletePlaylist` for direct single-playlist deletion and
+`SourceSyncService` for remote source deletions on PWA and Electron; no
 re-stamp, the category rows go with the playlist), and "Remove all
 playlists" empties it through `ParentalLockService.clearAllLocks` once the
 deletion has succeeded — the in-memory store empties at once, and a failed

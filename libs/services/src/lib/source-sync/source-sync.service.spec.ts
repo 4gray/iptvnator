@@ -151,6 +151,20 @@ describe('source synchronization lifecycle', () => {
     });
     afterEach(() => TestBed.resetTestingModule());
 
+    it('runs non-SQL cleanup hooks when a source is remotely deleted from a native projection', async () => {
+        Object.assign(TestBed.inject(RuntimeCapabilitiesService), {
+            supportsXtreamSqliteDataSource: true,
+        });
+        rows.set(
+            'removed',
+            applySourceDefinition({ ...source, id: 'removed' })
+        );
+        await service.initialize();
+        await service.refresh();
+        expect(rows.has('removed')).toBe(false);
+        expect(cleanup).toHaveBeenCalledWith('removed');
+    });
+
     it('projects changed sources and portable uploads, retains local activity and cleans remote deletions', async () => {
         rows.set('a', {
             ...applySourceDefinition(source),

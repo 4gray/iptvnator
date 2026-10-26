@@ -1,5 +1,9 @@
+import {
+    STORAGE_BACKEND_URL,
+    newServerPage,
+    seedBrowserPlaylist,
+} from './server-storage-pwa.helpers';
 import { readFile } from 'node:fs/promises';
-import type { Browser, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import {
     addM3uUrlPlaylist,
@@ -8,103 +12,6 @@ import {
     updateSourceDialog,
     sourceRowByTitle,
 } from './sources-pwa.helpers';
-
-/** The storage-enabled backend from playwright.config.ts. */
-const STORAGE_BACKEND_URL = `http://localhost:${
-    process.env['STORAGE_BACKEND_PORT'] ?? '3334'
-}`;
-
-/** A fresh browser profile (a "device") whose runtime config points at it. */
-async function newServerPage(browser: Browser): Promise<Page> {
-    // Runtime configuration and instance replacement are routed by Playwright.
-    // Real Service Worker coverage lives in pwa-styles.e2e.ts.
-    const context = await browser.newContext({ serviceWorkers: 'block' });
-    const page = await context.newPage();
-    await page.route('**/assets/app-config.js', (route) =>
-        route.fulfill({
-            contentType: 'application/javascript',
-            body: `window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: ${JSON.stringify(STORAGE_BACKEND_URL)} };\n`,
-        })
-    );
-    return page;
-}
-
-/** A legacy browser playlist, written before the app boots. */
-async function seedBrowserPlaylist(
-    page: Page,
-    id: string,
-    title: string
-): Promise<void> {
-    await page.route('**/__indexeddb-seed__', (route) =>
-        route.fulfill({ contentType: 'text/html', body: '<!doctype html>' })
-    );
-    await page.goto('/__indexeddb-seed__');
-    await page.evaluate(
-        ([playlistId, playlistTitle]) =>
-            new Promise<void>((resolve, reject) => {
-                const request = indexedDB.open('iptvnator', 1);
-                request.onerror = () => reject(request.error);
-                request.onupgradeneeded = () => {
-                    const store = request.result.createObjectStore(
-                        'playlists',
-                        { keyPath: '_id', autoIncrement: false }
-                    );
-                    for (const name of [
-                        '_id',
-                        'filename',
-                        'title',
-                        'count',
-                        'playlist',
-                        'importDate',
-                        'lastUsage',
-                        'favorites',
-                        'recentlyViewed',
-                        'autoRefresh',
-                        'url',
-                        'filePath',
-                    ]) {
-                        store.createIndex(name, name, { unique: false });
-                    }
-                };
-                request.onsuccess = () => {
-                    const db = request.result;
-                    const transaction = db.transaction(
-                        'playlists',
-                        'readwrite'
-                    );
-                    transaction.oncomplete = () => {
-                        db.close();
-                        resolve();
-                    };
-                    transaction.onabort = () => {
-                        db.close();
-                        reject(transaction.error);
-                    };
-                    transaction.objectStore('playlists').add({
-                        _id: playlistId,
-                        title: playlistTitle,
-                        importDate: '2026-01-01T00:00:00.000Z',
-                        lastUsage: '2026-01-01T00:00:00.000Z',
-                        count: 1,
-                        autoRefresh: false,
-                        favorites: [],
-                        recentlyViewed: [],
-                        playlist: {
-                            header: { attrs: {}, raw: '#EXTM3U' },
-                            items: [
-                                {
-                                    id: 'c1',
-                                    name: 'Channel',
-                                    url: 'https://example.invalid/c1.m3u8',
-                                },
-                            ],
-                        },
-                    });
-                };
-            }),
-        [id, title] as const
-    );
-}
 
 test.describe('server storage @self-hosted @persistence', () => {
     // Both tests share one server database, and so would the other browser
@@ -132,6 +39,18 @@ test.describe('server storage @self-hosted @persistence', () => {
         const second = await newServerPage(browser);
         await openSources(second);
         await expect(sourceRowByTitle(second, 'Shared M3U')).toBeVisible();
+
+        await first.locator('a[href="/workspace/sources"]').first().click();
+        const editor = await openSourceEditor(first, 'Shared M3U');
+        await updateSourceDialog(editor, { title: 'Renamed shared M3U' });
+        await editor
+            .locator('mat-dialog-actions')
+            .getByRole('button', { name: 'Save', exact: true })
+            .click();
+        await expect(editor).toBeHidden();
+        await expect(
+            sourceRowByTitle(second, 'Renamed shared M3U')
+        ).toBeVisible({ timeout: 25000 });
 
         await first.context().close();
         await second.context().close();

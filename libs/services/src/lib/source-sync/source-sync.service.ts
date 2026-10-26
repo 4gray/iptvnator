@@ -89,14 +89,13 @@ export class SourceSyncService {
             ? { ...native }
             : indexedDbDocumentStore(this.db, sourceProfileName());
         const removeLocal = local.dbDeletePlaylist.bind(local);
-        // Native SQL deletion owns its sidecars. Browser sidecars need the
-        // same cleanup when another device removes a shared source.
-        if (!this.runtime.supportsXtreamSqliteDataSource)
-            local.dbDeletePlaylist = async (id) => {
-                const result = await removeLocal(id);
-                for (const cleanup of this.cleanups) await cleanup(id);
-                return result;
-            };
+        // SQL owns relational sidecars, while cleanup hooks also remove
+        // non-relational state such as the parental-lock store on both runtimes.
+        local.dbDeletePlaylist = async (id) => {
+            const result = await removeLocal(id);
+            for (const cleanup of this.cleanups) await cleanup(id);
+            return result;
+        };
         if (!this.runtime.supportsXtreamSqliteDataSource) {
             const clear = local.dbDeleteAllPlaylists.bind(local);
             local.dbDeleteAllPlaylists = async () => {

@@ -750,3 +750,37 @@ Merged 36-project coverage remains statements 84.84%, branches 75.81%, functions
 validation and agent guidance pass. Same-name-spec warnings are advisory;
 connection mutations are covered by the connection/discovery/service suites
 and production browser scenarios. No validation thresholds were changed.
+
+### Thirteenth review fixes before review fourteen
+
+Codex reviewed `a3c92af8a4baeb4d2faac4cab34ee014f58fb39e`. Its reproduced
+P1 came from nullable optional identity controls in the source editor reaching
+source serialization through the real playlist metadata merger. Definitions
+now omit absent null fields, and comparisons treat them as absent, while the
+server API keeps rejecting null input. Regression coverage uses Angular form
+controls, the real `PlaylistsService.updatePlaylistMeta` path and the synced
+store for M3U URL, uploaded M3U, Xtream and Stalker renames. A production PWA
+scenario edits through the actual dialog and observes the rename on a second
+client. Explicit false boolean options remain preserved.
+
+Its P2 was a missing native cleanup hook after remote source deletion. SQL
+removes relational sidecars; both runtimes now also invoke the shared hooks,
+including parental-lock JSON and in-memory cleanup. The native E2E seeds the
+real lock store, restarts, deletes remotely and recreates the same source ID;
+the old locks remain absent. The parental-lock and PWA contracts were updated.
+All six new unit regressions fail before the fixes and pass afterwards.
+
+Final checks pass: 25 Chromium production PWA scenarios, eight mixed PWA/
+Electron scenarios, all 956 service and 660 shared-interface tests. The affected
+raw-fetch suite also passes (27 tests); the prior full web/backend results remain
+563 / 2,702 tests. Merged coverage across 36 projects passes unchanged gates:
+statements 84.84%, branches 75.83%, functions 83.05%, lines 85.22%, with advisory
+same-name-spec warnings for the source settings module/barrel. Owning lint and
+application/spec/E2E types pass. Shared browser setup was extracted to a helper
+to preserve the 1,200-line test-file limit without changing the limit/baseline.
+
+The PWA build passes its initial-byte limit. The exact production build command
+used by CI was also run without the Nx cache and passes at 1,200,285 bytes,
+within the unchanged 1,200,301-byte launch/renderer.initialBytes limit. A duplicate
+redirect option was removed from a raw-fetch caller; its transport continues
+setting redirect:error centrally. Release notes and agent guidance validate.

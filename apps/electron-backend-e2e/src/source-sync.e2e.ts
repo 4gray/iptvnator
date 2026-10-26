@@ -681,3 +681,105 @@ test('recovers from a truncated native connection without opening the original l
         rmSync(directory, { recursive: true, force: true });
     }
 });
+
+test('removes native parental-lock state after a remote source deletion and ID reuse @electron @persistence', async ({
+    request,
+}) => {
+    const server = await startSourceSyncServer();
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-sync-locks-'));
+    const source = {
+        id: 'remote-locked-source',
+        title: 'Remote locked source',
+        kind: 'm3u-text',
+        rawM3u: '#EXTM3U\n#EXTINF:-1 group-title="Private",Channel\nhttps://streams.example.test/shared.ts',
+    };
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        const created = await request.put(
+            `${server.apiUrl}/v1/sources/${source.id}`,
+            { headers: { 'If-None-Match': '*' }, data: source }
+        );
+        expect(created.ok()).toBe(true);
+        const instance = await (
+            await request.get(`${server.apiUrl}/v1/instance`)
+        ).json();
+        writeFileSync(
+            join(directory, 'source-server.json'),
+            JSON.stringify({
+                apiUrl: server.apiUrl,
+                instanceId: instance.instanceId,
+            })
+        );
+        desktop = await launchElectronApp(directory);
+        await openSources(desktop.mainWindow);
+        await expect(
+            desktop.mainWindow.getByText(source.title, { exact: true }).first()
+        ).toBeVisible();
+        await desktop.mainWindow.evaluate(
+            (id) =>
+                window.electron.dbSetAppState(
+                    'parental-lock:locks',
+                    JSON.stringify({
+                        [id]: { xtream: [], stalker: [], m3u: ['Private'] },
+                    })
+                ),
+            source.id
+        );
+        await closeElectronApp(desktop);
+        desktop = undefined;
+        desktop = await launchElectronApp(directory);
+        const page = desktop.mainWindow;
+        await openSources(page);
+        await expect(
+            page.getByText(source.title, { exact: true }).first()
+        ).toBeVisible();
+        expect(
+            JSON.parse(
+                (await page.evaluate(() =>
+                    window.electron.dbGetAppState('parental-lock:locks')
+                ))!
+            )
+        ).toHaveProperty(source.id);
+        const deleted = await request.delete(
+            `${server.apiUrl}/v1/sources/${source.id}`,
+            { headers: { 'If-Match': created.headers()['etag'] } }
+        );
+        expect(deleted.ok()).toBe(true);
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(page.getByText(source.title, { exact: true })).toHaveCount(
+            0
+        );
+        await expect
+            .poll(async () =>
+                JSON.parse(
+                    (await page.evaluate(() =>
+                        window.electron.dbGetAppState('parental-lock:locks')
+                    ))!
+                )
+            )
+            .toEqual({});
+        expect(
+            (
+                await request.put(`${server.apiUrl}/v1/sources/${source.id}`, {
+                    headers: { 'If-None-Match': '*' },
+                    data: source,
+                })
+            ).ok()
+        ).toBe(true);
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(
+            page.getByText(source.title, { exact: true }).first()
+        ).toBeVisible();
+        expect(
+            JSON.parse(
+                (await page.evaluate(() =>
+                    window.electron.dbGetAppState('parental-lock:locks')
+                ))!
+            )
+        ).toEqual({});
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        await server.close();
+        rmSync(directory, { recursive: true, force: true });
+    }
+});

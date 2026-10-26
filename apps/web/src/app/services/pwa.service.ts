@@ -233,7 +233,6 @@ export class PwaService extends DataService {
                     headers: {
                         'content-type': 'application/json',
                     },
-                    redirect: 'error',
                     method: 'POST',
                     signal: controller.signal,
                 }
