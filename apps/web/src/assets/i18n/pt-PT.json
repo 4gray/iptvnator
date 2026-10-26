@@ -1399,6 +1399,8 @@
             "NO_SEARCH_RESULTS": "Não foi encontrado nada. Tenta alterar os termos da pesquisa."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "Não foi possível concluir a pesquisa",
+            "ERROR_DESCRIPTION": "A pesquisa e os filtros foram mantidos. Tenta pesquisar novamente.",
             "INITIAL_TITLE": "Pesquisar conteúdo",
             "INITIAL_DESCRIPTION": "Introduz pelo menos 3 caracteres para pesquisar em TV em direto, filmes e séries.",
             "RESULTS_FOUND": "Resultados encontrados: {{count}}",

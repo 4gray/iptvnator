@@ -1399,6 +1399,8 @@
             "NO_SEARCH_RESULTS": "何も見つかりませんでした。検索リクエストを変更してみてください"
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "検索を完了できませんでした",
+            "ERROR_DESCRIPTION": "検索語とフィルターは保持されています。もう一度お試しください。",
             "INITIAL_TITLE": "コンテンツを検索",
             "INITIAL_DESCRIPTION": "ライブTV、映画、シリーズを横断して検索するには3文字以上を入力してください。",
             "RESULTS_FOUND": "{{count}}件の結果が見つかりました",

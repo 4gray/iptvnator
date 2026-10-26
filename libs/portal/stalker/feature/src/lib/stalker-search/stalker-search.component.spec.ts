@@ -619,6 +619,32 @@ describe('StalkerSearchComponent result paging', () => {
         expect(component.searchResults()).toHaveLength(0);
         expect(component.searchHasMore()).toBe(false);
         expect(component.searchAppendError()).toBe(false);
+        expect(component.paging.searchError()).toBe(true);
+        component.paging.applySearchPageSuccess(1, [], 0);
+        expect(component.paging.searchError()).toBe(false);
+    });
+
+    it('retries a failed first page after resetting connectivity without losing the query or filter', async () => {
+        component.searchTerm.set('matrix');
+        component.selectedFilterType.set('series');
+        component.paging.applySearchPageFailure(1);
+        const reload = jest.fn(() => true);
+        Object.defineProperty(component.paging, 'searchResultsResource', {
+            configurable: true,
+            value: { isLoading: () => false, reload },
+        });
+
+        await component.paging.retrySearchPage();
+
+        expect(component.searchTerm()).toBe('matrix');
+        expect(component.selectedFilterType()).toBe('series');
+        expect(component.paging.searchPage()).toBe(1);
+        expect(component.paging.searchError()).toBe(false);
+        expect(reload).toHaveBeenCalledTimes(1);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            CONNECTIVITY_GUARD_RESET,
+            { url: activePlaylist().portalUrl }
+        );
     });
 
     it('restores the results scroll after an inline detail round trip', () => {

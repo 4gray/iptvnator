@@ -135,6 +135,7 @@ html {
     --app-search-bg: rgba(255, 255, 255, 0.7);
     --app-search-border: rgba(0, 0, 0, 0.1);
     --app-selection-color: #2f7bff;
+    --app-selection-text-color: #164fa3;
     --app-selection-on-color: #eef4ff;
     --app-selection-surface: color-mix(
         in srgb,
@@ -187,8 +188,8 @@ html {
     // Typography — subdued, not pure black
     --app-heading-color: #1a1d23;
     --app-body-color: #4a5060;
-    --app-muted-color: #8891a4;
-    --app-eyebrow-color: #7c8495;
+    --app-muted-color: #535d6d;
+    --app-eyebrow-color: #535d6d;
 
     // Provider accent colors
     --app-provider-xtream: #2f7bff;
@@ -262,6 +263,7 @@ html {
         --app-search-bg: rgba(255, 255, 255, 0.05);
         --app-search-border: rgba(255, 255, 255, 0.09);
         --app-selection-color: #78adff;
+        --app-selection-text-color: #a9caff;
         --app-selection-on-color: #071225;
         --app-selection-surface: color-mix(
             in srgb,
@@ -312,8 +314,8 @@ html {
         // Typography — NOT pure white. Warm graphite-tinted whites
         --app-heading-color: #d8dce8; // soft off-white, not #fff
         --app-body-color: #8b93a8; // muted blue-grey
-        --app-muted-color: #5c6478; // dimmed
-        --app-eyebrow-color: #6b7494; // eyebrow labels
+        --app-muted-color: #a1aabd; // readable secondary metadata
+        --app-eyebrow-color: #a1aabd; // eyebrow labels
 
         // Provider accents (slightly brighter for dark bg)
         --app-provider-xtream: #78adff;

@@ -1399,6 +1399,8 @@
             "NO_SEARCH_RESULTS": "找不到任何內容，請嘗試更改搜尋條件"
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "無法完成搜尋",
+            "ERROR_DESCRIPTION": "搜尋詞和篩選條件已保留，請重試。",
             "INITIAL_TITLE": "搜尋內容",
             "INITIAL_DESCRIPTION": "輸入至少 3 個字元以搜尋直播電視、電影與影集。",
             "RESULTS_FOUND": "找到 {{count}} 筆結果",

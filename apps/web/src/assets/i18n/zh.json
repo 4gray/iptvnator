@@ -1399,6 +1399,8 @@
             "NO_SEARCH_RESULTS": "未找到任何内容，请尝试更改搜索条件"
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "无法完成搜索",
+            "ERROR_DESCRIPTION": "搜索词和筛选条件已保留，请重试。",
             "INITIAL_TITLE": "搜索内容",
             "INITIAL_DESCRIPTION": "至少输入 3 个字符以在直播电视、电影和剧集中搜索。",
             "RESULTS_FOUND": "找到 {{count}} 个结果",

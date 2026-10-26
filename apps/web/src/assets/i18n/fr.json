@@ -1399,6 +1399,8 @@
             "NO_SEARCH_RESULTS": "Aucun résultat. Essayez de modifier votre recherche."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "La recherche a échoué",
+            "ERROR_DESCRIPTION": "Votre recherche et vos filtres sont conservés. Réessayez.",
             "INITIAL_TITLE": "Rechercher du contenu",
             "INITIAL_DESCRIPTION": "Saisissez au moins 3 caractères pour effectuer une recherche dans la TV en direct, les films et les séries.",
             "RESULTS_FOUND": "{{count}} résultats trouvés",

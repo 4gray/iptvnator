@@ -88,7 +88,7 @@
 }
 
 .drop-overlay__title {
-    font-family: Roboto, 'Helvetica Neue', sans-serif;
+    font-family: inherit;
     font-weight: 600;
     font-size: 1.25rem;
     margin: 0;
@@ -96,7 +96,7 @@
 }
 
 .drop-overlay__body {
-    font-family: Roboto, 'Helvetica Neue', sans-serif;
+    font-family: inherit;
     font-size: 0.9rem;
     margin: 0;
     opacity: 0.78;

@@ -1399,6 +1399,8 @@
             "NO_SEARCH_RESULTS": "Nothing found, try to change your search request."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "Search could not be completed",
+            "ERROR_DESCRIPTION": "Your query and filters are kept. Try searching again.",
             "INITIAL_TITLE": "Search for content",
             "INITIAL_DESCRIPTION": "Enter at least 3 characters to search across live TV, movies and series.",
             "RESULTS_FOUND": "Found {{count}} results",

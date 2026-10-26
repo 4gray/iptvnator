@@ -1399,6 +1399,8 @@
             "NO_SEARCH_RESULTS": "Nichts gefunden. Versuche, deine Suche zu ändern."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "Suche fehlgeschlagen",
+            "ERROR_DESCRIPTION": "Suchbegriff und Filter bleiben erhalten. Versuche es erneut.",
             "INITIAL_TITLE": "Inhalte durchsuchen",
             "INITIAL_DESCRIPTION": "Geben Sie mindestens 3 Zeichen ein, um in Live-TV, Filmen und Serien zu suchen.",
             "RESULTS_FOUND": "{{count}} Ergebnisse gefunden",
