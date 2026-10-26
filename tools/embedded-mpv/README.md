@@ -129,7 +129,9 @@ mirror is attempted. The runtime manifest records the selected URL for a new
 download and the complete ordered candidate list for every archive, so
 fallback use remains visible in the source provenance. Changes to the
 downloader participate in the runtime cache key, so cached native artifacts
-cannot outlive source-acquisition policy changes.
+cannot outlive source-acquisition policy changes. After extraction it applies
+the upstream fixes listed in `macos-source-patches.mjs`; see "Local source
+patches" in `docs/architecture/embedded-mpv-native.md`.
 
 The Linux builder runs only on Linux x64. It requires the tool versions and
 system development interfaces declared in `build-linux-runtime.cjs`, including
