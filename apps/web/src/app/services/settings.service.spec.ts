@@ -81,20 +81,28 @@ describe('Service: Settings', () => {
         let spyOnAdd: jest.SpyInstance<void, [...tokens: string[]]>;
         let spyOnRemove: jest.SpyInstance<void, [...tokens: string[]]>;
         beforeEach(() => {
+            document.body.classList.remove('dark-theme', 'light-theme');
             spyOnAdd = jest.spyOn(document.body.classList, 'add');
             spyOnRemove = jest.spyOn(document.body.classList, 'remove');
         });
 
         afterEach(() => {
             jest.clearAllMocks();
+            document.body.classList.remove('dark-theme', 'light-theme');
         });
 
         it('should switch to the dark theme', inject(
             [SettingsService],
             (service: SettingsService) => {
                 service.changeTheme(Theme.DarkTheme);
-                expect(spyOnRemove).toHaveBeenCalledTimes(0);
-                expect(spyOnAdd).toHaveBeenCalledTimes(1);
+                expect(spyOnAdd).toHaveBeenCalledWith('dark-theme');
+                expect(spyOnRemove).toHaveBeenCalledWith('light-theme');
+                expect(document.body.classList.contains('dark-theme')).toBe(
+                    true
+                );
+                expect(document.body.classList.contains('light-theme')).toBe(
+                    false
+                );
             }
         ));
 
@@ -102,8 +110,14 @@ describe('Service: Settings', () => {
             [SettingsService],
             (service: SettingsService) => {
                 service.changeTheme(Theme.LightTheme);
-                expect(spyOnRemove).toHaveBeenCalledTimes(1);
-                expect(spyOnAdd).toHaveBeenCalledTimes(0);
+                expect(spyOnRemove).toHaveBeenCalledWith('dark-theme');
+                expect(spyOnAdd).toHaveBeenCalledWith('light-theme');
+                expect(document.body.classList.contains('light-theme')).toBe(
+                    true
+                );
+                expect(document.body.classList.contains('dark-theme')).toBe(
+                    false
+                );
             }
         ));
 
@@ -119,6 +133,10 @@ describe('Service: Settings', () => {
                 } as MediaQueryListEvent);
 
                 expect(spyOnRemove).toHaveBeenCalledWith('dark-theme');
+                expect(spyOnAdd).toHaveBeenCalledWith('light-theme');
+                expect(document.body.classList.contains('light-theme')).toBe(
+                    true
+                );
             }
         ));
     });
