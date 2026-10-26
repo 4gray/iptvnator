@@ -1340,6 +1340,10 @@
         "BROWSE_ALL_LIVE": "Sfoglia tutta la TV in diretta",
         "VIEW_IN_PORTAL": "Mostra nel portale",
         "VIEW_IN_PORTAL_TOOLTIP": "Apri in {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "È mostrato il catalogo salvato. La riproduzione potrebbe non essere disponibile.",
+            "CHECKING": "Verifica del portale…"
+        },
         "SIDEBAR": {
             "MAIN": "Principale",
             "MOVIES": "Film",

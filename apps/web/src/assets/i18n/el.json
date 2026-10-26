@@ -1340,6 +1340,10 @@
         "BROWSE_ALL_LIVE": "Περιήγηση σε όλη τη ζωντανή TV",
         "VIEW_IN_PORTAL": "Προβολή στην πύλη",
         "VIEW_IN_PORTAL_TOOLTIP": "Άνοιγμα σε {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "Εμφανίζεται ο αποθηκευμένος κατάλογος. Η αναπαραγωγή ενδέχεται να μην είναι διαθέσιμη.",
+            "CHECKING": "Έλεγχος πύλης…"
+        },
         "SIDEBAR": {
             "MAIN": "Κύριο",
             "MOVIES": "Ταινίες",

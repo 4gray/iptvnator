@@ -45,9 +45,12 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
             </div>
         } @else {
             <app-xtream-cached-offline-notice />
-            <router-outlet />
+            <div class="xtream-route-content">
+                <router-outlet />
+            </div>
         }
     `,
+    styleUrl: './xtream-status-layout.scss',
     styles: [
         `
             .xtream-content-gate {
@@ -55,6 +58,7 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
                 gap: 16px;
                 justify-items: center;
                 padding: 24px;
+                overflow: auto;
             }
 
             .xtream-content-gate__actions {

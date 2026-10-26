@@ -1340,6 +1340,10 @@
         "BROWSE_ALL_LIVE": "تصفح جميع البث المباشر",
         "VIEW_IN_PORTAL": "شوف فالبوابة",
         "VIEW_IN_PORTAL_TOOLTIP": "افتح ف {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "كاتبان اللائحة المحفوظة. ممكن التشغيل ما يكونش متاح.",
+            "CHECKING": "كيتفحص البورتال…"
+        },
         "SIDEBAR": {
             "MAIN": "الرئيسي",
             "MOVIES": "الأفلام",

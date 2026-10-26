@@ -37,6 +37,31 @@ See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
 [Portal Detail Navigation](./portal-detail-navigation.md), and
 [VOD Multi-Source](./vod-multi-source.md).
 
+## Cached Catalog Status And Scroll Ownership
+
+When an initialized catalog remains available, Xtream shows one status strip
+above the routed pane for `unavailable`, `expired` and `inactive` accounts.
+Connection failures use the theme's warning colors; expired/inactive accounts
+use its error colors. A pending explicit check uses a neutral surface and
+disables repeated checks; an active account has no strip. Status text, icons
+and a polite live region accompany the colors. The strip explains that saved
+catalog entries remain visible while playback may be unavailable.
+
+Check again resets the host connectivity guard in both runtimes and calls
+the store's account-status probe. It does not retry content initialization,
+clear the catalog or start an import. A source change during the guard reset
+cancels that check; the store's existing connection checks reject stale account
+responses. Without usable cached content, the existing blocked error/retry
+screen remains responsible for initialization failures and cancelled imports.
+
+The content gate and playlist collection routes share a full-height column:
+the strip takes its natural height and `.xtream-route-content` fills the rest
+with a zero minimum height. The route retains its own scroll owner, including
+the VOD/series grid, Live TV panes, Recently added page and detail shell.
+The workspace `main` must not acquire a second outer scrollbar when the strip
+appears, wraps or disappears. The strip has no separate corner radius or gap
+before the route header.
+
 ## Durable Electron Favorites
 
 SQLite favorites are user-owned records keyed by playlist, normalized content

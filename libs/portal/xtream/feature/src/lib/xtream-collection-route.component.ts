@@ -23,16 +23,19 @@ import { XtreamCollectionDetailComponent } from './xtream-collection-detail.comp
     ],
     template: `
         <app-xtream-cached-offline-notice />
-        <app-unified-collection-page
-            [mode]="mode()"
-            [portalType]="portalType()"
-            [playlistId]="playlistId()"
-        >
-            <ng-template unifiedCollectionDetail let-item>
-                <app-xtream-collection-detail [item]="item" />
-            </ng-template>
-        </app-unified-collection-page>
+        <div class="xtream-route-content">
+            <app-unified-collection-page
+                [mode]="mode()"
+                [portalType]="portalType()"
+                [playlistId]="playlistId()"
+            >
+                <ng-template unifiedCollectionDetail let-item>
+                    <app-xtream-collection-detail [item]="item" />
+                </ng-template>
+            </app-unified-collection-page>
+        </div>
     `,
+    styleUrl: './xtream-status-layout.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class XtreamCollectionRouteComponent {
