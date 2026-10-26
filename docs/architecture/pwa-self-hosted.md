@@ -166,7 +166,11 @@ requests remain owned by the Electron backend and preload bridge.
 ## Shared source library
 
 The self-hosted PWA discovers the runtime `BACKEND_URL` before Angular bootstrap.
-A stateless backend reporting `storage: none` retains standalone behavior.
+A stateless backend reporting `storage: none` retains standalone behavior. If
+initial discovery was unavailable, a temporary `pending:` selection resolves
+back to the original local library after a valid stateless response. It reloads
+without disabling future discovery or overwriting a newer selection from another
+tab. Confirmed source-server profiles never use this fallback.
 Once a server is selected, network/authentication/compatibility errors do not
 silently select local storage. The recovery banner remains available even when
 the initial source inventory cannot load. Malformed saved connection data or
@@ -183,8 +187,8 @@ or Stalker endpoint + MAC fingerprints. Repeating a partial import is safe.
 conditional source writes and local projections. Startup loads the sync service
 only when a server is selected; the always-mounted status host defers its
 Material view until a connection or recovery notice is present. A native
-settings button remains available if that view chunk fails to load. `PlaylistStorageBackend` wraps
-the selected local store with `SyncedPlaylistStore`; local activity writes stay
+settings button remains available if that view chunk fails to load.
+`PlaylistStorageBackend` wraps the selected local store with `SyncedPlaylistStore`; local activity writes stay
 local. Electron Xtream metadata paths in `DatabaseService` use the same wrapper.
 Source IDs are the server's IDs in every local projection. A visible client
 polls every 15 seconds and also refreshes on focus, reconnect, visibility and
@@ -209,7 +213,9 @@ atomically, preserving activity changed by another tab during a download even
 without Web Locks. Browser reads carry a local metadata snapshot: a stale
 activity write raises `PlaylistWriteConflict`, and the existing playlist mutation
 retry re-reads and reapplies the edit. Source edits retain concurrent activity
-that the caller did not change. Accepted source metadata is reloaded after every
+that the caller did not change. Title-only edits also retain a concurrent
+channel/EPG projection refresh unless the caller explicitly replaces its parsed
+payload. Accepted source metadata is reloaded after every
 mutation, so later edits retain their original server revision.
 
 Browser source caches use IndexedDB `iptvnator-server:<instanceId>` and prefix

@@ -5,7 +5,9 @@ import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
 // Enumerable symbols survive object spreads in renderer mutations, but never
 // JSON/structured-clone persistence, backups or source-definition requests.
 const READ_SNAPSHOT = Symbol('source-row-read-snapshot');
-type SnapshotPlaylist = Playlist & { [READ_SNAPSHOT]?: string };
+type SnapshotPlaylist = Playlist & {
+    [READ_SNAPSHOT]?: { version: string; playlist: Playlist['playlist'] };
+};
 
 function readVersion(row: Playlist | null): string {
     if (!row) return 'null';
@@ -25,7 +27,10 @@ function readVersion(row: Playlist | null): string {
 }
 
 export function snapshotSourceRow(row: Playlist): Playlist {
-    return { ...row, [READ_SNAPSHOT]: readVersion(row) } as SnapshotPlaylist;
+    return {
+        ...row,
+        [READ_SNAPSHOT]: { version: readVersion(row), playlist: row.playlist },
+    } as SnapshotPlaylist;
 }
 
 export function assertSourceRowUnchanged(
@@ -33,7 +38,7 @@ export function assertSourceRowUnchanged(
     incoming: Playlist
 ): void {
     const snapshot = (incoming as SnapshotPlaylist)[READ_SNAPSHOT];
-    if (snapshot !== undefined && snapshot !== readVersion(current))
+    if (snapshot !== undefined && snapshot.version !== readVersion(current))
         throw new PlaylistWriteConflict(incoming._id);
 }
 
@@ -57,12 +62,28 @@ export function inheritSourceRowSnapshot(
 export function preserveUnchangedDeviceFields(
     current: Playlist | null,
     original: Playlist,
-    next: Playlist
+    next: Playlist,
+    metadataOnly = false
 ): Playlist {
     const snapshot = (original as SnapshotPlaylist)[READ_SNAPSHOT];
     if (!snapshot || !current) return next;
-    const previous = JSON.parse(snapshot) as Playlist;
+    const previous = JSON.parse(snapshot.version) as Playlist;
     const result = { ...next };
+    if (metadataOnly && original.playlist === snapshot.playlist) {
+        for (const key of [
+            'playlist',
+            'count',
+            'updateDate',
+            'updateState',
+            'detectedEpgUrls',
+            'epgUrls',
+            'sourceSyncPending',
+        ] as const) {
+            delete (result as Partial<Playlist>)[key];
+            if (current[key] !== undefined)
+                Object.assign(result, { [key]: current[key] });
+        }
+    }
     for (const key of [
         'favorites',
         'recentlyViewed',

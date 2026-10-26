@@ -453,12 +453,12 @@ Release-note validation and the final translation checks pass as well.
 Reviewed runtime revision: `ca65d2800a0de0a00714efc51180dccb381f9521`.
 Codex completed its fifth round and reproduced two accepted P2 findings:
 
-- [ ] Resolve a browser's temporary `pending:` discovery connection when a
+- [x] Resolve a browser's temporary `pending:` discovery connection when a
   recovered backend definitively reports `storage: none`. The current instance
   assertion rejects before clearing the temporary connection, so the original
   local library stays inaccessible until the user disconnects manually. A
   confirmed source-server connection must still retain its current error policy.
-- [ ] During an awaited metadata-only source edit, preserve the newest local
+- [x] During an awaited metadata-only source edit, preserve the newest local
   parsed M3U payload, count, refresh timestamps and detected EPG sources. Another
   tab without Web Locks can refresh the channels while the title PATCH is in
   flight; the current merge retains activity but writes the older parsed snapshot
@@ -471,3 +471,20 @@ continuing that review/fix loop. Greptile CLI remains unavailable (exit 127).
 Fifth-round verdict: `/tmp/iptvnator-sync-pr-codex-5.out`; all validation results
 above remain passing for the reviewed runtime revision, but they do not cover
 these newly reproduced cases.
+
+### Review continuation authorized (2026-10-26)
+
+The user explicitly authorized further review beyond the five-round limit.
+The two fifth-round findings are implemented. A valid stateless response clears
+only unconfirmed browser discovery, preserves newer selections from other tabs
+and reloads into the original profile; storage errors prevent a reload loop.
+Title-only source edits preserve the newest unchanged parsed projection,
+including refresh metadata and detected EPG, while explicit caller refreshes
+still save their own parsed payload. Two regression tests reproduced the
+channel rollback before the fix. All 917 service tests pass after the fix,
+including recovery, retained confirmed selections and concurrent URL/upload
+M3U refreshes. Browser validation passes all 15 scenarios, including restored standalone
+access after pending discovery, and mixed-runtime validation passes all five
+PWA/Electron scenarios. The production bundle remains within the unchanged
+limit at 1,198,933 bytes. The sixth committed-branch review follows integration
+of the newly merged Portuguese regional locales.

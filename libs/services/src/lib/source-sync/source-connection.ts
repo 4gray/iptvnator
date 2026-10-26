@@ -118,7 +118,27 @@ export function saveBrowserSourceConnection(
     sessionStorage.setItem(tokenKey(connection.apiUrl), token);
 }
 
-export function disconnectBrowserSourceConnection(): void {
+export function disconnectBrowserSourceConnection(
+    disableDiscovery = true,
+    expected?: SourceServerConnection
+): boolean {
+    try {
+        if (expected) {
+            const saved = localStorage.getItem(CONNECTION_KEY);
+            const current = saved
+                ? (JSON.parse(saved) as SourceServerConnection)
+                : null;
+            if (
+                current &&
+                (current.apiUrl !== expected.apiUrl ||
+                    current.instanceId !== expected.instanceId)
+            )
+                return true;
+        }
+    } catch {
+        readFailed = true;
+        return false;
+    }
     try {
         if (selected) sessionStorage.removeItem(tokenKey(selected.apiUrl));
     } catch {
@@ -126,9 +146,11 @@ export function disconnectBrowserSourceConnection(): void {
     }
     try {
         localStorage.removeItem(CONNECTION_KEY);
-        localStorage.setItem(DISABLED_KEY, '1');
+        if (disableDiscovery) localStorage.setItem(DISABLED_KEY, '1');
+        return true;
     } catch {
         readFailed = true;
+        return false;
     }
 }
 

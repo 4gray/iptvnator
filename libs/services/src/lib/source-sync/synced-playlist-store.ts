@@ -136,6 +136,9 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 }
             }
             if (!accepted || !revision) throw new Error('SOURCE_SYNC.OFFLINE');
+            const metadataOnly =
+                !!baseline &&
+                sameSource({ ...baseline, title: accepted.title }, accepted);
             let next = stripSourceRowSnapshot(
                 applySourceDefinition(accepted, playlist)
             );
@@ -151,7 +154,8 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                     next = preserveUnchangedDeviceFields(
                         latest,
                         playlist,
-                        next
+                        next,
+                        metadataOnly
                     );
                 return latest?.sourceSyncBase &&
                     baseline &&

@@ -147,6 +147,116 @@ describe('source synchronization with local activity', () => {
             playlist: { items: [{ name: 'New' }] },
         });
     });
+    it.each(['m3u-url', 'm3u-text'] as const)(
+        'preserves a concurrent %s refresh while a rename request is in flight',
+        async (kind) => {
+            const { store, rows, request } = setup();
+            const definition: SourceDefinition = {
+                id: 'a',
+                title: 'Original',
+                kind,
+                ...(kind === 'm3u-url'
+                    ? { url: 'https://provider.test/list.m3u' }
+                    : { rawM3u: '#EXTM3U\nbody' }),
+            };
+            rows.set('a', {
+                ...applySourceDefinition(definition),
+                sourceSyncBase: definition,
+                sourceSyncRevision: '"1"',
+                playlist: { items: [{ name: 'Old' }] },
+                count: 1,
+                updateDate: 1,
+                detectedEpgUrls: ['https://epg.test/old.xml'],
+                epgUrls: ['https://epg.test/old.xml'],
+                manualEpgUrls: ['https://epg.test/manual.xml'],
+            });
+            let release!: () => void;
+            let started!: () => void;
+            const pending = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const requested = new Promise<void>((resolve) => {
+                started = resolve;
+            });
+            request.mockImplementationOnce(async () => {
+                started();
+                await pending;
+                return {
+                    status: 200,
+                    body: { ...definition, title: 'Renamed' },
+                    etag: '"2"',
+                };
+            });
+            const original = (await store.dbGetAppPlaylist('a'))!;
+            const rename = store.dbUpsertAppPlaylist({
+                ...original,
+                title: 'Renamed',
+            });
+            await requested;
+            rows.set('a', {
+                ...rows.get('a')!,
+                playlist: { items: [{ name: 'Fresh' }, { name: 'Second' }] },
+                count: 2,
+                updateDate: 2,
+                favorites: ['saved-elsewhere'],
+                detectedEpgUrls: ['https://epg.test/fresh.xml'],
+                epgUrls: [
+                    'https://epg.test/fresh.xml',
+                    'https://epg.test/manual.xml',
+                ],
+            });
+            release();
+            await rename;
+            expect(rows.get('a')).toMatchObject({
+                title: 'Renamed',
+                sourceSyncRevision: '"2"',
+                playlist: { items: [{ name: 'Fresh' }, { name: 'Second' }] },
+                count: 2,
+                updateDate: 2,
+                favorites: ['saved-elsewhere'],
+                detectedEpgUrls: ['https://epg.test/fresh.xml'],
+                manualEpgUrls: ['https://epg.test/manual.xml'],
+                epgUrls: [
+                    'https://epg.test/fresh.xml',
+                    'https://epg.test/manual.xml',
+                ],
+            });
+        }
+    );
+
+    it('retains a refresh explicitly included by the caller in a title edit', async () => {
+        const { store, rows, request } = setup();
+        const definition: SourceDefinition = {
+            id: 'a',
+            title: 'Original',
+            kind: 'm3u-url',
+            url: 'https://provider.test/list.m3u',
+        };
+        rows.set('a', {
+            ...applySourceDefinition(definition),
+            sourceSyncBase: definition,
+            sourceSyncRevision: '"1"',
+            playlist: { items: [{ name: 'Old' }] },
+            count: 1,
+        });
+        request.mockResolvedValueOnce({
+            status: 200,
+            body: { ...definition, title: 'Renamed' },
+            etag: '"2"',
+        });
+        const original = (await store.dbGetAppPlaylist('a'))!;
+        await store.dbUpsertAppPlaylist({
+            ...original,
+            title: 'Renamed',
+            playlist: { items: [{ name: 'Downloaded here' }] },
+            updateDate: 2,
+        });
+        expect(rows.get('a')).toMatchObject({
+            title: 'Renamed',
+            playlist: { items: [{ name: 'Downloaded here' }] },
+            updateDate: 2,
+        });
+    });
     it('returns a deduplicated canonical source without mutating the dispatched input', async () => {
         const { store, request, rows } = setup();
         const draft = Object.freeze({

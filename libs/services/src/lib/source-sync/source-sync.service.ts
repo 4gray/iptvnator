@@ -32,6 +32,7 @@ import {
 import { SyncedPlaylistStore } from './synced-playlist-store';
 import { materializeSource } from './source-materializer';
 import { migrateLegacyPlaylistActivity } from './legacy-playlist-activity';
+import { recoverPendingStatelessBackend } from './pending-source-discovery';
 
 @Injectable({ providedIn: 'root' })
 export class SourceSyncService {
@@ -142,6 +143,14 @@ export class SourceSyncService {
                     this.errorKey.set(null);
                     if (!this.store!.ready) this.state.set('connecting');
                     const probe = await this.request({ operation: 'instance' });
+                    if (
+                        this.browserProfile &&
+                        recoverPendingStatelessBackend(
+                            this.connection!,
+                            probe.body
+                        )
+                    )
+                        return;
                     assertSourceInstance(probe.body);
                     if (probe.body.instanceId !== this.connection!.instanceId) {
                         if (
