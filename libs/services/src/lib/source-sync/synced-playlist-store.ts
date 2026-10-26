@@ -26,11 +26,20 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
         private readonly materialize: (
             source: SourceDefinition,
             current?: Playlist
-        ) => Promise<Playlist>
+        ) => Promise<Playlist>,
+        private readonly instanceId = 'local'
     ) {}
 
     exclusive<T>(operation: () => Promise<T>): Promise<T> {
-        const next = this.tail.then(operation);
+        const next = this.tail.then(() => {
+            const locks = globalThis.navigator?.locks;
+            return locks
+                ? locks.request(
+                      `iptvnator:source-sync:${this.instanceId}`,
+                      operation
+                  )
+                : operation();
+        });
         this.tail = next.then(
             () => undefined,
             () => undefined
@@ -38,6 +47,7 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
         return next;
     }
 
+    /** Called inside exclusive(), including the inventory refresh. */
     async project(
         source: SourceDefinition,
         revision: string
@@ -46,10 +56,14 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
         const next = await this.materialize(source, current ?? undefined);
         next.sourceSyncBase = source;
         next.sourceSyncRevision = revision;
-        await this.local.dbUpsertAppPlaylist(next);
+        const projected = this.local.dbMutateAppPlaylist
+            ? await this.local.dbMutateAppPlaylist(source.id, (latest) =>
+                  latest ? retainSourceProjection(next, latest) : next
+              )
+            : (await this.local.dbUpsertAppPlaylist(next), next);
         if (next.sourceSyncPending) this.pendingSources.add(source.id);
         else this.pendingSources.delete(source.id);
-        return next;
+        return projected;
     }
 
     dbGetAppPlaylists = async () => {
@@ -88,18 +102,25 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 revision = response.etag;
                 if (accepted.id !== playlist._id) {
                     const canonical = await this.project(accepted, revision!);
-                    const merged = {
-                        ...canonical,
+                    const merge = (latest: Playlist | null) => ({
+                        ...(latest ?? canonical),
                         favorites: mergeActivity(
-                            canonical.favorites,
+                            latest?.favorites ?? canonical.favorites,
                             playlist.favorites
                         ),
                         recentlyViewed: mergeActivity(
-                            canonical.recentlyViewed,
+                            latest?.recentlyViewed ?? canonical.recentlyViewed,
                             playlist.recentlyViewed
                         ),
-                    };
-                    await this.local.dbUpsertAppPlaylist(merged);
+                    });
+                    const merged = this.local.dbMutateAppPlaylist
+                        ? await this.local.dbMutateAppPlaylist(
+                              accepted.id,
+                              merge
+                          )
+                        : merge(await this.local.dbGetAppPlaylist(accepted.id));
+                    if (!this.local.dbMutateAppPlaylist)
+                        await this.local.dbUpsertAppPlaylist(merged);
                     return { success: true, playlist: merged };
                 }
             }
@@ -108,15 +129,26 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
             next.sourceSyncBase = accepted;
             next.sourceSyncRevision = revision;
             // A local mutation based on an older snapshot cannot revert a remote edit.
-            if (
-                current?.sourceSyncBase &&
-                baseline &&
-                sameSource(source, baseline) &&
-                !sameSource(current.sourceSyncBase, baseline)
-            ) {
-                next = retainSourceProjection(current, next);
+            const merge = (latest: Playlist | null): Playlist => {
+                if (!latest && playlist.sourceSyncBase)
+                    throw new Error('SOURCE_SYNC.CONFLICT');
+                return latest?.sourceSyncBase &&
+                    baseline &&
+                    sameSource(source, baseline) &&
+                    (!sameSource(latest.sourceSyncBase, baseline) ||
+                        latest.sourceSyncPending !== playlist.sourceSyncPending)
+                    ? retainSourceProjection(latest, next)
+                    : next;
+            };
+            if (this.local.dbMutateAppPlaylist)
+                next = await this.local.dbMutateAppPlaylist(
+                    playlist._id,
+                    merge
+                );
+            else {
+                next = merge(await this.local.dbGetAppPlaylist(playlist._id));
+                await this.local.dbUpsertAppPlaylist(next);
             }
-            await this.local.dbUpsertAppPlaylist(next);
             return { success: true, playlist: next };
         });
 

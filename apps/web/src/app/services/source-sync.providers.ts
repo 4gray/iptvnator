@@ -15,6 +15,8 @@ import {
     SourceSyncService,
     sourceAuthorization,
     sourceProfileName,
+    sourceConnection,
+    createSourceProfileUserDataStorage,
 } from '@iptvnator/services/source-sync';
 
 export const sourceAuthInterceptor: HttpInterceptorFn = (request, next) =>
@@ -31,19 +33,11 @@ export function provideSourceSync() {
         },
         {
             provide: USER_DATA_STORAGE,
-            useFactory: (): UserDataStorage => {
-                const prefix =
-                    sourceProfileName() === 'iptvnator'
-                        ? ''
-                        : `${sourceProfileName()}:`;
-                return {
-                    getItem: (key) => localStorage.getItem(`${prefix}${key}`),
-                    setItem: (key, value) =>
-                        localStorage.setItem(`${prefix}${key}`, value),
-                    removeItem: (key) =>
-                        localStorage.removeItem(`${prefix}${key}`),
-                };
-            },
+            useFactory: (): UserDataStorage =>
+                createSourceProfileUserDataStorage(
+                    sourceProfileName(),
+                    sourceConnection()?.instanceId
+                ),
         },
         provideAppInitializer(() => {
             const sync = inject(SourceSyncService);

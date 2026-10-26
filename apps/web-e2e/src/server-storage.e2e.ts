@@ -133,6 +133,84 @@ test.describe('server storage @self-hosted @persistence', () => {
         await second.context().close();
     });
 
+    test('keeps the previous instance cache visible and exportable as local activity', async ({
+        browser,
+        request,
+    }) => {
+        const page = await newServerPage(browser);
+        const id = 'legacy-cache-source';
+        const seeded = await request.put(
+            `${STORAGE_BACKEND_URL}/v1/playlists/${id}`,
+            {
+                data: {
+                    _id: id,
+                    title: 'Legacy cache source',
+                    serverUrl: 'https://unreachable.example.test',
+                    username: 'legacy',
+                    password: 'synthetic',
+                },
+            }
+        );
+        expect(seeded.ok()).toBe(true);
+        const instance = await (
+            await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
+        ).json();
+        await page.addInitScript(
+            ({ instanceId, id }) => {
+                localStorage.setItem(
+                    `iptvnator-server:cache:${instanceId}:xtream-favorites`,
+                    JSON.stringify({ [id]: ['movie:987654'] })
+                );
+                localStorage.setItem(
+                    `iptvnator-server:cache:${instanceId}:xtream-collection-items`,
+                    JSON.stringify({
+                        [id]: {
+                            'movie:987654': {
+                                id: 987654,
+                                xtream_id: 987654,
+                                type: 'movie',
+                                title: 'Preserved legacy favorite',
+                                tmdb_id: 100,
+                                release_year: 2000,
+                            },
+                        },
+                    })
+                );
+            },
+            { instanceId: instance.instanceId, id }
+        );
+        const activityRequests: string[] = [];
+        page.on('request', (outgoing) => {
+            if (outgoing.url().includes('/v1/user-state'))
+                activityRequests.push(outgoing.method());
+        });
+        try {
+            await page.goto('/workspace/global-favorites');
+            await expect(
+                page.getByRole('button', {
+                    name: 'Preserved legacy favorite',
+                    exact: true,
+                })
+            ).toBeVisible();
+            await page.goto('/workspace/settings/backup');
+            const downloading = page.waitForEvent('download');
+            await page
+                .getByRole('button', { name: 'Export', exact: true })
+                .click();
+            const path = await (await downloading).path();
+            if (!path) throw new Error('Missing local backup');
+            const exported = JSON.parse(await readFile(path, 'utf8'));
+            expect(exported.playlists[0].userState.favorites[0]).toMatchObject({
+                xtreamId: 987654,
+                contentType: 'movie',
+                snapshot: { title: 'Preserved legacy favorite' },
+            });
+            expect(activityRequests).toEqual([]);
+        } finally {
+            await page.context().close();
+        }
+    });
+
     test('imports browser sources explicitly without replacing the original profile', async ({
         browser,
         request,

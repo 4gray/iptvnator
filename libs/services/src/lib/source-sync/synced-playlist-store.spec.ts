@@ -60,6 +60,61 @@ function setup() {
 }
 
 describe('source synchronization with local activity', () => {
+    it("atomically preserves another tab's activity during materialization without Web Locks", async () => {
+        const { rows, local, request } = setup();
+        const atomic = {
+            ...local,
+            dbMutateAppPlaylist: async (
+                id: string,
+                mutate: (row: Playlist | null) => Playlist
+            ) => {
+                const next = mutate(structuredClone(rows.get(id) ?? null));
+                rows.set(id, structuredClone(next));
+                return next;
+            },
+        };
+        let resume!: () => void;
+        const downloaded = new Promise<void>((resolve) => {
+            resume = resolve;
+        });
+        let started!: () => void;
+        const materializing = new Promise<void>((resolve) => {
+            started = resolve;
+        });
+        const first = new SyncedPlaylistStore(
+            atomic,
+            request,
+            async (value, current) => {
+                started();
+                await downloaded;
+                return {
+                    ...applySourceDefinition(value, current),
+                    playlist: { items: [{ name: 'New' }] },
+                };
+            }
+        );
+        const second = new SyncedPlaylistStore(
+            atomic,
+            request,
+            async (value, current) => applySourceDefinition(value, current)
+        );
+        const projection = first.exclusive(() =>
+            first.project({ ...source, title: 'New' }, '"2"')
+        );
+        await materializing;
+        await second.dbUpsertAppPlaylist({
+            ...cached(),
+            favorites: ['other-tab'],
+        });
+        resume();
+        await projection;
+        expect(rows.get('a')).toMatchObject({
+            favorites: ['other-tab'],
+            title: 'New',
+            sourceSyncRevision: '"2"',
+            playlist: { items: [{ name: 'New' }] },
+        });
+    });
     it('returns a deduplicated canonical source without mutating the dispatched input', async () => {
         const { store, request, rows } = setup();
         const draft = Object.freeze({
@@ -81,6 +136,55 @@ describe('source synchronization with local activity', () => {
         });
         expect(request).not.toHaveBeenCalled();
         expect(rows.get('a')?.favorites).toEqual(['channel']);
+    });
+    it('accepts freshly downloaded channels from a manual refresh at the same source revision', async () => {
+        const { store, rows, request } = setup();
+        const urlSource: SourceDefinition = {
+            id: 'a',
+            title: 'URL',
+            kind: 'm3u-url',
+            url: 'https://provider.test/list.m3u',
+        };
+        const current = {
+            ...applySourceDefinition(urlSource),
+            sourceSyncBase: urlSource,
+            sourceSyncRevision: '"1"',
+            playlist: { items: [{ name: 'Old' }] },
+        };
+        rows.set('a', current);
+        await store.dbUpsertAppPlaylist({
+            ...current,
+            playlist: { items: [{ name: 'Refreshed' }] },
+        });
+        expect(rows.get('a')?.playlist.items).toEqual([{ name: 'Refreshed' }]);
+        expect(request).not.toHaveBeenCalled();
+    });
+    it('retains a recovered URL projection when delayed activity still holds its failed placeholder', async () => {
+        const { store, rows } = setup();
+        const urlSource: SourceDefinition = {
+            id: 'a',
+            title: 'URL',
+            kind: 'm3u-url',
+            url: 'https://provider.test/list.m3u',
+        };
+        const current = {
+            ...applySourceDefinition(urlSource),
+            sourceSyncBase: urlSource,
+            sourceSyncRevision: '"1"',
+            playlist: { items: [{ name: 'Recovered' }] },
+        };
+        rows.set('a', current);
+        await store.dbUpsertAppPlaylist({
+            ...current,
+            sourceSyncPending: true,
+            playlist: { items: [] },
+            favorites: ['local'],
+        });
+        expect(rows.get('a')).toMatchObject({
+            playlist: { items: [{ name: 'Recovered' }] },
+            favorites: ['local'],
+        });
+        expect(rows.get('a')?.sourceSyncPending).toBeUndefined();
     });
     it('merges device activity under the canonical ID when a newly added source deduplicates', async () => {
         const { store, rows } = setup();

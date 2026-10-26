@@ -15,6 +15,11 @@ const STALKER_PORTAL_URL = `${STALKER_MOCK_SERVER}/portal.php`;
 // worker, so sharing one would let each suite's reset clear the other's state.
 const DEFAULT_MAC = '00:1A:79:5F:00:01';
 
+// Runtime config is injected through page.route on every reload. Service
+// Worker requests bypass that interceptor; PWA worker coverage has its own suite.
+// https://playwright.dev/docs/api/class-page#page-route
+test.use({ serviceWorkers: 'block' });
+
 async function installRuntimeConfig(page: Page): Promise<void> {
     await page.route('**/assets/app-config.js', async (route) => {
         await route.fulfill({

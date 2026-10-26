@@ -276,7 +276,10 @@ export class PlaylistEffects {
 
     loadPlaylists$ = createEffect(() => {
         return this.actions$.pipe(
-            ofType(PlaylistActions.loadPlaylists, PlaylistActions.loadSharedPlaylists),
+            ofType(
+                PlaylistActions.loadPlaylists,
+                PlaylistActions.loadSharedPlaylists
+            ),
             switchMap((action) =>
                 defer(() => this.playlistsService.getAllPlaylists()).pipe(
                     // Recreate the storage request once for transient failures.
@@ -297,7 +300,10 @@ export class PlaylistEffects {
                     map((playlists) =>
                         PlaylistActions.loadPlaylistsSuccess({
                             playlists,
-                            ...(action.type === PlaylistActions.loadSharedPlaylists.type ? { authoritative: true } : {}),
+                            ...(action.type ===
+                            PlaylistActions.loadSharedPlaylists.type
+                                ? { authoritative: true }
+                                : {}),
                         })
                     ),
                     catchError(() => of(PlaylistActions.loadPlaylistsFailure()))
@@ -416,13 +422,30 @@ export class PlaylistEffects {
                                 this.fetchPlaylistScopedEpg(playlist);
                                 this.navigateToPlaylist(playlist);
                                 if (playlist._id !== action.playlist._id) {
-                                    this.store.dispatch(PlaylistActions.playlistRemovalCommitted({ playlistId: action.playlist._id }));
-                                    this.store.dispatch(PlaylistActions.loadSharedPlaylists());
+                                    this.store.dispatch(
+                                        PlaylistActions.playlistRemovalCommitted(
+                                            { playlistId: action.playlist._id }
+                                        )
+                                    );
+                                }
+                                if (
+                                    playlist.sourceSyncBase ||
+                                    playlist._id !== action.playlist._id
+                                ) {
+                                    this.store.dispatch(
+                                        PlaylistActions.loadSharedPlaylists()
+                                    );
                                 }
                             }),
                             catchError(() => {
-                                this.store.dispatch(PlaylistActions.playlistRemovalCommitted({ playlistId: action.playlist._id }));
-                                this.store.dispatch(PlaylistActions.loadPlaylists());
+                                this.store.dispatch(
+                                    PlaylistActions.playlistRemovalCommitted({
+                                        playlistId: action.playlist._id,
+                                    })
+                                );
+                                this.store.dispatch(
+                                    PlaylistActions.loadPlaylists()
+                                );
                                 return EMPTY;
                             })
                         );

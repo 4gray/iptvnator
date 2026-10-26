@@ -198,9 +198,19 @@ reconcile changed connections against their persisted rows and restart the
 session/catalog only when connection fields differ. Backup restore follows
 the server's canonical source ID, including local activity and parental locks
 when a source added since the last poll deduplicates during import.
+Browser profile writes coordinate through an instance-scoped Web Lock when
+available. IndexedDB projection and activity commits also read/modify/write
+atomically, preserving activity changed by another tab during a download even
+without Web Locks. Accepted source metadata is reloaded after every creation,
+so later edits retain their original server revision.
 
 Browser source caches use IndexedDB `iptvnator-server:<instanceId>` and prefix
-Xtream local user-data keys with that profile. Desktop databases live at
+Xtream local user-data keys with that profile. On upgrade, each activity
+namespace adopts this browser's existing `iptvnator-server:cache:<instanceId>`
+value once if the new profile has no value. Per-namespace migration markers
+preserve newer values and prevent cleared activity from being resurrected;
+the old cache remains intact. This reads no server user-state and uploads
+nothing. Desktop databases live at
 `<data-root>/server-profiles/<sha256(instanceId)>/databases/iptvnator.db`;
 the original standalone database is unchanged. Profile selection is cleared
 on disconnect and on startup without a saved connection, including environment

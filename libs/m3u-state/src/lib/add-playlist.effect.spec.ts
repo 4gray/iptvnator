@@ -110,6 +110,32 @@ describe('PlaylistEffects addPlaylist$', () => {
         expect(navigated).toEqual(['solo']);
     });
 
+    it('reloads accepted source metadata after an ordinary creation with the same ID', () => {
+        const write = startWrite('solo');
+        actions$.next(
+            PlaylistActions.addPlaylist({ playlist: playlist('solo') })
+        );
+        write.next({
+            ...playlist('solo'),
+            sourceSyncRevision: '"1"',
+            sourceSyncBase: {
+                id: 'solo',
+                title: 'solo',
+                kind: 'xtream',
+                serverUrl: 'https://panel.test',
+                username: 'user',
+                password: 'synthetic',
+            },
+        });
+        write.complete();
+        expect(dispatch).toHaveBeenCalledWith(
+            PlaylistActions.loadSharedPlaylists()
+        );
+        expect(dispatch).not.toHaveBeenCalledWith(
+            PlaylistActions.playlistRemovalCommitted({ playlistId: 'solo' })
+        );
+    });
+
     // The regression: under switchMap the second action unsubscribed the
     // first write, so 'first' never reached its navigation/EPG side effects.
     it('completes an in-flight add before starting the next one', () => {

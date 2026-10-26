@@ -401,3 +401,12 @@ activity, and inventory replacement keeps only the omitted parsed payload.
 Open Stalker routes reconcile persisted connection changes through their
 serialized route/session owner. Optional favorites synchronization, EPG and
 viewing progress synchronization remain outside this delivery.
+
+The third review identified adoption of existing per-instance browser activity
+caches, concurrent tab writes during M3U materialization and missing accepted
+metadata after ordinary source creation. The browser now lazily adopts its own
+old instance cache once per namespace, preserving newer profile values and
+deletion tombstones without reading/uploading remote activity. Browser playlist
+commits preserve current activity atomically in IndexedDB; profile mutations
+also use Web Locks where available. Every accepted source creation reloads
+authoritative metadata so subsequent edits carry the original revision.

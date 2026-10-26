@@ -2,6 +2,7 @@ import { firstValueFrom } from 'rxjs';
 import { DbStores, type Playlist } from '@iptvnator/shared/interfaces';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import type { PlaylistDocumentStore } from '../playlist-storage-backend';
+import { mutateIndexedDbPlaylist } from './indexeddb-playlist-mutation';
 
 /** Local cache for a selected server; the database name is profile-scoped. */
 export function indexedDbDocumentStore(
@@ -20,6 +21,11 @@ export function indexedDbDocumentStore(
                 (row) => row ?? null
             ),
         dbUpsertAppPlaylist: upsert,
+        dbMutateAppPlaylist: async (id, mutate) => {
+            // Let ngx-indexed-db initialize the configured schema first.
+            await firstValueFrom(db.getByID<Playlist>(DbStores.Playlists, id));
+            return mutateIndexedDbPlaylist(profile, id, mutate);
+        },
         dbUpsertAppPlaylists: async (playlists) => {
             for (const playlist of playlists) await upsert(playlist);
             return { success: true, count: playlists.length };

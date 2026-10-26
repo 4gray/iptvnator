@@ -22,6 +22,11 @@ export type PlaylistDocumentStore = Pick<
     | 'dbSetAppState'
     | 'dbUpsertAppPlaylists'
 > & {
+    /** Local browser-only atomic read/modify/write; callbacks never cross IPC. */
+    dbMutateAppPlaylist?: (
+        id: string,
+        mutate: (current: Playlist | null) => Playlist
+    ) => Promise<Playlist>;
     dbUpsertAppPlaylist: (
         playlist: Playlist,
         operationId?: string

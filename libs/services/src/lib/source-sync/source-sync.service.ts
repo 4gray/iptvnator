@@ -93,7 +93,8 @@ export class SourceSyncService {
         this.store = new SyncedPlaylistStore(
             local,
             (request) => this.request(request),
-            (source, current) => materializeSource(source, current, this.data)
+            (source, current) => materializeSource(source, current, this.data),
+            this.connection.instanceId
         );
         this.backend.installServerStore(this.store);
         try {
