@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "إعدادات إضافية ديال المزوّد",
             "MAC_ADDRESS": "عنوان MAC",
             "MAC_ADDRESS_HINT": "الصيغة 00:1A:79:XX:XX:XX. الشرطات والنقط والحروف الصغيرة كيتصلحو ليك أوتوماتيكياً.",
             "MAC_ADDRESS_OUI_HINT": "هاد العنوان خارج المجال 00:1A:79 ديال Infomir. أغلب البوابات كتقبل غير هاد المجال وكترفض أي شي آخر بلا ما تقول علاش.",
@@ -297,6 +298,7 @@
         "GENERAL": "عام",
         "GENERAL_SUBTITLE": "اللغة والمظهر وكيفاش كيبدا التطبيق.",
         "PLAYBACK": "التشغيل",
+        "SAVE_EPG_SOURCES": "حفظ مصادر دليل البرامج",
         "EPG_SOURCES": "مصادر EPG",
         "EPG_SOURCES_DESCRIPTION": "زيد مصدر XMLTV واحد ولا أكثر: روابط بعيدة ولا ملفات محلية",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "تختارو تلقائياً {{enabled}} من {{detected}} مصادر EPG مكتاشفة فلوائح التشغيل للاستيراد.",

@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "供應商其他設定",
             "MAC_ADDRESS": "MAC 位址",
             "MAC_ADDRESS_HINT": "格式為 00:1A:79:XX:XX:XX。連字號、點號與小寫字母會自動為您修正。",
             "MAC_ADDRESS_OUI_HINT": "此位址不在 Infomir 的 00:1A:79 範圍內。多數入口網站只接受該範圍的位址，並會在不說明原因的情況下拒絕其他位址。",
@@ -297,6 +298,7 @@
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "語言、外觀與應用程式的啟動方式。",
         "PLAYBACK": "播放",
+        "SAVE_EPG_SOURCES": "儲存節目指南來源",
         "EPG_SOURCES": "EPG 來源",
         "EPG_SOURCES_DESCRIPTION": "新增一個或多個 XMLTV 來源：遠端連結或本機檔案",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "已自動選取 {{detected}} 個偵測到的播放清單 EPG 來源中的 {{enabled}} 個用於匯入。",

@@ -48,21 +48,7 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
             <router-outlet />
         }
     `,
-    styles: [
-        `
-            .xtream-content-gate {
-                display: grid;
-                gap: 16px;
-                justify-items: center;
-                padding: 24px;
-            }
-
-            .xtream-content-gate__actions {
-                display: flex;
-                justify-content: center;
-            }
-        `,
-    ],
+    styleUrl: './xtream-content-gate.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class XtreamContentGateComponent {

@@ -1295,6 +1295,7 @@ test.describe('@stalker full portal authentication', () => {
         await setInputValue(dialog.locator('input#title'), 'Conflict Portal');
         await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
         await setInputValue(dialog.locator('input#macAddress'), mac);
+        await dialog.locator('app-stalker-portal-import summary').click();
         await setInputValue(
             dialog.locator('input#deviceId1'),
             'DIFFERENT-DEVICE-B'

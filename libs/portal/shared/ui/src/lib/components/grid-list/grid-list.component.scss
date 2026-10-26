@@ -1,3 +1,4 @@
+@use '../../../../../../../ui/styles/app-controls' as controls;
 @use '../../styles/skeleton';
 @use '../../styles/content-grid' as grid;
 
@@ -249,4 +250,8 @@ mat-card {
     &.grid-list__tail--error {
         color: var(--mat-sys-error, inherit);
     }
+}
+
+.grid-list__tail--error button {
+    @include controls.secondary-button;
 }

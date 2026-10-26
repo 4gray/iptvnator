@@ -8,6 +8,37 @@
         [disabled]="isSaving() || isHydratingStalkerPlaylist()"
         [attr.aria-busy]="isSaving() || isHydratingStalkerPlaylist()"
     >
+        <ng-template #providerCredentials>
+            @if (playlist.portalUrl || playlist.username) {
+                <mat-form-field class="w-full">
+                    <mat-label>{{
+                        'HOME.PLAYLISTS.INFO_DIALOG.USERNAME' | translate
+                    }}</mat-label>
+                    <input matInput formControlName="username" />
+                </mat-form-field>
+            }
+            @if (playlist.portalUrl || playlist.password) {
+                <mat-form-field class="w-full">
+                    <mat-label>{{
+                        'HOME.PLAYLISTS.INFO_DIALOG.PASSWORD' | translate
+                    }}</mat-label>
+                    <input
+                        matInput
+                        [type]="passwordToggle.inputType()"
+                        formControlName="password"
+                    />
+                    <button
+                        mat-icon-button
+                        matSuffix
+                        appPasswordVisibilityToggle
+                        #passwordToggle="appPasswordVisibilityToggle"
+                        [attr.aria-label]="'HOME.SHOW_PASSWORD' | translate"
+                    >
+                        <mat-icon>{{ passwordToggle.icon() }}</mat-icon>
+                    </button>
+                </mat-form-field>
+            }
+        </ng-template>
         <app-dialog-shell
             icon="tune"
             [heading]="
@@ -52,44 +83,80 @@
                     </mat-form-field>
                 }
                 @if (playlist.portalUrl) {
-                    @if (hasStoredStalkerDeviceIds) {
-                        <p class="stalker-device-id-warning">
+                    <details
+                        class="app-dialog-disclosure"
+                        [appRevealDetails]="hasAdvancedStalkerOptions"
+                    >
+                        <summary>
                             {{
-                                'HOME.STALKER_PORTAL.DEVICE_ID_PINNED_WARNING'
+                                'HOME.STALKER_PORTAL.ADDITIONAL_SETTINGS'
                                     | translate
                             }}
-                        </p>
-                    }
-                    <mat-form-field class="w-full">
-                        <mat-label>{{
-                            'HOME.STALKER_PORTAL.SERIAL_NUMBER' | translate
-                        }}</mat-label>
-                        <input matInput formControlName="stalkerSerialNumber" />
-                    </mat-form-field>
-                    <mat-form-field class="w-full">
-                        <mat-label>{{
-                            'HOME.STALKER_PORTAL.DEVICE_ID_1' | translate
-                        }}</mat-label>
-                        <input matInput formControlName="stalkerDeviceId1" />
-                    </mat-form-field>
-                    <mat-form-field class="w-full">
-                        <mat-label>{{
-                            'HOME.STALKER_PORTAL.DEVICE_ID_2' | translate
-                        }}</mat-label>
-                        <input matInput formControlName="stalkerDeviceId2" />
-                    </mat-form-field>
-                    <mat-form-field class="w-full">
-                        <mat-label>{{
-                            'HOME.STALKER_PORTAL.SIGNATURE_1' | translate
-                        }}</mat-label>
-                        <input matInput formControlName="stalkerSignature1" />
-                    </mat-form-field>
-                    <mat-form-field class="w-full">
-                        <mat-label>{{
-                            'HOME.STALKER_PORTAL.SIGNATURE_2' | translate
-                        }}</mat-label>
-                        <input matInput formControlName="stalkerSignature2" />
-                    </mat-form-field>
+                        </summary>
+                        <div class="app-dialog-disclosure__fields">
+                            @if (hasStoredStalkerDeviceIds) {
+                                <p class="stalker-device-id-warning">
+                                    {{
+                                        'HOME.STALKER_PORTAL.DEVICE_ID_PINNED_WARNING'
+                                            | translate
+                                    }}
+                                </p>
+                            }
+                            <mat-form-field class="w-full">
+                                <mat-label>{{
+                                    'HOME.STALKER_PORTAL.SERIAL_NUMBER'
+                                        | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    formControlName="stalkerSerialNumber"
+                                />
+                            </mat-form-field>
+                            <mat-form-field class="w-full">
+                                <mat-label>{{
+                                    'HOME.STALKER_PORTAL.DEVICE_ID_1'
+                                        | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    formControlName="stalkerDeviceId1"
+                                />
+                            </mat-form-field>
+                            <mat-form-field class="w-full">
+                                <mat-label>{{
+                                    'HOME.STALKER_PORTAL.DEVICE_ID_2'
+                                        | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    formControlName="stalkerDeviceId2"
+                                />
+                            </mat-form-field>
+                            <mat-form-field class="w-full">
+                                <mat-label>{{
+                                    'HOME.STALKER_PORTAL.SIGNATURE_1'
+                                        | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    formControlName="stalkerSignature1"
+                                />
+                            </mat-form-field>
+                            <mat-form-field class="w-full">
+                                <mat-label>{{
+                                    'HOME.STALKER_PORTAL.SIGNATURE_2'
+                                        | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    formControlName="stalkerSignature2"
+                                />
+                            </mat-form-field>
+                            <ng-container
+                                [ngTemplateOutlet]="providerCredentials"
+                            />
+                        </div>
+                    </details>
                 }
                 @if (playlist.serverUrl) {
                     <mat-form-field class="w-full">
@@ -99,34 +166,8 @@
                         <input matInput formControlName="serverUrl" />
                     </mat-form-field>
                 }
-                @if (playlist.portalUrl || playlist.username) {
-                    <mat-form-field class="w-full">
-                        <mat-label>{{
-                            'HOME.PLAYLISTS.INFO_DIALOG.USERNAME' | translate
-                        }}</mat-label>
-                        <input matInput formControlName="username" />
-                    </mat-form-field>
-                }
-                @if (playlist.portalUrl || playlist.password) {
-                    <mat-form-field class="w-full">
-                        <mat-label>{{
-                            'HOME.PLAYLISTS.INFO_DIALOG.PASSWORD' | translate
-                        }}</mat-label>
-                        <input
-                            matInput
-                            [type]="passwordToggle.inputType()"
-                            formControlName="password"
-                        />
-                        <button
-                            mat-icon-button
-                            matSuffix
-                            appPasswordVisibilityToggle
-                            #passwordToggle="appPasswordVisibilityToggle"
-                            [attr.aria-label]="'HOME.SHOW_PASSWORD' | translate"
-                        >
-                            <mat-icon>{{ passwordToggle.icon() }}</mat-icon>
-                        </button>
-                    </mat-form-field>
+                @if (!playlist.portalUrl) {
+                    <ng-container [ngTemplateOutlet]="providerCredentials" />
                 }
                 @if (playlist.serverUrl && !playlist.portalUrl) {
                     <p id="xtream-edit-http-test-notice">
@@ -136,7 +177,8 @@
                         }}
                     </p>
                     <button
-                        mat-stroked-button
+                        mat-flat-button
+                        class="app-dialog__secondary"
                         type="button"
                         [disabled]="
                             connectionTest.testing() || playlistDetails.invalid
@@ -399,6 +441,7 @@
                             <div class="playlist-epg-source-actions">
                                 <button
                                     mat-button
+                                    class="app-dialog__ghost"
                                     type="button"
                                     (click)="addPlaylistEpgSourceInput()"
                                 >
@@ -406,20 +449,14 @@
                                     {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
                                 </button>
                                 <button
-                                    mat-stroked-button
+                                    mat-flat-button
+                                    class="app-dialog__secondary"
                                     type="button"
-                                    [attr.aria-label]="
-                                        ('HOME.PLAYLISTS.INFO_DIALOG.SAVE'
-                                            | translate) +
-                                        ' ' +
-                                        ('SETTINGS.EPG_SOURCES' | translate)
-                                    "
                                     (click)="savePlaylistEpgSources()"
                                 >
                                     <mat-icon>playlist_add</mat-icon>
                                     {{
-                                        'HOME.PLAYLISTS.INFO_DIALOG.SAVE'
-                                            | translate
+                                        'SETTINGS.SAVE_EPG_SOURCES' | translate
                                     }}
                                 </button>
                             </div>

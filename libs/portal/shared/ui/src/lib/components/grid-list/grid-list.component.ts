@@ -261,7 +261,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                 <span>{{ 'PORTALS.GRID.LOAD_MORE_FAILED' | translate }}</span>
                 <button
                     type="button"
-                    mat-stroked-button
+                    mat-flat-button
                     (click)="retryLoadMore.emit()"
                 >
                     {{ 'PORTALS.GRID.RETRY' | translate }}

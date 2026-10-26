@@ -72,6 +72,19 @@ describe('StalkerPortalImportComponent identity handling', () => {
         );
     });
 
+    it('reveals additional settings for prefilled values, invalid fields and portal feedback', () => {
+        expect(component.hasAdvancedOptions).toBe(false);
+        component.form.controls.serialNumber.setValue('SN-A');
+        expect(component.hasAdvancedOptions).toBe(true);
+        component.clearForm();
+        expect(component.hasAdvancedOptions).toBe(false);
+        component.form.controls.deviceId1.setErrors({ provider: true });
+        expect(component.hasAdvancedOptions).toBe(true);
+        component.form.controls.deviceId1.setErrors(null);
+        component.feedback.set({ key: 'HOME.STALKER_PORTAL.LOGIN_REQUIRED' });
+        expect(component.hasAdvancedOptions).toBe(true);
+    });
+
     it('accepts HTTP(S) bare hosts and rejects URLs without a web protocol', () => {
         const control = component.form.controls.portalUrl;
 
