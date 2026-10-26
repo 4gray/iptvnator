@@ -1,5 +1,5 @@
 import { PhoneReview } from './phone-review';
-import { PhoneSetupPanel } from './phone-setup-panel';
+import { PhoneInstructions, PhoneSetupPanel } from './phone-setup-panel';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import QRCode from 'qrcode';
 import {
@@ -21,10 +21,12 @@ export function PhoneSetup({
     tv,
     purpose = 'source',
     compact = false,
+    onSettingsApplied,
 }: {
     tv: TvModel;
     purpose?: SetupPurpose;
     compact?: boolean;
+    onSettingsApplied?: () => void;
 }) {
     const settings = purpose === 'settings';
     const [session, setSession] = useState<PairingSession>();
@@ -182,6 +184,8 @@ export function PhoneSetup({
                     )
                     .then(() => {
                         saved.current = true;
+                        // Receipt delivery can fail independently of this committed write.
+                        if (settings) onSettingsApplied?.();
                     });
                 await pendingSave.current;
             }
@@ -253,22 +257,7 @@ export function PhoneSetup({
                             decline={() => void finish('rejected')}
                         />
                     ) : (
-                        <>
-                            <img
-                                class="pairing-qr"
-                                src={qr}
-                                alt="Scan this QR code to set up your TV from your phone"
-                            />
-                            <div>
-                                <h3>Open your phone’s camera</h3>
-                                <p>Keep your phone on the same home network.</p>
-                                <p class="muted" role="status">
-                                    Waiting for your phone ·{' '}
-                                    {Math.floor(remaining / 60)}:
-                                    {String(remaining % 60).padStart(2, '0')}
-                                </p>
-                            </div>
-                        </>
+                        <PhoneInstructions qr={qr} remaining={remaining} />
                     )}
                     <button
                         type="button"

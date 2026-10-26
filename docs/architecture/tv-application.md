@@ -138,7 +138,9 @@ Connection (including direct diagnostics), Library & sync, Appearance, Programme
 guide, Metadata · TMDB and Your remote. Forms stay mounted while switching
 categories, preserving unsaved input. Appearance and programme-guide saves each
 patch only their own field in the current snapshot; hidden drafts are never
-submitted. Committed phone changes refresh the corresponding field drafts.
+submitted. An explicit committed phone update refreshes all phone-managed drafts, even
+when its values equal the previous snapshot; failed writes retain those drafts.
+Connection and library drafts are unaffected by this refresh.
 Category, last control and panel scroll positions survive leaving and returning
 to Settings within the app session; these navigation hints contain no credentials.
 Controls declare stable focus keys in their owning components. Dynamic backend

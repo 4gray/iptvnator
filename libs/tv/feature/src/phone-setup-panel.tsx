@@ -91,3 +91,29 @@ export function PhoneSetupPanel({
         content
     );
 }
+
+export function PhoneInstructions({
+    qr,
+    remaining,
+}: {
+    qr: string;
+    remaining: number;
+}) {
+    return (
+        <>
+            <img
+                class="pairing-qr"
+                src={qr}
+                alt="Scan this QR code to set up your TV from your phone"
+            />
+            <div>
+                <h3>Open your phone’s camera</h3>
+                <p>Keep your phone on the same home network.</p>
+                <p class="muted" role="status">
+                    Waiting for your phone · {Math.floor(remaining / 60)}:
+                    {String(remaining % 60).padStart(2, '0')}
+                </p>
+            </div>
+        </>
+    );
+}

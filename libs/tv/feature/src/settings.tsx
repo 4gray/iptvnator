@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks';
 import { LibrarySettings } from './library-settings';
 import { PhoneSetup } from './phone-setup';
 import { BackendConnection } from './backend-connection';
@@ -19,6 +20,7 @@ export function Settings({
     memory: SettingsMemory;
 }) {
     const navigation = useSettingsNavigation(memory);
+    const [phoneRevision, setPhoneRevision] = useState(0);
     return (
         <div
             class="settings-screen"
@@ -28,7 +30,14 @@ export function Settings({
         >
             <div class="settings-toolbar">
                 <p class="muted">Choose a category to adjust settings.</p>
-                <PhoneSetup tv={tv} purpose="settings" compact />
+                <PhoneSetup
+                    tv={tv}
+                    purpose="settings"
+                    compact
+                    onSettingsApplied={() =>
+                        setPhoneRevision((value) => value + 1)
+                    }
+                />
             </div>
             <div class="settings-workspace">
                 <div
@@ -78,11 +87,22 @@ export function Settings({
                         ) : id === 'library' ? (
                             <LibrarySettings tv={tv} />
                         ) : id === 'appearance' ? (
-                            <SettingsPreferences tv={tv} field="layout" />
+                            <SettingsPreferences
+                                key={`layout:${phoneRevision}`}
+                                tv={tv}
+                                field="layout"
+                            />
                         ) : id === 'epg' ? (
-                            <SettingsPreferences tv={tv} field="epg" />
+                            <SettingsPreferences
+                                key={`epg:${phoneRevision}`}
+                                tv={tv}
+                                field="epg"
+                            />
                         ) : id === 'metadata' ? (
-                            <TmdbSettings tv={tv} />
+                            <TmdbSettings
+                                key={`tmdb:${phoneRevision}`}
+                                tv={tv}
+                            />
                         ) : (
                             <>
                                 <h2>Your remote</h2>

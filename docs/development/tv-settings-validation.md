@@ -198,3 +198,30 @@ are historical; the publication package includes the subsequent review fixes.
 The first attempt to reconnect to LG on 2026-10-26 times out, so that attempt
 cannot certify installation of the corrected artifact. The existing initial
 0.1.15 installation and its matching before/after data digests remain valid.
+
+
+GitHub Greptile review of PR #2006 identifies one additional draft-refresh case:
+explicitly applying unchanged committed phone defaults leaves different unsaved
+local drafts behind. The regression reproduces this for Appearance, EPG and
+TMDB, including a failed first write, while retaining a separate library draft.
+Phone setup now notifies Settings only after its atomic write commits. Settings
+then refreshes only the three phone-managed forms, including unchanged values;
+a failed write never refreshes them, and an acknowledgement retry does not
+repeat the refresh. Connection and library components retain their drafts.
+
+
+The initial GitHub Unit Tests and Typechecks job fails one web-backend contract
+that still expects literal TV ports. Its updated assertions retain the isolated
+backend/library defaults, token, origin, single-process launch and phone-asset
+packaging checks, and now cover the optional offset declarations. All 238
+web-backend tests pass with coverage (92.76% statements, 85.66% branches,
+92.05% functions, 93.02% lines); no threshold or gate is changed.
+
+After the Greptile fix, all 107 TV browser E2E cases, 85 TV unit tests and 13
+available lint/typecheck tasks pass, as do build/ES2018/package and notes/guidance
+checks. Latest candidate package SHA-256:
+`be33258c5f1d36a4100c80bd7c5ee9ba4ca36c4f3f46ca7c55b59aee91d72461`
+(bundle `index-BgdQ5yf9.js`). Static QR instructions are extracted into the
+existing phone-panel module to keep PhoneSetup below 300 production lines.
+The fourth local review is clean on `d9912eb6f`; the phone-refresh and stale-test
+corrections are committed together for the next local review and single PR push.
