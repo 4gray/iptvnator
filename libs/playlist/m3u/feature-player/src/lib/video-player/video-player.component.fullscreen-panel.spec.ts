@@ -186,6 +186,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                     useValue: {
                         currentEpgPrograms$: of([] as EpgProgram[]),
                         currentChannelHasPrograms$: of(false),
+                        currentChannelWindowLoading$: of(false),
                         sourceRevision: signal(0),
                         loadChannelProgramsForWindow: jest
                             .fn()

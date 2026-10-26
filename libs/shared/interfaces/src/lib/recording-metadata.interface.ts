@@ -47,7 +47,7 @@ export interface RecordingStartMetadata {
 /**
  * Emitted by the player layer when a recording stopped cleanly. The host
  * component answers it with the programs overlapping [startedAt, endedAt]
- * from its in-memory EPG state (stop enrichment). Implicit stops (session
+ * from its EPG schedule (stop enrichment). Implicit stops (session
  * dispose, crash) never emit — the start snapshot stands.
  */
 export interface RecordingStoppedEvent {

@@ -177,6 +177,7 @@
                         @if (epgViewMode() === 'list') {
                             <app-epg-list-view
                                 [programs]="epgPrograms()"
+                                [loading]="epgWindowLoading()"
                                 [hasProgramsElsewhere]="hasProgramsElsewhere()"
                                 [offsetMinutes]="epgOffsetMinutes()"
                                 [channelName]="timelineChannelName()"
@@ -215,6 +216,7 @@
                         } @else {
                             <app-epg-timeline
                                 [programs]="epgPrograms()"
+                                [loading]="epgWindowLoading()"
                                 [hasProgramsElsewhere]="hasProgramsElsewhere()"
                                 [offsetMinutes]="epgOffsetMinutes()"
                                 [channelName]="timelineChannelName()"

@@ -1,3 +1,5 @@
+import { EPG_GUIDE_MAX_SOURCE_URLS_PER_REQUEST } from '@iptvnator/shared/interfaces';
+
 /** The renderer splits larger channel batches; anything beyond this is dropped. */
 export const EPG_GUIDE_MAX_CHANNELS_PER_REQUEST = 100;
 
@@ -7,9 +9,6 @@ export const EPG_GUIDE_MAX_CHANNELS_PER_REQUEST = 100;
  * at once, so this cap is intentionally much larger than the programme cap.
  */
 export const EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST = 2000;
-
-/** Bound on how many distinct EPG source URLs one request may scope to. */
-const MAX_SOURCE_URLS_PER_REQUEST = 50;
 
 /** Largest |ms| `Date` can serialize; a corrupt payload must not throw in SQL. */
 const MAX_SERIALIZABLE_MS = 8.64e15;
@@ -111,7 +110,7 @@ export function normalizeGuideWindow(
     }
     const sourceUrls = uniqueTrimmedStrings(
         request.sourceUrls ?? [],
-        MAX_SOURCE_URLS_PER_REQUEST
+        EPG_GUIDE_MAX_SOURCE_URLS_PER_REQUEST
     );
     return {
         channelIds,

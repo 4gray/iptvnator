@@ -744,6 +744,10 @@ day has no programme in the playlist sources. With neither source configured,
 it uses the existing unscoped fallback. A separate current-day read keeps the
 live programme available while another day is selected. Channel, day, source
 and offset changes issue a new request; an older response cannot replace it.
+The live programme stays available while another day loads for the same
+channel and source scope. New channels and source scopes show a loading state.
+Source lists longer than the guide IPC's per-request limit are read in batches
+and combined before trying the global fallback.
 When both loaded days are empty, a source-scoped coverage check distinguishes
 an empty day from a channel with no guide data, keeping date navigation
 available. Archive playback requests its full provider-clock range separately

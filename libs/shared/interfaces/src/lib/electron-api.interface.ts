@@ -433,6 +433,9 @@ export interface ElectronBridgeCurrentProgramsOptions extends ElectronBridgeEpgL
     nowMs?: number;
 }
 
+/** Maximum guide source URLs accepted by one desktop IPC request. */
+export const EPG_GUIDE_MAX_SOURCE_URLS_PER_REQUEST = 50;
+
 export interface ElectronBridgeEpgGuideWindow extends ElectronBridgeEpgLookupOptions {
     /**
      * Playlist channel lookup keys (tvg-id, else name), ≤100 keys for

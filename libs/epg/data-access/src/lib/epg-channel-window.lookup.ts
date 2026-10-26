@@ -1,4 +1,8 @@
-import { EpgProgram, epgProviderClockMs } from '@iptvnator/shared/interfaces';
+import {
+    EPG_GUIDE_MAX_SOURCE_URLS_PER_REQUEST,
+    EpgProgram,
+    epgProviderClockMs,
+} from '@iptvnator/shared/interfaces';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
@@ -25,14 +29,28 @@ export class EpgChannelWindowLookup {
             ? toMs
             : epgProviderClockMs(toMs, this.offsetMinutes());
         for (const sourceUrls of this.scopes(playlistUrls)) {
-            const result = await this.bridge.getProgramsForChannels({
-                channelIds: [channelId],
-                fromMs: from,
-                toMs: to,
-                ...(sourceUrls.length ? { sourceUrls } : {}),
-            });
-            const programs = normalizeEpgPrograms(result?.[channelId] ?? []);
-            if (programs.length > 0) return programs;
+            const programs: EpgProgram[] = [];
+            for (const batch of this.sourceBatches(sourceUrls)) {
+                const result = await this.bridge.getProgramsForChannels({
+                    channelIds: [channelId],
+                    fromMs: from,
+                    toMs: to,
+                    ...(batch.length ? { sourceUrls: batch } : {}),
+                });
+                programs.push(
+                    ...normalizeEpgPrograms(result?.[channelId] ?? [])
+                );
+            }
+            if (programs.length > 0) {
+                return Array.from(
+                    new Map(
+                        programs.map((program) => [
+                            `${program.channel}\n${program.start}\n${program.title}`,
+                            program,
+                        ])
+                    ).values()
+                ).sort((left, right) => left.start.localeCompare(right.start));
+            }
         }
         return [];
     }
@@ -43,15 +61,35 @@ export class EpgChannelWindowLookup {
         playlistUrls: string[]
     ): Promise<boolean> {
         for (const sourceUrls of this.scopes(playlistUrls)) {
-            const result = await this.bridge.getProgramCoverage({
-                channelIds: [channelId],
-                fromMs: Date.UTC(1900, 0, 1),
-                toMs: Date.UTC(2100, 0, 1),
-                ...(sourceUrls.length ? { sourceUrls } : {}),
-            });
-            if (result?.includes(channelId)) return true;
+            for (const batch of this.sourceBatches(sourceUrls)) {
+                const result = await this.bridge.getProgramCoverage({
+                    channelIds: [channelId],
+                    fromMs: Date.UTC(1900, 0, 1),
+                    toMs: Date.UTC(2100, 0, 1),
+                    ...(batch.length ? { sourceUrls: batch } : {}),
+                });
+                if (result?.includes(channelId)) return true;
+            }
         }
         return false;
+    }
+
+    private sourceBatches(sourceUrls: string[]): string[][] {
+        if (sourceUrls.length === 0) return [[]];
+        const batches: string[][] = [];
+        for (
+            let index = 0;
+            index < sourceUrls.length;
+            index += EPG_GUIDE_MAX_SOURCE_URLS_PER_REQUEST
+        ) {
+            batches.push(
+                sourceUrls.slice(
+                    index,
+                    index + EPG_GUIDE_MAX_SOURCE_URLS_PER_REQUEST
+                )
+            );
+        }
+        return batches;
     }
 
     private scopes(playlistUrls: string[]): string[][] {

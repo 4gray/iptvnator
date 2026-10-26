@@ -45,8 +45,10 @@ export class EpgService {
             this.programRequestId++;
             this.sourceRevision.update((revision) => revision + 1);
             this.clearCache();
+            this.currentWindowIdentity = null;
             this.currentEpgPrograms.next([]);
             this.currentChannelHasPrograms.next(false);
+            this.currentChannelWindowLoading.next(false);
             this.epgAvailable.next(true);
         });
     }
@@ -54,6 +56,8 @@ export class EpgService {
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
     private currentChannelHasPrograms = new BehaviorSubject(false);
+    private currentChannelWindowLoading = new BehaviorSubject(false);
+    private currentWindowIdentity: string | null = null;
     private programRequestId = 0;
     readonly sourceRevision = signal(0);
     private readonly channelWindow = new EpgChannelWindowLookup(
@@ -112,6 +116,8 @@ export class EpgService {
     readonly currentEpgPrograms$ = this.currentEpgPrograms.asObservable();
     readonly currentChannelHasPrograms$ =
         this.currentChannelHasPrograms.asObservable();
+    readonly currentChannelWindowLoading$ =
+        this.currentChannelWindowLoading.asObservable();
 
     /**
      * Fetches EPG from the given URLs
@@ -201,12 +207,31 @@ export class EpgService {
         currentDayWindow?: { fromMs: number; toMs: number }
     ): Promise<void> {
         const requestId = ++this.programRequestId;
-        this.currentEpgPrograms.next([]);
-        this.currentChannelHasPrograms.next(false);
         const lookupKey = channelId.trim();
         if (!this.epgBridge.supportsGuide || !lookupKey) {
+            this.currentWindowIdentity = null;
+            this.currentEpgPrograms.next([]);
+            this.currentChannelHasPrograms.next(false);
+            this.currentChannelWindowLoading.next(false);
             return;
         }
+
+        const playlistUrls = normalizeEpgUrls(playlistSourceUrls);
+        const identity = JSON.stringify([
+            lookupKey,
+            playlistUrls,
+            this.getGlobalEpgSourceUrls(playlistUrls),
+            this.epgOffsetMinutes(),
+        ]);
+        if (identity !== this.currentWindowIdentity) {
+            this.currentEpgPrograms.next([]);
+            this.currentChannelHasPrograms.next(false);
+        }
+        this.currentWindowIdentity = identity;
+        this.currentChannelWindowLoading.next(
+            this.currentEpgPrograms.value.length === 0 &&
+                !this.currentChannelHasPrograms.value
+        );
 
         try {
             const programs = await this.channelWindow.programs(
@@ -243,11 +268,13 @@ export class EpgService {
                 ));
             if (requestId !== this.programRequestId) return;
             this.currentChannelHasPrograms.next(hasAny);
+            this.currentChannelWindowLoading.next(false);
         } catch (error) {
             if (requestId !== this.programRequestId) return;
             console.error('EPG guide programme lookup error:', error);
             this.showErrorSnackbar();
             this.epgAvailable.next(false);
+            this.currentChannelWindowLoading.next(false);
         }
     }
 

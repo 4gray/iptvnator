@@ -99,4 +99,73 @@ describe('EpgService channel window', () => {
             sourceUrls: ['enabled-guide'],
         });
     });
+
+    it('retains the live programme while another day loads for the same channel', async () => {
+        const live = {
+            channel: 'shared-id',
+            start: '2026-09-06T01:00:00.000Z',
+            stop: '2026-09-06T02:00:00.000Z',
+            title: 'Live programme',
+        };
+        getProgramsForChannels.mockResolvedValueOnce({ 'shared-id': [live] });
+        await service.loadChannelProgramsForWindow(
+            'shared-id',
+            Date.UTC(2026, 8, 6),
+            Date.UTC(2026, 8, 7),
+            ['enabled-guide']
+        );
+        let finishSelectedDay!: (
+            result: Record<string, (typeof live)[]>
+        ) => void;
+        getProgramsForChannels
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishSelectedDay = resolve;
+                })
+            )
+            .mockResolvedValueOnce({ 'shared-id': [live] });
+
+        const pending = service.loadChannelProgramsForWindow(
+            'shared-id',
+            Date.UTC(2026, 8, 7),
+            Date.UTC(2026, 8, 8),
+            ['enabled-guide'],
+            { fromMs: Date.UTC(2026, 8, 6), toMs: Date.UTC(2026, 8, 7) }
+        );
+        expect(await firstValueFrom(service.currentEpgPrograms$)).toMatchObject(
+            [{ title: 'Live programme' }]
+        );
+        expect(await firstValueFrom(service.currentChannelWindowLoading$)).toBe(
+            false
+        );
+
+        finishSelectedDay({ 'shared-id': [] });
+        await pending;
+        expect(await firstValueFrom(service.currentEpgPrograms$)).toMatchObject(
+            [{ title: 'Live programme' }]
+        );
+    });
+
+    it('shows loading while a new channel has no programmes yet', async () => {
+        let finish!: (result: Record<string, never[]>) => void;
+        getProgramsForChannels.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finish = resolve;
+            })
+        );
+        const pending = service.loadChannelProgramsForWindow(
+            'new-channel',
+            Date.UTC(2026, 8, 7),
+            Date.UTC(2026, 8, 8),
+            ['enabled-guide']
+        );
+        expect(await firstValueFrom(service.currentChannelWindowLoading$)).toBe(
+            true
+        );
+        finish({ 'new-channel': [] });
+        await pending;
+        expect(await firstValueFrom(service.currentChannelWindowLoading$)).toBe(
+            false
+        );
+    });
 });

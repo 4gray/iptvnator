@@ -427,6 +427,10 @@ export class VideoPlayerComponent
         this.epgService.currentChannelHasPrograms$,
         { initialValue: false }
     );
+    readonly epgWindowLoading = toSignal(
+        this.epgService.currentChannelWindowLoading$,
+        { initialValue: false }
+    );
     private readonly catchupPrograms = signal<EpgProgram[] | null>(null);
     /** Catch-up programmes from `utc` up to `lutc` as seek-bar segments. */
     readonly catchupTimelineSegments = computed(() => {
