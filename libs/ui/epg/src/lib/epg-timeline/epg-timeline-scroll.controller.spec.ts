@@ -133,7 +133,7 @@ describe('TimelineScrollController', () => {
                         nowMs
                     ),
                 nowMs: () => nowMs,
-                viewDayKey: () => 'today',
+                viewDayKey: () => getTodayEpgDateKey(),
                 commitDay: commitDaySpy,
                 hasProgramsForDay: (dayKey) =>
                     hasProgramsForDateKey(programs, dayKey),
@@ -209,6 +209,32 @@ describe('TimelineScrollController', () => {
             focus({} as HTMLElement, p);
             focus({} as HTMLElement, p); // remount → still no focus/snap
             expect(scrollSpy).not.toHaveBeenCalled();
+            expect(commitDaySpy).not.toHaveBeenCalled();
+        });
+
+        it('restores a selected day when its asynchronous programmes mount', () => {
+            const p = [programAt(3 * 1440, 60)];
+            const selectedDay = new Date(p[0].start);
+            const dayKey = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}-${String(selectedDay.getDate()).padStart(2, '0')}`;
+            const nowMs = Date.now();
+            const selectedDayController = new TimelineScrollController({
+                ribbon: () => undefined,
+                scale: () => 1,
+                axis: () => buildTimelineAxis(p, nowMs),
+                blocks: () =>
+                    buildTimelineBlocks(p, buildTimelineAxis(p, nowMs), nowMs),
+                nowMs: () => nowMs,
+                viewDayKey: () => dayKey,
+                commitDay: commitDaySpy,
+                hasProgramsForDay: (key) => hasProgramsForDateKey(p, key),
+            });
+            const restore = jest
+                .spyOn(selectedDayController, 'scrollToDateKey')
+                .mockImplementation(() => undefined);
+
+            selectedDayController.maybeAutoFocus({} as HTMLElement, p);
+
+            expect(restore).toHaveBeenCalledWith(dayKey, 0.5, false);
             expect(commitDaySpy).not.toHaveBeenCalled();
         });
 

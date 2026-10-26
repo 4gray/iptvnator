@@ -183,9 +183,7 @@ export class EpgListViewComponent {
         const state = this.renderState();
         return state === 'loading' || state === 'list' ? 'none' : state;
     });
-    readonly hasOtherDays = computed(
-        () => this.programs().length > 0 || this.hasProgramsElsewhere()
-    );
+    readonly hasOtherDays = computed(() => this.programs().length > 0);
     readonly showDateStepper = computed(() => {
         const state = this.renderState();
         return state === 'list' || state === 'empty-day';

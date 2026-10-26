@@ -748,6 +748,10 @@ When both loaded days are empty, a source-scoped coverage check distinguishes
 an empty day from a channel with no guide data, keeping date navigation
 available. Archive playback requests its full provider-clock range separately
 for the seek bar, so browsing the mini-guide does not remove intervening titles.
+Recording stop enrichment likewise reads the recorded interval, independent of
+the viewed day. An empty selected day keeps the date stepper when guide data
+exists elsewhere; the nearest-day action appears only when a loaded programme
+supplies a destination.
 The legacy `getChannelPrograms` IPC remains available to other callers.
 
 ### EPG display offset

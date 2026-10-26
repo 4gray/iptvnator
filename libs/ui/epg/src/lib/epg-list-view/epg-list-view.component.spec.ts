@@ -100,7 +100,7 @@ describe('EpgListViewComponent', () => {
         setInputs({ programs: [], hasProgramsElsewhere: true });
         expect(component.renderState()).toBe('empty-day');
         expect(component.showDateStepper()).toBe(true);
-        expect(component.hasOtherDays()).toBe(true);
+        expect(component.hasOtherDays()).toBe(false);
     });
 
     it('honours an explicit empty reason from the host', () => {

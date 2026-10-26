@@ -231,9 +231,7 @@
             @default {
                 <app-epg-timeline-empty-state
                     [reason]="emptyStateReason()"
-                    [hasOtherDays]="
-                        programs().length > 0 || hasProgramsElsewhere()
-                    "
+                    [hasOtherDays]="programs().length > 0"
                     (jumpToday)="jumpToNow()"
                     (jumpNearest)="jumpToNearestDay()"
                     (openSettings)="openEpgSettings.emit()"

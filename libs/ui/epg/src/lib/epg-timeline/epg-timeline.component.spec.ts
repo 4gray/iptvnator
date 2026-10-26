@@ -92,6 +92,10 @@ describe('EpgTimelineComponent', () => {
         setInputs({ programs: [], hasProgramsElsewhere: true });
         expect(component.renderState()).toBe('empty-day');
         expect(component.showDateStepper()).toBe(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).not.toContain(
+            'EPG.TIMELINE.JUMP_NEAREST'
+        );
     });
 
     it('honours an explicit empty reason from the host', () => {

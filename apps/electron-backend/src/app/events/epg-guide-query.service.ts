@@ -67,9 +67,8 @@ type ChannelResolver = Pick<EpgQueryService, 'resolveChannelMetadata'>;
  * before per-source EPG tracking was added; the `source_url` backfill in
  * `libs/shared/database/src/lib/connection.ts` fills it in where it can
  * still be inferred from the owning channel, but a row it cannot attribute
- * stays unsourced permanently. In v1 the M3U host never scopes this query to
- * specific sources (it queries unscoped), so this additive behaviour only
- * matters for portal (Xtream/Stalker) hosts, which do pass `sourceUrls`.
+ * stays unsourced permanently. M3U mini-guide reads now pass the active
+ * playlist's source URLs; the full M3U guide still reads unscoped.
  */
 export function guideWindowCondition(
     epgIds: string[],

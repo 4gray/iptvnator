@@ -14,6 +14,7 @@ import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import {
     DataService,
     PlaylistsService,
+    RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
     TmdbEnrichmentService,
@@ -333,5 +334,36 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
             endSeconds: 25 * HOUR,
             title: 'Middle day',
         });
+    });
+
+    it('enriches a recording from its full interval after the viewed day changes', async () => {
+        const middle = programme('Middle day', 24, 25);
+        epgPrograms$.next([programme('First day', 0, 1)]);
+        epgServiceMock.getChannelProgramsForProviderWindow.mockResolvedValue([
+            middle,
+        ]);
+        const update = jest
+            .spyOn(TestBed.inject(RecordingsService), 'updatePrograms')
+            .mockResolvedValue({ success: true });
+        fixture.componentInstance.onLiveEpgSelectedDateChange('2026-10-25');
+        fixture.componentInstance.onRecordingStopped({
+            targetPath: '/recordings/overnight.ts',
+            startedAt: new Date(T0 * 1000).toISOString(),
+            endedAt: new Date((T0 + 26 * HOUR) * 1000).toISOString(),
+            epgChannelId: 'sample-tvg-id',
+            sourceItemKey: 'channel-1',
+        });
+        await Promise.resolve();
+        expect(
+            epgServiceMock.getChannelProgramsForProviderWindow
+        ).toHaveBeenCalledWith(
+            'sample-tvg-id',
+            T0 * 1000,
+            (T0 + 26 * HOUR) * 1000,
+            []
+        );
+        expect(update).toHaveBeenCalledWith('/recordings/overnight.ts', [
+            expect.objectContaining({ title: 'Middle day' }),
+        ]);
     });
 });

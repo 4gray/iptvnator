@@ -142,6 +142,9 @@ export class TimelineScrollController {
         // The host's predicate applies the EPG display offset, so a guide
         // whose raw dates sit on the adjacent day still counts.
         if (!this.ctx.hasProgramsForDay(todayKey)) {
+            this.lastFocusKey = key;
+            this.lastScroller = scroller;
+            this.restorePosition();
             return;
         }
         this.lastFocusKey = key;
@@ -158,7 +161,9 @@ export class TimelineScrollController {
      */
     private restorePosition(): void {
         if (this.ctx.viewDayKey() === getTodayEpgDateKey()) {
-            this.focusCurrentProgram(false);
+            if (this.ctx.hasProgramsForDay(getTodayEpgDateKey())) {
+                this.focusCurrentProgram(false);
+            }
         } else {
             this.scrollToDateKey(this.ctx.viewDayKey(), 0.5, false);
         }

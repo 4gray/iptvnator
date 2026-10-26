@@ -648,11 +648,7 @@ export class VideoPlayerComponent
         };
     });
 
-    /**
-     * Stop enrichment: report every program overlapping the recorded window
-     * from the in-memory multi-day schedule (a recording can span a program
-     * boundary). Fire-and-forget — a failed update leaves the start snapshot.
-     */
+    /** Load the recorded interval for stop enrichment, independent of the viewed day. */
     onRecordingStopped(event: RecordingStoppedEvent): void {
         // A channel switch auto-stops the recording, and by now this host
         // already describes the new channel — enriching then would attach the
@@ -672,16 +668,45 @@ export class VideoPlayerComponent
         ) {
             return;
         }
-        const programs = filterRecordingProgramsOverlap(
-            this.epgPrograms().map(toRecordingProgramSnapshot),
-            event.startedAt,
-            event.endedAt,
-            this.epgOffsetMinutes()
-        );
-        if (programs.length === 0) {
+        const channelId =
+            event.epgChannelId || this.recordingMetadata()?.epgChannelId;
+        const startMs = Date.parse(event.startedAt ?? '');
+        const endMs = Date.parse(event.endedAt);
+        if (
+            !channelId ||
+            !Number.isFinite(startMs) ||
+            !Number.isFinite(endMs) ||
+            endMs <= startMs
+        ) {
             return;
         }
-        void this.recordingsService.updatePrograms(event.targetPath, programs);
+        const offsetMinutes = this.epgOffsetMinutes();
+        const sourceUrls = this.activePlaylistMeta()?.epgUrls ?? [];
+        void this.epgService
+            .getChannelProgramsForProviderWindow(
+                channelId,
+                epgProviderClockMs(startMs, offsetMinutes),
+                epgProviderClockMs(endMs, offsetMinutes),
+                sourceUrls
+            )
+            .then((epgPrograms) => {
+                const programs = filterRecordingProgramsOverlap(
+                    epgPrograms.map(toRecordingProgramSnapshot),
+                    event.startedAt,
+                    event.endedAt,
+                    offsetMinutes
+                );
+                if (programs.length > 0) {
+                    return this.recordingsService.updatePrograms(
+                        event.targetPath,
+                        programs
+                    );
+                }
+                return undefined;
+            })
+            .catch((error: unknown) => {
+                console.error('EPG recording lookup error:', error);
+            });
     }
     /**
      * Without a single configured XMLTV source the whole playlist has no EPG,
