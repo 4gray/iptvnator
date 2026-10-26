@@ -294,21 +294,30 @@ test.describe('Dashboard hero legibility', () => {
             await openWorkspaceSection(page, 'Live TV');
             await clickCategoryByNameExact(page, live.categoryName);
             await toggleFavoriteForChannel(page, getXtreamTitle(live.items[0]));
-            // Backdrop slide: favouriting from the detail page stores the
-            // movie's 16:9 backdrop.
-            await page
-                .getByRole('link', { name: 'Movies', exact: true })
-                .click();
-            await clickCategoryByNameExact(page, vod.categoryName);
-            await clickFirstGridListCard(page);
-            await addCurrentDetailToFavorites(page);
-            await goBackFromDetail(page);
             // No-artwork slide: series images fail, poster and backdrop.
             await page
                 .getByRole('link', { name: 'Series', exact: true })
                 .click();
             await clickCategoryByNameExact(page, series.categoryName);
             await clickFirstGridListCard(page);
+            await addCurrentDetailToFavorites(page);
+            await goBackFromDetail(page);
+            // Backdrop slide: favouriting from the detail page stores the
+            // movie's 16:9 backdrop. Save it last so the first favorite wins
+            // deduplication against its poster-only recently-added row.
+            await page
+                .getByRole('link', { name: 'Movies', exact: true })
+                .click();
+            await clickCategoryByNameExact(page, vod.categoryName);
+            await clickFirstGridListCard(page);
+            // Favorite is available before optional provider details arrive.
+            // This fixture needs a real backdrop, rather than the initial
+            // catalog poster, to exercise all four artwork treatments.
+            await expect(
+                page.locator(
+                    'app-content-hero .hero__backdrop:not(.hero__backdrop--blurred) .hero__backdrop-image'
+                )
+            ).toBeVisible();
             await addCurrentDetailToFavorites(page);
 
             await goToDashboard(page);

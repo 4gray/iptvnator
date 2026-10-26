@@ -174,6 +174,8 @@ export class VodDetailsPlaybackService {
         if (!source || !playlist) {
             return null;
         }
+        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
+        if (!streamUrl) return null;
 
         const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         // Master's sparse-details fallback: a provider that omits the route
@@ -198,7 +200,7 @@ export class VodDetailsPlaybackService {
             contentType: 'vod',
         };
         return {
-            streamUrl: this.xtreamStore.constructVodStreamUrl(vodItem),
+            streamUrl,
             title: presentation.title,
             thumbnail: presentation.posterUrl,
             ...(position ? { startTime: position.positionSeconds } : {}),

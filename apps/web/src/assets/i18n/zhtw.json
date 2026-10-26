@@ -1258,6 +1258,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "觀看狀態更新失敗",
         "EPISODES_WATCHED": "已觀看 {{total}} 集中的 {{count}} 集",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "無法播放或下載：服務提供者未提供串流位址或格式。",
             "STATUS": "無法取得入口網站中繼資料",
             "NOTE": "此入口網站未提供延伸中繼資料。",
             "STREAM_ID": "串流 ID",

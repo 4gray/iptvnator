@@ -308,16 +308,19 @@ test.describe('Electron catalog sort menus', () => {
                 // edge and names the active threshold.
                 const ratingRow = menu.locator('.refine-rating-trigger');
                 await expect(ratingRow).toContainText('5.0+');
-                const lefts = [
-                    ...(await radioRows(menu)).map((row) => row.labelLeft),
-                    Math.round(
-                        await ratingRow
-                            .locator('.mat-mdc-menu-item-text')
-                            .evaluate(
-                                (text) => text.getBoundingClientRect().left
-                            )
-                    ),
-                ];
+                // Read every label in one frame: the opening transform can
+                // advance between separate renderer evaluations.
+                const lefts = await menu
+                    .locator(
+                        '[role="menuitemradio"] .mat-mdc-menu-item-text, ' +
+                            '.refine-rating-trigger .mat-mdc-menu-item-text'
+                    )
+                    .evaluateAll((labels) =>
+                        labels.map((text) =>
+                            Math.round(text.getBoundingClientRect().left)
+                        )
+                    );
+                expect(lefts).toHaveLength(chipLabels.length + 1);
                 expect(
                     [...new Set(lefts)],
                     `${locale}: sort and rating rows`
