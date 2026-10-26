@@ -133,6 +133,34 @@ retryable, and a stable session-derived source ID prevents retry duplicates.
 The phone never reads source credentials back. QR transfer is source entry,
 not account synchronization, playlist-file upload or a media relay.
 
+Settings uses a fixed category column beside one independently scrolling panel:
+Connection (including direct diagnostics), Library & sync, Appearance, Programme
+guide, Metadata · TMDB and Your remote. Forms stay mounted while switching
+categories, preserving unsaved input. Appearance and programme-guide saves each
+patch only their own field in the current snapshot; hidden drafts are never
+submitted. An explicit committed phone update refreshes all phone-managed drafts, even
+when its values equal the previous snapshot; failed writes retain those drafts.
+Connection and library drafts are unaffected by this refresh.
+Category, last control and panel scroll positions survive leaving and returning
+to Settings within the app session; these navigation hints contain no credentials.
+Controls declare stable focus keys in their owning components. Dynamic backend
+results have separate keys; inserting them must not renumber or reuse keys of
+existing controls.
+Right/OK enters the category's last available control, Left returns to its category
+except in text fields, and Back returns to categories before leaving Settings.
+Native text caret and select-choice keys retain the shared remote contract.
+Within a panel, Up/Down follow visible enabled controls instead of crossing into
+categories; Right leaves a select for the next control (including Save), while
+OK toggles a checkbox without submitting its form. Closed-disclosure fields are
+excluded from entry and restoration. At a panel control boundary, Up/Down can
+scroll the remaining explanatory content without changing category.
+Phone setup is a compact action available above every category; an open QR session
+owns modal directional and Tab focus. A viewport backdrop blocks background
+pointer access, and a focus guard rejects programmatic focus outside the dialog.
+Restoration ignores disabled controls and restores each category's saved scroll
+when its panel becomes visible. Its cancellation and committed-write rules remain
+unchanged. Panel layout uses Chromium-68-compatible flex and explicit dimensions.
+
 Settings has its own purpose-bound QR session for layout, EPG and TMDB
 preferences. The phone receives only nonsecret defaults and a has-key flag.
 An empty key field preserves the saved key; a replacement is visible only to

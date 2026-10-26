@@ -1,9 +1,10 @@
+import { tvOrigins, tvPorts } from '../ports';
 import { expect, Page } from '@playwright/test';
 import { resolve } from 'node:path';
 import { workspaceRoot } from '@nx/devkit';
-export const backend = 'http://127.0.0.1:3433';
-export const xtream = 'http://127.0.0.1:3421';
-export const stalker = 'http://127.0.0.1:3420';
+export const backend = tvOrigins.backend;
+export const xtream = tvOrigins.xtream;
+export const stalker = tvOrigins.stalker;
 export async function start(page: Page) {
     await page.route('**/*', async (route) => {
         const url = route.request().url();
@@ -25,7 +26,7 @@ export async function start(page: Page) {
             await route.fulfill({
                 status: 302,
                 headers: {
-                    Location: 'http://127.0.0.1:3421/tv-test-media.webm',
+                    Location: `${xtream}/tv-test-media.webm`,
                     'Access-Control-Allow-Origin': '*',
                 },
             });
@@ -33,8 +34,10 @@ export async function start(page: Page) {
         }
         if (
             /^https?:\/\//.test(url) &&
-            !/^http:\/\/(?:localhost|127\.0\.0\.1):(?:4311|3433|3434|3420|3421)\//.test(
-                url
+            !(
+                new URL(url).protocol === 'http:' &&
+                ['localhost', '127.0.0.1'].includes(new URL(url).hostname) &&
+                Object.values(tvPorts).includes(Number(new URL(url).port))
             )
         ) {
             await route.abort();

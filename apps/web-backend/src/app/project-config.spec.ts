@@ -88,12 +88,23 @@ describe('Playwright web-backend launch', () => {
     it('keeps TV backend launch isolated and packages the mobile companion', () => {
         const source = readSource('apps/tv-e2e/playwright.config.ts');
         expect(source.split(launchCommand)).toHaveLength(3);
-        expect(source).toContain("PORT: '3434'");
+        const ports = readSource('apps/tv-e2e/ports.ts');
+        expect(ports).toContain("process.env['TV_E2E_PORT_OFFSET'] ?? 0");
+        for (const [name, port] of Object.entries({
+            app: 4311,
+            backend: 3433,
+            library: 3434,
+        })) {
+            expect(ports).toContain(`${name}: ${port} + offset`);
+        }
+        expect(source).toContain('PORT: String(tvPorts.library)');
+        expect(source).toContain('url: `${tvOrigins.library}/health`');
         expect(source).toContain("IPTVNATOR_STORAGE: 'server'");
         expect(source).toContain("IPTVNATOR_ACCESS_TOKEN: 'tv-library-test'");
         expect(source).not.toMatch(/\bnx\b[^'"`\n]*web-backend/);
-        expect(source).toContain("PORT: '3433'");
-        expect(source).toContain("CLIENT_URL: 'http://127.0.0.1:4311,null'");
+        expect(source).toContain('PORT: String(tvPorts.backend)');
+        expect(source).toContain('url: `${tvOrigins.backend}/health`');
+        expect(source).toContain('CLIENT_URL: `${tvOrigins.app},null`');
         expect(source).toContain("TSX_TSCONFIG_PATH: 'tsconfig.base.json'");
         const project = JSON.parse(readSource('apps/web-backend/project.json'));
         expect(project.targets.build.dependsOn).toContainEqual({

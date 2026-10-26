@@ -1,3 +1,4 @@
+import { tvOrigins, tvPorts } from './ports';
 import { defineConfig } from '@playwright/test';
 import { workspaceRoot } from '@nx/devkit';
 import { nxE2EPreset } from '@nx/playwright/preset';
@@ -7,7 +8,7 @@ export default defineConfig({
     workers: 1,
     timeout: 45000,
     use: {
-        baseURL: 'http://127.0.0.1:4311',
+        baseURL: tvOrigins.app,
         viewport: { width: 1920, height: 1080 },
         trace: 'retain-on-failure',
         screenshot: 'only-on-failure',
@@ -20,50 +21,52 @@ export default defineConfig({
         {
             command: 'node --import tsx apps/web-backend/src/main.ts',
             env: {
-                PORT: '3434',
-                CLIENT_URL: 'http://127.0.0.1:4311,null',
+                PORT: String(tvPorts.library),
+                CLIENT_URL: `${tvOrigins.app},null`,
                 IPTVNATOR_STORAGE: 'server',
                 IPTVNATOR_ACCESS_TOKEN: 'tv-library-test',
                 IPTVNATOR_DATA_DIR: `${workspaceRoot}/tmp/tv-library-e2e-${process.pid}`,
                 TSX_TSCONFIG_PATH: 'tsconfig.base.json',
             },
-            url: 'http://127.0.0.1:3434/health',
+            url: `${tvOrigins.library}/health`,
             cwd: workspaceRoot,
             reuseExistingServer: false,
         },
         {
-            command:
-                'pnpm exec vite preview --config apps/tv/vite.config.ts --host 127.0.0.1 --port 4311 --strictPort',
-            url: 'http://127.0.0.1:4311',
+            command: `pnpm exec vite preview --config apps/tv/vite.config.ts --host 127.0.0.1 --port ${tvPorts.app} --strictPort`,
+            url: tvOrigins.app,
             cwd: workspaceRoot,
             reuseExistingServer: false,
         },
         {
             command: 'node --import tsx apps/web-backend/src/main.ts',
             env: {
-                PORT: '3433',
-                CLIENT_URL: 'http://127.0.0.1:4311,null',
+                PORT: String(tvPorts.backend),
+                CLIENT_URL: `${tvOrigins.app},null`,
                 IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: '1',
                 TSX_TSCONFIG_PATH: 'tsconfig.base.json',
             },
-            url: 'http://127.0.0.1:3433/health',
+            url: `${tvOrigins.backend}/health`,
             cwd: workspaceRoot,
             reuseExistingServer: false,
         },
         {
             command: 'node --import tsx apps/xtream-mock-server/src/main.ts',
             env: {
-                XTREAM_MOCK_PORT: '3421',
+                XTREAM_MOCK_PORT: String(tvPorts.xtream),
                 TSX_TSCONFIG_PATH: 'tsconfig.base.json',
             },
-            url: 'http://127.0.0.1:3421/health',
+            url: `${tvOrigins.xtream}/health`,
             cwd: workspaceRoot,
             reuseExistingServer: false,
         },
         {
             command: 'node --import tsx apps/stalker-mock-server/src/main.ts',
-            env: { MOCK_PORT: '3420', TSX_TSCONFIG_PATH: 'tsconfig.base.json' },
-            url: 'http://127.0.0.1:3420/health',
+            env: {
+                MOCK_PORT: String(tvPorts.stalker),
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+            },
+            url: `${tvOrigins.stalker}/health`,
             cwd: workspaceRoot,
             reuseExistingServer: false,
         },

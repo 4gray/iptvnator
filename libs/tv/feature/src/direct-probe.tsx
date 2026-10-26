@@ -15,6 +15,7 @@ export function DirectAccessProbe({ tv }: { tv: TvModel }) {
                 stream address. The backend remains selected.
             </p>
             <button
+                data-focus="settings:direct-probe"
                 disabled={!source || busy}
                 onClick={async () => {
                     if (!source) return;
