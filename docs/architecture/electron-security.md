@@ -201,6 +201,16 @@ credentials.
 
 ## Main-Process Remote Requests
 
+Source synchronization uses a narrow typed preload surface and a persisted
+server selection. Its main-process adapter builds versioned API paths from
+named operations and permits an explicitly configured LAN server. Requests use
+the validated Axios transport with certificate checks and no redirects, so a
+NAS token cannot be replayed to a redirected provider or other host. Tokens are
+stored through OS-protected `safeStorage`, with a process-only fallback when
+protected storage is unavailable. The persisted connection file contains no
+plaintext token. Desktop source profiles are selected before opening any
+database connection; changing the profile restarts the app.
+
 Renderer-triggered HTTP requests must pass through the URL policy in
 `apps/electron-backend/src/app/events/url-safety.ts`. The policy rejects
 non-HTTP(S) URLs and embedded credentials, and strict callers also reject

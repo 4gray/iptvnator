@@ -1,4 +1,6 @@
 import { DatabaseService } from './database-electron.service';
+import { Injector, runInInjectionContext } from '@angular/core';
+import { PlaylistStorageBackend } from './playlist-storage-backend';
 
 describe('DatabaseService browser guards', () => {
     const originalElectron = window.electron;
@@ -15,7 +17,15 @@ describe('DatabaseService browser guards', () => {
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);
 
-        service = new DatabaseService();
+        const injector = Injector.create({
+            providers: [
+                {
+                    provide: PlaylistStorageBackend,
+                    useValue: { kind: () => 'indexeddb' },
+                },
+            ],
+        });
+        service = runInInjectionContext(injector, () => new DatabaseService());
     });
 
     afterEach(() => {

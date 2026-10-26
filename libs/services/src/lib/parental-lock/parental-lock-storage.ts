@@ -8,6 +8,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from '../database-electron.service';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
+import { sourceProfileStorageKey } from '../source-sync/source-profile-storage';
 
 /**
  * Persistence for the parental lock: the hashed PIN and the lock store.
@@ -84,7 +85,7 @@ export class ParentalLockStorageService {
             return this.databaseService.readAppState(key);
         }
         try {
-            return { value: localStorage.getItem(key) };
+            return { value: localStorage.getItem(sourceProfileStorageKey(key)) };
         } catch {
             return null;
         }
@@ -95,8 +96,8 @@ export class ParentalLockStorageService {
             return this.databaseService.setAppState(key, value);
         }
         try {
-            localStorage.setItem(key, value);
-            return localStorage.getItem(key) === value;
+            localStorage.setItem(sourceProfileStorageKey(key), value);
+            return localStorage.getItem(sourceProfileStorageKey(key)) === value;
         } catch {
             return false;
         }

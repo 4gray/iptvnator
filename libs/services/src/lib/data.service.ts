@@ -29,6 +29,11 @@ export interface ElectronRemote {
 }
 
 export abstract class DataService {
+    /** Fetches a source snapshot without dispatching an import/navigation action. */
+    fetchPlaylistDefinition(_url: string, _userAgent?: string): Promise<import('@iptvnator/shared/interfaces').Playlist> {
+        void _url; void _userAgent;
+        return Promise.reject(new Error('Playlist fetching is unavailable'));
+    }
     get isElectron(): boolean {
         const currentWindow = window as ElectronProcessWindow;
         return Boolean(currentWindow.process?.type);

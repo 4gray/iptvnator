@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { sourceProfileStorageKey } from './source-sync/source-profile-storage';
 import {
     getXtreamPendingRestoreStorageKey,
     normalizeXtreamPendingRestoreState,
@@ -50,7 +51,7 @@ export class XtreamPendingRestoreService {
         }
 
         const rawState = localStorage.getItem(
-            getXtreamPendingRestoreStorageKey(playlistId)
+            sourceProfileStorageKey(getXtreamPendingRestoreStorageKey(playlistId))
         );
         if (!rawState) {
             return null;
@@ -105,7 +106,7 @@ export class XtreamPendingRestoreService {
         const serializedState = JSON.stringify(normalizedState);
 
         try {
-            const storageKey = getXtreamPendingRestoreStorageKey(playlistId);
+            const storageKey = sourceProfileStorageKey(getXtreamPendingRestoreStorageKey(playlistId));
             localStorage.setItem(storageKey, serializedState);
             if (localStorage.getItem(storageKey) !== serializedState) {
                 return null;
@@ -205,7 +206,7 @@ export class XtreamPendingRestoreService {
             }
         }
 
-        const storageKey = getXtreamPendingRestoreStorageKey(playlistId);
+        const storageKey = sourceProfileStorageKey(getXtreamPendingRestoreStorageKey(playlistId));
         let tombstoneStored = false;
 
         // An empty value is already treated as "no pending restore" by get().

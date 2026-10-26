@@ -28,6 +28,7 @@ describe('PlaylistEffects addPlaylist$', () => {
     let effects: PlaylistEffects;
     let writes: Map<string, Subject<Playlist>>;
     let navigated: string[];
+    let dispatch: jest.Mock;
 
     const playlist = (id: string): Playlist =>
         ({
@@ -59,7 +60,7 @@ describe('PlaylistEffects addPlaylist$', () => {
                 // initialise, so this one needs a real observable.
                 {
                     provide: Store,
-                    useValue: { dispatch: jest.fn(), select: () => EMPTY },
+                    useValue: { dispatch, select: () => EMPTY },
                 },
                 {
                     provide: PlaylistsService,
@@ -92,6 +93,7 @@ describe('PlaylistEffects addPlaylist$', () => {
         actions$ = new Subject();
         writes = new Map();
         navigated = [];
+        dispatch = jest.fn();
         effects = createEffects();
         effects.addPlaylist$.subscribe();
     });
@@ -148,5 +150,40 @@ describe('PlaylistEffects addPlaylist$', () => {
 
         expect(write.observed).toBe(false);
         expect(navigated).toEqual([]);
+    });
+
+    it('removes an optimistic source after a rejected server write and handles the next add', () => {
+        const rejected = startWrite('rejected');
+        actions$.next(
+            PlaylistActions.addPlaylist({ playlist: playlist('rejected') })
+        );
+        rejected.error(new Error('SOURCE_SYNC.LOCKED'));
+        expect(dispatch).toHaveBeenCalledWith(
+            PlaylistActions.playlistRemovalCommitted({ playlistId: 'rejected' })
+        );
+        expect(navigated).toEqual([]);
+        const next = startWrite('next');
+        actions$.next(
+            PlaylistActions.addPlaylist({ playlist: playlist('next') })
+        );
+        next.next(playlist('next'));
+        next.complete();
+        expect(navigated).toEqual(['next']);
+    });
+
+    it('uses the canonical source after server deduplication', () => {
+        const write = startWrite('draft');
+        actions$.next(
+            PlaylistActions.addPlaylist({ playlist: playlist('draft') })
+        );
+        write.next(playlist('canonical'));
+        write.complete();
+        expect(navigated).toEqual(['canonical']);
+        expect(dispatch).toHaveBeenCalledWith(
+            PlaylistActions.playlistRemovalCommitted({ playlistId: 'draft' })
+        );
+        expect(dispatch).toHaveBeenCalledWith(
+            PlaylistActions.loadSharedPlaylists()
+        );
     });
 });

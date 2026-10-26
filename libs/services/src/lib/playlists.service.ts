@@ -379,13 +379,14 @@ export class PlaylistsService {
             }
 
             this.startupMetas = null;
+            let saved: Awaited<ReturnType<PlaylistDocumentStore['dbUpsertAppPlaylist']>>;
             if (operationId === undefined) {
-                await store.dbUpsertAppPlaylist(playlist);
+                saved = await store.dbUpsertAppPlaylist(playlist);
             } else {
-                await store.dbUpsertAppPlaylist(playlist, operationId);
+                saved = await store.dbUpsertAppPlaylist(playlist, operationId);
             }
             this.healthEvidence?.connections.next({ id: playlist._id, playlist });
-            return playlist;
+            return saved?.playlist ?? playlist;
         });
     }
 
@@ -767,6 +768,8 @@ export class PlaylistsService {
         });
         return {
             ...playlist,
+            ...(updatedPlaylist.sourceSyncBase ? { sourceSyncBase: updatedPlaylist.sourceSyncBase } : {}),
+            ...(updatedPlaylist.sourceSyncRevision ? { sourceSyncRevision: updatedPlaylist.sourceSyncRevision } : {}),
             ...(updatedPlaylist.title != null
                 ? { title: updatedPlaylist.title }
                 : {}),

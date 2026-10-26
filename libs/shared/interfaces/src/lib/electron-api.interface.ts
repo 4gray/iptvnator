@@ -720,6 +720,12 @@ export interface ElectronRecordingItem {
 }
 
 export interface ElectronBridgeApi {
+    sourceSyncConnection?: () => import('./source-sync.interface').SourceServerConnection | null;
+    sourceSyncRequest?: (request: import('./source-sync.interface').SourceServerRequest) => Promise<import('./source-sync.interface').SourceServerResponse>;
+    sourceSyncConfigure?: (url: string, token: string, restart: boolean) => Promise<import('./source-sync.interface').SourceServerConnection & { tokenPersisted: boolean }>;
+    sourceSyncDisconnect?: () => Promise<void>;
+    sourceSyncLocalSources?: () => Promise<Playlist[]>;
+    onSourceSyncResume?: (callback: () => void) => () => void;
     onPortalDebugEvent?: (
         callback: (data: PortalDebugEvent) => void
     ) => () => void;

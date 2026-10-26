@@ -2133,5 +2133,34 @@
             "INSTALL_INSTRUCTIONS": "Installation instructions",
             "DONT_SHOW_AGAIN": "Don't show again"
         }
+    },
+    "SOURCE_SYNC": {
+        "TITLE": "Server",
+        "DESCRIPTION": "Share sources between devices connected to your self-hosted IPTVnator server. Viewing activity stays on this device.",
+        "URL": "Server URL",
+        "TOKEN": "Access token (optional)",
+        "TOKEN_HINT": "Browser tokens last for this tab. Desktop tokens use protected storage when available.",
+        "RESTART_HINT": "Connecting or disconnecting reloads the app. Your original local library is kept.",
+        "CONNECT": "Connect",
+        "REFRESH": "Refresh",
+        "DISCONNECT": "Disconnect",
+        "IMPORT": "Import local sources",
+        "IMPORT_PREVIEW": "Copy {{count}} local sources to this server? Existing sources are matched without duplicates. Local data is kept.",
+        "IMPORTED": "Sources imported.",
+        "IMPORT_FAILED": "Import failed. You can retry without creating duplicates.",
+        "LAST_SYNC": "Last synchronized",
+        "DELETE_SHARED": "This deletes the shared sources for every connected device.",
+        "INCOMPATIBLE": "This server does not support source synchronization.",
+        "INSTANCE_CHANGED": "The server identity changed. Reconnect before using this library.",
+        "OFFLINE": "Server unavailable. Shared source changes cannot be saved.",
+        "LOCKED": "Enter a valid access token for this server.",
+        "CONFLICT": "The shared source changed on another device. Refresh and reapply your edit.",
+        "REQUEST_FAILED": "The server request failed. Refresh and try again.",
+        "STATE_local": "Local library",
+        "STATE_connecting": "Connecting to server…",
+        "STATE_connected": "Connected",
+        "STATE_offline": "Server unavailable. Shared source changes cannot be saved.",
+        "STATE_locked": "Enter a valid access token for this server.",
+        "STATE_conflict": "The shared source changed on another device. Refresh and reapply your edit."
     }
 }

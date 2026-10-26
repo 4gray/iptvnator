@@ -119,6 +119,7 @@
                             (unlock)="parentalLock.unlock()"
                         />
                     }
+                    @case ('server') { <app-settings-server-section /> }
                     @case ('backup') {
                         <!-- Backup & data: the former Reset page is this
                              page's last card, since it is one action. -->

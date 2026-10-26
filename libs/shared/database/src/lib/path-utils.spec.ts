@@ -57,6 +57,22 @@ describe('path-utils', () => {
         );
     });
 
+    it('isolates a selected server profile without changing the standalone data root', () => {
+        const previous = process.env.IPTVNATOR_SOURCE_PROFILE;
+        const profile = 'a'.repeat(64);
+        process.env.IPTVNATOR_SOURCE_PROFILE = profile;
+        process.env[IPTVNATOR_DATA_DIR_ENV] = tempRoot;
+        try {
+            expect(getIptvnatorDatabasePath()).toBe(join(tempRoot, 'server-profiles', profile, 'databases', 'iptvnator.db'));
+            expect(getIptvnatorDataRoot()).toBe(tempRoot);
+            process.env.IPTVNATOR_SOURCE_PROFILE = '../outside';
+            expect(getIptvnatorDatabasePath()).toBe(join(tempRoot, 'databases', 'iptvnator.db'));
+        } finally {
+            if (previous === undefined) delete process.env.IPTVNATOR_SOURCE_PROFILE;
+            else process.env.IPTVNATOR_SOURCE_PROFILE = previous;
+        }
+    });
+
     it('lets the E2E override win over IPTVNATOR_DATA_DIR', () => {
         const e2eDir = join(tempRoot, 'e2e');
         process.env[IPTVNATOR_E2E_DATA_DIR_ENV] = e2eDir;

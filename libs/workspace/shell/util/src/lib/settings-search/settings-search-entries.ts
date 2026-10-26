@@ -252,6 +252,10 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         keywords: ['backup', 'restore', 'import', 'export', 'migrate'],
     },
     {
+        id: 'source-server', section: 'server', labelKey: 'SOURCE_SYNC.TITLE',
+        descriptionKey: 'SOURCE_SYNC.DESCRIPTION', keywords: ['server', 'NAS', 'sync', 'sources', 'self-hosted'],
+    },
+    {
         id: 'remove-all-playlists',
         section: 'backup',
         labelKey: 'SETTINGS.REMOVE_ALL',

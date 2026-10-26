@@ -35,6 +35,7 @@ import {
     createXtreamConnectionTestState,
     DatabaseService,
     PlaylistsService,
+    PlaylistStorageBackend,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -186,6 +187,7 @@ export class PlaylistInfoComponent {
     private datePipe = inject(DatePipe);
     private formBuilder = inject(UntypedFormBuilder);
     private playlistsService = inject(PlaylistsService);
+    private readonly playlistStorage = inject(PlaylistStorageBackend);
     private store = inject(Store);
     private databaseService = inject(DatabaseService);
     private snackBar = inject(MatSnackBar);
@@ -428,6 +430,10 @@ export class PlaylistInfoComponent {
                 this.normalizeStalkerPlaylistMeta(
                     this.normalizeXtreamPlaylistMeta(submittedPlaylist)
                 );
+            const sharedSource = this.playlistStorage.kind() === 'server';
+            if (sharedSource) normalizedPlaylist = { ...normalizedPlaylist,
+                sourceSyncBase: this.playlist.sourceSyncBase,
+                sourceSyncRevision: this.playlist.sourceSyncRevision };
             if (this.playlist.portalUrl) {
                 if (
                     hasStalkerConnectionChanged(
@@ -468,7 +474,7 @@ export class PlaylistInfoComponent {
                 this.playlist.password &&
                 this.playlist.serverUrl;
 
-            if (isXtream && this.runtime.supportsXtreamSqliteDataSource) {
+            if (isXtream && this.runtime.supportsXtreamSqliteDataSource && !sharedSource) {
                 await this.updateXtreamPlaylist(normalizedPlaylist);
             }
 
@@ -487,13 +493,19 @@ export class PlaylistInfoComponent {
                 };
             }
 
+            if (sharedSource) {
+                normalizedPlaylist = await firstValueFrom(resolvedStalkerConnection
+                    ? this.playlistsService.getPlaylistById(this.playlist._id)
+                    : this.playlistsService.updatePlaylistMeta(normalizedPlaylist));
+            }
+
             // Resolved Stalker edits cross an awaited, atomic persistence
             // boundary above. Their action updates NgRx only; every other
             // metadata edit keeps the effect-owned persistence path.
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
                     playlist: normalizedPlaylist,
-                    ...(resolvedStalkerConnection ? { persist: false } : {}),
+                    ...(resolvedStalkerConnection || sharedSource ? { persist: false } : {}),
                 })
             );
 
@@ -517,8 +529,9 @@ export class PlaylistInfoComponent {
             this.dialogRef?.close();
         } catch (error) {
             console.error('Error updating playlist:', error);
+            const sourceError = error instanceof Error ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0] : undefined;
             this.snackBar.open(
-                this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'),
+                this.translate.instant(sourceError ?? 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'),
                 this.translate.instant('CLOSE'),
                 {
                     duration: 3000,

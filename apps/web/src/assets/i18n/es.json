@@ -2133,5 +2133,34 @@
             "INSTALL_INSTRUCTIONS": "Instrucciones de instalación",
             "DONT_SHOW_AGAIN": "No volver a mostrar"
         }
+    },
+    "SOURCE_SYNC": {
+        "TITLE": "Servidor",
+        "DESCRIPTION": "Comparte las fuentes de tu servidor IPTVnator entre dispositivos. La actividad de reproducción permanece en este dispositivo.",
+        "URL": "Dirección del servidor",
+        "TOKEN": "Token de acceso (opcional)",
+        "TOKEN_HINT": "El token del navegador dura esta pestaña. En escritorio se usa almacenamiento protegido cuando está disponible.",
+        "RESTART_HINT": "Conectar o desconectar reinicia la aplicación. Se conserva la biblioteca local original.",
+        "CONNECT": "Conectar",
+        "REFRESH": "Actualizar",
+        "DISCONNECT": "Desconectar",
+        "IMPORT": "Importar fuentes locales",
+        "IMPORT_PREVIEW": "¿Copiar {{count}} fuentes locales al servidor? Las fuentes existentes se reconocen sin duplicados. Los datos locales se conservan.",
+        "IMPORTED": "Fuentes importadas.",
+        "IMPORT_FAILED": "Error al importar. Puedes reintentar sin crear duplicados.",
+        "LAST_SYNC": "Última sincronización",
+        "DELETE_SHARED": "Se eliminarán las fuentes compartidas para todos los dispositivos conectados.",
+        "INCOMPATIBLE": "Este servidor no admite sincronización de fuentes.",
+        "INSTANCE_CHANGED": "La identidad del servidor ha cambiado. Vuelve a conectarte.",
+        "OFFLINE": "Servidor no disponible. No se pueden guardar cambios en las fuentes compartidas.",
+        "LOCKED": "Introduce un token de acceso válido.",
+        "CONFLICT": "La fuente cambió en otro dispositivo. Actualiza y repite el cambio.",
+        "REQUEST_FAILED": "Error en la solicitud. Actualiza e inténtalo de nuevo.",
+        "STATE_local": "Biblioteca local",
+        "STATE_connecting": "Conectando al servidor…",
+        "STATE_connected": "Conectado",
+        "STATE_offline": "Servidor no disponible. No se pueden guardar cambios en las fuentes compartidas.",
+        "STATE_locked": "Introduce un token de acceso válido.",
+        "STATE_conflict": "La fuente cambió en otro dispositivo. Actualiza y repite el cambio."
     }
 }

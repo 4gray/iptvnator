@@ -5,10 +5,22 @@
     "sourceRoot": "apps/electron-backend-e2e/src",
     "implicitDependencies": [
         "electron-backend",
+        "web",
+        "web-backend",
         "stalker-mock-server",
         "xtream-mock-server"
     ],
     "targets": {
+        "source-sync": {
+            "executor": "nx:run-commands",
+            "dependsOn": ["electron-backend:build-e2e"],
+            "cache": false,
+            "parallelism": false,
+            "options": {
+                "cwd": "{workspaceRoot}",
+                "command": "pnpm exec playwright test --config=apps/electron-backend-e2e/playwright.source-sync.config.ts"
+            }
+        },
         "e2e": {
             "dependsOn": ["electron-backend:build-e2e"]
         },

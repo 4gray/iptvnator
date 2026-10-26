@@ -11,7 +11,8 @@ export const PlaylistActions = createActionGroup({
     source: 'Playlists',
     events: {
         'Load Playlists': emptyProps(),
-        'Load Playlists Success': props<{ playlists: PlaylistMeta[] }>(),
+        'Load Shared Playlists': emptyProps(),
+        'Load Playlists Success': props<{ playlists: PlaylistMeta[]; authoritative?: boolean }>(),
         'Load Playlists Failure': emptyProps(),
         'Add Playlist': props<{ playlist: Playlist }>(),
         'Add Many Playlists': props<{ playlists: Playlist[] }>(),

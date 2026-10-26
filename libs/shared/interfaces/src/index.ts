@@ -113,3 +113,5 @@ export * from './lib/portal-request-failure.util';
 
 export * from './lib/source-health';
 export * from './lib/server-storage.contract';
+export * from './lib/source-sync.interface';
+export * from './lib/source-definition.util';

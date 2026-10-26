@@ -2133,5 +2133,34 @@
             "INSTALL_INSTRUCTIONS": "Instruções de instalação",
             "DONT_SHOW_AGAIN": "Não mostrar novamente"
         }
+    },
+    "SOURCE_SYNC": {
+        "TITLE": "Servidor",
+        "DESCRIPTION": "Partilhe as fontes do seu servidor IPTVnator entre dispositivos. A atividade de reprodução fica neste dispositivo.",
+        "URL": "Endereço do servidor",
+        "TOKEN": "Token de acesso (opcional)",
+        "TOKEN_HINT": "O token do navegador dura esta aba. No computador, usa-se armazenamento protegido quando disponível.",
+        "RESTART_HINT": "Conectar ou desconectar reinicia a aplicação. A biblioteca local original é preservada.",
+        "CONNECT": "Conectar",
+        "REFRESH": "Atualizar",
+        "DISCONNECT": "Desconectar",
+        "IMPORT": "Importar fontes locais",
+        "IMPORT_PREVIEW": "Copiar {{count}} fontes locais para o servidor? As fontes existentes são reconhecidas sem duplicados. Os dados locais são preservados.",
+        "IMPORTED": "Fontes importadas.",
+        "IMPORT_FAILED": "Falha na importação. Pode tentar novamente sem criar duplicados.",
+        "LAST_SYNC": "Última sincronização",
+        "DELETE_SHARED": "As fontes partilhadas serão eliminadas para todos os dispositivos conectados.",
+        "INCOMPATIBLE": "Este servidor não suporta sincronização de fontes.",
+        "INSTANCE_CHANGED": "A identidade do servidor mudou. Conecte novamente.",
+        "OFFLINE": "Servidor indisponível. Não é possível guardar alterações nas fontes partilhadas.",
+        "LOCKED": "Introduza um token de acesso válido.",
+        "CONFLICT": "A fonte mudou noutro dispositivo. Atualize e repita a alteração.",
+        "REQUEST_FAILED": "Falha no pedido ao servidor. Atualize e tente novamente.",
+        "STATE_local": "Biblioteca local",
+        "STATE_connecting": "A conectar ao servidor…",
+        "STATE_connected": "Conectado",
+        "STATE_offline": "Servidor indisponível. Não é possível guardar alterações nas fontes partilhadas.",
+        "STATE_locked": "Introduza um token de acesso válido.",
+        "STATE_conflict": "A fonte mudou noutro dispositivo. Atualize e repita a alteração."
     }
 }

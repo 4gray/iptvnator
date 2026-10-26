@@ -3,6 +3,13 @@
 This document describes the versioned playlist backup/restore flow used by the
 settings screen.
 
+Server source import is a separate, definition-only operation in Settings →
+Data → Server. It reads the retained standalone profile, previews its sources,
+then creates or fingerprint-matches them on the server without restoring user
+state or changing the original profile. Full backup import/export retains the
+scope below; it is not the source-sync wire format. See
+[shared source library](pwa-self-hosted.md#shared-source-library).
+
 ## Entry Points
 
 - UI: `apps/web/src/app/settings/settings-backup-section.component.ts`

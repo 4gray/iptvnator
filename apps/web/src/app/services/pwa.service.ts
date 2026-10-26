@@ -36,6 +36,7 @@ import {
     createLogger,
 } from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
+import { sourceAuthorization } from '@iptvnator/services/source-sync';
 
 /**
  * How long to wait for the backend to forget a host before giving up.
@@ -121,6 +122,10 @@ export class PwaService extends DataService {
         return AppConfig.version;
     }
 
+    override fetchPlaylistDefinition(url: string, userAgent?: string): Promise<Playlist> {
+        return firstValueFrom(this.getPlaylistFromUrl(url, userAgent));
+    }
+
     /**
      * Handles incoming IPC commands
      * @param type ipc command type
@@ -199,7 +204,8 @@ export class PwaService extends DataService {
                 `${this.corsProxyUrl}/connectivity-guard/reset`,
                 {
                     body: JSON.stringify({ url: payload.url }),
-                    headers: { 'content-type': 'application/json' },
+                    headers: { 'content-type': 'application/json', ...sourceAuthorization(`${this.corsProxyUrl}/connectivity-guard/reset`) },
+                    redirect: 'error',
                     method: 'POST',
                     signal: controller.signal,
                 }
@@ -637,7 +643,7 @@ export class PwaService extends DataService {
             logPortalDebugRequest(context);
 
             // Make the fetch request
-            const response = await fetch(requestUrl);
+            const response = await fetch(requestUrl, { headers: sourceAuthorization(requestUrl), redirect: 'error' });
 
             if (!response.ok) {
                 throw new Error(

@@ -48,6 +48,7 @@ import { PlaylistOpenRequestService } from './services/playlist-open-request.ser
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 import { AppStartupStatusComponent } from './app-startup-status.component';
 import { syncDocumentLanguage } from './services/document-language';
+import { SourceSyncStatusComponent } from './source-sync-status.component';
 
 const debugAppComponent = createDevLogger('AppComponent');
 
@@ -61,6 +62,7 @@ const debugAppComponent = createDevLogger('AppComponent');
         EpgProgressPanelComponent,
         RouterOutlet,
         WindowControlsComponent,
+        SourceSyncStatusComponent,
     ],
 })
 export class AppComponent implements OnInit {

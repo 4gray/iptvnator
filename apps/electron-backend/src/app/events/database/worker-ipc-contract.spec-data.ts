@@ -65,6 +65,7 @@ const vodSourcePin = {
 };
 
 export const workerIpcContractCases: WorkerIpcContractCase[] = [
+    { operation: 'DB_GET_STANDALONE_SOURCES', args: [], payload: {} },
     {
         operation: 'DB_CREATE_PLAYLIST',
         args: [playlist],

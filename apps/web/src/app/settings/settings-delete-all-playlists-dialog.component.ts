@@ -10,6 +10,7 @@ import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
+import { PlaylistStorageBackend } from '@iptvnator/services';
 
 export interface SettingsDeleteAllPlaylistsDialogData {
     summary: {
@@ -41,6 +42,7 @@ type SettingsDeleteSummaryItem = {
     ],
 })
 export class SettingsDeleteAllPlaylistsDialogComponent {
+    readonly sharedLibrary = inject(PlaylistStorageBackend).kind() === 'server';
     readonly dialogData =
         inject<SettingsDeleteAllPlaylistsDialogData>(MAT_DIALOG_DATA);
 

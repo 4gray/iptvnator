@@ -73,6 +73,7 @@ import { SettingsUnloadGuardService } from './settings-unload-guard.service';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
+import { SettingsServerSectionComponent } from './settings-server-section.component';
 
 export const SETTINGS_DEFAULT_SECTION = 'general';
 
@@ -109,6 +110,7 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsRemoteControlSectionComponent,
         SettingsSearchResultsComponent,
         SettingsTmdbSectionComponent,
+        SettingsServerSectionComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [

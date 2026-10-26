@@ -25,9 +25,10 @@ export function isServerUserStateNamespace(
  * Document fields that carry an M3U payload. An upsert with
  * `keepPayload=1` omits them and the server keeps the stored ones.
  */
-export const SERVER_PAYLOAD_FIELDS = ['playlist', 'items', 'header'] as const;
+export const SERVER_PAYLOAD_FIELDS = ['playlist', 'items', 'header', 'sourceRawM3u'] as const;
 
 export interface ServerInstanceInfo {
+    readonly capabilities?: readonly string[];
     readonly service: 'iptvnator';
     readonly apiVersion: number;
     /** Stable per database; `null` without server storage. */

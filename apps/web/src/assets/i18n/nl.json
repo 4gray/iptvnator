@@ -2133,5 +2133,34 @@
             "INSTALL_INSTRUCTIONS": "Installatie-instructies",
             "DONT_SHOW_AGAIN": "Niet meer tonen"
         }
+    },
+    "SOURCE_SYNC": {
+        "TITLE": "Eigen server",
+        "DESCRIPTION": "Deel bronnen op uw IPTVnator-server tussen apparaten. Kijkactiviteit blijft op dit apparaat.",
+        "URL": "Serveradres",
+        "TOKEN": "Toegangstoken (optioneel)",
+        "TOKEN_HINT": "Browsertokens gelden voor dit tabblad. Desktop gebruikt indien mogelijk beveiligde opslag.",
+        "RESTART_HINT": "Verbinden en loskoppelen herstarten de app. De oorspronkelijke lokale bibliotheek blijft behouden.",
+        "CONNECT": "Verbinden",
+        "REFRESH": "Vernieuwen",
+        "DISCONNECT": "Loskoppelen",
+        "IMPORT": "Lokale bronnen importeren",
+        "IMPORT_PREVIEW": "{{count}} lokale bronnen naar de server kopiëren? Bestaande bronnen worden zonder duplicaten herkend. Lokale gegevens blijven behouden.",
+        "IMPORTED": "Bronnen geïmporteerd.",
+        "IMPORT_FAILED": "Importeren mislukt. Opnieuw proberen maakt geen duplicaten.",
+        "LAST_SYNC": "Laatst gesynchroniseerd",
+        "DELETE_SHARED": "De gedeelde bronnen worden voor alle verbonden apparaten verwijderd.",
+        "INCOMPATIBLE": "Deze server ondersteunt geen bronsynchronisatie.",
+        "INSTANCE_CHANGED": "De serveridentiteit is gewijzigd. Verbind opnieuw.",
+        "OFFLINE": "Server niet beschikbaar. Wijzigingen aan gedeelde bronnen kunnen niet worden opgeslagen.",
+        "LOCKED": "Voer een geldig toegangstoken in.",
+        "CONFLICT": "De bron is gewijzigd op een ander apparaat. Vernieuw en pas uw wijziging opnieuw toe.",
+        "REQUEST_FAILED": "Serververzoek mislukt. Vernieuw en probeer opnieuw.",
+        "STATE_local": "Lokale bibliotheek",
+        "STATE_connecting": "Verbinden met server…",
+        "STATE_connected": "Verbonden",
+        "STATE_offline": "Server niet beschikbaar. Wijzigingen aan gedeelde bronnen kunnen niet worden opgeslagen.",
+        "STATE_locked": "Voer een geldig toegangstoken in.",
+        "STATE_conflict": "De bron is gewijzigd op een ander apparaat. Vernieuw en pas uw wijziging opnieuw toe."
     }
 }

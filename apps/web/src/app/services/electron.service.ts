@@ -154,6 +154,10 @@ export class ElectronService extends DataService {
         return AppConfig.version;
     }
 
+    override fetchPlaylistDefinition(url: string, userAgent?: string): Promise<Playlist> {
+        return window.electron.fetchPlaylistByUrl(url, '', { ...this.settingsStore.getTrustOptions(), userAgent });
+    }
+
     async sendIpcEvent<T = unknown>(
         type: string,
         payload?: unknown

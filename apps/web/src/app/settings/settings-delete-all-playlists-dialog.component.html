@@ -3,6 +3,7 @@
 </h2>
 
 <mat-dialog-content class="mat-typography settings-delete-dialog">
+    @if (sharedLibrary) { <p>{{ 'SOURCE_SYNC.DELETE_SHARED' | translate }}</p> }
     <p class="settings-delete-dialog__lead">
         {{
             'SETTINGS.REMOVE_DIALOG.MESSAGE'

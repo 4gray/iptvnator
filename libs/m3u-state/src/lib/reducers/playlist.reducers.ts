@@ -21,8 +21,14 @@ export const playlistReducers = [
     on(PlaylistActions.loadPlaylistsSuccess, (state, action): PlaylistState => {
         return {
             ...state,
-            playlists: playlistsAdapter.addMany(action.playlists, {
+            playlists: (action.authoritative ? playlistsAdapter.setAll : playlistsAdapter.addMany)(
+                action.authoritative
+                    ? action.playlists.map((playlist) => ({ ...state.playlists.entities[playlist._id], ...playlist }))
+                    : action.playlists,
+                {
                 ...state.playlists,
+                ...(action.authoritative && !action.playlists.some((playlist) => playlist._id === state.playlists.selectedId)
+                    ? { selectedId: '' } : {}),
                 allPlaylistsLoaded: true,
                 loadFailed: false,
             }),

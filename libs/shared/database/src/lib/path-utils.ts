@@ -35,6 +35,10 @@ export function getIptvnatorDataRoot(): string {
 }
 
 export function getIptvnatorDatabaseDirectory(): string {
+    const profile = process.env.IPTVNATOR_SOURCE_PROFILE;
+    if (profile && /^[a-f0-9]{64}$/.test(profile)) {
+        return ensureDirectory(join(getIptvnatorDataRoot(), 'server-profiles', profile, 'databases'));
+    }
     return ensureDirectory(join(getIptvnatorDataRoot(), 'databases'));
 }
 

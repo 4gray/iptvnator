@@ -12,6 +12,12 @@ import {
     OPEN_FILE,
     WINDOW_GET_ZOOM_LEVEL,
     WINDOW_ZOOM_LEVEL_APPLIED,
+    SOURCE_SYNC_CONNECTION,
+    SOURCE_SYNC_CONFIGURE,
+    SOURCE_SYNC_DISCONNECT,
+    SOURCE_SYNC_REQUEST,
+    SOURCE_SYNC_LOCAL_SOURCES,
+    SOURCE_SYNC_RESUME,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     attachEmbeddedMpvFrameView,
@@ -288,6 +294,16 @@ const frameZoomPorts = {
 };
 
 const electronApi: ElectronBridgeApi = {
+    sourceSyncConnection: () => ipcRenderer.sendSync(SOURCE_SYNC_CONNECTION),
+    sourceSyncRequest: (request) => ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
+    sourceSyncConfigure: (url, token, restart) => ipcRenderer.invoke(SOURCE_SYNC_CONFIGURE, url, token, restart),
+    sourceSyncDisconnect: () => ipcRenderer.invoke(SOURCE_SYNC_DISCONNECT),
+    sourceSyncLocalSources: () => ipcRenderer.invoke(SOURCE_SYNC_LOCAL_SOURCES),
+    onSourceSyncResume: (callback) => {
+        const handler = () => callback();
+        ipcRenderer.on(SOURCE_SYNC_RESUME, handler);
+        return () => ipcRenderer.removeListener(SOURCE_SYNC_RESUME, handler);
+    },
     // Remote control channel change listener
     onChannelChange: (
         callback: (data: { direction: 'up' | 'down' }) => void

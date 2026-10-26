@@ -1,4 +1,5 @@
 import { AppConfig } from '../../environments/environment';
+import { sourceConnection } from '@iptvnator/services/source-sync';
 
 export interface IptvnatorRuntimeConfig {
     readonly BACKEND_URL?: string;
@@ -13,6 +14,7 @@ export function resolveBackendUrl(
 }
 
 export function getRuntimeBackendUrl(): string {
+    if (sourceConnection() && !globalThis.window?.electron) return sourceConnection()!.apiUrl;
     return resolveBackendUrl(
         globalThis.window?.__IPTVNATOR_CONFIG__,
         AppConfig.BACKEND_URL

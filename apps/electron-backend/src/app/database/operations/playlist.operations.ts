@@ -112,6 +112,14 @@ export async function createPlaylist(
         type: string;
     }
 ): Promise<{ success: boolean }> {
+    // A server profile receives complete source rows through projection.
+    // A delayed portal-session fallback must never recreate a removed row.
+    if (/^[a-f0-9]{64}$/.test(process.env.IPTVNATOR_SOURCE_PROFILE ?? '')) {
+        const existing = await db.select({ id: schema.playlists.id }).from(schema.playlists)
+            .where(eq(schema.playlists.id, playlist.id));
+        if (!existing.length) throw new Error('Shared source no longer exists');
+        return { success: true };
+    }
     await db.insert(schema.playlists).values({
         id: playlist.id,
         name: playlist.name,

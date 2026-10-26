@@ -8,6 +8,15 @@ import { Channel, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 const reducer = createReducer(initialState, ...playlistReducers);
 
 describe('playlistReducers', () => {
+    it('applies remote renames and deletions while preserving the retained active payload', () => {
+        const kept = { _id: 'keep', title: 'Before', count: 1, importDate: '2026-01-01', autoRefresh: false, playlist: { items: [{ name: 'Channel' }] } } as Playlist;
+        const removed = { ...kept, _id: 'removed' };
+        const state = { ...initialState, playlists: playlistsAdapter.addMany([kept, removed], initialState.playlists) };
+        const next = reducer(state, PlaylistActions.loadPlaylistsSuccess({ playlists: [{ ...kept, title: 'After' }], authoritative: true }));
+        expect(next.playlists.entities['keep']?.title).toBe('After');
+        expect(next.playlists.entities['keep']?.playlist).toEqual(kept.playlist);
+        expect(next.playlists.entities['removed']).toBeUndefined();
+    });
     it('keeps a failed initial inventory unready until a retry succeeds', () => {
         const failed = reducer(
             initialState,

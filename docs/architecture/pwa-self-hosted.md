@@ -73,8 +73,9 @@ The current self-hosted PWA uses these `apps/web-backend` routes:
 - `GET /xtream?targetId=<id>&username=<u>&password=<p>&action=<action>`
 - `GET /stalker?targetId=<id>&macAddress=<mac>&action=<action>`
 
-Server storage adds versioned routes under `/v1`; the PWA does not call them
-yet:
+Server storage adds versioned routes under `/v1`. Source synchronization uses
+the source-specific routes below; the older whole-document/user-state routes
+remain compatible but do not enable viewing-activity synchronization:
 
 - `GET /v1/instance` (always public): `{ service, apiVersion, instanceId,
   storage: 'server' | 'none', auth: 'none' | 'token' }`
@@ -89,6 +90,23 @@ yet:
   positions, one JSON value per namespace and playlist
 - `GET|PUT /v1/app-state/:key`
 
+- `GET /v1/sources`: portable source definitions and revisions, without uploaded
+  M3U bodies; collection `ETag` and conditional `304` reads
+- `GET /v1/sources/:id`: complete definition, including uploaded M3U text
+- `PUT /v1/sources/:id`: create with `If-None-Match: *`; matching source
+  fingerprints return the existing source and its ID
+- `PATCH|DELETE /v1/sources/:id`: require the current `If-Match` revision;
+  stale edits return `412`, missing revisions `428`
+- `DELETE /v1/sources`: requires the collection revision
+
+Instances with server storage advertise the additive `sources-v1` capability.
+Source mutations and legacy document mutations invalidate the same revisions.
+Revision checks and writes run synchronously in one server turn. A source
+update never upserts a deleted record. Source operations project only portable
+connection fields; embedded user/session fields in existing documents survive.
+Clients send `X-IPTVnator-Instance-Id`; a different database identity returns
+`409 instance_changed` and requires reconnecting before source mutations.
+
 Server storage lives in `apps/web-backend/src/app/storage/`. With
 `IPTVNATOR_STORAGE=server`, `main.ts` opens the shared database through
 `initDatabase()` (path from `IPTVNATOR_DATA_DIR`), so the server has the same
@@ -102,8 +120,8 @@ its database. Storage errors are logged by error name and code only, because
 Drizzle messages can carry bound values such as portal credentials. With
 `IPTVNATOR_ACCESS_TOKEN`, every route except `/`, `/health`, `/config.js`
 and `/v1/instance` requires `Authorization: Bearer <token>`, the proxy
-routes included. The PWA cannot send that token yet, so the variable must
-stay unset until the browser side lands. Browser app state written through
+routes included. The PWA supplies this token only to the configured backend
+origin and API path. Browser app state written through
 `/v1/app-state` is stored under a `client:` key prefix, apart from
 server-owned keys such as the instance id.
 
@@ -126,9 +144,61 @@ web-e2e targets carry no Nx `serve` dependency, because Nx refuses a
 non-parallel task with a continuous dependency. The mock servers follow the
 same rule; see [Xtream mock Playwright integration](xtream-mock-server.md#playwright-integration).
 
-The PWA continues to use `PwaService`; only the backend base URL is resolved at
-runtime. Electron routes remain owned by the Electron backend and preload
-bridge.
+The PWA continues to use `PwaService`. A selected source server also supplies
+its backend base URL for browser provider proxy calls. Electron provider
+requests remain owned by the Electron backend and preload bridge.
+
+## Shared source library
+
+The self-hosted PWA discovers the runtime `BACKEND_URL` before Angular bootstrap.
+A stateless backend reporting `storage: none` retains standalone behavior.
+Once a server is selected, network/authentication/compatibility errors do not
+silently select local storage. The recovery banner remains available even when
+the initial source inventory cannot load.
+
+Settings → Data → Server connects a desktop or browser client, refreshes the
+library, previews/imports original local sources, and disconnects. Connection
+changes restart/reload the app. The original local library is retained. Imports
+send definitions only and match M3U URL/raw-text, Xtream endpoint + username,
+or Stalker endpoint + MAC fingerprints. Repeating a partial import is safe.
+
+`@iptvnator/services/source-sync` owns connection state, HTTP operations,
+conditional source writes and local projections. `PlaylistStorageBackend` wraps
+the selected local store with `SyncedPlaylistStore`; local activity writes stay
+local. Electron Xtream metadata paths in `DatabaseService` use the same wrapper.
+Source IDs are the server's IDs in every local projection. A visible client
+polls every 15 seconds and also refreshes on focus, reconnect, visibility and
+Electron resume. Failures back off to two minutes; rejected tokens wait for
+sign-in. Accepted source mutations schedule an immediate inventory refresh.
+Uploaded M3U text is fetched only for changed revisions and parsed locally;
+URL M3U snapshots are fetched through the runtime's provider transport.
+
+Browser source caches use IndexedDB `iptvnator-server:<instanceId>` and prefix
+Xtream local user-data keys with that profile. Desktop databases live at
+`<data-root>/server-profiles/<sha256(instanceId)>/databases/iptvnator.db`;
+the original standalone database is unchanged. Legacy automatic source
+recovery does not run through the server document-store wrapper. Desktop
+EPG ownership reconciliation uses the successful local
+`source-sync-initialized` receipt in a selected server profile, rather than a
+legacy IndexedDB migration receipt. Ordinary standalone profiles still require
+the original migration barrier. Offline clients
+retain a previously synchronized local projection; shared writes require the
+server. There is no offline mutation queue.
+
+Only source definitions synchronize: names, provider endpoints/credentials,
+configured request headers, Stalker connection identity and uploaded M3U text.
+Absolute file paths, catalog caches, Stalker session tokens, favorites,
+recently viewed, viewing progress, EPG data/settings and device preferences
+remain local. Stalker identity is retained; provider restrictions on concurrent
+sessions still apply. Synchronization does not proxy desktop media through NAS.
+Uploaded M3U shares the playlist text, not media files referenced by it. Streams
+and relative paths must remain reachable from the receiving runtime.
+
+Browser access tokens live in sessionStorage for that tab. Electron encrypts
+tokens with OS-protected `safeStorage` when available; Linux `basic_text` is
+not treated as protected storage. Otherwise the token lasts for the process
+and must be entered again after restart. Source-sync IPC accepts named
+operations, never arbitrary request paths or headers, and refuses redirects.
 
 Renderer code that needs to branch by runtime should use
 `RuntimeCapabilitiesService` from `@iptvnator/services` instead of adding new
@@ -169,8 +239,8 @@ these limitations explicit in UI, troubleshooting, and release notes:
   programme-guide entry points, or EPG-fetching flows in browser/PWA mode, and
   do not use EPG as the readiness signal for Docker.
 - The PWA does not use the Electron SQLite database or DB worker. Playlist
-  metadata uses `PlaylistsService` with IndexedDB, which
-  `PlaylistStorageBackend` selects when no SQLite bridge exists; Xtream
+  metadata uses `PlaylistsService` with IndexedDB (a profile-specific local
+  projection when connected to a source server); Xtream
   favorites, recently viewed items, playback positions, and cached collection
   snapshots use `PwaXtreamDataSource` browser storage.
 - Browser playlist deletion must go through `PlaylistsService`, not
@@ -309,7 +379,7 @@ Default runtime values:
 - `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=0`
 - `NODE_EXTRA_CA_CERTS` unset
 - `IPTVNATOR_STORAGE=server`, `IPTVNATOR_DATA_DIR=/data` (a `VOLUME`)
-- `IPTVNATOR_ACCESS_TOKEN` unset, `IPTVNATOR_MAX_DOCUMENT_MB=64`
+- `IPTVNATOR_ACCESS_TOKEN` unset (optional shared token), `IPTVNATOR_MAX_DOCUMENT_MB=64`
 - `IPTVNATOR_BACKEND_START_TIMEOUT=300`: seconds the entrypoint waits for
   `/health`; the backend migrates its database before it listens
 
@@ -336,6 +406,7 @@ pnpm nx test web --runTestsByPath apps/web/src/app/services/runtime-config.spec.
 pnpm nx build web --configuration=pwa --skip-nx-cache
 pnpm nx build web-backend
 pnpm nx run web-e2e:e2e -- --project=chromium --grep @self-hosted
+pnpm nx run electron-backend-e2e:source-sync
 docker compose -f docker/docker-compose.yml config
 ```
 

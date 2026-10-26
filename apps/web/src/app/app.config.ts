@@ -2,6 +2,7 @@ import {
     HttpClient,
     provideHttpClient,
     withInterceptorsFromDi,
+    withInterceptors,
     withXhr,
 } from '@angular/common/http';
 import {
@@ -44,6 +45,7 @@ import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
 import { LazyStalkerPlaylistConnectionEditor } from './services/lazy-stalker-playlist-connection-editor';
 import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
+import { provideSourceSync, sourceAuthInterceptor } from './services/source-sync.providers';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -114,7 +116,7 @@ export const appConfig: ApplicationConfig = {
         // fullscreen channel panel's sort/context menus and the controls'
         // tooltips render while the player is fullscreen.
         { provide: OverlayContainer, useClass: FullscreenOverlayContainer },
-        provideHttpClient(withXhr(), withInterceptorsFromDi()),
+        provideHttpClient(withXhr(), withInterceptorsFromDi(), withInterceptors([sourceAuthInterceptor])),
         provideStore({
             router: routerReducer,
             playlistState: playlistReducer,
@@ -162,6 +164,7 @@ export const appConfig: ApplicationConfig = {
         ...provideParentalLockPrompt(),
         provideParentalLockPlaylistCleanup(),
         ...provideXtreamDataSource(),
+        ...provideSourceSync(),
         {
             provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
             useValue: { appearance: 'outline', subscriptSizing: 'dynamic' },
