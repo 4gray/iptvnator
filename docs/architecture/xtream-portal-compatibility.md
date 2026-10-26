@@ -173,8 +173,8 @@ favoriting the current item may replace the old snapshot (including legacy key
 aliases); that replacement must persist before the new reference is saved, so
 storage failure cannot silently resurrect the old title. Ordinary optional
 snapshot-cache writes retain their existing quota behavior. The explicit browser
-favorite and Recent writers, playback-position operations and pending-state
-serialization load on demand.
+favorite and Recent writers, cold-detail favorite preparation, playback-position
+operations and pending-state serialization load on demand.
 After loading, each operation reads fresh storage and completes its mutations
 synchronously so concurrent additions are not lost; Recent snapshots and viewing
 dates still share one atomic write.

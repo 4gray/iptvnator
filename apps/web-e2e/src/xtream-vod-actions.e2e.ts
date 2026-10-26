@@ -7,6 +7,9 @@ import {
     selectWebPlayer,
 } from './xtream-series-playback.fixture';
 
+// Network fixtures must also intercept cold reloads of the production bundle.
+test.use({ serviceWorkers: 'block' });
+
 for (const mode of ['catalog', 'missing', 'direct'] as const) {
     test(`@xtream VOD null extension keeps actions and resolves ${mode}`, async ({
         page,
@@ -24,6 +27,12 @@ for (const mode of ['catalog', 'missing', 'direct'] as const) {
         const details = await detailResponse.json();
         const title = movie.name;
         const directUrl = `${MOCK_SERVER}/movie/direct/${movie.stream_id}.mp4?fixture=1778`;
+        await page.route('**/assets/app-config.js', (route) =>
+            route.fulfill({
+                contentType: 'application/javascript',
+                body: 'window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: "http://localhost:3000" };',
+            })
+        );
         await page.goto('/');
         await interceptXtreamRequests(page);
         await routeMovieClip(page);

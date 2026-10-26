@@ -1,12 +1,41 @@
-import { XTREAM_FAVORITE_IDENTITY_CONFLICT } from '@iptvnator/shared/interfaces';
+import {
+    XTREAM_FAVORITE_IDENTITY_CONFLICT,
+    type ContentMetadataPatch,
+} from '@iptvnator/shared/interfaces';
 import {
     collectionSnapshotMatchesContent,
     itemCollectionKey,
     type CollectionKey,
+    type collectionRefIdentity,
 } from './pwa-collection-identity';
 import type { PwaCollectionStorage } from './pwa-collection-storage';
 import type { XtreamContentItem } from './xtream-data-source.interface';
 import { coldFavoriteCandidate } from './pwa-cold-favorite';
+
+/** Cold-detail preparation belongs to the explicit action, not app startup. */
+export async function preparePwaFavoriteCatalog(
+    storage: PwaCollectionStorage,
+    playlistId: string,
+    key: CollectionKey,
+    expected: ReturnType<typeof collectionRefIdentity>,
+    current: (catalogOnly?: boolean) => XtreamContentItem | undefined,
+    hydrate: () => Promise<unknown>,
+    enrichCatalog: (patch: ContentMetadataPatch) => Promise<void>
+): Promise<void> {
+    if (
+        !expected ||
+        Object.values(
+            storage.getCollectionItemsFromStorage()[playlistId] ?? {}
+        ).some((item) => itemCollectionKey(item) === key)
+    )
+        return;
+    if (!current()) await hydrate();
+    if (current(true))
+        await enrichCatalog({
+            tmdbId: expected.tmdb_id,
+            releaseYear: expected.release_year,
+        });
+}
 
 /** Loaded only for an explicit favorite action; all storage writes remain synchronous. */
 export function addPwaFavorite(

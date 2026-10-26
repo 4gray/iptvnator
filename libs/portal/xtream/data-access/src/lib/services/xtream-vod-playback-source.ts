@@ -25,10 +25,16 @@ function resolveDirectSource(value: unknown): string | undefined {
 }
 
 function resolveCandidate(
-    streamIdValue: unknown,
-    containerExtensionValue: unknown,
-    directSourceValue: unknown
+    item:
+        | Pick<
+              XtreamVodPlaybackItem,
+              'stream_id' | 'container_extension' | 'direct_source'
+          >
+        | null
+        | undefined
 ): XtreamVodPlaybackSource | null {
+    const streamIdValue = item?.stream_id;
+    const containerExtensionValue = item?.container_extension;
     const streamId =
         typeof streamIdValue === 'string' && streamIdValue.trim()
             ? Number(streamIdValue)
@@ -37,7 +43,7 @@ function resolveCandidate(
         typeof containerExtensionValue === 'string'
             ? containerExtensionValue.trim()
             : '';
-    const directSource = resolveDirectSource(directSourceValue);
+    const directSource = resolveDirectSource(item?.direct_source);
 
     if (
         typeof streamId !== 'number' ||
@@ -62,16 +68,5 @@ export function resolveXtreamVodPlaybackSource(
         return null;
     }
 
-    return (
-        resolveCandidate(
-            item.movie_data?.stream_id,
-            item.movie_data?.container_extension,
-            item.movie_data?.direct_source
-        ) ??
-        resolveCandidate(
-            item.stream_id,
-            item.container_extension,
-            item.direct_source
-        )
-    );
+    return resolveCandidate(item.movie_data) ?? resolveCandidate(item);
 }

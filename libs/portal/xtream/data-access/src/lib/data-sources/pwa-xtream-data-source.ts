@@ -731,43 +731,30 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
 
         const expected = collectionRefIdentity(contentId);
-        // Cold detail backfill can precede catalog hydration. Explicit saves
-        // hydrate only their typed catalog and enrich actual catalog evidence;
-        // retained snapshots keep their separate identity/conflict protection.
-        const snapshots =
-            this.collectionStorage.getCollectionItemsFromStorage()[
-                playlistId
-            ] ?? {};
-        const hasSnapshot = Object.values(snapshots).some(
-            (item) => itemCollectionKey(item) === normalizedContentId
-        );
-        if (expected && !hasSnapshot) {
-            if (
-                !this.getCollectionItemsById(playlistId, [
-                    normalizedContentId,
-                ]).has(normalizedContentId)
-            ) {
-                await this.getCollectionItemsWithHydration(playlistId, [
-                    normalizedContentId,
-                ]);
-            }
-            if (
-                typeof contentId !== 'number' &&
-                contentId.identity &&
+        const { addPwaFavorite, preparePwaFavoriteCatalog } =
+            await import('./pwa-favorite-write');
+        await preparePwaFavoriteCatalog(
+            this.collectionStorage,
+            playlistId,
+            normalizedContentId,
+            expected,
+            (catalogOnly) =>
                 this.getCollectionItemsById(
                     playlistId,
                     [normalizedContentId],
-                    true
-                ).has(normalizedContentId)
-            ) {
-                await this.enrichCatalogMetadata(
+                    catalogOnly
+                ).get(normalizedContentId),
+            () =>
+                this.getCollectionItemsWithHydration(playlistId, [
+                    normalizedContentId,
+                ]),
+            (patch) =>
+                this.enrichCatalogMetadata(
                     normalizedContentId,
                     playlistId,
-                    contentId.identity
-                );
-            }
-        }
-        const { addPwaFavorite } = await import('./pwa-favorite-write');
+                    patch
+                )
+        );
         addPwaFavorite(
             this.collectionStorage,
             playlistId,
