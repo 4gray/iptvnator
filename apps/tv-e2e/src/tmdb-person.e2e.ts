@@ -145,6 +145,85 @@ async function setup(
     ).toBeVisible();
     return { title, apiPaths };
 }
+test('@tmdb-person Stalker filmography finds VOD series after an unsupported series catalog and a localized-title miss', async ({
+    page,
+}) => {
+    await setup(page, 'stalker');
+    await page.route('https://api.themoviedb.org/3/person/10**', (route) =>
+        route.fulfill({
+            json: {
+                id: 10,
+                name: 'Fixture Actor',
+                combined_credits: {
+                    cast: [
+                        {
+                            id: 97546,
+                            name: 'Тед Лассо',
+                            original_name: 'Ted Lasso',
+                            media_type: 'tv',
+                            first_air_date: '2020-01-01',
+                        },
+                    ],
+                },
+            },
+        })
+    );
+    const queries: string[] = [];
+    await page.route('**/stalker?**', async (route) => {
+        const url = new URL(route.request().url());
+        if (
+            url.searchParams.get('action') !== 'get_ordered_list' ||
+            !url.searchParams.get('search')
+        )
+            return route.fallback();
+        const type = url.searchParams.get('type');
+        const query = url.searchParams.get('search');
+        queries.push(`${type}:${query}`);
+        const data =
+            query === 'Ted Lasso'
+                ? [
+                      {
+                          id: 'embedded-show',
+                          name: 'Ted Lasso s04',
+                          year: '2026',
+                          series: [1, 2],
+                          cmd: 'http://fixture.invalid/show',
+                      },
+                  ]
+                : [];
+        return route.fulfill({
+            json: {
+                action: 'get_ordered_list',
+                payload: {
+                    js:
+                        type === 'series'
+                            ? false
+                            : {
+                                  data,
+                                  total_items: data.length,
+                                  max_page_items: 14,
+                              },
+                },
+            },
+        });
+    });
+    await page
+        .getByRole('button', { name: 'View filmography: Fixture Actor' })
+        .click();
+    await page.locator('[data-focus="filmography:tv:97546"]').click();
+    await expect(page.locator('.detail-hero h1')).toHaveText('Ted Lasso s04');
+    await expect(page.locator('.episode')).toHaveCount(2);
+    expect(queries).toEqual([
+        'series:Тед Лассо',
+        'vod:Тед Лассо',
+        'series:Ted Lasso',
+        'vod:Ted Lasso',
+    ]);
+    await page.keyboard.press('Escape');
+    await expect(
+        page.locator('[data-focus="filmography:tv:97546"]')
+    ).toBeFocused();
+});
 for (const provider of ['xtream', 'stalker'] as const) {
     test(`@tmdb-person ${provider}: round actor/director portraits open filmography and available provider details`, async ({
         page,

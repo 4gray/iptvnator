@@ -88,6 +88,8 @@ export interface ProviderClient {
         live: boolean;
         movies: boolean;
         series: boolean;
+        /** Stalker may also expose series inside its VOD catalog. */
+        vodSeries?: boolean;
         epg: boolean;
     };
     connect(signal: AbortSignal): Promise<Source>;

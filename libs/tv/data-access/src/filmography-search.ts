@@ -4,7 +4,7 @@ import {
     extractYear,
 } from '@iptvnator/shared/interfaces';
 import { ActorFilmographyCredit } from '@iptvnator/shared/tmdb';
-import { Media, ProviderClient } from '@iptvnator/tv/util';
+import { Kind, Media, ProviderClient } from '@iptvnator/tv/util';
 
 export type FilmographyMatch =
     | { status: 'found'; item: Media }
@@ -69,6 +69,10 @@ export async function findFilmographyTitle(
     signal: AbortSignal
 ): Promise<FilmographyMatch> {
     const kind = credit.mediaType === 'movie' ? 'movie' : 'series';
+    const catalogs: Kind[] =
+        kind === 'series' && provider.capabilities.vodSeries
+            ? ['series', 'movie']
+            : [kind];
     const queries = [
         ...new Set(
             [credit.title, credit.originalTitle].filter(
@@ -76,40 +80,56 @@ export async function findFilmographyTitle(
             )
         ),
     ];
+    let incomplete = false;
     for (const query of queries) {
-        const hits = new Map<string, { item: Media; score: number }>();
-        const seen = new Set<string>();
-        let complete = false;
-        for (let page = 0; page < 20; page++) {
-            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-            const catalog = await provider.catalog(
-                kind,
-                '',
-                page,
-                query,
-                signal,
-                'provider'
-            );
-            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-            const before = seen.size;
-            catalog.items.forEach((item) => {
-                seen.add(item.id);
-                if (item.sourceId !== sourceId || item.kind !== kind) return;
-                const score = matchScore(item, credit);
-                if (score !== null) hits.set(item.id, { item, score });
-            });
-            // A matching title and exact release year is enough to open this
-            // provider version, even if its server ignores the search filter.
-            if ([...hits.values()].some((hit) => hit.score === 3))
-                return bestMatch(hits);
-            if (!catalog.items.length || seen.size >= catalog.total) {
-                complete = true;
-                break;
+        for (const catalogKind of catalogs) {
+            const hits = new Map<string, { item: Media; score: number }>();
+            const seen = new Set<string>();
+            let complete = false;
+            try {
+                for (let page = 0; page < 20; page++) {
+                    if (signal.aborted)
+                        throw new DOMException('Aborted', 'AbortError');
+                    const catalog = await provider.catalog(
+                        catalogKind,
+                        '',
+                        page,
+                        query,
+                        signal,
+                        'provider'
+                    );
+                    if (signal.aborted)
+                        throw new DOMException('Aborted', 'AbortError');
+                    const before = seen.size;
+                    catalog.items.forEach((item) => {
+                        seen.add(item.id);
+                        if (item.sourceId !== sourceId || item.kind !== kind)
+                            return;
+                        const score = matchScore(item, credit);
+                        if (score !== null) hits.set(item.id, { item, score });
+                    });
+                    // A matching title and exact release year is enough to open this
+                    // provider version, even if its server ignores the search filter.
+                    if ([...hits.values()].some((hit) => hit.score === 3))
+                        return bestMatch(hits);
+                    if (!catalog.items.length || seen.size >= catalog.total) {
+                        complete = true;
+                        break;
+                    }
+                    if (seen.size === before) break;
+                }
+            } catch (error) {
+                if (signal.aborted) throw error;
+                incomplete = true;
+                continue;
             }
-            if (seen.size === before) break;
+            if (!complete) {
+                incomplete = true;
+                continue;
+            }
+            if (hits.size) return bestMatch(hits);
         }
-        if (!complete) throw new Error('Portal search is incomplete.');
-        if (hits.size) return bestMatch(hits);
     }
+    if (incomplete) throw new Error('Portal search is incomplete.');
     return { status: 'missing' };
 }

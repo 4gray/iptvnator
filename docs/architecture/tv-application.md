@@ -477,6 +477,9 @@ Circular actor/director/creator controls open cached, language-scoped person
 details and the complete combined acting/directing/creating filmography. Missing
 photos keep initials. Selecting a filmography card searches only the current
 provider, trying display and original titles and paging its search results.
+Stalker TV credits search both the regular series catalog and VOD-embedded/lazy
+series. A failed catalog or query does not suppress a match from another one;
+absence is reported only after every relevant lookup completes.
 Normalized title/year confidence keeps remakes and movie/series collisions
 separate; canonical numeric titles do not become release-year tags. Several
 equally strong versions require a choice. Found entries open actual provider
