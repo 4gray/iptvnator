@@ -25,7 +25,14 @@ export const MACOS_SOURCE_PATCHES = Object.freeze([
 ]);
 
 function defaultRunGit(args, { cwd }) {
-    const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    // Inside another work tree, git apply silently skips files that tree
+    // ignores (a build root under the repo's ignored /build, for example).
+    // The ceiling keeps git from discovering any repository above the source.
+    const result = spawnSync('git', args, {
+        cwd,
+        encoding: 'utf8',
+        env: { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(cwd) },
+    });
     if (result.error) {
         throw result.error;
     }

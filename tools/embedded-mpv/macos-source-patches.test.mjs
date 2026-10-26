@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -113,6 +114,22 @@ test('applies a patch and returns its record', () => {
                 upstreamPullRequest: patch.upstreamPullRequest,
             },
         ]);
+    });
+});
+
+test('applies a patch when the source sits in an ignored folder of another repository', () => {
+    withFixture(ORIGINAL, ({ root, sourcePath, readSource, addPatch }) => {
+        const enclosing = spawnSync('git', ['init', '-q', root]);
+        assert.equal(enclosing.status, 0);
+        fs.writeFileSync(path.join(root, '.gitignore'), 'source/\n');
+        const patch = addPatch('0001-upper.patch', TWO_TO_UPPER);
+        applySourcePatches({
+            packageId: 'mpv',
+            sourcePath,
+            workspaceRoot: root,
+            patches: [patch],
+        });
+        assert.equal(readSource(), PATCHED);
     });
 });
 
