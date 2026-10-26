@@ -488,3 +488,18 @@ access after pending discovery, and mixed-runtime validation passes all five
 PWA/Electron scenarios. The production bundle remains within the unchanged
 limit at 1,198,933 bytes. The sixth committed-branch review follows integration
 of the newly merged Portuguese regional locales.
+
+### Current-master integration before review six
+
+Merged master `e2699e92051987fd69d8355db0e56177197be00d` (Portuguese
+regional locales) without conflicts and repeated the frozen dependency install.
+The source-sync group now covers both `pt-BR` and `pt-PT`; all 21 translated
+catalogues pass key, placeholder and markup checks. All 36 Tier A coverage
+projects pass again: statements 84.78%, branches 75.75%, functions 83.00%,
+lines 85.16%; coverage health passes. All 59 lint projects and all 41 spec
+TypeScript programs pass, along with renderer/main type checks and release
+notes. The production initial payload is 1,199,373 bytes against the unchanged
+1,200,301-byte limit. The final Chromium run passes 16 scenarios (including
+regional language persistence), and all five mixed PWA/Electron scenarios pass
+again on the merged code. Physical NAS and packaged-platform smoke checks
+remain in the release follow-ups above.
