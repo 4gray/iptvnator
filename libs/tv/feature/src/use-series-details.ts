@@ -12,15 +12,27 @@ import type { TvModel } from './use-tv';
 
 export function useSeriesDetails(tv: TvModel) {
     const lane = useRef(new LatestRequest());
+    const playerLookup = useRef<AbortController>();
     const [busy, setBusy] = useState(false);
     useLayoutEffect(() => {
         setBusy(false);
-        return () => lane.current.cancel();
+        return () => {
+            lane.current.cancel();
+            playerLookup.current = undefined;
+        };
     }, [tv.guideClient, tv.data.activeId, tv.route]);
+    useLayoutEffect(() => {
+        if (playerLookup.current && lane.current.owns(playerLookup.current)) {
+            lane.current.cancel();
+            playerLookup.current = undefined;
+            setBusy(false);
+        }
+    }, [tv.fullscreen, tv.playing?.id]);
     async function open(episode: Media) {
         if (episode.sourceId !== tv.data.activeId || episode.kind !== 'episode')
             return;
         const job = lane.current.start();
+        playerLookup.current = tv.fullscreen ? job : undefined;
         const origin = tv.fullscreen
             ? {
                   ...tv.playbackOrigin,
@@ -60,6 +72,8 @@ export function useSeriesDetails(tv: TvModel) {
             if (!lane.current.owns(job)) return;
             if (!parent) throw new Error('Parent unavailable');
             const selected = parent;
+            // Parent lookup is complete; our own stop must not cancel navigation.
+            playerLookup.current = undefined;
             if (tv.fullscreen) tv.stop();
             await tv.update((data) =>
                 job.signal.aborted
@@ -75,6 +89,7 @@ export function useSeriesDetails(tv: TvModel) {
             if (lane.current.owns(job)) report();
         } finally {
             clearTimeout(timer);
+            if (playerLookup.current === job) playerLookup.current = undefined;
             if (lane.current.owns(job)) setBusy(false);
         }
     }

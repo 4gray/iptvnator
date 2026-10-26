@@ -478,7 +478,8 @@ Named unfinished entries recover context in the background on Home. Lookups
 are bounded to 20 pages per catalog and 15 seconds, preserve playback data,
 and offer an explicit retry through Details when recovery is unavailable.
 Fullscreen episode playback also has Series details: it saves/stops playback and
-opens the parent episode list. Playback captures its actual initiating control
+opens the parent episode list. Exiting fullscreen cancels a pending parent lookup;
+its late response cannot navigate away from Home. Playback captures its actual initiating control
 and main scroll position before resolution; returning from series details restores
 the hero Continue watching button or resume card that started it.
 Selection survives detail/player Back; source changes and relaunch start at the
@@ -548,7 +549,8 @@ lookups contribute candidates, retaining valid fallback results when an alternat
 catalog is unsupported. Without a complete match, errors, repeated pages, the
 20-page safety limit and the 15-second deadline report an incomplete search with
 retry. Cancellation, source changes and navigation discard obsolete
-results. Person/detail Back preserves card focus and scroll position.
+results. Person/detail Back preserves card focus and scroll position. Filmography
+cards reserve two subtitle lines to keep virtual row heights and scroll coordinates stable.
 Back cancels pending detail browsing before restoring its previous route. Route
 commits also cancel browsing during layout cleanup, so a late detail response
 cannot consume the pending person-card focus before its filmography loads.

@@ -51,6 +51,10 @@ async function setup(
                                                 title: `Archive Film ${index}`,
                                                 media_type: 'movie',
                                                 release_date: '2020-01-01',
+                                                character:
+                                                    index < 50
+                                                        ? 'Lead'
+                                                        : 'A very long character name that wraps onto the second line of the filmography card',
                                             })
                                         )
                                       : []),
@@ -559,9 +563,20 @@ test('@tmdb-person complete filmography keeps virtualized card focus and scroll 
     fail = false;
     await page.getByRole('button', { name: 'Retry filmography' }).click();
     await expect(page.locator('.person-page h2')).toContainText('103');
+    const firstHeight = await page
+        .locator('.filmography-card')
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().height);
     await page.locator('main').evaluate((el) => {
         el.scrollTop = el.scrollHeight;
     });
+    const longCaption = page.locator('[data-focus="filmography:movie:1065"]');
+    await expect(longCaption).toBeAttached();
+    await expect
+        .poll(() =>
+            longCaption.evaluate((el) => el.getBoundingClientRect().height)
+        )
+        .toBe(firstHeight);
     const target = page.locator('[data-focus="filmography:movie:501"]');
     await expect(target).toBeVisible();
     await target.scrollIntoViewIfNeeded();

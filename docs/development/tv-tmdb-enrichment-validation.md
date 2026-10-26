@@ -5,7 +5,8 @@ Implementation revision: `0a6184d8ed3364408165541b549493b17b2ecd9d`, branch
 `origin/master` (`aecfb7d7d`) and includes the completed Settings 0.1.15 commits
 through `3c0677fb9` so the device update preserves its installed categories.
 Neither the main checkout nor the Settings worktree/branch is changed.
-No push, PR, merge to master, CI run or NAS deployment is performed.
+This initial validation performs no push, PR, merge to master, CI run or NAS deployment.
+Later integration and publication evidence is recorded chronologically below.
 
 ## Confirmed on LG before the change
 
@@ -546,3 +547,51 @@ supersede the earlier pre-integration 0.1.24 local build:
 The integrated committed branch receives the final local review before its first
 push. The exact reviewed/tested PR head and eventual merge are recorded in the
 PR description; Greptile remains unavailable under the documented CLI exception.
+
+### Integrated review: stable filmography rows and cancelled player lookup
+
+The next committed-branch review identifies two additional P2 issues. Mixed
+one/two-line character captions change the virtual grid's measured row height;
+the regression observes 424px versus 441px cards before the fix. Filmography
+subtitles now reserve two 22px lines. The extended fixture includes separate
+blocks of short and long captions and checks identical heights across windows,
+then exact focus/scroll restoration after a provider detail round trip.
+
+A held historical parent lookup also survives fullscreen Back because the route
+does not change when playback stops. Its regression fails on the still-disabled
+Home Details button before the fix. A player-scoped controller now cancels the
+lookup when fullscreen or playback identity changes. Completing the lookup retires
+that scope before its own stop/persist/open sequence, preserving successful
+navigation. The test releases both held responses and verifies that only the
+background context repair persists, with Home retained and no player or error.
+
+Both regressions and the Xtream/Stalker successful series-details round trips
+pass (**4/4 scenarios**). TV unit tests (**113**), nine affected lint targets,
+three TV type programs, **168 release notes** and guidance validation pass.
+Shared TMDB/Angular sources are unchanged since the integrated 94/101-test run;
+those results and coverage thresholds remain applicable.
+
+The first full run exposes a pre-existing Stalker sort-test assumption: a single
+scroll reaches page two but need not reach the newly extended list's page three.
+The test now continues scrolling the appended end until it observes page three;
+its required server sort, page number and reset assertions remain unchanged.
+The full suite is restarted after this fixture correction.
+
+Prototype **0.1.25** and its archived JavaScript pass the classic-bundle, ES2018
+and unsupported-builtin audits:
+
+- IPK: `7695ac638fd997536b1eba0530877bcc927c529d649c9be29eb39ef666a24725`.
+- Archived `index-B_7mUoYM.js`: `3b15d93bf212cd1aa5714f2dab61f77cc25323b8ef6878e3bf9fe6d65c1040f9`.
+
+The rooted LG currently times out and then reports no route on SSH port 22, so
+0.1.25 is not yet installed. Device observations remain scoped to 0.1.24; its
+native resume/details/Back flow, parent artwork, ten loaded episode images and
+Luma artwork/opaque handles were confirmed before these final two fixes.
+
+The corrected full run passes **125/125 TV browser scenarios** in six minutes.
+E2E lint/types, release-note and guidance validation also pass after the fixture
+and documentation changes. These committed fixes enter the fifth round of the
+renewed local-review cycle; the exact reviewed SHA/verdict is recorded in the PR.
+The maintainer explicitly accepts opening the first suitable provider version,
+so that earlier requested behavior is not a publication blocker; the completed
+version chooser remains available.

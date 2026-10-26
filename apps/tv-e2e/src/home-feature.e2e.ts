@@ -271,3 +271,122 @@ test('historical Home episodes recover exact series details and cover without re
         /^(8|9)/
     );
 });
+
+test('leaving fullscreen cancels a held historical series details lookup', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'stalker');
+    let historical = false;
+    let targetId = '';
+    let held = 0;
+    let released = 0;
+    let release!: () => void;
+    const responseGate = new Promise<void>((resolve) => (release = resolve));
+    await page.route('**/tv-test-media.webm', (route) => route.continue());
+    await page.route('**/stalker?**', async (route) => {
+        const query = new URL(route.request().url()).searchParams;
+        if (query.get('action') === 'create_link')
+            return route.fulfill({
+                json: {
+                    payload: { js: { cmd: `${xtream}/tv-test-media.webm` } },
+                },
+            });
+        if (
+            query.get('action') !== 'get_ordered_list' ||
+            query.get('type') !== 'series' ||
+            query.get('movie_id')
+        )
+            return route.fallback();
+        const response = await route.fetch();
+        const json = await response.json();
+        const list = json.payload.js;
+        if (!targetId) targetId = String(list.data[0].id);
+        if (historical && query.get('search')) {
+            held++;
+            await responseGate;
+            released++;
+        } else if (historical) {
+            list.data = list.data.filter(
+                (item: { id: string | number }) => String(item.id) !== targetId
+            );
+        }
+        await route.fulfill({ response, json });
+    });
+    const title = await watch(page, 0, true);
+    await page.evaluate(
+        () =>
+            new Promise<void>((resolve, reject) => {
+                const request = indexedDB.open('iptvnator-tv-user-data', 1);
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const tx = db.transaction('state', 'readwrite');
+                    const store = tx.objectStore('state');
+                    const read = store.get('user');
+                    read.onsuccess = () => {
+                        const saved = read.result;
+                        for (const progress of [
+                            ...saved.data.history,
+                            ...Object.values(saved.data.positions),
+                        ] as { item: Record<string, unknown> }[])
+                            delete progress.item.parentSeries;
+                        store.put(saved, 'user');
+                    };
+                    tx.oncomplete = () => {
+                        db.close();
+                        resolve();
+                    };
+                    tx.onerror = () => {
+                        db.close();
+                        reject(Error('Fixture write failed'));
+                    };
+                };
+            })
+    );
+    historical = true;
+    try {
+        await page.reload();
+        await expect(page.locator('.hero h1')).toHaveText(title);
+        await expect.poll(() => held).toBe(1);
+        await page.locator('[data-focus="hero-resume"]').click();
+        await page.locator('[data-focus="player-series-details"]').click();
+        await expect.poll(() => held).toBe(2);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('[data-focus="hero"]')).toBeEnabled();
+        release();
+        await expect.poll(() => released).toBe(2);
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    () =>
+                        new Promise<boolean>((resolve) => {
+                            const request = indexedDB.open(
+                                'iptvnator-tv-user-data',
+                                1
+                            );
+                            request.onsuccess = () => {
+                                const db = request.result;
+                                const read = db
+                                    .transaction('state')
+                                    .objectStore('state')
+                                    .get('user');
+                                read.onsuccess = () => {
+                                    resolve(
+                                        !!read.result.data.history[0]?.item
+                                            .parentSeries
+                                    );
+                                    db.close();
+                                };
+                            };
+                        })
+                )
+            )
+            .toBe(true);
+        await expect(page.locator('.hero h1')).toHaveText(title);
+        await expect(page.locator('.detail-hero')).toHaveCount(0);
+        await expect(page.locator('video[src], video source')).toHaveCount(0);
+        await expect(page.locator('.error')).toBeHidden();
+    } finally {
+        release();
+    }
+});

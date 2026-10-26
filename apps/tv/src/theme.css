@@ -1445,6 +1445,8 @@ main.live-page {
     background: var(--tv-surface);
 }
 .filmography-card .muted {
+    height: 44px;
+    line-height: 22px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
