@@ -90,7 +90,7 @@ adds no Electron IPC, native player or database migration behavior.
 Package: `dist/tv-package/com.iptvnator.tv.prototype_0.1.16_all.ipk`.
 SHA-256: `f63606ff9f07beedd69b1f40cb991a38be01cd8f5a0f9551e84df58bdb182014`.
 
-## Device update status
+## Device update status on 2026-10-25
 
 The first installation attempt fails before installation: the TV stops replying
 to ICMP and its Developer Mode SSH port 9922; `ares-install` reports a connection
@@ -147,8 +147,56 @@ Final local checks on that implementation:
 
 Package: `dist/tv-package/com.iptvnator.tv.prototype_0.1.17_all.ipk`.
 SHA-256: `6addbbadcfab52646ad59185481f01de4fb3d6fec5fdcc0bdb1382b60a4904ef`.
-The LG Developer Mode port remains unavailable during this follow-up, so this
-package is **not installed or certified on the LG**. Real cast/director clicks,
-full person responses and provider title matching on that device remain pending.
-The earlier real API observations remain separate from these mocked browser
-checks. No push, CI, master merge or NAS deployment is performed.
+The LG Developer Mode port is unavailable during this 2026-10-25 follow-up, so
+this package is not installed then. The next section records the subsequent
+installation separately. These mocked browser checks alone do not certify real
+cast/director clicks or provider matching. No push, CI, master merge or NAS
+deployment is performed.
+
+
+## Real LG update — 2026-10-26
+
+After the user restores device availability, Developer Mode SSH connects and
+`ares-install --listfull` confirms the previous app is 0.1.15. The TV worktree is
+clean at `c7e87bf13`; the previously verified 0.1.17 package retains SHA-256
+`6addbbadcfab52646ad59185481f01de4fb3d6fec5fdcc0bdb1382b60a4904ef`.
+Installation reports **Success**, launch succeeds, and the installed-app inventory
+now confirms **0.1.17**. This update does not change the NAS or other clients.
+
+Safe, in-device comparisons before/after installation confirm:
+
+- The full source snapshot and saved TMDB key have identical fingerprints;
+  all three sources remain present and metadata stays enabled.
+- Favorites, history and retained-position counts remain unchanged (20 history
+  entries / 20 retained positions).
+- Both historical episodes keep their exact playback-identity/command
+  fingerprints. Their parent display names now read **Ted Lasso s04** and
+  **Полдень (6 серий)**, separately from their original episode names.
+- The Полдень saved position and timestamp remain identical. Ted Lasso has a
+  fresh position update while the application is being used; this is not a
+  claim of byte-for-byte preservation of actively updated viewing progress.
+
+The real device opens the **Анна Михалкова** person page with a biography and
+**103 filmography credits**, independently of the earlier fictional browser
+fixtures. Subsequent captured TMDB search/detail replies, including TV ID 97546,
+return HTTP 200. These observations confirm a real person/filmography screen and
+show-level API access; they do not by themselves prove image loading or every
+filmography-to-provider result.
+
+The running script name `index-CBP7qzoY.js` and its CDP-reported size (260,791
+bytes / 260,410 characters) match the script archived in the installed IPK.
+The webOS CLI enables minification by default (`bin/ares-package.js`), so its
+archived script differs from the pre-package Vite output. The archived script
+is separately parsed with ES2018 and passes the unsupported-builtin scan.
+A byte-hash comparison of the running script is not captured before the next
+connection loss; filename/size and the successfully installed package are the
+recorded provenance, not an asserted runtime SHA comparison.
+
+The connection then drops again: the Mac is still in the TV's subnet and the
+NAS responds, while the TV stops responding to ICMP and SSH port 9922. The user
+is asked to confirm its current Developer Mode IP and leave IPTVnator open.
+The remaining physical-device gate is **not complete**: actual avatar image
+loading, director navigation, matched/missing filmography titles, season episode
+fields, and a controlled resume/relaunch observation remain pending. No new LG
+screenshots are captured in this reconnect session. Local implementation checks
+above remain valid; no runtime source changes are made for this installation.
