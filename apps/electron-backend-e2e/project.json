@@ -18,7 +18,7 @@
             "parallelism": false,
             "options": {
                 "cwd": "{workspaceRoot}",
-                "command": "pnpm exec playwright test --config=apps/electron-backend-e2e/playwright.source-sync.config.ts"
+                "command": "playwright test --config=apps/electron-backend-e2e/playwright.source-sync.config.ts"
             }
         },
         "e2e": {

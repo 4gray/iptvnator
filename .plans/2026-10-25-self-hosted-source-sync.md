@@ -911,3 +911,27 @@ branches 75.99%, functions 83.13%, lines 85.33%. Owning lint, application and
 affected spec types, release notes and guidance pass. The exact CI production
 build passes its unchanged initial-byte limit at 1,200,269 / 1,200,301 bytes.
 The latest base fetch still resolves to `197efc0ae2ac4f1d853edf07f21a52d59911092a`.
+
+### Published review seventeen and CI command-contract correction
+
+Codex accepted `d43df3484f19b368d0973f886645ff8b2a188808` without actionable
+findings and independently ran 2,283 passing tests. That commit was pushed to
+PR #2013, its description updated, and both fixed Greptile threads resolved.
+No findings were declined; Greptile CLI remains unavailable (exit 127).
+
+The exact GitHub merge with master #2010, `c86633b4ea2f759c79ff27caef14d44c7b823995`,
+was built in a separate managed checkout after frozen install, lock comparison
+and Nx discovery. Production build and form-field defaults pass; initial bytes
+are 1,200,267 within the unchanged 1,200,301-byte limit. The temporary worktree
+was archived. The published CI also passes initial bytes, Docker, CodeQL, lint
+and the release-note gate.
+
+CI's performance-harness tests then found the new `source-sync` target using
+`pnpm exec playwright`. The existing command contract requires direct binaries
+because Nx already adds node_modules/.bin to PATH and nested pnpm can change
+the target cwd. Local reproduction fails the same deterministic guard. The
+target now invokes `playwright` directly; no test or threshold was changed.
+The complete harness passes with 693 tests and its existing Windows-only shell
+test skipped on macOS. Both interrupted-startup native scenarios pass through
+the corrected target. Task-graph, owning lint, guidance and release-note gates
+pass. Runtime source-sync code is unchanged from the reviewed commit.
