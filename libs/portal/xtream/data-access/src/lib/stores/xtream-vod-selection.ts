@@ -1,6 +1,5 @@
 import {
     getXtreamVodInfo,
-    extractYear,
     XtreamVodDetails,
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
@@ -13,6 +12,7 @@ import {
     CollectionIdentity,
 } from '../data-sources/pwa-collection-identity';
 import { stripXtreamVodInfoPlaceholders } from './xtream-detail-metadata';
+import { xtreamDetailContentMetadata } from '../xtream-content-metadata.util';
 
 export type XtreamVodSelection = XtreamVodDetails & {
     [key: string]: unknown;
@@ -28,17 +28,20 @@ export interface XtreamVodCatalogCategory {
 }
 
 export function buildXtreamVodSelection(
-    vodDetails: XtreamVodDetails,
+    vodDetails: XtreamVodDetails | null | undefined,
     catalogItem: XtreamVodStream | undefined,
     vodId: string | number,
     recoveredCatalogItem?: XtreamVodStream
 ): XtreamVodSelection {
+    vodDetails ??= { info: [] };
     const detailStreamId =
         vodDetails.movie_data?.stream_id ??
         (vodDetails as XtreamVodPlaybackItem).stream_id;
     if (detailStreamId != null && Number(detailStreamId) !== Number(vodId)) {
         vodDetails = { info: [] };
     }
+    const info = getXtreamVodInfo(vodDetails);
+    const identity = xtreamDetailContentMetadata(info);
     const matches = (item: XtreamVodStream | undefined): boolean => {
         if (
             !item ||
@@ -46,12 +49,10 @@ export function buildXtreamVodSelection(
             (item.stream_id != null && Number(item.stream_id) !== Number(vodId))
         )
             return false;
-        const info = getXtreamVodInfo(vodDetails);
         return collectionSnapshotMatchesContent(
             {
-                tmdb_id:
-                    info?.tmdb_id != null ? Number(info.tmdb_id) : undefined,
-                release_year: extractYear(info?.releasedate) ?? undefined,
+                tmdb_id: identity?.tmdbId,
+                release_year: identity?.releaseYear,
             },
             item as XtreamVodStream & CollectionIdentity,
             true
@@ -73,8 +74,6 @@ export function buildXtreamVodSelection(
         resolveXtreamVodPlaybackSource(
             catalogItem as unknown as XtreamVodPlaybackItem
         );
-    const info = getXtreamVodInfo(vodDetails);
-
     return {
         ...catalogItem,
         ...recoveredCatalogItem,

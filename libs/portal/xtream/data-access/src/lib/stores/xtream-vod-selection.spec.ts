@@ -7,6 +7,59 @@ import {
 } from './xtream-vod-selection';
 
 describe('Xtream VOD selection helpers', () => {
+    it.each([
+        ['cached', null],
+        ['recovered', null],
+        ['cached', undefined],
+        ['recovered', undefined],
+    ] as const)(
+        'keeps a %s source when the detail payload is %p',
+        (kind, detail) => {
+            const candidate = {
+                stream_id: 42,
+                container_extension: 'mp4',
+            } as XtreamVodStream;
+            const selection = buildXtreamVodSelection(
+                detail,
+                kind === 'cached' ? candidate : undefined,
+                42,
+                kind === 'recovered' ? candidate : undefined
+            );
+            expect(resolveXtreamVodPlaybackSource(selection)).toEqual({
+                streamId: 42,
+                containerExtension: 'mp4',
+            });
+        }
+    );
+
+    it.each(['cached', 'recovered'])(
+        'does not reject %s playback using a TMDB-supplied year',
+        (kind) => {
+            const candidate = {
+                stream_id: 42,
+                container_extension: 'mp4',
+                tmdb_id: 100,
+                release_year: 2020,
+            } as unknown as XtreamVodStream;
+            const selection = buildXtreamVodSelection(
+                {
+                    info: {
+                        tmdb_id: 100,
+                        releasedate: '2024-01-01',
+                        tmdb_supplied_release_date: true,
+                    },
+                } as Parameters<typeof buildXtreamVodSelection>[0],
+                kind === 'cached' ? candidate : undefined,
+                42,
+                kind === 'recovered' ? candidate : undefined
+            );
+            expect(resolveXtreamVodPlaybackSource(selection)).toEqual({
+                streamId: 42,
+                containerExtension: 'mp4',
+            });
+        }
+    );
+
     it('merges a sparse detail response with its catalog playback fields', () => {
         const catalogItem = {
             stream_id: 42,

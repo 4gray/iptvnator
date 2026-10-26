@@ -642,6 +642,9 @@ them. Cross-portal Favorites/Recent details ignore arrays owned by another
 playlist, so colliding Xtream ids cannot suppress recovery or contribute a
 foreign playback extension, title, poster, category, or recommendation.
 
+Null or absent detail payloads normalize to empty metadata before source recovery.
+Catalog identity checks use provider-stated years; a release date filled by TMDB
+cannot veto an otherwise matching playback source.
 Metadata availability and VOD playability are independent. An empty or sparse
 `get_vod_info` response keeps the curated fallback detail page, but that page
 offers the same Play/Resume and Download actions when the source resolves.
