@@ -1,9 +1,11 @@
-# TV Shell pour IPTVnator — Fire TV Stick / Android TV
+# NatorTV — Fire TV Stick / Android TV
 
-Coquille Android expérimentale qui fait tourner **IPTVnator** (la PWA
-construite depuis ce dépôt) sur un Fire TV Stick ou une box Android TV,
-pilotable à la télécommande, **sans serveur à héberger** : le backend web est
-réimplémenté en Java et embarqué dans l'APK. La documentation de référence
+**NatorTV** est une coquille Android expérimentale basée sur IPTVnator : elle
+fait tourner **IPTVnator** (la PWA construite depuis ce dépôt) sur un Fire TV
+Stick ou une box Android TV, pilotable à la télécommande, **sans serveur à
+héberger** : le backend web est réimplémenté en Java et embarqué dans l'APK.
+C'est une app indépendante, pas l'IPTVnator officiel (voir `TRADEMARK.md`) ;
+l'application web qu'elle contient garde son nom et ses écrans. La documentation de référence
 (architecture, modèle de sécurité, développement) est dans [`README.md`](README.md) ;
 cette page résume l'installation, les touches et le dépannage.
 
@@ -18,9 +20,9 @@ cette page résume l'installation, les touches et le dépannage.
 3. **ADB** (depuis un PC sur le même réseau) :
    ```bash
    adb connect 192.168.x.x        # IP du Stick : Paramètres → Mon Fire TV → À propos → Réseau
-   adb install -r iptvnator-tv-shell-0.1.0-xxxxxxx.apk
+   adb install -r natortv-0.1.0-xxxxxxx.apk
    ```
-4. Lancez *TV Shell pour IPTVnator*. Ajoutez une source : **Sources → Add M3U /
+4. Lancez *NatorTV*. Ajoutez une source : **Sources → Add M3U /
    Add Xtream / Add Stalker** ; OK sur un champ texte ouvre le clavier Fire TV.
 5. Installez **VLC pour Android** (Appstore) pour les flux `.ts`.
 
@@ -40,11 +42,11 @@ l'app desktop casserait sa mise à jour automatique).
 | --- | --- |
 | D-pad | se déplacer entre les éléments ; sur l'image : ◀ ▶ = recherche, ▲ ▼ = quitter l'image / contrôles ; dans un champ texte, les flèches déplacent le curseur tant qu'il peut bouger |
 | OK | activer ; sur l'image : plein écran ; sur un champ texte : clavier. Un appui maintenu vaut une activation |
-| Retour | fermer dialogue/menu → quitter le plein écran → page précédente → (2×) quitter l'app ; **appui long** : réglages de la coquille (télécommandes sans touche Menu) |
-| Menu | menu contextuel de l'élément ; sur l'image : ouvrir le flux dans VLC ; **appui long** : réglages de la coquille. La touche menu contextuel HDMI-CEC et Y d'une manette font de même |
+| Retour | fermer dialogue/menu → quitter le plein écran → page précédente → (2×) quitter l'app ; **appui long** : réglages de NatorTV (télécommandes sans touche Menu) |
+| Menu | menu contextuel de l'élément ; sur l'image : ouvrir le flux dans VLC ; **appui long** : réglages de NatorTV. La touche menu contextuel HDMI-CEC et Y d'une manette font de même |
 | ▶⏸ ⏪ ⏩ | lecture/pause, −15 s, +30 s |
 
-## Réglages de la coquille (appui long sur Menu ou sur Retour)
+## Réglages de NatorTV (appui long sur Menu ou sur Retour)
 
 Taille de l'interface (960 / 1280 / 1600 px), lecteur externe préféré,
 proposition automatique d'un lecteur externe, débogage à distance
@@ -114,7 +116,7 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   les touches interceptées sont dans `MainActivity.dispatchKeyEvent`, le reste
   va à la page (`tv.js`).
 - **Pas de touche Menu** (Google TV, la plupart des box Android TV) : appui long
-  sur Retour pour les réglages de la coquille.
+  sur Retour pour les réglages de NatorTV.
 - **Plus de focus visible** : appuyez sur une flèche. Retour ferme d'abord
   dialogues et menus, puis remonte l'historique, puis quitte (deux appuis).
 - **Pas de clavier sur un champ** : OK sur le champ ouvre le clavier Fire TV ;
@@ -127,7 +129,7 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   Menu sur l'image / « Copier l'URL du flux ». Pour Xtream, choisissez le format
   de sortie `m3u8` dans les réglages de la playlist. Chaque nouvel essai sur une
   chaîne repropose le lecteur.
-- **La proposition VLC n'apparaît plus** : réglages de la coquille → *Lecteur
+- **La proposition VLC n'apparaît plus** : réglages de NatorTV → *Lecteur
   externe* → cochez « Proposer un lecteur externe ». Avec le moteur HTML5 ou
   ArtPlayer, une connexion coupée (erreur média native 1 ou 2) ne la déclenche
   pas : VLC échouerait de la même façon. Le lecteur video.js (par défaut) la
@@ -142,8 +144,8 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 
 ### Données
 
-- **Repartir de zéro** : réglages de la coquille → *Effacer les données
-  IPTVnator* (ou désinstaller l'app). Les données survivent aux mises à jour
+- **Repartir de zéro** : réglages de NatorTV → *Effacer les données de
+  NatorTV* (ou désinstaller l'app). Les données survivent aux mises à jour
   tant que le port du serveur ne change pas.
-- **Inspecter la page** : réglages de la coquille → *débogage à distance*, puis
+- **Inspecter la page** : réglages de NatorTV → *débogage à distance*, puis
   `chrome://inspect` sur un PC avec `adb connect`.

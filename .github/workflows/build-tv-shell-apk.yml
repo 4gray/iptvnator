@@ -200,7 +200,7 @@ jobs:
           APK=app/build/outputs/apk/release/app-release.apk
           test -f "$APK"
           VERSION=$(grep -oP "versionName '\K[^']+" app/build.gradle)
-          OUT="iptvnator-tv-shell-${VERSION}-${HEAD_SHA::7}.apk"
+          OUT="natortv-${VERSION}-${HEAD_SHA::7}.apk"
           mkdir -p ../../dist && cp "$APK" "../../dist/$OUT"
           echo "APK $OUT: versionCode $TVSHELL_VERSION_CODE, signed with the $SIGNER key"
           echo "name=$OUT" >> "$GITHUB_OUTPUT"
@@ -237,7 +237,7 @@ jobs:
           PRERELEASE: ${{ inputs.prerelease }}
         run: |
           set -euo pipefail
-          TAG="tv-shell-v${APK_VERSION}-${GITHUB_RUN_NUMBER}"
+          TAG="natortv-v${APK_VERSION}-${GITHUB_RUN_NUMBER}"
           # Pre-release and never Latest unless the dispatcher unticked `prerelease`
           # (a fork publishing for its own users); GitHub then applies its usual
           # Latest rule to the normal release.
@@ -246,6 +246,6 @@ jobs:
           gh release create "$TAG" "dist/${APK_NAME}" \
             --target "$GITHUB_SHA" \
             "${FLAGS[@]}" \
-            --title "TV shell ${APK_VERSION} (build ${GITHUB_RUN_NUMBER})" \
-            --notes "Experimental Fire TV / Android TV shell for IPTVnator. Install with the Downloader app (APK link below) or with \`adb install -r\`. Unless the repository provides a release key, the APK is signed with the versioned debug key (tv-shell/android/app/debug.keystore), so newer builds install over older ones. See tv-shell/README.md."
+            --title "NatorTV ${APK_VERSION} (build ${GITHUB_RUN_NUMBER})" \
+            --notes "NatorTV: experimental Fire TV / Android TV app based on IPTVnator (not the official IPTVnator). Install with the Downloader app (APK link below) or with \`adb install -r\`. Unless the repository provides a release key, the APK is signed with the versioned debug key (tv-shell/android/app/debug.keystore), so newer builds install over older ones. See tv-shell/README.md."
           echo "Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
