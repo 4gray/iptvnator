@@ -551,6 +551,9 @@ jobs:
                     sourceHashFiles.push(
                       'tools/embedded-mpv/build-macos-runtime.mjs',
                       'tools/embedded-mpv/download-pinned-source.mjs',
+                      'tools/embedded-mpv/macos-source-patches.mjs',
+                      'tools/embedded-mpv/patches/mpv/0001-ao_coreaudio-cleanup-ao-on-init-failure.patch',
+                      'tools/embedded-mpv/patches/mpv/0002-ao_coreaudio-register-hotplug-after-successful-audiounit-init.patch',
                       'tools/embedded-mpv/stage-macos-runtime.mjs'
                     );
                     try {

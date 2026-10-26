@@ -272,3 +272,46 @@ test('records applied patches in the mpv manifest block', () => {
     );
     assert.match(mpvBlock, /localPatches: appliedMpvPatches/);
 });
+
+test('hashes the patch registry and every patch into the macOS cache key', () => {
+    const workflow = fs.readFileSync(
+        path.join(workspaceRoot, '.github', 'workflows', 'build-and-make.yaml'),
+        'utf8'
+    );
+    const darwinStart = workflow.indexOf("if (targetPlatform === 'darwin')");
+    const darwinEnd = workflow.indexOf(
+        "} else if (targetPlatform === 'win32')",
+        darwinStart
+    );
+    assert.ok(darwinStart >= 0 && darwinEnd > darwinStart);
+    const darwinBranch = workflow.slice(darwinStart, darwinEnd);
+    for (const hashedPath of [
+        'tools/embedded-mpv/macos-source-patches.mjs',
+        ...MACOS_SOURCE_PATCHES.map((patch) => patch.path),
+    ]) {
+        assert.ok(
+            darwinBranch.includes(`'${hashedPath}'`),
+            `${hashedPath} is missing from the macOS cache key`
+        );
+    }
+});
+
+test('runs the patch tests in the packaging project', () => {
+    const project = JSON.parse(
+        fs.readFileSync(
+            path.join(workspaceRoot, 'tools', 'packaging', 'project.json'),
+            'utf8'
+        )
+    );
+    assert.match(
+        project.targets.test.options.command,
+        /tools\/embedded-mpv\/macos-source-patches\.test\.mjs/
+    );
+    for (const input of [
+        '{workspaceRoot}/tools/embedded-mpv/macos-source-patches.mjs',
+        '{workspaceRoot}/tools/embedded-mpv/macos-source-patches.test.mjs',
+        '{workspaceRoot}/tools/embedded-mpv/patches/**/*',
+    ]) {
+        assert.ok(project.targets.test.inputs.includes(input), input);
+    }
+});
