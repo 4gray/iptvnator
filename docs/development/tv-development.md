@@ -78,18 +78,18 @@ BX's Chromium 68 engine, native HLS, transport stream decoding or MAG headers.
 `tv-playlist.m3u` and `tv-test-media.webm` are local mock-server fixtures only.
 
 The package target produces
-`dist/tv-package/com.iptvnator.tv.prototype_0.1.17_all.ipk` with the pinned webOS
+`dist/tv-package/com.iptvnator.tv.prototype_0.1.18_all.ipk` with the pinned webOS
 CLI. Inspect it with:
 
 ```sh
-pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.17_all.ipk
+pnpm exec ares-package -i dist/tv-package/com.iptvnator.tv.prototype_0.1.18_all.ipk
 pnpm exec ares-setup-device --list
 ```
 
 Only after the user supplies an enabled Developer Mode target and pairing:
 
 ```sh
-pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.17_all.ipk
+pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.18_all.ipk
 pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 ```
 
@@ -134,7 +134,7 @@ not enable metadata: save the opt-in switch and check its saved state message.
 The TV browser must reach `api.themoviedb.org` and `image.tmdb.org` directly.
 The [TMDB enrichment and series-title verification](tv-tmdb-enrichment-validation.md)
 records real API observations, regression checks and the separate 0.1.16 device gate.
-The 0.1.17 follow-up adds circular people controls, complete filmographies and
+The 0.1.18 follow-up adds circular people controls, complete filmographies and
 on-demand title availability searches within the active source.
 
 ## Hardware update on 2026-10-25

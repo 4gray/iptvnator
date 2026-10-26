@@ -16,6 +16,27 @@ export interface SettingsMemory {
     controls: Partial<Record<SettingsCategory, string>>;
     scroll: Partial<Record<SettingsCategory, number>>;
 }
+// Closed <details> descendants can report dimensions in Chromium while native
+// focus still refuses them. Keep entry, restoration and panel moves consistent.
+function available(element: HTMLElement): boolean {
+    if (
+        element.matches(':disabled') ||
+        !element.offsetHeight ||
+        !element.getClientRects().length ||
+        element.closest('[hidden]')
+    )
+        return false;
+    let closed = element.closest<HTMLDetailsElement>('details:not([open])');
+    while (closed) {
+        if (!closed.querySelector('summary')?.contains(element)) return false;
+        closed =
+            closed.parentElement?.closest<HTMLDetailsElement>(
+                'details:not([open])'
+            ) ?? null;
+    }
+    return true;
+}
+
 export function useSettingsNavigation(memory: SettingsMemory) {
     const [category, setCategory] = useState(memory.category);
     const root = useRef<HTMLDivElement>(null);
@@ -27,35 +48,26 @@ export function useSettingsNavigation(memory: SettingsMemory) {
         root.current?.querySelector<HTMLElement>(
             `#settings-panel-${memory.category}`
         );
-    const enter = () => {
-        const controls = Array.from(
+    const controls = () =>
+        Array.from(
             panel()?.querySelectorAll<HTMLElement>(
-                'button:not(:disabled),input:not(:disabled),select:not(:disabled),summary'
+                'button,input,select,textarea,summary'
             ) ?? []
-        ).filter((element) => !!element.offsetHeight);
+        ).filter(available);
+    const enter = () => {
+        const candidates = controls();
         (
-            controls.find(
+            candidates.find(
                 (element) =>
                     element.dataset.focus === memory.controls[memory.category]
             ) ??
-            controls[0] ??
+            candidates[0] ??
             panel()
         )?.focus();
     };
     useLayoutEffect(() => {
-        root.current
-            ?.querySelectorAll<HTMLElement>('[data-settings-panel]')
-            .forEach((element) => {
-                element
-                    .querySelectorAll<HTMLElement>(
-                        'button,input,select,summary'
-                    )
-                    .forEach((control, i) => {
-                        if (!control.dataset.focus)
-                            control.dataset.focus = `${element.id}:${i}`;
-                    });
-            });
-    });
+        if (panel()) panel()!.scrollTop = memory.scroll[category] ?? 0;
+    }, [category, memory]);
     useEffect(() => {
         const frame = requestAnimationFrame(() => {
             const target = Array.from(
@@ -63,12 +75,9 @@ export function useSettingsNavigation(memory: SettingsMemory) {
                     []
             ).find(
                 (element) =>
-                    element.dataset.focus === memory.focus &&
-                    !!element.offsetHeight
+                    element.dataset.focus === memory.focus && available(element)
             );
             (target ?? categoryButton())?.focus();
-            if (panel())
-                panel()!.scrollTop = memory.scroll[memory.category] ?? 0;
         });
         return () => cancelAnimationFrame(frame);
     }, [memory]);
@@ -113,6 +122,49 @@ export function useSettingsNavigation(memory: SettingsMemory) {
             event.preventDefault();
             event.stopPropagation();
             categoryButton()?.focus();
+        } else if (
+            inPanel &&
+            key === 'Enter' &&
+            target.matches('input[type="checkbox"]')
+        ) {
+            event.preventDefault();
+            event.stopPropagation();
+            target.click();
+        } else if (
+            inPanel &&
+            ['ArrowUp', 'ArrowDown', 'ArrowRight'].includes(key)
+        ) {
+            // Selects own choice keys and text inputs own the caret. All other
+            // moves stay in this form rather than crossing into the categories.
+            if (
+                (target.matches('select,textarea') && key !== 'ArrowRight') ||
+                (key === 'ArrowRight' &&
+                    target.matches(
+                        'textarea,input:not([type="checkbox"]):not([type="radio"])'
+                    ))
+            )
+                return;
+            event.preventDefault();
+            event.stopPropagation();
+            const candidates = controls();
+            const index = candidates.indexOf(target);
+            const next = candidates[index + (key === 'ArrowUp' ? -1 : 1)];
+            if (next) {
+                next.focus();
+                next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            } else if (key === 'ArrowUp' || key === 'ArrowDown') {
+                const owner = panel();
+                const before = owner?.scrollTop ?? 0;
+                if (owner)
+                    owner.scrollTop +=
+                        ((key === 'ArrowUp' ? -1 : 1) * owner.clientHeight) / 2;
+                if (owner && owner.scrollTop !== before) return;
+                if (key !== 'ArrowUp' || index > 0) return;
+                const phone = root.current?.querySelector<HTMLElement>(
+                    '[data-focus="phone-start"]'
+                );
+                (phone && available(phone) ? phone : categoryButton())?.focus();
+            }
         } else if (
             target.closest('.settings-categories') &&
             (key === 'ArrowUp' || key === 'ArrowDown')

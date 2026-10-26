@@ -28,6 +28,7 @@ export function LibrarySettings({ tv }: { tv: TvModel }) {
                     Library server URL
                     <input
                         type="url"
+                        data-focus="library:url"
                         required
                         value={url}
                         placeholder="http://nas:4333/api"
@@ -41,6 +42,7 @@ export function LibrarySettings({ tv }: { tv: TvModel }) {
                     Library access token (if required)
                     <input
                         type="password"
+                        data-focus="library:token"
                         autoComplete="off"
                         value={token}
                         onInput={(event) => setToken(event.currentTarget.value)}
@@ -49,6 +51,7 @@ export function LibrarySettings({ tv }: { tv: TvModel }) {
                 <button
                     disabled={tv.library.busy || !!tv.playing}
                     class="primary"
+                    data-focus="library:connect"
                 >
                     Connect library
                 </button>
@@ -68,11 +71,15 @@ export function LibrarySettings({ tv }: { tv: TvModel }) {
                     <div class="filters">
                         <button
                             disabled={tv.library.busy || !!tv.playing}
+                            data-focus="library:refresh"
                             onClick={() => void tv.library.refresh()}
                         >
                             Refresh library now
                         </button>
-                        <button onClick={() => void tv.library.disconnect()}>
+                        <button
+                            data-focus="library:disconnect"
+                            onClick={() => void tv.library.disconnect()}
+                        >
                             Disconnect library
                         </button>
                     </div>
@@ -92,6 +99,7 @@ export function LibrarySettings({ tv }: { tv: TvModel }) {
                             <label>
                                 Local source to copy to server
                                 <select
+                                    data-focus="library:source"
                                     required
                                     value={sourceId}
                                     onChange={(event) =>
@@ -110,6 +118,7 @@ export function LibrarySettings({ tv }: { tv: TvModel }) {
                                 history are not uploaded.
                             </p>
                             <button
+                                data-focus="library:upload"
                                 disabled={
                                     !sourceId || tv.library.busy || !!tv.playing
                                 }

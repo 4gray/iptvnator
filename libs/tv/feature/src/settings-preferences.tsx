@@ -59,6 +59,7 @@ export function SettingsPreferences({
                     Home composition
                     <select
                         name="layout"
+                        data-focus="settings:layout:value"
                         value={String(value)}
                         onChange={(event) => {
                             setValue(
@@ -78,6 +79,7 @@ export function SettingsPreferences({
                     <input
                         type="checkbox"
                         name="epg"
+                        data-focus="settings:epg:value"
                         checked={value === true}
                         onChange={(event) => {
                             setValue(event.currentTarget.checked);
@@ -87,7 +89,11 @@ export function SettingsPreferences({
                     Show provider programme guide
                 </label>
             )}
-            <button class="primary" disabled={saving}>
+            <button
+                class="primary"
+                disabled={saving}
+                data-focus={`settings:${field}:save`}
+            >
                 {saving ? 'Saving…' : 'Save settings'}
             </button>
             {saved ? <p role="status">Settings saved on this TV.</p> : null}

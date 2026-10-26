@@ -131,5 +131,97 @@ screenshots remain under `dist/tv-verification/settings-categories/`.
 Package: `dist/tv-package/com.iptvnator.tv.prototype_0.1.15_all.ipk`.
 SHA-256: `71c758d018df10bef27b437f7ec7d39bd5760304d10ee5c18d60500028a3412f`.
 No NAS service, desktop release, push, PR or merge was performed during this
-local installation. GitHub integration awaits the user's answer to the explicit
-publication-scope question because the initial task prohibited push/PR/merge.
+local installation. The user subsequently authorizes publication and merging through a PR on
+2026-10-26; the initial installation remains a local-package operation.
+
+
+## Publication follow-up — 2026-10-26
+
+The first local Codex review of `3c0677fb9` was interrupted by model capacity
+before a final verdict; it is not recorded as a clean review. Greptile CLI is
+not installed and was not installed or configured on the user's behalf.
+
+A dynamic-control focus issue investigated during that review is independently
+reproduced by a regression: two discovered backend buttons duplicate a retained
+control's positional focus key. Before the fix, 8 controls have only 7 unique
+keys, and returning can select the wrong control. Settings controls now declare
+stable semantic keys in their owning components; the positional assignment effect
+is removed. The new test checks uniqueness, an unchanged probe key, category Back
+and Right restoration, and leaving/re-entering Settings. It fails before the fix
+and passes afterwards. All six dedicated Settings E2E scenarios pass.
+
+
+After this focus correction, all 85 unit tests and all 97 TV browser E2E cases
+pass. The TV/feature/UI/data-access/util/tests/E2E/phone lint and available
+typechecks (12 tasks), production build, ES2018 audit, packaging, agent guidance
+and release notes validation pass again. The package remains the local 0.1.15
+prototype; no public package with that version has been published.
+
+
+The completed second local Codex review identifies three additional issues:
+background pointer/programmatic focus can escape the QR modal, disabled controls
+can defeat focus restoration, and a category selected after remount loses its
+remembered scroll. Each has a failing pre-fix browser regression. A viewport
+backdrop plus document focus guard retains modal focus; restoration excludes
+disabled controls and restores scroll whenever a category becomes visible.
+All 10 focused Settings/phone scenarios pass after the fixes.
+
+
+After the modal/restoration fixes, all 85 TV unit tests and all 100 TV browser
+E2E cases pass; lint/typechecks, ES2018 verification and packaging also pass.
+The corrected 0.1.15 IPK SHA-256 is
+`e6ee58d43a93fa0f2765c8822b4e57fd5575925fae40e105105fe33adde17217`
+(bundle `index-E4_eqUog.js`). This supersedes the initial local 0.1.15 artifact
+for publication; the earlier on-device checks above describe the initial build.
+
+
+The third completed review identifies a missing select-to-Save remote path,
+closed-disclosure fields retained as focus candidates, and vertical navigation
+escaping Metadata into another category. New browser regressions cover Save at
+1920×1080 and 1280×720, Metadata's complete control sequence, and closed token
+entry/restoration. Settings now owns panel control traversal while retaining
+native caret and select-choice keys. A separate before/after regression also
+confirms OK toggles the EPG checkbox without implicit form submission; only the
+explicit Save action commits it and the result survives relaunch.
+
+
+At the last control, Down now scrolls remaining panel explanations instead of
+switching categories or blocking access to the diagnostic help. This also has a
+failing pre-fix regression. The final navigation batch passes all 19 focused
+Settings/phone/presentation scenarios, all 106 full TV E2E scenarios, 85 unit
+tests, 12 lint/typecheck tasks, build/ES2018/package and notes/guidance checks.
+
+Latest publication package (0.1.15) SHA-256:
+`64f5a55fb0090386a1fe84d501c674d20f922f7e7dc12ffbe878871e54c6105b`
+(bundle `index-DpwqkW9E.js`). Prior artifact hashes and on-device checks above
+are historical; the publication package includes the subsequent review fixes.
+The first attempt to reconnect to LG on 2026-10-26 times out, so that attempt
+cannot certify installation of the corrected artifact. The existing initial
+0.1.15 installation and its matching before/after data digests remain valid.
+
+
+GitHub Greptile review of PR #2006 identifies one additional draft-refresh case:
+explicitly applying unchanged committed phone defaults leaves different unsaved
+local drafts behind. The regression reproduces this for Appearance, EPG and
+TMDB, including a failed first write, while retaining a separate library draft.
+Phone setup now notifies Settings only after its atomic write commits. Settings
+then refreshes only the three phone-managed forms, including unchanged values;
+a failed write never refreshes them, and an acknowledgement retry does not
+repeat the refresh. Connection and library components retain their drafts.
+
+
+The initial GitHub Unit Tests and Typechecks job fails one web-backend contract
+that still expects literal TV ports. Its updated assertions retain the isolated
+backend/library defaults, token, origin, single-process launch and phone-asset
+packaging checks, and now cover the optional offset declarations. All 238
+web-backend tests pass with coverage (92.76% statements, 85.66% branches,
+92.05% functions, 93.02% lines); no threshold or gate is changed.
+
+After the Greptile fix, all 107 TV browser E2E cases, 85 TV unit tests and 13
+available lint/typecheck tasks pass, as do build/ES2018/package and notes/guidance
+checks. Latest candidate package SHA-256:
+`be33258c5f1d36a4100c80bd7c5ee9ba4ca36c4f3f46ca7c55b59aee91d72461`
+(bundle `index-BgdQ5yf9.js`). Static QR instructions are extracted into the
+existing phone-panel module to keep PhoneSetup below 300 production lines.
+The fourth local review is clean on `d9912eb6f`; the phone-refresh and stale-test
+corrections are committed together for the next local review and single PR push.
