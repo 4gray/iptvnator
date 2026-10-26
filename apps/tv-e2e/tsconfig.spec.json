@@ -1,0 +1,8 @@
+{
+    "extends": "../tv/tsconfig.app.json",
+    "compilerOptions": {
+        "types": ["node"]
+    },
+    "include": ["src/**/*.ts", "playwright.config.ts"],
+    "exclude": []
+}

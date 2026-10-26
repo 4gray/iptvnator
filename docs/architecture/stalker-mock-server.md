@@ -16,6 +16,14 @@ The mock server enables:
 3. **Scenario-based testing** via predefined MAC addresses that map to specific data shapes
 4. **Screenshot-safe marketing capture** with committed fictional posters shared with the Xtream mock
 
+The TV-only `00:1a:79:00:00:0b` fixture supplies lazy Ministra VOD series
+with paged `is_season` and `is_episode` records (two rows per provider page).
+An episode-coordinate request returns an owned `is_file` row with a distinct
+file ID; clients must resolve this row before `create_link`.
+It exercises season/file resolution through the actual backend without changing
+the existing regular/embedded fixtures. TV media tests use a local WebM clip;
+they do not establish LG codec or protocol compatibility.
+
 ## Key Design Decisions
 
 ### Seeded Determinism (Not Per-Request Random)
@@ -462,3 +470,213 @@ test('browse VOD categories', async ({ page }) => {
 - **Session behaviour**: `auth-store.ts` owns tokens and device pinning. Add TTLs or a "token replaced by another device" mode there rather than in the handlers.
 - **Error simulation**: Add a special MAC or query param to trigger error responses for testing error handling in the Stalker store. Note that portal-level auth errors are *not* HTTP errors — see [Endpoints With Different Strictness](#endpoints-with-different-strictness).
 - **Slow responses**: Add a `MOCK_DELAY_MS` env var and apply it in middleware for testing loading states.
+
+## Issue #1844 research fixture (2026-10-14)
+
+Historical results below describe the unfixed revisions. The original test
+source is preserved as `apps/electron-backend-e2e/src/issue1844.characterization.ts`
+and in snapshot `ee6d38098b7bb52a72d0924c195c80142ff79cd5`; it is excluded from
+normal `*.e2e.ts` discovery because it asserts the old wrong behavior. The
+command below applies to that original snapshot. Use the correctness suite at
+the end of this section for the fixed implementation.
+
+The isolated research branch adds `00:1A:79:18:44:01`, handled by
+`handlers/issue1844.fixture.ts`. This is a characterization of the existing
+playback defect, not its production fix. Run with separate local ports:
+
+```bash
+MOCK_PORT=3384 XTREAM_MOCK_PORT=3385 pnpm nx run electron-backend-e2e:e2e --grep='research #1844'
+```
+
+The fixture models the four-level VOD protocol from the readable Stalker
+implementation at `iptvhakr/stalker_portal` revision
+`72deceee1e32ea00cf33ecf2376b80902ab11134`:
+
+- [`c/vclub.js`](https://github.com/iptvhakr/stalker_portal/blob/72deceee1e32ea00cf33ecf2376b80902ab11134/c/vclub.js#L833): selecting an episode sets `episode_id` and loads another list; only an `is_file` row is played.
+- [`server/lib/vod.class.php`](https://github.com/iptvhakr/stalker_portal/blob/72deceee1e32ea00cf33ecf2376b80902ab11134/server/lib/vod.class.php#L926): movie → seasons → episodes → files. Episode IDs come from `video_season_series`; file IDs come from `video_series_files`.
+- The same server's `createLink()` (line 32) treats `/media/file_<id>.mpg` as a FILE id. Its optional `series` parameter can select another episode inside the season belonging to that file; it cannot recover the intended parent from an unrelated file.
+
+Alpha (movie 10, season 11) has episodes 101/102 backed by files 201/202.
+Beta (movie 20, season 21) has episodes 201/202 backed by files 101/102.
+These are separate primary-key namespaces, with legitimate overlap. There is
+no handler that deliberately swaps shows: resolution follows the file table.
+The control traversal with `movie_id`, `season_id`, `episode_id` returns the
+correct file and media URL. The app instead constructs a file command directly
+from the episode ID, so both Alpha episodes load Beta URLs and vice versa.
+
+The Electron test observes media requests and `HTMLVideoElement.currentSrc`
+with `readyState === 4`. Media routes encode the selected file's true show and
+episode (`/stream/issue1844/20/1.mp4`, for example). They serve the same local
+clear MP4 bytes; the assertion proves URL selection and loading, not visual
+recognition of different filmed content. These research tests intentionally
+assert the current wrong selection; convert them to correct-selection
+regressions when implementing the fix.
+
+The stock `is-series` scenario cannot validate this workflow: its lazy-season
+request returns regular-series rows without `is_season: true`, and its season
+handler ignores `season_id`. The baseline characterization pins this coverage
+gap. Its ordinary `create_link` also hashes only `cmd` to choose a public demo
+stream, so a playing video alone is not evidence of correct episode identity.
+
+The reproduction uses fresh isolated Electron profiles, one portal and serial
+clicks; portal handoff and response races are not required. Production files
+are unchanged. For the real issue author's portal, matching anonymized
+responses are still needed before claiming this is their exact cause. Search
+must be investigated separately: the fixture returns Alpha/Beta through both
+wildcard and category search, and current master also passes dedicated portal
+search. This does not establish that the provider supports the same queries.
+
+Validation: both `v0.24.0` (`0ecfc06494c4aeb6df52a3e3ac0d3b227a582e90`)
+and current remote master (`37210ead25d526c0780feca9d4c856bf5792efa2`)
+reproduced all four wrong URL selections in actual macOS arm64 Electron with
+Video.js and temporary per-test profiles. Each revision passed three research
+checks (two shows plus the baseline coverage-gap check). The tag test uses its
+older `.episode-card` selector; current master uses `.episode-item`. An initial
+tag retry timed out starting the old nested-Nx mock server; starting its mock
+directly with `node --import tsx` resolved the harness issue. Neither Fedora
+nor an actual VLC process was tested. The shared resolver is reached before
+the inline/external handoff. PR #1825 is included in tested master and cannot
+fix this reproduced single-portal protocol error.
+
+Current-master targeted validation also passed 592 Stalker data-access tests,
+496 Stalker feature tests, the Electron spec type-check and mock/E2E-file lint
+(the mock has two pre-existing non-null assertion warnings). The full E2E and
+coverage gates were not run for this diagnostic-only branch. No release note
+is required because only research fixtures/tests and this documentation change.
+
+
+### Existing-fix audit (2026-10-25)
+
+Audited remote default branch `origin/master` at
+`2b5e9648604c8abbc13031df8c28071cb317c1ba` in the managed worktree
+`issue-1844-fix-audit`, branch `codex/issue-1844-fix-audit`.
+The original investigation worktrees had been archived. The master fixture,
+E2E and documentation were recovered from preserved snapshot
+`ee6d38098b7bb52a72d0924c195c80142ff79cd5`; the older tag fixture remains in
+`7fb67bc6b5d4059f57e6471cba90456e0b965a66`. The source snapshots were not
+modified. Fixture and E2E files were copied byte-for-byte, including their
+characterization assertions that expect the wrong URL.
+
+Issue #1844 is still open, with two author comments and no linked PR in its
+GitHub timeline. The October 18 explanation is consistent with this fixture,
+but contains no provider payload proving the author's exact failure mode.
+Searches included issue number, Stalker/Ministra, lazy/is_series, episode/file,
+wrong series, downloads, get_ordered_list, create_link and episode_id, across
+open, merged and closed-unmerged PRs. Relevant existing changes:
+
+| PR | Merge commit | What it covers; why it is not this fix |
+| --- | --- | --- |
+| [#1218](https://github.com/4gray/iptvnator/pull/1218) | `d308749e2` | Inline/external season/episode metadata, labels and saved progress; does not resolve episode media files. |
+| [#1253](https://github.com/4gray/iptvnator/pull/1253) | `9885178f3` | Refreshes embedded VOD `series[]` and parent commands from collection snapshots; explicitly excludes lazy Ministra. |
+| [#1364](https://github.com/4gray/iptvnator/pull/1364) | `e197409b1` | Static vs temporary-link decisions and authentication; episode requests still use create_link with the supplied command. |
+| [#1545](https://github.com/4gray/iptvnator/pull/1545) | `249cd38a6` | Title-derived season display, stable tracking/provider coordinates and rejection of stale episode replies across series modes; does not traverse episode files. |
+| [#1825](https://github.com/4gray/iptvnator/pull/1825) | `93c5f1a05` | Playlist ownership and stale handoffs; the reproduction uses one portal and sequential clicks. |
+| [#1984](https://github.com/4gray/iptvnator/pull/1984) | `2e80a0153` | Xtream hidden-category filtering; no Stalker resolver change. |
+
+All these merge commits are ancestors of the audited master. No unfinished
+fix candidate was found that warrants a duplicate PR or a separate branch
+retest. Git history and 600 local/remote/snapshot refs were inspected; the four
+core series/store/playback/download files had 58 distinct blobs and none used
+`episode_id`. Relevant uncommitted Stalker/episode paths in active worktrees
+and available Codex session records yielded no additional implementation.
+This is a bounded search of available evidence, not proof that no unpublished
+work exists elsewhere.
+
+Current behavior and evidence:
+
+- **Lazy VOD inline:** both Alpha and Beta tests pass unchanged: four episode
+  clicks load four other-show URLs, verified by media requests, currentSrc and
+  readyState 4 in macOS arm64 Electron/Video.js with temporary profiles.
+- **Control traversal:** querying files with movie_id + season_id + episode_id
+  and using the returned cmd selects the correct show for each fixture.
+- **External playback:** code inspection shows the same resolveVodPlayback
+  runs before the inline/external split. No real VLC/MPV process was tested.
+- **Downloads:** playbackCommand in stalker-series-download.adapter.ts still
+  builds `/media/file_<originalId>.mpg` for lazy VOD. Its originalId is the
+  provider episode ID; a physical download was not executed in this audit.
+- **ID/cmd:** the lazy mapper preserves provider episode ID separately from
+  generated tracking ID, but drops a possible episode cmd. The movie-file
+  lookup skips commands already containing `/media/file_`, so it cannot repair
+  the synthetic command. Changing tracking IDs cannot fix this case.
+- **Regular/embedded series:** these continue to use originalCmd plus episode
+  number, not the lazy synthetic command. Their existing unit coverage passed;
+  this audit did not independently replay all regular/embedded user flows.
+- **Search:** global Movies search, explicit-category search and Advanced
+  search all find the two shows. The author's search symptom remains unproven.
+
+Local checks: fresh frozen-lockfile install on Node 22.23.2 / pnpm 10.33.0,
+lockfile comparison and Nx discovery; Electron E2E build; 3/3 research E2E;
+592 data-access and 497 feature unit tests; Electron E2E spec type-check,
+changed-file ESLint, agent-guidance validation, release-note validation and
+`git diff --check`. Native embedded MPV was skipped by
+the build because its optional vendored runtime is absent; Video.js was used.
+Full workspace/E2E coverage, packaged applications, Linux/Fedora and actual
+provider accounts were not tested for this diagnostic-only task.
+Logs and Playwright JSON are saved locally in `dist/issue1844-audit-evidence/`.
+
+Next step: a narrow shared lazy-VOD file resolver, preserving provider parent,
+season and episode coordinates separately from progress IDs, used by inline,
+external and download paths. Preserve regular/embedded modes. Cover distinct
+file/episode IDs, usable episode commands, missing/empty/multiple files,
+quality/language selection and stale selection replies. Keep this original
+characterization and add a separate correctness regression; do not change its
+expectations just to make a proposed fix pass. Alternatively, obtain redacted
+provider payloads first to confirm this is also the author's exact failure.
+The issue should not be closed on the current evidence. No production fix,
+release note, push, PR, merge or public comment was made in this audit.
+
+
+### Lazy VOD file-resolution fix (2026-10-25)
+
+The implementation on `codex/issue-1844-fix-audit` adds a shared
+`StalkerEpisodeResolver` before playback and fresh download preparation.
+Provider movie/season/episode coordinates and an optional episode command are
+retained separately from unchanged tracking IDs. File lookup rejects empty or
+unusable replies rather than synthesizing a file command from an episode ID.
+For multiple video variants, provider order determines the first usable
+command; subtitle and explicitly foreign-owner rows are excluded. Pending
+playback rechecks ownership after the added request.
+
+`apps/electron-backend-e2e/src/stalker-lazy-vod.e2e.ts` is the separate
+correctness regression. Its first two tests failed on the unfixed baseline
+with the expected wrong-show URLs. Two additional tests seed old favorites
+and recently-viewed snapshots, including an old synthesized `cmd`, directly
+into persistent storage and restart Electron. They verify that startup
+preserves those snapshots and opening them loads the correct episode file.
+No migration or resaving of those entries is needed. Existing progress IDs
+and the legacy compatibility path are unchanged; the fix cannot infer and
+repair progress already recorded against an incorrectly played video.
+
+```bash
+MOCK_PORT=3394 XTREAM_MOCK_PORT=3395 pnpm nx run electron-backend-e2e:e2e --grep='regression #1844'
+```
+
+The mock still serves identical media bytes through distinct identity-bearing
+URLs. This verifies protocol selection and actual playback loading on the
+local fixture; it does not confirm the issue author's provider payloads,
+search symptom, Fedora behavior, or a real VLC launch. Existing stored
+download URLs/files are not migrated; affected entries must be removed and
+prepared anew from the series. See [Stalker contracts](./stalker-portal.md)
+and [Download Manager](./download-manager.md).
+
+Local validation of the working-tree implementation based on
+`2b5e9648604c8abbc13031df8c28071cb317c1ba`: 605 Stalker data-access, 500
+Stalker feature, and 645 shared-interface tests passed. The focused Electron
+suite passed 4/4 after the unfixed baseline failed the two correctness tests.
+The web/Electron E2E build, web type-check, all three affected spec-program
+type-checks, project/changed-E2E lint, agent-guidance and release-note
+validation passed. A release note was added under
+`.changes/stalker-lazy-vod-episode-files.md`. Logs, the final Playwright JSON,
+source patch and file hashes are retained in `dist/issue1844-fix-evidence/`.
+Full workspace coverage, full E2E, packaged applications, a physical download,
+and real external players were not run; download command/link preparation
+and the shared handoff path have focused unit coverage. At this local
+validation stage, no push, PR, merge, issue closure or public comment had been
+performed.
+
+The first local Codex review identified a custom-protocol compatibility case:
+Ministra returns a raw URL for those file rows, but `create_link` expects the
+actual file ID. The resolver now builds the file command from that returned
+ID for `protocol: custom`, following the reference player's `is_file` branch.
+Regression tests cover string/numeric IDs, invalid/missing IDs and the full
+download preparation path; they failed before this correction.

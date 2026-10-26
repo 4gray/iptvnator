@@ -20,6 +20,7 @@ import {
 import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import {
+    isStalkerSeriesFlag,
     normalizeStalkerEntityId,
     normalizeStalkerEntityIdAsNumber,
 } from '../../stalker-vod.utils';
@@ -178,7 +179,10 @@ export function withStalkerPlayer() {
                         throw new Error('nothing_to_play');
                     }
 
-                    if (shouldResolveMovieFileId(item, cmdToUse)) {
+                    if (
+                        !isStalkerSeriesFlag(item?.is_series) &&
+                        shouldResolveMovieFileId(item, cmdToUse)
+                    ) {
                         const itemId = normalizeStalkerEntityId(item?.id);
                         const fileId = await fetchStalkerMovieFileId(
                             requestDeps,

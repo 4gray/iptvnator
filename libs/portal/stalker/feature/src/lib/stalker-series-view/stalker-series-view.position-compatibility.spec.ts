@@ -10,6 +10,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     StalkerStore,
+    StalkerEpisodeResolver,
     type StalkerVodSource,
     type VodSeriesSeasonVm,
 } from '@iptvnator/portal/stalker/data-access';
@@ -238,6 +239,17 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
             providers: [
+                {
+                    provide: StalkerEpisodeResolver,
+                    useValue: {
+                        resolveCommand: async (
+                            _playlist: unknown,
+                            episode: { originalId?: string }
+                        ) => `/media/file_${episode.originalId}.mpg`,
+                        resolveDownload: async () =>
+                            'https://cdn.example.test/episode.mpg',
+                    },
+                },
                 {
                     provide: StalkerStore,
                     useValue: {

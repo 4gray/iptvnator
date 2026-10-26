@@ -803,5 +803,48 @@ describe('SettingsComponent form', () => {
 
             webFixture.destroy();
         });
+
+        it('saves the EPG display settings from the browser PWA form and keeps the stored XMLTV ones', async () => {
+            fixture.destroy();
+            (window as { electron?: typeof window.electron }).electron =
+                undefined;
+            // Without XMLTV import and data management the form has no
+            // `epgUrl` array or Xtream preference, only the display controls.
+            Object.assign(epgBridge, {
+                supportsImport: false,
+                supportsDataManagement: false,
+            });
+
+            settingsStore._setSettings({
+                epgUrl: ['https://example.com/guide.xml'],
+                preferUploadedEpgOverXtream: true,
+            });
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+
+            const pwaFixture = TestBed.createComponent(SettingsComponent);
+            const pwaComponent = pwaFixture.componentInstance;
+            stubSettingsSideEffects(pwaComponent);
+            const loadSettings = jest.spyOn(pwaComponent.form, 'loadSettings');
+            pwaFixture.detectChanges();
+            expect(loadSettings).toHaveBeenCalledTimes(1);
+            await loadSettings.mock.results[0].value;
+            await pwaFixture.whenStable();
+
+            expect(pwaComponent.settingsForm.get('epgUrl')).toBeNull();
+            pwaComponent.settingsForm.patchValue({ epgOffsetMinutes: 60 });
+            pwaComponent.onSubmit();
+            await pwaFixture.whenStable();
+
+            expect(settingsStore.updateSettings).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    epgOffsetMinutes: 60,
+                    epgUrl: ['https://example.com/guide.xml'],
+                    preferUploadedEpgOverXtream: true,
+                }),
+                { retryEpgCleanup: false }
+            );
+
+            pwaFixture.destroy();
+        });
     });
 });

@@ -1,10 +1,9 @@
-import type { DataService } from '@iptvnator/services';
+import type { StalkerRequestOptions } from './stalker-request-options';
+export interface StalkerAuthTransport { sendIpcEvent<T = unknown>(type: string, payload?: unknown): T | Promise<T> }
 import {
-    extractStalkerAuthFailureBody,
     STALKER_REQUEST,
     STALKER_STB_PROFILE_PARAMS,
 } from '@iptvnator/shared/interfaces';
-import type { createLogger } from '@iptvnator/portal/shared/util';
 import {
     normalizeStalkerPortalIdentity,
     type StalkerPortalIdentity,
@@ -15,164 +14,30 @@ import {
     StalkerPortalError,
 } from './stalker-portal-error';
 
-export interface StalkerHandshakeResponse {
-    js: {
-        token: string;
-        not_valid?: number;
-        random?: string;
-    };
-}
-
-export interface StalkerProfileResponse {
-    js: {
-        id?: string;
-        name?: string;
-        mac?: string;
-        status?: number;
-        msg?: string;
-        block_msg?: string;
-        /** Watchdog cadence in seconds, echoed by the portal (default 120). */
-        watchdog_timeout?: number | string;
-        /** Per-user jitter in seconds so watchdog pings do not align. */
-        timeslot?: number | string;
-        account_info?: {
-            login?: string;
-            expire_date?: number;
-            tariff_plan_name?: string;
-            status?: number;
-        };
-    };
-}
-
-interface StalkerAuthConfirmationResponse {
-    js?: boolean;
-}
-
-export interface StalkerPortalCredentials {
-    username?: string;
-    password?: string;
-}
-
-export interface StalkerAuthenticateOptions {
-    /**
-     * Previously persisted session token. The handshake is idempotent: it is
-     * re-presented, and the portal returns it unchanged while it is still the
-     * MAC's session token.
-     */
-    storedToken?: string;
-    /** Login/password for portals that answer `get_profile` with status 2. */
-    credentials?: StalkerPortalCredentials;
-    /**
-     * Skip the `get_profile` round trip when the stored token came back
-     * unchanged — an unchanged token is already an adopted session.
-     */
-    skipProfileWhenReused?: boolean;
-    /**
-     * Abandons the flow between portal calls.
-     *
-     * This is what a timed-out discovery attempt needs: `get_profile` is the
-     * call that adopts a token for the MAC portal-side, so an abandoned
-     * attempt reaching it AFTER another candidate authenticated would
-     * invalidate that healthy candidate's token. Checking the signal before
-     * each call stops the request from being sent, which is the only thing
-     * that prevents it — a request already on the wire is processed by the
-     * server whether or not the client tears the socket down.
-     */
-    signal?: AbortSignal;
-}
-
-export interface StalkerAuthenticationResult {
-    token: string;
-    accountInfo?: StalkerProfileResponse['js']['account_info'];
-    /**
-     * Raw envelope so callers can apply their own failure checks — endpoint
-     * discovery rejects a candidate whose `get_profile` refuses even though
-     * the handshake succeeded. Absent when the stored token was reused and
-     * no profile was fetched.
-     */
-    profileResponse?: StalkerProfileResponse;
-    /** True when the stored token was accepted and `get_profile` was skipped. */
-    reusedStoredToken?: boolean;
-    watchdogTimeoutSeconds?: number;
-    timeslotSeconds?: number;
-}
-
-interface StalkerHandshakeOutcome {
-    token: string;
-    random: string;
-    /** The portal flagged the presented stored token as no longer valid. */
-    notValid: boolean;
-}
-
-/**
- * SHA1 hash using native Web Crypto API
- * Produces correct 40-character hex hash matching real Stalker clients
- */
-async function sha1(str: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(str);
-    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-/**
- * Generates SHA1 prehash from MAC address
- * This must match what real Stalker clients send
- */
-async function generatePrehash(macAddress: string): Promise<string> {
-    // Use MAC address with colons, uppercase - this is what most clients use
-    const str = macAddress.toUpperCase();
-    return (await sha1(str)).toUpperCase();
-}
-
-/**
- * Generates a random string for metrics
- */
-function generateRandom(): string {
-    const chars = 'abcdef0123456789';
-    let result = '';
-    for (let i = 0; i < 40; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
-
-function toFiniteNumber(value: unknown): number | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value;
-    }
-    if (typeof value === 'string' && value.trim() !== '') {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : undefined;
-    }
-    return undefined;
-}
-
-/** Raised when a caller abandoned the flow between portal calls. */
-export class StalkerAuthAbortedError extends Error {
-    constructor() {
-        super('Stalker authentication was aborted');
-        this.name = 'StalkerAuthAbortedError';
-    }
-}
-
-function assertNotAborted(signal: AbortSignal | undefined): void {
-    if (signal?.aborted) {
-        throw new StalkerAuthAbortedError();
-    }
-}
-
-/**
- * Throws when a response is one of the portal's plain-text auth-failure
- * bodies (already classified by the transport, or still raw on legacy paths).
- */
-function assertNotAuthFailure(response: unknown): void {
-    const failureBody = extractStalkerAuthFailureBody(response);
-    if (failureBody) {
-        throw new StalkerPortalError('auth-failed', failureBody, failureBody);
-    }
-}
+import type {
+    StalkerHandshakeResponse,
+    StalkerProfileResponse,
+    StalkerAuthConfirmationResponse,
+    StalkerPortalCredentials,
+    StalkerAuthenticateOptions,
+    StalkerAuthenticationResult,
+    StalkerHandshakeOutcome,
+} from './stalker-auth.types';
+export type {
+    StalkerHandshakeResponse,
+    StalkerProfileResponse,
+    StalkerPortalCredentials,
+    StalkerAuthenticateOptions,
+    StalkerAuthenticationResult,
+} from './stalker-auth.types';
+export { StalkerAuthAbortedError } from './stalker-auth.utils';
+import {
+    generatePrehash,
+    generateRandom,
+    toFiniteNumber,
+    assertNotAborted,
+    assertNotAuthFailure,
+} from './stalker-auth.utils';
 
 /**
  * Raw Stalker authentication requests plus the documented login flow.
@@ -184,8 +49,8 @@ function assertNotAuthFailure(response: unknown): void {
  */
 export class StalkerAuthApi {
     constructor(
-        private readonly dataService: DataService,
-        private readonly logger: ReturnType<typeof createLogger>
+        private readonly dataService: StalkerAuthTransport,
+        private readonly logger: { error(...args: unknown[]): void }
     ) {}
 
     async performHandshake(
@@ -193,7 +58,8 @@ export class StalkerAuthApi {
         macAddress: string,
         identity: StalkerPortalIdentity = {},
         storedToken?: string,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        options: StalkerRequestOptions = {}
     ): Promise<StalkerHandshakeOutcome> {
         const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
         const prehash = await generatePrehash(macAddress);
@@ -220,6 +86,7 @@ export class StalkerAuthApi {
                         url: portalUrl,
                         macAddress,
                         params,
+                        ...(options.silent ? { silent: true } : {}),
                         ...(normalizedIdentity.serialNumber
                             ? { serialNumber: normalizedIdentity.serialNumber }
                             : {}),
@@ -255,7 +122,7 @@ export class StalkerAuthApi {
         token: string,
         identity: StalkerPortalIdentity,
         handshakeRandom: string,
-        options: {
+        options: StalkerRequestOptions & {
             authSecondStep?: boolean;
             notValidToken?: boolean;
             signal?: AbortSignal;
@@ -318,6 +185,7 @@ export class StalkerAuthApi {
                         url: portalUrl,
                         macAddress,
                         params,
+                        ...(options.silent ? { silent: true } : {}),
                         token,
                         ...(normalizedIdentity.serialNumber
                             ? { serialNumber: normalizedIdentity.serialNumber }
@@ -343,7 +211,8 @@ export class StalkerAuthApi {
         token: string,
         credentials: StalkerPortalCredentials,
         identity: StalkerPortalIdentity = {},
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        options: StalkerRequestOptions = {}
     ): Promise<boolean> {
         const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
         const params: Record<string, string> = {
@@ -369,6 +238,7 @@ export class StalkerAuthApi {
                         url: portalUrl,
                         macAddress,
                         params,
+                        ...(options.silent ? { silent: true } : {}),
                         token,
                         ...(normalizedIdentity.serialNumber
                             ? { serialNumber: normalizedIdentity.serialNumber }
@@ -405,7 +275,8 @@ export class StalkerAuthApi {
             macAddress,
             normalizedIdentity,
             options.storedToken,
-            options.signal
+            options.signal,
+            options
         );
 
         // An unchanged stored token is already an adopted session — the
@@ -436,6 +307,7 @@ export class StalkerAuthApi {
                 authSecondStep: false,
                 notValidToken: handshake.notValid,
                 signal: options.signal,
+                ...(options.silent ? { silent: true } : {}),
             }
         );
 
@@ -504,7 +376,8 @@ export class StalkerAuthApi {
                 handshake.token,
                 { username, password },
                 identity,
-                options.signal
+                options.signal,
+                options
             );
             if (!accepted) {
                 // `do_auth` answers a bare `{js: false}`, so the only text
@@ -524,6 +397,7 @@ export class StalkerAuthApi {
                     authSecondStep: true,
                     notValidToken: handshake.notValid,
                     signal: options.signal,
+                    ...(options.silent ? { silent: true } : {}),
                 }
             );
             settled = retried;
@@ -533,10 +407,7 @@ export class StalkerAuthApi {
             }
         }
 
-        const portalText = combineStalkerPortalMessages(
-            js?.msg,
-            js?.block_msg
-        );
+        const portalText = combineStalkerPortalMessages(js?.msg, js?.block_msg);
 
         if (toFiniteNumber(js?.status) === 1 || portalText) {
             this.logger.error('Profile error:', portalText ?? 'status 1');

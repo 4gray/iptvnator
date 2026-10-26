@@ -10,7 +10,7 @@
             <div class="channels-loading-state__list">
                 <app-channel-list-skeleton
                     [count]="9"
-                    [showEpg]="supportsEpg"
+                    [showEpg]="supportsProviderEpg"
                     [actionCount]="1"
                 />
             </div>
@@ -35,16 +35,16 @@
                     xtreamStore.selectedItem()?.xtream_id === item.xtream_id
                 "
                 [epgProgram]="
-                    supportsEpg
+                    supportsProviderEpg
                         ? (epgPrograms.get(item.xtream_id) ?? null)
                         : null
                 "
                 [progressPercentage]="
-                    supportsEpg
+                    supportsProviderEpg
                         ? (currentProgramsProgress.get(item.xtream_id) ?? 0)
                         : 0
                 "
-                [showEpg]="supportsEpg"
+                [showEpg]="supportsProviderEpg"
                 [catchupAvailable]="isCatchupAvailable(item)"
                 [catchupDays]="catchupDays(item)"
                 [showFavoriteButton]="true"

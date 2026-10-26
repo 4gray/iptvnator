@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import type { Page } from '@playwright/test';
 import {
@@ -46,16 +46,6 @@ async function useDownloadsFolder(
     await app.mainWindow.getByRole('button', { name: 'Change Folder' }).click();
 }
 
-async function interruptAfterPrefixWritten(
-    server: Awaited<ReturnType<typeof createInterruptedRangeServer>>,
-    partialPath: string
-): Promise<void> {
-    await expect
-        .poll(() => statSync(partialPath, { throwIfNoEntry: false })?.size ?? 0)
-        .toBe(server.interruptedBytes);
-    server.interrupt();
-}
-
 test.describe('Electron download reliability', () => {
     test('@downloads @electron reconnects a network-interrupted download and resumes it with Range and If-Range', async ({
         dataDir,
@@ -90,10 +80,13 @@ test.describe('Electron download reliability', () => {
                 downloadFolder: downloadsDir,
             });
 
-            await interruptAfterPrefixWritten(
-                rangeServer,
-                join(downloadsDir, 'E2E Reset Movie.mp4.part')
-            );
+            const partialPath = join(downloadsDir, 'E2E Reset Movie.mp4.part');
+            await expect
+                .poll(() =>
+                    existsSync(partialPath) ? statSync(partialPath).size : 0
+                )
+                .toBe(rangeServer.interruptedBytes);
+            rangeServer.interrupt();
 
             // The interruption never surfaces as a failure: the runtime
             // reconnects on its own and finishes the transfer.
@@ -153,10 +146,16 @@ test.describe('Electron download reliability', () => {
                 downloadFolder: downloadsDir,
             });
 
-            await interruptAfterPrefixWritten(
-                rangeServer,
-                join(downloadsDir, 'E2E No Validator Movie.mp4.part')
+            const partialPath = join(
+                downloadsDir,
+                'E2E No Validator Movie.mp4.part'
             );
+            await expect
+                .poll(() =>
+                    existsSync(partialPath) ? statSync(partialPath).size : 0
+                )
+                .toBe(rangeServer.interruptedBytes);
+            rangeServer.interrupt();
 
             await expect(
                 app.mainWindow.getByTestId(

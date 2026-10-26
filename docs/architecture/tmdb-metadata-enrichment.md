@@ -40,11 +40,24 @@ Related:
 
 ## Module Layout
 
-The service layer lives in `libs/services/src/lib/tmdb/` (scope:shared) so
-both portal libs and — in later phases — the M3U player can consume it
-without creating dependency cycles (`portal/shared/data-access` already
-depends on `portal/xtream/data-access`, so it cannot host code the Xtream
-store imports):
+Framework-free code lives in `libs/shared/tmdb/` (`@iptvnator/shared/tmdb`,
+`scope:shared`, `domain:tmdb`, `type:data-access`). It owns the API client,
+ID resolver, movie/TV metadata orchestration and the pure configuration,
+matching, credits, cache-payload and language-fallback helpers listed below.
+`TmdbApiClient` accepts optional request cancellation; `TmdbMetadataClient`
+accepts runtime/cache interfaces and a sanitized failure callback. A bounded
+`TmdbMemoryCache` serves the TV runtime. Pure helper tests live with this core.
+
+The Angular service layer remains in `libs/services/src/lib/tmdb/`:
+`TmdbApiService`, `TmdbIdResolverService` and `TmdbEnrichmentService` wrap the
+shared classes with dependency injection; old helper paths explicitly re-export
+the shared public API. Desktop SQLite/PWA cache, runtime settings, provider
+merges and person/season/trending/discovery services remain Angular-owned.
+The existing portal API and persisted cache keys are unchanged. TV integration
+and its narrower feature scope are specified in [TV architecture](tv-application.md).
+
+The table covers both the shared core and Angular facade (pure helper filenames
+refer to the shared core; `*.service.ts` and provider merges to the facade):
 
 | File                         | Responsibility                                                                                                                               |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -642,7 +655,7 @@ metadata access for everyone using it. TMDB also applies
 [service rate limits](https://developer.themoviedb.org/docs/rate-limiting),
 so a personal key does not remove the need to respect throttling.
 
-`DEFAULT_TMDB_API_KEY` in `libs/services/src/lib/tmdb/tmdb-config.ts` is
+`DEFAULT_TMDB_API_KEY` in `libs/shared/tmdb/src/lib/tmdb-config.ts` is
 empty by default. The build tooling still supports optional injection:
 `tools/tmdb/inject-tmdb-key.mjs` reads `TMDB_API_KEY` during the "Inject
 TMDB API key" step in `.github/workflows/build-and-make.yaml`. With no
@@ -659,7 +672,9 @@ on. This applies to release, local development, and fork builds alike.
 `pt-PT` requests Portuguese metadata for Portugal; `pt-BR` requests it for
 Brazil. Legacy saved `pt` preferences normalize to `pt-BR`, matching the
 existing Brazilian UI. Cache keys already include the TMDB language, so the
-two regional payloads remain separate without deleting cached data.
+two regional payloads remain separate without deleting cached data. The
+regional mapping and legacy normalization live in `@iptvnator/shared/tmdb`,
+shared by the Angular facade and TV runtime.
 
 ## Failure Behavior
 

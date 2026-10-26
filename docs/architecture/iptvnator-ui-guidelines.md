@@ -227,10 +227,11 @@ in the overlay chunk. Everything else is lazy by these rules:
   "focus was inside" in a microtask after such a `focusout`, which the close
   destroys the panel before. Both have specs that detach the view first.
 
-The app theme is the `.dark-theme` class that `SettingsService` puts on
-`<body>`; a "System" choice resolves the OS preference there and nowhere
-else. Component styles never use a `prefers-color-scheme` query, which
-follows the OS: with the app set to dark on a light OS it paints light colours
+The app theme is the exclusive `.dark-theme` or `.light-theme` class that
+`SettingsService` puts on `<body>`; a "System" choice resolves the OS
+preference there and nowhere else. Component styles never use a
+`prefers-color-scheme` query, which follows the OS: with the app set to dark
+on a light OS it paints light colours
 into the dark theme. Read `--app-*` tokens, which switch with the class, or
 use `:host-context(.dark-theme)` for a rule that only one theme needs. The
 class is on `<body>`, not the root, so `:root:not(.dark-theme)` always
@@ -1057,7 +1058,9 @@ If the label is too long for the rail, shorten the label key instead of shrinkin
 The action row never wraps on a desktop window: the primary, the Trailer
 button, then the 44px icon buttons and the "…" menu. Season and series
 actions (mark watched, download season, reset progress) live in that menu
-and drive the season container's presenters.
+and drive the season container's presenters. Collection details also keep
+“View in portal” in that menu, in a navigation group before the provider
+actions, regardless of how many hero buttons are visible.
 
 Every section below the hero (Episodes, Cast & crew, Similar) uses
 `app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular

@@ -13,6 +13,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
@@ -83,6 +84,10 @@ describe('StreamResolverService', () => {
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: epgBridge,
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsProviderEpg: true },
                 },
                 { provide: StalkerSessionService, useValue: stalkerSession },
             ],
@@ -306,40 +311,6 @@ describe('StreamResolverService', () => {
         dataService,
     }));
 
-    it('skips portal EPG lookups in browser/PWA mode', async () => {
-        window.electron = undefined as unknown as typeof window.electron;
-        epgBridge.supportsProgramLookup = false;
-        playlistsService.getPlaylistById.mockReturnValue(
-            of({
-                _id: 'xtream-1',
-                serverUrl: 'https://xtream.example.com',
-                username: 'user',
-                password: 'pass',
-            } satisfies Partial<Playlist>)
-        );
-        xtreamUrl.constructLiveUrl.mockReturnValue(
-            'https://xtream.example.com/live/1'
-        );
-        const item = {
-            uid: 'xtream::xtream-1::1',
-            name: 'Xtream Live',
-            contentType: 'live',
-            sourceType: 'xtream',
-            playlistId: 'xtream-1',
-            playlistName: 'Xtream',
-            xtreamId: 1,
-            logo: 'xtream.png',
-        } satisfies UnifiedCollectionItem;
-
-        const detail = await service.resolveLiveDetail(item);
-        const epgMap = await service.loadEpgForItems([item]);
-
-        expect(detail.epgItems).toEqual([]);
-        expect(epgMap.size).toBe(0);
-        expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
-        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
-    });
-
     it('reuses cached empty Xtream preview EPG results instead of refetching immediately', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({
@@ -519,7 +490,9 @@ describe('StreamResolverService', () => {
         );
         // The mapping resolved via XMLTV, so no provider EPG call is needed.
         expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
-        expect(epgMap.get('Mapped Channel')).toMatchObject({
+        expect(
+            epgMap.get(JSON.stringify(['xtream', 'xtream-1', '7']))
+        ).toMatchObject({
             title: 'Mapped Program',
         });
     });
@@ -563,7 +536,9 @@ describe('StreamResolverService', () => {
         ]);
 
         expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledTimes(1);
-        expect(epgMap.get('77')).toMatchObject({
+        expect(
+            epgMap.get(JSON.stringify(['stalker', 'stalker-1', '77']))
+        ).toMatchObject({
             title: 'Mapped Stalker Program',
         });
         // The mapped channel resolves from uploaded XMLTV — the portal
@@ -609,7 +584,9 @@ describe('StreamResolverService', () => {
             } satisfies UnifiedCollectionItem,
         ]);
 
-        expect(epgMap.get('77')).toMatchObject({
+        expect(
+            epgMap.get(JSON.stringify(['stalker', 'stalker-1', '77']))
+        ).toMatchObject({
             title: 'Stalker Live',
             channel: '77',
         });

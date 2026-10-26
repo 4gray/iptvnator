@@ -371,7 +371,7 @@ export class StalkerLiveStreamLayoutComponent
     );
     readonly contextMenuChannel = signal<StalkerItvChannel | null>(null);
     readonly isElectron = this.runtime.isElectron;
-    readonly supportsEpg = this.runtime.supportsEpg;
+    readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
     readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
@@ -763,7 +763,7 @@ export class StalkerLiveStreamLayoutComponent
                 setTimeout(() => this.checkIfNeedsMoreContent(), 100);
             }
 
-            if (this.isRadioMode() || !this.supportsEpg) {
+            if (this.isRadioMode() || !this.supportsProviderEpg) {
                 this.clearEpgPreviewMaps();
                 // Supersede the queue too — an abandoned ITV view must not
                 // keep spending portal requests on rows that are gone.
@@ -812,7 +812,7 @@ export class StalkerLiveStreamLayoutComponent
             const playlistId = this.stalkerStore.currentPlaylist()?._id;
             if (
                 this.isRadioMode() ||
-                !this.supportsEpg ||
+                !this.supportsProviderEpg ||
                 !hasChannels ||
                 !playlistId
             ) {
@@ -1018,7 +1018,7 @@ export class StalkerLiveStreamLayoutComponent
                 this.stalkerStore.setSelectedItem(item);
             }
 
-            if (this.supportsEpg) {
+            if (this.supportsProviderEpg) {
                 void this.loadEpgForChannel(item);
             }
 
@@ -1349,7 +1349,7 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     private async loadEpgForChannel(item: StalkerItvChannel) {
-        if (!this.supportsEpg) {
+        if (!this.supportsProviderEpg) {
             this.fallbackEpgPrograms.set(null);
             this.isLoadingFallbackEpg.set(false);
             this.clearEpgPreviewMaps();
@@ -1503,7 +1503,7 @@ export class StalkerLiveStreamLayoutComponent
         channelId: string,
         programs: EpgProgram[]
     ): void {
-        if (this.isRadioMode() || !this.supportsEpg) {
+        if (this.isRadioMode() || !this.supportsProviderEpg) {
             return;
         }
 
@@ -1698,7 +1698,7 @@ export class StalkerLiveStreamLayoutComponent
         }
         this.epgPreviewRefreshTimer = setTimeout(() => {
             this.epgPreviewRefreshTimer = null;
-            if (this.isRadioMode() || !this.supportsEpg) {
+            if (this.isRadioMode() || !this.supportsProviderEpg) {
                 return;
             }
             this.syncBulkEpgPreviews(this.visibleChannels());

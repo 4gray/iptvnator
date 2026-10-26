@@ -32,6 +32,7 @@ describe('UnifiedLiveTabComponent remote control', () => {
     let updateRemoteControlStatus: jest.Mock;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
+        loadEpgItems: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
         loadEpgForItems: jest.Mock;
     };
@@ -119,6 +120,14 @@ describe('UnifiedLiveTabComponent remote control', () => {
 
         openStreamOnDoubleClick = signal(false);
         streamResolver = {
+            loadEpgItems: jest.fn(
+                async () =>
+                    (
+                        await streamResolver.resolveLiveDetail.mock.results.at(
+                            -1
+                        )?.value
+                    )?.epgItems ?? []
+            ),
             resolveLiveDetail: jest.fn().mockImplementation(async () => ({
                 epgMode: 'portal',
                 playback: {

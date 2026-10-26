@@ -116,3 +116,5 @@ export * from './lib/portal-request-failure.util';
 export * from './lib/source-health';
 export * from './lib/source-reachability';
 export * from './lib/server-storage.contract';
+
+export { sourceIdentity } from './lib/playlist-source-identity.util';

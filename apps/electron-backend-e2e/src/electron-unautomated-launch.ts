@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { dirname, sep } from 'node:path';
+import { writeFileSync } from 'node:fs';
+import { dirname, join, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
     buildElectronLaunchArgs,
@@ -19,6 +20,8 @@ import { terminateElectronProcess } from './electron-process-termination';
  * not emulate anything, so this launch behaves like a user's.
  */
 export interface UnautomatedElectronApp {
+    /** Visibility reported by the main window's native show/hide events. */
+    isWindowNativelyVisible(): Promise<boolean>;
     /** Evaluates an async function body in the main process with `electron`. */
     evaluateInMain<T>(body: string): Promise<T>;
     /** Evaluates an expression in the main window's page. */
@@ -207,11 +210,32 @@ async function stopElectron(
 export async function launchUnautomatedElectronApp(
     dataDir: string
 ): Promise<UnautomatedElectronApp> {
+    // On macOS show/hide follow Cocoa's occlusion notifications, which can
+    // arrive after isVisible() and native focus have become true. Observe
+    // from window creation so an early show cannot be missed while CDP connects.
+    const bootstrap = join(dataDir, 'native-window-visibility.cjs');
+    writeFileSync(
+        bootstrap,
+        `const { app } = require('electron');
+const visibleWindows = globalThis.__e2eNativeVisibleWindows = new Set();
+app.on('browser-window-created', (_event, window) => {
+    const id = window.id;
+    window.on('show', () => visibleWindows.add(id));
+    window.on('hide', () => visibleWindows.delete(id));
+    window.on('closed', () => visibleWindows.delete(id));
+});
+`
+    );
     // In a Node context the `electron` package resolves to its binary path.
     const electronBinaryPath = require('electron') as unknown as string;
     const child = spawn(
         electronBinaryPath,
-        buildElectronLaunchArgs(['--remote-debugging-port=0', '--inspect=0']),
+        buildElectronLaunchArgs([
+            '--remote-debugging-port=0',
+            '--inspect=0',
+            '-r',
+            bootstrap,
+        ]),
         {
             env: {
                 ...process.env,
@@ -230,6 +254,11 @@ export async function launchUnautomatedElectronApp(
         const main = await openCdpSocket(inspector);
         const page = await openCdpSocket(await findMainPage(devtools));
         return {
+            isWindowNativelyVisible: () =>
+                evaluate<boolean>(
+                    main,
+                    `globalThis.__e2eNativeVisibleWindows.has(${MAIN_PROCESS_ELECTRON}.BrowserWindow.getAllWindows()[0]?.id)`
+                ),
             evaluateInMain: (body) =>
                 evaluate(
                     main,

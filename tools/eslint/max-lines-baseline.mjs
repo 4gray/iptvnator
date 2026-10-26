@@ -38,7 +38,6 @@ export const maxLinesBaseline = [
     'libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts',
     'libs/portal/xtream/data-access/src/lib/data-sources/electron-xtream-data-source.ts',
     'libs/portal/xtream/data-access/src/lib/data-sources/pwa-xtream-data-source.ts',
-    'libs/portal/xtream/data-access/src/lib/services/xtream-api.service.ts',
     'libs/portal/xtream/data-access/src/lib/services/xtream-url.service.ts',
     'libs/portal/xtream/data-access/src/lib/stores/features/with-content.feature.ts',
     'libs/portal/xtream/data-access/src/lib/stores/features/with-selection.feature.ts',

@@ -1,4 +1,4 @@
-import { createServer, type ServerResponse } from 'http';
+import { createServer } from 'http';
 import type { AddressInfo } from 'net';
 import type { Page } from '@playwright/test';
 import { expect, type LaunchedElectronApp } from './electron-test-fixtures';
@@ -179,16 +179,17 @@ export async function createThrottledRangeServer(
 }
 
 /**
- * Holds the first response after a valid prefix until interrupt() is called,
- * then serves the remainder to a Range retry without a clean EOF. The caller
- * must first observe the prefix on disk: a server write callback does not
- * prove that the client has received or saved every byte.
+ * Holds the first full response after writing a valid prefix until the caller
+ * interrupts it, then serves the remainder to a Range retry. This matches a
+ * provider/proxy connection drop without manufacturing a clean EOF.
  */
 export async function createInterruptedRangeServer(): Promise<InterruptedRangeServer> {
     const payload = Buffer.alloc(64 * 1024, 9);
     const interruptedBytes = 16 * 1024;
     const requests: RangeServerRequest[] = [];
-    let initialResponse: ServerResponse | undefined;
+    let interruptResponse: () => void = () => {
+        throw new Error('The initial download response has not started.');
+    };
 
     const server = createServer((req, res) => {
         const range = req.headers.range;
@@ -217,8 +218,12 @@ export async function createInterruptedRangeServer(): Promise<InterruptedRangeSe
             'Content-Type': 'video/mp4',
             ETag: INTERRUPTED_RANGE_SERVER_ETAG,
         });
-        initialResponse = res;
         res.write(payload.subarray(0, interruptedBytes));
+        // The caller waits for this prefix on disk before resetting the socket;
+        // a write callback only proves transport buffering, not persisted bytes.
+        interruptResponse = () => {
+            res.destroy();
+        };
     });
 
     await new Promise<void>((resolve) =>
@@ -227,12 +232,9 @@ export async function createInterruptedRangeServer(): Promise<InterruptedRangeSe
     const { port } = server.address() as AddressInfo;
 
     return {
+        interrupt: () => interruptResponse(),
         close: () =>
             new Promise<void>((resolve) => server.close(() => resolve())),
-        interrupt: () => {
-            if (!initialResponse) throw new Error('No response to interrupt.');
-            initialResponse.destroy();
-        },
         interruptedBytes,
         payload,
         requests,
@@ -241,7 +243,7 @@ export async function createInterruptedRangeServer(): Promise<InterruptedRangeSe
 }
 
 /**
- * Interrupts the first response like createInterruptedRangeServer but sends
+ * Holds the first response like createInterruptedRangeServer but sends
  * no ETag/Last-Modified, and drops far enough in that the partial exceeds the
  * 256 KiB overlap-verification window. The runtime must resume by rewinding
  * the Range request and verifying the overlap instead of restarting from
@@ -254,7 +256,9 @@ export async function createInterruptedNoValidatorServer(): Promise<InterruptedR
     }
     const interruptedBytes = 512 * 1024;
     const requests: RangeServerRequest[] = [];
-    let initialResponse: ServerResponse | undefined;
+    let interruptResponse: () => void = () => {
+        throw new Error('The initial download response has not started.');
+    };
 
     const server = createServer((req, res) => {
         const range = req.headers.range;
@@ -281,8 +285,12 @@ export async function createInterruptedNoValidatorServer(): Promise<InterruptedR
             'Content-Length': payload.length,
             'Content-Type': 'video/mp4',
         });
-        initialResponse = res;
         res.write(payload.subarray(0, interruptedBytes));
+        // The caller waits for this prefix on disk before resetting the socket;
+        // a write callback only proves transport buffering, not persisted bytes.
+        interruptResponse = () => {
+            res.destroy();
+        };
     });
 
     await new Promise<void>((resolve) =>
@@ -291,12 +299,9 @@ export async function createInterruptedNoValidatorServer(): Promise<InterruptedR
     const { port } = server.address() as AddressInfo;
 
     return {
+        interrupt: () => interruptResponse(),
         close: () =>
             new Promise<void>((resolve) => server.close(() => resolve())),
-        interrupt: () => {
-            if (!initialResponse) throw new Error('No response to interrupt.');
-            initialResponse.destroy();
-        },
         interruptedBytes,
         payload,
         requests,

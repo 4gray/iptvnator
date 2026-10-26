@@ -1,3 +1,4 @@
+import { applyTheme } from './theme-contrast';
 import { Page } from '@playwright/test';
 import {
     addStalkerPortal,
@@ -397,7 +398,7 @@ test.describe('Electron Recently Viewed', () => {
         }
     });
 
-    test('opens Xtream recent movies and series inline and preserves history through the movie portal handoff', async ({
+    test('opens Xtream recent movies and series inline and preserves history through portal handoffs', async ({
         dataDir,
         request,
     }) => {
@@ -462,11 +463,27 @@ test.describe('Electron Recently Viewed', () => {
                 playlistTitle: portalTitle,
             });
 
-            const viewInPortal = app.mainWindow.getByRole('button', {
-                name: 'View in portal',
+            await expect(
+                app.mainWindow.locator('app-view-in-portal-action')
+            ).toHaveCount(0);
+            await app.mainWindow
+                .locator('[data-testid="vod-more-menu"]')
+                .click();
+            const viewInPortal = app.mainWindow.getByRole('menuitem', {
+                name: `Open in ${portalTitle}`,
                 exact: true,
             });
-            await viewInPortal.click();
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(app.mainWindow, theme);
+                await expect(viewInPortal).toBeVisible();
+                await test.info().attach(`portal-menu-${theme}`, {
+                    body: await app.mainWindow.screenshot(),
+                    contentType: 'image/png',
+                });
+            }
+            await viewInPortal.press('Home');
+            await expect(viewInPortal).toBeFocused();
+            await viewInPortal.press('Enter');
             await expect
                 .poll(() => new URL(app.mainWindow.url()).pathname)
                 .toBe(moviePath);
@@ -507,6 +524,27 @@ test.describe('Electron Recently Viewed', () => {
             await contentCardByTitle(app.mainWindow, seriesTitle)
                 .first()
                 .click();
+            await expectInlineCollectionDetail(app.mainWindow, {
+                pathname: /\/workspace\/global-recent$/,
+                title: seriesTitle,
+                playlistTitle: portalTitle,
+            });
+            await app.mainWindow
+                .locator('[data-testid="series-more-menu"]')
+                .click();
+            await app.mainWindow
+                .getByRole('menuitem', {
+                    name: `Open in ${portalTitle}`,
+                    exact: true,
+                })
+                .click();
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toMatch(/\/series\/[^/]+\/[^/]+$/);
+            await expect(
+                app.mainWindow.locator('app-content-hero')
+            ).toContainText(seriesTitle);
+            await goBackFromDetail(app.mainWindow);
             await expectInlineCollectionDetail(app.mainWindow, {
                 pathname: /\/workspace\/global-recent$/,
                 title: seriesTitle,

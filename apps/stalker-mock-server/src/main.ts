@@ -1,3 +1,4 @@
+import { installTvMinistraMedia } from './app/handlers/tv-ministra-fixture.js';
 import http from 'http';
 import { join } from 'node:path';
 import express, { Request, Response } from 'express';
@@ -274,6 +275,13 @@ const GATED_STREAM_FIXTURES: Record<string, string> = {
     ),
 };
 
+app.get('/stream/issue1844/:show/:episode.mp4', (_req, res) => {
+    res.sendFile(GATED_STREAM_FIXTURES['video.mp4'], {
+        dotfiles: 'allow',
+        headers: { 'Content-Type': 'video/mp4' },
+    });
+});
+
 app.get('/stream/gated/:file', (req: Request, res: Response) => {
     const fixture = GATED_STREAM_FIXTURES[req.params['file'] ?? ''];
     if (!fixture) {
@@ -302,6 +310,8 @@ app.get('/stream/gated/:file', (req: Request, res: Response) => {
         headers: { 'Content-Type': 'video/mp4' },
     });
 });
+
+installTvMinistraMedia(app);
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {

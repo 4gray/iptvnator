@@ -1,3 +1,4 @@
+import { mountTvSetup } from './tv-setup/pairing-router';
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
 import { createHash } from 'node:crypto';
@@ -139,6 +140,8 @@ export function createWebBackendApp(
             `window.__IPTVNATOR_CONFIG__ = Object.assign({}, window.__IPTVNATOR_CONFIG__, ${config});\n`
         );
     });
+
+    mountTvSetup(app, corsMiddleware, options.accessToken ?? null);
 
     mountServerStorage(app, {
         corsMiddleware,

@@ -242,22 +242,18 @@ test('@stalker minimal scenario — correct item counts', async ({ page }) => {
     expect(count).toBeGreaterThanOrEqual(2);
 });
 
-test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
+test('@stalker @epg PWA shows provider EPG for ITV channels', async ({
+    page,
+}) => {
     await addStalkerPortal(page);
 
     const epgInfoRequests: string[] = [];
-    const shortEpgRequests: string[] = [];
     page.on('request', (request) => {
-        const url = request.url();
-        if (url.includes('action=get_epg_info')) {
-            epgInfoRequests.push(url);
-        }
-        if (url.includes('action=get_short_epg')) {
-            shortEpgRequests.push(url);
+        if (request.url().includes('action=get_epg_info')) {
+            epgInfoRequests.push(request.url());
         }
     });
 
-    // Navigate to ITV tab
     await page.getByRole('link', { name: /live|itv/i }).click();
     await page.waitForURL(/stalker.*itv/);
 
@@ -266,20 +262,27 @@ test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
     await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
     await categories.nth(1).click();
 
-    // Wait for channels to appear
+    // The bulk guide comes through the backend proxy and fills the row line;
+    // the mock titles every programme "<channel name>: …".
     const channels = page.locator('[data-test-id="channel-item"]');
     await expect(channels.first()).toBeVisible({ timeout: 20_000 });
-    expect(shortEpgRequests).toHaveLength(0);
+    const channelName = (
+        await channels.first().locator('.channel-name').innerText()
+    ).trim();
+    await expect(channels.first().locator('.epg-title')).toContainText(
+        `${channelName}:`,
+        { timeout: 20_000 }
+    );
+    expect(epgInfoRequests.length).toBeGreaterThan(0);
 
-    // Click a channel — PWA/browser playback must not expose Electron EPG UI.
     await channels.first().click();
     await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
     await expect(page.locator('app-web-player-view')).toBeVisible({
         timeout: 20_000,
     });
-    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
-    expect(epgInfoRequests).toHaveLength(0);
-    expect(shortEpgRequests).toHaveLength(0);
+    await expect(
+        page.locator('app-epg-timeline .epg-timeline__block.is-now')
+    ).toContainText(`${channelName}:`, { timeout: 20_000 });
 });
 
 test('@stalker ITV favorite opens inside its portal from global favorites', async ({
@@ -424,19 +427,15 @@ test('@stalker radio playback survives a category switch', async ({ page }) => {
     await expect(audioPlayer).toBeVisible();
 });
 
-test('@stalker PWA skips bulk EPG across channel switches', async ({
+test('@stalker @epg PWA reuses the bulk guide across channel switches', async ({
     page,
 }) => {
     await addStalkerPortal(page);
 
     const epgInfoRequests: string[] = [];
-    const shortEpgRequests: string[] = [];
     page.on('request', (request) => {
         if (request.url().includes('action=get_epg_info')) {
             epgInfoRequests.push(request.url());
-        }
-        if (request.url().includes('action=get_short_epg')) {
-            shortEpgRequests.push(request.url());
         }
     });
 
@@ -449,17 +448,21 @@ test('@stalker PWA skips bulk EPG across channel switches', async ({
 
     const channels = page.locator('[data-test-id="channel-item"]');
     await expect(channels.nth(1)).toBeVisible({ timeout: 20_000 });
-    expect(shortEpgRequests).toHaveLength(0);
 
     await channels.first().click();
     await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
-    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
+    await expect(page.locator('app-epg-timeline')).toBeVisible({
+        timeout: 20_000,
+    });
 
     await channels.nth(1).click();
     await expect(channels.nth(1)).toHaveClass(/active/, { timeout: 20_000 });
-    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
-    expect(epgInfoRequests).toHaveLength(0);
-    expect(shortEpgRequests).toHaveLength(0);
+    await expect(page.locator('app-epg-timeline')).toBeVisible({
+        timeout: 20_000,
+    });
+
+    // Fetched once per playlist session, never per channel switch.
+    expect(epgInfoRequests).toHaveLength(1);
 });
 
 test('@stalker ITV full channel list loads via get_all_channels and search covers it', async ({
@@ -927,6 +930,9 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     const detailUrl = page.url();
     await page.keyboard.press('Escape');
     await expect(seriesToggle).toBeHidden();
+    // CDK removes its closing backdrop after the panel disappears. Until
+    // then the detail shell correctly leaves Escape to the overlay.
+    await expect(page.locator('.cdk-overlay-backdrop')).toHaveCount(0);
     await page.locator('[data-testid="series-more-menu"]').focus();
     await page.keyboard.press('Escape');
     await expect(page.locator('app-portal-detail-shell')).toHaveCount(0);
@@ -1397,4 +1403,35 @@ test.describe('@stalker full portal authentication', () => {
             'Authorization failed.'
         );
     });
+});
+
+test('@stalker @epg PWA keeps failed background guides off the snackbar', async ({
+    page,
+}) => {
+    let rejectedGuides = 0;
+    await page.route('**/localhost:3000/stalker**', async (route) => {
+        const action = new URL(route.request().url()).searchParams.get(
+            'action'
+        );
+        if (action === 'get_epg_info' || action === 'get_short_epg') {
+            rejectedGuides++;
+            await route.fulfill({
+                status: 500,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Guide unavailable' }),
+            });
+        } else await route.fallback();
+    });
+    await addStalkerPortal(page);
+    await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await page.locator('.category-item').nth(1).click();
+    const channels = page.locator(
+        'app-stalker-live-stream-layout [data-test-id="channel-item"]'
+    );
+    await expect(channels.first()).toBeVisible();
+    await expect.poll(() => rejectedGuides).toBeGreaterThan(1);
+    await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
+    await channels.first().click();
+    await expect(page.locator('app-web-player-view')).toBeVisible();
+    await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
 });
