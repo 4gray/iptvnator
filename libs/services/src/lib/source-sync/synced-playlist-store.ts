@@ -78,13 +78,20 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
         if (!this.ready) throw new Error('SOURCE_SYNC.OFFLINE');
         return this.local.dbGetAppPlaylists();
     };
-    dbGetAppPlaylistMetas = async () =>
-        (await this.dbGetAppPlaylists()).map((row) => {
+    dbGetAppPlaylistMetas = async () => {
+        if (!this.ready) throw new Error('SOURCE_SYNC.OFFLINE');
+        if (this.local.dbGetAppPlaylistMetas)
+            return this.local.dbGetAppPlaylistMetas();
+        return (await this.local.dbGetAppPlaylists()).map((row) => {
             const meta = { ...row };
             delete meta.playlist;
+            delete meta.items;
+            delete meta.header;
             delete meta.sourceRawM3u;
+            delete meta.sourceSyncBase;
             return meta;
         });
+    };
     dbGetAppPlaylist = async (id: string) => {
         const row = await this.local.dbGetAppPlaylist(id);
         return row ? snapshotSourceRow(row) : null;

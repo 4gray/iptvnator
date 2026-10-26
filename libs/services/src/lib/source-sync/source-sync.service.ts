@@ -23,6 +23,8 @@ import { indexedDbDocumentStore } from './indexeddb-document-store';
 import { requestSourceServer } from './source-api';
 import {
     assertSourceInstance,
+    verifySourceInstance,
+    invalidateSourceVerification,
     sourceConnection,
     sourceConnectionReadFailed,
     sourceProfileName,
@@ -173,6 +175,7 @@ export class SourceSyncService {
                         }
                         throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
                     }
+                    verifySourceInstance(probe.body, this.connection);
                     const response = await this.request({
                         operation: 'list',
                         revision: this.store!.pendingSources.size
@@ -225,7 +228,9 @@ export class SourceSyncService {
                         entries.map((entry) => entry.source.id)
                     );
                     this.sourceIds.set(ids);
-                    for (const row of await this.store!.local.dbGetAppPlaylists()) {
+                    const local = this.store!.local;
+                    for (const row of await (local.dbGetAppPlaylistMetas?.() ??
+                        local.dbGetAppPlaylists())) {
                         if (!ids.has(row._id)) {
                             await this.store!.local.dbDeletePlaylist(row._id);
                             this.store!.pendingSources.delete(row._id);
@@ -245,6 +250,7 @@ export class SourceSyncService {
                     this.metadataDirty = false;
                     if (changed || !wasReady) this.changes.next();
                 } catch (error) {
+                    invalidateSourceVerification();
                     if (
                         error instanceof Error &&
                         error.message === 'SOURCE_SYNC.LOCKED'

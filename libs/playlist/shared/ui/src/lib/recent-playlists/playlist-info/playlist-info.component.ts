@@ -4,6 +4,8 @@ import {
     Component,
     DestroyRef,
     inject,
+    Injector,
+    runInInjectionContext,
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -322,7 +324,8 @@ export class PlaylistInfoComponent {
 
     /** Form group with playlist details */
     playlistDetails!: UntypedFormGroup;
-    readonly connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
+    private readonly injector = inject(Injector);
+    connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
 
     constructor() {
         this.dialogRef?.beforeClosed().subscribe(() => {
@@ -332,7 +335,7 @@ export class PlaylistInfoComponent {
         this.connectionTest = createXtreamConnectionTestState(
             this.playlistDetails
         );
-        if (this.playlist.portalUrl) {
+        if (this.playlist.portalUrl || this.playlistStorage.kind() === 'server') {
             this.isHydratingStalkerPlaylist.set(true);
             this.stalkerPlaylistHydration =
                 this.hydrateCompleteStalkerPlaylist();
@@ -550,11 +553,13 @@ export class PlaylistInfoComponent {
 
     /**
      * Electron's startup metadata projection deliberately excludes the
-     * payload-only Stalker identity and session fields. Editing that summary
+     * payload-only Stalker identity and source revision fields. Editing that summary
      * directly would render the identity controls empty and could clear a
      * portal-pinned serial/device identity on the next discovery. Hydrate the
      * authoritative row before enabling the form in every runtime so Edit
      * always starts from the same persisted connection that playback uses.
+     * Shared editors also capture the complete source baseline and revision here,
+     * while inventory reads remain payload-free.
      */
     private async hydrateCompleteStalkerPlaylist(): Promise<void> {
         try {
@@ -571,6 +576,9 @@ export class PlaylistInfoComponent {
                 id: this.playlistData.id ?? persistedPlaylist._id,
             };
             this.createForm();
+            this.connectionTest = runInInjectionContext(this.injector, () =>
+                createXtreamConnectionTestState(this.playlistDetails)
+            );
         } catch (error) {
             console.error('Failed to load complete Stalker playlist:', error);
             this.stalkerPlaylistHydrationFailed.set(true);

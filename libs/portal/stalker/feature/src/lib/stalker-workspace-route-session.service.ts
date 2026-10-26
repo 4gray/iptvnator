@@ -192,6 +192,11 @@ export class StalkerWorkspaceRouteSession {
             // The owner did not change, so the category resource keeps its
             // params and would not reload the cleared categories by itself.
             if (storeHeldDestination) this.stalkerStore.reloadCategories();
+        } else if (refreshed && current?.title !== refreshed.title) {
+            await this.stalkerStore.setCurrentPlaylist({
+                ...current,
+                title: refreshed.title,
+            });
         }
 
         if (generation !== this.syncGeneration || this.destroyRef.destroyed) {

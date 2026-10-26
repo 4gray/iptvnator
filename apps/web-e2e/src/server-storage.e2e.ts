@@ -14,7 +14,9 @@ const STORAGE_BACKEND_URL = `http://localhost:${
 
 /** A fresh browser profile (a "device") whose runtime config points at it. */
 async function newServerPage(browser: Browser): Promise<Page> {
-    const context = await browser.newContext();
+    // Runtime configuration and instance replacement are routed by Playwright.
+    // Real Service Worker coverage lives in pwa-styles.e2e.ts.
+    const context = await browser.newContext({ serviceWorkers: 'block' });
     const page = await context.newPage();
     await page.route('**/assets/app-config.js', (route) =>
         route.fulfill({
@@ -131,6 +133,77 @@ test.describe('server storage @self-hosted @persistence', () => {
 
         await first.context().close();
         await second.context().close();
+    });
+
+    test('withholds saved server and provider credentials after the instance is replaced', async ({
+        browser,
+        request,
+    }) => {
+        const page = await newServerPage(browser);
+        const id = 'identity-guard';
+        const title = 'Identity guarded source';
+        expect(
+            (
+                await request.put(`${STORAGE_BACKEND_URL}/v1/playlists/${id}`, {
+                    data: {
+                        _id: id,
+                        title,
+                        serverUrl: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}`,
+                        username: 'user1',
+                        password: 'pass1',
+                    },
+                })
+            ).ok()
+        ).toBe(true);
+        try {
+            await openSources(page);
+            await expect(sourceRowByTitle(page, title)).toBeVisible();
+            await page.evaluate(
+                (apiUrl) =>
+                    sessionStorage.setItem(
+                        `iptvnator:server-token:${apiUrl}`,
+                        'synthetic-saved-secret'
+                    ),
+                STORAGE_BACKEND_URL
+            );
+            const probe = await (
+                await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
+            ).json();
+            await page.route(`${STORAGE_BACKEND_URL}/v1/instance`, (route) =>
+                route.fulfill({
+                    json: { ...probe, instanceId: 'replacement-instance' },
+                })
+            );
+            const outgoing: string[] = [];
+            page.on('request', (request) => {
+                if (
+                    request.url().startsWith(`${STORAGE_BACKEND_URL}/`) &&
+                    !request.url().endsWith('/v1/instance')
+                )
+                    outgoing.push(request.url());
+                if (request.url().endsWith('/v1/instance'))
+                    expect(request.headers()['authorization']).toBeUndefined();
+            });
+            await page.bringToFront();
+            const replaced = page.waitForResponse(
+                `${STORAGE_BACKEND_URL}/v1/instance`
+            );
+            await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+            await replaced;
+            const status = page.locator('[data-test-id="source-sync-status"]');
+            await expect(status).toContainText('The server identity changed');
+            await sourceRowByTitle(page, title).click();
+            await expect(page.locator('app-playlist-error-view')).toBeVisible();
+            expect(outgoing).toEqual([]);
+            // A fresh boot with the cached library must verify identity before
+            // an active portal can send anything to the replacement either.
+            await page.reload();
+            await expect(status).toContainText('The server identity changed');
+            await expect(page.locator('app-playlist-error-view')).toBeVisible();
+            expect(outgoing).toEqual([]);
+        } finally {
+            await page.context().close();
+        }
     });
 
     test('updates sibling tabs after another tab projects a rename or deletion', async ({

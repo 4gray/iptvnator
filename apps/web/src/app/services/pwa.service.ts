@@ -42,7 +42,7 @@ import {
     createLogger,
 } from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
-import { sourceAuthorization } from '@iptvnator/services/source-sync/connection';
+import { sourceAuthorization, assertSourceRequestAllowed } from '@iptvnator/services/source-sync/connection';
 
 /**
  * How long to wait for the backend to forget a host before giving up.
@@ -848,6 +848,7 @@ export class PwaService extends DataService {
         url: string,
         init: RequestInit
     ): Promise<Response> {
+        assertSourceRequestAllowed(url);
         const token = this.serverAccessToken(url);
         let response: Response;
         try {

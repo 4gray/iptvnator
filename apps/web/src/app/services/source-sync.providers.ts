@@ -17,13 +17,18 @@ import { firstValueFrom } from 'rxjs';
 import { CONFIG_TOKEN } from 'ngx-indexed-db';
 import {
     sourceAuthorization,
+    assertSourceRequestAllowed,
     sourceProfileName,
     sourceConnection,
 } from '@iptvnator/services/source-sync/connection';
 import { createSourceProfileUserDataStorage } from '@iptvnator/services/source-sync/profile-user-data';
 
-export const sourceAuthInterceptor: HttpInterceptorFn = (request, next) =>
-    next(request.clone({ setHeaders: sourceAuthorization(request.url) }));
+export const sourceAuthInterceptor: HttpInterceptorFn = (request, next) => {
+    assertSourceRequestAllowed(request.url);
+    return next(
+        request.clone({ setHeaders: sourceAuthorization(request.url) })
+    );
+};
 
 export function provideSourceSync() {
     return [

@@ -63,6 +63,38 @@ function setup() {
 }
 
 describe('source synchronization with local activity', () => {
+    it('uses native lightweight metadata without reading complete playlist documents', async () => {
+        const { store, local } = setup();
+        local.dbGetAppPlaylistMetas = jest.fn(async () => [
+            { _id: 'a', title: 'Shared', count: 50000 } as Playlist,
+        ]);
+        expect(await store.dbGetAppPlaylistMetas()).toEqual([
+            { _id: 'a', title: 'Shared', count: 50000 },
+        ]);
+        expect(local.dbGetAppPlaylistMetas).toHaveBeenCalledTimes(1);
+        expect(local.dbGetAppPlaylists).not.toHaveBeenCalled();
+        expect(local.dbGetAppPlaylist).not.toHaveBeenCalled();
+    });
+    it('omits uploaded bodies and source baselines from browser metadata without changing full documents', async () => {
+        const { store, rows } = setup();
+        const full: Playlist = {
+            ...cached(),
+            sourceRawM3u: '#EXTM3U\nhttps://media.test/live',
+            sourceSyncBase: {
+                id: 'a',
+                title: 'Upload',
+                kind: 'm3u-text',
+                rawM3u: '#EXTM3U\nhttps://media.test/live',
+            },
+            playlist: { items: [{ url: 'https://media.test/live' }] },
+        };
+        rows.set('a', full);
+        const [meta] = await store.dbGetAppPlaylistMetas();
+        expect(meta).not.toHaveProperty('playlist');
+        expect(meta).not.toHaveProperty('sourceRawM3u');
+        expect(meta).not.toHaveProperty('sourceSyncBase');
+        expect(await store.dbGetAppPlaylist('a')).toMatchObject(full);
+    });
     it('rejects a stale local activity snapshot so the complete mutation can retry on a fresh read', async () => {
         const { store, rows, local, request } = setup();
         const other = new SyncedPlaylistStore(

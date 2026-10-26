@@ -2,7 +2,11 @@ import type {
     SourceServerRequest,
     SourceServerResponse,
 } from '@iptvnator/shared/interfaces';
-import { sourceAuthorization, sourceConnection } from './source-connection';
+import {
+    sourceAuthorization,
+    sourceConnection,
+    assertSourceRequestAllowed,
+} from './source-connection';
 
 export function sourceRequestRoute(request: SourceServerRequest): {
     path: string;
@@ -36,6 +40,7 @@ export async function requestSourceServer(
     if (!connection) throw new Error('SOURCE_SYNC.OFFLINE');
     const route = sourceRequestRoute(request);
     const url = `${connection.apiUrl}${route.path}`;
+    if (request.operation !== 'instance') assertSourceRequestAllowed(url);
     const response = await fetch(url, {
         method: route.method,
         redirect: 'error',
@@ -45,7 +50,9 @@ export async function requestSourceServer(
                 : 15000
         ),
         headers: {
-            ...(request.operation === 'instance' ? {} : sourceAuthorization(url)),
+            ...(request.operation === 'instance'
+                ? {}
+                : sourceAuthorization(url)),
             'Content-Type': 'application/json',
             'X-IPTVnator-Instance-Id': connection.instanceId,
             ...(request.operation === 'create' ? { 'If-None-Match': '*' } : {}),

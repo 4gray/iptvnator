@@ -187,8 +187,9 @@ describe('StalkerWorkspaceRouteSession', () => {
         stalkerStore.resetCategories.mockClear();
         sourceChanges.next();
         await flushEffects();
-        expect(stalkerStore.setCurrentPlaylist).not.toHaveBeenCalled();
+        expect(currentPlaylist()?.title).toBe('Renamed');
         expect(stalkerStore.resetCategories).not.toHaveBeenCalled();
+        expect(stalkerStore.reloadCategories).not.toHaveBeenCalled();
     });
 
     it('keeps the itv route selection after playlist bootstrap', async () => {

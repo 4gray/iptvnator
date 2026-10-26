@@ -194,7 +194,9 @@ export function sourceFingerprint(source: SourceDefinition): string {
     const normalize = (url: string) => {
         const value = new URL(url);
         value.hash = '';
-        return value.toString().replace(/\/$/, '');
+        return value.search
+            ? value.toString()
+            : value.toString().replace(/\/$/, '');
     };
     switch (source.kind) {
         case 'xtream':

@@ -543,3 +543,40 @@ The initial payload stays at 1,199,068 bytes within the unchanged limit.
 
 All five mixed PWA/Electron scenarios pass again. Release-note and agent
 guidance validation pass before the eighth committed-branch review.
+
+
+### Eighth review fixes before review nine
+
+Codex reviewed `66061f2fed3b0a78b03f5adf0925f73719f36c90` and found three
+issues. Browser authorization now requires a successful anonymous probe of the
+selected instance. Failed inventory refreshes revoke verification, and source
+HTTP, Angular HTTP and fetch-based provider proxy transports block the complete
+request until re-verification, including its provider credentials. The Chromium
+regression verifies replacement at the same URL both in an open client and on
+reload with an active cached source; no saved token or provider request escapes.
+
+Synchronized Electron inventory reads now reuse the existing lightweight native
+metadata API. Browser metadata excludes parsed/raw M3U bodies and source
+baselines. Shared editors load one complete row before enabling edits and retain
+its source baseline/revision for conditional writes. The Xtream connection test
+is rebound to that hydrated form. Stale-source cleanup also uses native metadata
+when available. These changes need no database schema or worker protocol change.
+An active Stalker title update now refreshes the current store label without
+resetting categories, selection, session authentication or the watchdog timer.
+
+An additional source-fingerprint regression preserves trailing slashes inside
+signed URL query values, keeping distinct credentials from being deduplicated.
+Targeted tests cover all four fixes. Chromium passes 19 production PWA scenarios,
+and the mixed PWA/Electron suite passes all five scenarios. Runtime-config and
+replacement-response mocks explicitly block Service Workers; the separate real
+Service Worker stylesheet test remains enabled. The affected unit/coverage
+projects, lint, application/spec/E2E type checks, release notes and agent guidance
+pass. The E2E harness check uses ES2022/DOM library types for its existing
+`replaceAll` calls. Optional favorites sync, NAS-managed EPG and playback progress
+remain follow-ups above, outside this source-only delivery.
+
+Final pre-review production build passes at 1,199,406 initial bytes within the
+unchanged 1,200,301-byte limit. Merged coverage across 36 projects passes at
+statements 84.81%, branches 75.76%, functions 83.04%, lines 85.19%. Two advisory
+same-name-spec warnings remain for the HTTP adapters covered by their owning
+unit projects and browser/mixed-runtime E2E suites.

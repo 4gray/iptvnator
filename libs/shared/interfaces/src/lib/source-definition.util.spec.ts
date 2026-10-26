@@ -25,6 +25,20 @@ const row: Playlist = {
 };
 
 describe('portable source definitions', () => {
+    it('keeps a trailing slash inside a signed query value when deduplicating sources', () => {
+        const source = {
+            id: 'a',
+            title: 'Signed',
+            kind: 'm3u-url' as const,
+            url: 'https://host.test/list?token=abc/',
+        };
+        expect(sourceFingerprint(source)).not.toBe(
+            sourceFingerprint({
+                ...source,
+                url: 'https://host.test/list?token=abc',
+            })
+        );
+    });
     it('exports parsed-only M3U documents written by existing clients without losing channels', () => {
         const parsed = {
             ...row,

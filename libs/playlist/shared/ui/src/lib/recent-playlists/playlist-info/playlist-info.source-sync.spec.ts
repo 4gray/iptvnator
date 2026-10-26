@@ -10,9 +10,10 @@ import {
     PlaylistStorageBackend,
     RuntimeCapabilitiesService,
     SettingsStore,
+    XtreamConnectionTestService,
 } from '@iptvnator/services';
 import type { Playlist } from '@iptvnator/shared/interfaces';
-import { EMPTY, Subject } from 'rxjs';
+import { EMPTY, Subject, of } from 'rxjs';
 import { PlaylistInfoComponent } from './playlist-info.component';
 import { STALKER_PLAYLIST_CONNECTION_EDITOR } from './stalker-playlist-connection-editor.token';
 
@@ -48,10 +49,25 @@ describe('shared source editor', () => {
                     provide: MatDialogRef,
                     useValue: { beforeClosed: () => EMPTY, close },
                 },
-                { provide: PlaylistsService, useValue: { updatePlaylistMeta } },
+                {
+                    provide: PlaylistsService,
+                    useValue: {
+                        updatePlaylistMeta,
+                        getPlaylistById: jest.fn(() => of(opened)),
+                    },
+                },
                 {
                     provide: PlaylistStorageBackend,
                     useValue: { kind: () => 'server' },
+                },
+                {
+                    provide: XtreamConnectionTestService,
+                    useValue: {
+                        test: jest.fn(async () => ({
+                            status: 'active',
+                            usedHttpFallback: false,
+                        })),
+                    },
                 },
                 { provide: Store, useValue: { dispatch } },
                 { provide: DatabaseService, useValue: {} },
@@ -82,8 +98,44 @@ describe('shared source editor', () => {
         component = TestBed.createComponent(
             PlaylistInfoComponent
         ).componentInstance;
+        await Promise.resolve();
+        await Promise.resolve();
     });
 
+    it('hydrates a lightweight shared summary before capturing its edit revision', async () => {
+        const playlists = TestBed.inject(PlaylistsService);
+        expect(playlists.getPlaylistById).toHaveBeenCalledWith(opened._id);
+        expect(component.isHydratingStalkerPlaylist()).toBe(false);
+        expect(component.playlist.sourceSyncRevision).toBe('"opened"');
+    });
+    it('tests the current hydrated form when a shared Xtream summary is edited', async () => {
+        const complete = {
+            ...opened,
+            serverUrl: 'https://panel.test',
+            username: 'full-user',
+            password: 'full-secret',
+        };
+        (
+            TestBed.inject(PlaylistsService).getPlaylistById as jest.Mock
+        ).mockReturnValue(of(complete));
+        const hydrated = TestBed.createComponent(
+            PlaylistInfoComponent
+        ).componentInstance;
+        await Promise.resolve();
+        await Promise.resolve();
+        hydrated.playlistDetails.get('username')!.setValue('edited-user');
+        await hydrated.connectionTest.test();
+        expect(
+            TestBed.inject(XtreamConnectionTestService).test
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                username: 'edited-user',
+                password: 'full-secret',
+            }),
+            expect.any(Function),
+            false
+        );
+    });
     it('awaits a shared edit using the revision captured when its dialog opened', async () => {
         const saving = component.saveChanges({
             ...opened,

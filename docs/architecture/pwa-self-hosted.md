@@ -190,10 +190,17 @@ Material view until a connection or recovery notice is present. A native
 settings button remains available if that view chunk fails to load.
 `PlaylistStorageBackend` wraps the selected local store with `SyncedPlaylistStore`; local activity writes stay
 local. Electron Xtream metadata paths in `DatabaseService` use the same wrapper.
-Source IDs are the server's IDs in every local projection. A visible client
+Source IDs are the server's IDs in every local projection. Inventory views reuse
+the native payload-free metadata API. Browser metadata omits parsed/raw M3U
+and source baselines; opening a shared editor loads one complete local row
+before enabling edits and captures its revision. A visible client
 polls every 15 seconds and also refreshes on focus, reconnect, visibility and
 Electron resume. Failures back off to two minutes; rejected tokens wait for
-sign-in. Accepted source mutations schedule an immediate inventory refresh.
+sign-in. Browser credentials and provider-proxy requests are held until an
+anonymous instance probe verifies the selected identity. A mismatched or failed
+refresh revokes that verification; cached sources remain readable, and requests
+resume only after a successful verification or explicit reconnection.
+Accepted source mutations schedule an immediate inventory refresh.
 Uploaded M3U text is fetched only for changed revisions and parsed locally;
 URL M3U snapshots are fetched through the runtime's provider transport.
 Failed URL materialization is marked in the local row and retried even when
@@ -204,7 +211,8 @@ remain device-local. Delayed activity writes retain the latest parsed source.
 Authoritative inventory replacement retains only parsed payloads, so removing
 a connection field cannot revive its previous value. Active Stalker routes
 reconcile changed connections against their persisted rows and restart the
-session/catalog only when connection fields differ. Backup restore follows
+session/catalog only when connection fields differ. A title-only update refreshes
+the active source label while retaining its session and catalog. Backup restore follows
 the server's canonical source ID, including local activity and parental locks
 when a source added since the last poll deduplicates during import.
 Browser profile writes coordinate through an instance-scoped Web Lock when

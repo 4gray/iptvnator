@@ -5,6 +5,8 @@ import {
     sourceProfileName,
     tokenKey,
     sourceConnectionReadFailed,
+    verifySourceInstance,
+    assertSourceRequestAllowed,
 } from './source-connection';
 
 describe('source server selection and authorization', () => {
@@ -104,6 +106,14 @@ describe('source server selection and authorization', () => {
         );
         await prepareSourceConnection();
         sessionStorage.setItem(tokenKey('https://nas.test'), 'root-token');
+        expect(sourceAuthorization('https://nas.test/v1/sources')).toEqual({});
+        verifySourceInstance({
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            instanceId: 'nas',
+            capabilities: ['sources-v1'],
+        });
         expect(sourceAuthorization('https://nas.test/v1/sources')).toEqual({
             Authorization: 'Bearer root-token',
         });
@@ -119,6 +129,49 @@ describe('source server selection and authorization', () => {
         await prepareSourceConnection('https://nas.test');
         expect(sourceConnection()).toBeNull();
         expect(sourceProfileName()).toBe('iptvnator');
+    });
+    it('blocks source and provider secrets before verification and after an instance replacement', async () => {
+        const connection = {
+            apiUrl: 'https://nas.test/api',
+            instanceId: 'nas',
+        };
+        localStorage.setItem(
+            'iptvnator:source-server',
+            JSON.stringify(connection)
+        );
+        sessionStorage.setItem(tokenKey(connection.apiUrl), 'saved-secret');
+        await prepareSourceConnection();
+        const proxy = 'https://nas.test/api/xtream';
+        expect(sourceAuthorization(proxy)).toEqual({});
+        expect(() => assertSourceRequestAllowed(proxy)).toThrow(
+            'SOURCE_SYNC.INSTANCE_CHANGED'
+        );
+        expect(() =>
+            assertSourceRequestAllowed('https://provider.test/stream')
+        ).not.toThrow();
+        const instance = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            instanceId: 'nas',
+            capabilities: ['sources-v1'],
+        };
+        verifySourceInstance(instance);
+        expect(sourceAuthorization(proxy)).toEqual({
+            Authorization: 'Bearer saved-secret',
+        });
+        expect(() => assertSourceRequestAllowed(proxy)).not.toThrow();
+        expect(() =>
+            verifySourceInstance({ ...instance, instanceId: 'other' })
+        ).toThrow('SOURCE_SYNC.INSTANCE_CHANGED');
+        expect(sourceAuthorization(proxy)).toEqual({});
+        expect(() => assertSourceRequestAllowed(proxy)).toThrow(
+            'SOURCE_SYNC.INSTANCE_CHANGED'
+        );
+        verifySourceInstance(instance);
+        expect(() => assertSourceRequestAllowed(proxy)).not.toThrow();
+        await prepareSourceConnection();
+        expect(sourceAuthorization(proxy)).toEqual({});
     });
     it('persists a pending server profile when first discovery fails', async () => {
         globalThis.fetch = jest.fn().mockRejectedValue(new Error('offline'));
