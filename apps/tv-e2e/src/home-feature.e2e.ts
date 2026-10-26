@@ -498,6 +498,7 @@ test('Home retains saved series-wide artwork without using episode stills and pr
     const savedWide = 'https://artwork.test/saved-series-wide.jpg';
     const episodeStill = 'https://artwork.test/episode-still.jpg';
     let currentWide = '';
+    let currentPoster = '';
     await page.route('https://artwork.test/**', (route) =>
         route.fulfill({
             contentType: 'image/svg+xml',
@@ -514,7 +515,8 @@ test('Home retains saved series-wide artwork without using episode stills and pr
         const body = await response.json();
         if (action === 'get_series') {
             for (const row of body.payload) {
-                row.cover = poster;
+                if (currentPoster) row.cover = currentPoster;
+                else delete row.cover;
                 if (currentWide) row.backdrop_path = [currentWide];
                 else delete row.backdrop_path;
             }
@@ -555,12 +557,21 @@ test('Home retains saved series-wide artwork without using episode stills and pr
                     const read = store.get('user');
                     read.onsuccess = () => {
                         const saved = read.result;
+                        saved.data.retainedExtension = { value: 7 };
                         for (const progress of [
                             ...saved.data.history,
                             ...Object.values(saved.data.positions),
-                        ] as { item: { kind: string; backdrop?: string } }[])
-                            if (progress.item.kind === 'episode')
+                        ] as {
+                            item: {
+                                kind: string;
+                                backdrop?: string;
+                                poster?: string;
+                            };
+                        }[])
+                            if (progress.item.kind === 'episode') {
                                 progress.item.backdrop = still;
+                                progress.item.poster = still;
+                            }
                         store.put(saved, 'user');
                     };
                     tx.oncomplete = () => {
@@ -581,6 +592,7 @@ test('Home retains saved series-wide artwork without using episode stills and pr
         savedWide
     );
     currentWide = 'https://artwork.test/current-parent-wide.jpg';
+    currentPoster = 'https://artwork.test/current-parent-poster.jpg';
     await page.reload();
     await expect(page.locator('.hero h1')).toHaveText(title);
     await expect(page.locator('.page-backdrop img')).toHaveAttribute(
@@ -589,6 +601,74 @@ test('Home retains saved series-wide artwork without using episode stills and pr
     );
     await expect(page.locator('.resume-card img').first()).toHaveAttribute(
         'src',
-        poster
+        currentPoster
     );
+    await expect
+        .poll(() =>
+            page.evaluate(
+                (poster) =>
+                    new Promise<boolean>((resolve) => {
+                        const request = indexedDB.open(
+                            'iptvnator-tv-user-data',
+                            1
+                        );
+                        request.onsuccess = () => {
+                            const db = request.result;
+                            const read = db
+                                .transaction('state')
+                                .objectStore('state')
+                                .get('user');
+                            read.onsuccess = () => {
+                                const data = read.result.data;
+                                resolve(
+                                    data.retainedExtension?.value === 7 &&
+                                        data.history[0]?.item.parentSeries
+                                            ?.poster === poster
+                                );
+                                db.close();
+                            };
+                        };
+                    }),
+                currentPoster
+            )
+        )
+        .toBe(true);
+});
+
+test('browser Back on loading Home keeps its catalog requests alive', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'xtream');
+    let held = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    await page.route('**/xtream?**', async (route) => {
+        const action = new URL(route.request().url()).searchParams.get(
+            'action'
+        );
+        if (
+            !['get_vod_streams', 'get_series', 'get_live_streams'].includes(
+                action ?? ''
+            )
+        )
+            return route.fallback();
+        const response = await route.fetch();
+        held++;
+        await gate;
+        await route.fulfill({ response });
+    });
+    try {
+        await page.reload();
+        await expect.poll(() => held).toBeGreaterThan(0);
+        await expect(page.locator('.loading')).toBeVisible();
+        await page.keyboard.press('Escape');
+        release();
+        await expect(page.locator('.loading')).toBeHidden();
+        await expect(page.locator('.hero h1')).toBeVisible();
+        await expect(page.locator('.poster-card').first()).toBeVisible();
+        await expect(page.locator('.error')).toBeHidden();
+    } finally {
+        release();
+    }
 });

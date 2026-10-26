@@ -89,7 +89,7 @@ pnpm exec ares-setup-device --list
 Only after the user supplies an enabled Developer Mode target and pairing:
 
 ```sh
-pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.19_all.ipk
+pnpm exec ares-install --device <configured-device> dist/tv-package/com.iptvnator.tv.prototype_0.1.25_all.ipk
 pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 ```
 

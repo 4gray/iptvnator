@@ -199,32 +199,6 @@ refresh applies changes and removes missing server entries, retaining local view
 data and restoring an original local source when one was linked. Disconnect restores
 original local configurations and keeps other downloaded sources as local copies.
 Favorites, history, progress and TV preferences are not synchronized in this phase.
-An optional personal Luma integration publishes the active source's unfinished
-titles and saved favorites to `/v1/app-state/luma-home-v1`. Local IndexedDB remains
-authoritative. Credentials, raw provider data and playback URLs are excluded;
-artwork accepts static HTTP(S) PNG/JPEG/WebP images without query strings,
-fragments, embedded authentication or known source credentials in the path.
-Exact-name M3U library logos fill missing channel artwork. At most four M3U
-documents are read, with a three-second total logo-refresh deadline and a
-five-minute cache; unavailable logos do not block the ordinary feed.
-The shipped empty `luma-config.js`
-disables the integration. A personal `{url, instanceId, token?}` configuration
-uses the existing library gateway when necessary and verifies instance identity
-before publishing. Updates run every 15 seconds and on visibility changes;
-failures retry without interrupting playback. Each personal TV needs its own
-feed key before multiple TVs can share a server.
-
-Luma passes `{luma:{action:"open",id,sourceId}}` in cold/warm launch parameters.
-Published IDs are random opaque handles, committed to a local additive mapping
-before publication; provider IDs, including M3U playback URLs, stay local.
-The mapping survives relaunch and retires entries no longer saved on this TV.
-Only identities still saved on this TV resolve, and source changes wait for the
-provider connection. Series cards show the parent name and open the saved parent
-and episode list. Historical episodes without a saved parent resume directly
-instead of opening an orphan episode detail. Movies open details and channels
-follow existing playback. A warm details launch stops existing playback and
-leaves fullscreen before navigating. Live launches retain the existing channel
-session when reopening that same channel. Deleted entries show a recovery message.
 Source credentials are cached locally just like manually entered TV sources.
 Custom header fields are retained for copying; only the existing M3U parser's
 User-Agent option is applied here. Native video still cannot attach arbitrary
@@ -522,11 +496,12 @@ unchanged. Missing TMDB episodes/fields leave provider content usable. Live
 channels, whole-catalog enrichment, discovery and trailers remain
 outside this TV integration.
 Episode landscape artwork lives in `episodeStill`, separately from the series
-cover in `poster`/the parent snapshot. Home, Continue watching and Luma use the
-series cover. Provider details save the series backdrop in the exact parent
-snapshot; sparse catalog repairs retain that validated backdrop. Home prefers
-current parent artwork, then the saved parent backdrop, without trusting an
-ambiguous historical episode backdrop. Episode cards use the still.
+cover in `poster`/the parent snapshot. Home and Continue watching use the
+series cover. Provider details save the series backdrop and cover in the exact
+parent snapshot; sparse catalog repairs retain that validated artwork. Home and
+Continue watching prefer current parent artwork, then validated saved parent
+artwork. Historical episode images are not cover/backdrop fallbacks when a parent
+is known. Episode cards use the still.
 Cards with stills show a larger image
 and up to three description lines. Missing stills keep compact text cards, and a
 season without stills retains its previous layout. Rich episode grids use fixed
@@ -563,7 +538,9 @@ cards reserve two subtitle lines to keep virtual row heights and scroll coordina
 The selected series season belongs to its detail-route visit: person-page Back
 restores it, while opening a fresh detail visit starts at the first available season.
 Back cancels pending detail browsing before restoring its previous route. Route
-commits also cancel browsing during layout cleanup, so a late detail response
+changes own that cancellation; browser Back on Home keeps catalog requests alive
+when no platform navigation occurs.
+Route commits also cancel browsing during layout cleanup, so a late detail response
 cannot consume the pending person-card focus before its filmography loads.
 Deferred route-entry focus and scroll changes apply only while their destination
 is current, preserving the restored filmography after a fast Back before paint.

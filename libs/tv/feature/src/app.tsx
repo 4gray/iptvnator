@@ -17,7 +17,6 @@ import { Live } from './live';
 import { Backdrop, TvIcon } from '@iptvnator/tv/ui';
 import { useMetadata } from './use-metadata';
 import { useSeriesContext } from './use-series-context';
-import { useLuma } from './use-luma';
 import { useSeriesDetails } from './use-series-details';
 import { mediaTitle } from '@iptvnator/tv/util';
 import { PersonPage } from './person-page';
@@ -42,7 +41,6 @@ export function TvApp() {
     const video = useRef<HTMLVideoElement>(null);
     const tv = useTv(video);
     const detailSeason = useDetailSeason(tv.route);
-    useLuma(tv);
     const seriesDetails = useSeriesDetails(tv);
     useSeriesContext(tv);
     const browse = useLiveBrowse(tv);

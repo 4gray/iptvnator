@@ -8,7 +8,7 @@ import {
     Poster,
     ResumeCard,
 } from '@iptvnator/tv/ui';
-import { Media, seriesForEpisode } from '@iptvnator/tv/util';
+import { Media } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
 export function Home({
     tv,
@@ -62,13 +62,11 @@ export function Home({
                                 progress={p}
                                 play={tv.play}
                                 poster={storedMediaPoster(
-                                    seriesForEpisode(p.item, [
-                                        ...tv.home,
-                                        ...tv.data.favorites,
-                                    ]) ?? p.item,
+                                    p.item,
                                     tv.data.sources.find(
                                         (s) => s.id === p.item.sourceId
-                                    )
+                                    ),
+                                    [...tv.home, ...tv.data.favorites]
                                 )}
                             />
                         ))}

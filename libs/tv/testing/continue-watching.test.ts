@@ -1,8 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import {
     continueWatching,
     initialData,
+    hydrateUserData,
+    recordProgress,
     Progress,
     recoverSeriesContext,
     mediaTitle,
@@ -167,17 +170,30 @@ test('sparse parent repair retains validated series artwork and remains idempote
         ...progress('show', 1).item,
         kind: 'series' as const,
         backdrop: 'https://artwork.test/series-wide.jpg',
+        poster: 'https://artwork.test/series-poster.jpg',
     };
     const episode = {
         ...progress('episode', 1).item,
         kind: 'episode' as const,
         parentId: parent.id,
         backdrop: 'https://artwork.test/legacy-episode-still.jpg',
+        poster: 'https://artwork.test/legacy-episode-still.jpg',
     };
     const saved = withSeriesContext(episode, parent);
-    const sparse = { ...parent, backdrop: undefined };
+    const sparse = { ...parent, backdrop: undefined, poster: undefined };
     const repaired = withSeriesContext(saved, sparse);
     assert.equal(repaired.parentSeries?.backdrop, parent.backdrop);
+    assert.equal(repaired.parentSeries?.poster, parent.poster);
+    assert.equal(
+        storedMediaPoster(repaired, undefined, [sparse]),
+        parent.poster
+    );
+    assert.equal(
+        storedMediaPoster(repaired, undefined, [
+            { ...parent, poster: 'https://artwork.test/new-parent-poster.jpg' },
+        ]),
+        'https://artwork.test/new-parent-poster.jpg'
+    );
     assert.equal(repaired.backdrop, episode.backdrop);
     assert.equal(withSeriesContext(repaired, sparse), repaired);
     assert.equal(
@@ -195,4 +211,19 @@ test('sparse parent repair retains validated series artwork and remains idempote
         withSeriesContext(foreign, sparse).parentSeries?.backdrop,
         undefined
     );
+    assert.equal(storedMediaPoster(foreign, undefined, [sparse]), undefined);
+});
+
+test('unknown saved fields survive hydration and subsequent progress writes', () => {
+    const saved = {
+        ...initialData(),
+        retainedExtension: { value: 7, entries: ['keep'] },
+    };
+    const restored = hydrateUserData(saved);
+    const updated = recordProgress(restored, progress('movie', 42));
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(updated)).retainedExtension,
+        saved.retainedExtension
+    );
+    assert.equal(updated.history[0].item.id, 'movie');
 });

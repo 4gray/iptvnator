@@ -3,4 +3,4 @@ type: fix
 area: tv
 ---
 
-TV filmographies scroll stably, series details retain the selected season after visiting a person, and Home preserves saved series-wide artwork. Back or a new playback action cancels pending series-details navigation, so late portal replies cannot open another page. Series-details retries cannot reopen a previous source.
+TV keeps filmography scrolling, selected seasons and saved series artwork stable; Back on Home no longer interrupts loading. Old series-details requests and retries cannot open another page after you leave the player, start another title or change sources.

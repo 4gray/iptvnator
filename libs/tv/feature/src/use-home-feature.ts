@@ -51,7 +51,10 @@ export function useHomeFeature(tv: TvModel) {
         const featured = parent ?? original;
         return {
             ...featured,
-            poster: storedMediaPoster(featured, source),
+            poster: storedMediaPoster(original, source, [
+                ...tv.home,
+                ...tv.data.favorites,
+            ]),
             backdrop: featured.backdrop || seriesForEpisode(original)?.backdrop,
         };
     }, [original, parent, source]);
