@@ -521,3 +521,28 @@ names and the two channel logos. The local copy is retained at
 `dist/tv-verification/luma-artwork-ship-tv.jpg`. Native Luma and its rollback now
 leave the TV client package intact. The final committed fixes enter the next
 local review round; the 0.1.23 hardware observations retain that revision scope.
+
+### Final integration with master
+
+Local Codex review of `623431b31` is clean, independently passing 304 unit tests,
+22 focused TV scenarios, types and affected lint. While this work is in progress,
+master advances to `e2699e920` through Portuguese regional-locale PR #1901,
+including the shared TMDB language configuration. Merge `cb714b83d` integrates
+that base without conflicts, preserving both regional language normalization and
+the TV English-title fallback. Frozen installation is repeated, the installed
+lockfile matches the repository, and Nx discovery succeeds.
+
+On the integrated tree: **124/124 full TV browser scenarios, 113 TV unit tests,
+94 shared TMDB tests and 101 Angular TMDB consumer tests** pass. Shared coverage
+is 80.38% statements, 60.43% branches, 69.04% functions and 80.65% lines, with
+unchanged thresholds. Nine affected lint targets, the three TV type programs,
+**167 release notes** and guidance validation pass. The final 0.1.24 package and
+its archived JavaScript pass the compatibility audits; these fingerprints
+supersede the earlier pre-integration 0.1.24 local build:
+
+- IPK: `c22369d5b946596683844328eb9daf6724315a8bdd7d2c2b01d21776378585ec`.
+- Archived `index-B9V1GZ3G.js`: `44cbc11811c452edfa604bd373afb1d11759783b4d839b1a0cf212b53ff87c08`.
+
+The integrated committed branch receives the final local review before its first
+push. The exact reviewed/tested PR head and eventual merge are recorded in the
+PR description; Greptile remains unavailable under the documented CLI exception.
