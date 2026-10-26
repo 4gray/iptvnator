@@ -110,7 +110,10 @@ for (const mode of ['catalog', 'missing', 'direct'] as const) {
             ).toContainText('the provider did not supply');
             for (const theme of ['light', 'dark']) {
                 await page.evaluate(
-                    (dark) => document.body.classList.toggle('dark-theme', dark),
+                    (dark) => {
+                        document.body.classList.toggle('dark-theme', dark);
+                        document.body.classList.toggle('light-theme', !dark);
+                    },
                     theme === 'dark'
                 );
                 await page.locator('app-portal-detail-shell').screenshot({
