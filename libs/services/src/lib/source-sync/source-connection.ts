@@ -4,8 +4,11 @@ import {
     type ServerInstanceInfo,
 } from '@iptvnator/shared/interfaces';
 
-const CONNECTION_KEY = 'iptvnator:source-server';
-const DISABLED_KEY = 'iptvnator:source-server-disabled';
+export const CONNECTION_KEY = 'iptvnator:source-server';
+export const DISABLED_KEY = 'iptvnator:source-server-disabled';
+const INCOMPATIBLE = 'SOURCE_SYNC.INCOMPATIBLE';
+const INSTANCE_CHANGED = 'SOURCE_SYNC.INSTANCE_CHANGED';
+const OFFLINE = 'SOURCE_SYNC.OFFLINE';
 let selected: SourceServerConnection | null = null;
 let readFailed = false;
 let verified = false;
@@ -13,6 +16,9 @@ let verificationEpoch = 0;
 
 export const sourceConnection = () => selected;
 export const sourceConnectionReadFailed = () => readFailed;
+export function markSourceConnectionReadFailed(): void {
+    readFailed = true;
+}
 export const sourceVerificationEpoch = () => verificationEpoch;
 export const sourceProfileName = () =>
     selected
@@ -36,7 +42,7 @@ export function assertSourceInstance(
         !Array.isArray(info.capabilities) ||
         !info.capabilities.includes(SOURCE_SYNC_CAPABILITY)
     ) {
-        throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+        throw new Error(INCOMPATIBLE);
     }
 }
 
@@ -60,14 +66,14 @@ export async function prepareSourceConnection(
                 typeof connection.instanceId !== 'string' ||
                 !connection.instanceId
             )
-                throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+                throw new Error(INCOMPATIBLE);
             const apiUrl = new URL(connection.apiUrl);
             if (
                 !['http:', 'https:'].includes(apiUrl.protocol) ||
                 apiUrl.username ||
                 apiUrl.password
             )
-                throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+                throw new Error(INCOMPATIBLE);
             selected = {
                 apiUrl: apiUrl.toString().replace(/\/$/, ''),
                 instanceId: connection.instanceId,
@@ -103,7 +109,7 @@ export async function prepareSourceConnection(
             signal: AbortSignal.timeout(5000),
             redirect: 'error',
         });
-        if (!response.ok) throw new Error('SOURCE_SYNC.OFFLINE');
+        if (!response.ok) throw new Error(OFFLINE);
         const instance = (await response.json()) as ServerInstanceInfo;
         if (instance.storage === 'none') return;
         assertSourceInstance(instance);
@@ -127,74 +133,17 @@ export async function prepareSourceConnection(
     }
 }
 
-export function saveBrowserSourceConnection(
-    connection: SourceServerConnection,
-    token: string,
-    expected?: SourceServerConnection
-): void {
-    if (expected) {
-        const saved = localStorage.getItem(CONNECTION_KEY);
-        const current = saved
-            ? (JSON.parse(saved) as SourceServerConnection)
-            : null;
-        if (
-            current?.apiUrl !== expected.apiUrl ||
-            current?.instanceId !== expected.instanceId
-        )
-            return;
-    }
-    localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
-    localStorage.removeItem(DISABLED_KEY);
-    sessionStorage.setItem(tokenKey(connection), token);
-}
-
-export function disconnectBrowserSourceConnection(
-    disableDiscovery = true,
-    expected?: SourceServerConnection
-): boolean {
-    try {
-        if (expected) {
-            const saved = localStorage.getItem(CONNECTION_KEY);
-            const current = saved
-                ? (JSON.parse(saved) as SourceServerConnection)
-                : null;
-            if (
-                current &&
-                (current.apiUrl !== expected.apiUrl ||
-                    current.instanceId !== expected.instanceId)
-            )
-                return true;
-        }
-    } catch {
-        readFailed = true;
-        return false;
-    }
-    try {
-        if (selected) sessionStorage.removeItem(tokenKey(selected));
-    } catch {
-        /* Storage denied. */
-    }
-    try {
-        localStorage.removeItem(CONNECTION_KEY);
-        if (disableDiscovery) localStorage.setItem(DISABLED_KEY, '1');
-        return true;
-    } catch {
-        readFailed = true;
-        return false;
-    }
-}
-
 /** A replacement database at the same address must never receive saved secrets. */
 export function verifySourceInstance(
     value: unknown,
     expected = selected,
     epoch = verificationEpoch
 ): void {
-    if (epoch !== verificationEpoch) throw new Error('SOURCE_SYNC.OFFLINE');
+    if (epoch !== verificationEpoch) throw new Error(OFFLINE);
     verified = false;
     assertSourceInstance(value);
     if (value.instanceId !== expected?.instanceId)
-        throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
+        throw new Error(INSTANCE_CHANGED);
     verified = true;
 }
 
@@ -216,7 +165,7 @@ export function isSourceBackendRequest(url: string): boolean {
 /** Block the whole proxy call: its body/query may contain provider credentials. */
 export function assertSourceRequestAllowed(url: string): void {
     if (isSourceBackendRequest(url) && !verified)
-        throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
+        throw new Error(INSTANCE_CHANGED);
 }
 
 export function sourceAuthorization(url: string): Record<string, string> {

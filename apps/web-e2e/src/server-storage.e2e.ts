@@ -292,8 +292,10 @@ test.describe('server storage @self-hosted @persistence', () => {
                 })
             );
             const outgoing: string[] = [];
+            let identityRejected = false;
             page.on('request', (request) => {
                 if (
+                    identityRejected &&
                     request.url().startsWith(`${STORAGE_BACKEND_URL}/`) &&
                     !request.url().endsWith('/v1/instance')
                 )
@@ -309,6 +311,9 @@ test.describe('server storage @self-hosted @persistence', () => {
             await replaced;
             const status = page.locator('[data-test-id="source-sync-status"]');
             await expect(status).toContainText('The server identity changed');
+            // Background source-health calls may precede the identity response.
+            // Observe new requests only after the rejection has been applied.
+            identityRejected = true;
             await sourceRowByTitle(page, title).click();
             await expect(page.locator('app-playlist-error-view')).toBeVisible();
             expect(outgoing).toEqual([]);
@@ -493,7 +498,21 @@ test.describe('server storage @self-hosted @persistence', () => {
                 await expect(
                     page.locator('app-playlist-error-view')
                 ).toBeVisible();
-                expect(probeTokens.length).toBeGreaterThan(0);
+                // Re-check an edited connection without reloading the app or
+                // discarding the failed request's in-memory verification state.
+                await page
+                    .locator('a[href="/workspace/sources"]')
+                    .first()
+                    .click();
+                const dialog = await openSourceEditor(page, title);
+                await updateSourceDialog(dialog, {
+                    macAddress: '00:1A:79:5F:00:03',
+                });
+                await dialog
+                    .locator('mat-dialog-actions')
+                    .getByRole('button', { name: 'Save', exact: true })
+                    .click();
+                await expect.poll(() => probeTokens.length).toBeGreaterThan(0);
                 expect(probeTokens.every((token) => token === undefined)).toBe(
                     true
                 );

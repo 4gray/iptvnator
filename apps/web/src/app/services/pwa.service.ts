@@ -232,9 +232,6 @@ export class PwaService extends DataService {
                     body: JSON.stringify({ url: payload.url }),
                     headers: {
                         'content-type': 'application/json',
-                        ...sourceAuthorization(
-                            `${this.corsProxyUrl}/connectivity-guard/reset`
-                        ),
                     },
                     redirect: 'error',
                     method: 'POST',

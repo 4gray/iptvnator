@@ -1,3 +1,4 @@
+import { saveBrowserSourceConnection } from './source-browser-settings';
 import {
     computed,
     DestroyRef,
@@ -29,7 +30,6 @@ import {
     sourceConnection,
     sourceConnectionReadFailed,
     sourceProfileName,
-    saveBrowserSourceConnection,
     tokenKey,
 } from './source-connection';
 import { SyncedPlaylistStore } from './synced-playlist-store';

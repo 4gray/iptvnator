@@ -2,7 +2,7 @@ import type {
     ServerInstanceInfo,
     SourceServerConnection,
 } from '@iptvnator/shared/interfaces';
-import { disconnectBrowserSourceConnection } from './source-connection';
+import { disconnectBrowserSourceConnection } from './source-browser-settings';
 
 /** An unconfirmed discovery can resolve to a stateless deployment. */
 export function recoverPendingStatelessBackend(

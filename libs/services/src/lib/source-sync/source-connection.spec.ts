@@ -1,3 +1,4 @@
+import { saveBrowserSourceConnection } from './source-browser-settings';
 import {
     prepareSourceConnection,
     sourceAuthorization,
@@ -7,7 +8,6 @@ import {
     sourceConnectionReadFailed,
     verifySourceInstance,
     assertSourceRequestAllowed,
-    saveBrowserSourceConnection,
     invalidateSourceVerification,
     sourceVerificationEpoch,
 } from './source-connection';

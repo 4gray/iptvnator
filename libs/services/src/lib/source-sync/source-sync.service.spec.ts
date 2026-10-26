@@ -1,3 +1,4 @@
+import { saveBrowserSourceConnection } from './source-browser-settings';
 import { TestBed } from '@angular/core/testing';
 import { LazySnackBar } from '../lazy-snack-bar/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -16,7 +17,6 @@ import { requestSourceServer } from './source-api';
 import {
     sourceConnection,
     prepareSourceConnection,
-    saveBrowserSourceConnection,
     sourceAuthorization,
     assertSourceRequestAllowed,
 } from './source-connection';

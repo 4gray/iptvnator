@@ -731,3 +731,22 @@ new recovery scenario passes after correcting test-owned relaunch. Application,
 spec/E2E types and owning lint pass. Two production browser outage/replacement
 scenarios were added for final validation. Master subsequently advanced with
 Vite 8.1.6, which will be included before the next local review.
+
+Final checks before review thirteen include master `00c8284acdc1ed68dc5a89731e30dfbf50776ffb`
+(Vite 8.1.6). Frozen install, installed-lock comparison and Nx discovery pass.
+Browser connection writes now live in a deferred settings module; raw fetch adds
+its authorization headers once at the guarded transport boundary. The unchanged
+launch/renderer.initialBytes gate passes at 1,200,296 bytes (limit 1,200,301).
+
+All 25 Chromium production PWA scenarios and all seven mixed PWA/Electron
+scenarios pass. The outage scenarios explicitly re-check an edited connection
+in the same running app, proving an anonymous identity probe precedes further
+provider traffic. The identity-rejection scenario observes new proxy requests
+after the rejection is applied, excluding valid background health calls that
+can precede that response. Updated service/web coverage passes again; the full
+Electron backend project also passes (951 / 563 / 2,702 tests respectively).
+Merged 36-project coverage remains statements 84.84%, branches 75.81%, functions
+83.05%, lines 85.22%. Owning lint and application/spec/E2E types, release-note
+validation and agent guidance pass. Same-name-spec warnings are advisory;
+connection mutations are covered by the connection/discovery/service suites
+and production browser scenarios. No validation thresholds were changed.
