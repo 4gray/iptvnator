@@ -8,6 +8,7 @@ export type View =
     | 'search'
     | 'sources'
     | 'settings'
+    | 'person'
     | 'detail';
 export interface Route {
     view: View;
@@ -16,6 +17,7 @@ export interface Route {
     page: number;
     query: string;
     item?: Media;
+    person?: { tmdbId: number; name: string; sourceId: string };
 }
 export const firstRoute = (): Route => ({
     view: 'home',

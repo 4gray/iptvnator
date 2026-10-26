@@ -5,15 +5,22 @@ import { PageHeader } from './page-header';
 import { Favorites } from './favorites';
 import { usePlayerControls } from './player-controls';
 import { useEffect, useRef } from 'preact/hooks';
-import { useTv, View } from './use-tv';
+import { useTv } from './use-tv';
+import type { View } from './navigation';
 import { Sources } from './forms';
 import { Settings } from './settings';
 import type { SettingsMemory } from './settings-navigation';
 import { Home, CatalogScreen } from './screens';
 import { Detail } from './detail';
+import { useDetailSeason } from './use-detail-season';
 import { Live } from './live';
 import { Backdrop, TvIcon } from '@iptvnator/tv/ui';
 import { useMetadata } from './use-metadata';
+import { useSeriesContext } from './use-series-context';
+import { useSeriesDetails } from './use-series-details';
+import { mediaTitle } from '@iptvnator/tv/util';
+import { PersonPage } from './person-page';
+import type { FilmographyMemory } from './use-filmography-search';
 const navigation: [View, string][] = [
     ['home', 'Home'],
     ['live', 'TV'],
@@ -25,6 +32,7 @@ const navigation: [View, string][] = [
     ['settings', 'Settings'],
 ];
 export function TvApp() {
+    const personMemory = useRef<FilmographyMemory>(new WeakMap());
     const settingsMemory = useRef<SettingsMemory>({
         category: 'connection',
         controls: {},
@@ -32,6 +40,9 @@ export function TvApp() {
     });
     const video = useRef<HTMLVideoElement>(null);
     const tv = useTv(video);
+    const detailSeason = useDetailSeason(tv.route);
+    const seriesDetails = useSeriesDetails(tv);
+    useSeriesContext(tv);
     const browse = useLiveBrowse(tv);
     const overlay = useLiveOverlay(tv, browse);
     useEffect(() => {
@@ -190,6 +201,8 @@ export function TvApp() {
                     <Home
                         tv={display}
                         feature={{ ...feature, item: metadata.item }}
+                        openSeries={seriesDetails.open}
+                        detailsBusy={seriesDetails.busy}
                     />
                 ) : r.view === 'sources' ? (
                     <Sources tv={tv} />
@@ -206,8 +219,21 @@ export function TvApp() {
                     />
                 ) : r.view === 'favorites' ? (
                     <Favorites tv={tv} />
+                ) : r.view === 'person' ? (
+                    <PersonPage
+                        key={`${tv.data.activeId}:${r.person?.tmdbId}`}
+                        tv={tv}
+                        client={metadata.client}
+                        memory={personMemory.current}
+                    />
                 ) : r.view === 'detail' ? (
-                    <Detail key={r.item?.id} tv={display} />
+                    <Detail
+                        key={r.item?.id}
+                        tv={display}
+                        metadataClient={metadata.client}
+                        season={detailSeason.season}
+                        selectSeason={detailSeason.select}
+                    />
                 ) : (
                     <CatalogScreen tv={tv} />
                 )}
@@ -260,7 +286,10 @@ export function TvApp() {
                                     ? `SEASON ${current.season} · EPISODE ${current.episode}`
                                     : 'IPTVNATOR TV'}
                             </span>
-                            <h1>{current?.title}</h1>
+                            <h1>{current && mediaTitle(current)}</h1>
+                            {current?.kind === 'episode' ? (
+                                <p>{current.title}</p>
+                            ) : null}
                             <div class="actions">
                                 <button
                                     data-focus="player-toggle"
@@ -269,6 +298,19 @@ export function TvApp() {
                                 >
                                     {element?.paused ? 'Play ▶' : 'Pause Ⅱ'}
                                 </button>
+                                {current?.kind === 'episode' ? (
+                                    <button
+                                        data-focus="player-series-details"
+                                        disabled={seriesDetails.busy}
+                                        onClick={() =>
+                                            void seriesDetails.open(current)
+                                        }
+                                    >
+                                        {seriesDetails.busy
+                                            ? 'Finding series…'
+                                            : 'Series details →'}
+                                    </button>
+                                ) : null}
                                 {current?.kind !== 'live' ? (
                                     <>
                                         <button

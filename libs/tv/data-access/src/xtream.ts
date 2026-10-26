@@ -7,6 +7,7 @@ import {
     Catalog,
     CatalogSort,
     sortCatalog,
+    catalogTitleMatcher,
     Kind,
     Media,
     Source,
@@ -15,6 +16,7 @@ import {
     text,
     artwork,
     identity,
+    withSeriesContext,
 } from '@iptvnator/tv/util';
 import type { XtreamVodDetails } from '@iptvnator/shared/interfaces';
 import { ProviderTransport } from './transport';
@@ -89,12 +91,13 @@ export class XtreamProvider implements ProviderClient {
             id: text(r.category_id),
             name: text(r.category_name),
         }));
+        const matchesTitle = catalogTitleMatcher(query);
         const items = data
             .map((r) => this.media(r, kind))
             .filter(
                 (m) =>
                     (!category || m.category === category) &&
-                    m.title.toLowerCase().includes(query.toLowerCase())
+                    matchesTitle(m.title)
             );
         return {
             items: sortCatalog(
@@ -141,20 +144,32 @@ export class XtreamProvider implements ProviderClient {
         Object.keys(data.episodes ?? {}).forEach((season) =>
             rows(data.episodes?.[season]).forEach((r) => {
                 const providerId = text(r.id);
-                result.push({
-                    ...this.media(r, 'episode'),
-                    id: identity(
-                        this.source,
-                        'episode',
-                        `${item.providerId}:${season}:${providerId}`
-                    ),
-                    providerId,
-                    parentId: item.id,
-                    season: Number(r.season ?? season),
-                    episode: Number(r.episode_num),
-                    title: text(r.title) || `Episode ${r.episode_num}`,
-                    raw: r,
-                });
+                const info = (r.info ?? {}) as Record<string, unknown>;
+                result.push(
+                    withSeriesContext(
+                        {
+                            ...this.media(r, 'episode'),
+                            id: identity(
+                                this.source,
+                                'episode',
+                                `${item.providerId}:${season}:${providerId}`
+                            ),
+                            providerId,
+                            parentId: item.id,
+                            seriesTitle: item.title,
+                            seriesYear: item.year,
+                            poster: detail.poster || item.poster,
+                            episodeStill: artwork(info.movie_image),
+                            description: text(info.plot ?? info.description),
+                            backdrop: detail.backdrop,
+                            season: Number(r.season ?? season),
+                            episode: Number(r.episode_num),
+                            title: text(r.title) || `Episode ${r.episode_num}`,
+                            raw: r,
+                        },
+                        detail
+                    )
+                );
             })
         );
         return result;

@@ -3,8 +3,14 @@ const selectors =
 export function focusKey() {
     return (document.activeElement as HTMLElement)?.dataset.focus ?? '';
 }
-export function restoreFocus(key: string, fallback = '', scroll?: number) {
+export function restoreFocus(
+    key: string,
+    fallback = '',
+    scroll?: number,
+    owns: () => boolean = () => true
+) {
     requestAnimationFrame(() => {
+        if (!owns()) return;
         const elements = Array.from(
             (
                 document.querySelector('[data-tv-modal]') ?? document
