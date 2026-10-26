@@ -55,6 +55,7 @@ are excluded from this report.
 | Slow fullscreen details | Back cancels a held parent lookup; late responses cannot navigate away from Home. |
 | Slow Home details | A newer playback request cancels the old details action without cancelling its own successful stop/persist/open flow. |
 | Retained Retry | A valid same-source retry restores its original control; an old retained click cannot reopen the previous source. |
+| Delayed episode stills | With 200 episodes and a held TMDB season response, focus and viewport offset remain on episode 73 or 181 when compact rows grow. Enter plays that same episode; DOM remains bounded to 30 cards. Both cases lose focus before the fix and pass afterwards. |
 | Sparse series metadata | Detail-only cover/backdrop/overview survive Home and relaunch; deliberately injected legacy episode images stay unused, and newer parent art takes priority. Unit checks retain the series year without replacing episode descriptions. |
 | Browser Home Back | With catalog responses held, a no-op platform Back keeps requests alive and loading completes after release. |
 
@@ -77,7 +78,7 @@ The unchanged shared TMDB implementation passed **94 tests** with coverage:
 80.38% statements, 60.43% branches, 69.04% functions and 80.65% lines. The affected
 Angular TMDB consumers passed **101 tests**. Thresholds are unchanged.
 
-Final results: **109 TV unit tests**, **126 TV E2E scenarios**, lint for all
+Final results: **109 TV unit tests**, **128 TV E2E scenarios**, lint for all
 nine affected projects and typechecks for all three TV projects passed. All
 **167 release notes**, three agent guidance files and eight repository skills
 validate. The sparse-overview browser assertion failed before the fix with the
@@ -137,9 +138,9 @@ is changed as part of the current source-scope cleanup.
 Prototype 0.1.25 ships one classic deferred IIFE targeting Chrome 68 / ES2018.
 Both the build and the JavaScript extracted from the IPK are parsed and scanned
 for unsupported builtins; the package can minify differently from the raw build.
-Final package SHA-256: `d9cf3d3e09bc29b801ecd8b9c55061287b332a7b12dab7f925dee120fa0563e6`.
-The archived `index-B24LcOIh.js` is 270,623 bytes; SHA-256:
-`7563a8d18675482ba773c70954f78d63f0e96c118c4ee0f6d33777e72bc3a9c7`.
+Final package SHA-256: `c23bbb4d949e2135b8a9850a8e83303b2ae8c9a436da906183324e453687ee55`.
+The archived `index-Bd-olgQX.js` is 270,956 bytes; SHA-256:
+`af14be74d2e221923a12ab3c52216bfa6df019b31b13dab8222e267dbd4ed88c`.
 
 Local Codex review of published head `75b94f071` found no actionable regressions.
 GitHub then reported three P2 follow-ups: no-op Home Back cancelling loading,
@@ -147,7 +148,9 @@ a saved series cover lost to an incomplete catalog row, and a stale install
 filename. The first two reproduce before their fixes; the install example now
 matches the package/inspection version. The fixes and source-scope cleanup are collected into one update; it passes the
 same local review gate before the next push. The final reviewed head is recorded
-in the PR. Greptile CLI is unavailable under the documented
+in the PR. The subsequent local round also found a delayed episode-layout
+transition that could move focus from episode 73 to 37; the new anchor regression
+covers both the middle and end of a long season, including actual playback. Greptile CLI is unavailable under the documented
 [local-review exception](agent-workflow.md#local-review-before-a-pull-request);
 its GitHub review supplied the cover/documentation findings.
 

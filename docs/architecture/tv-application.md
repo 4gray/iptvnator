@@ -507,6 +507,9 @@ Cards with stills show a larger image
 and up to three description lines. Missing stills keep compact text cards, and a
 season without stills retains its previous layout. Rich episode grids use fixed
 row tracks so mixed card heights do not corrupt virtual scrolling or focus.
+When delayed metadata changes episode row height, virtualization preserves the
+focused episode and its viewport offset. Apply the corrected scroll after the
+new spacer heights render so offsets near the end of a long season cannot clamp.
 Circular actor/director/creator controls open cached, language-scoped person
 details and the complete combined acting/directing/creating filmography. Missing
 photos keep initials. Selecting a filmography card searches only the current
