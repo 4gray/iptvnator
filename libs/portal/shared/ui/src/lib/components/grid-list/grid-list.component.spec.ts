@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { SettingsStore } from '@iptvnator/services';
@@ -75,6 +76,18 @@ describe('GridListComponent', () => {
             .compileComponents();
 
         fixture = TestBed.createComponent(GridListComponent);
+    });
+
+    it.each([
+        [{ rating: '7.5', rating_imdb: '8.2' }, 'XTREAM.IMDB_RATING'],
+        [{ rating: '7.5' }, 'XTREAM.RATING'],
+        [{ rating: '7.5', rating_imdb: '  ' }, 'XTREAM.RATING'],
+    ])('labels a rating according to its available source: %j', (item, key) => {
+        fixture.componentRef.setInput('items', [{ name: 'Movie', ...item }]);
+        fixture.detectChanges();
+
+        const rating = fixture.debugElement.query(By.css('.rating'));
+        expect(rating.injector.get(MatTooltip).message).toBe(key);
     });
 
     it('renders live logo cards with stream icons', () => {

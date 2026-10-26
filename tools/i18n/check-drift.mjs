@@ -51,6 +51,39 @@ export function collectLeaves(value, prefix = '', leaves = new Map()) {
     return leaves;
 }
 
+function findInvalidValues(leaves) {
+    return [...leaves]
+        .filter(([, value]) => typeof value !== 'string' || !value.trim())
+        .map(([key]) => [key, 'expected a non-empty string']);
+}
+
+/** Reject translations that would lose values or alter the source markup. */
+export function findInvalidTranslations(enLeaves, localeLeaves) {
+    const invalid = findInvalidValues(localeLeaves);
+    for (const [key, translated] of localeLeaves) {
+        if (!enLeaves.has(key)) continue;
+        if (typeof translated !== 'string' || !translated.trim()) {
+            continue;
+        }
+        const source = enLeaves.get(key);
+        if (typeof source !== 'string') continue;
+        const placeholders = (text) =>
+            [...text.matchAll(/\{\{[^{}]*\}\}/g)]
+                .map(([value]) => value)
+                .sort()
+                .join('\0');
+        const markup = (text) =>
+            [...text.matchAll(/<[^>]+>/g)].map(([value]) => value).join('\0');
+        if (placeholders(source) !== placeholders(translated)) {
+            invalid.push([key, 'interpolation placeholders differ']);
+        }
+        if (markup(source) !== markup(translated)) {
+            invalid.push([key, 'inline HTML differs']);
+        }
+    }
+    return invalid;
+}
+
 /** Keys whose non-empty locale string equals the English string. */
 export function findIdenticalToEnglish(enLeaves, localeLeaves) {
     const identical = new Map();
@@ -191,12 +224,18 @@ function checkLocale({ i18nDir, locale, enLeaves, baseline, mode }) {
             : mode === 'update'
               ? []
               : unbaselined;
-    return { missing, extra, identical, baselined, rejected, stale };
+    const invalid = findInvalidTranslations(enLeaves, localeLeaves);
+    return { missing, extra, identical, baselined, rejected, stale, invalid };
 }
 
 function reportLocale(log, file, result, mode) {
-    const { missing, extra, identical, baselined, rejected, stale } = result;
-    const failed = missing.length + extra.length + rejected.length > 0;
+    const { missing, extra, identical, baselined, rejected, stale, invalid } =
+        result;
+    const failed =
+        missing.length + extra.length + rejected.length + invalid.length > 0;
+    for (const [key, reason] of invalid) {
+        log(`FAIL ${file} ${key}: ${reason}`);
+    }
     const baselineNote =
         mode === 'baseline' ? ` baselined=${baselined.length}` : '';
     log(
@@ -283,7 +322,11 @@ export function run({
     const locales = listLocales(i18nDir);
     const identicalByLocale = new Map();
     const rejected = [];
-    let failed = false;
+    const invalidSource = findInvalidValues(enLeaves);
+    for (const [key, reason] of invalidSource) {
+        log(`FAIL ${EN_LOCALE}.json ${key}: ${reason}`);
+    }
+    let failed = invalidSource.length > 0;
     let staleTotal = 0;
 
     for (const locale of locales) {
@@ -321,7 +364,7 @@ export function run({
         // Only a complete, readable set of locales is a state worth recording.
         if (failed) {
             log(
-                'FAIL baseline not written: fix the unreadable, missing or extra keys above first.'
+                'FAIL baseline not written: fix invalid values, unreadable files, missing or extra keys above first.'
             );
             return 1;
         }

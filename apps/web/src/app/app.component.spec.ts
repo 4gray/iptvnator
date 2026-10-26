@@ -269,6 +269,20 @@ describe('AppComponent', () => {
         expect(snackBar.open).not.toHaveBeenCalled();
     });
 
+    it('normalizes legacy Portuguese before applying the startup language', () => {
+        const settings: Settings = {
+            ...DEFAULT_SETTINGS,
+            language: 'pt' as Language,
+        };
+        settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
+
+        component.initSettings();
+
+        expect(TestBed.inject(AppDateLocaleService).use).toHaveBeenCalledWith(
+            Language.PORTUGUESE_BRAZIL
+        );
+    });
+
     it('does not reimport a deleted source from a late startup freshness response', async () => {
         await TestBed.inject(SettingsStore).loadSettings();
         let finishFreshness!: (value: {

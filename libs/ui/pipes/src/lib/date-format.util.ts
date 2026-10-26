@@ -2,6 +2,9 @@ const DEFAULT_DATE_LOCALE = 'en';
 
 const DATE_LOCALE_ALIASES: Record<string, string> = {
     ary: 'ar-MA',
+    pt: 'pt-BR',
+    'pt-br': 'pt-BR',
+    'pt-pt': 'pt-PT',
     by: 'be',
     zhtw: 'zh-Hant',
 };
@@ -9,7 +12,9 @@ const DATE_LOCALE_ALIASES: Record<string, string> = {
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
 export function normalizeDateLocale(locale?: string | null): string {
-    const normalizedLocale = String(locale ?? '').trim();
+    const normalizedLocale = String(locale ?? '')
+        .trim()
+        .replace(/_/g, '-');
 
     if (!normalizedLocale) {
         return DEFAULT_DATE_LOCALE;

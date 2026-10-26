@@ -9,6 +9,16 @@ describe('date-format.util', () => {
         expect(normalizeDateLocale()).toBe('en');
     });
 
+    it.each([
+        ['pt', 'pt-BR'],
+        ['pt-BR', 'pt-BR'],
+        [' PT_br ', 'pt-BR'],
+        ['pt-PT', 'pt-PT'],
+        ['pt_pt', 'pt-PT'],
+    ])('normalizes Portuguese %s to %s', (input, expected) => {
+        expect(normalizeDateLocale(input)).toBe(expected);
+    });
+
     it('formats dates with cached Intl formatters', () => {
         expect(
             formatWithIntl('2026-04-05T12:30:00.000Z', {

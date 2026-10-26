@@ -17,7 +17,11 @@ describe('resolveRemoteControlLanguage', () => {
         [['be-BY'], 'by', 'be-BY'],
         [['ar-MA'], 'ary', 'ar-MA'],
         [['ar-EG'], 'ar', 'ar-EG'],
-        [['pt_BR'], 'pt', 'pt_BR'],
+        [['pt_BR'], 'pt-BR', 'pt-BR'],
+        [['PT-pt'], 'pt-PT', 'pt-PT'],
+        [['pt-BR', 'pt-PT'], 'pt-BR', 'pt-BR'],
+        [['pt'], 'pt-BR', 'pt-BR'],
+        [['pt-AO'], 'pt-PT', 'pt-PT'],
     ])(
         'maps %j to the %s translation',
         (languages, translation, documentLanguage) => {

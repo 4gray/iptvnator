@@ -276,7 +276,9 @@ pnpm run i18n:baseline:update   # deliberate: rewrite the English-identical base
 ```
 
 The i18n check is non-mutating. It compares every locale file in
-`apps/web/src/assets/i18n/` against `en.json` and fails on missing or extra keys.
+`apps/web/src/assets/i18n/` against `en.json` and fails on missing or extra keys,
+empty/non-string values, changed interpolation placeholders (including their
+multiplicity), or changed inline HTML. The baseline never exempts these errors.
 It also fails on a locale value that is identical to English unless
 `tools/i18n/identical-en-baseline.json` records that exact English text for the
 same locale and key. The baseline holds values that are legitimately the same

@@ -119,6 +119,11 @@ Explicitly excluded — session state, as opposed to the connection definition:
 
 Only EPG source URLs are backed up at the app-settings level.
 
+Language preferences are local settings and are neither exported nor restored
+by a playlist backup. Restoring EPG URLs preserves the current language and
+other settings. Legacy local `pt` preferences normalize to `pt-BR` when loaded
+or updated; the next settings write persists that canonical code.
+
 - Exported: `settings.epgUrls`
 - Excluded: cached EPG database content
 
