@@ -1,4 +1,5 @@
 @use '../../../../../ui/styles/focus-ring';
+@use '../../../../../ui/styles/app-controls' as controls;
 
 :host {
     display: block;
@@ -79,7 +80,7 @@
 }
 
 .downloaded-series-dialog__size {
-    color: var(--app-muted-color);
+    color: var(--app-body-color);
     font-family:
         'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono',
         monospace;
@@ -92,7 +93,7 @@
     align-items: center;
 
     button {
-        color: var(--app-body-color);
+        @include controls.ghost-icon-button;
     }
 }
 
