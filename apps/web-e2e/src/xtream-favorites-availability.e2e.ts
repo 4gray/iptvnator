@@ -1046,6 +1046,9 @@ test('@xtream @collections sparse detail hearts cannot delete a retained conflic
     await page
         .getByRole('button', { name: 'Remove from favorites', exact: true })
         .click();
+    await expect(
+        page.getByRole('button', { name: 'Older saved original', exact: true })
+    ).toHaveCount(0);
     expect(
         await page.evaluate(
             (id) =>
