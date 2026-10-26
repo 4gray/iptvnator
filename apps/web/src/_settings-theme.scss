@@ -1,5 +1,4 @@
 @use '@angular/material' as mat;
-@use '../../../libs/ui/styles/app-controls' as controls;
 
 $settings-select-density: mat.define-theme(
     (
@@ -13,26 +12,6 @@ $settings-select-density: mat.define-theme(
 // keeps white cards with hairline borders; dark uses the widget surface with
 // a faint light border, per the UI guidelines' theme split.
 .settings-container {
-    // Settings actions use the same roles as dialogs and toolbars. Keep the
-    // Save CTA and destructive tints independent from ordinary actions.
-    .mat-mdc-unelevated-button:not(.settings-save-button):not(
-            .settings-primary-button
-        ):not(.app-destructive-button) {
-        @include controls.secondary-button;
-    }
-
-    .settings-primary-button {
-        @include controls.accent-button;
-    }
-
-    .mat-mdc-button:not(.app-destructive-button) {
-        @include controls.ghost-button(md);
-    }
-
-    .mat-mdc-icon-button:not(.app-destructive-button) {
-        @include controls.ghost-icon-button(32px, 18px);
-    }
-
     // Compact switch, nearer the 22px toggle of the concept than Material's
     // default 32px track; the 40px state layer keeps the touch target.
     @include mat.slide-toggle-overrides(

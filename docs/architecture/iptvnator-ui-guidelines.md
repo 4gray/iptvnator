@@ -1158,7 +1158,7 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
 - Destructive actions keep the confirm dialog from the Dialogs section; the
   row itself uses `.app-destructive-button` on a stroked button.
 - Ordinary settings actions use `mat-flat-button` with the shared secondary
-  role from `_settings-theme.scss`; `.settings-primary-button` marks the accent
+  role from the lazy settings stylesheet; `.settings-primary-button` marks the accent
   action (install/download, browser import, or the empty EPG prompt). Text and
   icon actions use the kit ghost roles. Save keeps its dedicated CTA pair.
 - The save bar floats over the content column while the form is dirty with
@@ -1347,7 +1347,8 @@ muted colour reads about 2.9:1 on the track. The settings theme switcher is
 still a pill switcher of its own.
 
 Custom button-based radio choices use `appRadioGroup` and
-`[appRadioOption]="selected"` from `@iptvnator/ui/components`. The behaviour
+`[appRadioOption]="selected"` from the narrow
+`@iptvnator/ui/components/radio-group` entry point. The behaviour
 keeps one tab stop on the current enabled choice, selects with wrapping arrow
 keys (horizontal order follows RTL), and supports Home/End. External changes,
 including settings Discard, update that tab stop. Keep labels on the group

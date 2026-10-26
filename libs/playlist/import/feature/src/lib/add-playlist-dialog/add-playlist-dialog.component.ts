@@ -22,9 +22,11 @@ import {
     DialogFooterDirective,
     DialogFooterStartDirective,
     DialogShellComponent,
+} from '@iptvnator/ui/components';
+import {
     RadioGroupDirective,
     RadioOptionDirective,
-} from '@iptvnator/ui/components';
+} from '@iptvnator/ui/components/radio-group';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DataService } from '@iptvnator/services';

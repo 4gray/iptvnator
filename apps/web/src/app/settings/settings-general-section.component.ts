@@ -23,7 +23,7 @@ import { markSectionForCheckOnFormEvents } from './settings-section-form-render'
 import {
     RadioGroupDirective,
     RadioOptionDirective,
-} from '@iptvnator/ui/components';
+} from '@iptvnator/ui/components/radio-group';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
