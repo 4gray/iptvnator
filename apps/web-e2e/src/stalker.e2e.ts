@@ -1114,6 +1114,16 @@ test.describe('@stalker full portal authentication', () => {
         await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
         await setInputValue(dialog.locator('input#macAddress'), mac);
 
+        // Existing identity values must not suppress feedback-driven opening.
+        const summary = dialog.locator('app-stalker-portal-import summary');
+        await summary.click();
+        await setInputValue(
+            dialog.locator('input#serialNumber'),
+            'LOGIN-RETRY-SN'
+        );
+        await summary.click();
+        await expect(dialog.locator('input#username')).toBeHidden();
+
         const addButton = dialog.getByRole('button', {
             name: 'Add playlist',
             exact: true,
@@ -1128,6 +1138,7 @@ test.describe('@stalker full portal authentication', () => {
         );
         // The dialog stays open so the user can add the credentials.
         await expect(dialog).toBeVisible();
+        await expect(dialog.locator('input#username')).toBeVisible();
 
         // Second attempt with credentials in the same dialog succeeds.
         await setInputValue(dialog.locator('input#username'), 'user');

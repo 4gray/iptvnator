@@ -10,10 +10,21 @@ import { RevealDetailsDirective } from './reveal-details.directive';
     </details>`,
 })
 class Host {
-    readonly reveal = signal(false);
+    readonly reveal = signal<boolean | object | null>(false);
 }
 
 describe('RevealDetailsDirective', () => {
+    it('reveals new feedback while populated fields already requested opening', () => {
+        const fixture = TestBed.createComponent(Host);
+        fixture.componentInstance.reveal.set(true);
+        fixture.detectChanges();
+        const details = fixture.nativeElement.querySelector('details');
+        details.open = false;
+        fixture.componentInstance.reveal.set({ reason: 'login-required' });
+        fixture.detectChanges();
+        expect(details.open).toBe(true);
+    });
+
     it('reveals requested fields and leaves native user folding in control', () => {
         const fixture = TestBed.createComponent(Host);
         fixture.detectChanges();

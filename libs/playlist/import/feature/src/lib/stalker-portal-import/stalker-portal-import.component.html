@@ -55,7 +55,10 @@
             'HOME.STALKER_PORTAL.MAC_ADDRESS_ERROR' | translate
         }}</mat-error>
     </mat-form-field>
-    <details class="app-dialog-disclosure" [appRevealDetails]="hasAdvancedOptions">
+    <details
+        class="app-dialog-disclosure"
+        [appRevealDetails]="feedback() || hasAdvancedOptions"
+    >
         <summary>
             {{ 'HOME.STALKER_PORTAL.ADDITIONAL_SETTINGS' | translate }}
         </summary>
