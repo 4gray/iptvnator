@@ -760,8 +760,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                     true
                 ).has(normalizedContentId)
             ) {
-                await this.setContentMetadataIfMissing(
-                    contentId,
+                await this.enrichCatalogMetadata(
+                    normalizedContentId,
                     playlistId,
                     contentId.identity
                 );
@@ -1240,7 +1240,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     ): Promise<void> {
         const key = await this.resolveCollectionKey(playlistId, contentId);
         if (key == null) return;
-        const { enrichPwaContentMetadata, enrichPwaCatalogMetadata } =
+        const { enrichPwaContentMetadata } =
             await import('./pwa-content-metadata');
         const current = this.getCollectionItemsById(
             playlistId,
@@ -1262,6 +1262,17 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             patch
         );
         if (!enriched) return;
+        await this.enrichCatalogMetadata(key, playlistId, patch);
+    }
+
+    /** Explicit Favorite saves must not depend on optional history enrichment. */
+    private async enrichCatalogMetadata(
+        key: CollectionKey,
+        playlistId: string,
+        patch: ContentMetadataPatch
+    ): Promise<void> {
+        const { enrichPwaCatalogMetadata } =
+            await import('./pwa-content-metadata');
         for (const type of this.contentTypes) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey);

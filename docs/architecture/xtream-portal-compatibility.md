@@ -218,6 +218,9 @@ Favorite status and save guards choose raw catalog duplicates against the saved 
 explicitly displayed identity as well. This selection hint cannot create catalog
 evidence when no actual row exists, and an unrelated duplicate cannot veto a
 matching heart action.
+Saving a new cold detail favorite may hydrate and enrich its matching catalog
+rows, but does not rewrite independent Recent entries. Optional history
+enrichment cannot block the explicit favorite write when browser storage is full.
 Playback captures the displayed title, artwork and normalized detail identity before
 waiting for confirmation. That metadata travels with the captured playlist even if
 navigation or catalog changes happen before the save. Shared live playback from

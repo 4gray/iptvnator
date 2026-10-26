@@ -37,7 +37,56 @@ describe('PWA cold VOD favorite actions', () => {
         });
         source = TestBed.inject(PwaXtreamDataSource);
     });
-    afterEach(() => localStorage.clear());
+    afterEach(() => {
+        jest.restoreAllMocks();
+        localStorage.clear();
+    });
+
+    it('saves a favorite without rewriting independent Recent when history storage is full', async () => {
+        api.getStreams.mockResolvedValue([
+            { stream_id: 42, name: 'Duna', category_id: '2656' },
+        ]);
+        const recent = JSON.stringify({
+            p1: [
+                {
+                    id: 'movie:42',
+                    viewedAt: '2026-10-26T10:00:00Z',
+                    collectionItem: {
+                        xtream_id: 42,
+                        type: 'movie',
+                        title: 'Duna',
+                    },
+                },
+            ],
+        });
+        localStorage.setItem('xtream-recent-items', recent);
+        const set = localStorage.setItem.bind(localStorage);
+        const writes = jest
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation((key, value) => {
+                if (key === 'xtream-recent-items')
+                    throw new DOMException(
+                        'Storage full',
+                        'QuotaExceededError'
+                    );
+                set(key, value);
+            });
+        const ref = {
+            id: 42,
+            type: 'movie' as const,
+            identity: { tmdbId: 100, releaseYear: 2024 },
+        };
+        await source.addFavorite(ref, 'p1');
+        expect(await source.isFavorite(ref, 'p1')).toBe(true);
+        expect((await source.getFavorites('p1'))[0]).toMatchObject({
+            tmdb_id: 100,
+            release_year: 2024,
+        });
+        expect(localStorage.getItem('xtream-recent-items')).toBe(recent);
+        expect(
+            writes.mock.calls.some(([key]) => key === 'xtream-recent-items')
+        ).toBe(false);
+    });
 
     it.each([undefined, 100])(
         'hydrates the typed catalog before saving a new cold favorite (tmdb=%p)',
