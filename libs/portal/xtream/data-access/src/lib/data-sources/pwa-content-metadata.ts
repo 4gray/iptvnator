@@ -19,6 +19,39 @@ import {
 import type { XtreamCachedContentItem } from './pwa-cached-content';
 import { rememberColdFavoriteMetadata } from './pwa-cold-favorite';
 
+/** Provider rows are normalized only when a catalog is fetched or saved. */
+export function normalizePwaCatalogContent(
+    items: readonly XtreamCachedContentItem[],
+    type: 'live' | 'movie' | 'series'
+): XtreamContentItem[] {
+    return items.map((item) => {
+        const xtreamId = cachedContentIdentity(item, type);
+        const title = item.title ?? item.name ?? item.stream_display_name ?? '';
+        const posterUrl =
+            item.poster_url ??
+            item.stream_icon ??
+            item.cover ??
+            item.cover_big ??
+            item.movie_image ??
+            item.poster ??
+            '';
+
+        return {
+            ...item,
+            ...normalizeCollectionIdentity(item as XtreamContentItem),
+            added: item.added ?? item.last_modified ?? '',
+            category_id: item.category_id ?? '',
+            id: xtreamId,
+            name: item.name ?? title,
+            poster_url: posterUrl,
+            rating: String(item.rating ?? ''),
+            title,
+            type,
+            xtream_id: xtreamId,
+        } as XtreamContentItem;
+    });
+}
+
 /** Cache enrichment loads alongside detail metadata and explicit Favorite writes. */
 export function enrichPwaCatalogCache(
     cache: Map<string, XtreamCachedContentItem[]>,

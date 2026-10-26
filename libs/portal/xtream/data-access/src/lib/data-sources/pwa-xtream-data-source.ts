@@ -1,7 +1,6 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import {
     ALL_CATEGORIES_WITHHELD,
-    XTREAM_FAVORITE_IDENTITY_CONFLICT,
     foldSearchText,
     ContentMetadataPatch,
     Playlist,
@@ -29,6 +28,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 import {
     DbCategoryType,
+    XTREAM_CONTENT_TYPES,
     IXtreamDataSource,
     XtreamCollectionRef,
     ProgressCallback,
@@ -77,7 +77,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly injector = inject(Injector);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly logger = createLogger('PwaXtreamDataSource');
-    private readonly contentTypes = ['live', 'movie', 'series'] as const;
     private readonly userDataStorage = inject(USER_DATA_STORAGE);
     private readonly collectionCatalog = new PwaCollectionCatalog();
     private readonly collectionStorage = new PwaCollectionStorage(
@@ -538,7 +537,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                   ? 'loading-movies'
                   : 'loading-series'
         );
-        const content = this.normalizeContentItems(
+        const content = await this.normalizeContentItems(
             await this.apiService.getStreams(credentials, type),
             type
         );
@@ -580,7 +579,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         void options;
         // In PWA mode, we just cache normalized API items in memory.
         const cacheKey = `${playlistId}-${type}-content`;
-        const normalizedStreams = this.normalizeContentItems(streams, type);
+        const normalizedStreams = await this.normalizeContentItems(
+            streams,
+            type
+        );
         this.contentCache.set(cacheKey, normalizedStreams);
 
         if (onProgress) {
@@ -590,47 +592,17 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return normalizedStreams.length;
     }
 
-    private normalizeContentItems(
+    private async normalizeContentItems(
         streams:
             | XtreamLiveStream[]
             | XtreamVodStream[]
             | XtreamSerieItem[]
             | XtreamContentItem[],
         type: 'live' | 'movie' | 'series'
-    ): XtreamContentItem[] {
-        return streams.map((item) =>
-            this.normalizeContentItem(item as XtreamCachedContentItem, type)
-        );
-    }
-
-    private normalizeContentItem(
-        item: XtreamCachedContentItem,
-        type: 'live' | 'movie' | 'series'
-    ): XtreamContentItem {
-        const xtreamId = cachedContentIdentity(item, type);
-        const title = item.title ?? item.name ?? item.stream_display_name ?? '';
-        const posterUrl =
-            item.poster_url ??
-            item.stream_icon ??
-            item.cover ??
-            item.cover_big ??
-            item.movie_image ??
-            item.poster ??
-            '';
-
-        return {
-            ...item,
-            ...normalizeCollectionIdentity(item as XtreamContentItem),
-            added: item.added ?? item.last_modified ?? '',
-            category_id: item.category_id ?? '',
-            id: xtreamId,
-            name: item.name ?? title,
-            poster_url: posterUrl,
-            rating: String(item.rating ?? ''),
-            title,
-            type,
-            xtream_id: xtreamId,
-        } as XtreamContentItem;
+    ): Promise<XtreamContentItem[]> {
+        const { normalizePwaCatalogContent } =
+            await import('./pwa-content-metadata');
+        return normalizePwaCatalogContent(streams, type);
     }
 
     // =========================================================================
@@ -743,27 +715,19 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
 
         const expected = collectionRefIdentity(contentId);
-        if (
-            this.collectionStorage.hasFavoriteIdentityConflict(
-                playlistId,
-                normalizedContentId,
-                expected
-            )
-        )
-            throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
-
-        const allFavorites = this.collectionStorage.getFavoritesFromStorage();
-        if (allFavorites[playlistId]) {
-            const matchingKeys = this.getMatchingCollectionKeys(
-                playlistId,
-                allFavorites[playlistId],
-                normalizedContentId
-            );
-            allFavorites[playlistId] = allFavorites[playlistId].filter(
-                (id) => !matchingKeys.has(id)
-            );
-        }
-        this.collectionStorage.saveFavoritesToStorage(allFavorites);
+        const { removePwaFavorite } = await import('./pwa-favorite-write');
+        removePwaFavorite(
+            this.collectionStorage,
+            playlistId,
+            normalizedContentId,
+            expected,
+            (ids) =>
+                this.getMatchingCollectionKeys(
+                    playlistId,
+                    ids,
+                    normalizedContentId
+                )
+        );
     }
 
     async isFavorite(
@@ -1000,18 +964,17 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
-        const allRecent = this.collectionStorage.getRecentItemsFromStorage();
-        if (allRecent[playlistId]) {
-            const matchingKeys = this.getMatchingCollectionKeys(
-                playlistId,
-                allRecent[playlistId].map((item) => item.id),
-                normalizedContentId
-            );
-            allRecent[playlistId] = allRecent[playlistId].filter(
-                (r) => !matchingKeys.has(r.id)
-            );
-        }
-        this.collectionStorage.saveRecentItemsToStorage(allRecent);
+        const { removePwaRecentItem } = await import('./pwa-recent-write');
+        removePwaRecentItem(
+            this.collectionStorage,
+            playlistId,
+            (ids) =>
+                this.getMatchingCollectionKeys(
+                    playlistId,
+                    ids,
+                    normalizedContentId
+                )
+        );
     }
 
     async clearRecentItems(playlistId: string): Promise<void> {
@@ -1043,7 +1006,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     ): Map<CollectionKey, XtreamContentItem> {
         if (!ids.length) return new Map();
         const cached = ([] as XtreamContentItem[]).concat(
-            ...this.contentTypes.map((type) =>
+            ...XTREAM_CONTENT_TYPES.map((type) =>
                 this.collectionCatalog.select(
                     (this.contentCache.get(`${playlistId}-${type}-content`) ??
                         []) as XtreamContentItem[],
@@ -1061,7 +1024,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                           playlistId
                       ] ??
                       {}),
-            this.contentTypes.every((type) =>
+            XTREAM_CONTENT_TYPES.every((type) =>
                 this.contentCache.has(`${playlistId}-${type}-content`)
             ),
             preferred ?? (catalogOnly ? snapshots : undefined)
@@ -1103,7 +1066,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
-        const missingTypes = this.contentTypes.filter(
+        const missingTypes = XTREAM_CONTENT_TYPES.filter(
             (type) =>
                 !this.contentCache.has(`${playlistId}-${type}-content`) &&
                 ids.some(

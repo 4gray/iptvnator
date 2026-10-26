@@ -13,6 +13,27 @@ import type { PwaCollectionStorage } from './pwa-collection-storage';
 import type { XtreamContentItem } from './xtream-data-source.interface';
 import { coldFavoriteCandidate } from './pwa-cold-favorite';
 
+/** Keep removal and its identity guard in one synchronous storage operation. */
+export function removePwaFavorite(
+    storage: PwaCollectionStorage,
+    playlistId: string,
+    key: CollectionKey,
+    expected: ReturnType<typeof collectionRefIdentity>,
+    matchingKeysFor: (ids: CollectionKey[]) => Set<CollectionKey>
+): void {
+    if (storage.hasFavoriteIdentityConflict(playlistId, key, expected))
+        throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
+
+    const allFavorites = storage.getFavoritesFromStorage();
+    if (allFavorites[playlistId]) {
+        const matchingKeys = matchingKeysFor(allFavorites[playlistId]);
+        allFavorites[playlistId] = allFavorites[playlistId].filter(
+            (id) => !matchingKeys.has(id)
+        );
+    }
+    storage.saveFavoritesToStorage(allFavorites);
+}
+
 /** Cold-detail preparation belongs to the explicit action, not app startup. */
 export async function savePwaFavorite(
     storage: PwaCollectionStorage,
