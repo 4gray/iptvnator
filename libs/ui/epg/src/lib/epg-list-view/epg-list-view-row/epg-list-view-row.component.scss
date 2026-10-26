@@ -10,7 +10,6 @@
     padding: 11px 18px 11px 22px;
     position: relative;
     cursor: pointer;
-    border-left: 3px solid transparent;
     transition: background 120ms ease;
 }
 
@@ -182,11 +181,10 @@
     color: $text-primary;
 }
 
-/* ── NOW — accent bar + fill ── */
+/* ── NOW — selected surface ── */
 :host([data-when='now']) {
     align-items: start;
     background: var(--app-selection-surface);
-    border-left-color: var(--app-selection-border);
 }
 :host([data-when='now']) .time {
     color: $accent-text;
@@ -202,7 +200,6 @@
 /* ── PLAYING from archive — distinct from now ── */
 :host(.playing) {
     background: var(--app-selection-surface);
-    border-left-color: var(--app-selection-border);
 }
 :host(.playing) .title {
     color: $text-primary;

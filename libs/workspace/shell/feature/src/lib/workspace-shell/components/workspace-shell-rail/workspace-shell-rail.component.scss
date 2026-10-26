@@ -19,17 +19,13 @@
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none;
-    --rail-link-color: color-mix(
-        in srgb,
-        var(--app-on-surface) 65%,
-        transparent
-    );
+    --rail-link-color: var(--app-body-color);
     --rail-link-hover-color: var(--app-on-surface);
     --rail-link-hover-bg: var(--app-hover-overlay);
     --rail-link-active-bg: var(--app-selection-surface);
     --rail-link-active-bg-strong: var(--app-selection-surface-strong);
-    --rail-link-active-color: var(--app-selection-color);
-    --rail-link-active-icon: var(--app-selection-color);
+    --rail-link-active-color: var(--app-selection-text-color);
+    --rail-link-active-icon: var(--app-selection-text-color);
     --rail-link-active-border: var(--app-selection-border);
     --rail-link-active-glow: var(--app-selection-glow);
 
@@ -90,19 +86,6 @@
 
     mat-icon {
         color: var(--rail-link-active-icon);
-    }
-
-    &::after {
-        content: '';
-        position: absolute;
-        right: -4px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 18px;
-        border-radius: 999px;
-        background: var(--rail-link-active-icon);
-        box-shadow: 0 0 10px var(--rail-link-active-glow);
     }
 }
 
@@ -185,7 +168,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
+        color: var(--app-body-color);
         app-region: no-drag;
 
         mat-icon {
@@ -197,19 +180,6 @@
         &:hover:not(.is-active) {
             background: var(--app-hover-overlay);
             color: var(--app-on-surface);
-        }
-
-        &.is-active::after {
-            content: '';
-            position: absolute;
-            right: -4px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 4px;
-            height: 20px;
-            border-radius: 999px;
-            background: var(--app-selection-color);
-            box-shadow: 0 0 10px var(--app-selection-glow);
         }
     }
 }
@@ -233,17 +203,6 @@
 
         a {
             flex: 0 0 auto;
-        }
-
-        a.is-active::after,
-        a.active::after {
-            right: auto;
-            top: auto;
-            bottom: -2px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 18px;
-            height: 3px;
         }
     }
 
