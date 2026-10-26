@@ -1057,7 +1057,8 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgeResult>;
     dbDeleteXtreamContent: (
         playlistId: string,
-        operationId?: string
+        operationId?: string,
+        contentTypes?: import('./xtream-content-selection').XtreamContentType[]
     ) => Promise<{
         success: boolean;
         favorites: XtreamBackupFavoriteItem[];
@@ -1162,8 +1163,10 @@ export interface ElectronBridgeApi {
     dbReorderGlobalFavorites: (
         updates: ElectronBridgeFavoriteReorderUpdate[]
     ) => Promise<ElectronBridgeResult>;
+    /** Ordinary reads cap at 100; recovery explicitly requests all entries. */
     dbGetRecentItems: (
-        playlistId: string
+        playlistId: string,
+        options?: { all?: boolean }
     ) => Promise<ElectronBridgeXtreamContent[]>;
     dbAddRecentItem: (
         contentId: number,

@@ -2,6 +2,7 @@ import type { XtreamFavoriteCatalogStatus } from '@iptvnator/shared/interfaces';
 import { InjectionToken } from '@angular/core';
 import {
     ContentMetadataPatch,
+    XtreamContentType,
     PlaybackPositionData,
     XtreamPendingRestoreState,
     XtreamCategory,
@@ -19,8 +20,10 @@ import {
 // Re-export for backward compatibility
 export type { PlaybackPositionData };
 
-export const XTREAM_CONTENT_TYPES = ['live', 'movie', 'series'] as const;
-export type XtreamContentType = (typeof XTREAM_CONTENT_TYPES)[number];
+export {
+    XTREAM_CONTENT_TYPES,
+    type XtreamContentType,
+} from '@iptvnator/shared/interfaces';
 
 /** Captured from the content that actually starts playback, not a later catalog lookup. */
 export interface XtreamPlayedContent extends ContentMetadataPatch {
@@ -58,6 +61,7 @@ export interface XtreamPlaylistData {
     referrer?: string;
     origin?: string;
     serverTimezone?: string;
+    xtreamContentTypes?: XtreamContentType[];
     allowedOutputFormats?: string[];
 }
 

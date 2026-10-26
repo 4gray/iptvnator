@@ -8,7 +8,12 @@ import { requestWorkerWithEvents } from './worker-events.utils';
 
 ipcMain.handle(
     'DB_DELETE_XTREAM_CONTENT',
-    async (event, playlistId: string, operationId?: string) => {
+    async (
+        event,
+        playlistId: string,
+        operationId?: string,
+        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[]
+    ) => {
         try {
             return await requestWorkerWithEvents(
                 event,
@@ -16,6 +21,7 @@ ipcMain.handle(
                 {
                     playlistId,
                     operationId,
+                    contentTypes,
                 }
             );
         } catch (error) {

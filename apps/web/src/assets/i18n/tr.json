@@ -198,6 +198,8 @@
             "LABEL": "m3u(8) oynatma listesini metin olarak girin"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "Yüklenecek içerik",
+            "CONTENT_TO_LOAD_HINT": "Yalnızca seçili türler içe aktarılır ve yenilenir. Katalog yüklemeyi durdurmak için tüm seçimleri kaldırın; kayıtlı öğeler ve indirmeler korunur.",
             "TITLE": "Oynatma listesi başlığı",
             "SERVER_URL": "Sunucu URL'si",
             "USERNAME": "Kullanıcı Adı",

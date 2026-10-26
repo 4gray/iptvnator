@@ -28,7 +28,14 @@
                               ? 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
                               : 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_UNKNOWN'
                           ) | translate)
-                        : ''
+                        : item.catalogDisabled
+                          ? ((item.contentType === 'movie'
+                                ? 'PORTALS.MOVIES'
+                                : 'PORTALS.SERIES'
+                            ) | translate) +
+                            ' — ' +
+                            ('SETTINGS.STATUS_DISABLED' | translate)
+                          : ''
                 "
                 [posterUrl]="item.posterUrl ?? ''"
                 [title]="item.name"

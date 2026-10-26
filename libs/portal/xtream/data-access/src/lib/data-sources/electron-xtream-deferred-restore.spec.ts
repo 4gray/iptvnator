@@ -1,0 +1,129 @@
+import { TestBed } from '@angular/core/testing';
+import { XtreamDeferredCatalogRestoreService } from '@iptvnator/services';
+import { XtreamPendingRestoreState } from '@iptvnator/shared/interfaces';
+import { setupElectronXtreamDataSource } from './electron-xtream-data-source.test-helpers';
+
+const archive: XtreamPendingRestoreState = {
+    favorites: [],
+    favoritesRestoreId: 'archive',
+    hiddenCategories: [{ categoryType: 'movies', xtreamId: 2 }],
+    recentlyViewed: [
+        { contentType: 'live', xtreamId: 10, viewedAt: '2026-01-01' },
+        { contentType: 'movie', xtreamId: 20, viewedAt: '2026-01-02' },
+    ],
+    playbackPositions: [
+        { contentType: 'vod', contentXtreamId: 20, positionSeconds: 9 },
+    ],
+};
+
+beforeEach(() => localStorage.clear());
+afterEach(() => localStorage.clear());
+
+it('keeps an all-disabled restore dormant without dropping history or positions', async () => {
+    const { dataSource, dbService, playbackService } =
+        setupElectronXtreamDataSource();
+    dbService.getPlaylistById.mockResolvedValue({
+        id: 'p',
+        xtreamContentTypes: [],
+    });
+    await dataSource.restoreUserData('p', archive);
+    expect(dbService.restoreXtreamUserData).toHaveBeenCalledWith(
+        'p',
+        [],
+        [],
+        undefined
+    );
+    expect(
+        TestBed.inject(XtreamDeferredCatalogRestoreService).forExport('p', {
+            hiddenCategories: [],
+            recentlyViewed: [],
+        }).recentlyViewed
+    ).toEqual(archive.recentlyViewed);
+    expect(playbackService.replaceAllPlaybackPositions).toHaveBeenCalledWith(
+        'p',
+        archive.playbackPositions
+    );
+});
+
+it.each([false, true])(
+    'defers only unavailable disabled catalogs; retained cache=%s',
+    async (cached) => {
+        const { dataSource, dbService, playbackService } =
+            setupElectronXtreamDataSource();
+        dbService.getPlaylistById.mockResolvedValue({
+            id: 'p',
+            xtreamContentTypes: ['live'],
+        });
+        dbService.getXtreamImportStatus.mockResolvedValue(
+            cached ? 'completed' : 'idle'
+        );
+        dbService.hasXtreamContent.mockImplementation(
+            async (_id, type) => type === 'movie' && cached
+        );
+        await dataSource.restoreUserData('p', archive);
+        expect(dbService.restoreXtreamUserData).toHaveBeenLastCalledWith(
+            'p',
+            [],
+            cached
+                ? archive.recentlyViewed
+                : archive.recentlyViewed.slice(0, 1),
+            undefined
+        );
+        const deferred = TestBed.inject(XtreamDeferredCatalogRestoreService);
+        expect(
+            deferred.forExport('p', {
+                hiddenCategories: [],
+                recentlyViewed: [],
+            }).recentlyViewed
+        ).toEqual(cached ? [] : archive.recentlyViewed.slice(1));
+        expect(
+            playbackService.replaceAllPlaybackPositions
+        ).toHaveBeenLastCalledWith('p', archive.playbackPositions);
+
+        if (!cached) {
+            dbService.getPlaylistById.mockResolvedValue({
+                id: 'p',
+                xtreamContentTypes: ['live', 'movie'],
+            });
+            dbService.getAllXtreamCategories.mockImplementation(
+                async (_id, type) =>
+                    type === 'movies'
+                        ? [{ id: 2, type: 'movies', xtream_id: 2 }]
+                        : []
+            );
+            const current = {
+                ...archive,
+                favoritesRestoreId: undefined,
+                recentlyViewed: archive.recentlyViewed.slice(0, 1),
+                hiddenCategories: [],
+                playbackPositions: [
+                    {
+                        contentType: 'vod' as const,
+                        contentXtreamId: 20,
+                        positionSeconds: 22,
+                    },
+                ],
+            };
+            await dataSource.restoreUserData('p', current);
+            expect(dbService.restoreXtreamUserData).toHaveBeenLastCalledWith(
+                'p',
+                [],
+                expect.arrayContaining(archive.recentlyViewed),
+                undefined
+            );
+            expect(dbService.updateCategoryVisibility).toHaveBeenLastCalledWith(
+                [2],
+                true
+            );
+            expect(
+                playbackService.replaceAllPlaybackPositions
+            ).toHaveBeenLastCalledWith('p', current.playbackPositions);
+            expect(
+                deferred.forExport('p', {
+                    hiddenCategories: [],
+                    recentlyViewed: [],
+                }).recentlyViewed
+            ).toEqual([]);
+        }
+    }
+);

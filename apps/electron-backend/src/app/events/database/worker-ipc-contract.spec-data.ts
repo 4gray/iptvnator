@@ -334,6 +334,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { playlistId },
     },
     {
+        operation: 'DB_GET_RECENT_ITEMS',
+        args: [playlistId, { all: true }],
+        payload: { playlistId, all: true },
+    },
+    {
         operation: 'DB_ADD_RECENT_ITEM',
         args: [13, playlistId, 'https://image.example/recent.jpg'],
         payload: {

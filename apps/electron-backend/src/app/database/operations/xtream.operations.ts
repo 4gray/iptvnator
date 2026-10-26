@@ -5,6 +5,8 @@ import { and, eq, inArray } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import {
     XTREAM_DATABASE_PERFORMANCE_PHASE,
+    normalizeXtreamContentTypes,
+    type XtreamContentType,
     type XtreamBackupFavoriteItem,
     type XtreamBackupHiddenCategory,
     type XtreamBackupRecentlyViewedItem,
@@ -52,7 +54,8 @@ interface XtreamDeletionCollection {
 
 async function collectXtreamDeletionRows(
     db: AppDatabase,
-    playlistId: string
+    playlistId: string,
+    types?: XtreamContentType[]
 ): Promise<XtreamDeletionCollection> {
     const categories = await db
         .select({
@@ -64,7 +67,15 @@ async function collectXtreamDeletionRows(
         .from(schema.categories)
         .where(eq(schema.categories.playlistId, playlistId));
 
-    const categoryIds = categories.map((category) => category.id);
+    const enabled = normalizeXtreamContentTypes(types);
+    const allCategoryIds = categories.map((category) => category.id);
+    const categoryIds = categories
+        .filter((category) =>
+            enabled.includes(
+                category.type === 'movies' ? 'movie' : category.type
+            )
+        )
+        .map((category) => category.id);
     const hiddenCategories = categories
         .filter((category) => category.hidden)
         .map((category) => ({
@@ -76,7 +87,7 @@ async function collectXtreamDeletionRows(
     let recentlyViewed: XtreamBackupRecentlyViewedItem[] = [];
     let contentRowCounts: CategoryRowCount[] = [];
 
-    if (categoryIds.length > 0) {
+    if (allCategoryIds.length > 0) {
         const recentlyViewedContent = await db
             .select({
                 xtreamId: schema.content.xtreamId,
@@ -91,7 +102,7 @@ async function collectXtreamDeletionRows(
             .where(
                 and(
                     eq(schema.recentlyViewed.playlistId, playlistId),
-                    inArray(schema.content.categoryId, categoryIds)
+                    inArray(schema.content.categoryId, allCategoryIds)
                 )
             );
 
@@ -101,10 +112,12 @@ async function collectXtreamDeletionRows(
             viewedAt: item.viewedAt || new Date().toISOString(),
         }));
 
-        contentRowCounts = await countContentRowsByCategory(
-            db,
-            inArray(schema.categories.id, categoryIds)
-        );
+        if (categoryIds.length > 0) {
+            contentRowCounts = await countContentRowsByCategory(
+                db,
+                inArray(schema.categories.id, categoryIds)
+            );
+        }
     }
 
     return {
@@ -156,7 +169,8 @@ export async function deleteXtreamContent(
     db: AppDatabase,
     playlistId: string,
     control?: OperationControl,
-    capturePhase?: DatabaseOperationPerformancePhaseCapture
+    capturePhase?: DatabaseOperationPerformancePhaseCapture,
+    types?: XtreamContentType[]
 ): Promise<{
     success: boolean;
     favorites: XtreamBackupFavoriteItem[];
@@ -171,7 +185,7 @@ export async function deleteXtreamContent(
         .where(
             inArray(
                 schema.appState.key,
-                ['live', 'movie', 'series'].map(
+                normalizeXtreamContentTypes(types).map(
                     (type) => `xtream-import-status:${playlistId}:${type}`
                 )
             )
@@ -179,14 +193,14 @@ export async function deleteXtreamContent(
     const collection = capturePhase
         ? await capturePhase.captureAsync(
               XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_DELETE_COLLECT_USER_DATA,
-              () => collectXtreamDeletionRows(db, playlistId),
+              () => collectXtreamDeletionRows(db, playlistId, types),
               (result) => ({
                   itemCount:
                       sumCategoryRowCounts(result.contentRowCounts) +
                       result.categoryIds.length,
               })
           )
-        : await collectXtreamDeletionRows(db, playlistId);
+        : await collectXtreamDeletionRows(db, playlistId, types);
 
     if (capturePhase) {
         await capturePhase.captureAsync(

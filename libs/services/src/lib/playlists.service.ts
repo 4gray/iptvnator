@@ -3,6 +3,7 @@ import {
     type DbOperationOptions,
 } from './database-electron.service';
 import { SourceHealthEvidenceService } from './source-health-evidence.service';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { inject, Injectable } from '@angular/core';
 import { LazySnackBar } from './lazy-snack-bar/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -230,6 +231,7 @@ export class PlaylistsService {
             updateState: playlist.updateState,
             position: playlist.position,
             serverUrl: playlist.serverUrl,
+            xtreamContentTypes: playlist.xtreamContentTypes,
             username: playlist.username,
             password: playlist.password,
             macAddress: playlist.macAddress,
@@ -820,6 +822,9 @@ export class PlaylistsService {
             ...(updatedPlaylist.serverUrl != null
                 ? { serverUrl: updatedPlaylist.serverUrl }
                 : {}),
+            ...(updatedPlaylist.xtreamContentTypes !== undefined
+                ? { xtreamContentTypes: updatedPlaylist.xtreamContentTypes }
+                : {}),
             ...(updatedPlaylist.portalUrl != null
                 ? { portalUrl: updatedPlaylist.portalUrl }
                 : {}),
@@ -1381,6 +1386,8 @@ export class PlaylistsService {
             if (store) {
                 this.startupMetas = null;
                 await store.dbDeleteAllPlaylists();
+                if (this.usesElectronStorage)
+                    new XtreamDeferredCatalogRestoreService().clearAll();
                 this.healthEvidence?.connections.next({});
             }
             return;

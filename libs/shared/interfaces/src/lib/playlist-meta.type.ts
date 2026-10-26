@@ -29,6 +29,7 @@ export type PlaylistMeta = Pick<
     | 'portalUrl'
     | 'recentlyViewed'
     | 'serverTimezone'
+    | 'xtreamContentTypes'
     | 'isFullStalkerPortal'
     | 'stalkerSerialNumber'
     | 'stalkerDeviceId1'
