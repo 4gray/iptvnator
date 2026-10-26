@@ -494,6 +494,9 @@ no match reports that the title is unavailable in this portal. Errors, repeated
 pages, the 20-page safety limit and the 15-second deadline report an incomplete
 search with retry. Cancellation, source changes and navigation discard obsolete
 results. Person/detail Back preserves card focus and scroll position.
+Provider-version choices live in an app-owned snapshot for that exact person
+route visit. New choices receive remote focus; returning from details restores
+the chooser and selected version, while a fresh person visit clears it.
 Focused biographies consume Up/Down to scroll their text; reaching an edge lets
 the next directional press leave the text and continue normal remote navigation.
 Settings distinguishes key validation from saved enablement and warns about

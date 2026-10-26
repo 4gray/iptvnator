@@ -372,6 +372,91 @@ test('@tmdb-person failed and cancelled portal searches cannot report absence or
     await expect(page.locator('.detail-hero')).toHaveCount(0);
 });
 
+test('@tmdb-person provider choices survive a detail round trip and expire for a fresh person visit', async ({
+    page,
+}) => {
+    const { title } = await setup(page, 'stalker', true);
+    await page.route('**/stalker?**', async (route) => {
+        const url = new URL(route.request().url());
+        if (
+            url.searchParams.get('action') !== 'get_ordered_list' ||
+            url.searchParams.get('search') !== title
+        )
+            return route.fallback();
+        await route.fulfill({
+            json: {
+                action: 'get_ordered_list',
+                payload: {
+                    js: {
+                        data: ['1080', '4k'].map((id) => ({
+                            id,
+                            name: title,
+                            cmd: 'https://fixture.invalid/movie',
+                        })),
+                        total_items: 2,
+                        max_page_items: 14,
+                    },
+                },
+            },
+        });
+    });
+    await page
+        .getByRole('button', { name: 'View filmography: Fixture Actor' })
+        .click();
+    await expect(page.locator('.person-page h2')).toContainText('103');
+    await page.locator('main').evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+    });
+    const target = page.locator('[data-focus="filmography:movie:501"]');
+    await expect(target).toBeVisible();
+    await target.click();
+    const choices = page.locator('[aria-label="Available versions"]');
+    await expect(choices.locator('button')).toHaveCount(2);
+    await expect(choices.locator('button').first()).toBeFocused();
+    const chosen = choices.locator('button').nth(1);
+    await page.keyboard.press('ArrowRight');
+    await expect(chosen).toBeFocused();
+    const scroll = await page.locator('main').evaluate((el) => el.scrollTop);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.detail-hero h1')).toHaveText(title);
+    // A nested visit to the same person owns independent choices; Back must
+    // retain the outer visit's selected version as well.
+    await page
+        .getByRole('button', { name: 'View filmography: Fixture Actor' })
+        .click();
+    await expect(page.locator('.person-page h1')).toHaveText('Fixture Actor');
+    await expect(choices).toHaveCount(0);
+    await expect(page.locator('.person-page h2')).toContainText('103');
+    await page.locator('main').evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+    });
+    await expect(target).toBeVisible();
+    await target.click();
+    await expect(choices.locator('button').first()).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.detail-hero h1')).toHaveText(title);
+    await page.keyboard.press('Escape');
+    await expect(choices.locator('button').first()).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.detail-hero h1')).toHaveText(title);
+    await page.keyboard.press('Escape');
+    await expect(choices.locator('button')).toHaveCount(2);
+    await expect(chosen).toBeFocused();
+    await expect
+        .poll(async () =>
+            Math.abs(
+                (await page.locator('main').evaluate((el) => el.scrollTop)) -
+                    scroll
+            )
+        )
+        .toBeLessThan(8);
+    await page.keyboard.press('Escape');
+    await page
+        .getByRole('button', { name: 'View filmography: Fixture Actor' })
+        .click();
+    await expect(page.locator('.person-page h1')).toHaveText('Fixture Actor');
+    await expect(choices).toHaveCount(0);
+});
 test('@tmdb-person complete filmography keeps virtualized card focus and scroll after a provider detail round trip', async ({
     page,
 }) => {

@@ -341,3 +341,16 @@ nine-project lint and TV/spec/E2E types pass. The earlier full **116/116** TV
 browser run covers the remaining unchanged workflows. The 0.1.19 package is
 rebuilt and verified before the next committed-branch review; the master base
 remains `5b9724cb3`. No review finding is declined.
+
+
+The third local review of `e7fdb2953` reproduces a lost Back focus after choosing
+one of several provider versions. The fix keeps settled chooser snapshots in an
+app-owned WeakMap keyed by each exact person-route visit, so nested visits remain
+independent and expired routes can be collected. New choices receive remote
+focus; detail Back restores the selected version and scroll. A fresh visit has
+no previous chooser. The new browser regression fails before the fix and then
+passes, including a nested same-person round trip. All **13/13 TMDB browser
+workflows**, **101 TV unit tests**, affected lint and TV/spec/E2E types pass;
+package, release-note and guidance gates are repeated before committing for the
+next review. This is the sixth accepted finding across the three local rounds;
+none are declined.

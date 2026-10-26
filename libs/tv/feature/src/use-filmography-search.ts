@@ -9,15 +9,35 @@ import type { TvModel } from './use-tv';
 
 export const filmographyKey = (credit: ActorFilmographyCredit) =>
     `filmography:${credit.mediaType}:${credit.tmdbId}`;
-export function useFilmographySearch(tv: TvModel) {
+interface SearchState {
+    credit: ActorFilmographyCredit;
+    busy: boolean;
+    result?: FilmographyMatch;
+    error?: boolean;
+}
+/** Only settled choices survive detail navigation; a new person visit retires them. */
+export type FilmographyMemory = WeakMap<
+    NonNullable<TvModel['route']['person']>,
+    SearchState
+>;
+export function useFilmographySearch(tv: TvModel, memory: FilmographyMemory) {
     const request = useRef<AbortController>();
-    const [state, setState] = useState<{
-        credit: ActorFilmographyCredit;
-        busy: boolean;
-        result?: FilmographyMatch;
-        error?: boolean;
-    }>();
+    const person = tv.route.person;
+    const initial = useRef(person ? memory.get(person) : undefined);
+    const [state, setState] = useState<SearchState | undefined>(
+        initial.current
+    );
     const provider = tv.guideClient;
+    useLayoutEffect(() => {
+        if (person) {
+            if (state?.result?.status === 'choices') memory.set(person, state);
+            else memory.delete(person);
+        }
+        if (state !== initial.current && state?.result?.status === 'choices') {
+            const first = state.result.items[0];
+            if (first) restoreFocus(first.id);
+        }
+    }, [state, person, memory]);
     useLayoutEffect(
         () => () => {
             request.current?.abort();

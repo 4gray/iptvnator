@@ -17,6 +17,7 @@ import { useMetadata } from './use-metadata';
 import { useSeriesContext } from './use-series-context';
 import { mediaTitle } from '@iptvnator/tv/util';
 import { PersonPage } from './person-page';
+import type { FilmographyMemory } from './use-filmography-search';
 const navigation: [View, string][] = [
     ['home', 'Home'],
     ['live', 'TV'],
@@ -28,6 +29,7 @@ const navigation: [View, string][] = [
     ['settings', 'Settings'],
 ];
 export function TvApp() {
+    const personMemory = useRef<FilmographyMemory>(new WeakMap());
     const settingsMemory = useRef<SettingsMemory>({
         category: 'connection',
         controls: {},
@@ -215,6 +217,7 @@ export function TvApp() {
                         key={`${tv.data.activeId}:${r.person?.tmdbId}`}
                         tv={tv}
                         client={metadata.client}
+                        memory={personMemory.current}
                     />
                 ) : r.view === 'detail' ? (
                     <Detail

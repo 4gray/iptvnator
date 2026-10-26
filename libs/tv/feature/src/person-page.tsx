@@ -5,18 +5,24 @@ import { Empty, Poster, VirtualCollection } from '@iptvnator/tv/ui';
 import type { TvModel } from './use-tv';
 import { PersonAvatar } from './person-avatar';
 import { usePerson } from './use-person';
-import { filmographyKey, useFilmographySearch } from './use-filmography-search';
+import {
+    filmographyKey,
+    useFilmographySearch,
+    type FilmographyMemory,
+} from './use-filmography-search';
 
 export function PersonPage({
     tv,
     client,
+    memory,
 }: {
     tv: TvModel;
     client: TvMetadata;
+    memory: FilmographyMemory;
 }) {
     const selected = tv.route.person;
     const resource = usePerson(selected?.tmdbId, client);
-    const lookup = useFilmographySearch(tv);
+    const lookup = useFilmographySearch(tv, memory);
     const person = resource.person;
     const profile = person ? mapPersonProfile(person) : undefined;
     const credits = useMemo(
