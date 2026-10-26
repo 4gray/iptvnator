@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, of, skip } from 'rxjs';
 import {
@@ -32,10 +32,11 @@ describe('EpgService', () => {
             getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
             supportsCurrentProgramBatch: false,
             supportsImport: false,
+            supportsProgress: true,
             supportsProgramLookup: false,
         };
         snackBar = {
-            open: jest.fn(),
+            open: jest.fn().mockResolvedValue(null),
         };
         settingsStore = {
             loadSettings: jest.fn().mockResolvedValue(undefined),
@@ -72,7 +73,7 @@ describe('EpgService', () => {
                     useValue: epgBridge,
                 },
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: snackBar,
                 },
                 {
@@ -228,6 +229,59 @@ describe('EpgService', () => {
         await Promise.resolve();
 
         expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('leaves a failed batch to the import panel instead of repeating its message in a toast', async () => {
+        epgBridge.supportsImport = true;
+        (epgBridge.fetchEpg as jest.Mock).mockResolvedValue({
+            success: false,
+            message: 'database is locked',
+        });
+        const availability: boolean[] = [];
+        service.epgAvailable$.pipe(skip(1)).subscribe((available) => {
+            availability.push(available);
+        });
+
+        await service.fetchEpg(['https://example.com/epg.xml']);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(availability).toEqual([false]);
+        expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('keeps the generic toast for a failed batch when the runtime reports no import progress', async () => {
+        epgBridge.supportsImport = true;
+        epgBridge.supportsProgress = false;
+        (epgBridge.fetchEpg as jest.Mock).mockResolvedValue({
+            success: false,
+            message: 'database is locked',
+        });
+
+        await service.fetchEpg(['https://example.com/epg.xml']);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // No panel row can carry the failure, and the backend's text is
+        // still not what the user sees.
+        expect(snackBar.open).toHaveBeenCalledTimes(1);
+        expect(snackBar.open).toHaveBeenCalledWith('EPG.ERROR', 'CLOSE', {
+            duration: 3000,
+        });
+    });
+
+    it('shows the generic toast at the default position when the bridge call itself fails', async () => {
+        epgBridge.supportsImport = true;
+        (epgBridge.fetchEpg as jest.Mock).mockRejectedValue(
+            new Error('bridge unavailable')
+        );
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        await service.fetchEpg(['https://example.com/epg.xml']);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(snackBar.open).toHaveBeenCalledTimes(1);
+        expect(snackBar.open).toHaveBeenCalledWith('EPG.ERROR', 'CLOSE', {
+            duration: 3000,
+        });
     });
 
     it('returns an empty batch result when the desktop bridge is unavailable', async () => {

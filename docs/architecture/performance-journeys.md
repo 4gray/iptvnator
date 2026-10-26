@@ -17,6 +17,7 @@ live in `tools/performance/`.
 | J2 `open-source` | click on the Xtream portal card              | category list and first page of the opened section painted                    |
 | J3 `playback`    | click on a channel                           | HTML5 `playing` event                                                         |
 | J4 `search`      | six-character query typed into global search | results list settled                                                          |
+| J1 `launch-large` | Electron process spawn on the large-library profile (182 sources, 2.4M catalog rows) | the first card as J1, then every dashboard rail settled                 |
 
 J1 is instrumented: `renderer.initialBytes` from the built output, and the
 runtime counters of the launch benchmark below. J2, J3 and J4 are
@@ -53,7 +54,10 @@ invocation in the same second fails instead of merging into the first.
 `IPTVNATOR_JOURNEY_MEASURED_ITERATIONS` lowers the five measured iterations
 for a quick local check; the warm-up iteration always runs. Numbers from a
 laptop are previews: the Linux CI runner is the canonical measurer for
-baselines, as it is for `renderer.initialBytes`.
+baselines, as it is for `renderer.initialBytes`. `launch-large.journey.ts`
+skips itself unless `IPTVNATOR_JOURNEY_LARGE_LIBRARY=1`; the
+`journeys-large-library` target sets it and runs that spec alone (see
+[J1 `launch-large`](#j1-launch-large-launch-to-usable-on-a-large-library)).
 
 ## J1 `launch`: launch to usable
 
@@ -659,6 +663,258 @@ summary prints as a table for the first measured iteration. J4 has its own
 renderer probe (`search-journey-probe.ts`, `schemaVersion` 1); the shared
 probe is unchanged.
 
+## J1 `launch-large`: launch to usable on a large library
+
+`launch-large.journey.ts` is J1 on a database the size of the one #1877 and
+#1883 were found on: 182 sources and a few million catalog rows instead of
+J1's one M3U source and one portal. Both regressions were invisible on the
+J1 profile. `initDatabase()` took 5-8 s there because `deduplicateXtreamCache`
+scanned the whole catalog on every launch, `getAppPlaylistMetas` took 1.5-2 s
+because it walked 70 MB of M3U payloads stored before the EPG columns, and
+the Continue Watching rail sat on its skeleton for 14 s warm and 97 s cold
+behind 57 sequential playback-position reads and a TMDB title match. The
+journey measures the same spawn-to-first-card path as J1 and then a
+"dashboard rails settled" phase, so a regression of that class fails in the
+lab before a user with a real library hits it.
+
+### Profile
+
+`src/performance/large-library-profile.ts` describes every row as a pure
+function of `LARGE_LIBRARY_PROFILE_SPEC` and an index: no clock, no
+randomness, no Faker, and no host that exists. Every URL (portal, playlist,
+stream, logo, EPG source) points at `http://127.0.0.1:1`, the loopback
+discard port, which refuses a connection at once, so a launch makes no
+request whose timing depends on the machine's network. Timestamps are
+derived from one fixed instant (`LARGE_LIBRARY_EPOCH_MS`, 2026-01-01); the
+first Xtream portal has the newest `last_usage`, so it is J1's first card
+too. A spec test scans the generator sources for `Date.now`, `new Date()`,
+`Math.random`, Faker and any other host.
+
+| Rows                 | Default spec                                                                                                                                                                            |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `playlists`          | 182: 120 Xtream portals, 22 Stalker portals (three live favorites and one recent item each in the row's JSON columns), 40 M3U sources                                                   |
+| M3U payloads         | 4 sources of 30,000 channels and 36 of 2,000 (192,000 channels, about 86 MB of `payload` JSON); every third source has two favorite channels, so the dashboard parses its payload       |
+| `categories`         | 130 per portal (60 live, 40 movies, 30 series), 15,600 in all                                                                                                                           |
+| `content`            | 20,000 per portal, split 20/60/20 live/movie/series over the type's categories: 2,400,000 rows, each through the title FTS triggers                                                     |
+| `favorites`          | 300 durable favorites (live, movie, series in turn) with `content_id` resolved, over the portals                                                                                        |
+| `recently_viewed`    | 132 history rows (movie, series, live in turn) over 60 portals                                                                                                                          |
+| `playback_positions` | one per movie and series in the history (every fifth movie at 95 %, the rest at 35 %, so Continue Watching has unfinished and finished titles) plus 60 further episode rows, 148 in all |
+| EPG                  | one XMLTV source on the first M3U playlist's `epg_urls`: 1,000 `epg_channels`, their `epg_channel_sources`, 48 half-hour `epg_programs` each (48,000)                                   |
+| `app_state`          | the two playlist migration receipts and `xtream-import-status:<id>:<type>` = `completed` for every portal and type, as a profile the app imported holds                                 |
+
+The generator (`large-library-profile-generator.ts`) writes the rows
+through the app's own database code, never through hand-written DDL: it
+runs under Electron as Node (`ELECTRON_RUN_AS_NODE=1 electron --import tsx`,
+because better-sqlite3 is built for Electron's ABI, as
+`libs/shared/database`'s upgrade tests do), calls `initDatabase()`, which
+creates the schema and runs every migration exactly as a launch does, and
+inserts through Drizzle with the schema's table objects, so a renamed column
+fails the generation instead of producing a profile the app would not have
+written. Rows go in 500 per statement inside per-portal transactions with
+`synchronous = OFF`; durability is restored before the final
+`wal_checkpoint(TRUNCATE)`, and the row counts of every table are checked
+against the spec before the manifest is written. Nothing imports the
+generator module: it loads the native module into its process.
+
+### Cache and regeneration
+
+```bash
+pnpm nx run electron-backend-e2e:large-library-profile                    # find or build the profile, print its manifest
+pnpm nx run electron-backend-e2e:large-library-profile --print-cache-key  # the key only (CI cache step)
+IPTVNATOR_LARGE_LIBRARY_CONTENT_PER_PORTAL=2000 pnpm nx run electron-backend-e2e:journeys-large-library   # a smaller catalog for a local check
+```
+
+`large-library-profile-cache.ts` keeps one directory per content hash under
+`node_modules/.cache/iptvnator/large-library-profile/<key>/` (override the
+root with `IPTVNATOR_LARGE_LIBRARY_PROFILE_CACHE`). The key covers
+everything the rows depend on: the profile version and spec (including the
+`IPTVNATOR_LARGE_LIBRARY_CONTENT_PER_PORTAL` override), the two generator
+sources, the database library's non-test sources (the schema and migrations
+the profile is written through, so a schema change rebuilds the profile the
+next time), and the Electron, better-sqlite3 and drizzle-orm versions. A run
+on unchanged inputs reuses the directory; a generation writes to a staging
+sibling and renames it into place only when it completed, so an interrupted
+run never leaves a half-written profile under the key. There is nothing to
+regenerate by hand: change the spec or the generator and the next run builds
+the new key; delete the cache directory to force a rebuild. CI restores the
+directory from `actions/cache` with the same key (`Restore the large-library
+profile` in `.github/actions/performance-journeys`); GitHub evicts a cache
+entry not read for seven days, so a weekly run may regenerate it.
+
+Generation on a 10-core Mac (2026-10-15, load average 60-120 from other
+work): 169 s, of which 157 s are the 2.4M catalog rows (about 15,000 rows/s
+through the trigram FTS triggers); the database is 907 MB (865 MiB on disk),
+about 190 MB of it the 2,400,000 content rows' title index. 600,000 rows
+took 35 s and 323 MB on the same machine.
+
+### Journey
+
+The profile is never launched on directly: `seedLaunchLargeTemplate` copies
+it, runs the app on the copy once until the recent-sources card and the
+Continue Watching rail are visible, and closes it. That first session writes
+what the app writes on a first launch (the renderer's own storage, the
+migration receipts J1's seed gets from its dialogs), so every iteration then
+copies that template and spawns a fresh process on it, as J1 does
+(`runLaunchJourney` with `mainCounters: true`). The seed launch's own
+spawn-to-first-card and spawn-to-rails times are kept under
+`evidence.profile.seedLaunch` of the warm-up iteration, with the profile's
+counts, size and generation time. One warm-up and five measured iterations;
+the iteration timeout is 300 s, because a pre-fix profile took 97 s cold.
+
+J1's instrumentation is reused unchanged (gate, renderer probe, IPC capture,
+main-process counters) with two additions:
+
+- **Phases.** `JourneyRendererProbePhaseOptions` on the renderer probe: after
+  the terminal batch the probe keeps a `MutationObserver` on the document
+  and stamps the first batch in which every `requiredSelectors` entry
+  matches a visible element and nothing matches `absentSelectors`, sending
+  the phase's own sentinel (`cancelSourceProbe('__iptvnator-journey-launch-large-rails-settled__')`)
+  at that moment. A phase met in the terminal batch itself carries the
+  terminal epoch. One not met within `timeoutMs` (240 s) is marked
+  `timeout` with the selectors still unmet, and the record refuses the
+  iteration. The large journey's phase, `dashboardRailsSettled`, requires a
+  hero slide and a card in each of the continue-watching, live-favorites,
+  recent-live, favorite-VOD, recent-sources and Xtream-recently-added rails,
+  and no `*-rail-skeleton` or hero skeleton: every rail the profile feeds.
+  The TMDB rails need the opt-in and stay off. `waitForJourneyRendererProbe`
+  waits for every phase as it does for the settle and idle windows; J1's
+  probe has no phases and reports `phases: {}`.
+- **SQL at the sentinels.** `journey-sentinel-sql.ts` samples
+  `main.sqlStatements` in the main process when the first-card sentinel and
+  the rails sentinel arrive on the trace channel, the way J4 stamps its
+  start and end (the gate's handler tap reads the registry synchronously,
+  ordered against the database worker's responses). It is installed through
+  `LaunchJourneyOptions.instrument`, after the IPC capture and before the
+  gate releases the document.
+- **IPC log.** The main IPC capture now keeps `log`: every bridge start and
+  completion with its arrival epoch, from install until the capture is read,
+  not bounded by the sentinel as `timeline` is (capped at 5,000 entries;
+  `logDropped` fails the record). The record derives the startup reads from
+  it: the first database response after the load event, the span of the
+  `dbGetAppPlaylistMetas` call(s) and the span and count of the
+  `dbGetAllPlaybackPositions` calls up to the rails phase, plus
+  `evidence.databaseCalls` (calls and first-start/last-end after the load
+  for every `db*` method).
+
+The journey runs without J1's 30 s idle window (`idleWindowMs: null`,
+`toLaunchIterationRecord` with `{ idleWindow: false }`, which refuses a probe
+that ran one): the large profile measures startup, and the window is J1's
+zoneless baseline. `renderer.cdTicksIdle30s` is listed under `unavailable`
+with that reason, and so is `main.rowsScannedToFirstCard`: the SQL hook
+counts statement executions, and rows scanned would need
+`sqlite3_stmt_status` per statement, which the shared connection does not
+read.
+
+### Counters and wall-clock
+
+J1's counters are reported under the same names (`renderer.ipcCallsToFirstCard`,
+`renderer.ipcSerialDepthToFirstCard`, `renderer.domMutationsToFirstCard`,
+`renderer.cdTicksToFirstCard`, `main.sqlStatementsBeforeReadyToShow`, the
+layout-shift scores, long tasks) and these are added:
+
+| Counter                                         | Source                                                                                                                                                    |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main.sqlStatementsToFirstCard`                 | `main.sqlStatements` sampled when the first-card sentinel arrives: schema creation, migrations and every worker statement whose response arrived before it. |
+| `main.sqlStatementsToRailsSettled`              | The same total at the rails sentinel; the difference is the dashboard's data.                                                                             |
+| `renderer.domMutationsToRailsSettled`           | `renderer.domMutationsToFirstCard` plus the mutation records from the terminal batch until the phase.                                                     |
+| `renderer.playbackPositionCallsToRailsSettled`  | `dbGetAllPlaybackPositions` calls started before the rails phase: one per playlist in the history (34 on the default profile).                            |
+
+| Entry                             | Derivation                                                                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `spawnToFirstCardMs`, `spawnToDidFinishLoadMs` | As J1.                                                                                                                        |
+| `firstCardToRailsSettledMs`       | Rails phase epoch minus the terminal epoch (renderer clock).                                                                               |
+| `spawnToRailsSettledMs`           | Rails phase epoch minus the spawn timestamp.                                                                                               |
+| `loadToFirstDbResponseMs`         | First `db*` completion in the IPC log minus the load event: the renderer's first read waits for the worker, which waits for `initDatabase()`. |
+| `playlistMetasMs`                 | First `dbGetAppPlaylistMetas` start to its last completion: the #1883 payload walk.                                                        |
+| `playbackPositionsSpanMs`         | First `dbGetAllPlaybackPositions` start to the last completion of the calls before the rails phase: the #1877 serial loop.                  |
+
+The IPC log's epochs are main-process `Date.now()`, the load event and the
+phase are renderer epochs; both read the same host clock, as J3's HTTP
+boundary does.
+
+### Measurements
+
+Local, macOS (10 cores, 2026-10-15), the default profile, five measured
+iterations, the parent of #1883 (`05fc8f9a2`, which also predates #1900)
+against `master` (`aecb9acb8`), run back to back with a load average of
+13-20 from other work (an earlier `master` run under a load average of
+120-380 read 1,324 / 3,339 / 4,972 ms for the three spawn-relative P50s
+below, so compare runs taken on a quiet machine only). The pre-fix build
+was measured from a scratch export of that commit with this harness copied
+in, its own `pnpm install` and performance build, and a profile generated
+by its own schema code, which still creates `last_usage` after `payload`.
+
+| P50 / P90, ms                        | parent of #1883 | `master`     |
+| ------------------------------------ | --------------- | ------------ |
+| `loadToFirstDbResponseMs`            | 797 / 1,210     | 107 / 131    |
+| `playlistMetasMs`                    | 352 / 595       | 12 / 32      |
+| `spawnToFirstCardMs`                 | 1,906 / 2,513   | 914 / 1,060  |
+| `playbackPositionsSpanMs`            | 153 / 276       | 478 / 1,210  |
+| `firstCardToRailsSettledMs`          | 651 / 724       | 1,398 / 1,550 |
+| `spawnToRailsSettledMs`              | 2,644 / 3,074   | 2,369 / 2,580 |
+| seed launch, spawn to the first card | 36.0 s          | 5.3 s        |
+
+The first two rows are #1883: on the pre-fix build the renderer's first
+database answer waits 0.8-1.2 s for `initDatabase()` (the duplicate scan
+over 2.4M rows) and the metadata read walks 86 MB of payloads for 0.3-0.7 s;
+on `master` both are tens of milliseconds, and the first card comes a
+second earlier. The seed launch is the profile's first app session: on the
+pre-#1900 build it rebuilds the title index for 2.4M rows on top of the
+same two costs, and takes 36 s to the first card.
+
+The rails rows are not the #1877 picture. Both builds load the 34
+playlists' positions at once (`renderer.playbackPositionCallsToRailsSettled`
+34, stable); #1877's sequential loop lies between this parent and #1877
+itself, and the TMDB rails are off. `master` nevertheless settles its rails
+0.7 s later after the first card, because the worker serves the 19
+`dbGetAppPlaylist` reads the dashboard issues for the M3U sources' recent
+and favorite items (each a full payload, 13 MB of JSON for the large ones)
+ahead of `dbGetAllGlobalFavorites` and the positions:
+`evidence.databaseCalls` shows those reads starting 314 ms after the load
+and ending 1.6 s after it on `master`, with the favorites read (1.0 s) and
+the positions (1.0 s span) queued behind them, against 0.2 s and 0.1 s on
+the pre-fix build, where the same reads start later. The end of the journey
+is still earlier on `master` (`spawnToRailsSettledMs`), so this is a
+candidate thread the journey now exposes, not a regression it fails.
+
+Counters on `master`: `renderer.ipcCallsToFirstCard` 16,
+`renderer.ipcSerialDepthToFirstCard` 6, `renderer.domMutationsToFirstCard`
+1,288, `main.sqlStatementsToFirstCard` 122 and
+`renderer.playbackPositionCallsToRailsSettled` 34 were identical in all ten
+measured iterations of the two runs; `main.sqlStatementsToRailsSettled`
+(213-223) and `renderer.domMutationsToRailsSettled` (4,500-4,607) follow
+the order in which the rails resolve and are evidence.
+`renderer.layoutShiftScoreSettled` read 0.064 or 0.207 per iteration: a
+rail inserted above visible content after the first card on this profile,
+which J1's profile never showed and the settle window's `lateShifts` name.
+The pre-fix build read 34 bridge calls and 20-23 ticks (zone.js) before the
+first card. No baseline is added by this measurement: values come from the
+runner, and the journey has to show stable runner numbers first.
+
+### CI cost
+
+The journey runs weekly in `performance-ratchet.yml` (the composite action's
+`large-library: 'true'` input, three independent runners, its numbers in each
+job summary), not in the `Performance journeys` job of `ci.yml` on every pull
+request. The cost on a GitHub `ubuntu-latest` runner, estimated from the
+local numbers: the profile takes about 3 minutes to generate on a cache miss
+(169 s on the 10-core Mac with the inserts single-threaded, 2.4M rows through
+the trigram triggers; `actions/cache` restores it on a hit, but a 907 MB
+entry read once a week sits at GitHub's seven-day eviction), each iteration
+copies 907 MB, and seven launches with their copies add about 2-3 minutes.
+That doubles a job that takes 6.5 minutes today, for a guard on a path
+(`initDatabase`, the playlist metadata read, the dashboard's data reads)
+that few pull requests touch, and whose regressions are measured in seconds:
+a weekly run on `master` catches one within a week with the same evidence.
+The catalog size follows the same budget: 2.4M rows (20,000 per portal) is
+the largest profile that keeps generation and copying inside those minutes,
+and the pre-fix table shows it reproduces both #1883 costs at a 7-30x
+distance, so a regression of that class does not hide in run-to-run noise.
+A pull request that touches that path can run the journey on its branch
+with `gh workflow run performance-ratchet.yml --ref <branch>` (which
+measures and opens no pull request) or locally with
+`pnpm nx run electron-backend-e2e:journeys-large-library`.
+
 ## J2 `open-source`: open a source to a browsable list
 
 `open-source.journey.ts` reuses the J1 profile and process pattern: the
@@ -1134,7 +1390,22 @@ The bytes a browser fetches before Angular can bootstrap, read from the built
 - `index.html` itself,
 - every same-origin `<script src>`, including `assets/app-config.js`,
 - every `<link rel="stylesheet">`,
-- every `<link rel="modulepreload">` chunk.
+- every `<link rel="modulepreload">` chunk,
+- every chunk those scripts import statically, transitively.
+
+The last item matters because Angular's builder emits at most ten
+`modulepreload` hints (`MODULE_PRELOAD_MAX`). A startup graph with more
+chunks than that leaves the rest for the browser to discover from `main.js`'s
+own `import` statements; it still fetches and parses them before bootstrap.
+Until #1939 the script counted only what `index.html` names, so once the
+graph passed ten chunks the counter silently stopped growing: an eager
+`MatSnackBar` import added on `master` brought Material's snack-bar and
+button back (about 95 KB) without the ratchet noticing. The script parses
+each module (TypeScript's parser), so only real `import`/`export … from`
+declarations count, never text in a string or comment; dynamic `import()`
+targets are lazy and never count; imports count once per request URL, as the
+`index.html` references do; and a statically imported file the build did not
+emit is an error, like a missing `index.html` reference.
 
 Manifest, icons, external URLs, commented-out tags and lazy chunks are not
 counted, so the value is the same for every language: a non-English launch
@@ -1175,15 +1446,28 @@ lazy route or dialog. Angular Material therefore stays off the startup path by
 construction, with the rules and guards in the
 [UI guidelines](iptvnator-ui-guidelines.md#material-off-the-startup-path):
 form-field defaults are provided per component (#1928), services created with
-the app resolve `MatDialog` through `LazyMatDialog`, the panels the shell
-mounts on every launch defer their Material views, the theme emits tokens only
-for imported components, and the app does not provide the animations module,
-which nothing used (Material 22 animates with CSS). Together these lowered the
-counter from 1,596,201 to 1,344,067 bytes (-252,134, 15.8%) on a local
-production build at the branch point (#1931); the baseline follows the
-measurement of the branch merged with `master`, 1,345,807. The snack-bar stays: root
-services inject it, and with it Material's button, the icon button chunk and
-the CDK overlay (about 190 KB) remain initial.
+the app resolve `MatDialog` through `LazyMatDialog` and open toasts through
+`LazySnackBar`, the panels the shell mounts on every launch defer their
+Material views, the theme emits tokens only for imported components, and the
+app does not provide the animations module, which nothing used (Material 22
+animates with CSS). Together these lowered the counter from 1,596,201 to
+1,344,067 bytes (-252,134, 15.8%) on a local production build at the branch
+point (#1931); the baseline follows the measurement of the branch merged with
+`master`, 1,345,807. The snack-bar followed in #1939: with the last seven
+eager `MatSnackBar` injections moved to `LazySnackBar` and the startup
+status deferring its Retry button, the snack-bar, Material's button, the icon
+button chunk, ripple and the CDK a11y module left the initial bundle,
+1,349,048 to 1,237,440 bytes (-111,608, 8.3%) on a local build, and no
+Material module remains in it; merged with #1938 (the radio play control
+no longer a fab, so its theme tokens left the stylesheet), #1936 (one
+global kit layer replacing per-component overrides), #1929 (zoneless
+renderer, no zone.js polyfill), #1903 (self-hosted server storage, which
+raised master's baseline by 7,245 bytes) and #1934, whose Xtream favorites
+toasts now also go through `LazySnackBar`, the branch measures 1,196,205
+with the static-import rule below, which the baseline follows; the counter
+without that rule read 1,098,535 for the same build. Of the CDK, the overlay, scrolling and
+portal chunks (about 78 KB) stay through the `FullscreenOverlayContainer`
+provider in `app.config.ts`, whose token lives in the overlay chunk.
 
 `--summary` writes the journey summary shape (`journeys.<journey>.counters`)
 that the ratchet checker consumes. `--dist <dir>` points the script at another
@@ -1228,7 +1512,9 @@ that file:
   `journeys.<journey>.counters` and a wall-clock entry (one with
   `toleranceRatio`) only from `journeys.<journey>.wallClock`, so a value in
   the wrong section also counts as missing;
-- a measurement below its baseline passes and prints a "tighten" hint;
+- a measurement below its baseline passes and prints a "tighten" hint,
+  except for an entry with `"autoTighten": false`, whose band one low run
+  does not move;
 - a measured counter without a baseline is noted, not failed;
 - checking nothing fails: an empty baselines file, or `--only` naming an
   entry that does not exist, cannot exit 0;
@@ -1293,7 +1579,12 @@ a tolerance or slack widened or an entry disappeared, so a PR cannot grow the
 payload and raise the baseline to match. A counter's `value` may not go up
 either, even when narrower slack lowers its limit, and switching an entry
 between counter and wall-clock (adding or removing `toleranceRatio`) counts
-as a weakening too. Lowered limits and new entries pass.
+as a weakening too. Changing an existing entry's effective `autoTighten`
+policy also requires the `perf-baseline-increase` label, even if its limit
+is lowered at the same time: adding `false` disables future tightening,
+while removing it or setting `true` can erode an intentionally preserved
+band. Omitted and `true` are equivalent. Lowered limits with unchanged
+policy and new entries pass.
 
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
@@ -1328,9 +1619,20 @@ requests that change nothing but Markdown, `docs/**`, `.plans/**`,
 `.codex/**`, `.claude/**`, `.changes/**` or `apps/website/**` (the E2E
 workflow's ignore list plus release notes); any other file, including root
 build inputs such as `.nvmrc`, `nx.json` or `tsconfig.base.json`, runs it.
-Pushes to `master` and manual dispatches always run it. The job is warn-only (`continue-on-error: true`) for its first two
-weeks (plan item B3): a regression marks the job failed without failing the
-workflow. Making it required is a maintainer decision.
+Pushes to `master` and manual dispatches always run it. The job was introduced
+as warn-only (`continue-on-error: true`) in #1717. PR #1926 (plan item B3)
+removes that setting, so a regression fails the workflow. On `master`, the
+blocking policy takes effect when #1926 is merged, not on its commit or
+review date. The switch is backed by a replay: all 71 `master` runs from
+2026-10-06 to 2026-10-12 passed the
+counter check with the baselines of their own commit, and none of the
+enforced counters differed between the measured iterations of a run. Against
+the baselines of 2026-10-13 the older runs fail only where a later PR lowered
+a value on purpose (J2 `renderer.layoutShiftScore` 0.233 → 0 in #1895) or
+where J4 was not measured yet. `master` has no branch protection, so the job
+is not a required status check: like the `Initial bytes ratchet` job, it
+blocks by failing the `CI` workflow, and a maintainer decides whether to
+merge past it.
 
 After the `Run the performance journeys` step, the job runs
 `check-journey-ratchet.mjs --only …` on the summary that step wrote, for the
@@ -1339,8 +1641,7 @@ journey entries of `journey-baselines.json` (every entry except
 `performance-tools` test keeps that `--only` list equal to those entries, so
 a baseline cannot be added without being enforced. The step is in the job,
 not in the composite action, so the weekly tightening still measures a run
-that would fail it. While the job is warn-only, a regression fails the job
-and not the workflow.
+that would fail it. A regression fails the job and the workflow.
 
 #### Enforced journey counters
 
@@ -1409,6 +1710,26 @@ changes) and the wall-clock entries did not move. Under
 `prefers-reduced-motion` there is no slide, so a user with that preference
 still sees the jump that the journey no longer measures.
 
+`playback/renderer.domMutationsToPlaying` 733 is validated by #1817 and is
+enforced with slack. #1817 windowed the EPG
+timeline: on the runner the counter fell from 6,182 to 731, `renderer.longTasks`
+from 1 to 0, and the click→`playing` P50 from 221-341 ms (four `master` runs)
+to 196-215 ms (three dispatched runs of the branch). It is not identical: the
+usual value is 731 to 736, and it moves between runs of the same commit (733
+and 736 for a8505e0f9). An iteration where a fifth bridge call
+(`updateRemoteControlStatus`) lands before `playing` adds exactly 17
+(731→748, 733→750). `slack` 20 covers the top of that band, 736 + 17 = 753;
+the regression it guards, the timeline rendering the whole schedule again, is
+about 5,000 mutations above it. `evidenceRun` 38311314484 (f60d79701) read
+733 in every iteration.
+
+The entry carries `"autoTighten": false`, so the weekly tightening leaves it
+alone: three runs that all read 731 would lower `value` to 731 and the limit
+to 751, below the 753 of a normal fifth-call iteration on a 736 run. Lower it
+by hand, and only with runs showing the top of the band fell too (a
+fifth-call iteration at or below the new `value` + `slack`). Remove the slack
+and the flag once the fifth call's race is gone and `master` runs agree.
+
 The two J4 entries, `search/renderer.ipcCallsPerSearch` 1 and
 `search/renderer.sqlStatementsPerSearch` 2 (#1899, `evidenceRun`
 38165392046), were identical in all 816 J4 iterations of the 136 CI journey
@@ -1422,8 +1743,8 @@ plan promotes a counter to a guardrail once a PR has shown that lowering it
 lowered the journey's wall-clock. None of these counters has that evidence
 yet: `main.modulesRegisteredBeforeWindow` waits for the deferred IPC
 registration (plan item C4), the layout-shift scores measure visual
-stability rather than time, and no PR has moved a J2 or J3 counter. Each
-entry therefore carries
+stability rather than time, and no PR has moved a J2 counter. Each
+of these entries therefore carries
 `"note": "guard only, not validated: …"`. A guard stops a regression of a
 deterministic number, and the checker prints the note with a failure; it
 says nothing about whether lowering that number makes the journey faster.
@@ -1453,9 +1774,8 @@ Not enforced, with the reason:
   side of a render. It is enforced at 5 with `slack: 1`.
 - J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
   recent commits.
-- J3 `renderer.ipcCallsToPlaying` (4 or 5) and
-  `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199 before #1817;
-  731, 732 or 734 since, 748 with a fifth call): not identical.
+- J3 `renderer.ipcCallsToPlaying` (4 or 5): not identical. (J3
+  `renderer.domMutationsToPlaying` is enforced with slack, see above.)
 - J3 `renderer.ipcSerialDepthToPlaying` (4 on the runner, 3 on a Mac):
   added after these runs and measured in one runner run so far; a
   candidate once `master` runs agree.
@@ -1487,6 +1807,9 @@ its job; its entries are then unmeasured in that run. A final job runs
   P50 for a `.p50` entry);
 - a counter marked `counterStability.<name>.stable: false` in any run is
   kept, and the report says which run and which iterations disagreed;
+- an entry with `"autoTighten": false` is kept: its slack covers a band of
+  normal values, and the largest of three runs can be the bottom of that band
+  (see `playback/renderer.domMutationsToPlaying` above);
 - `value` never goes up, `slack` and `toleranceRatio` never change, and no
   entry is added or removed: the result must pass
   `check-baseline-direction.mjs` without `--allow-increase`, which both the
@@ -1618,6 +1941,76 @@ affected routes. Reference, 2026-10-09 on a 16" MacBook Pro at 2x before and
 after the painted corner: dashboard idle 537 to 242 MB, during a slide switch
 598 to 303 MB, scrolled 655 to 165 MB; movie detail 110 to 89 MB; series
 detail 187 to 143 MB.
+
+## Working a performance thread
+
+A performance thread is one agent session, one journey and one counter.
+Performance work outside the journeys follows its own section of this
+document ([Compositing budget](#compositing-budget),
+[Charset parse benchmark](#charset-parse-benchmark)); the loop below still
+applies, with that section's measurement in place of the journey counter.
+The standing instruction for an agent on a journey thread:
+
+> Your job is to improve the measured journeys in this document. Every thread
+> targets one journey and one counter. Before changing code, reproduce the
+> slowness with the journey benchmark and record the baseline. Land small
+> PRs; put anything user-visible behind a kill switch; lower
+> `tools/performance/journey-baselines.json` only with the benchmark output
+> as evidence, and take a deliberate increase through the labelled exception
+> in [Ratchet](#ratchet). When a counter stops moving, say so and propose the
+> next bottleneck instead of padding the current thread.
+
+### The loop
+
+1. **Identify.** A thread opens with a slow journey segment, a counter that
+   looks too high, or a finding from the [idle work audit](#idle-work).
+2. **Reproduce.** Run the journey (`pnpm run perf:journeys`) and find the
+   counter or wall-clock phase that shows the problem. If none does, add the
+   counter first ([Adding a counter](#adding-a-counter)); a thread does not
+   optimize what it cannot measure.
+3. **Change.** One PR per cause, sized for review. User-visible changes go
+   behind a kill switch: an environment variable such as
+   `IPTVNATOR_DISABLE_COMPILE_CACHE`, or a settings-store key. The switch is
+   removed within two releases; note the removal date in the PR.
+4. **Validate.** Measure master and the branch side by side: sibling builds
+   launched in alternating rounds of one warm-up plus five measured
+   iterations, on a quiet machine, with the load average stated in the PR.
+   A laptop number is a preview; the Linux CI runner's `Performance journeys`
+   job is the canonical measurer.
+5. **Consolidate.** If the counter dropped and wall-clock followed, lower the
+   baseline in the same PR with the runner's output as evidence ([Ratchet](#ratchet)).
+   A counter that moved without moving wall-clock is not promoted; say so
+   (#1716 is the model). If nothing moved, drop the change rather than land
+   it on a hunch.
+6. **Continue.** Report what the counter now waits on and open the next
+   thread from there. A finding outside the thread's journey becomes a new
+   thread, not a scope extension.
+
+### Evidence in the PR
+
+The PR description carries: the journey and counter, the before/after table
+(counters exact, wall-clock P50 per round), the machine and load during the
+measurement, the Electron and renderer build used, and every reviewer finding
+that was declined with its one-line reason. Numbers in prose are not
+evidence; the table is.
+
+### What stays with the maintainer
+
+- Which journey or surface is next, and when a thread has reached diminishing
+  returns.
+- UX trade-offs: a skeleton now or after a delay, an animation against its
+  frame budget, content that fills in after the first frame. Attach a
+  before/after recording or screenshots and ask; do not decide alone.
+- Ratchet tolerances, `slack` values and the labelled override for a
+  legitimate regression.
+- Branch protection and which CI job is required.
+
+### Scheduled work
+
+The weekly `performance-ratchet.yml` run measures `master` three times and
+opens the tightening PR ([Weekly tightening](#weekly-tightening)). The idle
+audit is repeated after any change that adds a timer, an animation or a
+periodic sync; its findings are threads, not fixes in the auditing PR.
 
 ## Adding a counter
 

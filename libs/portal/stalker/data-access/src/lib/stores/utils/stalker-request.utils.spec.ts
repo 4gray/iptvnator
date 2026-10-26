@@ -53,6 +53,25 @@ describe('executeStalkerRequest', () => {
         expect(deps.dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 
+    it('forwards silent background requests to the authenticated session', async () => {
+        const deps = createDeps();
+        const playlist = {
+            _id: 'full',
+            portalUrl: 'https://example.test/server/load.php',
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        const params = { type: 'itv', action: 'get_epg_info' };
+        await executeStalkerRequest(deps, playlist, params, { silent: true });
+        expect(
+            deps.stalkerSession.makeAuthenticatedRequest
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: 'full' }),
+            params,
+            true,
+            { silent: true }
+        );
+    });
+
     it('keeps lightweight Stalker portal requests on the IPC path', async () => {
         const deps = createDeps();
         const playlist = {
@@ -181,6 +200,40 @@ describe('executeStalkerRequest lazy portal repair', () => {
         } as StalkerPortalRepairApi;
     }
 
+    it.each(['response', 'rejection'])(
+        'preserves silent requests across portal repair after a %s',
+        async (failure) => {
+            const deps = createDeps();
+            const repaired = {
+                ...PLAYLIST,
+                portalUrl: 'https://repaired.test/portal.php',
+            };
+            const send = deps.dataService.sendIpcEvent as jest.Mock;
+            if (failure === 'response')
+                send.mockResolvedValueOnce('Authorization failed.');
+            else send.mockRejectedValueOnce({ status: 404 });
+            send.mockResolvedValueOnce({ js: [] });
+            deps.portalRepair = createRepair({
+                shouldAttemptRepair: jest.fn().mockReturnValue(true),
+                repairPortal: jest.fn().mockResolvedValue(repaired),
+            });
+            await executeStalkerRequest(
+                deps,
+                PLAYLIST,
+                { action: 'get_short_epg', type: 'itv' },
+                { silent: true }
+            );
+            expect(deps.portalRepair.repairPortal).toHaveBeenCalledWith(
+                PLAYLIST,
+                { silent: true }
+            );
+            expect(send).toHaveBeenCalledTimes(2);
+            for (const [, payload] of send.mock.calls)
+                expect(payload.silent).toBe(true);
+            expect(send.mock.calls[1][1].url).toBe(repaired.portalUrl);
+        }
+    );
+
     it('waits for a pending repair before choosing the effective connection', async () => {
         const deps = createDeps();
         let releaseRepair: () => void = () => undefined;
@@ -280,7 +333,7 @@ describe('executeStalkerRequest lazy portal repair', () => {
         await expect(
             executeStalkerRequest(deps, PLAYLIST, CATEGORY_PARAMS)
         ).rejects.toBe(notFound);
-        expect(repair.repairPortal).toHaveBeenCalledWith(PLAYLIST);
+        expect(repair.repairPortal).toHaveBeenCalledWith(PLAYLIST, {});
     });
 
     it('applies an existing override before dispatching', async () => {

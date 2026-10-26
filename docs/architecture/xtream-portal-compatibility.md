@@ -37,6 +37,260 @@ See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
 [Portal Detail Navigation](./portal-detail-navigation.md), and
 [VOD Multi-Source](./vod-multi-source.md).
 
+## Durable Electron Favorites
+
+SQLite favorites are user-owned records keyed by playlist, normalized content
+kind (`live`, `movie`, `series`), and provider ID. The nullable catalog link uses
+`ON DELETE SET NULL`; only explicit favorite removal/clear or playlist deletion
+removes a saved record. Refresh and import-cache cleanup never replay canonical
+favorites from a temporary snapshot. The two Refresh entry points continue to
+share `XtreamRefreshFlowService` and its per-playlist single-flight guard.
+
+Favorite rows retain a durable `favorite_id`, saved title/artwork, added date
+and order. Their `id`/`category_id` may be null; consumers must not invent a
+catalog ID. Remove/reorder can use the stable favorite ID while detail toggles
+resolve any category row through the same typed provider identity. Completed
+imports reconnect valid identities. Display snapshots are replaced only after
+the returning row confirms every saved TMDB ID/year; incomplete identity keeps
+the saved title/artwork in collections and backups. Restore applies the same
+confirmation guard before filling gaps in saved metadata from catalog rows.
+When detail enrichment confirms the remaining identity fields, it immediately
+copies the returning title, artwork and metadata into the saved snapshot without
+waiting for another import. Blank catalog fields retain their saved values.
+Conflicting known TMDB IDs or release years prevent automatic reconnection;
+changed provider IDs never reconnect by title. Electron persists known conflicts in
+`favorites.identity_conflict`, separately from catalog absence. Completed imports,
+detail enrichment and destructive cache refresh reconcile this evidence; only a
+candidate confirming every saved TMDB/year clears it. Sparse returns remain compatible
+when no conflict was observed. Backup snapshots carry known conflicts across runtimes,
+and explicit favorite removal/re-add starts independent ownership.
+Adding a conflicting replacement returns an explicit failure and retains the
+older favorite. Detail and recent-collection toggles stay inactive and explain
+that the older entry must be removed from Favorites before the replacement can
+be saved. Collection hearts change only after the storage write succeeds.
+Recent collections also check the current catalog row's favorite status through
+the data source when loading: a retained favorite's matching provider key alone
+cannot mark an incompatible replacement as saved.
+
+`catalog_status` is `present`, `missing`, or `unknown`. Only a completed import
+of the relevant type can prove absence. Failed, cancelled and in-progress
+imports remain unknown. Collections and dashboard rails retain unresolved rows
+with saved titles/status and removal/order controls; they suppress playback,
+details, downloads and EPG requests that depend on catalog resolution. History
+navigation rechecks current collection state. Removing a live row or making it
+unavailable closes its active detail and invalidates pending selection work,
+including a retained player during a channel switch. Unresolved records are not
+promoted to dashboard hero slides, including Continue Watching and the most-recent fallback.
+Unavailable live candidates are excluded before EPG lookup, candidate limits and
+slot reservation; Recent rail projections and EPG cards retain availability and cannot
+borrow cached programmes. Unavailable series are excluded before continuation candidate
+selection, so watched/season-zero positions cannot schedule replacement episode requests;
+history and saved positions remain intact. Parental locks still gate display: an
+unresolved category cannot prove that it is unlocked, so those records remain
+stored but are withheld while locks apply. For duplicate category copies, ordinary
+reads choose an unlocked compatible row before resolving the catalog link; a
+locked earlier copy cannot hide a later unlocked copy. Detail favorite status, mutations and Recent recording carry the displayed normalized
+TMDB/year through the worker lookup. That lookup excludes known conflicts and ranks
+full confirmation before sparse compatible duplicates; omitted identity keeps legacy
+lookup behavior. Async detail status ownership includes identity as well as typed provider
+ID, so a late toggle cannot update a different displayed replacement. Fully confirming duplicates
+rank before sparse compatible rows, with the catalog row ID breaking ties, so a
+confirmed return can refresh saved artwork in reads, completed imports and exports. Backup reads remain
+unfiltered.
+
+Legacy pending favorites are converted before destructive refresh, import
+requests and ordinary collection reads, even if portal-status preflight is
+offline. Ordinary collection reads isolate failed conversions per playlist and
+still read healthy database favorites, retaining pending state for retry. This
+also applies when localStorage access or key enumeration fails. Backup reads
+remain strict and fail if storage access or conversion fails. Backup merges convert any
+older pending favorites before parking the incoming archive. Favorite inserts and a replay receipt commit together;
+retries cannot resurrect a subsequently removed favorite. Deliberate backup import creates a
+fresh receipt ID, which stays internal and is never exported. Identity-only old
+backups use a labelled saved-item fallback until catalog metadata returns.
+Backups include unresolved snapshots and locked records through a dedicated
+unfiltered read; a failed favorites read fails export rather than producing an
+empty collection. New backup imports materialize favorites before waiting for
+an online catalog. Existing history, hidden-category and playback-position
+restore contracts remain separate.
+In server-storage mode the same shared import/replay boundary waits for a fresh
+user-data read and earlier writes, then confirms the restored lists and required
+snapshots with the server before consuming pending state. Restore receipts remain
+client metadata in the atomic cache blob, never server playlist entries. Hydration
+preserves them and shrinks favorite ownership on remote removals. Local write completion is separate from server confirmation: an unconfirmed receipt
+retains its replacement target until the server accepts it. Retry and pending export use
+that target, rather than a conflict-merged list. Explicit favorite/history/position edits
+update the target atomically with their list and receipt, preserving removals and re-adds.
+Only confirmed receipts may shrink ownership from later remote removals. Receipt-bearing
+writes reject browser quota failures rather than acknowledge only in memory; ordinary
+receipt-free server caches retain their existing memory fallback.
+
+Browser imports convert desktop favorite snapshots into typed collection-cache
+rows so saved titles and artwork remain visible offline. Browser exports include
+the normalized nested favorite snapshots as well as their optional collection
+cache, preserving metadata when the archive returns to Electron.
+The backup boundary normalizes numeric-string TMDB IDs and years from older
+browser snapshots with the shared metadata rules, preserving identity checks
+after Electron restore. Nulls remain null; unusable placeholders are omitted.
+Once all three browser catalogs have loaded successfully, a saved typed item
+absent from those catalogs is retained with `missing` status. Favorites and
+Recent persist that status across reload and disable catalog-dependent actions;
+partial or failed hydration cannot establish absence. Returning compatible
+catalog evidence can make the saved item available again without changing its
+favorite date/order or an independent Recent snapshot's identity. Browser snapshots
+record whether missing status came from absence or a known identity conflict.
+A sparse returning typed row clears proven absence while retaining the saved
+presentation and identity. It cannot clear a known conflict or an older missing
+status whose cause is unknown; those still require identity confirmation. Favorite-status checks and stale detail-heart
+mutations use the same retained-conflict rule; explicit removal with the saved original
+identity remains available from Favorites. This
+evidence survives reload and browser backup/restore for Favorites and Recent.
+Favorite snapshot backups include allowlisted availability evidence in pending
+state too, so retrying a failed snapshot write cannot enable a known conflict.
+Older browser cache evidence is promoted only for the same typed identity and
+compatible saved metadata; legacy optional-cache-only imports remain optional.
+Duplicate category rows are ranked against the original collection snapshot:
+fully confirming rows take precedence over compatible sparse rows, which take
+precedence over conflicting rows. Favorite and Recent choose independently.
+Catalog hydration keeps the saved snapshot separate from current provider rows.
+Only a row confirming every saved TMDB ID/year may refresh that snapshot;
+missing, partially confirmed or conflicting identity retains the original title,
+artwork and metadata. Identity numbers use the shared Electron metadata normalizer: numeric strings
+match numbers, and empty/zero placeholders are unknown. After confirmation,
+blank catalog fields retain saved values. The favorite's added date and order always belong to user state.
+Favorites and Recent reads/writes share this resolution. Recent/detail backdrop
+writes check the actual catalog evidence, never the resolved collection row
+which already carries saved identity. Browsing, reload and re-export therefore
+cannot replace an imported snapshot merely because a provider reused its ID.
+A known browser identity conflict marks the retained snapshot unavailable, so
+collection and dashboard detail actions cannot open the replacement under the
+saved title. This survives reload and clears only when the saved identity is
+confirmed again. Legacy numeric aliases are deduplicated separately, with the
+canonical typed snapshot taking precedence; stored copies never count as catalog
+confirmation. Recent collection and dashboard mappings carry the same conflict
+status into their detail guards. Explicit removal remains available. After removal, deliberately
+favoriting the current item may replace the old snapshot (including legacy key
+aliases); that replacement must persist before the new reference is saved, so
+storage failure cannot silently resurrect the old title. Ordinary optional
+snapshot-cache writes retain their existing quota behavior. The explicit browser
+favorite and Recent writers, cold-detail favorite preparation, catalog normalization,
+playback-position operations and pending-state serialization load on demand.
+After loading, each mutation reads fresh storage and completes its writes
+synchronously so concurrent additions are not lost; Recent snapshots and viewing
+dates still share one atomic write.
+Browser collection actions carry the rendered row's saved TMDB/year identity,
+independent of whether the catalog has hydrated. Status, add and remove compare
+that identity with the retained favorite; removal rechecks storage so a stale
+Recent heart cannot delete a different favorite. Explicit removal of the original
+row still works while the provider is showing a conflicting replacement.
+Movie/series detail hearts carry the displayed detail identity too, and metadata
+arrival refreshes their status after metadata persistence, without accepting stale
+lookup results or an old detail completing after navigation. After
+explicit removal, a cold Recent save uses its independently stored matching
+snapshot; it persists that snapshot before the favorite reference. Missing
+compatible metadata or a required snapshot-write failure rejects the save.
+Cold detail enrichment updates the matching independent Recent snapshot without
+treating it as catalog evidence or rewriting the retained favorite. This lets a
+sparse Recent item gain its detail identity before a new favorite is saved.
+For a cold Favorites-only detail, compatible enrichment stays in a bounded,
+data-source-local candidate until the user explicitly removes and re-adds the
+favorite. It never confirms catalog availability or mutates the retained snapshot
+just by opening details. A changed stored snapshot invalidates the candidate;
+re-adding persists its enriched snapshot before the favorite reference, so quota
+failure leaves the item removed and retryable rather than restoring stale identity.
+When a replacement favorite needs the shared snapshot, any Recent entry still
+using the previous snapshot first receives its own copy, preserving the watched
+identity and date. Failure to save that copy aborts the replacement. Sparse catalog
+rows may refresh category routing even before confirming all saved identity fields;
+protected presentation stays unchanged, and known conflicts still block actions.
+Detail metadata fills missing identity and presentation fields in the current PWA
+catalog row and reconciles each compatible saved snapshot separately. Identity-only
+patches also persist, so an initially sparse favorite gains protection before a
+later provider-ID reuse. A conflicting detail response cannot enrich another known
+identity; independent Recent snapshots never backfill a retained favorite.
+When a provider ID appears in multiple catalog categories, detail enrichment fills
+only compatible missing metadata in each original row. The initial detail candidate
+is selected against the normalized patch identity before saved snapshots are
+enriched; a conflicting last duplicate cannot discard identity learned in details. It preserves each row's
+category, title, poster, rating and other provider fields; conflicting rows are
+left untouched rather than replaced by one resolved catalog object.
+Favorite status and save guards choose raw catalog duplicates against the saved or
+explicitly displayed identity as well. This selection hint cannot create catalog
+evidence when no actual row exists, and an unrelated duplicate cannot veto a
+matching heart action.
+Saving a new cold detail favorite may hydrate and enrich its matching catalog
+rows, but does not rewrite independent Recent entries. Optional history
+enrichment cannot block the explicit favorite write when browser storage is full.
+Playback captures the displayed title, artwork and normalized detail identity before
+waiting for confirmation. That metadata travels with the captured playlist even if
+navigation or catalog changes happen before the save. Shared live playback from
+Favorites and Recent forwards the selected row’s metadata through the same
+confirmed-playback boundary as the portal live view. New playback keeps its own
+typed `collectionItem` on the Recent entry; a cold catalog never gives the older
+independent Recent snapshot a new timestamp for a different played identity. Its metadata and viewing date are
+saved atomically, independently of any retained favorite, and remain available
+after reload, export/restore and deferred retries. Reading Recent never copies
+that independent snapshot into the favorite cache. Older Recent entries still
+use the shared cache; compatible optional caches keep their quota behavior.
+Initial browser imports and deferred retries share `PwaXtreamBackupStorage`;
+`PwaXtreamBackupStateService` supplies its injected storage for the importer.
+Both write the lists first and require the nested favorite snapshots to persist
+before consuming pending state. A quota or storage failure keeps the archive
+parked for another attempt, including when the provider returns an empty catalog.
+Each browser list write stores its restore receipt in the same JSON blob, under
+`__iptvnator_xtream_restore_receipts__` outside the playlist arrays. Ordinary
+list edits preserve that internal metadata, so retries skip completed list writes
+and cannot undo later removals, reordering, history updates or playback progress.
+A bounded per-playlist receipt remembers the imported keys still owned by the
+archive. Explicit removal shrinks that set atomically, requiring no extra quota
+space for a tombstone; a later re-add owns its current snapshot. Catalog hydration and
+detail/cache normalization never count as an explicit replacement. Automatic Recent
+reads/enrichment cannot append remote history to an unconfirmed server restore target;
+they may only detach metadata for a legacy row already owned by that target. Actual
+Play, removals and reordering remain explicit user edits. Remaining
+metadata retries therefore preserve genuine user replacements without discarding
+parked archived identity after an ordinary read. Pending exports combine current
+applied lists with authoritative archived snapshots, dates and positions for
+untouched imported favorites; receipts never enter the exported manifest.
+When legacy Recent shares a required imported favorite snapshot, its metadata
+is copied into the Recent entry with the viewing date before snapshot replay.
+Removing or replacing that favorite cannot erase the history’s only metadata.
+Legacy optional-cache-only imports keep their best-effort behavior. Saved
+unavailable evidence can pass to an independent Recent snapshot only when both
+snapshots confirm the same normalized identity in both directions. Only status
+is copied; a different played identity retains its own metadata and availability.
+Unavailable live Recent rows keep their individual history-removal menu action;
+catalog-dependent playlist navigation, EPG mapping and details remain gated. A deliberate new
+import gets a fresh ID and can intentionally apply the archive again.
+Legacy browser-only `collectionItems` remain an optional cache. If a combined
+write exceeds quota, restoration retries only the required favorite fields;
+optional rows or extra cache fields cannot block metadata that fits. Optional cache fields enrich a required snapshot only when every saved TMDB/year
+field is confirmed by the normalized cache identity; conflicting or partial
+identity evidence cannot supply artwork or new identity fields. The same
+fallback applies when copying a required favorite into legacy Recent. A failed
+required-only write still keeps pending state.
+The PWA retry loads that storage implementation on demand through a local module.
+Collection identity lookups index only requested provider IDs per cached array,
+including all typed/category duplicates. Recent heart checks reuse that index
+instead of repeatedly scanning the catalog. Catalog refresh or detail enrichment
+replaces the array and therefore invalidates its index; loading completeness
+still comes from the original caches, never the requested subset.
+
+Both Xtream data-source and portal-activity capabilities require the pending
+favorite conversion bridge; activity reads also require playlist lookup. The
+SQLite capability also requires the unfiltered favorite backup reader. An
+unsupported atomic restore performs no favorite writes: a fresh archive stays
+parked, while an older pending restore is retained without being overwritten.
+Subsequent collection reads and early catalog imports must enforce the same
+preflight before replaying those favorites. Ordinary reads still return existing
+SQLite records. Exports that need to materialize parked favorites fail while
+atomic restore is unsupported; exports with no pending favorites remain available.
+
+Records already deleted by an older build cannot be recovered without a
+surviving pending state or backup. Opening an Xtream section may initialize
+content when its cache is not ready; startup imports and explicit refresh use
+the same durable persistence invariant. This does not add a refresh scheduler.
+
 ## PWA Collection Persistence
 
 Collection operations carry `{ id, type }`: `id` remains the SQLite row ID
@@ -213,7 +467,48 @@ targets. Those targets are validated when registered and revalidated before the
 `/xtream` proxy request, including protocol, URL credentials, DNS resolution,
 and private-network checks.
 
+## Provider EPG
+
+Xtream EPG comes from the portal itself. `get_short_epg` feeds the
+channel-row previews (`EpgQueueService`: three items, two requests in flight)
+and the collection previews (`StreamResolverService`). `get_simple_data_table`,
+falling back to the legacy `get_simple_date_table`, feeds the live EPG panel
+(`withEpg().loadEpg()`) and the collection detail panel. All of them use the
+ordinary `XTREAM_REQUEST` transport, so they are gated on
+`RuntimeCapabilitiesService.supportsProviderEpg`. It is true in the browser
+PWA, where `PwaService` forwards to the backend `/xtream` proxy, and in
+Electron when the `xtreamRequest` and `stalkerRequest` preload methods exist.
+Both runtimes send the EPG actions as silent background requests (no error
+snackbar) through the same per-host connectivity guard as the catalog. Only
+connection-level failures count, so a panel that answers EPG requests slowly
+or with an error status cannot fast-fail playback.
+
+The local XMLTV parts keep the XMLTV capabilities and stay off in the PWA:
+the `epg_channel_id` fallback and `preferUploadedEpgOverXtream`
+(`XtreamXmltvFallbackService`), and manual EPG mapping (`supportsEpgMapping`).
+The PWA hides the catch-up actions of the EPG panel (watch, copy, download):
+`RuntimeCapabilitiesService.supportsProviderCatchUp` is false there until a
+manual check against a real provider shows that the browser players play the
+REST MPEG-TS timeshift URL the PWA falls back to (see Catch-Up Playback URLs).
+It gates `archivePlaybackAvailable` (Live TV) and `timelineArchiveAvailable`
+(Favorites/Recent); the desktop app keeps all three actions.
+
 ## User-Agent
+
+Xtream account, catalog, detail, EPG, and source-health API requests carry the
+playlist's trimmed `userAgent` separately from provider query parameters.
+Credentials built for selected-channel and channel-list EPG, account dialogs,
+PWA collections/category loading, category guards, and dashboard episode lookups
+retain that value. Dashboard episode request identity includes the User-Agent so
+an edited value retries a blocked lookup without waiting for the old cooldown.
+Add/Edit connection tests use the current form value. Electron chooses a nonblank
+override before `XTREAM_CLIENT_USER_AGENT`. The PWA proxy
+accepts the override as a control parameter, removes it from the provider query,
+and sends it as `User-Agent`. Blank overrides retain each transport's fallback.
+Passive status caches and in-flight checks include the normalized User-Agent, so
+changing it cannot reuse a refusal from the previous client identity.
+The shared source-status service forwards the same override for browser-build
+status indicators in the Sources page and playlist switcher, including rechecks.
 
 Electron's `XTREAM_REQUEST` and stream-probe handlers plus fresh Xtream movie
 and series-episode download requests share the exported
@@ -228,7 +523,7 @@ same IPTV-player fallback, while a still-identifiable Stalker row remains
 unchanged. Some Xtream
 panels sit behind a WAF (e.g. Cloudflare) configured to challenge
 generic/incomplete browser-looking User-Agents while allowlisting known IPTV
-player clients; a player-style User-Agent (currently a VLC signature) avoids
+player clients; a player-style User-Agent (currently a VLC signature) can avoid
 that challenge page, whereas a browser-looking but non-browser TLS/HTTP client
 (axios/curl with a Chrome or empty User-Agent) can be blocked even though a
 real browser or a VLC-style client passes. Keep all three request sites using
@@ -304,11 +599,19 @@ throwing during playback.
 
 VOD playback uses the standard
 `/movie/{username}/{password}/{streamId}.{containerExtension}` URL after
-resolving the stream id and container extension as one source. Fields from
+resolving the stream id and container extension as one source. A provider's
+explicit absolute HTTP(S) `direct_source` is also a complete source when paired
+with a positive stream id; its address is used verbatim for playback and
+download, including when the extension is null, missing or blank. Other URL
+schemes and relative addresses are ignored. Fields from
 `movie_data` take priority, with the top-level catalog fields used as a
 fallback when extended metadata is absent or incomplete. A source requires a
-positive integer id and a non-empty container extension; otherwise URL
-construction returns an empty string.
+positive integer id and either a non-empty container extension or a valid direct
+address; otherwise URL construction returns an empty string. No container is
+guessed. Each candidate must belong to the requested provider stream id, and a
+catalog candidate with conflicting known TMDB/year identity cannot supply
+playback fields or presentation. This does not change durable favorite identity
+or make an unavailable saved favorite available.
 
 The Electron catalog cache does not persist the container extension. If the
 merged detail response and cached row still cannot resolve a source, the detail
@@ -329,7 +632,9 @@ lookup completes, then a successful result upgrades that same fallback
 reactively with playback actions. Detail, recovered, and cached
 playback fields remain separate candidates: the first complete pair wins, so
 two incomplete rows can never synthesize a source. A failed lookup leaves the
-already-rendered item safely unplayable. Detail requests are generation- and
+already-rendered item safely unplayable. A second identical `get_vod_info`
+request is not issued automatically after a fresh incomplete response; reopening
+the detail retries through the normal loader. Detail requests are generation- and
 playlist-guarded, and detail teardown invalidates the active generation, so a
 late response cannot replace a newer selection or repopulate a closed detail.
 In-memory VOD category and stream arrays record the playlist that populated
@@ -337,12 +642,25 @@ them. Cross-portal Favorites/Recent details ignore arrays owned by another
 playlist, so colliding Xtream ids cannot suppress recovery or contribute a
 foreign playback extension, title, poster, category, or recommendation.
 
+Null or absent detail payloads normalize to empty metadata before source recovery.
+Catalog identity checks use provider-stated years; a release date filled by TMDB
+cannot veto an otherwise matching playback source.
 Metadata availability and VOD playability are independent. An empty or sparse
 `get_vod_info` response keeps the curated fallback detail page, but that page
-offers the same Play/Resume, Favorite, and Download actions when the source
-resolves. An unresolved source exposes no actions. Playback and download
+offers the same Play/Resume and Download actions when the source resolves.
+Favorite and Watched are independent of stream availability and retain their
+typed playlist/provider identity and existing persistence/playback guards. An
+unresolved source keeps Play disabled with a translated explanation covering
+playback and download; it cannot launch a player or enqueue an empty address.
+A downloaded local copy remains playable. Playback and download
 descriptors also fall back to the catalog title and poster after `info` and
 `movie_data`.
+
+A new PWA favorite from a cold detail hydrates only its typed catalog when
+needed. When the initial detail backfill ran before catalog hydration, the
+explicit save applies that metadata to the compatible current row. Retained
+Favorite/Recent snapshots keep the existing identity, conflict and quota
+protection; adding a favorite cannot rewrite an older saved movie implicitly.
 
 Provider stand-ins in `get_vod_info` / `get_series_info` (`N/A`, `-`, an
 unrated `0` score) are emptied before the response becomes the store
@@ -480,6 +798,12 @@ and the facade maps page 0 to the skeleton and later pages to the tail
 spinner. These catalog/search surfaces use incremental loading instead of
 page buttons.
 
+A failed initial search is distinct from a successful empty result. The search
+store exposes an error state to the shared search layout; Retry retains the
+query, content-type filters and hidden-category choice. New searches clear the
+error, and obsolete failures cannot replace newer results. Global search uses
+the same recovery surface without resetting the user's query or filters.
+
 ## Forced external launches from detail pages
 
 The "…" menu's MPV/VLC launch follows the shared rules in
@@ -518,3 +842,12 @@ duplicate guard, queued choice), `serial-details-playback.service.spec.ts`
 `serial-details-menu.service.spec.ts` (launch-failure message, the rows held
 while a launch is pending) and, for the external-player and reset rows,
 `libs/ui/components/src/lib/detail-ui/series-hero.state.spec.ts`.
+
+## Framework-free TV catalog recency
+
+The provider client entrypoint exports `xtreamCatalogTimestamp` for the TV
+adapter. It uses the shared recently-added epoch validator, accepts ISO provider
+dates, and falls back to `last_modified` for series without a usable `added`
+value. It does not infer addition time from release dates or IDs. TV applies
+this timestamp before client pagination; see [TV application](tv-application.md).
+The Angular selection store's sort behavior is unchanged.

@@ -8,7 +8,7 @@ import {
     StalkerVodSeriesSeason,
     StalkerVodSource,
 } from './models';
-import { isStalkerSeriesFlag } from './stalker-vod.utils';
+import { isStalkerSeriesFlag } from '@iptvnator/shared/interfaces';
 
 const naturalSeasonCollator = new Intl.Collator(undefined, {
     numeric: true,
@@ -51,6 +51,8 @@ export interface StalkerMappedEpisode extends XtreamSerieEpisode {
     legacyTrackingId?: number;
     /** Allows pre-correction legacy progress to match the same episode. */
     providerSeasonNumber?: number;
+    /** Provider request coordinates, independent of display/progress numbering. */
+    vodEpisode?: { movieId: string; seasonId: string; episodeId: string };
     originalId?: string;
     originalCmd?: string;
 }
@@ -255,6 +257,12 @@ export function mapVodSeriesEpisodes(
                     ? { providerSeasonNumber: season.providerSeasonNumber }
                     : {}),
                 originalId: providerEpisodeId,
+                originalCmd: episode.cmd,
+                vodEpisode: {
+                    movieId: season.video_id,
+                    seasonId: season.id,
+                    episodeId: providerEpisodeId,
+                },
             } as StalkerMappedEpisode;
         });
     });

@@ -76,6 +76,28 @@ describe('DashboardSeriesEpisodesService', () => {
         expect(getSeriesInfo).toHaveBeenCalledTimes(1);
     });
 
+    it('retries a blocked lookup immediately after the User-Agent changes', async () => {
+        getSeriesInfo.mockRejectedValueOnce(new Error('Forbidden'));
+        service.request([request(900)]);
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(status(900)).toBe('failed');
+        getSeriesInfo.mockResolvedValue({ episodes: {} });
+        const updated = {
+            ...credentials,
+            userAgent:
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        };
+
+        service.request([{ ...request(900), credentials: updated }]);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(getSeriesInfo).toHaveBeenLastCalledWith(updated, 900, {
+            suppressErrorLog: true,
+        });
+        expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+        expect(status(900)).toBe('loaded');
+    });
+
     it('runs at most two lookups at once', async () => {
         const answers = [1, 2, 3].map(() => deferred<XtreamSerieDetails>());
         answers.forEach((answer) =>
@@ -580,7 +602,12 @@ describe('sameDashboardSeriesEpisodesRequests', () => {
         expect(same([{ ...request(1), refresh: false }], [request(1)])).toBe(
             true
         );
-        for (const field of ['serverUrl', 'username', 'password'] as const) {
+        for (const field of [
+            'serverUrl',
+            'username',
+            'password',
+            'userAgent',
+        ] as const) {
             expect(
                 same(
                     [request(1)],

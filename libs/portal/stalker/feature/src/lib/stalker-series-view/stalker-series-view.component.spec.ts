@@ -1,4 +1,5 @@
-import { ComponentFixture } from '@angular/core/testing';
+import { StalkerEpisodeResolver } from '@iptvnator/portal/stalker/data-access';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
@@ -160,6 +161,10 @@ describe('StalkerSeriesViewComponent', () => {
     });
 
     it('binds a Stalker adapter that prepares canonical episode metadata', async () => {
+        const resolveDownload = jest.spyOn(
+            TestBed.inject(StalkerEpisodeResolver),
+            'resolveDownload'
+        );
         selectedContentType.set('vod');
         selectedItem.set({
             id: '50001',
@@ -188,12 +193,11 @@ describe('StalkerSeriesViewComponent', () => {
 
         const request = await candidate?.prepare();
 
-        expect(fetchLinkToPlay).toHaveBeenCalledWith(
-            'https://stalker.example.test',
-            '00:1A:79:12:34:56',
-            '/media/file_502.mpg',
-            3
+        expect(resolveDownload).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: 'stalker-1' }),
+            expect.objectContaining({ originalId: '502', episode_num: 3 })
         );
+        expect(fetchLinkToPlay).not.toHaveBeenCalled();
         expect(request).toEqual(
             expect.objectContaining({
                 episodeIdentityScope: 'stalker-lazy-vod',

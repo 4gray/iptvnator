@@ -105,17 +105,25 @@ test.describe('Electron EPG', () => {
         ['double', true],
         ['single', false],
     ] as const) {
-        test(`@epg @electron imports ${name} gzip with a .gz URL and HTTP gzip`, async ({
+        test(`@epg @electron imports ${name} gzip with UTF-8 across decompression chunks`, async ({
             dataDir,
         }) => {
-            const server = await createGzipEpgServer(
-                createCurrentXmltvFixture(
-                    'gzip-news',
-                    'Gzip News',
-                    'Gzip Bulletin'
-                ),
-                doubleGzip
+            const title = 'Été 日本 🎬 Новости';
+            const xml = createCurrentXmltvFixture(
+                'gzip-news',
+                'Gzip Новости 東京 📺',
+                title
             );
+            // Gunzip emits 16 KiB chunks. Put the first byte of É at the end
+            // of one chunk so the real parser worker must carry UTF-8 state.
+            const titleOffset = Buffer.byteLength(
+                xml.slice(0, xml.indexOf(title))
+            );
+            const padding = ' '.repeat(16 * 1024 - 1 - titleOffset - 7);
+            const paddedXml = xml.replace('<tv>', `<tv><!--${padding}-->`);
+            expect(Buffer.from(paddedXml)[16 * 1024 - 1]).toBe(0xc3);
+            expect(Buffer.from(paddedXml)[16 * 1024]).toBe(0x89);
+            const server = await createGzipEpgServer(paddedXml, doubleGzip);
             try {
                 const app = await launchElectronApp(dataDir);
                 try {
@@ -129,13 +137,13 @@ test.describe('Electron EPG', () => {
                         window.electron.getEpgChannelMetadata(['gzip-news'])
                     );
                     expect(metadata['gzip-news']).toMatchObject({
-                        displayName: 'Gzip News',
+                        displayName: 'Gzip Новости 東京 📺',
                     });
                     const programs = await app.mainWindow.evaluate(() =>
                         window.electron.getChannelPrograms('gzip-news')
                     );
                     expect(programs.map((program) => program.title)).toEqual([
-                        'Gzip Bulletin',
+                        title,
                     ]);
                 } finally {
                     await closeElectronApp(app);
@@ -451,6 +459,27 @@ test.describe('Electron EPG', () => {
                 `${new URL(epgServer.resourceUrl).hostname}/guide.xml`
             );
 
+            // Refresh must replace even freshly imported data; the normal
+            // twelve-hour freshness shortcut applies only to automatic fetches.
+            await expect(
+                app.mainWindow.locator('.epg-progress-panel .status-complete')
+            ).toHaveCount(1);
+            epgServer.setBody(
+                epgFixtureXml.replace('Guide Bulletin', 'Updated Bulletin')
+            );
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
+            await expect
+                .poll(() =>
+                    app.mainWindow.evaluate(async () =>
+                        (
+                            await window.electron.getChannelPrograms(
+                                'guide-news'
+                            )
+                        ).map((program) => program.title)
+                    )
+                )
+                .toEqual(['Updated Bulletin']);
+
             await saveSettings(app.mainWindow);
 
             await app.mainWindow.getByTestId('epg-source-remove').click();
@@ -471,6 +500,201 @@ test.describe('Electron EPG', () => {
         } finally {
             await closeElectronApp(app);
             await epgServer.close();
+        }
+    });
+
+    test('@epg @electron Refresh all queues configured sources until the active import completes', async ({
+        dataDir,
+    }) => {
+        let refreshing = false;
+        let released = false;
+        let releaseFirst: (() => void) | undefined;
+        const requests: string[] = [];
+        const requestsBeforeRelease: string[] = [];
+        const server = createServer((request, response) => {
+            const first = request.url === '/first.xml';
+            const source = first ? 'first' : 'second';
+            let xml = createCurrentXmltvFixture(
+                source,
+                `${source} News`,
+                `${refreshing ? 'Updated' : 'Initial'} ${source} Bulletin`
+            );
+            response.writeHead(200, { 'Content-Type': 'application/xml' });
+            if (refreshing) {
+                requests.push(source);
+                if (!released) requestsBeforeRelease.push(source);
+                if (first) {
+                    // The parser flushes 100 channels before this response
+                    // finishes, giving the assertion a real SQLite barrier.
+                    xml = xml.replace(
+                        '<programme ',
+                        Array.from(
+                            { length: 99 },
+                            (_, index) =>
+                                `<channel id="batch-${index}"><display-name>Batch ${index}</display-name></channel>`
+                        ).join('') + '<programme '
+                    );
+                    response.write(xml.replace('</tv>', ''));
+                    releaseFirst = () => {
+                        if (released) return;
+                        released = true;
+                        response.end('</tv>');
+                    };
+                    return;
+                }
+            }
+            response.end(xml);
+        });
+        await new Promise<void>((resolve, reject) => {
+            server.once('error', reject);
+            server.listen(0, '127.0.0.1', resolve);
+        });
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+            throw new Error('Expected a TCP fixture address');
+        }
+        const origin = `http://127.0.0.1:${address.port}`;
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            for (const [index, source] of ['first', 'second'].entries()) {
+                await app.mainWindow
+                    .getByRole('button', { name: 'Add EPG source' })
+                    .click();
+                await app.mainWindow
+                    .locator('.epg-source-row input')
+                    .nth(index)
+                    .fill(`${origin}/${source}.xml`);
+            }
+            await saveSettings(app.mainWindow);
+            const complete = app.mainWindow.locator(
+                '.epg-progress-panel .import-item.status-complete'
+            );
+            await expect(complete).toHaveCount(2);
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(2);
+            await observeStagedChannels(app.mainWindow);
+            refreshing = true;
+            await app.mainWindow
+                .getByRole('button', { name: 'Refresh all', exact: true })
+                .click();
+            await expect
+                .poll(() => stagedChannelCount(app.mainWindow))
+                .toBe(100);
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(2);
+            const previousPrograms = await app.mainWindow.evaluate(() =>
+                window.electron.getChannelPrograms('first')
+            );
+            expect(previousPrograms.map((program) => program.title)).toEqual([
+                'Initial first Bulletin',
+            ]);
+            expect(
+                requests.filter((source) => source === 'second')
+            ).toHaveLength(0);
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .queue-item .queue-url'
+                )
+            ).toContainText('second.xml');
+            if (!releaseFirst) throw new Error('First response was not held');
+            releaseFirst();
+            await expect(complete).toHaveCount(2);
+            expect(requests).toEqual(['first', 'second']);
+            // Record the ordering for the entire held interval, including
+            // requests that could arrive after the earlier zero-count check.
+            expect(requestsBeforeRelease).toEqual(['first']);
+            for (const source of ['first', 'second']) {
+                const programs = await app.mainWindow.evaluate(
+                    (channel) => window.electron.getChannelPrograms(channel),
+                    source
+                );
+                expect(programs.map((program) => program.title)).toEqual([
+                    `Updated ${source} Bulletin`,
+                ]);
+            }
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(101);
+        } finally {
+            releaseFirst?.();
+            await closeElectronApp(app);
+            server.closeAllConnections();
+            await new Promise<void>((resolve, reject) =>
+                server.close((error) => (error ? reject(error) : resolve()))
+            );
+        }
+    });
+
+    test('@epg @electron clear all cancels the active import and queued sources', async ({
+        dataDir,
+    }) => {
+        let queuedRequests = 0;
+        let streamClosed = false;
+        const server = createServer((request, response) => {
+            response.writeHead(200, { 'Content-Type': 'application/xml' });
+            if (request.url === '/queued.xml') {
+                queuedRequests++;
+                response.end(epgFixtureXml);
+                return;
+            }
+            response.on('close', () => {
+                streamClosed = true;
+            });
+            // Flush a real SQLite batch, then hold the connection open so
+            // Clear All runs while the parser can still write more data.
+            response.write(
+                '<?xml version="1.0"?><tv>' +
+                    Array.from(
+                        { length: 100 },
+                        (_, index) =>
+                            `<channel id="active-${index}"><display-name>Active ${index}</display-name></channel>`
+                    ).join('')
+            );
+        });
+        await new Promise<void>((resolve, reject) => {
+            server.once('error', reject);
+            server.listen(0, '127.0.0.1', resolve);
+        });
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+            throw new Error('Expected a TCP fixture address');
+        }
+        const origin = `http://127.0.0.1:${address.port}`;
+        const app = await launchElectronApp(dataDir);
+        let fetch: Promise<unknown> | undefined;
+        try {
+            await observeStagedChannels(app.mainWindow);
+            fetch = app.mainWindow.evaluate(
+                (urls) => window.electron.fetchEpg(urls),
+                [`${origin}/active.xml`, `${origin}/queued.xml`]
+            );
+            // Attach a rejection handler immediately; the original promise
+            // is still awaited below so a transport failure cannot pass.
+            void fetch.catch(() => undefined);
+            await expect
+                .poll(() => stagedChannelCount(app.mainWindow), {
+                    timeout: 30000,
+                })
+                .toBe(100);
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(0);
+            const cleared = await app.mainWindow.evaluate(() =>
+                window.electron.clearEpgData()
+            );
+            expect(cleared.success).toBe(true);
+            await fetch;
+            await expect.poll(() => streamClosed).toBe(true);
+            expect(queuedRequests).toBe(0);
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(0);
+            expect(
+                await app.mainWindow.evaluate(() =>
+                    window.electron.getChannelPrograms('guide-news')
+                )
+            ).toEqual([]);
+        } finally {
+            await closeElectronApp(app);
+            await fetch?.catch(() => undefined);
+            server.closeAllConnections();
+            await new Promise<void>((resolve, reject) =>
+                server.close((error) => (error ? reject(error) : resolve()))
+            );
         }
     });
 
@@ -1024,4 +1248,24 @@ async function getEpgChannelCount(page: Page): Promise<number> {
         const result = await window.electron?.getEpgChannels?.();
         return Array.isArray(result?.channels) ? result.channels.length : 0;
     });
+}
+
+// Progress confirms a real staging batch without exposing unpublished channels.
+async function observeStagedChannels(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        document.documentElement.dataset['stagedChannels'] = '0';
+        window.electron.onEpgProgress?.((progress) => {
+            if (progress.status === 'loading' && progress.stats) {
+                document.documentElement.dataset['stagedChannels'] = String(
+                    progress.stats.totalChannels
+                );
+            }
+        });
+    });
+}
+
+async function stagedChannelCount(page: Page): Promise<number> {
+    return page.evaluate(() =>
+        Number(document.documentElement.dataset['stagedChannels'] ?? 0)
+    );
 }

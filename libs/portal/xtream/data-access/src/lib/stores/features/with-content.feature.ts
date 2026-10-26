@@ -437,6 +437,7 @@ export function withContent() {
                         serverUrl: playlist.serverUrl,
                         username: playlist.username,
                         password: playlist.password,
+                        userAgent: playlist.userAgent?.trim() || undefined,
                     },
                 };
             };
@@ -960,6 +961,16 @@ export function withContent() {
                         isPendingRestoreBlocked:
                             initialRestoreSnapshot !== null,
                     });
+
+                    // Legacy favorites become durable before any network request,
+                    // even if the provider stays offline through this import.
+                    if (initialRestoreSnapshot) {
+                        await dataSource.restoreFavoriteSnapshots?.(
+                            ctx.playlistId,
+                            initialRestoreSnapshot.state
+                        );
+                        throwIfImportCancelled(importSessionId);
+                    }
 
                     // Electron content persistence maps remote category IDs
                     // to internal DB category rows, so categories must exist

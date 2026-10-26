@@ -17,6 +17,8 @@
         "skipDefaultLibCheck": true,
         "baseUrl": ".",
         "paths": {
+            "@iptvnator/shared/tmdb": ["libs/shared/tmdb/src/index.ts"],
+            "@iptvnator/shared/epg": ["libs/shared/epg/src/index.ts"],
             "@iptvnator/portal/catalog/feature": [
                 "libs/portal/catalog/feature/src/index.ts"
             ],
@@ -133,14 +135,23 @@
                 "libs/shared/host-health/src/index.ts"
             ],
             "@iptvnator/services": ["libs/services/src/index.ts"],
+            "@iptvnator/services/lazy-snack-bar": [
+                "libs/services/src/lib/lazy-snack-bar/lazy-snack-bar.ts"
+            ],
             "@iptvnator/services/playlist-backup": [
                 "libs/services/src/lib/playlist-backup.service.ts"
+            ],
+            "@iptvnator/services/pwa-xtream-backup-storage": [
+                "libs/services/src/lib/pwa-xtream-backup-storage.ts"
             ],
             "@iptvnator/services/server-storage": [
                 "libs/services/src/lib/server-storage/index.ts"
             ],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
+            ],
+            "@iptvnator/shared/interfaces/xtream-restore-state": [
+                "libs/shared/interfaces/src/lib/xtream-restore-state.util.ts"
             ],
             "@iptvnator/shared/interfaces/ipc-commands": [
                 "libs/shared/interfaces/src/lib/ipc-commands.ts"
@@ -176,6 +187,24 @@
             "@package": ["./package.json"],
             "@iptvnator/shared/marketing-fixtures": [
                 "./libs/shared/marketing-fixtures/src/index.ts"
+            ],
+            "@iptvnator/tv/util": [
+                "libs/tv/util/src/index.ts"
+            ],
+            "@iptvnator/tv/data-access": [
+                "libs/tv/data-access/src/index.ts"
+            ],
+            "@iptvnator/tv/ui": [
+                "libs/tv/ui/src/index.ts"
+            ],
+            "@iptvnator/tv/feature": [
+                "libs/tv/feature/src/index.ts"
+            ],
+            "@iptvnator/portal/xtream/client": [
+                "libs/portal/xtream/data-access/src/client.ts"
+            ],
+            "@iptvnator/portal/stalker/client": [
+                "libs/portal/stalker/data-access/src/client.ts"
             ]
         },
         "strict": false,

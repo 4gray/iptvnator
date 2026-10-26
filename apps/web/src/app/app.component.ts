@@ -6,7 +6,7 @@ import {
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
@@ -39,6 +39,7 @@ import {
     STORE_KEY,
     Theme,
     createDevLogger,
+    normalizeAppLanguage,
 } from '@iptvnator/shared/interfaces';
 import { AppDateLocaleService } from './app-date-locales';
 import { SettingsService } from './services/settings.service';
@@ -73,7 +74,7 @@ export class AppComponent implements OnInit {
     private readonly dateLocales = inject(AppDateLocaleService);
     private epgBridge = inject(EpgRuntimeBridgeService);
     private epgService = inject(EpgService);
-    private snackBar = inject(MatSnackBar);
+    private snackBar = inject(LazySnackBar);
     private router = inject(Router);
     private store = inject(Store);
     private translate = inject(TranslateService);
@@ -161,23 +162,10 @@ export class AppComponent implements OnInit {
                     // Settings are stored in IndexedDB and loaded by the settings store
                     // Only specific Electron settings (MPV/VLC paths) are sent when changed in settings component
 
-                    const resolvedLang = settings.language ?? this.DEFAULT_LANG;
+                    const resolvedLang = normalizeAppLanguage(settings.language);
                     // The switch re-renders every date with the new locale;
                     // its data is a lazy chunk that must be registered first.
                     void this.dateLocales.use(resolvedLang);
-                    // Mirror the active language to localStorage so the next
-                    // cold start can read it synchronously in app.config.ts's
-                    // getInitialLanguage() and avoid the English-then-localized
-                    // flash for non-English users.
-                    try {
-                        localStorage.setItem(
-                            'iptvnator:preferred-language',
-                            resolvedLang
-                        );
-                    } catch {
-                        // Ignore quota / privacy mode errors.
-                    }
-
                     // Fetch EPG if URLs are configured (only fetch stale data)
                     if (
                         this.epgBridge.supportsImport &&
@@ -245,7 +233,7 @@ export class AppComponent implements OnInit {
                 );
                 // Show snackbar if all EPG sources are fresh (no stale URLs)
                 if (result.staleUrls.length === 0) {
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.translate.instant('EPG.UP_TO_DATE'),
                         this.translate.instant('CLOSE'),
                         { duration: 3000 }

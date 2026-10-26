@@ -2,6 +2,7 @@ import {
     APP_KEYBOARD_SHORTCUTS,
     getKeyboardShortcutGroups,
     isKeyboardShortcutHelpTrigger,
+    isWorkspaceBackShortcut,
     resolveZoomShortcutAction,
 } from './keyboard-shortcuts';
 
@@ -80,6 +81,140 @@ describe('keyboard shortcuts registry', () => {
             ['Cmd', '+'],
             ['Cmd', '−'],
         ]);
+    });
+
+    it('lists Back first in the navigation group in every runtime with platform chords', () => {
+        for (const isElectron of [false, true]) {
+            const linuxGroups = getKeyboardShortcutGroups({
+                isMac: false,
+                isElectron,
+            });
+            const macGroups = getKeyboardShortcutGroups({
+                isMac: true,
+                isElectron,
+            });
+
+            expect(
+                linuxGroups.find((group) => group.id === 'navigation')?.items[0]
+                    ?.id
+            ).toBe('navigate-back');
+            expect(findChordLabels(linuxGroups, 'navigate-back')).toEqual([
+                ['Alt', '←'],
+            ]);
+            expect(findChordLabels(macGroups, 'navigate-back')).toEqual([
+                ['Cmd', '['],
+            ]);
+        }
+    });
+
+    describe('isWorkspaceBackShortcut', () => {
+        const press = (init: KeyboardEventInit) =>
+            new KeyboardEvent('keydown', init);
+        const other = { isMac: false };
+        const mac = { isMac: true };
+
+        it('matches Alt+ArrowLeft on Windows and Linux only', () => {
+            expect(
+                isWorkspaceBackShortcut(
+                    press({ key: 'ArrowLeft', altKey: true }),
+                    other
+                )
+            ).toBe(true);
+            expect(
+                isWorkspaceBackShortcut(
+                    press({ key: 'ArrowLeft', altKey: true }),
+                    mac
+                )
+            ).toBe(false);
+            expect(
+                isWorkspaceBackShortcut(press({ key: 'ArrowLeft' }), other)
+            ).toBe(false);
+        });
+
+        it('matches Cmd+[ on macOS only, by character or key position', () => {
+            expect(
+                isWorkspaceBackShortcut(
+                    press({ key: '[', code: 'BracketLeft', metaKey: true }),
+                    mac
+                )
+            ).toBe(true);
+            // German layout: the BracketLeft position types "ü", and "[" is
+            // Option+5.
+            expect(
+                isWorkspaceBackShortcut(
+                    press({ key: 'ü', code: 'BracketLeft', metaKey: true }),
+                    mac
+                )
+            ).toBe(true);
+            expect(
+                isWorkspaceBackShortcut(
+                    press({
+                        key: '[',
+                        code: 'Digit5',
+                        metaKey: true,
+                        altKey: true,
+                    }),
+                    mac
+                )
+            ).toBe(true);
+            expect(
+                isWorkspaceBackShortcut(
+                    press({ key: '[', code: 'BracketLeft', metaKey: true }),
+                    other
+                )
+            ).toBe(false);
+        });
+
+        it('rejects extra modifiers, AltGr and Forward', () => {
+            // AltGr reports Ctrl+Alt on Windows.
+            expect(
+                isWorkspaceBackShortcut(
+                    press({ key: 'ArrowLeft', altKey: true, ctrlKey: true }),
+                    other
+                )
+            ).toBe(false);
+            expect(
+                isWorkspaceBackShortcut(
+                    press({ key: 'ArrowLeft', altKey: true, shiftKey: true }),
+                    other
+                )
+            ).toBe(false);
+            expect(
+                isWorkspaceBackShortcut(
+                    press({ key: 'ArrowRight', altKey: true }),
+                    other
+                )
+            ).toBe(false);
+            // Cmd+Shift+[ ("{") switches tabs in macOS apps.
+            expect(
+                isWorkspaceBackShortcut(
+                    press({
+                        key: '{',
+                        code: 'BracketLeft',
+                        metaKey: true,
+                        shiftKey: true,
+                    }),
+                    mac
+                )
+            ).toBe(false);
+            expect(
+                isWorkspaceBackShortcut(
+                    press({
+                        key: '[',
+                        code: 'BracketLeft',
+                        metaKey: true,
+                        ctrlKey: true,
+                    }),
+                    mac
+                )
+            ).toBe(false);
+            expect(
+                isWorkspaceBackShortcut(
+                    press({ key: ']', code: 'BracketRight', metaKey: true }),
+                    mac
+                )
+            ).toBe(false);
+        });
     });
 
     describe('resolveZoomShortcutAction', () => {

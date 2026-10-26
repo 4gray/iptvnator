@@ -1,0 +1,18 @@
+{
+    "name": "shared-tmdb",
+    "projectType": "library",
+    "sourceRoot": "libs/shared/tmdb/src",
+    "tags": ["scope:shared", "domain:tmdb", "type:data-access"],
+    "targets": {
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "libs/shared/tmdb/jest.config.ts"
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

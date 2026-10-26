@@ -53,6 +53,16 @@ class FullHostComponent {
 })
 class BareHostComponent {}
 
+@Component({
+    imports: [DialogShellComponent],
+    template: `
+        <app-dialog-shell heading="Manage groups" bodyLayout="column">
+            <div>A list that scrolls</div>
+        </app-dialog-shell>
+    `,
+})
+class ColumnHostComponent {}
+
 describe('DialogShellComponent', () => {
     const close = jest.fn();
 
@@ -96,6 +106,11 @@ describe('DialogShellComponent', () => {
             root.querySelectorAll('.app-dialog__footer button')
         ).map((button) => button.textContent?.trim());
         expect(footerTexts).toEqual(['Clear', 'Cancel', 'Remove']);
+        expect(
+            root
+                .querySelector('app-dialog-shell')
+                ?.classList.contains('app-dialog--footerless')
+        ).toBe(false);
     });
 
     it('drops a conditional action from the footer without losing the others', async () => {
@@ -107,10 +122,17 @@ describe('DialogShellComponent', () => {
         expect(footerTexts).toEqual(['Clear', 'Cancel']);
     });
 
-    it('renders no footer, icon tile or subtitle when nothing is projected or set', async () => {
+    it('renders no footer, icon tile or subtitle when nothing is projected or set, and marks itself footer-less', async () => {
         const root = await render(BareHostComponent);
 
         expect(root.querySelector('.app-dialog__footer')).toBeNull();
+        // The short-window stylesheet keys on the class: such a dialog keeps
+        // its body scrolling so the header close stays in place.
+        expect(
+            root
+                .querySelector('app-dialog-shell')
+                ?.classList.contains('app-dialog--footerless')
+        ).toBe(true);
         expect(root.querySelector('.app-dialog__icon')).toBeNull();
         expect(root.querySelector('.app-dialog__subtitle')).toBeNull();
         expect(root.querySelector('.app-dialog__body')?.textContent).toContain(
@@ -127,6 +149,23 @@ describe('DialogShellComponent', () => {
         expect(closeButton.getAttribute('aria-label')).toBe('CLOSE_DIALOG');
         closeButton.click();
         expect(close).toHaveBeenCalledTimes(1);
+        expect(close).toHaveBeenCalledWith(undefined);
+    });
+
+    it('lays the body out as a flex column on request, so a child can own the scrolling', async () => {
+        const root = await render(BareHostComponent);
+        const body = root.querySelector('.app-dialog__body');
+        expect(body?.classList.contains('app-dialog__body--column')).toBe(
+            false
+        );
+
+        TestBed.resetTestingModule();
+        const column = await render(ColumnHostComponent);
+        expect(
+            column
+                .querySelector('.app-dialog__body')
+                ?.classList.contains('app-dialog__body--column')
+        ).toBe(true);
     });
 
     it('hides the close button on request', async () => {

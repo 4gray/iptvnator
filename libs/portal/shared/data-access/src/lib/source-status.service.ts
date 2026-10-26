@@ -161,11 +161,16 @@ export class SourceStatusService {
         fresh: boolean,
         signal?: AbortSignal
     ): Promise<void> {
-        const { serverUrl, username, password } = playlist;
+        const { serverUrl, username, password, userAgent } = playlist;
         const key = portalKey(playlist);
         const cached = fresh
             ? null
-            : this.portalStatus.getCachedStatus(serverUrl, username, password);
+            : this.portalStatus.getCachedStatus(
+                  serverUrl,
+                  username,
+                  password,
+                  userAgent
+              );
         if (cached) {
             this.setPortalStatus(key, cached);
             return;
@@ -179,7 +184,7 @@ export class SourceStatusService {
                 serverUrl,
                 username,
                 password,
-                fresh ? { skipCache: true } : undefined
+                { userAgent, ...(fresh ? { skipCache: true } : {}) }
             );
         } catch {
             status = 'unavailable';

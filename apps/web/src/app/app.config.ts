@@ -35,6 +35,7 @@ import {
     DataService,
 } from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
+import { getInitialLanguage } from './app-language-preference';
 import { storeDevtoolsProviders } from '../environments/store-devtools.providers';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
@@ -57,43 +58,14 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
  * very first render uses the right locale instead of flashing English first
  * and re-rendering once the IDB-backed settings finish loading.
  *
- * The hint is written by AppComponent.initSettings() whenever the saved
- * settings resolve, so first-ever boots fall back to English (no hint
+ * AppDateLocaleService writes the hint when a saved language is applied,
+ * including after saving settings, so first-ever boots use English (no hint
  * present yet) and every subsequent boot uses the saved language.
  */
-const SUPPORTED_LANGS = new Set([
-    'ar',
-    'ary',
-    'by',
-    'de',
-    'el',
-    'en',
-    'es',
-    'fr',
-    'hu',
-    'it',
-    'ja',
-    'ko',
-    'nl',
-    'pl',
-    'pt',
-    'ru',
-    'tr',
-    'zh',
-    'zhtw',
-]);
-export const PREFERRED_LANGUAGE_STORAGE_KEY = 'iptvnator:preferred-language';
-export function getInitialLanguage(): string {
-    try {
-        const saved = localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY);
-        if (saved && SUPPORTED_LANGS.has(saved)) {
-            return saved;
-        }
-    } catch {
-        // localStorage may throw in privacy modes; fall through to default.
-    }
-    return 'en';
-}
+export {
+    getInitialLanguage,
+    PREFERRED_LANGUAGE_STORAGE_KEY,
+} from './app-language-preference';
 
 /**
  * Conditionally provides the necessary service based on the current environment

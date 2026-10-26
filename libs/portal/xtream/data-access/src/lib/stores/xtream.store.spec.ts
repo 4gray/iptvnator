@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import {
     DataService,
     DatabaseService,
@@ -75,6 +77,11 @@ function configureStore(
     TestBed.configureTestingModule({
         providers: [
             XtreamStore,
+            { provide: MatSnackBar, useValue: { open: jest.fn() } },
+            {
+                provide: TranslateService,
+                useValue: { instant: (key: string) => key },
+            },
             { provide: XTREAM_DATA_SOURCE, useValue: dataSource },
             { provide: XtreamApiService, useValue: xtreamApiService },
             { provide: DatabaseService, useValue: {} },
@@ -87,7 +94,7 @@ function configureStore(
             },
             {
                 provide: RuntimeCapabilitiesService,
-                useValue: { supportsEpg: false },
+                useValue: { supportsProviderEpg: false },
             },
             {
                 provide: SettingsStore,

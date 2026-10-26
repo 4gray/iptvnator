@@ -181,6 +181,17 @@ export class XtreamRefreshFlowService {
             );
             await reporter.waitForVisibleProgress?.();
 
+            // Migrate an older parked favorite list before replacing its state.
+            // A durable receipt prevents replay after an explicit user removal.
+            const pending = this.pendingRestoreService.getOrThrow(item._id);
+            if (pending) {
+                await this.databaseService.restoreXtreamFavoriteSnapshots(
+                    item._id,
+                    pending.favorites,
+                    pending.favoritesRestoreId
+                );
+            }
+
             // Delete content/categories and update the timestamp in parallel —
             // all three operations are fully independent.
             const updateDate = Date.now();

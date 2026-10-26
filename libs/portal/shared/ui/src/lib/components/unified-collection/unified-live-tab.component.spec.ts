@@ -55,6 +55,7 @@ describe('UnifiedLiveTabComponent', () => {
     let stripCountryPrefix: ReturnType<typeof signal<boolean>>;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
+        loadEpgItems: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
         resolveXtreamCatchupUrl: jest.Mock;
         loadM3uProgramsForItem: jest.Mock;
@@ -79,6 +80,14 @@ describe('UnifiedLiveTabComponent', () => {
         localStorage.removeItem('live-epg-panel-state');
 
         streamResolver = {
+            loadEpgItems: jest.fn(
+                async () =>
+                    (
+                        await streamResolver.resolveLiveDetail.mock.results.at(
+                            -1
+                        )?.value
+                    )?.epgItems ?? []
+            ),
             resolveLiveDetail: jest.fn(),
             resolveM3uPlaybackDetail: jest.fn(),
             resolveXtreamCatchupUrl: jest.fn().mockResolvedValue(null),
@@ -107,6 +116,8 @@ describe('UnifiedLiveTabComponent', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
+                        supportsProviderEpg: true,
+                        supportsProviderCatchUp: true,
                         get supportsEpg() {
                             return Boolean(window.electron);
                         },
@@ -226,7 +237,7 @@ describe('UnifiedLiveTabComponent', () => {
         expect(timeline.archivePlaybackAvailable()).toBe(false);
     });
 
-    it('skips EPG loading and hides the EPG panel in browser/PWA playback', async () => {
+    it('asks only portals for EPG and hides the M3U EPG panel in browser/PWA playback', async () => {
         fixture.destroy();
         window.electron = undefined as unknown as typeof window.electron;
 
@@ -274,12 +285,13 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(streamResolver.loadEpgForItems).not.toHaveBeenCalled();
+        expect(streamResolver.loadEpgForItems).toHaveBeenCalledWith([item]);
         expect(streamResolver.loadM3uProgramsForItem).not.toHaveBeenCalled();
         const list = fixture.debugElement.query(
             By.directive(StubGlobalFavoritesListComponent)
         ).componentInstance as StubGlobalFavoritesListComponent;
-        expect(list.showEpg()).toBe(false);
+        // The list decides each row by its source; M3U rows stay compact.
+        expect(list.showEpg()).toBe(true);
         expect(
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
@@ -871,6 +883,46 @@ describe('UnifiedLiveTabComponent', () => {
         expect(timeline.archivePlaybackAvailable()).toBe(false);
     });
 
+    it('renders the Xtream provider guide in browser/PWA playback without XMLTV', async () => {
+        fixture.destroy();
+        window.electron = undefined as unknown as typeof window.electron;
+
+        fixture = TestBed.createComponent(UnifiedLiveTabComponent);
+        component = fixture.componentInstance;
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+        const item = buildLiveItem('xtream');
+        streamResolver.resolveLiveDetail.mockResolvedValue({
+            epgMode: 'portal',
+            playback: {
+                streamUrl: 'https://example.com/xtream.m3u8',
+                title: 'Xtream Live',
+            },
+            epgItems: [],
+        });
+
+        streamResolver.loadEpgItems.mockResolvedValue([
+            buildEpgItem('Xtream Show'),
+        ]);
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        await component.onChannelSelected(component.channelsForList()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.supportsEpg).toBe(false);
+        expect(streamResolver.loadEpgItems).toHaveBeenCalledWith(item);
+        expect(streamResolver.loadEpgForItems).toHaveBeenCalledWith([item]);
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        ).componentInstance as StubEpgTimelineComponent;
+        expect(timeline.programs()).toEqual([
+            expect.objectContaining({ title: 'Xtream Show' }),
+        ]);
+    });
+
     it('renders shared EPG view for Stalker items and records recent history', async () => {
         const item = buildLiveItem('stalker');
         streamResolver.resolveLiveDetail.mockResolvedValue({
@@ -1211,6 +1263,20 @@ describe('UnifiedLiveTabComponent', () => {
             await selectXtreamArchiveChannel({
                 tvArchive: 0,
                 tvArchiveDuration: 0,
+            });
+
+            const timeline = queryTimeline();
+            expect(timeline.archivePlaybackAvailable()).toBe(false);
+            expect(timeline.archiveDays()).toBe(0);
+        });
+
+        it('keeps the archive gate closed where provider catch-up cannot play', async () => {
+            Object.assign(TestBed.inject(RuntimeCapabilitiesService), {
+                supportsProviderCatchUp: false,
+            });
+            await selectXtreamArchiveChannel({
+                tvArchive: 1,
+                tvArchiveDuration: 5,
             });
 
             const timeline = queryTimeline();

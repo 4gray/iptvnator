@@ -89,6 +89,7 @@ export class StalkerSearchPagingController {
      * advancing — incrementing past it would silently omit its results.
      */
     readonly searchAppendError = signal(false);
+    readonly searchError = signal(false);
 
     readonly searchResultsResource = resource({
         params: () => ({
@@ -119,6 +120,7 @@ export class StalkerSearchPagingController {
                 return [];
             }
             const contentType = params.contentType;
+            this.searchError.set(false);
             const withheldCategoryIds = resolveSearchWithheldCategoryIds(
                 this.config.parentalLock,
                 playlist._id,
@@ -242,6 +244,7 @@ export class StalkerSearchPagingController {
         this.accumulatedSearchResults.set([]);
         this.searchHasMore.set(false);
         this.searchAppendError.set(false);
+        this.searchError.set(false);
     }
 
     /** Merges a successful portal page into the accumulated result list. */
@@ -270,6 +273,7 @@ export class StalkerSearchPagingController {
                     : pageHadRows)
         );
         this.searchAppendError.set(false);
+        this.searchError.set(false);
         this.accumulatedSearchResults.set(merged);
         return merged;
     }
@@ -284,6 +288,7 @@ export class StalkerSearchPagingController {
             this.accumulatedSearchResults.set([]);
             this.searchHasMore.set(false);
             this.searchAppendError.set(false);
+            this.searchError.set(true);
             return [];
         }
 
@@ -330,10 +335,11 @@ export class StalkerSearchPagingController {
      * this retry fast-fails without contacting a portal that may have
      * recovered, and keeps repeating the same error until the window expires.
      */
-    private async retrySearchPage(): Promise<void> {
+    async retrySearchPage(): Promise<void> {
         // Clear the flag synchronously: awaiting first would leave this branch
         // re-enterable, and the next `nearEnd` event would fire a second retry.
         this.searchAppendError.set(false);
+        this.searchError.set(false);
         await resetHostConnectivityGuard(
             this.config.dataService,
             this.config.currentPlaylist()?.portalUrl

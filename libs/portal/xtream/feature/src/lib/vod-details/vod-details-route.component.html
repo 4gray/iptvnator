@@ -1,13 +1,13 @@
 <ng-template #vodActions>
     @let playableItem = playableVodItem();
-    @if (playableItem || isDownloaded()) {
+    @if (selectedItem()) {
         @let primary = hero.primaryAction();
         <app-detail-action-button
             [label]="primary.label"
             [meta]="primary.meta"
             [icon]="primary.icon"
             [state]="primary.state"
-            [disabled]="startBlocked()"
+            [disabled]="startBlocked() || (!playableItem && !isDownloaded())"
             testId="vod-primary-action"
             (pressed)="onPrimaryAction(playableItem)"
         />
@@ -20,7 +20,12 @@
                 (pressed)="openTrailer()"
             />
         }
-        @if (playableItem) {
+        @if (!playableItem && !isDownloaded()) {
+            <span role="status">{{
+                'XTREAM.DETAIL_FALLBACK.PLAYBACK_UNAVAILABLE' | translate
+            }}</span>
+        }
+        @if (selectedItem(); as actionItem) {
             <app-detail-icon-button
                 [label]="
                     (isFavorite()
@@ -49,9 +54,9 @@
                 [pressedState]="isWatched()"
                 [disabled]="!canToggleWatched()"
                 testId="vod-watched-toggle"
-                (pressed)="toggleWatched(playableItem)"
+                (pressed)="toggleWatched(actionItem)"
             />
-            @if (isElectron() && !providerOnly()) {
+            @if (isElectron() && !providerOnly() && playableItem) {
                 @if (isDownloaded()) {
                     <app-detail-icon-button
                         [label]="'DOWNLOADS.DOWNLOADED_REVEAL' | translate"
@@ -143,26 +148,24 @@
                     />
                 }
             }
-
-            <app-vod-more-menu
-                [sections]="menu.sections()"
-                [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
-                testId="vod-more-menu"
-                [sources]="multiSource.sources()"
-                [sourcesTitle]="multiSourceTitle()"
-                [matchKind]="multiSource.matchKind()"
-                [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
-                [autoFailoverSupported]="autoFailoverSupported()"
-                [playbackLive]="playbackLive()"
-                (selected)="menu.run($event)"
-                (sourcePlayRequested)="playFromSource($event)"
-                (sourcePinRequested)="pinSource($event)"
-                (sourceCheckRequested)="checkSource($event)"
-                (autoFailoverToggled)="setAutoFailover($event)"
-            />
         }
     }
-    <app-view-in-portal-action />
+    <app-vod-more-menu
+        [sections]="menu.sections()"
+        [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
+        testId="vod-more-menu"
+        [sources]="multiSource.sources()"
+        [sourcesTitle]="multiSourceTitle()"
+        [matchKind]="multiSource.matchKind()"
+        [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
+        [autoFailoverSupported]="autoFailoverSupported()"
+        [playbackLive]="playbackLive()"
+        (selected)="menu.run($event)"
+        (sourcePlayRequested)="playFromSource($event)"
+        (sourcePinRequested)="pinSource($event)"
+        (sourceCheckRequested)="checkSource($event)"
+        (autoFailoverToggled)="setAutoFailover($event)"
+    />
 </ng-template>
 
 <ng-template #vodCredits>

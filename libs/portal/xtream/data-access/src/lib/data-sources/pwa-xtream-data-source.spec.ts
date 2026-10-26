@@ -6,17 +6,14 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../services/xtream-api.service';
-import {
-    ParentalLockService,
-    PlaylistsService,
-    USER_DATA_STORAGE,
-} from '@iptvnator/services';
+import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
 
 describe('PwaXtreamDataSource', () => {
     let dataSource: PwaXtreamDataSource;
     let apiService: {
         getStreams: jest.Mock;
+        getCategories: jest.Mock;
     };
     let playlistsService: {
         getPlaylistById: jest.Mock;
@@ -39,6 +36,7 @@ describe('PwaXtreamDataSource', () => {
 
         apiService = {
             getStreams: jest.fn(),
+            getCategories: jest.fn(),
         };
         playlistsService = {
             getPlaylistById: jest.fn(() => of(undefined)),
@@ -72,6 +70,129 @@ describe('PwaXtreamDataSource', () => {
 
     afterEach(() => {
         localStorage.clear();
+    });
+
+    it.each(['favorites', 'recent'] as const)(
+        'uses the playlist User-Agent when hydrating %s',
+        async (collection) => {
+            await dataSource.createPlaylist({
+                id: 'playlist-1',
+                name: 'Xtream PWA',
+                type: 'xtream',
+                ...credentials,
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            });
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ 'playlist-1': ['movie:202'] })
+            );
+            localStorage.setItem(
+                'xtream-recent-items',
+                JSON.stringify({
+                    'playlist-1': [
+                        { id: 'movie:202', viewedAt: new Date().toISOString() },
+                    ],
+                })
+            );
+            apiService.getStreams.mockResolvedValue([
+                { stream_id: 202, name: 'Movie One', category_id: '20' },
+            ]);
+
+            const items =
+                collection === 'favorites'
+                    ? await dataSource.getFavorites('playlist-1')
+                    : await dataSource.getRecentItems('playlist-1');
+
+            expect(items).toHaveLength(1);
+            expect(apiService.getStreams).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userAgent:
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                }),
+                'movie'
+            );
+        }
+    );
+
+    it('uses the playlist User-Agent for cold category loading', async () => {
+        await dataSource.createPlaylist({
+            id: 'playlist-1',
+            name: 'Xtream PWA',
+            type: 'xtream',
+            ...credentials,
+            userAgent:
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        });
+        apiService.getCategories.mockResolvedValue([]);
+
+        await dataSource.getAllCategories('playlist-1', 'movies');
+
+        expect(apiService.getCategories).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            }),
+            'vod'
+        );
+    });
+
+    it('reuses requested catalog rows across favorite status checks and invalidates after refresh', async () => {
+        const rows = Array.from({ length: 1000 }, (_, i) => ({
+            id: i + 1,
+            xtream_id: i + 1,
+            type: 'movie',
+            title: 'Film',
+            tmdb_id: i + 1,
+        })) as XtreamContentItem[];
+        await dataSource.saveContent('p', rows, 'movie');
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({
+                p: Array.from({ length: 50 }, (_, i) => `movie:${i + 1}`),
+            })
+        );
+        const cache = (
+            dataSource as unknown as {
+                contentCache: Map<string, XtreamContentItem[]>;
+            }
+        ).contentCache;
+        const catalog = cache.get('p-movie-content');
+        if (!catalog) throw new Error('Expected loaded movie catalog');
+        let catalogRowsRead = 0;
+        cache.set(
+            'p-movie-content',
+            new Proxy(catalog, {
+                get(target, key, receiver) {
+                    if (typeof key === 'string' && /^\d+$/.test(key))
+                        catalogRowsRead++;
+                    return Reflect.get(target, key, receiver);
+                },
+            })
+        );
+        await dataSource.getFavorites('p');
+        const statuses = await Promise.all(
+            Array.from({ length: 50 }, (_, i) =>
+                dataSource.isFavorite(
+                    { id: i + 1, type: 'movie', identity: { tmdbId: i + 1 } },
+                    'p'
+                )
+            )
+        );
+        expect(statuses.every(Boolean)).toBe(true);
+        // Catalog work is bounded by the load, rather than repeated for each heart.
+        expect(catalogRowsRead).toBeLessThanOrEqual(rows.length);
+        await dataSource.saveContent(
+            'p',
+            [{ ...rows[0], tmdb_id: 2000 }],
+            'movie'
+        );
+        expect(
+            await dataSource.isFavorite(
+                { id: 1, type: 'movie', identity: { tmdbId: 1 } },
+                'p'
+            )
+        ).toBe(false);
     });
 
     it('withholds locked categories from catalog reads and search while the lock is active', async () => {
@@ -650,6 +771,34 @@ describe('PwaXtreamDataSource', () => {
         ]);
     });
 
+    it('keeps concurrent Recent additions when the writer loads on demand', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 201, name: 'First movie', category_id: '20' },
+            { stream_id: 202, name: 'Second movie', category_id: '20' },
+        ]);
+        await dataSource.getContent('playlist-1', credentials, 'movie');
+
+        await Promise.all([
+            dataSource.addRecentItem({ id: 201, type: 'movie' }, 'playlist-1'),
+            dataSource.addRecentItem({ id: 202, type: 'movie' }, 'playlist-1'),
+        ]);
+
+        const recent = await dataSource.getRecentItems('playlist-1');
+        expect(recent).toHaveLength(2);
+        expect(recent).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    xtream_id: 201,
+                    title: 'First movie',
+                }),
+                expect.objectContaining({
+                    xtream_id: 202,
+                    title: 'Second movie',
+                }),
+            ])
+        );
+    });
+
     it('backfills PWA recent-item backdrop metadata without rewriting recency', async () => {
         apiService.getStreams.mockResolvedValue([
             {
@@ -745,6 +894,7 @@ describe('PwaXtreamDataSource', () => {
         TestBed.resetTestingModule();
         apiService = {
             getStreams: jest.fn(),
+            getCategories: jest.fn(),
         };
         TestBed.configureTestingModule({
             providers: [
@@ -789,6 +939,43 @@ describe('PwaXtreamDataSource', () => {
             durationSeconds: 5400,
             playlistId: 'playlist-1',
             ...overrides,
+        });
+
+        it('retains concurrent single and batch saves across playlists', async () => {
+            await Promise.all([
+                dataSource.savePlaybackPosition('playlist-1', position()),
+                dataSource.savePlaybackPositionsBatch('playlist-1', [
+                    position({
+                        contentXtreamId: 101,
+                        contentType: 'episode',
+                        seriesXtreamId: 9,
+                    }),
+                ]),
+                dataSource.savePlaybackPosition(
+                    'playlist-2',
+                    position({ playlistId: 'playlist-2' })
+                ),
+            ]);
+
+            expect(
+                await dataSource.getAllPlaybackPositions('playlist-1')
+            ).toHaveLength(2);
+            expect(
+                await dataSource.getAllPlaybackPositions('playlist-2')
+            ).toHaveLength(1);
+            expect(
+                await dataSource.getSeriesPlaybackPositions('playlist-1', 9)
+            ).toEqual([expect.objectContaining({ contentXtreamId: 101 })]);
+            await dataSource.clearPlaybackPosition('playlist-1', 100, 'vod');
+            expect(
+                await dataSource.getPlaybackPosition('playlist-1', 100, 'vod')
+            ).toBeNull();
+            expect(
+                await dataSource.getRecentPlaybackPositions('playlist-1', 1)
+            ).toEqual([expect.objectContaining({ contentXtreamId: 101 })]);
+            expect(
+                await dataSource.getPlaybackPosition('playlist-2', 100, 'vod')
+            ).not.toBeNull();
         });
 
         it('writes a playback-position batch save as one storage write with upsert semantics', async () => {
@@ -918,282 +1105,6 @@ describe('PwaXtreamDataSource', () => {
 
             expect(setItemSpy).not.toHaveBeenCalled();
             setItemSpy.mockRestore();
-        });
-    });
-
-    describe('with an injected user data storage', () => {
-        it('reads and writes favorites through it, not localStorage', async () => {
-            const values = new Map<string, string>();
-            const storage = {
-                getItem: (key: string) => values.get(key) ?? null,
-                setItem: (key: string, value: string) => {
-                    values.set(key, value);
-                },
-                removeItem: (key: string) => {
-                    values.delete(key);
-                },
-            };
-            TestBed.resetTestingModule();
-            TestBed.configureTestingModule({
-                providers: [
-                    PwaXtreamDataSource,
-                    { provide: USER_DATA_STORAGE, useValue: storage },
-                    { provide: ParentalLockService, useValue: parentalLock },
-                    { provide: XtreamApiService, useValue: apiService },
-                    { provide: PlaylistsService, useValue: playlistsService },
-                ],
-            });
-            const source = TestBed.inject(PwaXtreamDataSource);
-
-            values.set('xtream-favorites', JSON.stringify({ p1: ['live:1'] }));
-            await source.deletePlaylist('p1');
-
-            expect(JSON.parse(values.get('xtream-favorites') ?? '{}')).toEqual(
-                {}
-            );
-            expect(localStorage.getItem('xtream-favorites')).toBeNull();
-        });
-
-        it('reads positions once the first server read settled', async () => {
-            const values = new Map<string, string>();
-            let firstRead = (): void => undefined;
-            const storage = {
-                getItem: (key: string) => values.get(key) ?? null,
-                setItem: (key: string, value: string) => {
-                    values.set(key, value);
-                },
-                removeItem: (key: string) => {
-                    values.delete(key);
-                },
-                // Server mode: the server's data lands in the cache later.
-                ready: () =>
-                    new Promise<boolean>((resolve) => {
-                        firstRead = () => {
-                            values.set(
-                                'xtream-playback-positions',
-                                JSON.stringify({
-                                    p1: [
-                                        {
-                                            contentXtreamId: 501,
-                                            contentType: 'vod',
-                                            positionSeconds: 120,
-                                        },
-                                    ],
-                                })
-                            );
-                            resolve(true);
-                        };
-                    }),
-            };
-            TestBed.resetTestingModule();
-            TestBed.configureTestingModule({
-                providers: [
-                    PwaXtreamDataSource,
-                    { provide: USER_DATA_STORAGE, useValue: storage },
-                    { provide: ParentalLockService, useValue: parentalLock },
-                    { provide: XtreamApiService, useValue: apiService },
-                    { provide: PlaylistsService, useValue: playlistsService },
-                ],
-            });
-            const source = TestBed.inject(PwaXtreamDataSource);
-
-            const position = source.getPlaybackPosition('p1', 501, 'vod');
-            // The read is still running while other work goes on.
-            for (let turn = 0; turn < 5; turn += 1) {
-                await Promise.resolve();
-            }
-            firstRead();
-
-            await expect(position).resolves.toMatchObject({
-                positionSeconds: 120,
-            });
-        });
-
-        it('keeps a restore parked while the server user data is unread', async () => {
-            const values = new Map<string, string>([
-                ['xtream-favorites', JSON.stringify({ p1: ['live:1'] })],
-            ]);
-            const storage = {
-                getItem: (key: string) => values.get(key) ?? null,
-                setItem: (key: string, value: string) => {
-                    values.set(key, value);
-                },
-                removeItem: (key: string) => {
-                    values.delete(key);
-                },
-                ready: jest.fn(async () => false),
-            };
-            TestBed.resetTestingModule();
-            TestBed.configureTestingModule({
-                providers: [
-                    PwaXtreamDataSource,
-                    { provide: USER_DATA_STORAGE, useValue: storage },
-                    { provide: ParentalLockService, useValue: parentalLock },
-                    { provide: XtreamApiService, useValue: apiService },
-                    { provide: PlaylistsService, useValue: playlistsService },
-                ],
-            });
-            const source = TestBed.inject(PwaXtreamDataSource);
-
-            await expect(
-                source.restoreUserData('p1', {
-                    hiddenCategories: [],
-                    favorites: [],
-                    recentlyViewed: [],
-                    playbackPositions: [],
-                } as never)
-            ).rejects.toThrow(/restore waits/);
-            // A fresh read: the restore replaces the current lists.
-            expect(storage.ready).toHaveBeenCalledWith(true);
-            expect(values.get('xtream-favorites')).toBe(
-                JSON.stringify({ p1: ['live:1'] })
-            );
-        });
-
-        it('keeps a restore parked while the server refuses its lists', async () => {
-            const values = new Map<string, string>();
-            // Nothing unsent before; the restored lists are refused.
-            const flushed = jest
-                .fn()
-                .mockResolvedValueOnce(true)
-                .mockResolvedValue(false);
-            const storage = {
-                getItem: (key: string) => values.get(key) ?? null,
-                setItem: (key: string, value: string) => {
-                    values.set(key, value);
-                },
-                removeItem: (key: string) => {
-                    values.delete(key);
-                },
-                ready: async () => true,
-                flushed,
-            };
-            TestBed.resetTestingModule();
-            TestBed.configureTestingModule({
-                providers: [
-                    PwaXtreamDataSource,
-                    { provide: USER_DATA_STORAGE, useValue: storage },
-                    { provide: ParentalLockService, useValue: parentalLock },
-                    { provide: XtreamApiService, useValue: apiService },
-                    { provide: PlaylistsService, useValue: playlistsService },
-                ],
-            });
-            const source = TestBed.inject(PwaXtreamDataSource);
-
-            await expect(
-                source.restoreUserData('p1', {
-                    hiddenCategories: [],
-                    favorites: [],
-                    recentlyViewed: [],
-                    playbackPositions: [],
-                } as never)
-            ).rejects.toThrow(/did not take the restored lists/);
-            expect(flushed).toHaveBeenCalledWith('p1');
-        });
-
-        it('replaces the lists, and runs again when a conflict merged them', async () => {
-            const values = new Map<string, string>([
-                ['xtream-favorites', JSON.stringify({ p1: ['live:1'] })],
-            ]);
-            let merge = false;
-            const storage = {
-                getItem: (key: string) => values.get(key) ?? null,
-                setItem: (key: string, value: string) => {
-                    values.set(key, value);
-                },
-                removeItem: (key: string) => {
-                    values.delete(key);
-                },
-                ready: async () => true,
-                flushed: jest.fn(async () => {
-                    if (merge) {
-                        // Another device added one meanwhile: replayed in.
-                        values.set(
-                            'xtream-favorites',
-                            JSON.stringify({ p1: ['live:9', 'movie:5'] })
-                        );
-                    }
-                    return true;
-                }),
-            };
-            TestBed.resetTestingModule();
-            TestBed.configureTestingModule({
-                providers: [
-                    PwaXtreamDataSource,
-                    { provide: USER_DATA_STORAGE, useValue: storage },
-                    { provide: ParentalLockService, useValue: parentalLock },
-                    { provide: XtreamApiService, useValue: apiService },
-                    { provide: PlaylistsService, useValue: playlistsService },
-                ],
-            });
-            const source = TestBed.inject(PwaXtreamDataSource);
-            const state = {
-                hiddenCategories: [],
-                favorites: [{ xtreamId: 5, contentType: 'movie' }],
-                recentlyViewed: [],
-                playbackPositions: [],
-            } as never;
-
-            await source.restoreUserData('p1', state);
-            expect(JSON.parse(values.get('xtream-favorites') ?? '{}')).toEqual({
-                p1: ['movie:5'],
-            });
-            // A saved restore may list one favorite twice: reads drop the
-            // copy on both sides of the comparison.
-            await expect(
-                source.restoreUserData('p1', {
-                    ...(state as object),
-                    favorites: [
-                        { xtreamId: 5, contentType: 'movie' },
-                        { xtreamId: 5, contentType: 'movie' },
-                    ],
-                } as never)
-            ).resolves.toBeUndefined();
-
-            merge = true;
-            await expect(source.restoreUserData('p1', state)).rejects.toThrow(
-                /changed elsewhere/
-            );
-        });
-
-        it('replaces nothing while earlier changes to the playlist are unsent', async () => {
-            const values = new Map<string, string>([
-                ['xtream-favorites', JSON.stringify({ p1: ['live:1'] })],
-            ]);
-            const storage = {
-                getItem: (key: string) => values.get(key) ?? null,
-                setItem: (key: string, value: string) => {
-                    values.set(key, value);
-                },
-                removeItem: (key: string) => {
-                    values.delete(key);
-                },
-                ready: async () => true,
-                flushed: jest.fn().mockResolvedValueOnce(false),
-            };
-            TestBed.resetTestingModule();
-            TestBed.configureTestingModule({
-                providers: [
-                    PwaXtreamDataSource,
-                    { provide: USER_DATA_STORAGE, useValue: storage },
-                    { provide: ParentalLockService, useValue: parentalLock },
-                    { provide: XtreamApiService, useValue: apiService },
-                    { provide: PlaylistsService, useValue: playlistsService },
-                ],
-            });
-            const source = TestBed.inject(PwaXtreamDataSource);
-
-            await expect(
-                source.restoreUserData('p1', {
-                    hiddenCategories: [],
-                    favorites: [],
-                    recentlyViewed: [],
-                    playbackPositions: [],
-                } as never)
-            ).rejects.toThrow(/not on the server yet/);
-            expect(values.get('xtream-favorites')).toBe(
-                JSON.stringify({ p1: ['live:1'] })
-            );
         });
     });
 });

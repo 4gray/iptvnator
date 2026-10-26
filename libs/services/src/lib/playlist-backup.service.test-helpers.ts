@@ -119,11 +119,14 @@ export function createPlaylistBackupService(
         },
         databaseService: {
             getAllXtreamCategories: jest.fn().mockResolvedValue([]),
-            getFavorites: jest.fn().mockResolvedValue([]),
+            getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
             getRecentItems: jest.fn().mockResolvedValue([]),
             getXtreamImportStatus: jest.fn().mockResolvedValue('idle'),
             hasXtreamCategories: jest.fn().mockResolvedValue(false),
             hasXtreamContent: jest.fn().mockResolvedValue(false),
+            restoreXtreamFavoriteSnapshots: jest
+                .fn()
+                .mockResolvedValue(undefined),
             restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },
@@ -178,6 +181,8 @@ export interface FakeXtreamContentRow {
     added_at?: string;
     position?: number | null;
     viewed_at?: string;
+    title?: string;
+    poster_url?: string;
 }
 
 /**
@@ -206,6 +211,7 @@ export function createStatefulBackupCollaborators(
     state: FakeBackupBackendState
 ) {
     let lastParsedRawM3u: string | null = null;
+    const favoriteReceipts = new Set<string>();
 
     return {
         playlistsService: {
@@ -270,7 +276,7 @@ export function createStatefulBackupCollaborators(
                             row.playlist_id === playlistId && row.type === type
                     )
                     .map((row) => ({ ...row })),
-            getFavorites: async () =>
+            getFavoritesOrThrow: async () =>
                 state.xtreamFavorites.map((row) => ({ ...row })),
             getRecentItems: async () =>
                 state.xtreamRecent.map((row) => ({ ...row })),
@@ -289,21 +295,47 @@ export function createStatefulBackupCollaborators(
 
                 return true;
             },
-            restoreXtreamUserData: async (
+            restoreXtreamFavoriteSnapshots: async (
                 _playlistId: string,
                 favorites: XtreamBackupFavoriteItem[],
+                restoreId?: string
+            ) => {
+                const receipt = restoreId ?? JSON.stringify(favorites);
+                if (!favorites.length || favoriteReceipts.has(receipt)) return;
+                favoriteReceipts.add(receipt);
+                const additions = favorites.filter(
+                    (item) =>
+                        !state.xtreamFavorites.some(
+                            (row) =>
+                                row.xtream_id === item.xtreamId &&
+                                row.type === item.contentType
+                        )
+                );
+                state.xtreamFavorites.push(
+                    ...additions.map((item) => ({
+                        xtream_id: item.xtreamId,
+                        type: item.contentType,
+                        ...(item.snapshot
+                            ? {
+                                  title: item.snapshot.title,
+                                  poster_url:
+                                      item.snapshot.posterUrl ?? undefined,
+                              }
+                            : {}),
+                        ...(item.addedAt !== undefined
+                            ? { added_at: item.addedAt }
+                            : {}),
+                        ...(item.position !== undefined
+                            ? { position: item.position }
+                            : {}),
+                    }))
+                );
+            },
+            restoreXtreamUserData: async (
+                _playlistId: string,
+                _favorites: XtreamBackupFavoriteItem[],
                 recentlyViewed: XtreamBackupRecentlyViewedItem[]
             ) => {
-                state.xtreamFavorites = favorites.map((item) => ({
-                    xtream_id: item.xtreamId,
-                    type: item.contentType,
-                    ...(item.addedAt !== undefined
-                        ? { added_at: item.addedAt }
-                        : {}),
-                    ...(item.position !== undefined
-                        ? { position: item.position }
-                        : {}),
-                }));
                 state.xtreamRecent = recentlyViewed.map((item) => ({
                     xtream_id: item.xtreamId,
                     type: item.contentType,

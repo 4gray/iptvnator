@@ -1,4 +1,7 @@
-import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
+import {
+    ChannelContextMenuComponent,
+    ChannelScrollFocusDirective,
+} from '@iptvnator/ui/components';
 import {
     CdkVirtualScrollViewport,
     ScrollingModule,
@@ -22,7 +25,6 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
@@ -97,12 +99,12 @@ interface XtreamCategoryLike {
     styleUrls: ['./portal-channels-list.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
         ChannelListSkeletonComponent,
         MatButtonModule,
         MatIcon,
-        MatMenuModule,
         ScrollingModule,
         TranslatePipe,
     ],
@@ -134,13 +136,13 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly dialog = inject(MatDialog);
 
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
     readonly contextMenuChannel = signal<XtreamChannelListItem | null>(null);
-    readonly contextMenuPosition = signal({ x: '0px', y: '0px' });
-    readonly supportsEpg = this.runtime.supportsEpg;
+    readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
     readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
-    readonly channelItemSize = this.supportsEpg ? 68 : 52;
+    readonly channelItemSize = this.supportsProviderEpg ? 68 : 52;
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly channels = computed(() => {
@@ -288,7 +290,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         });
 
         effect(() => {
-            if (!this.supportsEpg) {
+            if (!this.supportsProviderEpg) {
                 return;
             }
 
@@ -354,7 +356,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             );
         }
 
-        if (this.supportsEpg) {
+        if (this.supportsProviderEpg) {
             this.subscriptions.add(
                 this.epgQueueService.epgResult$.subscribe(
                     ({ streamId, items }) => {
@@ -384,7 +386,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     ngAfterViewInit() {
         const vp = this.viewport();
         if (
-            this.supportsEpg &&
+            this.supportsProviderEpg &&
             vp &&
             this.xtreamStore.selectedContentType() === 'live'
         ) {
@@ -452,7 +454,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     }
 
     private loadEpgForVisibleChannels(channels: XtreamChannelListItem[]): void {
-        if (!this.supportsEpg) {
+        if (!this.supportsProviderEpg) {
             return;
         }
 
@@ -507,7 +509,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
      */
     private collectEpgRefresh(): EpgRefreshContribution | null {
         const channels = this.visibleChannelsNow();
-        if (!this.supportsEpg || channels.length === 0) return null;
+        if (!this.supportsProviderEpg || channels.length === 0) return null;
 
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) return null;
@@ -710,19 +712,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         event: MouseEvent
     ): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     openEpgMapping(): void {
@@ -731,7 +721,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         const xtreamId = channel.xtream_id ?? channel.id;
         if (!playlistId || xtreamId == null) {

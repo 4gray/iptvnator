@@ -9,6 +9,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
@@ -64,6 +65,10 @@ describe('StreamResolverService EPG display offset', () => {
                         getEpgMappingsBatch: jest.fn().mockResolvedValue(null),
                         supportsProgramLookup: true,
                     },
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsProviderEpg: true },
                 },
                 {
                     provide: StalkerSessionService,
@@ -128,7 +133,9 @@ describe('StreamResolverService EPG display offset', () => {
 
         expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
         expect(xtreamApi.getFullEpg).toHaveBeenCalledTimes(1);
-        expect(epgMap.get('Xtream Live')?.title).toBe('Really on air');
+        expect(
+            epgMap.get(JSON.stringify(['xtream', 'xtream-1', '1']))?.title
+        ).toBe('Really on air');
     });
 
     it('widens Stalker collection previews under a negative offset and picks the entry covering the provider clock', async () => {
@@ -183,7 +190,9 @@ describe('StreamResolverService EPG display offset', () => {
             } satisfies UnifiedCollectionItem,
         ]);
 
-        expect(epgMap.get('77')?.title).toBe('Really on air');
+        expect(
+            epgMap.get(JSON.stringify(['stalker', 'stalker-1', '77']))?.title
+        ).toBe('Really on air');
         // 1 entry + ⌈60 / 15⌉ = 5 requested instead of the usual single one.
         expect(sendIpcEvent).toHaveBeenCalledWith(
             expect.anything(),
@@ -244,7 +253,9 @@ describe('StreamResolverService EPG display offset', () => {
 
         // Without unix timestamps the ISO window still rules out the
         // portal's own "now" entry under the shifted clock.
-        expect(epgMap.get('77')?.title).toBe('Really on air');
+        expect(
+            epgMap.get(JSON.stringify(['stalker', 'stalker-1', '77']))?.title
+        ).toBe('Really on air');
     });
 
     it('cuts the Xtream window at the instant the batch was evaluated, not when the guide arrives', async () => {
@@ -296,7 +307,9 @@ describe('StreamResolverService EPG display offset', () => {
                 } satisfies UnifiedCollectionItem,
             ]);
 
-            expect(epgMap.get('Xtream Live')?.title).toBe('A');
+            expect(
+                epgMap.get(JSON.stringify(['xtream', 'xtream-1', '1']))?.title
+            ).toBe('A');
         } finally {
             jest.useRealTimers();
         }
@@ -366,6 +379,8 @@ describe('StreamResolverService EPG display offset', () => {
         // guide and picks the programme covering that provider clock, rather
         // than mixing a short-EPG window for offset 0 with a +60 selection.
         expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
-        expect(epgMap.get('Xtream Live')?.title).toBe('Really on air');
+        expect(
+            epgMap.get(JSON.stringify(['xtream', 'xtream-1', '1']))?.title
+        ).toBe('Really on air');
     });
 });

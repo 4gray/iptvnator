@@ -278,7 +278,7 @@ jobs:
                       exit 0
                   fi
                   relevant="$(git diff --name-only HEAD^1 HEAD |
-                      grep -vE '\.md$|^docs/|^\.plans/|^\.codex/|^\.claude/|^\.changes/|^apps/website/' || true)"
+                      grep -vE '\.md$|^docs/|^\.plans/|^\.agents/|^\.codex/|^\.claude/|^\.changes/|^apps/website/' || true)"
                   if [ -n "$relevant" ]; then
                       echo "Journey-relevant changes:"
                       echo "$relevant"
@@ -297,11 +297,14 @@ jobs:
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
         # (launch, open-source, playback, search) is six fresh Electron
-        # processes plus one seeding run.
+        # processes plus one seeding run. The large-library launch journey
+        # (launch-large) is left to the weekly performance-ratchet.yml.
         timeout-minutes: 30
-        # Warn-only for the first two weeks of plan item B3: a failure is
-        # visible on the run but does not fail the workflow.
-        continue-on-error: true
+        # Counter regressions fail this workflow (plan item B3, #1926).
+        # This policy takes effect on master when #1926 is merged.
+        # Evidence: all 71 master runs from 2026-10-06 to 2026-10-12 passed,
+        # with no enforced counter varying between iterations (see Ratchet
+        # in docs/architecture/performance-journeys.md).
         env:
             NX_SKIP_NX_CACHE: true
 
@@ -354,6 +357,7 @@ jobs:
                   --only open-source/renderer.ipcCallsToFirstPage
                   --only open-source/renderer.layoutShiftScore
                   --only open-source/renderer.cdTicksToFirstPage
+                  --only playback/renderer.domMutationsToPlaying
                   --only playback/renderer.httpRequestsToPlaying
                   --only playback/renderer.layoutShiftScore
                   --only search/renderer.ipcCallsPerSearch

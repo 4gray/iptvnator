@@ -11,6 +11,10 @@
     .content-card__activation {
         border-radius: inherit;
         outline: none;
+
+        &[aria-disabled='true'] {
+            cursor: default;
+        }
     }
 
     &:has(> .content-card__activation:focus-visible) {

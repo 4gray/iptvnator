@@ -1,0 +1,282 @@
+.grid-overlay .live-overlay-panel {
+    padding: 0;
+    background: rgba(11, 16, 15, 0.98);
+}
+.grid-guide {
+    height: 100%;
+    padding: 30px 40px;
+    display: flex;
+    flex-direction: column;
+}
+.grid-guide-header {
+    display: flex;
+    align-items: center;
+    flex: none;
+    margin-bottom: 16px;
+}
+.grid-guide-header > div {
+    margin-right: auto;
+}
+.grid-guide-header h1 {
+    font-size: 36px;
+    margin: 4px 0 0;
+}
+.grid-guide-header .muted {
+    font-size: 14px;
+    letter-spacing: 3px;
+}
+.grid-guide-header > button {
+    margin-left: 18px;
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.grid-toolbar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.grid-toolbar button {
+    margin-right: 12px;
+    white-space: nowrap;
+}
+.grid-date {
+    flex: 1;
+    text-align: center;
+    font-size: 21px;
+    padding: 0 16px;
+}
+.grid-axis {
+    display: flex;
+    height: 36px;
+    flex: none;
+    color: var(--tv-muted);
+    font-size: 18px;
+    padding-right: 16px;
+}
+.grid-axis > span {
+    width: 270px;
+    flex: none;
+    padding-left: 12px;
+}
+.grid-axis > div {
+    flex: 1;
+    position: relative;
+}
+.grid-axis time {
+    position: absolute;
+    padding-left: 8px;
+}
+.grid-scroll {
+    overflow-y: scroll;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 120px;
+    padding: 6px 8px;
+    margin: -6px -8px 0;
+}
+.grid-row-space {
+    position: relative;
+}
+.grid-channel-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 88px;
+    display: flex;
+    padding: 5px 0;
+}
+.grid-channel {
+    width: 258px;
+    margin-right: 12px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    background: #17221e;
+}
+.grid-channel .channel-logo {
+    width: 48px;
+    height: 48px;
+    flex: none;
+    margin-right: 12px;
+}
+.grid-channel > span:last-child {
+    min-width: 0;
+}
+.grid-channel strong {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 21px;
+}
+.grid-channel small {
+    display: block;
+    font-size: 14px;
+    color: var(--tv-muted);
+    margin-top: 5px;
+}
+.grid-channel.is-playing {
+    background: #234334;
+}
+.grid-channel.is-playing small {
+    color: var(--tv-accent);
+}
+.grid-program-track {
+    flex: 1;
+    position: relative;
+    min-width: 0;
+}
+.grid-program {
+    position: absolute;
+    height: 100%;
+    padding: 10px 14px;
+    min-width: 0;
+    overflow: hidden;
+    background: #1b2722;
+    border: 3px solid var(--tv-bg);
+}
+.grid-program.on-air {
+    background: #2b4034;
+}
+.grid-program:focus {
+    z-index: 3;
+}
+.grid-program time {
+    display: block;
+    font-size: 15px;
+    color: var(--tv-muted);
+}
+.grid-program strong {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 21px;
+    margin-top: 6px;
+}
+.grid-empty {
+    width: 100%;
+    height: 100%;
+    color: var(--tv-muted);
+    font-size: 18px;
+}
+/* This is a time-position marker, not a decorative side accent. */
+.grid-now-line {
+    position: absolute;
+    z-index: 2;
+    width: 2px;
+    height: 100%;
+    background: var(--tv-accent);
+    pointer-events: none;
+    opacity: 0.75;
+}
+.grid-details {
+    display: flex;
+    flex: none;
+    padding-top: 22px;
+    margin-top: 12px;
+}
+.grid-details > div:first-child {
+    flex: 1;
+    min-width: 0;
+    padding-right: 32px;
+}
+.grid-details small {
+    color: var(--tv-accent);
+    font-size: 18px;
+}
+.grid-details h2 {
+    font-size: 28px;
+    margin: 8px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.grid-description {
+    height: 66px;
+    overflow-y: scroll;
+    font-size: 19px;
+    line-height: 1.65;
+    color: var(--tv-muted);
+    padding-right: 16px;
+}
+.grid-details-actions {
+    display: flex;
+    flex-direction: column;
+    width: 270px;
+    flex: none;
+}
+.grid-details-actions button {
+    min-height: 44px;
+    font-size: 18px;
+    padding: 9px 16px;
+    margin-bottom: 6px;
+}
+.grid-loading {
+    padding: 12px;
+}
+.grid-categories {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    max-width: 720px;
+}
+.grid-categories > button {
+    margin-bottom: 20px;
+}
+.grid-categories .channels {
+    flex: 1;
+    min-height: 0;
+}
+.drawer-grid-button {
+    margin-bottom: 20px;
+}
+@media (max-width: 1400px) {
+    .grid-guide {
+        padding: 20px 28px;
+    }
+    .grid-guide-header {
+        margin-bottom: 12px;
+    }
+    .grid-guide-header h1 {
+        font-size: 28px;
+    }
+    .grid-toolbar {
+        margin-bottom: 12px;
+    }
+    .grid-toolbar button {
+        font-size: 16px;
+        padding: 10px 14px;
+        min-height: 44px;
+        margin-right: 8px;
+    }
+    .grid-date {
+        font-size: 17px;
+        padding: 0 4px;
+    }
+    .grid-axis > span {
+        width: 240px;
+    }
+    .grid-channel {
+        width: 228px;
+    }
+    .grid-details {
+        padding-top: 12px;
+        margin-top: 8px;
+    }
+    .grid-details h2 {
+        font-size: 24px;
+    }
+    .grid-description {
+        height: 56px;
+        font-size: 17px;
+    }
+    .grid-details-actions {
+        width: 240px;
+    }
+}

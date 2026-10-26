@@ -17,6 +17,9 @@ Related:
   cast, director, genres, rating, artwork) via a **field-level merge** — the
   provider stays authoritative for stream-related data and for any field
   TMDB cannot fill.
+- Grid rating badges use the IMDb label only when `rating_imdb` supplies the
+  displayed score. A fallback from the generic `rating` field uses the generic
+  rating label; provider or TMDB scores must not be presented as IMDb scores.
 - The M3U player is a consumer too: an entry recognized as a movie file opens
   in the VOD detail shell fed purely by an `enrichMovie` lookup (there is no
   provider payload to merge into). Gated by the additional
@@ -37,11 +40,29 @@ Related:
 
 ## Module Layout
 
-The service layer lives in `libs/services/src/lib/tmdb/` (scope:shared) so
-both portal libs and — in later phases — the M3U player can consume it
-without creating dependency cycles (`portal/shared/data-access` already
-depends on `portal/xtream/data-access`, so it cannot host code the Xtream
-store imports):
+Framework-free code lives in `libs/shared/tmdb/` (`@iptvnator/shared/tmdb`,
+`scope:shared`, `domain:tmdb`, `type:data-access`). It owns the API client,
+ID resolver, movie/TV metadata orchestration and the pure configuration,
+matching, credits, cache-payload and language-fallback helpers listed below.
+`TmdbSeasonClient` owns lazy per-season requests, language-scoped caching and
+original-language text fallback for both the Angular facade and TV adapter.
+`TmdbPersonClient` and the pure person/filmography projections are shared too;
+Angular retains its default 80-credit limit while TV requests the complete list.
+`TmdbApiClient` accepts optional request cancellation; `TmdbMetadataClient`
+accepts runtime/cache interfaces and a sanitized failure callback. A bounded
+`TmdbMemoryCache` serves the TV runtime. Pure helper tests live with this core.
+
+The Angular service layer remains in `libs/services/src/lib/tmdb/`:
+`TmdbApiService`, `TmdbIdResolverService` and `TmdbEnrichmentService` wrap the
+shared classes with dependency injection; old helper paths explicitly re-export
+the shared public API. Desktop SQLite/PWA cache, runtime settings, provider
+merges and trending/discovery services remain Angular-owned. Person and season
+services are injectable facades for the shared clients.
+The existing portal API and persisted cache keys are unchanged. TV integration
+and its narrower feature scope are specified in [TV architecture](tv-application.md).
+
+The table covers both the shared core and Angular facade (pure helper filenames
+refer to the shared core; `*.service.ts` and provider merges to the facade):
 
 | File                         | Responsibility                                                                                                                               |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -172,8 +193,18 @@ when the provider's year is off by one.
 the _request_ language, so a Cyrillic query issued with `en-US` would come
 back with an English title and fail the exact-match gate.
 `tmdbSearchLanguageForTitle` detects Cyrillic queries and issues the search
-with `ru-RU` (unless the app language is already Cyrillic-based); details
-are still fetched in the app language afterwards.
+with `ru-RU` unless the app language is Russian (`ru-RU`), Belarusian
+(`be-BY`), or Ukrainian (`uk-UA`), in which case it keeps that language.
+Details are still fetched in the app language afterwards.
+For mixed catalogs, a Cyrillic search that has no confident Ukrainian match
+retries in Russian. Each language keeps its own cached verdict; a cached
+Ukrainian miss still permits the Russian lookup. Transient API errors do not
+trigger a retry in another language.
+Latin provider titles also retry a confident miss in `en-US` when the preferred
+language is different. This covers English translations of foreign shows whose
+localized and original names both differ (for example, The Chestnut Man).
+The same strict title/year gate applies, each language caches its own verdict,
+and details still use the user's selected metadata language.
 
 ## Details Fetch and Localization
 
@@ -333,6 +364,22 @@ disabled everything is a no-op — the `SeasonContainer` UI already renders
 every episode field conditionally.
 
 ## Actor Pages
+
+TV also opens person pages from circular actor/director/creator controls. The
+complete deduplicated acting/directing/creating filmography is virtualized.
+Selecting a credit performs an on-demand search in the active provider only,
+using localized and original titles, existing title normalization and compatible
+release years. A found provider item opens its own details; equally strong
+versions are offered for selection. Only a completed search reports absence.
+Failures, repeated/incomplete pages (20-page limit) and the 15-second deadline
+show a retry, while cancellation or navigation prevents stale results opening.
+Movie and series identities remain separate; TMDB IDs never become stream IDs.
+Back restores the previous person/detail/card focus and scroll position.
+TV episode stills are stored separately from the parent cover. Home resume cards
+retain series artwork, while season cards show available stills and descriptions.
+Home and fullscreen playback can open the exact parent series, including
+historical progress recovered from its current provider identity.
+See the [TV contract](tv-application.md#artwork-and-optional-tmdb-metadata).
 
 Cast chips carry the TMDB person id (`tmdbPersonId` on
 `TmdbEnrichedCastMember`) and navigate to `actor/:personId` inside the
@@ -634,7 +681,7 @@ metadata access for everyone using it. TMDB also applies
 [service rate limits](https://developer.themoviedb.org/docs/rate-limiting),
 so a personal key does not remove the need to respect throttling.
 
-`DEFAULT_TMDB_API_KEY` in `libs/services/src/lib/tmdb/tmdb-config.ts` is
+`DEFAULT_TMDB_API_KEY` in `libs/shared/tmdb/src/lib/tmdb-config.ts` is
 empty by default. The build tooling still supports optional injection:
 `tools/tmdb/inject-tmdb-key.mjs` reads `TMDB_API_KEY` during the "Inject
 TMDB API key" step in `.github/workflows/build-and-make.yaml`. With no
@@ -645,6 +692,15 @@ Never commit a real key or reuse keys found in other repositories.
 At runtime, a non-empty user key takes precedence over an injected default.
 With neither available, enrichment stays inactive even when the toggle is
 on. This applies to release, local development, and fork builds alike.
+
+## Portuguese metadata language
+
+`pt-PT` requests Portuguese metadata for Portugal; `pt-BR` requests it for
+Brazil. Legacy saved `pt` preferences normalize to `pt-BR`, matching the
+existing Brazilian UI. Cache keys already include the TMDB language, so the
+two regional payloads remain separate without deleting cached data. The
+regional mapping and legacy normalization live in `@iptvnator/shared/tmdb`,
+shared by the Angular facade and TV runtime.
 
 ## Failure Behavior
 
@@ -850,11 +906,13 @@ Contracts worth keeping:
   never been opened, and a provider's `"0"` all collapse to the same thing:
   no identity, and the title-only fallback.
 
-Not covered: rows whose detail page has never been opened, playlists
-refreshed after this landed (the columns are re-learned on the next detail
-open, same as `backdrop_url`), and the PWA — its catalog is a session-scoped
-cache rebuilt from the API on every load, so a stored id would never outlive
-the detail view that resolved it. All of them keep the title-only path.
+Rows whose detail page has never been opened keep the title-only fallback.
+Refreshed catalog rows re-learn missing metadata on the next detail open.
+The PWA also fills normalized identity on its session catalog and compatible
+persisted collection snapshots, including identity-only patches. Favorites retain
+that evidence across reload/refresh to detect reused provider IDs. Independent
+Recent snapshots are enriched separately; a conflicting replacement never supplies
+metadata to the older favorite. See [PWA collection persistence](xtream-portal-compatibility.md#pwa-collection-persistence).
 
 ### Stalker backdrops on activity rows
 

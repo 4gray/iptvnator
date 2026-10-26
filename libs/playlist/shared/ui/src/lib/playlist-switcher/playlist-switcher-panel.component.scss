@@ -119,8 +119,8 @@
     margin: 0 14px 8px;
 }
 
+// The segment's 6px gap separates the count from its label.
 .switcher__type-count {
-    margin-inline-start: 4px;
     font-size: 11px;
     color: var(--app-muted-color);
 }

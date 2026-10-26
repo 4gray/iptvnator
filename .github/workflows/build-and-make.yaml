@@ -31,6 +31,7 @@ on:
             - '**/*.md'
             - 'docs/**'
             - '.plans/**'
+            - '.agents/**'
             - '.codex/**'
             - '.claude/**'
     pull_request:
@@ -40,6 +41,7 @@ on:
             - '**/*.md'
             - 'docs/**'
             - '.plans/**'
+            - '.agents/**'
             - '.codex/**'
             - '.claude/**'
     workflow_dispatch:

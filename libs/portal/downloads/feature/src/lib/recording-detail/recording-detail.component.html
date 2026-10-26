@@ -22,7 +22,7 @@
                 data-testid="recording-error-actions"
             >
                 <button
-                    mat-stroked-button
+                    mat-flat-button
                     type="button"
                     data-testid="recording-error-back"
                     (click)="goBack()"
@@ -31,7 +31,7 @@
                     {{ 'DOWNLOADS.OFFLINE_DETAIL.BACK' | translate }}
                 </button>
                 <button
-                    mat-stroked-button
+                    mat-flat-button
                     type="button"
                     data-testid="recording-error-remove"
                     [disabled]="isPending()"
@@ -95,7 +95,7 @@
                 @if (isActive()) {
                     <button
                         mat-flat-button
-                        class="recording-detail__stop-action"
+                        class="recording-detail__stop-action app-destructive-button"
                         type="button"
                         data-testid="recording-stop"
                         [disabled]="isPending()"
@@ -118,7 +118,7 @@
                     </button>
                 }
                 <button
-                    mat-stroked-button
+                    mat-flat-button
                     type="button"
                     data-testid="recording-reveal"
                     [disabled]="isPending()"

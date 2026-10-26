@@ -50,6 +50,15 @@ below is reached as `/workspace/stalker/:id/…`.
 
 `/workspace/stalker/:id` itself redirects to `vod`.
 
+## Framework-free artwork
+
+`libs/portal/stalker/data-access/src/lib/stalker-artwork.utils.ts` owns the
+existing portal-root `makeAbsoluteUrl` helper, re-exported by the Angular content
+mapper for compatibility. The client sub-entrypoint exports
+`resolveStalkerArtwork` for TV: it resolves relative screenshot/logo paths,
+tries nonblank candidates in order and rejects unsafe URL schemes or embedded
+credentials. Artwork normalization does not change MAG identity or media URLs.
+
 ## Runtime Architecture
 
 1. Angular Stalker screens call methods/resources in `StalkerStore`.
@@ -353,6 +362,12 @@ mock's tolerant `/portal.php`, strict `/server/load.php`, and
 - `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 
 ## Store and Data Flow
+
+A failed first search page shows an explicit error and Retry in the shared
+search layout, retaining the term and selected content type. Retry resets the
+host connectivity guard before reloading the same page. Successful empty
+responses keep the ordinary no-matches state; failed appends retain loaded rows
+and their existing tail retry. New query/source identities clear obsolete errors.
 
 Stalker store is now feature-composed:
 
@@ -915,6 +930,16 @@ profile is decoded (clamped to 30–3600 s against garbage), and otherwise uses
 the documented 120 s default. Failing to ping never invalidates the session —
 it only affects the portal's admin-panel "online" reporting — so ping failures
 are logged and never retried or escalated.
+
+The statement about online reporting describes reference middleware, not every
+provider fork. Stalkinator's `f854c63a` fix and the TV investigation document a
+provider whose Live media host rejects signed URLs until watchdog activation.
+Do not diagnose a media-host 403 as solely a codec/header problem or assume a
+successful `create_link` proves the portal playback session is active. The TV
+adapter uses the Live lifecycle described in
+[TV application](./tv-application.md#provider-contract); real LG observations
+and remaining limits are in
+[the investigation](../development/tv-live-playback-investigation.md).
 
 The periodic ping ticks in a dedicated worker (`createBackgroundInterval`,
 an inline blob worker allowed by the renderer CSP's `worker-src 'self' blob:`).
@@ -1544,6 +1569,26 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 - Lazy VOD-series episodes use scoped tracking IDs derived from the parent
   series ID, provider episode ID, season key, and episode number. The season
   key follows the mapping fallback (`season_number`, then name, then ID).
+- Lazy VOD playback and new downloads resolve commands through
+  `StalkerEpisodeResolver`. The mapper preserves an episode's own `cmd` and
+  provider `movie_id` (season `video_id`), `season_id`, and `episode_id`
+  separately from display numbers and tracking IDs. An explicit episode
+  command wins; otherwise `get_ordered_list` with all three coordinates
+  returns media files. The first usable video file in provider order wins
+  among quality/language variants. Subtitle, foreign-owner, missing-command,
+  malformed, and empty responses never fall back to an invented
+  `/media/file_<episode_id>.mpg` or the saved parent command. File resolution
+  and `create_link` use the existing authenticated/repair request pipeline.
+  For file rows with `protocol: custom`, their raw URL-valued command must
+  become `/media/file_<file.id>.mpg` before `create_link`, matching Ministra's
+  reference player. Only a valid returned file ID is accepted; the episode ID
+  is never substituted.
+  The framework-free `resolveStalkerEpisodeCommand` helper owns this selection
+  for both the Angular service and TV; each caller supplies its authenticated,
+  cancellable request pipeline.
+- The extra file lookup is covered by the pending playback ownership guard:
+  changes to the selected source/show, episode command, or provider
+  coordinates discard its result before inline or external playback starts.
 - The previous season/episode hash remains available only as a compatibility
   alias in `legacyTrackingId`. The scoped ID is the in-memory episode key, and
   new playback positions always use it.
@@ -1561,8 +1606,8 @@ Series inline playback behavior is shared across all three modes:
 
 - `StalkerSeriesViewComponent` maps every mode into `mappedSeasons()` and uses
   two episode identities. A pending playback request keeps an exact,
-  request-local provider command or episode ID so command rotation and hash
-  collisions reject stale completion. Once mounted, the component freezes only
+  request-local provider command or lazy episode ID/command/provider
+  coordinates so command rotation and hash collisions reject stale completion. Once mounted, the component freezes only
   the credential-free structural identity and session key (source, normalized
   parent, mode, season key, season number, and episode number).
 - The mounted structural identity is re-resolved against the current
@@ -1607,6 +1652,14 @@ The VOD-series contract is cross-surface:
 
 - Favorites and recently viewed records preserve the raw `is_series` flag and
   VOD origin so reopening still uses the lazy Ministra resources.
+- The #1844 file-resolution fix needs no schema or saved-entry migration.
+  Existing favorites/recent snapshots with the lazy `is_series` marker reopen
+  the parent and load fresh seasons/episodes, including snapshots holding an
+  old synthesized parent `cmd`. Scoped and legacy progress IDs are unchanged.
+  Progress recorded while the wrong video was playing cannot be reliably
+  repaired automatically and is preserved. Existing download URLs and files
+  are also preserved: cancel/remove an affected old entry and enqueue a new
+  download from the series; Retry/Resume reuses the old stored URL.
 - `extractStalkerItemType()` normalizes those activity records to dashboard
   type `series`.
 - The dashboard resolves episode progress by the parent `seriesXtreamId` and

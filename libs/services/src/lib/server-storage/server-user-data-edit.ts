@@ -1,3 +1,4 @@
+import { XTREAM_RESTORE_RECEIPTS } from '../xtream-user-data-keys';
 import {
     SERVER_USER_STATE_NAMESPACES,
     type ServerUserStateNamespace,
@@ -46,6 +47,8 @@ export function refreshedNamespace(
             value[edit.playlistId] = merged;
         }
     }
+    if (XTREAM_RESTORE_RECEIPTS in cached)
+        value[XTREAM_RESTORE_RECEIPTS] = cached[XTREAM_RESTORE_RECEIPTS];
     return value;
 }
 
@@ -153,11 +156,13 @@ export function changedEntries(
 ): [string, unknown][] {
     const changed: [string, unknown][] = [];
     for (const [playlistId, value] of Object.entries(next)) {
+        if (playlistId === XTREAM_RESTORE_RECEIPTS) continue;
         if (JSON.stringify(previous[playlistId]) !== JSON.stringify(value)) {
             changed.push([playlistId, value]);
         }
     }
     for (const playlistId of Object.keys(previous)) {
+        if (playlistId === XTREAM_RESTORE_RECEIPTS) continue;
         if (!(playlistId in next)) {
             changed.push([playlistId, undefined]);
         }

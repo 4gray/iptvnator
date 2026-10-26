@@ -195,8 +195,7 @@ export class WorkspaceShellRouteStateService {
             case 'settings':
                 return {
                     aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE',
-                    tooltip:
-                        'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
+                    tooltip: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
                 };
             case 'sources':
             case 'collection':

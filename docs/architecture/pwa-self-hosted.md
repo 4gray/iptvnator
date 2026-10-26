@@ -165,7 +165,14 @@ and partial Electron bridges can degrade without direct preload checks.
 capabilities cover individual EPG surfaces: import/progress, current-program
 lookup, optional current-program batch reads, optional channel metadata,
 freshness checks, clear/force-fetch management, channel browsing, and program
-search. `supportsPlaylistRefresh` requires the native playlist
+search; all of them describe XMLTV. `supportsProviderEpg` is separate: Xtream
+and Stalker provider EPG needs only the portal transport, so it is true in the
+PWA (`PwaService` forwards `XTREAM_REQUEST` and `STALKER_REQUEST` to the
+`/xtream` and `/stalker` proxy routes) and in Electron when both the
+`xtreamRequest` and `stalkerRequest` preload methods exist. Gate portal guides
+on it and keep the XMLTV parts of portal views (the Xtream XMLTV fallback,
+manual EPG mapping) on the XMLTV capabilities. `supportsPlaylistRefresh`
+requires the native playlist
 refresh/cancel/progress bridge, `supportsXtreamSectionNavigation` is available
 in PWA and in Electron when either the SQLite Xtream data source or the Xtream
 API transport is available, `supportsDesktopFileSave` requires both
@@ -237,8 +244,9 @@ settings and guards read them in every build.
   tab remembers its page load in `sessionStorage`, so a reload takes its
   writes over and sends them first (the old copy goes only once the new one
   is saved, at the latest with this page's next saved copy; until then the
-  tab's pointer names the kept page loads too, so another reload finds
-  them even without their registry records; a duplicate of a tab that
+  tab's pointer names the kept page loads too, oldest first also when a
+  duplicate adopted them, so another reload finds them even without their
+  registry records and replays them in order; a duplicate of a tab that
   still runs leaves them, like that tab's page load, to it). A page marks
   its record closed on `pagehide`, and it stays closed when a page-hide
   write failing afterwards rewrites it (not into the back-forward cache, where
@@ -409,9 +417,25 @@ the global favorites order and other UI preferences in browser storage.
 The self-hosted build is the browser PWA, not the Electron desktop app. Keep
 these limitations explicit in UI, troubleshooting, and release notes:
 
-- EPG/XMLTV is not supported in the PWA yet. Do not render live EPG panels,
-  programme-guide entry points, or EPG-fetching flows in browser/PWA mode, and
-  do not use EPG as the readiness signal for Docker.
+- XMLTV is not supported in the PWA yet. That rules out M3U guides, the
+  XMLTV part of Settings → EPG (sources, refresh and clear, the Xtream XMLTV
+  preference), the programme guide and its search, the Xtream XMLTV fallback
+  and manual EPG mapping. Gate those flows on the XMLTV capabilities
+  (`supportsEpg` and its narrower flags), which are false in browser/PWA mode,
+  and do not use EPG as the readiness signal for Docker. Xtream and Stalker
+  provider EPG (channel-row programme lines, the live EPG panel, favorites,
+  recent and dashboard previews) works through the `/xtream` and `/stalker`
+  proxy routes and is gated on `supportsProviderEpg`. The display settings of
+  Settings → EPG (view mode, time offset) render wherever a guide exists
+  (`SettingsFormFacade.supportsEpgDisplay`), so the PWA shows them; they are
+  stored per browser like other settings. Live favorites/recent playback does
+  not wait for provider EPG; the guide hydrates afterwards under the current
+  selection's ownership. Collection and dashboard guides use source- and
+  playlist-scoped channel keys, and failed background Stalker EPG requests
+  remain silent in both runtimes. Xtream catch-up from the EPG panel
+  is desktop-only for now (`supportsProviderCatchUp`); the PWA timeline shows
+  past programmes without archive actions until a manual check shows that the
+  browser players play the provider's archive URL.
 - The PWA does not use the Electron SQLite database or DB worker. Playlist
   metadata uses `PlaylistsService` with IndexedDB, which
   `PlaylistStorageBackend` selects when no SQLite bridge exists; Xtream
@@ -575,6 +599,22 @@ instance is restricted to trusted users and intentionally needs private network
 IPTV targets. For providers using private certificate authorities, mount the CA
 bundle into the container and set `NODE_EXTRA_CA_CERTS` to that mounted path.
 
+## TV phone setup routes
+
+The backend ships the `tv-setup` Nx application's assets beside `main.cjs`.
+`/tv/setup` serves a phone form; a reverse proxy prefix such as `/api` is retained
+by relative asset and API URLs. `/tv/connection` is a public, credential-free
+protocol discovery response. `/tv/connection/check` and session creation require
+the configured server access token and permitted TV Origin.
+
+The TV session router precedes the storage access guard because phone/TV polling
+uses separate short-lived capabilities, not the global server token. Every
+session operation checks the correct role capability. It does not expose storage
+or provider routes. Drafts live only in bounded backend memory until TV
+confirmation, cancellation or five-minute expiry. The
+[TV architecture](tv-application.md#backend-discovery-and-phone-setup) owns the
+session, receipt, discovery and local persistence contract.
+
 ## Validation
 
 Use the narrow validation ladder for self-hosted changes:
@@ -595,7 +635,8 @@ Docker daemon is available.
 For manual Docker smoke testing, run the Xtream and Stalker mock servers plus a
 small M3U fixture, then verify in the browser that M3U, Xtream, and Stalker can
 add sources, play an item, toggle favorites, populate global favorites,
-populate recently viewed, and appear on the dashboard rails.
+populate recently viewed, and appear on the dashboard rails, and that Xtream
+and Stalker live channels show their provider's programme guide.
 
 ## Service factory and build bases
 

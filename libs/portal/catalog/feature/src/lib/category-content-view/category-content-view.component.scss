@@ -1,4 +1,5 @@
 @use '@angular/material' as mat;
+@use '../../../../../../ui/styles/app-controls' as controls;
 @use '../../../../../../ui/styles/panel-header' as panel;
 
 :host {
@@ -67,8 +68,7 @@
     app-region: no-drag;
 }
 
-.refinement-chip,
-.refine-action {
+.refinement-chip {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -84,20 +84,18 @@
         )
     );
 
-    mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
-    }
-}
-
-.refinement-chip {
     max-width: 220px;
     padding: 0 10px;
     background: var(--mat-sys-surface-container);
     border: 1px solid color-mix(in srgb, var(--app-on-surface) 6%, transparent);
     font-size: 0.78rem;
     font-weight: 600;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
 }
 
 .refinement-chip-label {
@@ -115,22 +113,49 @@
     user-select: none;
 }
 
-.rating-refinement-chip,
-.refine-action.refine-action-active {
+// A Material button host: Material's own colour and icon-padding rules tie
+// with the plain properties above, and Angular removes and re-adds a
+// component's stylesheet with its last instance, so the later sheet would
+// decide. The colour and the tokens agree whichever sheet comes last.
+.rating-refinement-chip {
     color: var(--mat-sys-primary);
+    @include mat.button-overrides(
+        (
+            text-label-text-color: var(--mat-sys-primary),
+            text-state-layer-color: var(--mat-sys-primary),
+            text-horizontal-padding: 10px,
+            text-with-icon-horizontal-padding: 10px,
+        )
+    );
 }
 
+// The kit's toolbar picker: a secondary button whose chevron says it opens
+// a menu. With refinements applied it takes the selected-row tint; the
+// count badge says how many.
 .refine-action {
     grid-area: refine;
     justify-self: end;
-    padding: 0 12px;
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--app-on-surface) 8%, transparent);
+    flex-shrink: 0;
     app-region: no-drag;
+    @include controls.secondary-button(sm);
+
+    &.refine-action-active {
+        @include mat.button-overrides(
+            (
+                filled-container-color: var(--app-list-selected-bg),
+                filled-label-text-color: var(--app-list-selected-fg),
+            )
+        );
+    }
+}
+
+.refine-action__chevron {
+    @include controls.trigger-chevron;
 }
 
 .refine-count {
     display: inline-flex;
+    margin-inline-start: 6px;
     align-items: center;
     justify-content: center;
     min-width: 18px;

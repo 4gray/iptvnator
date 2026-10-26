@@ -7,7 +7,12 @@ import {
     resolveXtreamVodPlaybackSource,
     XtreamVodPlaybackItem,
 } from '../services/xtream-vod-playback-source';
+import {
+    collectionSnapshotMatchesContent,
+    CollectionIdentity,
+} from '../data-sources/pwa-collection-identity';
 import { stripXtreamVodInfoPlaceholders } from './xtream-detail-metadata';
+import { xtreamDetailContentMetadata } from '../xtream-content-metadata.util';
 
 export type XtreamVodSelection = XtreamVodDetails & {
     [key: string]: unknown;
@@ -23,22 +28,52 @@ export interface XtreamVodCatalogCategory {
 }
 
 export function buildXtreamVodSelection(
-    vodDetails: XtreamVodDetails,
+    vodDetails: XtreamVodDetails | null | undefined,
     catalogItem: XtreamVodStream | undefined,
     vodId: string | number,
     recoveredCatalogItem?: XtreamVodStream
 ): XtreamVodSelection {
+    vodDetails ??= { info: [] };
+    const detailStreamId =
+        vodDetails.movie_data?.stream_id ??
+        (vodDetails as XtreamVodPlaybackItem).stream_id;
+    if (detailStreamId != null && Number(detailStreamId) !== Number(vodId)) {
+        vodDetails = { info: [] };
+    }
+    const info = getXtreamVodInfo(vodDetails);
+    const identity = xtreamDetailContentMetadata(info);
+    const matches = (item: XtreamVodStream | undefined): boolean => {
+        if (
+            !item ||
+            Number(item.xtream_id ?? item.stream_id) !== Number(vodId) ||
+            (item.stream_id != null && Number(item.stream_id) !== Number(vodId))
+        )
+            return false;
+        return collectionSnapshotMatchesContent(
+            {
+                tmdb_id: identity?.tmdbId,
+                release_year: identity?.releaseYear,
+            },
+            item as XtreamVodStream & CollectionIdentity,
+            true
+        );
+    };
+    // A provider may reuse a numeric ID. Known conflicting catalog evidence
+    // cannot supply playback fields or presentation for this detail.
+    catalogItem = matches(catalogItem) ? catalogItem : undefined;
+    recoveredCatalogItem = matches(recoveredCatalogItem)
+        ? recoveredCatalogItem
+        : undefined;
     const detailItem = vodDetails as XtreamVodPlaybackItem;
+    const detailSource = resolveXtreamVodPlaybackSource(detailItem);
     const playbackSource =
-        resolveXtreamVodPlaybackSource(detailItem) ??
+        (detailSource?.streamId === Number(vodId) ? detailSource : null) ??
         resolveXtreamVodPlaybackSource(
             recoveredCatalogItem as unknown as XtreamVodPlaybackItem
         ) ??
         resolveXtreamVodPlaybackSource(
             catalogItem as unknown as XtreamVodPlaybackItem
         );
-    const info = getXtreamVodInfo(vodDetails);
-
     return {
         ...catalogItem,
         ...recoveredCatalogItem,
@@ -46,10 +81,8 @@ export function buildXtreamVodSelection(
         ...(info ? { info: stripXtreamVodInfoPlaceholders(info) } : {}),
         stream_id: playbackSource?.streamId ?? Number(vodId),
         container_extension: playbackSource?.containerExtension ?? null,
-        xtream_id:
-            recoveredCatalogItem?.xtream_id ??
-            catalogItem?.xtream_id ??
-            Number(vodId),
+        direct_source: playbackSource?.directSource ?? '',
+        xtream_id: Number(vodId),
     };
 }
 

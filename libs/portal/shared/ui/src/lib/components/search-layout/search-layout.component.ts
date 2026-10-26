@@ -7,6 +7,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
+import { MatButton } from '@angular/material/button';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
@@ -17,6 +18,7 @@ import { InfiniteScrollDirective } from '../../directives/infinite-scroll.direct
     standalone: true,
     imports: [
         InfiniteScrollDirective,
+        MatButton,
         MatIcon,
         MatProgressSpinner,
         TranslatePipe,
@@ -40,6 +42,8 @@ export class SearchLayoutComponent {
 
     /** Whether search is in progress */
     readonly isLoading = input<boolean>(false);
+    readonly hasError = input<boolean>(false);
+    readonly retryClick = output<void>();
 
     /**
      * Whether the page offers Back (a nested search reached via navigation).

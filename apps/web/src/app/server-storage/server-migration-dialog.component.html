@@ -1,69 +1,73 @@
-<h2 mat-dialog-title>
-    {{
+<app-dialog-shell
+    icon="cloud_upload"
+    [heading]="
         'SERVER_STORAGE.MIGRATION_TITLE'
             | translate: { count: playlists.length }
-    }}
-</h2>
-
-<mat-dialog-content class="server-migration">
-    @if (result(); as done) {
-        <p data-test-id="server-migration-result">
-            {{ 'SERVER_STORAGE.MIGRATION_DONE' | translate: done }}
-        </p>
-    } @else {
-        <p>{{ 'SERVER_STORAGE.MIGRATION_DESCRIPTION' | translate }}</p>
-        <ul class="server-migration__list">
-            @for (playlist of playlists; track playlist.id) {
-                <li>
-                    <mat-icon aria-hidden="true">{{
-                        icons[playlist.kind]
-                    }}</mat-icon>
-                    <span>{{ playlist.title }}</span>
-                </li>
-            }
-        </ul>
-        <p class="server-migration__hint">
-            {{ 'SERVER_STORAGE.MIGRATION_LATER_HINT' | translate }}
-        </p>
-        @if (failed()) {
-            <p class="server-migration__error" role="status">
-                {{ 'SERVER_STORAGE.MIGRATION_FAILED' | translate }}
+    "
+    [showClose]="false"
+>
+    <div class="server-migration">
+        @if (result(); as done) {
+            <p data-test-id="server-migration-result">
+                {{ 'SERVER_STORAGE.MIGRATION_DONE' | translate: done }}
             </p>
-        }
-    }
-</mat-dialog-content>
-
-<mat-dialog-actions align="end">
-    @if (result()) {
-        <button
-            mat-flat-button
-            type="button"
-            (click)="reload()"
-            data-test-id="server-migration-reload"
-        >
-            {{ 'SERVER_STORAGE.MIGRATION_RELOAD' | translate }}
-        </button>
-    } @else {
-        <button
-            mat-button
-            type="button"
-            [disabled]="busy()"
-            (click)="notNow()"
-            data-test-id="server-migration-not-now"
-        >
-            {{ 'SERVER_STORAGE.MIGRATION_NOT_NOW' | translate }}
-        </button>
-        <button
-            mat-flat-button
-            type="button"
-            [disabled]="busy()"
-            (click)="move()"
-            data-test-id="server-migration-move"
-        >
-            @if (busy()) {
-                <mat-progress-spinner diameter="16" mode="indeterminate" />
+        } @else {
+            <p>{{ 'SERVER_STORAGE.MIGRATION_DESCRIPTION' | translate }}</p>
+            <ul class="server-migration__list">
+                @for (playlist of playlists; track playlist.id) {
+                    <li>
+                        <mat-icon aria-hidden="true">{{
+                            icons[playlist.kind]
+                        }}</mat-icon>
+                        <span>{{ playlist.title }}</span>
+                    </li>
+                }
+            </ul>
+            <p class="server-migration__hint">
+                {{ 'SERVER_STORAGE.MIGRATION_LATER_HINT' | translate }}
+            </p>
+            @if (failed()) {
+                <p class="server-migration__error" role="status">
+                    {{ 'SERVER_STORAGE.MIGRATION_FAILED' | translate }}
+                </p>
             }
-            {{ 'SERVER_STORAGE.MIGRATION_MOVE' | translate }}
-        </button>
-    }
-</mat-dialog-actions>
+        }
+    </div>
+
+    <!-- The dialog cannot be dismissed: "Not now" is the one way out before
+         the move, "Reload" after it, so the footer carries both states. -->
+    <div appDialogFooter>
+        @if (result()) {
+            <button
+                mat-flat-button
+                type="button"
+                (click)="reload()"
+                data-test-id="server-migration-reload"
+            >
+                {{ 'SERVER_STORAGE.MIGRATION_RELOAD' | translate }}
+            </button>
+        } @else {
+            <button
+                mat-button
+                type="button"
+                [disabled]="busy()"
+                (click)="notNow()"
+                data-test-id="server-migration-not-now"
+            >
+                {{ 'SERVER_STORAGE.MIGRATION_NOT_NOW' | translate }}
+            </button>
+            <button
+                mat-flat-button
+                type="button"
+                [disabled]="busy()"
+                (click)="move()"
+                data-test-id="server-migration-move"
+            >
+                @if (busy()) {
+                    <mat-progress-spinner diameter="16" mode="indeterminate" />
+                }
+                {{ 'SERVER_STORAGE.MIGRATION_MOVE' | translate }}
+            </button>
+        }
+    </div>
+</app-dialog-shell>

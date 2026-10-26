@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     computed,
     DestroyRef,
@@ -112,6 +113,7 @@ export class DashboardHeroSlidesPresenter {
     /** The first candidate channel with a programme on air right now. */
     private readonly liveSlide = computed(() => {
         for (const candidate of this.liveEpg.heroLiveCandidates()) {
+            if (isCatalogUnavailable(candidate.item)) continue;
             const details = this.liveEpg.heroDetailsFor(candidate.item);
             if (details?.nowPlayingTitle) {
                 return { candidate, details };
@@ -122,19 +124,27 @@ export class DashboardHeroSlidesPresenter {
 
     private readonly sources = computed(() =>
         pickDashboardHeroSources({
-            continueItems: this.data.continueWatchingItems(),
+            continueItems: this.data
+                .continueWatchingItems()
+                .filter((item) => !isCatalogUnavailable(item)),
             live: this.liveSlide()?.candidate ?? null,
-            reserveLive: this.liveEpg.heroLiveCandidates().length > 0,
+            reserveLive: this.liveEpg
+                .heroLiveCandidates()
+                .some(({ item }) => !isCatalogUnavailable(item)),
             favorites: this.data
                 .globalFavoriteItems()
                 .filter(
-                    (item) => item.type === 'movie' || item.type === 'series'
+                    (item) =>
+                        !isCatalogUnavailable(item) &&
+                        (item.type === 'movie' || item.type === 'series')
                 ),
             recentlyAdded: this.data.xtreamRecentlyAddedItems(),
             // Until the resume candidates are known the newest row may be one
             // of them; featuring it as the fallback would swap the slide.
             mostRecent: this.data.continueWatchingSettled()
-                ? (this.data.globalRecentItems()[0] ?? null)
+                ? (this.data
+                      .globalRecentItems()
+                      .find((item) => !isCatalogUnavailable(item)) ?? null)
                 : null,
         })
     );

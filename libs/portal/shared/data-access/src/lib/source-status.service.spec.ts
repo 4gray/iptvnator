@@ -235,6 +235,34 @@ describe('SourceStatusService', () => {
             expect(service.statusOf(xtream)?.reachability).toBe('expired');
         });
 
+        it('forwards the playlist User-Agent to cached, normal and fresh checks', async () => {
+            const userAgent =
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+            const playlist = { ...xtream, userAgent };
+            const service = create(false);
+            service.ensureChecked(playlist, new AbortController().signal);
+            await Promise.resolve();
+            expect(portal.getCachedStatus).toHaveBeenCalledWith(
+                'http://x.test',
+                'u',
+                'p',
+                userAgent
+            );
+            expect(portal.checkPortalStatus).toHaveBeenCalledWith(
+                'http://x.test',
+                'u',
+                'p',
+                { userAgent }
+            );
+            service.recheck(playlist);
+            expect(portal.checkPortalStatus).toHaveBeenLastCalledWith(
+                'http://x.test',
+                'u',
+                'p',
+                { userAgent, skipCache: true }
+            );
+        });
+
         it('serves a cached portal status without a request', () => {
             portal.getCachedStatus.mockReturnValue('inactive');
             const service = create(false);
@@ -282,7 +310,7 @@ describe('SourceStatusService', () => {
                 'http://x.test',
                 'u',
                 'p',
-                { skipCache: true }
+                { userAgent: undefined, skipCache: true }
             );
         });
     });

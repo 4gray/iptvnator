@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util/playlist-file-import';
 import type { ElectronBridgePlaylistOpenRequest } from '@iptvnator/shared/interfaces';
@@ -24,7 +24,7 @@ type PlaylistOpenRequestBridge = {
 @Injectable({ providedIn: 'root' })
 export class PlaylistOpenRequestService {
     private readonly importService = inject(PlaylistFileImportService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly snackBar = inject(LazySnackBar);
     private readonly translate = inject(TranslateService);
 
     private started = false;
@@ -102,7 +102,7 @@ export class PlaylistOpenRequestService {
             return;
         }
 
-        this.snackBar.open(
+        void this.snackBar.open(
             this.translate.instant('HOME.FILE_UPLOAD.OPEN_FAILED', {
                 filename: request.fileName || request.filePath,
             }),

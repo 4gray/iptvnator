@@ -1,12 +1,14 @@
 @use '@angular/material' as mat;
-::ng-deep .mat-mdc-dialog-content {
-    overflow: hidden !important;
-}
 
-.mat-mdc-dialog-content {
+// The list is the only part that scrolls: inside the shell's column body
+// the wrapper flexes to the height left under the cap, and the list flexes
+// inside it, so the search and bulk actions stay put.
+.category-management {
     display: flex;
-    gap: 10px;
     flex-direction: column;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .loading-container {
@@ -135,7 +137,11 @@
     }
 
     mat-checkbox {
-        @include mat.checkbox-overrides((state-layer-size: 28px));
+        @include mat.checkbox-overrides(
+            (
+                state-layer-size: 28px,
+            )
+        );
     }
 }
 
@@ -154,19 +160,9 @@
     font-size: 0.8125rem;
 }
 
-:host ::ng-deep {
-    .mat-mdc-dialog-content {
-        max-width: 600px;
-        max-height: 85vh !important;
-    }
-}
-
-mat-dialog-actions {
-    button {
-        mat-spinner {
-            display: inline-block;
-        }
-    }
+// The saving spinner replaces the label inside the accent button.
+[appDialogFooter] button mat-spinner {
+    display: inline-block;
 }
 
 .selection-info__locks {

@@ -156,6 +156,20 @@ it lies beyond loaded provider pages. This row is deduplicated once it arrives
 in provider results and discarded on browsing or playback changes; returning
 never crawls the catalog. Raw provider rows alone extend the playback queue.
 
+## Translation and navigation labels
+
+The remote follows the phone browser's first supported language, independently
+of desktop settings. It loads `pt-PT` for Portugal and other explicit Portuguese
+regions, and `pt-BR` for Brazil or bare `pt` (the legacy Brazilian default).
+Portuguese tags accept case and underscore variants; `<html lang>` uses the
+canonical region of the loaded translation. The translation list is tested
+against the shipped catalogue files.
+
+Channel up means the previous row in the captured playback list; channel down
+means the next row, with wrapping at either end. The UI uses ↑/↓ and matching
+previous/next accessible labels, rather than suggesting that up increments the
+channel number. Endpoint names and playback order remain stable.
+
 ## Shared helpers
 
 - File: `libs/portal/shared/util/src/lib/remote-channel-navigation.ts`
@@ -279,6 +293,9 @@ Implemented behavior:
 - Channel up/down and number select navigate `visibleChannels()` — the
   search-filtered, mode-conditionally sorted list derived by the same
   `deriveVisibleFavoriteChannels` helper the rendered sidebar uses
+- Up/down skips favorites marked missing or unknown. Number select and status
+  retain the full visible list's numbering; selecting an unavailable row by
+  number does nothing.
 - Remote actions play via the same path as an explicit double-click
   (`activateItem(item, false, true)`), so external MPV/VLC starts
   immediately
@@ -322,7 +339,7 @@ Implemented UI behavior:
   The phone never sees the desktop language setting, so the app shell picks
   the first browser language with a translation
   (`resolveRemoteControlLanguage`, English otherwise) and sets `<html lang>`
-  to it.
+  to it. Ukrainian browser preferences (`uk` and `uk-UA`) load `uk.json`.
 - Polls `/status` every 2s
 - Uses action wrapper to refresh status after command execution
 

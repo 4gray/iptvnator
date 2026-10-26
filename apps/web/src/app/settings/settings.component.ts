@@ -26,6 +26,7 @@ import {
     injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     Language,
@@ -234,7 +235,7 @@ export class SettingsComponent
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
-        supportsEpg: this.supportsEpg,
+        supportsEpg: this.form.supportsEpgDisplay,
         supportsRemoteControl: this.supportsRemoteControl,
         supportsServerStorage: this.supportsServerStorage,
     });
@@ -422,7 +423,7 @@ export class SettingsComponent
                     { canSave: boolean },
                     SettingsUnsavedChangesChoice
                 >(SettingsUnsavedChangesDialogComponent, {
-                    width: '440px',
+                    ...dialogSize('sm'),
                     data: { canSave: this.settingsForm.valid },
                 })
                 .afterClosed()

@@ -38,6 +38,7 @@ interface PortalStatusCacheEntry {
 }
 
 interface CheckPortalStatusOptions {
+    userAgent?: string | null;
     /**
      * Skip the cache and force a fresh round-trip. Use for explicit user
      * actions like "Test Connection" buttons; default behavior (cache hit
@@ -64,7 +65,8 @@ export class PortalStatusService {
 
     /**
      * Process-lifetime cache shared across all consumers (playlist switcher,
-     * recent playlists item, etc.). Same credential triple = same cache
+     * recent playlists item, etc.). Same credentials and normalized User-Agent
+     * share a cache
      * entry, so opening the homepage and then the switcher within 30 s
      * skips redundant IPC + HTTPS round-trips.
      */
@@ -115,7 +117,8 @@ export class PortalStatusService {
         const connection = this.normalizeConnection(
             serverUrl,
             username,
-            password
+            password,
+            options?.userAgent
         );
         if (!connection) {
             return { status: 'unavailable', expiresAtSeconds: null };
@@ -124,7 +127,8 @@ export class PortalStatusService {
         const cacheKey = this.buildCacheKey(
             connection.serverUrl,
             connection.username,
-            connection.password
+            connection.password,
+            connection.userAgent
         );
 
         const cachedAtStart = this.cache.get(cacheKey);
@@ -154,7 +158,8 @@ export class PortalStatusService {
         const request = this.fetchPortalStatus(
             connection.serverUrl,
             connection.username,
-            connection.password
+            connection.password,
+            connection.userAgent
         )
             .then((details) => {
                 if (this.inFlight.get(cacheKey) === request) {
@@ -185,18 +190,20 @@ export class PortalStatusService {
     }
 
     /**
-     * Synchronous read of the cached status for a credential triple.
+     * Synchronous read of the cached status for credentials and User-Agent.
      * Returns null if no entry exists or the entry has expired.
      */
     getCachedStatus(
         serverUrl: string,
         username: string,
-        password: string
+        password: string,
+        userAgent?: string | null
     ): PortalStatus | null {
         const connection = this.normalizeConnection(
             serverUrl,
             username,
-            password
+            password,
+            userAgent
         );
         if (!connection) {
             return null;
@@ -206,7 +213,8 @@ export class PortalStatusService {
             this.buildCacheKey(
                 connection.serverUrl,
                 connection.username,
-                connection.password
+                connection.password,
+                connection.userAgent
             )
         );
         if (!cached) {
@@ -223,18 +231,21 @@ export class PortalStatusService {
         serverUrl: string,
         username: string,
         password: string,
-        response: XtreamPortalStatusResponseLike | undefined
+        response: XtreamPortalStatusResponseLike | undefined,
+        userAgent?: string | null
     ): void {
         const connection = this.normalizeConnection(
             serverUrl,
             username,
-            password
+            password,
+            userAgent
         );
         if (!connection) return;
         const key = this.buildCacheKey(
             connection.serverUrl,
             connection.username,
-            connection.password
+            connection.password,
+            connection.userAgent
         );
         const info = response?.user_info;
         if (info) {
@@ -274,19 +285,22 @@ export class PortalStatusService {
     private buildCacheKey(
         serverUrl: string,
         username: string,
-        password: string
+        password: string,
+        userAgent?: string
     ): string {
-        return `${serverUrl}|${username}|${password}`;
+        return JSON.stringify([serverUrl, username, password, userAgent ?? '']);
     }
 
     private normalizeConnection(
         serverUrl: string,
         username: string,
-        password: string
+        password: string,
+        userAgent?: string | null
     ): {
         password: string;
         serverUrl: string;
         username: string;
+        userAgent?: string;
     } | null {
         try {
             const normalizedUsername = username.trim();
@@ -299,6 +313,7 @@ export class PortalStatusService {
                 serverUrl: normalizeXtreamServerUrl(serverUrl),
                 username: normalizedUsername,
                 password: normalizedPassword,
+                userAgent: userAgent?.trim() || undefined,
             };
         } catch {
             return null;
@@ -308,7 +323,8 @@ export class PortalStatusService {
     private async fetchPortalStatus(
         serverUrl: string,
         username: string,
-        password: string
+        password: string,
+        userAgent?: string
     ): Promise<PortalStatusDetails> {
         for (const action of XTREAM_STATUS_ACTIONS) {
             try {
@@ -317,6 +333,7 @@ export class PortalStatusService {
                         'XTREAM_REQUEST',
                         {
                             url: serverUrl,
+                            ...(userAgent ? { userAgent } : {}),
                             params: {
                                 ...(action ? { action } : {}),
                                 password,

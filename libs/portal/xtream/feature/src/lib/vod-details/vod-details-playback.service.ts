@@ -38,7 +38,10 @@ import {
     createExternalLaunchOwner,
     startRouteOwnedPlayback,
 } from './vod-details-external-launch-owner';
-import { injectXtreamRecentHistory } from '../xtream-recent-history';
+import {
+    injectXtreamRecentHistory,
+    xtreamPlayedDetail,
+} from '../xtream-recent-history';
 import {
     settleOwnedExternalLaunch,
     VodExternalLaunchClaim,
@@ -171,6 +174,8 @@ export class VodDetailsPlaybackService {
         if (!source || !playlist) {
             return null;
         }
+        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
+        if (!streamUrl) return null;
 
         const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         // Master's sparse-details fallback: a provider that omits the route
@@ -195,7 +200,7 @@ export class VodDetailsPlaybackService {
             contentType: 'vod',
         };
         return {
-            streamUrl: this.xtreamStore.constructVodStreamUrl(vodItem),
+            streamUrl,
             title: presentation.title,
             thumbnail: presentation.posterUrl,
             ...(position ? { startTime: position.positionSeconds } : {}),
@@ -406,6 +411,11 @@ export class VodDetailsPlaybackService {
                 xtreamId: this.bindings()?.vodId() ?? NaN,
                 contentType: 'movie',
                 backdropUrl: this.bindings()?.vodInfo()?.backdrop_path?.[0],
+                playedContent: xtreamPlayedDetail(
+                    this.bindings()?.vodInfo(),
+                    playback.title,
+                    playback.thumbnail
+                ),
             });
             return await this.applyPlayback(playback, isCurrent, player);
         } finally {

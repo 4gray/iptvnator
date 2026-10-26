@@ -1,4 +1,5 @@
 export * from './lib/channel-list-container/channel-list-container.component';
+export * from './lib/channel-list-container/channel-context-menu/channel-context-menu.component';
 export * from './lib/channel-list-container/channel-details-dialog/channel-details-dialog.component';
 export * from './lib/channel-list-container/epg-mapping-dialog/epg-mapping-dialog.component';
 export * from './lib/channel-list-container/channel-list-item/channel-list-item.component';
@@ -15,7 +16,6 @@ export * from './lib/lazy-dialog/lazy-mat-dialog';
 export * from './lib/portal-detail-shell/content-about.component';
 export * from './lib/portal-detail-shell/detail-template.directives';
 export * from './lib/portal-detail-shell/portal-detail-shell.component';
-export * from './lib/view-in-portal-action/view-in-portal-action.component';
 export * from './lib/view-in-portal-action/view-in-portal-handoff.token';
 export * from './lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component';
 export * from './lib/password-visibility-toggle/password-visibility-toggle.directive';
@@ -36,6 +36,7 @@ export * from './lib/watched-badge/watched-badge.component';
 export * from './lib/window-controls/window-controls.component';
 
 export * from './lib/channel-scroll-focus/channel-scroll-focus.directive';
+export * from './lib/scroll-position/create-scroll-position-preserver';
 export * from './lib/category-lock-menu/category-lock-menu.component';
 export * from './lib/menu-item-radio/menu-item-radio.directive';
 

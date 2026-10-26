@@ -5,7 +5,19 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 describe('database initialization across skipped releases (#1580)', () => {
-    it.each(['0.19.0', '0.20.0', '0.21.0', '0.22.0', '0.23.0', 'fresh'])(
+    it.each([
+        '0.19.0',
+        '0.20.0',
+        '0.21.0',
+        '0.22.0',
+        '0.23.0',
+        '0.24.0',
+        '0.19.0-duplicates',
+        '0.19.0-orphans',
+        '0.24.0-orphans',
+        'fresh',
+        'rollback',
+    ])(
         'preserves %s data and indexes across upgrade and repeated startup',
         (version) => {
             const dataDir = mkdtempSync(join(tmpdir(), 'iptvnator-upgrade-'));
@@ -13,12 +25,12 @@ describe('database initialization across skipped releases (#1580)', () => {
                 'electron'
             ) as string;
             const fixture =
-                version === 'fresh'
-                    ? 'fresh'
+                version === 'fresh' || version === 'rollback'
+                    ? version
                     : resolve(
                           __dirname,
                           'testing/fixtures',
-                          `v${version}-schema.sql`
+                          `v${version.replace(/-(duplicates|orphans)$/, '')}-schema.sql`
                       );
             try {
                 const output = execFileSync(
@@ -28,6 +40,11 @@ describe('database initialization across skipped releases (#1580)', () => {
                         'tsx',
                         resolve(__dirname, 'testing/connection-upgrade.ts'),
                         fixture,
+                        version.endsWith('-duplicates')
+                            ? 'deduplicate'
+                            : version.endsWith('-orphans')
+                              ? 'orphans'
+                              : '',
                     ],
                     {
                         cwd: process.cwd(),

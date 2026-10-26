@@ -730,10 +730,11 @@ with a plain `@if (epgViewMode() === 'list') { <app-epg-list-view … /> } @else
 `epgViewMode` from `SettingsStore` (a signal), so flipping the setting swaps the
 panel live. The setting flows end-to-end (`Settings.epgViewMode` →
 `DEFAULT_SETTINGS` → `SettingsStore`/`StorageMap` → the segmented control in
-`settings-epg-section`) and needs no backend change. The control is
-**Electron-only in practice** — the EPG settings section (and the form control)
-is gated behind `supportsEpg`, which is false in PWA; there the stored value
-simply stays at the `'timeline'` default.
+`settings-epg-section`) and needs no backend change. The control and the
+offset below are the EPG page's display rows: they render wherever a guide
+exists (`SettingsFormFacade.supportsEpgDisplay`, XMLTV or a portal's own),
+including the browser PWA, while the page's XMLTV rows (sources, Xtream
+preference, clear data) need the import and data-management bridges.
 
 ### EPG display offset
 
@@ -787,8 +788,8 @@ rather than a wrong one; under a negative offset the short-EPG window is widened
 instead (`shortEpgWindowSize`, 15-minute slots, capped at 50 — the sidebar queue,
 the active channel's panel fallback and the collection resolver all use it) so
 it still reaches the programme on air, and preview cache entries are tagged with
-the offset they were fetched for. Like the view mode, the control is Electron-only in practice —
-it sits behind `supportsEpg`.
+the offset they were fetched for. Like the view mode, the control renders
+wherever a guide exists, the browser PWA's provider guides included.
 
 Both components stay presentation-focused; the reusable, view-agnostic pieces
 (shared by the timeline and the list) are split out and re-exported from
@@ -1179,6 +1180,11 @@ and stream backpressure. Invalid or truncated gzip fails the import; it is not
 retried as plain XML. Source errors and consumer cancellation terminate the
 whole decoding chain. The decoder does not recursively unpack file layers or
 change XML parsing, source reconciliation, or database persistence contracts.
+
+After all decompression stages, the parser worker uses a single UTF-8 stream
+decoder per import. It retains incomplete multibyte characters across chunks
+and flushes before finishing SAX parsing, preserving channel IDs and programme
+text in both remote and local feeds without buffering the whole guide.
 
 ### Local XMLTV files
 
@@ -1771,6 +1777,38 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 
 ### XMLTV source lifecycle
 
+The parser worker stages incoming channel and programme batches in
+connection-private, file-backed SQLite temporary tables. It publishes the new
+guide only after the stream and XML parser finish successfully with at least one
+channel. Source replacement, channel provenance/freshness, programmes and FTS
+updates commit in one transaction; an insert failure rolls back the entire
+replacement. A truncated stream, invalid XML, empty feed or worker terminated
+before publication leaves the previous guide available. Temporary rows disappear
+when the worker connection closes. Downloads do not hold the live database write lock, and the
+final commit reads bounded batches instead of loading the whole feed into JS
+memory. The existing source isolation and seven-day archive policy still apply.
+UTF-8 decoding retains partial code points across decoded stream chunks. Progress
+counts describe staged rows, not visible rows; success is sent only after commit
+and connection close. An empty feed remains an error. Channel-only feeds keep
+the existing replacement semantics.
+
+Temporary storage grows with the serialized feed (in addition to live database
+and WAL space); its SQLite page cache is capped at 2 MiB, not its disk usage.
+The final publication holds the writer transaction for the complete replacement,
+so other writers can wait up to their busy timeout or fail and retry. WAL readers
+continue seeing the preceding committed guide. A terminated worker inside the
+transaction rolls it back; once SQLite commits, the new guide is valid. Source
+removal and Clear All still retire generations and await confirmed worker exit
+before deleting rows, including when termination races publication. Imports
+remain serialized by `EpgWorkerService`; do not bypass its shutdown barriers.
+
+`epg-import-atomicity.spec.ts` exercises the real parser worker and native SQLite,
+including a termination barrier after a full publication batch, retry, source
+freshness, archive retention and FTS integrity. `epg-import-atomicity.e2e.ts`
+covers renderer IPC errors, retry and removal during staging. `epg.e2e.ts`
+asserts that Refresh All and Clear All observe staging progress while live rows
+remain unchanged; batch progress must never be used as a live-row-count barrier.
+
 Electron treats `Settings.epgUrl` as the committed global source list. Removing
 an input is a draft edit; only a successful IndexedDB write authorizes source
 reconciliation. A storage write failure restores the previous in-memory EPG
@@ -1811,6 +1849,43 @@ Same-URL clears are serialized and replacement imports await the outstanding
 clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
 also awaits the in-flight fetch promise when an error/timeout has already removed
 the worker from the lookup but its termination is still pending.
+Clear All retires every import generation, including queued batches, pending
+freshness reads and local-file permission prompts. It gates new imports, stops
+writers and awaits their actual exit (including imports already settling after
+an error) before starting the database clear worker. Failed shutdown rejects the
+clear and remains retryable. A `CLEAR_COMPLETE` message confirms the database
+operation only: both global and source-clear IPC wait for confirmed worker
+shutdown before acknowledging success. If that shutdown fails, the clear rejects
+and the retained worker must stop successfully before a retry or import can start.
+Existing source clears finish before the global
+clear; later source clears and fetches wait behind it. Overlapping global clears
+share the same operation while retiring requests queued since the earlier call.
+A late local-file approval cannot restart a retired import or delay cache clearing.
+All imports share one admission queue across IPC requests and ordinary batches,
+including Refresh All's separate per-source requests. A worker keeps the slot until
+its import and termination settle; failures release the slot, while the strict
+shutdown barrier still prevents a new writer after an unconfirmed exit. Same-URL
+requests share their queued or active import. Local-file authorization happens
+before admission, so an open prompt holds no import slot. Each queued request
+retains its original generation: source cleanup and Clear All retire it before
+admission, without waiting for queued work or pending prompts to finish.
+Explicit Refresh bypasses both persisted 12-hour freshness and the session cache;
+normal background fetches retain those shortcuts. Refresh still shares an active
+same-source fetch and preserves trust options, local-file authorization and source
+retirement checks. Once that fetch has emitted completion or failure, a new
+Refresh waits for its worker shutdown and starts a replacement instead of reusing
+its terminal result. Concurrent retries share the replacement; a clear during
+shutdown retires it. Failed worker shutdown must succeed before another import
+can write, and a failed retry reports an error rather than leaving progress queued.
+Fetch admission checks shutdown after local-file authorization, immediately before
+creating the worker. Source clears apply the same strict shutdown barrier even
+when the previous import or clear has already settled. Both paths recheck after
+every wait, so a newly pending shutdown cannot be bypassed while another worker
+is stopping; generation retirement still cancels imports waiting at this barrier.
+Stopping an active import for source cleanup also enters the shared runtime
+shutdown registry. Imports of other sources therefore wait for that stop or fail
+if it cannot complete, while overlapping source/global clears share its promise.
+
 Every removed source emits generation-scoped cancellation before cleanup starts,
 including retained actionable errors whose workers have already finished. Retired
 queued/running imports also cancel their own generation. Retry waits for source

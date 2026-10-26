@@ -212,6 +212,8 @@ export class VodDetailsDownloadsService {
         if (!source) {
             return;
         }
+        const url = this.xtreamStore.constructVodStreamUrl(vodItem);
+        if (!url) return;
 
         const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         const info = getXtreamVodInfo(vodItem);
@@ -226,7 +228,7 @@ export class VodDetailsDownloadsService {
             xtreamId: id,
             contentType: 'vod',
             title: presentation.title,
-            url: this.xtreamStore.constructVodStreamUrl(vodItem),
+            url,
             posterUrl: presentation.posterUrl,
             metadataSnapshot: createMovieDownloadSnapshot({
                 language:

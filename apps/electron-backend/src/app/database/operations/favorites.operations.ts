@@ -1,5 +1,6 @@
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
+import { XTREAM_FAVORITE_IDENTITY_CONFLICT } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
     chunkValues,
@@ -9,6 +10,12 @@ import {
 } from './operation-control';
 import { persistContentMetadataIfMissing } from './content-metadata.operations';
 
+import {
+    findFavoriteContent,
+    favoriteMatchesContentId,
+} from './favorite-catalog';
+import { selectFavoriteRows } from './favorite-queries';
+
 const DEFAULT_BATCH_SIZE = 100;
 
 export async function addFavorite(
@@ -16,29 +23,56 @@ export async function addFavorite(
     contentId: number,
     playlistId: string,
     options?: { backdropUrl?: string }
-): Promise<{ success: boolean }> {
-    await db.insert(schema.favorites).values({
-        contentId,
-        playlistId,
-    });
-
+): Promise<{ success: boolean; error?: string }> {
+    let content = await findFavoriteContent(db, playlistId, { contentId });
+    if (!content)
+        throw new Error('Favorite content does not belong to the playlist');
     await persistContentMetadataIfMissing(db, contentId, {
         backdropUrl: options?.backdropUrl,
     });
+    content =
+        (await findFavoriteContent(db, playlistId, { contentId })) ?? content;
+    await db
+        .insert(schema.favorites)
+        .values({
+            contentId,
+            playlistId,
+            xtreamId: content.xtreamId,
+            type: content.type,
+            title: content.title,
+            posterUrl: content.posterUrl,
+            backdropUrl: content.backdropUrl,
+            tmdbId: content.tmdbId,
+            releaseYear: content.releaseYear,
+            originalTitle: content.originalTitle,
+        })
+        .onConflictDoNothing({
+            target: [
+                schema.favorites.playlistId,
+                schema.favorites.type,
+                schema.favorites.xtreamId,
+            ],
+        });
 
-    return { success: true };
+    // A reused provider ID may already belong to a different saved title.
+    // Keep that favorite and acknowledge only a compatible persisted record.
+    return (await isFavorite(db, contentId, playlistId))
+        ? { success: true }
+        : { success: false, error: XTREAM_FAVORITE_IDENTITY_CONFLICT };
 }
 
 export async function removeFavorite(
     db: AppDatabase,
-    contentId: number,
+    contentId: number | { favoriteId: number },
     playlistId: string
 ): Promise<{ success: boolean }> {
     await db
         .delete(schema.favorites)
         .where(
             and(
-                eq(schema.favorites.contentId, contentId),
+                typeof contentId === 'number'
+                    ? favoriteMatchesContentId(contentId)
+                    : eq(schema.favorites.id, contentId.favoriteId),
                 eq(schema.favorites.playlistId, playlistId)
             )
         );
@@ -56,7 +90,7 @@ export async function isFavorite(
         .from(schema.favorites)
         .where(
             and(
-                eq(schema.favorites.contentId, contentId),
+                favoriteMatchesContentId(contentId),
                 eq(schema.favorites.playlistId, playlistId)
             )
         );
@@ -65,93 +99,36 @@ export async function isFavorite(
 }
 
 export async function getFavorites(db: AppDatabase, playlistId: string) {
-    return db
-        .select({
-            id: schema.content.id,
-            category_id: schema.content.categoryId,
-            title: schema.content.title,
-            rating: schema.content.rating,
-            added: schema.content.added,
-            poster_url: schema.content.posterUrl,
-            xtream_id: schema.content.xtreamId,
-            type: schema.content.type,
-            tv_archive: schema.content.tvArchive,
-            tv_archive_duration: schema.content.tvArchiveDuration,
-            added_at: schema.favorites.addedAt,
-            position: schema.favorites.position,
-        })
-        .from(schema.favorites)
-        .innerJoin(
-            schema.content,
-            eq(schema.favorites.contentId, schema.content.id)
-        )
-        .where(eq(schema.favorites.playlistId, playlistId))
-        .orderBy(
-            asc(schema.favorites.position),
-            desc(schema.favorites.addedAt)
-        );
+    return selectFavoriteRows(db, playlistId);
+}
+
+/** Archive export preserves all user-owned favorites, including locked/missing items. */
+export async function getFavoritesForBackup(
+    db: AppDatabase,
+    playlistId: string
+) {
+    return selectFavoriteRows(db, playlistId, true);
 }
 
 export async function getGlobalFavorites(db: AppDatabase) {
-    const favorites = await selectGlobalFavoriteRows(db, {
-        includeBackdrop: false,
-    });
-
-    return favorites.filter((favorite) => favorite.type === 'live').slice(0, 300);
+    const favorites = await selectFavoriteRows(db);
+    return favorites
+        .filter((favorite) => favorite.type === 'live')
+        .slice(0, 300);
 }
 
 export async function getAllGlobalFavorites(db: AppDatabase) {
-    return selectGlobalFavoriteRows(db, { includeBackdrop: true }).limit(500);
-}
-
-function selectGlobalFavoriteRows(
-    db: AppDatabase,
-    options: { includeBackdrop: boolean }
-) {
-    return db
-        .select({
-            id: schema.content.id,
-            category_id: schema.content.categoryId,
-            title: schema.content.title,
-            rating: schema.content.rating,
-            added: schema.content.added,
-            poster_url: schema.content.posterUrl,
-            ...(options.includeBackdrop
-                ? {
-                      backdrop_url: schema.content.backdropUrl,
-                      tmdb_id: schema.content.tmdbId,
-                      release_year: schema.content.releaseYear,
-                      original_title: schema.content.originalTitle,
-                  }
-                : {}),
-            xtream_id: schema.content.xtreamId,
-            type: schema.content.type,
-            tv_archive: schema.content.tvArchive,
-            tv_archive_duration: schema.content.tvArchiveDuration,
-            playlist_id: schema.playlists.id,
-            playlist_name: schema.playlists.name,
-            added_at: schema.favorites.addedAt,
-            position: schema.favorites.position,
-        })
-        .from(schema.favorites)
-        .innerJoin(
-            schema.content,
-            eq(schema.favorites.contentId, schema.content.id)
-        )
-        .innerJoin(
-            schema.categories,
-            eq(schema.content.categoryId, schema.categories.id)
-        )
-        .innerJoin(
-            schema.playlists,
-            eq(schema.categories.playlistId, schema.playlists.id)
-        )
-        .orderBy(asc(schema.favorites.position), desc(schema.favorites.addedAt));
+    return selectFavoriteRows(db).limit(500);
 }
 
 export async function reorderGlobalFavorites(
     db: AppDatabase,
-    updates: { content_id: number; playlist_id: string; position: number }[],
+    updates: {
+        content_id?: number;
+        favorite_id?: number;
+        playlist_id: string;
+        position: number;
+    }[],
     control?: OperationControl
 ): Promise<{ success: boolean }> {
     if (!Array.isArray(updates) || updates.length === 0) {
@@ -171,7 +148,18 @@ export async function reorderGlobalFavorites(
         .set({ position: sql<number>`${sql.placeholder('position')}` })
         .where(
             and(
-                eq(schema.favorites.contentId, sql.placeholder('contentId')),
+                favoriteMatchesContentId(sql.placeholder('contentId')),
+                eq(schema.favorites.playlistId, sql.placeholder('playlistId'))
+            )
+        )
+        .prepare();
+
+    const updateByFavoriteId = db
+        .update(schema.favorites)
+        .set({ position: sql<number>`${sql.placeholder('position')}` })
+        .where(
+            and(
+                eq(schema.favorites.id, sql.placeholder('favoriteId')),
                 eq(schema.favorites.playlistId, sql.placeholder('playlistId'))
             )
         )
@@ -181,7 +169,21 @@ export async function reorderGlobalFavorites(
         await checkpointOperation(control);
 
         await db.transaction(() => {
-            for (const { content_id, playlist_id, position } of chunk) {
+            for (const {
+                content_id,
+                favorite_id,
+                playlist_id,
+                position,
+            } of chunk) {
+                if (favorite_id !== undefined) {
+                    updateByFavoriteId.run({
+                        position,
+                        favoriteId: favorite_id,
+                        playlistId: playlist_id,
+                    });
+                    continue;
+                }
+                if (content_id === undefined) continue;
                 // Must be .run() (synchronous), NOT .execute(): on the
                 // better-sqlite3 driver .execute() defers the write to a
                 // resolved promise, which never settles inside this

@@ -56,6 +56,30 @@ describe('SettingsStore dashboard rail settings', () => {
         });
     });
 
+    it('migrates legacy Portuguese without losing unrelated settings', async () => {
+        storedSettings = {
+            language: 'pt' as Language,
+            theme: Theme.DarkTheme,
+            epgUrl: ['saved-guide'],
+        };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        expect(store.language()).toBe('pt-BR');
+        expect(store.theme()).toBe(Theme.DarkTheme);
+        expect(store.epgUrl()).toEqual(['saved-guide']);
+        await store.updateSettings({ showDashboard: false });
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                language: 'pt-BR',
+                theme: Theme.DarkTheme,
+                epgUrl: ['saved-guide'],
+            })
+        );
+        await store.updateSettings({ language: 'pt-PT' as Language });
+        expect(store.language()).toBe('pt-PT');
+    });
+
     it('reconciles only after persistence and restores the previous EPG list on a failed save', async () => {
         storedSettings = { epgUrl: ['https://old.example/guide.xml'] };
         const sources = injector.get(EpgSourceSettingsService);

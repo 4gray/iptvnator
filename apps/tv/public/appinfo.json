@@ -1,0 +1,13 @@
+{
+    "id": "com.iptvnator.tv.prototype",
+    "version": "0.1.25",
+    "vendor": "IPTVnator",
+    "type": "web",
+    "main": "index.html",
+    "title": "IPTVnator TV",
+    "icon": "icon.png",
+    "largeIcon": "large-icon.png",
+    "resolution": "1920x1080",
+    "disableBackHistoryAPI": true,
+    "requiredACG": []
+}

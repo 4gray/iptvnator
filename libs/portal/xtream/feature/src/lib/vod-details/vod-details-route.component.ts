@@ -25,13 +25,13 @@ import {
     PortalDetailShellComponent,
     SimilarRailComponent,
     type SimilarRailItem,
-    ViewInPortalActionComponent,
     VodMoreMenuComponent,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     registerContentMetadataBackfill,
+    xtreamDetailContentMetadata,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -81,7 +81,6 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
         MatIcon,
         NgTemplateOutlet,
         PortalDetailShellComponent,
-        ViewInPortalActionComponent,
         SlicePipe,
         TranslateModule,
         PortalInlinePlayerComponent,
@@ -517,7 +516,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.route.snapshot.params['vodId'],
             playlist.id,
             'movie',
-            this.selectedVodInfo()?.backdrop_path?.[0]
+            this.selectedVodInfo()?.backdrop_path?.[0],
+            xtreamDetailContentMetadata(this.selectedVodInfo()) ?? undefined
         );
 
         this.favoritePulse.set(true);

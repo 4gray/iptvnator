@@ -786,15 +786,24 @@ https://streams.example.test/original-url.m3u8
             await dropM3uPlaylistOntoWorkspace(app.mainWindow, localFilePath);
             await waitForM3uCatalog(app.mainWindow);
             // Refresh for the active source lives in its switcher row menu.
-            await app.mainWindow.getByTestId('playlist-switcher-trigger').click();
+            await app.mainWindow
+                .getByTestId('playlist-switcher-trigger')
+                .click();
             const currentRow = app.mainWindow.locator(
                 'app-playlist-switcher-panel [role="option"][aria-current="true"]'
             );
             await currentRow.locator('.source-row__more').click();
             await expect(
-                app.mainWindow.getByRole('menuitem', { name: 'Refresh playlist' })
+                app.mainWindow.getByRole('menuitem', {
+                    name: 'Refresh playlist',
+                })
             ).toBeVisible();
             await app.mainWindow.keyboard.press('Escape');
+            // Material retains the nested menu overlay during its exit animation.
+            // Wait for detachment before sending Escape to the switcher beneath it.
+            await expect(
+                app.mainWindow.getByRole('menu', { includeHidden: true })
+            ).toHaveCount(0);
             await app.mainWindow.keyboard.press('Escape');
             await expect(
                 app.mainWindow.locator('app-playlist-switcher-panel')

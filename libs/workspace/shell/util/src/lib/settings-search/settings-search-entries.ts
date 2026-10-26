@@ -91,7 +91,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.EPG_VIEW_MODE',
         descriptionKey: 'SETTINGS.EPG_VIEW_MODE_DESCRIPTION',
         keywords: ['epg', 'tv guide', 'timeline', 'grid', 'programme'],
-        requires: ['epg'],
+        requires: ['epg-display'],
     },
     {
         id: 'epg-offset',
@@ -99,7 +99,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.EPG_OFFSET_TITLE',
         descriptionKey: 'SETTINGS.EPG_OFFSET_HINT',
         keywords: ['epg', 'timezone', 'time shift', 'offset', 'hours'],
-        requires: ['epg'],
+        requires: ['epg-display'],
     },
     {
         id: 'epg-sources',

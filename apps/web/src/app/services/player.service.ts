@@ -10,6 +10,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { LazyMatDialog } from '@iptvnator/ui/components/lazy-dialog';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import { SettingsStore } from './settings-store.service';
 
 @Injectable({
@@ -94,7 +95,7 @@ export class PlayerService {
             this.loadExternalPlayerInfoDialog(),
         ])
             .then(([dialog, { ExternalPlayerInfoDialogComponent }]) =>
-                dialog.open(ExternalPlayerInfoDialogComponent)
+                dialog.open(ExternalPlayerInfoDialogComponent, dialogSize('sm'))
             )
             .catch((error: unknown) => {
                 // Informational only: playback is already starting.
