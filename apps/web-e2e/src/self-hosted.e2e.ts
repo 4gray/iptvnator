@@ -175,41 +175,75 @@ for (const failure of ['invalid-json', 'storage-denied']) {
     });
 }
 
-test('@self-hosted restores the original library when pending discovery recovers to a stateless backend', async ({
+for (const legacy of [false, true]) {
+    test(`@self-hosted restores original library after pending discovery (legacy404=${legacy})`, async ({
+        page,
+    }) => {
+        await addM3uPlaylist(page);
+        let offline = true;
+        await page.route(`${WEB_BACKEND_URL}/v1/instance`, (route) =>
+            offline
+                ? route.abort('connectionfailed')
+                : legacy
+                  ? route.fulfill({
+                        status: 404,
+                        contentType: 'text/html',
+                        body: 'Not found',
+                    })
+                  : route.continue()
+        );
+        await page.reload();
+        const status = page.locator('[data-test-id="source-sync-status"]');
+        await expect(status).toContainText('Server unavailable');
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    () =>
+                        JSON.parse(
+                            localStorage.getItem('iptvnator:source-server') ??
+                                'null'
+                        )?.instanceId
+                )
+            )
+            .toBe(`pending:${WEB_BACKEND_URL}`);
+        offline = false;
+        await status
+            .getByRole('button', { name: 'Refresh', exact: true })
+            .click();
+        await expect(status).toHaveCount(0);
+        await page.goto('/workspace/sources');
+        await expect(sourceRowByTitle(page, 'Self-hosted M3U')).toBeVisible();
+        expect(
+            await page.evaluate(() =>
+                localStorage.getItem('iptvnator:source-server')
+            )
+        ).toBeNull();
+        expect(
+            await page.evaluate(() =>
+                localStorage.getItem('iptvnator:source-server-disabled')
+            )
+        ).toBeNull();
+    });
+}
+
+test('@self-hosted keeps the original library with a legacy proxy lacking discovery', async ({
     page,
 }) => {
     await addM3uPlaylist(page);
-    let offline = true;
     await page.route(`${WEB_BACKEND_URL}/v1/instance`, (route) =>
-        offline ? route.abort('connectionfailed') : route.continue()
+        route.fulfill({
+            status: 404,
+            contentType: 'text/html',
+            body: 'Not found',
+        })
     );
     await page.reload();
-    const status = page.locator('[data-test-id="source-sync-status"]');
-    await expect(status).toContainText('Server unavailable');
-    await expect
-        .poll(() =>
-            page.evaluate(
-                () =>
-                    JSON.parse(
-                        localStorage.getItem('iptvnator:source-server') ??
-                            'null'
-                    )?.instanceId
-            )
-        )
-        .toBe(`pending:${WEB_BACKEND_URL}`);
-    offline = false;
-    await status.getByRole('button', { name: 'Refresh', exact: true }).click();
-    await expect(status).toHaveCount(0);
     await page.goto('/workspace/sources');
     await expect(sourceRowByTitle(page, 'Self-hosted M3U')).toBeVisible();
+    await expect(page.getByTestId('source-sync-status')).toHaveCount(0);
     expect(
         await page.evaluate(() =>
             localStorage.getItem('iptvnator:source-server')
-        )
-    ).toBeNull();
-    expect(
-        await page.evaluate(() =>
-            localStorage.getItem('iptvnator:source-server-disabled')
         )
     ).toBeNull();
 });

@@ -847,3 +847,40 @@ same-name-spec warnings. All 94 shared-TMDB tests passed on the preceding
 integration. Exact CI production initial bytes pass at 1,200,246 within the
 unchanged 1,200,301 limit. Six affected lint projects, application and affected
 spec/E2E types, 21-catalogue i18n, release notes, skills and agent guidance pass.
+
+### Local review fifteen and CI follow-up
+
+Codex reviewed committed revision `fcce412fcabad6569f6d11bd2f3e60f10288c18a`
+and found two valid P2 issues. An interrupted first native synchronization could
+deadlock while deleting cached rows: parental cleanup awaited settings, whose
+EPG reconciliation awaited source initialization. Cleanup now releases that
+initialization wait before awaiting hooks; the store still rejects incomplete
+inventory until projection succeeds. The regression failed before the fix.
+A real native restart scenario seeds an incomplete receipt and parental locks,
+deletes the source remotely, then verifies initialization and lock removal.
+
+Discovery now preserves standalone behavior for legacy stateless backends that
+return HTTP 404 without JSON. Pending discovery can return to the original
+library after the same response; confirmed server profiles retain their cache
+and recovery controls. The transport revokes previous proof on discovery 404.
+Unit regressions and production PWA scenarios cover initial and pending legacy
+discovery. The initial-discovery regression failed against the previous code.
+
+The first published revision's CI exposed a missing component-local Material
+form-field defaults provider in Server settings. The component now supplies the
+shared provider; the exact repository guard fails before this addition and
+passes afterwards. The same CI round confirmed the initial-bytes failure already
+reproduced and fixed locally, while Docker, platform builds and most platform
+E2E checks passed. These older-head checks are not the final merge gate.
+
+Final local checks before review sixteen pass: 29 Chromium production PWA
+scenarios and ten mixed PWA/Electron scenarios; all 990 service and 564 web
+tests with coverage. Merged coverage across 36 projects passes unchanged gates
+at statements 84.95%, branches 75.98%, functions 83.13%, lines 85.33%.
+The first browser run exceeded the existing 30-second deadline in the shared
+source rename scenario; the complete rerun with tracing passes, including that
+scenario in 17.4 seconds, without changing its deadline. Four owning lint
+targets, application/spec/E2E types, Material form-field/theme guards, Playwright
+task graphs, 169 release notes and agent guidance pass. Exact CI production
+initial bytes pass at 1,200,265 within the unchanged 1,200,301-byte limit.
+The base remains `197efc0ae2ac4f1d853edf07f21a52d59911092a` after fetching.

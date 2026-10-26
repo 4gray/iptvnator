@@ -109,16 +109,25 @@ describe('source transport identity revocation', () => {
         ).toHaveProperty('Authorization');
     });
     it('revokes authorization for a JSON server-side failure too', async () => {
-        globalThis.fetch = jest
-            .fn()
-            .mockResolvedValue({
-                status: 500,
-                headers: new Headers({ 'content-type': 'application/json' }),
-                json: async () => ({ code: 'storage_error' }),
-            });
+        globalThis.fetch = jest.fn().mockResolvedValue({
+            status: 500,
+            headers: new Headers({ 'content-type': 'application/json' }),
+            json: async () => ({ code: 'storage_error' }),
+        });
         await expect(
             requestSourceServer({ operation: 'delete', id: 'source' })
         ).rejects.toThrow('SOURCE_SYNC.OFFLINE');
+        expect(sourceAuthorization(`${connection.apiUrl}/xtream`)).toEqual({});
+    });
+    it('returns unsupported discovery without parsing legacy HTML and revokes the old proof', async () => {
+        const json = jest.fn().mockRejectedValue(new Error('HTML is not JSON'));
+        globalThis.fetch = jest
+            .fn()
+            .mockResolvedValue({ status: 404, headers: new Headers(), json });
+        expect(
+            (await requestSourceServer({ operation: 'instance' })).status
+        ).toBe(404);
+        expect(json).not.toHaveBeenCalled();
         expect(sourceAuthorization(`${connection.apiUrl}/xtream`)).toEqual({});
     });
 });

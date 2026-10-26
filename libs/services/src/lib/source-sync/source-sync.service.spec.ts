@@ -165,6 +165,39 @@ describe('source synchronization lifecycle', () => {
         expect(rows.has('removed')).toBe(false);
         expect(cleanup).toHaveBeenCalledWith('removed');
     });
+    it('releases incomplete-profile reads before cleanup can await settings initialization', async () => {
+        receipt = null;
+        rows.set(
+            'removed',
+            applySourceDefinition({ ...source, id: 'removed' })
+        );
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        finish.mockImplementation(release);
+        let cleanupStarted!: () => void;
+        const started = new Promise<void>((resolve) => {
+            cleanupStarted = resolve;
+        });
+        cleanup.mockImplementation(async () => {
+            cleanupStarted();
+            await gate;
+        });
+        await service.initialize();
+        const refreshing = service.refresh();
+        try {
+            await started;
+            expect(finish).toHaveBeenCalled();
+            await expect(store.dbGetAppPlaylists()).rejects.toThrow(
+                'SOURCE_SYNC.OFFLINE'
+            );
+        } finally {
+            release();
+            await refreshing;
+        }
+        expect(service.state()).toBe('connected');
+    });
 
     it('retries failed cleanup after the local source row is gone, before projecting a reused ID', async () => {
         Object.assign(TestBed.inject(RuntimeCapabilitiesService), {

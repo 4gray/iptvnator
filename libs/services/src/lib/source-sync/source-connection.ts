@@ -107,6 +107,7 @@ export async function prepareSourceConnection(
             signal: AbortSignal.timeout(5000),
             redirect: 'error',
         });
+        if (response.status === 404) return;
         if (!response.ok) throw new Error(OFFLINE);
         const instance = (await response.json()) as ServerInstanceInfo;
         if (instance.storage === 'none') return;

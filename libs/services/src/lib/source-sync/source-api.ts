@@ -75,9 +75,13 @@ export async function requestSourceServer(
         // These routes are server-owned; JSON 5xx responses are outages too.
         if (response.status >= 500) throw new Error('SOURCE_SYNC.OFFLINE');
         const body =
-            response.status === 304 ? undefined : await response.json();
+            response.status === 304 ||
+            (request.operation === 'instance' && response.status === 404)
+                ? undefined
+                : await response.json();
         if (
             response.status === 401 ||
+            (request.operation === 'instance' && response.status === 404) ||
             (response.status === 409 && body?.code === 'instance_changed')
         )
             invalidateSourceVerification();

@@ -134,6 +134,15 @@ describe('source server selection and authorization', () => {
         });
         expect(globalThis.fetch).not.toHaveBeenCalled();
     });
+    it('keeps the original profile when a legacy stateless proxy has no discovery endpoint', async () => {
+        globalThis.fetch = jest
+            .fn()
+            .mockResolvedValue({ status: 404, ok: false });
+        await prepareSourceConnection('https://proxy.test');
+        expect(sourceConnection()).toBeNull();
+        expect(sourceProfileName()).toBe('iptvnator');
+        expect(localStorage.getItem('iptvnator:source-server')).toBeNull();
+    });
     it('authorizes a bare backend root and leaves a confirmed stateless backend in standalone mode', async () => {
         localStorage.setItem(
             'iptvnator:source-server',

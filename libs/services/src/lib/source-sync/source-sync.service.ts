@@ -88,7 +88,15 @@ export class SourceSyncService {
         const local = native
             ? { ...native }
             : indexedDbDocumentStore(this.db, sourceProfileName());
-        this.cleanupQueue = new SourceCleanupQueue(local, this.cleanups);
+        this.cleanupQueue = new SourceCleanupQueue(
+            local,
+            this.cleanups.map((cleanup) => (id) => {
+                // Cleanup may await settings, whose EPG reconciliation reads this
+                // store. Release that wait; ready=false still rejects partial reads.
+                this.backend.finishServerInitialization();
+                return cleanup(id);
+            })
+        );
         local.dbDeletePlaylist = this.cleanupQueue.remove;
         local.dbDeleteAllPlaylists = this.cleanupQueue.clear;
         this.store = new SyncedPlaylistStore(
@@ -150,7 +158,9 @@ export class SourceSyncService {
                         this.browserProfile &&
                         recoverPendingStatelessBackend(
                             this.connection!,
-                            probe.body
+                            probe.body,
+                            undefined,
+                            probe.status
                         )
                     )
                         return;
@@ -304,6 +314,8 @@ export class SourceSyncService {
             }
             if (mutation) await this.cleanupQueue!.retry();
             const response = await requestSourceServer(request);
+            if (request.operation === 'instance' && response.status === 404)
+                return response;
             if (response.status >= 400) {
                 const key =
                     response.status === 409 &&

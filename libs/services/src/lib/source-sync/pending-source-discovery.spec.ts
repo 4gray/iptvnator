@@ -89,6 +89,22 @@ describe('temporary source-server discovery recovery', () => {
         ).toBe(false);
         expect(reload).not.toHaveBeenCalled();
     });
+    it('recovers a pending legacy endpoint on 404 without abandoning a confirmed instance', () => {
+        const reload = jest.fn();
+        expect(
+            recoverPendingStatelessBackend(
+                { ...connection, instanceId: 'confirmed' },
+                undefined,
+                reload,
+                404
+            )
+        ).toBe(false);
+        expect(
+            recoverPendingStatelessBackend(connection, undefined, reload, 404)
+        ).toBe(true);
+        expect(reload).toHaveBeenCalledTimes(1);
+        expect(localStorage.getItem('iptvnator:source-server')).toBeNull();
+    });
     it('does not loop on reload if the saved connection cannot be removed', () => {
         const denied = jest
             .spyOn(Storage.prototype, 'removeItem')

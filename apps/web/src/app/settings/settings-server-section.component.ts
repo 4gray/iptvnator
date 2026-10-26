@@ -10,6 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { TranslateModule } from '@ngx-translate/core';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import { createRandomId, type Playlist } from '@iptvnator/shared/interfaces';
 import {
     normalizeSourceServerUrl,
@@ -27,6 +28,7 @@ import {
 @Component({
     selector: 'app-settings-server-section',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [provideFormFieldDefaults()],
     imports: [
         DatePipe,
         FormsModule,

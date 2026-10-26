@@ -166,7 +166,10 @@ requests remain owned by the Electron backend and preload bridge.
 ## Shared source library
 
 The self-hosted PWA discovers the runtime `BACKEND_URL` before Angular bootstrap.
-A stateless backend reporting `storage: none` retains standalone behavior. If
+A stateless backend reporting `storage: none` retains standalone behavior.
+An older stateless proxy answering discovery with HTTP 404 also retains the
+original library; pending discovery can recover the same way. Confirmed server
+profiles retain their cache and recovery controls on discovery failure. If
 initial discovery was unavailable, a temporary `pending:` selection resolves
 back to the original local library after a valid stateless response. It reloads
 without disabling future discovery or overwriting a newer selection from another
@@ -211,8 +214,11 @@ has its own marker so one tab cannot overwrite another deletion's pending work.
 Bootstrap waits only for local profile readiness, then starts network
 refresh in the background. Slow URL providers cannot hold the app behind its
 splash: cached sources and settings remain accessible. An uninitialized cache
-defers its first inventory read until refresh settles; a failed projection
-continues rejecting reads rather than exposing a false empty library. Server
+defers its first inventory read until refresh settles. Before awaiting cleanup
+hooks, an incomplete profile releases the initialization wait so settings/EPG
+reconciliation cannot deadlock parental cleanup. The store's ready flag keeps
+rejecting incomplete inventory after a failed projection, preserving the loading
+error instead of exposing a false empty library. Server
 settings bypass the source-loading screen and remain reachable through the
 connection banner. A successful projection publishes its inventory change to
 refresh mounted views. Electron Xtream metadata paths in `DatabaseService` use the same wrapper.

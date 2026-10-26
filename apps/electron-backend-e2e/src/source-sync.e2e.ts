@@ -80,6 +80,86 @@ async function addTextSource(page: Page, title: string) {
     await expect(dialog).toBeHidden();
 }
 
+test('finishes interrupted first synchronization with remotely deleted cached rows @electron @persistence', async ({
+    request,
+}) => {
+    const server = await startSourceSyncServer();
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-sync-incomplete-'));
+    const source = {
+        id: 'interrupted',
+        title: 'Interrupted cache',
+        kind: 'm3u-text',
+        rawM3u: '#EXTM3U\n#EXTINF:-1,Channel\nhttps://streams.example.test/live',
+    };
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        const created = await request.put(
+            `${server.apiUrl}/v1/sources/${source.id}`,
+            { headers: { 'If-None-Match': '*' }, data: source }
+        );
+        expect(created.ok()).toBe(true);
+        const instance = await (
+            await request.get(`${server.apiUrl}/v1/instance`)
+        ).json();
+        writeFileSync(
+            join(directory, 'source-server.json'),
+            JSON.stringify({
+                apiUrl: server.apiUrl,
+                instanceId: instance.instanceId,
+            })
+        );
+        desktop = await launchElectronApp(directory);
+        await openSources(desktop.mainWindow);
+        await expect(
+            desktop.mainWindow.getByText(source.title, { exact: true }).first()
+        ).toBeVisible();
+        await desktop.mainWindow.evaluate(async (id) => {
+            await window.electron.dbSetAppState(
+                'parental-lock:locks',
+                JSON.stringify({
+                    [id]: { xtream: [], stalker: [], m3u: ['Private'] },
+                })
+            );
+            await window.electron.dbSetAppState('source-sync-initialized', '');
+        }, source.id);
+        await closeElectronApp(desktop);
+        desktop = undefined;
+        expect(
+            (
+                await request.delete(
+                    `${server.apiUrl}/v1/sources/${source.id}`,
+                    { headers: { 'If-Match': created.headers()['etag'] } }
+                )
+            ).ok()
+        ).toBe(true);
+        desktop = await launchElectronApp(directory);
+        const page = desktop.mainWindow;
+        await openSources(page);
+        await expect(page.getByTestId('source-sync-status')).toHaveCount(0, {
+            timeout: 25000,
+        });
+        await expect(page.getByText(source.title, { exact: true })).toHaveCount(
+            0
+        );
+        expect(
+            await page.evaluate(() =>
+                window.electron.dbGetAppState('source-sync-initialized')
+            )
+        ).toBe('1');
+        expect(
+            JSON.parse(
+                (await page.evaluate(() =>
+                    window.electron.dbGetAppState('parental-lock:locks')
+                ))!
+            )
+        ).toEqual({});
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        await server.close();
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
 test('shares source changes between independent PWA and Electron clients @critical @web @electron @m3u', async ({
     browser,
 }) => {

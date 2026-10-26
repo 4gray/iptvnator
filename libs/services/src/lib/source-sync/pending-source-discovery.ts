@@ -8,14 +8,16 @@ import { disconnectBrowserSourceConnection } from './source-browser-settings';
 export function recoverPendingStatelessBackend(
     connection: SourceServerConnection,
     value: unknown,
-    reload: () => void = () => location.reload()
+    reload: () => void = () => location.reload(),
+    status = 200
 ): boolean {
     const instance = value as Partial<ServerInstanceInfo> | null;
     if (
         !connection.instanceId.startsWith('pending:') ||
-        instance?.service !== 'iptvnator' ||
-        instance.apiVersion !== 1 ||
-        instance.storage !== 'none'
+        (status !== 404 &&
+            (instance?.service !== 'iptvnator' ||
+                instance.apiVersion !== 1 ||
+                instance.storage !== 'none'))
     )
         return false;
     if (!disconnectBrowserSourceConnection(false, connection))
