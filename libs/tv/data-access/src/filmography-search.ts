@@ -2,6 +2,7 @@ import {
     normalizeTitleKeys,
     titleYearsCompatible,
     extractYear,
+    extractSeasonFromTitle,
 } from '@iptvnator/shared/interfaces';
 import { ActorFilmographyCredit } from '@iptvnator/shared/tmdb';
 import { Kind, Media, ProviderClient } from '@iptvnator/tv/util';
@@ -30,15 +31,21 @@ function matchScore(
     const wanted = [credit.title, credit.originalTitle]
         .filter((t): t is string => !!t)
         .map((t) => normalizeTitleKeys(t).exact);
+    const rawNames = [
+        item.title,
+        item.raw.name,
+        item.raw.o_name,
+        item.raw.title,
+    ].filter((t): t is string => typeof t === 'string');
+    // Later seasons can carry their own year; an unmarked show or season 1
+    // must still corroborate the premiere, so same-title remakes do not open.
+    const seasonSlice =
+        credit.mediaType === 'tv' &&
+        rawNames.some((title) => (extractSeasonFromTitle(title) ?? 0) > 1);
     const compatibleYear = (year: number | null) =>
         titleYearsCompatible(credit.year, year) ||
-        (credit.mediaType === 'tv' &&
-            !!year &&
-            !!credit.year &&
-            year >= credit.year);
-    const names = [item.title, item.raw.name, item.raw.o_name, item.raw.title]
-        .filter((t): t is string => typeof t === 'string')
-        .map(normalizeTitleKeys);
+        (seasonSlice && !!year && !!credit.year && year >= credit.year);
+    const names = rawNames.map(normalizeTitleKeys);
     const exact = names.some((keys) => wanted.includes(keys.exact));
     const base = names.find(
         (keys) =>

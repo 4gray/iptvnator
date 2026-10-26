@@ -7,6 +7,7 @@ import {
     Catalog,
     CatalogSort,
     sortCatalog,
+    catalogTitleMatcher,
     Kind,
     Media,
     Source,
@@ -89,12 +90,13 @@ export class XtreamProvider implements ProviderClient {
             id: text(r.category_id),
             name: text(r.category_name),
         }));
+        const matchesTitle = catalogTitleMatcher(query);
         const items = data
             .map((r) => this.media(r, kind))
             .filter(
                 (m) =>
                     (!category || m.category === category) &&
-                    m.title.toLowerCase().includes(query.toLowerCase())
+                    matchesTitle(m.title)
             );
         return {
             items: sortCatalog(

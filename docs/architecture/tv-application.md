@@ -481,13 +481,18 @@ Stalker TV credits search both the regular series catalog and VOD-embedded/lazy
 series. A failed catalog or query does not suppress a match from another one;
 absence is reported only after every relevant lookup completes.
 Normalized title/year confidence keeps remakes and movie/series collisions
-separate; canonical numeric titles do not become release-year tags. Several
-equally strong versions require a choice. Found entries open actual provider
+separate; canonical numeric titles do not become release-year tags.
+Local Xtream/M3U catalog filters admit punctuation/diacritic equivalents before
+filmography matching. A later TV year is accepted only for an explicitly marked
+season after season 1; an unmarked show must corroborate its premiere year.
+Several equally strong versions require a choice. Found entries open actual provider
 details, preserving all stream coordinates and commands. A finished search with
 no match reports that the title is unavailable in this portal. Errors, repeated
 pages, the 20-page safety limit and the 15-second deadline report an incomplete
 search with retry. Cancellation, source changes and navigation discard obsolete
 results. Person/detail Back preserves card focus and scroll position.
+Focused biographies consume Up/Down to scroll their text; reaching an edge lets
+the next directional press leave the text and continue normal remote navigation.
 Settings distinguishes key validation from saved enablement and warns about
 unsaved changes; checking a key does not enable enrichment automatically.
 

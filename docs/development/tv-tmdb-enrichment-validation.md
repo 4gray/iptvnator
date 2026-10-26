@@ -298,3 +298,33 @@ raw network events are never printed. The previously pending physical gate is
 now complete for the exercised source and titles. Other providers retain the
 mocked Xtream/Stalker coverage; this is not a claim of exhaustive real-portal
 compatibility.
+
+
+## Local pre-PR hardening — prototype 0.1.19
+
+The user subsequently authorizes PR publication and merge to master. The first
+local Codex review of `50ddde63c` identifies three P2 issues: unrestricted later
+TV years can select a same-title remake, literal Xtream/M3U catalog filtering
+can hide punctuation-equivalent titles, and overflowing biographies cannot be
+scrolled with the remote. All three findings are accepted and fixed.
+
+The year exception now requires an explicit season marker after season 1;
+unmarked shows retain premiere-year corroboration. The actual local provider
+filters reuse shared title normalization while retaining literal partial search.
+Biography Up/Down scrolls the focused text and releases focus at its boundaries.
+Unit regressions for both real provider adapters and the remake, plus the
+browser biography regression, fail before the fixes and pass afterwards.
+
+After the fixes: **99/99 TV unit tests**, **116/116 full TV browser scenarios**,
+nine-project affected lint and all three TV type programs pass. The unchanged
+shared/Angular TMDB test results above remain applicable. The prototype advances
+to **0.1.19**; its package is rebuilt and audited for the classic deferred IIFE,
+ES2018 syntax and unsupported builtins. Release-note and guidance validation
+pass, without threshold or baseline changes. Canonical TV behavior and the
+existing filmography release note describe the final behavior.
+
+The local Greptile CLI is absent; the agent-workflow contract explicitly allows
+that unavailable reviewer to be reported without blocking Codex review. Local
+review logs remain outside the repository. The device observations and exact
+0.1.18 package/runtime provenance above keep their original revision scope;
+publication, final review and CI results are recorded with the PR head SHA.

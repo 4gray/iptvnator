@@ -36,7 +36,9 @@ async function setup(
                     name: director ? 'Fixture Director' : 'Fixture Actor',
                     profile_path: '/person.jpg',
                     biography:
-                        'An actor and filmmaker fixture with a full filmography.',
+                        'An actor and filmmaker fixture with a full filmography.'.repeat(
+                            extended ? 80 : 1
+                        ),
                     combined_credits: {
                         cast: director
                             ? []
@@ -145,6 +147,30 @@ async function setup(
     ).toBeVisible();
     return { title, apiPaths };
 }
+test('@tmdb-person a long biography scrolls with the remote and releases focus at its boundaries', async ({
+    page,
+}) => {
+    await setup(page, 'xtream', true);
+    await page
+        .getByRole('button', { name: 'View filmography: Fixture Actor' })
+        .click();
+    const biography = page.getByLabel('Biography', { exact: true });
+    await biography.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(biography).toBeFocused();
+    expect(await biography.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    await page.keyboard.press('ArrowUp');
+    await expect(biography).toBeFocused();
+    expect(await biography.evaluate((el) => el.scrollTop)).toBe(0);
+    await page.keyboard.press('ArrowUp');
+    await expect(biography).not.toBeFocused();
+    await biography.focus();
+    await biography.evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+    });
+    await page.keyboard.press('ArrowDown');
+    await expect(biography).not.toBeFocused();
+});
 test('@tmdb-person Stalker filmography finds VOD series after an unsupported series catalog and a localized-title miss', async ({
     page,
 }) => {

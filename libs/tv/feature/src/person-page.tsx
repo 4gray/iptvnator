@@ -50,7 +50,29 @@ export function PersonPage({
                     <span class="eyebrow">FILMS & SERIES</span>
                     <h1>{profile?.name || selected.name}</h1>
                     {profile?.biography ? (
-                        <p data-tv-scroll tabIndex={0} aria-label="Biography">
+                        <p
+                            data-tv-scroll
+                            data-focus="person-biography"
+                            tabIndex={0}
+                            aria-label="Biography"
+                            onKeyDown={(event) => {
+                                const direction =
+                                    event.key === 'ArrowDown' ||
+                                    event.keyCode === 40
+                                        ? 1
+                                        : event.key === 'ArrowUp' ||
+                                            event.keyCode === 38
+                                          ? -1
+                                          : 0;
+                                const pane = event.currentTarget;
+                                const previous = pane.scrollTop;
+                                pane.scrollTop += direction * 120;
+                                if (pane.scrollTop !== previous) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                }
+                            }}
+                        >
                             {profile.biography}
                         </p>
                     ) : null}

@@ -210,7 +210,7 @@ test('canonical numeric titles are not release tags, while TV season-year tags m
     assert.equal(result.status === 'found' && result.item, numeric);
     const series = item('show', {
         kind: 'series',
-        title: 'Ted Lasso (2026)',
+        title: 'Ted Lasso s04 (2026)',
         year: '2026',
     });
     const tv = await findFilmographyTitle(
@@ -220,6 +220,19 @@ test('canonical numeric titles are not release tags, while TV season-year tags m
         signal()
     );
     assert.equal(tv.status === 'found' && tv.item, series);
+    const remake = await findFilmographyTitle(
+        catalog(
+            item('remake', {
+                kind: 'series',
+                title: 'The Office',
+                year: '2005',
+            })
+        ),
+        'source',
+        { ...credit, title: 'The Office', mediaType: 'tv', year: 2001 },
+        signal()
+    );
+    assert.equal(remake.status, 'missing');
 });
 
 test('an exact title/year match can open without scanning a portal that ignores its search filter', async () => {

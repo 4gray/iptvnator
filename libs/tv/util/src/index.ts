@@ -231,6 +231,7 @@ export { parseSourceDraft, type SourceDraft } from './source-draft';
 export * from './settings-draft';
 
 export * from './catalog-sort';
+export * from './catalog-query';
 export { continueWatching } from './continue-watching';
 export * from './series-context';
 export * from './programme-guide';
