@@ -28,7 +28,7 @@ export class RemoteControlService {
     private readonly http = inject(HttpClient);
 
     /**
-     * Changes to the next channel
+     * Changes to the previous channel in the playback list
      */
     async channelUp(): Promise<void> {
         await firstValueFrom(
@@ -37,7 +37,7 @@ export class RemoteControlService {
     }
 
     /**
-     * Changes to the previous channel
+     * Changes to the next channel in the playback list
      */
     async channelDown(): Promise<void> {
         await firstValueFrom(

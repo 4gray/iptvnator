@@ -1,4 +1,4 @@
-import { Language } from '@iptvnator/shared/interfaces';
+import { Language, normalizeAppLanguage } from '@iptvnator/shared/interfaces';
 
 export const TMDB_API_BASE_URL = 'https://api.themoviedb.org/3';
 export const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
@@ -49,7 +49,8 @@ const TMDB_LANGUAGE_MAP: Record<Language, string> = {
     [Language.DUTCH]: 'nl-NL',
     [Language.BELARUSIAN]: 'be-BY',
     [Language.POLISH]: 'pl-PL',
-    [Language.PORTUGUESE]: 'pt-PT',
+    [Language.PORTUGUESE_PORTUGAL]: 'pt-PT',
+    [Language.PORTUGUESE_BRAZIL]: 'pt-BR',
     [Language.GREEK]: 'el-GR',
     [Language.HUNGARIAN]: 'hu-HU',
     [Language.UKRAINIAN]: 'uk-UA',
@@ -59,7 +60,7 @@ export function toTmdbLanguage(
     language: Language | string | null | undefined
 ): string {
     return (
-        TMDB_LANGUAGE_MAP[language as Language] ??
+        TMDB_LANGUAGE_MAP[normalizeAppLanguage(language)] ??
         TMDB_LANGUAGE_MAP[Language.ENGLISH]
     );
 }
