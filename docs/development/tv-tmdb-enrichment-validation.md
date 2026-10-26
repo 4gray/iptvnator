@@ -48,6 +48,7 @@ are excluded from this report.
 | --- | --- |
 | Localized provider title | English fallback finds a corroborated result after a localized miss. |
 | Filmography versions | Matches on later pages/languages/catalogs join the same ranking and chooser. |
+| Alternate-name remake year | Real Stalker normalization prefers the exact original name; a conflicting year in another matching name still rejects the wrong remake. Explicit year fields cannot mask that conflict. Numeric canonical titles and provider commands stay intact. The regression fails before the fix and passes afterwards. |
 | Incomplete search | Failure, repeated pages or deadline show Retry, never false absence. |
 | Stale detail response | Back/source replacement cancels browsing before an old response can consume restored focus. |
 | Virtual filmography rows | Mixed short/long character captions previously measured 424px/441px; two reserved subtitle lines keep row height and scroll stable. |
@@ -78,7 +79,7 @@ The unchanged shared TMDB implementation passed **94 tests** with coverage:
 80.38% statements, 60.43% branches, 69.04% functions and 80.65% lines. The affected
 Angular TMDB consumers passed **101 tests**. Thresholds are unchanged.
 
-Final results: **109 TV unit tests**, **128 TV E2E scenarios**, lint for all
+Final results: **110 TV unit tests**, **128 TV E2E scenarios**, lint for all
 nine affected projects and typechecks for all three TV projects passed. All
 **167 release notes**, three agent guidance files and eight repository skills
 validate. The sparse-overview browser assertion failed before the fix with the
@@ -138,9 +139,9 @@ is changed as part of the current source-scope cleanup.
 Prototype 0.1.25 ships one classic deferred IIFE targeting Chrome 68 / ES2018.
 Both the build and the JavaScript extracted from the IPK are parsed and scanned
 for unsupported builtins; the package can minify differently from the raw build.
-Final package SHA-256: `c23bbb4d949e2135b8a9850a8e83303b2ae8c9a436da906183324e453687ee55`.
-The archived `index-Bd-olgQX.js` is 270,956 bytes; SHA-256:
-`af14be74d2e221923a12ab3c52216bfa6df019b31b13dab8222e267dbd4ed88c`.
+Final package SHA-256: `362755396dd14e1c3203729c9d30fc5aeefee074aa307948ba2449e891838ef7`.
+The archived `index-ALf9djH-.js` is 270,970 bytes; SHA-256:
+`710a47d49b009580cf0bd84ca9ab25bc9b5a2942f6a621254f5eb18ed3b7241b`.
 
 Local Codex review of published head `75b94f071` found no actionable regressions.
 GitHub then reported three P2 follow-ups: no-op Home Back cancelling loading,
@@ -157,3 +158,9 @@ its GitHub review supplied the cover/documentation findings.
 Master `bc4d24e14` (Angular UI/search PR #2008) and `00c8284ac` (Vite 8.1.6)
 are integrated. Dependencies were installed from the new frozen lockfile before
 Nx discovery and validation; no unrelated master change is overwritten.
+
+The second GitHub review round confirmed Codex clean on `0828273e0`; Greptile
+found one P1 alternate-name remake-year conflict. The regression uses the real
+Stalker adapter with fresh provider instances so cached catalog pages cannot
+hide changes to fixture rows. Matching now checks every supplied corroborating
+year rather than discarding suffix years after an exact name match.

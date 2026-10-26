@@ -106,3 +106,83 @@ test('filmography finds an embedded VOD series by original title when the regula
         provider.dispose();
     }
 });
+
+test('Stalker exact original titles cannot hide conflicting release years in alternate names', async () => {
+    let row: Record<string, unknown> = {};
+    const find = async (title: string, year: number) => {
+        const provider = createProvider(
+            source(),
+            new Transport((params) =>
+                params.action === 'get_categories'
+                    ? { js: [] }
+                    : {
+                          js: {
+                              data: [row],
+                              total_items: 1,
+                              max_page_items: 10,
+                          },
+                      }
+            ),
+            async () => undefined
+        );
+        try {
+            return await findFilmographyTitle(
+                provider,
+                's',
+                {
+                    tmdbId: 841,
+                    title,
+                    year,
+                    mediaType: 'movie',
+                    posterUrl: null,
+                    character: null,
+                    crewJob: null,
+                },
+                new AbortController().signal
+            );
+        } finally {
+            provider.dispose();
+        }
+    };
+    for (const alternate of ['Dune 2021', 'Dune (2021)', 'Dune [2021]']) {
+        for (const swapped of [false, true]) {
+            row = {
+                id: 'remake',
+                o_name: swapped ? alternate : 'Dune',
+                name: swapped ? 'Dune' : alternate,
+                cmd: 'original-command',
+            };
+            assert.equal(
+                (await find('Dune', 1984)).status,
+                'missing',
+                alternate
+            );
+            const modern = await find('Dune', 2021);
+            assert.equal(modern.status, 'found', alternate);
+            assert.equal(
+                modern.status === 'found' && modern.item.raw.cmd,
+                'original-command'
+            );
+            row.year = '1984';
+            assert.equal(
+                (await find('Dune', 1984)).status,
+                'missing',
+                'an explicit field cannot mask a conflicting alias'
+            );
+        }
+    }
+    row = {
+        id: 'mixed',
+        o_name: 'Dune',
+        name: 'Dune 1984',
+        title: 'Dune 2021',
+    };
+    assert.equal((await find('Dune', 1984)).status, 'missing');
+    for (const [title, year] of [
+        ['Blade Runner 2049', 2017],
+        ['2012', 2009],
+    ] as const) {
+        row = { id: 'numeric', o_name: title, name: `${title} ${year}` };
+        assert.equal((await find(title, year)).status, 'found', title);
+    }
+});

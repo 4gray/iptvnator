@@ -523,7 +523,10 @@ Local Xtream/M3U catalog filters admit punctuation/diacritic equivalents before
 filmography matching. A later TV year is accepted only for an explicitly marked
 season after season 1; an unmarked show must corroborate its premiere year.
 Explicit bracketed release years corroborate matches even without a separate
-provider year field. Season metadata reads markers across the provider's raw
+provider year field. Release-year suffixes across all matching alternate names
+must agree with the requested release; an exact original name or separate year
+field cannot hide a conflicting remake year. Canonical numeric titles remain
+titles, including when a different alias appends the actual release year. Season metadata reads markers across the provider's raw
 name/original-name/title fields as well as its chosen display title.
 Search pages finish before choosing between one match and several equally
 strong versions, including exact title/year matches on different pages. An

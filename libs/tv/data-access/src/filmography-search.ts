@@ -47,27 +47,27 @@ function matchScore(
         (seasonSlice && !!year && !!credit.year && year >= credit.year);
     const names = rawNames.map(normalizeTitleKeys);
     const exact = names.some((keys) => wanted.includes(keys.exact));
-    const base = names.find(
+    // A canonical numeric title (Blade Runner 2049) is not a release-year tag.
+    const suffixes = names.filter(
         (keys) =>
             keys.base !== keys.exact &&
             wanted.includes(keys.base) &&
-            compatibleYear(keys.trailingYear)
+            !wanted.includes(keys.exact)
     );
-    if (!exact && !base) return null;
-    const releaseTag = rawNames
-        .map(
-            (title) =>
+    if (!exact && !suffixes.length) return null;
+    const years = [
+        extractYear(item.year),
+        ...rawNames.map((title) =>
+            extractYear(
                 title.match(
                     /(?:\(|\[|\{)\s*((?:19|20)\d{2})\s*(?:\)|\]|\})/
                 )?.[1]
-        )
-        .find(Boolean);
-    // A canonical numeric title (Blade Runner 2049) is not a release-year tag.
-    const year =
-        extractYear(item.year) ??
-        extractYear(releaseTag) ??
-        (!exact ? (base?.trailingYear ?? null) : null);
-    if (!compatibleYear(year)) return null;
+            )
+        ),
+        ...suffixes.map((keys) => keys.trailingYear),
+    ];
+    if (years.some((year) => !compatibleYear(year))) return null;
+    const year = years.find((value) => value !== null) ?? null;
     return year && credit.year
         ? year === credit.year
             ? 3
