@@ -52,6 +52,7 @@ export function useHomeFeature(tv: TvModel) {
         return {
             ...featured,
             poster: storedMediaPoster(featured, source),
+            backdrop: featured.backdrop || seriesForEpisode(original)?.backdrop,
         };
     }, [original, parent, source]);
     return {

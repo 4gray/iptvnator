@@ -161,3 +161,38 @@ test('one latest episode per series; completed latest episode cannot revive an o
         ['other', 'e1']
     );
 });
+
+test('sparse parent repair retains validated series artwork and remains idempotent', () => {
+    const parent = {
+        ...progress('show', 1).item,
+        kind: 'series' as const,
+        backdrop: 'https://artwork.test/series-wide.jpg',
+    };
+    const episode = {
+        ...progress('episode', 1).item,
+        kind: 'episode' as const,
+        parentId: parent.id,
+        backdrop: 'https://artwork.test/legacy-episode-still.jpg',
+    };
+    const saved = withSeriesContext(episode, parent);
+    const sparse = { ...parent, backdrop: undefined };
+    const repaired = withSeriesContext(saved, sparse);
+    assert.equal(repaired.parentSeries?.backdrop, parent.backdrop);
+    assert.equal(repaired.backdrop, episode.backdrop);
+    assert.equal(withSeriesContext(repaired, sparse), repaired);
+    assert.equal(
+        withSeriesContext(repaired, {
+            ...parent,
+            backdrop: 'https://artwork.test/new-series-wide.jpg',
+        }).parentSeries?.backdrop,
+        'https://artwork.test/new-series-wide.jpg'
+    );
+    const foreign = {
+        ...saved,
+        parentSeries: { ...parent, sourceId: 'foreign' },
+    };
+    assert.equal(
+        withSeriesContext(foreign, sparse).parentSeries?.backdrop,
+        undefined
+    );
+});

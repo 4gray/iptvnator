@@ -523,7 +523,11 @@ channels, whole-catalog enrichment, discovery and trailers remain
 outside this TV integration.
 Episode landscape artwork lives in `episodeStill`, separately from the series
 cover in `poster`/the parent snapshot. Home, Continue watching and Luma use the
-series cover; episode cards use the still. Cards with stills show a larger image
+series cover. Provider details save the series backdrop in the exact parent
+snapshot; sparse catalog repairs retain that validated backdrop. Home prefers
+current parent artwork, then the saved parent backdrop, without trusting an
+ambiguous historical episode backdrop. Episode cards use the still.
+Cards with stills show a larger image
 and up to three description lines. Missing stills keep compact text cards, and a
 season without stills retains its previous layout. Rich episode grids use fixed
 row tracks so mixed card heights do not corrupt virtual scrolling or focus.

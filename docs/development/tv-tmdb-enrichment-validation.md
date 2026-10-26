@@ -699,3 +699,38 @@ compatibility audits. These fingerprints supersede the previous 0.1.25 build:
 The complete TV run passes **128/128 scenarios** in 3m57s on isolated ports.
 The exact committed/reviewed revision and local-review verdict are recorded in
 the PR description, without changing the tested source after that review.
+
+### Preserve validated series-wide artwork through sparse catalogs
+
+Review of `f4da10284` passes 23 affected browser scenarios and finds a lost wide
+image when Home's exact parent catalog row lacks the backdrop supplied by series
+details. The regression fails before the fix, showing the portrait series cover
+where the saved series-wide image is available.
+
+Xtream now snapshots its detailed parent when creating episodes. Sparse catalog
+repairs preserve that snapshot's backdrop only when its parent/source identity
+matches. Home prefers the current parent backdrop, then the validated saved parent
+backdrop. An ambiguous legacy episode backdrop is preserved as data but is never
+used as this fallback, avoiding the previously reported episode-frame regression.
+
+The browser fixture distinguishes series poster, series-wide image and episode
+still. It verifies the saved wide image after Home return, deliberately injects
+a legacy episode still into the old backdrop field and verifies the correct
+parent artwork after reload, then supplies a newer catalog backdrop and verifies
+its priority. Both provider parent/resume flows also pass (**3/3**). A new unit
+test checks retained backdrop, idempotent repair and rejection of a foreign-source
+snapshot. All **114 TV unit tests**, nine affected lint targets, three TV type
+programs, **168 release notes** and guidance validation pass.
+
+The navigation note and canonical TV contract document this validated fallback.
+The rebuilt, still-undeployed 0.1.25 package and archived JavaScript pass the
+compatibility audits; these hashes supersede the previous 0.1.25 build:
+
+- IPK: `2a1443fb80ec4b2ccb6942966095be1937bef8588494de51aebca47ca99c60d3`.
+- Archived `index-DfcyZAI1.js`: `92ac175f55800a1b1128f1417478fb9973b86d37a9854de4bca176ac6acc1219`.
+
+The complete final-code TV run passes **129/129 scenarios** in 4m06s.
+During validation master advances to `bc4d24e14` through Angular UI/search PR
+#2008. Its TV additions are product/design documents; it does not change TV
+runtime or the shared TMDB files. The tested source is retained for local review;
+the PR's merge checks cover integration with that unrelated master advance.

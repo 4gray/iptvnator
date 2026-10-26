@@ -35,7 +35,7 @@ export function withSeriesContext(episode: Media, parent?: Media): Media {
         title: parent.title,
         year: parent.year,
         poster: parent.poster,
-        backdrop: parent.backdrop,
+        backdrop: parent.backdrop || seriesForEpisode(episode)?.backdrop,
         description: parent.description,
         raw,
     };

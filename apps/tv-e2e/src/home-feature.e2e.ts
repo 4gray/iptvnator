@@ -489,3 +489,106 @@ test('a retained series-details retry cannot reopen the previous source', async 
     await expect(retry).toHaveCount(0);
     await expect(page.locator('.error')).toBeHidden();
 });
+
+test('Home retains saved series-wide artwork without using episode stills and prefers a current parent backdrop', async ({
+    page,
+}) => {
+    await start(page);
+    const poster = 'https://artwork.test/series-poster.jpg';
+    const savedWide = 'https://artwork.test/saved-series-wide.jpg';
+    const episodeStill = 'https://artwork.test/episode-still.jpg';
+    let currentWide = '';
+    await page.route('https://artwork.test/**', (route) =>
+        route.fulfill({
+            contentType: 'image/svg+xml',
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="170"><rect width="300" height="170" fill="#37544b"/></svg>',
+        })
+    );
+    await page.route('**/xtream?**', async (route) => {
+        const action = new URL(route.request().url()).searchParams.get(
+            'action'
+        );
+        if (action !== 'get_series' && action !== 'get_series_info')
+            return route.fallback();
+        const response = await route.fetch();
+        const body = await response.json();
+        if (action === 'get_series') {
+            for (const row of body.payload) {
+                row.cover = poster;
+                if (currentWide) row.backdrop_path = [currentWide];
+                else delete row.backdrop_path;
+            }
+        } else {
+            body.payload.info.backdrop_path = [savedWide];
+            body.payload.info.cover = poster;
+            body.payload.info.movie_image = poster;
+            for (const episodes of Object.values(body.payload.episodes))
+                for (const episode of episodes as {
+                    info?: Record<string, unknown>;
+                }[])
+                    episode.info = {
+                        ...episode.info,
+                        movie_image: episodeStill,
+                    };
+        }
+        await route.fulfill({ response, json: body });
+    });
+    await addSource(page, 'xtream');
+    const title = await watch(page, 0, true);
+    await expect(page.locator('.hero h1')).toHaveText(title);
+    await expect(page.locator('.page-backdrop img')).toHaveAttribute(
+        'src',
+        savedWide
+    );
+    await expect(page.locator('.resume-card img').first()).toHaveAttribute(
+        'src',
+        poster
+    );
+    await page.evaluate(
+        (still) =>
+            new Promise<void>((resolve, reject) => {
+                const request = indexedDB.open('iptvnator-tv-user-data', 1);
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const tx = db.transaction('state', 'readwrite');
+                    const store = tx.objectStore('state');
+                    const read = store.get('user');
+                    read.onsuccess = () => {
+                        const saved = read.result;
+                        for (const progress of [
+                            ...saved.data.history,
+                            ...Object.values(saved.data.positions),
+                        ] as { item: { kind: string; backdrop?: string } }[])
+                            if (progress.item.kind === 'episode')
+                                progress.item.backdrop = still;
+                        store.put(saved, 'user');
+                    };
+                    tx.oncomplete = () => {
+                        db.close();
+                        resolve();
+                    };
+                    tx.onerror = () => {
+                        db.close();
+                        reject(Error('Fixture write failed'));
+                    };
+                };
+            }),
+        episodeStill
+    );
+    await page.reload();
+    await expect(page.locator('.page-backdrop img')).toHaveAttribute(
+        'src',
+        savedWide
+    );
+    currentWide = 'https://artwork.test/current-parent-wide.jpg';
+    await page.reload();
+    await expect(page.locator('.hero h1')).toHaveText(title);
+    await expect(page.locator('.page-backdrop img')).toHaveAttribute(
+        'src',
+        currentWide
+    );
+    await expect(page.locator('.resume-card img').first()).toHaveAttribute(
+        'src',
+        poster
+    );
+});

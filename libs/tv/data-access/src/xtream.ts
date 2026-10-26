@@ -167,7 +167,7 @@ export class XtreamProvider implements ProviderClient {
                             title: text(r.title) || `Episode ${r.episode_num}`,
                             raw: r,
                         },
-                        item
+                        detail
                     )
                 );
             })
