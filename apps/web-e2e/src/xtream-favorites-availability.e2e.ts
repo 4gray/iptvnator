@@ -9,8 +9,27 @@ import {
     MOCK_SERVER,
 } from './xtream-series-playback.fixture';
 
+// Provider fixtures must keep intercepting requests after a production reload.
+test.use({ serviceWorkers: 'block' });
+
 test.beforeEach(async ({ page, request }) => {
     await request.post(`${MOCK_SERVER}/reset`);
+    await page.route('**/assets/app-config.js', (route) =>
+        route.fulfill({
+            contentType: 'application/javascript',
+            body: 'window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: "http://localhost:3000" };',
+        })
+    );
+    await page.route('http://localhost:3000/v1/instance', (route) =>
+        route.fulfill({
+            json: {
+                service: 'iptvnator',
+                apiVersion: 1,
+                storage: 'none',
+                capabilities: [],
+            },
+        })
+    );
     await page.goto('/');
     await interceptXtreamRequests(page);
 });
@@ -1046,13 +1065,18 @@ test('@xtream @collections sparse detail hearts cannot delete a retained conflic
     await page
         .getByRole('button', { name: 'Remove from favorites', exact: true })
         .click();
-    expect(
-        await page.evaluate(
-            (id) =>
-                JSON.parse(localStorage.getItem('xtream-favorites') ?? '{}')[
-                    id
-                ],
-            id
+    await expect
+        .poll(() =>
+            page.evaluate(
+                (id) =>
+                    JSON.parse(
+                        localStorage.getItem('xtream-favorites') ?? '{}'
+                    )[id],
+                id
+            )
         )
-    ).toEqual([]);
+        .toEqual([]);
+    await expect(
+        page.getByRole('button', { name: 'Older saved original', exact: true })
+    ).toHaveCount(0);
 });

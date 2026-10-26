@@ -935,3 +935,42 @@ The complete harness passes with 693 tests and its existing Windows-only shell
 test skipped on macOS. Both interrupted-startup native scenarios pass through
 the corrected target. Task-graph, owning lint, guidance and release-note gates
 pass. Runtime source-sync code is unchanged from the reviewed commit.
+
+
+### Local review eighteen and web CI fixture correction
+
+Codex accepted `90298e515daefab7a90ea3a4d359f4ed42768128` without actionable
+findings and independently passed 114 source-sync tests and three source-router
+tests. Greptile CLI is still unavailable (exit 127). The complete published CI
+round finished: all Electron shards and package builds on Windows, Linux and
+macOS pass, alongside Docker, CodeQL, lint and initial-byte checks. Its only
+failed jobs are the command-contract guard corrected above and Web E2E.
+
+Web CI reports four failures: three sparse VOD variants and a conflicting
+favorite's removal assertion. All four reproduce locally before correction.
+The VOD fixture explicitly configures a backend but never answers instance
+discovery, so startup correctly waits for the unavailable source inventory.
+The fixture now identifies its mock as a stateless proxy before bootstrap.
+Favorite removal awaits an asynchronous identity lookup/write; the assertion
+now waits for persisted removal and also verifies that the saved card disappears.
+
+Production verification exposed that the favorites fixture had only intercepted
+the development backend address, while the built PWA uses a different default.
+It now sets the mock backend explicitly, answers stateless discovery and blocks
+Service Workers so routes remain intercepted after a cold reload. All eight
+availability tests and three VOD variants pass on the production build, together
+with the existing 29 source/self-hosted/style/locale scenarios: 40 passed.
+An overbroad exploratory static selector also selected unrelated dev-only
+fixtures whose backend defaults are not configured for production; the final
+static validation explicitly selects the six affected/supported spec files.
+The exact production build and unchanged initial-byte gate pass again at
+1,200,269 / 1,200,301 bytes. Owning lint and E2E type checks pass. These changes
+only correct test fixtures and assertions; runtime code remains at the reviewed
+`d43df3484f19b368d0973f886645ff8b2a188808` revision.
+
+The complete Chromium suite also passes with the CI settings: 218 passed,
+one existing static-PWA-only scenario skipped in development, no failures or
+retries (14.6 minutes). Production static verification runs that stylesheet
+scenario separately among the 40 passing tests above. Generated test screenshots
+were restored or removed; they are not part of this change. The base fetch
+still resolves to master `fbda4564ac8860c55f8341283cfbce8b82cc067f`.
