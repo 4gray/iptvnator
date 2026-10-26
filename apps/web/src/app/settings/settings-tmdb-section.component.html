@@ -57,7 +57,7 @@
                         </mat-form-field>
                         <div class="tmdb-key-test">
                             <button
-                                mat-stroked-button
+                                mat-flat-button
                                 type="button"
                                 [disabled]="
                                     !enteredApiKey || keyTestState() === 'testing'
@@ -152,7 +152,7 @@
                 </div>
                 <div class="setting-item__control">
                     <button
-                        mat-stroked-button
+                        mat-flat-button
                         type="button"
                         [disabled]="isClearing() || cacheStats()?.entries === 0"
                         (click)="clearCache()"

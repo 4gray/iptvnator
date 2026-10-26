@@ -1046,12 +1046,14 @@ test('@xtream @collections sparse detail hearts cannot delete a retained conflic
     await page
         .getByRole('button', { name: 'Remove from favorites', exact: true })
         .click();
-    expect(
-        await page.evaluate(
-            (id) =>
-                JSON.parse(localStorage.getItem('xtream-favorites') ?? '{}')[
-                    id
-                ],
+    await expect(
+        page.getByRole('button', { name: 'Older saved original', exact: true })
+    ).toHaveCount(0);
+    // Removal awaits the identity lookup and lazy write module. A click only
+    // dispatches that work; verify the persisted result after it settles.
+    await expect.poll(() =>
+        page.evaluate(
+            (id) => JSON.parse(localStorage.getItem('xtream-favorites') ?? '{}')[id],
             id
         )
     ).toEqual([]);

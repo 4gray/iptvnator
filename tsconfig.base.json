@@ -122,6 +122,9 @@
             "@iptvnator/ui/components/password-visibility-toggle": [
                 "libs/ui/components/src/lib/password-visibility-toggle/password-visibility-toggle.directive.ts"
             ],
+            "@iptvnator/ui/components/radio-group": [
+                "libs/ui/components/src/lib/radio-group/radio-group.directive.ts"
+            ],
             "@iptvnator/ui/components/window-controls": [
                 "libs/ui/components/src/lib/window-controls/window-controls.component.ts"
             ],

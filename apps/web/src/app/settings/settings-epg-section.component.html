@@ -19,7 +19,7 @@
                 <div class="setting-item__control">
                     <div
                         class="theme-switcher"
-                        role="radiogroup"
+                        appRadioGroup
                         [attr.aria-label]="'SETTINGS.EPG_VIEW_MODE' | translate"
                         data-test-id="select-epg-view-mode"
                     >
@@ -33,13 +33,12 @@
                                 [class.theme-switcher__option--selected]="
                                     form().value.epgViewMode === option.value
                                 "
-                                [attr.aria-checked]="
+                                [appRadioOption]="
                                     form().value.epgViewMode === option.value
                                 "
                                 [attr.data-test-id]="
                                     'epg-view-mode-' + option.value
                                 "
-                                role="radio"
                                 (click)="selectEpgViewMode.emit(option.value)"
                             >
                                 <mat-icon>{{ option.icon }}</mat-icon>
@@ -128,7 +127,7 @@
                             {{ 'SETTINGS.REFRESH_ALL_EPG' | translate }}
                         </button>
                         <button
-                            mat-stroked-button
+                            mat-flat-button
                             type="button"
                             (click)="addEpgSource.emit()"
                         >
@@ -163,6 +162,7 @@
                                 </p>
                                 <button
                                     mat-flat-button
+                                    class="settings-primary-button"
                                     type="button"
                                     (click)="addEpgSource.emit()"
                                 >

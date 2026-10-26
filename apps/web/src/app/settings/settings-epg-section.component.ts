@@ -23,12 +23,18 @@ import { EpgSourceStatusComponent } from '@iptvnator/ui/epg';
 import { TranslateModule } from '@ngx-translate/core';
 import { EpgViewModeOption } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import {
+    RadioGroupDirective,
+    RadioOptionDirective,
+} from '@iptvnator/ui/components/radio-group';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-epg-section',
     providers: [provideFormFieldDefaults()],
     imports: [
+        RadioGroupDirective,
+        RadioOptionDirective,
         EpgSourceStatusComponent,
         MatButtonModule,
         MatFormFieldModule,
