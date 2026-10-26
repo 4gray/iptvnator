@@ -32,6 +32,14 @@ export function useSeriesDetails(tv: TvModel) {
             setBusy(false);
         }
     }, [tv.fullscreen, tv.playing?.id]);
+    useLayoutEffect(() => {
+        // A new play request supersedes Details, including requests from Home.
+        // Our own stop clears the request instead, preserving its navigation.
+        if (!tv.playbackRequest) return;
+        lane.current.cancel();
+        playerLookup.current = undefined;
+        setBusy(false);
+    }, [tv.playbackRequest]);
     async function open(episode: Media, retryOrigin?: NavigationOrigin) {
         if (episode.sourceId !== tv.data.activeId || episode.kind !== 'episode')
             return;

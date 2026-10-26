@@ -181,6 +181,10 @@ export const text = (value: unknown) => (value == null ? '' : String(value));
 /** Owns a single lane. Superseded requests cannot publish even if transport ignores abort. */
 export class LatestRequest {
     private current?: AbortController;
+    /** Read-only identity of the current request, cleared on cancellation. */
+    get signal() {
+        return this.current?.signal;
+    }
     start() {
         this.current?.abort();
         return (this.current = new AbortController());

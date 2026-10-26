@@ -394,7 +394,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         saveSource,
         switchSource,
         update,
-        retry: retryConnection,
+        playbackRequest: playback.current.signal,
     };
 }
 export type TvModel = ReturnType<typeof useTv>;

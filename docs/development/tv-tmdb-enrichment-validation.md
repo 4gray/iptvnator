@@ -668,3 +668,34 @@ The complete final-code TV run on offset-700 ports passes **127/127 scenarios**
 in 3m49s. It includes the retained-retry regression, season restoration and all
 artwork checks in one run. The committed fixes enter the next local review;
 the exact reviewed/tested SHA and verdict are recorded in the PR description.
+
+### Starting playback supersedes a pending Home details lookup
+
+Review of `8f8cbf268` passes 22 affected browser scenarios, but an additional
+reproduction finds that Home's slow historical Details lookup can finish after
+Continue watching starts playback, changing the page behind the fullscreen
+player. The shared held-response fixture now exercises both fullscreen exit and
+Home Details followed by Continue. The new case fails before the fix when Home
+disappears after the delayed response.
+
+The existing playback request exposes its current read-only AbortSignal identity.
+A new non-null request cancels the details lane regardless of where Details
+started; the details action's own stop clears the playback request instead and
+does not cancel its valid transition. The unused model retry alias is replaced
+with this request signal, keeping the owning hook at 400 lines without a baseline
+exception. The regression covers the browser flow, not only the request helper.
+
+All **7 Home scenarios**, **113 TV unit tests**, nine affected lint targets,
+three TV type programs, **168 release notes** and guidance validation pass.
+The navigation release note and canonical TV contract document superseding
+playback intent. Shared/Angular TMDB results remain unchanged.
+
+The rebuilt, still-undeployed 0.1.25 package and archived JavaScript pass the
+compatibility audits. These fingerprints supersede the previous 0.1.25 build:
+
+- IPK: `7dac1865401e495adc96dadf01e980411afa58b1e7d51e50d61be91f7f009089`.
+- Archived `index-BDK45KoE.js`: `855a6e879aaf6cf8f65bbfdfaaa15dfe95821a118f6fea16b95669dc02d070e4`.
+
+The complete TV run passes **128/128 scenarios** in 3m57s on isolated ports.
+The exact committed/reviewed revision and local-review verdict are recorded in
+the PR description, without changing the tested source after that review.

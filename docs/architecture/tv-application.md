@@ -480,6 +480,8 @@ and offer an explicit retry through Details when recovery is unavailable.
 Fullscreen episode playback also has Series details: it saves/stops playback and
 opens the parent episode list. Exiting fullscreen cancels a pending parent lookup;
 its late response cannot navigate away from Home.
+Starting a newer playback request also cancels pending series-details navigation,
+including Home lookups; the details action's own stop does not cancel its transition.
 Series-details retries use the current provider and retire with their route/source;
 a successful retry retains the original navigation focus and scroll.
 Playback captures its actual initiating control and main scroll position before
