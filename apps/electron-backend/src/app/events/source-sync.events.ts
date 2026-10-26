@@ -23,6 +23,7 @@ import {
     sourceServerToken,
 } from '../services/source-server-config';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import { SourceServerTransport } from './source-server-transport';
 
 function route(request: SourceServerRequest): { path: string; method: string } {
     const id = encodeURIComponent(request.id ?? '');
@@ -107,6 +108,7 @@ export async function sourceServerRequest(
 }
 
 export function registerSourceSyncEvents(): void {
+    const transport = new SourceServerTransport(sourceServerRequest);
     powerMonitor.on('resume', () => {
         for (const window of BrowserWindow.getAllWindows())
             window.webContents.send(SOURCE_SYNC_RESUME);
@@ -126,11 +128,8 @@ export function registerSourceSyncEvents(): void {
         async (_event, request: SourceServerRequest) => {
             const config = readSourceServerConfig();
             if (!config) throw new Error('SOURCE_SYNC.OFFLINE');
-            return sourceServerRequest(
-                config.apiUrl,
-                sourceServerToken(config),
-                request,
-                config.instanceId
+            return transport.execute(config, request, () =>
+                sourceServerToken(config)
             );
         }
     );
@@ -159,7 +158,8 @@ export function registerSourceSyncEvents(): void {
                 instance.apiVersion !== 1 ||
                 instance.storage !== 'server' ||
                 !instance.instanceId ||
-                !instance.capabilities?.includes(SOURCE_SYNC_CAPABILITY)
+                !Array.isArray(instance.capabilities) ||
+                !instance.capabilities.includes(SOURCE_SYNC_CAPABILITY)
             ) {
                 throw new Error('SOURCE_SYNC.INCOMPATIBLE');
             }
@@ -170,9 +170,12 @@ export function registerSourceSyncEvents(): void {
             ) {
                 throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
             }
-            const check = await sourceServerRequest(apiUrl, token, {
-                operation: 'list',
-            });
+            const check = await sourceServerRequest(
+                apiUrl,
+                token,
+                { operation: 'list' },
+                instance.instanceId
+            );
             if (check.status !== 200)
                 throw new Error(
                     check.status === 401

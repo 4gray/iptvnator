@@ -147,7 +147,12 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 !!baseline &&
                 sameSource({ ...baseline, title: accepted.title }, accepted);
             let next = stripSourceRowSnapshot(
-                applySourceDefinition(accepted, playlist)
+                baseline && !metadataOnly
+                    ? await this.materialize(
+                          accepted,
+                          applySourceDefinition(baseline, playlist)
+                      )
+                    : applySourceDefinition(accepted, playlist)
             );
             next.sourceSyncBase = accepted;
             next.sourceSyncRevision = revision;
@@ -181,6 +186,8 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 next = merge(await this.local.dbGetAppPlaylist(playlist._id));
                 await this.local.dbUpsertAppPlaylist(next);
             }
+            if (next.sourceSyncPending) this.pendingSources.add(playlist._id);
+            else this.pendingSources.delete(playlist._id);
             return { success: true, playlist: next };
         });
 

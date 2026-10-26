@@ -9,6 +9,7 @@ import {
     readSourceServerConfig,
     saveSourceServerConfig,
     clearSourceServerConfig,
+    sourceServerToken,
 } from '../services/source-server-config';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import {
@@ -92,6 +93,119 @@ describe('native source transport and connection IPC', () => {
             0
         );
     });
+
+    it('blocks an open import after detecting a replacement instance, then recovers through an anonymous probe', async () => {
+        const send = handler(SOURCE_SYNC_REQUEST);
+        const source = {
+            id: 'imported',
+            title: 'Private source',
+            kind: 'xtream',
+            serverUrl: 'https://provider.test',
+            username: 'private-user',
+            password: 'private-password',
+        };
+        (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
+            status: 200,
+            headers: {},
+            data: { ...instance, instanceId: 'replacement' },
+        });
+        await send({}, { operation: 'instance' });
+        await expect(
+            send({}, { operation: 'create', id: source.id, source })
+        ).rejects.toThrow('SOURCE_SYNC.INSTANCE_CHANGED');
+        expect(sourceServerToken).not.toHaveBeenCalled();
+        for (const [url, options] of (
+            requestWithValidatedRedirects as jest.Mock
+        ).mock.calls) {
+            expect(url).toBe(`${connection.apiUrl}/v1/instance`);
+            expect(options.headers).not.toHaveProperty('Authorization');
+            expect(options.data).toBeUndefined();
+        }
+        (requestWithValidatedRedirects as jest.Mock)
+            .mockResolvedValueOnce({ status: 200, headers: {}, data: instance })
+            .mockResolvedValueOnce({ status: 200, headers: {}, data: source });
+        await expect(
+            send({}, { operation: 'create', id: source.id, source })
+        ).resolves.toMatchObject({ body: source });
+        expect(sourceServerToken).toHaveBeenCalledTimes(1);
+        const calls = (requestWithValidatedRedirects as jest.Mock).mock.calls;
+        expect(calls.at(-2)[0]).toBe(`${connection.apiUrl}/v1/instance`);
+        expect(calls.at(-2)[1].headers).not.toHaveProperty('Authorization');
+        expect(calls.at(-1)[1]).toMatchObject({
+            data: source,
+            headers: { Authorization: 'Bearer synthetic-nas-token' },
+        });
+    });
+
+    it('does not let a late successful probe restore authorization after a newer identity failure', async () => {
+        const send = handler(SOURCE_SYNC_REQUEST);
+        let finish!: (value: unknown) => void;
+        (requestWithValidatedRedirects as jest.Mock)
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finish = resolve;
+                    })
+            )
+            .mockResolvedValue({
+                status: 200,
+                headers: {},
+                data: { ...instance, instanceId: 'replacement' },
+            });
+        const oldProbe = send({}, { operation: 'instance' });
+        await send({}, { operation: 'instance' });
+        finish({ status: 200, headers: {}, data: instance });
+        await expect(oldProbe).rejects.toThrow('SOURCE_SYNC.OFFLINE');
+        await expect(send({}, { operation: 'list' })).rejects.toThrow(
+            'SOURCE_SYNC.INSTANCE_CHANGED'
+        );
+        expect(sourceServerToken).not.toHaveBeenCalled();
+        expect(
+            (requestWithValidatedRedirects as jest.Mock).mock.calls.every(
+                ([url]) => url.endsWith('/v1/instance')
+            )
+        ).toBe(true);
+    });
+
+    it.each(['network', 'unauthorized', 'gateway', 'instance-changed'])(
+        'revokes native authorization after a %s source request failure',
+        async (failure) => {
+            const send = handler(SOURCE_SYNC_REQUEST);
+            await send({}, { operation: 'instance' });
+            const network = requestWithValidatedRedirects as jest.Mock;
+            if (failure === 'network')
+                network.mockRejectedValueOnce(new Error('synthetic outage'));
+            else
+                network.mockResolvedValueOnce({
+                    status:
+                        failure === 'unauthorized'
+                            ? 401
+                            : failure === 'gateway'
+                              ? 503
+                              : 409,
+                    headers: {},
+                    data: { code: 'instance_changed' },
+                });
+            await send({}, { operation: 'list' }).catch(() => undefined);
+            jest.clearAllMocks();
+            network.mockResolvedValue({
+                status: 200,
+                headers: {},
+                data: { ...instance, instanceId: 'replacement' },
+            });
+            await expect(send({}, { operation: 'list' })).rejects.toThrow(
+                'SOURCE_SYNC.INSTANCE_CHANGED'
+            );
+            expect(sourceServerToken).not.toHaveBeenCalled();
+            expect(network).toHaveBeenCalledTimes(1);
+            expect(network.mock.calls[0][0]).toBe(
+                `${connection.apiUrl}/v1/instance`
+            );
+            expect(network.mock.calls[0][1].headers).not.toHaveProperty(
+                'Authorization'
+            );
+        }
+    );
 
     it('returns a recovery error over synchronous IPC and accepts an explicit repair connection', async () => {
         (readSourceServerConfig as jest.Mock).mockImplementation(() => {

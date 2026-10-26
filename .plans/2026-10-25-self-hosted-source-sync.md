@@ -974,3 +974,55 @@ retries (14.6 minutes). Production static verification runs that stylesheet
 scenario separately among the 40 passing tests above. Generated test screenshots
 were restored or removed; they are not part of this change. The base fetch
 still resolves to master `fbda4564ac8860c55f8341283cfbce8b82cc067f`.
+
+
+### Local review nineteen: native identity and accepted M3U edits
+
+Review of `eb31afbdf70447461efc42425c3d10997386472c` found two valid issues;
+that commit was not pushed. A native import could bypass the renderer service
+state after an instance mismatch and disclose the saved token/source body.
+An accepted local M3U URL/body edit could retain the old parsed channels while
+recording the new revision, preventing future polls from repairing the cache.
+No findings were declined. The user has explicitly authorized continued fixes
+and review beyond the five-round cap.
+
+`SourceServerTransport` now owns main-process identity proof for every source
+IPC request, including direct imports. It probes anonymously before decrypting
+or sending a token/body, revokes proof after identity/auth/transport failures,
+and binds proof to API URL plus instance ID. Generations prevent a late probe
+from restoring authorization after a newer failure or connection selection.
+Explicit connection checks also bind their list request to the probed instance.
+Six native IPC regressions fail before the fix and pass afterwards. A separate
+transport test covers a late response from a previously selected profile.
+
+Accepted connection/body edits now materialize against the prior definition
+before persisting the accepted revision, preserving the caller device fields.
+A failed URL fetch remains pending, forcing a later projection attempt instead
+of accepting an unchanged inventory forever. All three new URL/raw-text/retry
+regressions fail before the fix and pass afterwards. Existing title-only edits,
+concurrent channel refresh and local-activity tests continue passing.
+
+Validation passes: 995 service tests, 2,709 Electron backend tests and merged
+36-project coverage (statements 84.96%, branches 76.01%, functions 83.14%, lines
+85.34%) with unchanged gates and no coverage-health warnings. The nine source
+suites pass 117 tests. The exact CI production build without the Nx cache passes
+at 1,200,266 / 1,200,301 initial bytes. Instrumented Electron E2E output is not a
+production payload measurement; the exact production build supplies this gate.
+
+All 41 selected production PWA scenarios pass, including an editor regression
+where changing User-Agent replaces the writing client channels and survives a
+reload. URL itself is currently a read-only editor field; URL and raw-body edits
+are covered at the storage boundary. The helper keeps the serial server-storage
+spec below its unchanged 1,200-line limit. All 11 prior mixed PWA/Electron cases
+pass; the added native identity case passes separately against an observing HTTP
+fixture. It verifies that a replacement instance receives only anonymous probes,
+then confirms recovery against the original identity. Its first fixture attempt
+used page.reload on a file route; the corrected case uses the normal connection
+Refresh action. No application reload behavior was changed.
+
+Owning lint, application/spec/E2E types, release notes and guidance pass. The
+canonical self-hosted contract records native proof revocation and local edit
+materialization. The existing feature release note covers these fixes. The
+prior full Chromium result (218 passed, one static-only skip, no retries) belongs
+to the pre-runtime-fix commit; the affected production scenarios above were
+rerun after these changes, and PR CI will exercise the complete combined tree.

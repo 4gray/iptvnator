@@ -9,6 +9,8 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createServer } from 'node:http';
+import type { SourceServerRequest } from '@iptvnator/shared/interfaces';
 import {
     closeElectronApp,
     launchElectronApp,
@@ -79,6 +81,117 @@ async function addTextSource(page: Page, title: string) {
         .click();
     await expect(dialog).toBeHidden();
 }
+
+test('withholds native import credentials after an instance mismatch and verifies recovery anonymously @electron', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-sync-identity-'));
+    const token = 'synthetic-native-token';
+    let identity = 'original';
+    const replacementRequests: { path: string; secret: boolean }[] = [];
+    const server = createServer(async (request, response) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of request) chunks.push(Buffer.from(chunk));
+        const body = Buffer.concat(chunks).toString();
+        const path = request.url ?? '';
+        if (identity === 'replacement')
+            replacementRequests.push({
+                path,
+                secret:
+                    !!request.headers.authorization ||
+                    body.includes('private-password'),
+            });
+        response.setHeader('Content-Type', 'application/json');
+        if (path === '/v1/instance')
+            response.end(
+                JSON.stringify({
+                    service: 'iptvnator',
+                    apiVersion: 1,
+                    storage: 'server',
+                    instanceId: identity,
+                    capabilities: ['sources-v1'],
+                    auth: 'token',
+                })
+            );
+        else if (request.headers.authorization !== `Bearer ${token}`) {
+            response.statusCode = 401;
+            response.end('{}');
+        } else if (request.method === 'GET') {
+            response.setHeader('ETag', '"inventory"');
+            response.end(JSON.stringify({ entries: [] }));
+        } else {
+            response.setHeader('ETag', '"created"');
+            response.end(body);
+        }
+    });
+    await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve)
+    );
+    const address = server.address();
+    if (!address || typeof address === 'string')
+        throw new Error('Missing fixture address');
+    const apiUrl = `http://127.0.0.1:${address.port}`;
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        writeFileSync(
+            join(directory, 'source-server.json'),
+            JSON.stringify({ apiUrl, instanceId: identity })
+        );
+        desktop = await launchElectronApp(directory);
+        const page = desktop.mainWindow;
+        const refresh = page
+            .getByTestId('source-sync-status')
+            .getByRole('button', { name: 'Refresh', exact: true });
+        await expect(refresh).toBeVisible();
+        await page.evaluate(
+            async ({ apiUrl, token }) => {
+                const configure = window.electron.sourceSyncConfigure;
+                if (!configure)
+                    throw new Error('Missing source connection bridge');
+                await configure(apiUrl, token, false);
+            },
+            { apiUrl, token }
+        );
+        await refresh.click();
+        await openSources(page);
+        const send = (request: SourceServerRequest) =>
+            page.evaluate((request) => {
+                const send = window.electron.sourceSyncRequest;
+                if (!send) throw new Error('Missing source request bridge');
+                return send(request);
+            }, request);
+        await send({ operation: 'instance' });
+        identity = 'replacement';
+        expect((await send({ operation: 'instance' })).body).toMatchObject({
+            instanceId: identity,
+        });
+        const source = {
+            id: 'native-import',
+            title: 'Private import',
+            kind: 'xtream' as const,
+            serverUrl: 'https://provider.test',
+            username: 'private-user',
+            password: 'private-password',
+        };
+        await expect(
+            send({ operation: 'create', id: source.id, source })
+        ).rejects.toThrow('SOURCE_SYNC.INSTANCE_CHANGED');
+        expect(replacementRequests.length).toBeGreaterThan(0);
+        expect(
+            replacementRequests.every(
+                (request) => request.path === '/v1/instance' && !request.secret
+            )
+        ).toBe(true);
+        identity = 'original';
+        expect(
+            await send({ operation: 'create', id: source.id, source })
+        ).toMatchObject({ status: 200, body: source });
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve()))
+        );
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
 
 for (const failReceipt of [false, true]) {
     test(`finishes interrupted first synchronization with remotely deleted cached rows (receipt failure: ${failReceipt}) @electron @persistence`, async ({

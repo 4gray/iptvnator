@@ -225,6 +225,10 @@ refresh mounted views. Its collection revision advances only after the local
 initialization receipt is persisted, so a failed write retries the inventory
 instead of accepting HTTP 304 with an unreadable cache. Electron Xtream metadata
 paths in `DatabaseService` use the same wrapper.
+Accepted connection or uploaded-body edits materialize the writing client's
+projection before storing the new revision. URL fetch failures keep the row
+pending and force a later inventory retry; title-only edits retain concurrent
+channel refreshes and local activity.
 Source IDs are the server's IDs in every local projection. Inventory views reuse
 the native payload-free metadata API. Browser metadata omits parsed/raw M3U
 and source baselines; opening a shared editor loads one complete local row
@@ -324,6 +328,11 @@ tokens with OS-protected `safeStorage` when available; Linux `basic_text` is
 not treated as protected storage. Otherwise the token lasts for the process
 and must be entered again after restart. Source-sync IPC accepts named
 operations, never arbitrary request paths or headers, and refuses redirects.
+The main process verifies the configured instance anonymously before sending
+tokens or source bodies. Identity, authentication and transport failures revoke
+that proof, including direct imports from an already-open preview. Recovery
+requires a fresh successful probe; an older in-flight response cannot restore
+authorization after a newer failure or profile change.
 
 Renderer code that needs to branch by runtime should use
 `RuntimeCapabilitiesService` from `@iptvnator/services` instead of adding new

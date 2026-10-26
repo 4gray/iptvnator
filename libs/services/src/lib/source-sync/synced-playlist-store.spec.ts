@@ -14,6 +14,8 @@ import { PlaylistsService } from '../playlists.service';
 import type { PlaylistDocumentStore } from '../playlist-storage-backend';
 import { SyncedPlaylistStore } from './synced-playlist-store';
 import { PlaylistWriteConflict } from '../playlist-storage-backend';
+import type { DataService } from '../data.service';
+import { materializeSource } from './source-materializer';
 
 const source: SourceDefinition = {
     id: 'a',
@@ -68,6 +70,131 @@ function setup() {
 }
 
 describe('source synchronization with local activity', () => {
+    it.each(['m3u-url', 'm3u-text'] as const)(
+        'materializes an accepted %s edit before marking its revision current',
+        async (kind) => {
+            const { rows, local } = setup();
+            const before: SourceDefinition = {
+                id: 'a',
+                title: 'Shared M3U',
+                kind,
+                ...(kind === 'm3u-url'
+                    ? { url: 'https://provider.test/old.m3u' }
+                    : {
+                          rawM3u: '#EXTM3U\n#EXTINF:-1,Old\nhttps://media.test/old',
+                      }),
+            };
+            const accepted: SourceDefinition = {
+                ...before,
+                ...(kind === 'm3u-url'
+                    ? { url: 'https://provider.test/new.m3u' }
+                    : {
+                          rawM3u: '#EXTM3U\n#EXTINF:-1,New\nhttps://media.test/new',
+                      }),
+            };
+            rows.set('a', {
+                ...applySourceDefinition(before),
+                sourceSyncBase: before,
+                sourceSyncRevision: '"1"',
+                favorites: ['local-favorite'],
+                playlist: {
+                    items: [{ name: 'Old', url: 'https://media.test/old' }],
+                },
+                count: 1,
+            });
+            const data = {
+                fetchPlaylistDefinition: jest.fn().mockResolvedValue({
+                    playlist: {
+                        items: [{ name: 'New', url: 'https://media.test/new' }],
+                    },
+                    count: 1,
+                }),
+            } as unknown as DataService;
+            const project = jest.fn(
+                (definition: SourceDefinition, current?: Playlist) =>
+                    materializeSource(definition, current, data)
+            );
+            const store = new SyncedPlaylistStore(
+                local,
+                async () => ({
+                    status: 200,
+                    body: accepted,
+                    etag: '"2"',
+                }),
+                project
+            );
+            const original = (await store.dbGetAppPlaylist('a'))!;
+            await store.dbUpsertAppPlaylist(
+                applySourceDefinition(accepted, original)
+            );
+            expect(project).toHaveBeenCalledTimes(1);
+            expect(rows.get('a')).toMatchObject({
+                sourceSyncBase: accepted,
+                sourceSyncRevision: '"2"',
+                playlist: {
+                    items: [{ name: 'New', url: 'https://media.test/new' }],
+                },
+                count: 1,
+                favorites: ['local-favorite'],
+            });
+            expect(rows.get('a')?.sourceSyncPending).toBeUndefined();
+        }
+    );
+
+    it('retains a failed URL edit as pending and retries its accepted definition', async () => {
+        const { rows, local } = setup();
+        const before: SourceDefinition = {
+            id: 'a',
+            title: 'Shared URL',
+            kind: 'm3u-url',
+            url: 'https://provider.test/old.m3u',
+        };
+        const accepted = { ...before, url: 'https://provider.test/new.m3u' };
+        rows.set('a', {
+            ...applySourceDefinition(before),
+            sourceSyncBase: before,
+            sourceSyncRevision: '"1"',
+            playlist: {
+                items: [{ name: 'Old', url: 'https://media.test/old' }],
+            },
+            count: 1,
+        });
+        const fetch = jest
+            .fn()
+            .mockRejectedValueOnce(new Error('provider offline'))
+            .mockResolvedValue({
+                playlist: { items: [{ name: 'New' }] },
+                count: 1,
+            });
+        const store = new SyncedPlaylistStore(
+            local,
+            async () => ({
+                status: 200,
+                body: accepted,
+                etag: '"2"',
+            }),
+            (definition, current) =>
+                materializeSource(definition, current, {
+                    fetchPlaylistDefinition: fetch,
+                } as unknown as DataService)
+        );
+        const original = (await store.dbGetAppPlaylist('a'))!;
+        await store.dbUpsertAppPlaylist({ ...original, url: accepted.url });
+        expect(rows.get('a')).toMatchObject({
+            sourceSyncBase: accepted,
+            sourceSyncRevision: '"2"',
+            sourceSyncPending: true,
+            playlist: { items: [] },
+            count: 0,
+        });
+        expect(store.pendingSources.has('a')).toBe(true);
+        await store.project(accepted, '"2"');
+        expect(fetch).toHaveBeenCalledTimes(2);
+        expect(rows.get('a')?.playlist?.items).toEqual([{ name: 'New' }]);
+        expect(rows.get('a')?.sourceSyncPending).toBeUndefined();
+        expect(store.pendingSources.has('a')).toBe(false);
+    });
+
     it.each([
         { ...source },
         {

@@ -2,6 +2,7 @@ import {
     STORAGE_BACKEND_URL,
     newServerPage,
     seedBrowserPlaylist,
+    verifyEditedSourceChannels,
 } from './server-storage-pwa.helpers';
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './fixtures';
@@ -54,6 +55,13 @@ test.describe('server storage @self-hosted @persistence', () => {
 
         await first.context().close();
         await second.context().close();
+    });
+
+    test('replaces the editing client channels after changing shared M3U request headers', async ({
+        browser,
+        request,
+    }) => {
+        await verifyEditedSourceChannels(browser, request);
     });
 
     test('opens the app and cached sources while URL materialization is pending', async ({

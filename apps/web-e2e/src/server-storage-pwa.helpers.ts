@@ -1,4 +1,12 @@
-import type { Browser, Page } from '@playwright/test';
+import type { APIRequestContext, Browser, Page } from '@playwright/test';
+import { expect } from './fixtures';
+import {
+    openSources,
+    sourceRowByTitle,
+    openSourceEditor,
+    updateSourceDialog,
+    saveSourceDialog,
+} from './sources-pwa.helpers';
 
 /** The storage-enabled backend from playwright.config.ts. */
 export const STORAGE_BACKEND_URL = `http://localhost:${
@@ -95,4 +103,64 @@ export async function seedBrowserPlaylist(
             }),
         [id, title] as const
     );
+}
+
+/** Editor regression: the writing client must replace its own parsed cache. */
+export async function verifyEditedSourceChannels(
+    browser: Browser,
+    request: APIRequestContext
+): Promise<void> {
+    const page = await newServerPage(browser);
+    const id = 'edited-url';
+    const title = 'Editable shared URL';
+    const provider = `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}`;
+    let channel = 'Original channel';
+    await page.route(`${STORAGE_BACKEND_URL}/parse?*`, (route) =>
+        route.fulfill({
+            json: {
+                header: { raw: '#EXTM3U', attrs: {} },
+                items: [
+                    {
+                        name: channel,
+                        url: `${provider}/${channel === 'Original channel' ? 'old' : 'new'}.ts`,
+                    },
+                ],
+            },
+        })
+    );
+    try {
+        expect(
+            (
+                await request.put(`${STORAGE_BACKEND_URL}/v1/playlists/${id}`, {
+                    data: {
+                        _id: id,
+                        title,
+                        url: `${provider}/playlist.m3u`,
+                        userAgent: 'original-agent',
+                    },
+                })
+            ).ok()
+        ).toBe(true);
+        await openSources(page);
+        await expect(sourceRowByTitle(page, title)).toBeVisible();
+        const editor = await openSourceEditor(page, title);
+        channel = 'Replacement channel';
+        await updateSourceDialog(editor, { userAgent: 'replacement-agent' });
+        await saveSourceDialog(editor);
+        await sourceRowByTitle(page, title).click();
+        await expect(
+            page.locator('app-channel-list-item').filter({ hasText: channel })
+        ).toBeVisible();
+        await expect(
+            page
+                .locator('app-channel-list-item')
+                .filter({ hasText: 'Original channel' })
+        ).toHaveCount(0);
+        await page.reload();
+        await expect(
+            page.locator('app-channel-list-item').filter({ hasText: channel })
+        ).toBeVisible();
+    } finally {
+        await page.context().close();
+    }
 }
