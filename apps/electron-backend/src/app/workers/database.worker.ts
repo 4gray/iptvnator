@@ -1,3 +1,7 @@
+import type {
+    ElectronBridgeFavoriteReorderUpdate,
+    XtreamFavoriteRemovalRef,
+} from '@iptvnator/shared/interfaces';
 import { migrateAppPlaylists } from '../database/operations/playlist-migration.operations';
 import { readStandaloneSources } from '../database/operations/standalone-sources.operations';
 import {
@@ -35,6 +39,7 @@ import {
     addFavorite,
     getAllGlobalFavorites,
     getFavorites,
+    getFavoritesForBackup,
     getGlobalFavorites,
     isFavorite,
     removeFavorite,
@@ -112,6 +117,7 @@ import {
 import {
     deleteXtreamContent,
     restoreXtreamUserData,
+    restoreXtreamFavorites,
 } from '../database/operations/xtream.operations';
 import {
     armWorkerPerformanceCapture,
@@ -605,12 +611,14 @@ async function executeRequest(
                 xtreamId: number;
                 playlistId: string;
                 contentType?: 'live' | 'movie' | 'series';
+                identity?: ContentMetadataPatch;
             };
             return getContentByXtreamId(
                 db,
                 payload.xtreamId,
                 payload.playlistId,
-                payload.contentType
+                payload.contentType,
+                payload.identity
             );
         }
 
@@ -1050,6 +1058,20 @@ async function executeRequest(
             );
         }
 
+        case 'DB_RESTORE_XTREAM_FAVORITES': {
+            const { playlistId, favorites, restoreId } = message.payload as {
+                playlistId: string;
+                favorites: XtreamBackupFavoriteItem[];
+                restoreId?: string;
+            };
+            return restoreXtreamFavorites(
+                db,
+                playlistId,
+                favorites,
+                undefined,
+                restoreId
+            );
+        }
         case 'DB_ADD_FAVORITE': {
             const payload = message.payload as {
                 contentId: number;
@@ -1063,7 +1085,7 @@ async function executeRequest(
 
         case 'DB_REMOVE_FAVORITE': {
             const payload = message.payload as {
-                contentId: number;
+                contentId: XtreamFavoriteRemovalRef;
                 playlistId: string;
             };
             return removeFavorite(db, payload.contentId, payload.playlistId);
@@ -1077,6 +1099,10 @@ async function executeRequest(
             return isFavorite(db, payload.contentId, payload.playlistId);
         }
 
+        case 'DB_GET_FAVORITES_FOR_BACKUP': {
+            const { playlistId } = message.payload as { playlistId: string };
+            return getFavoritesForBackup(db, playlistId);
+        }
         case 'DB_GET_FAVORITES': {
             const payload = message.payload as { playlistId: string };
             return getFavorites(db, payload.playlistId);
@@ -1090,11 +1116,7 @@ async function executeRequest(
 
         case 'DB_REORDER_GLOBAL_FAVORITES': {
             const payload = message.payload as {
-                updates: {
-                    content_id: number;
-                    playlist_id: string;
-                    position: number;
-                }[];
+                updates: ElectronBridgeFavoriteReorderUpdate[];
             };
             return reorderGlobalFavorites(db, payload.updates);
         }
@@ -1211,7 +1233,11 @@ async function executeRequest(
                 playlistId: string;
                 items: Parameters<typeof replaceAllPlaybackPositions>[2];
             };
-            return replaceAllPlaybackPositions(db, payload.playlistId, payload.items);
+            return replaceAllPlaybackPositions(
+                db,
+                payload.playlistId,
+                payload.items
+            );
         }
 
         case 'DB_CLEAR_ALL_PLAYBACK_POSITIONS': {

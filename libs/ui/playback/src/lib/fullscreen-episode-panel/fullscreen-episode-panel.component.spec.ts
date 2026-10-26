@@ -433,4 +433,24 @@ describe('FullscreenEpisodePanelComponent', () => {
         fixture.detectChanges();
         expect(list.scrollTop).toBe(0);
     });
+
+    it('leaves the list where it is when the playing row is already fully visible', () => {
+        fixture.componentRef.setInput('seasons', seasons(12));
+        fixture.componentRef.setInput('open', false);
+        fixture.detectChanges();
+
+        const list = fixture.nativeElement.querySelector(
+            '[data-test-id="fullscreen-episode-panel-list"]'
+        ) as HTMLElement;
+        const playingRow = rows()[1];
+        Object.defineProperty(list, 'clientHeight', { value: 400 });
+        // Fully inside the 0..400 view: centring would move the list to 150.
+        Object.defineProperty(playingRow, 'offsetTop', { value: 300 });
+        Object.defineProperty(playingRow, 'offsetHeight', { value: 100 });
+
+        fixture.componentRef.setInput('open', true);
+        fixture.detectChanges();
+
+        expect(list.scrollTop).toBe(0);
+    });
 });

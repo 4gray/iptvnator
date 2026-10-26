@@ -143,26 +143,24 @@
                     />
                 }
             }
-
-            <app-vod-more-menu
-                [sections]="menu.sections()"
-                [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
-                testId="vod-more-menu"
-                [sources]="multiSource.sources()"
-                [sourcesTitle]="multiSourceTitle()"
-                [matchKind]="multiSource.matchKind()"
-                [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
-                [autoFailoverSupported]="autoFailoverSupported()"
-                [playbackLive]="playbackLive()"
-                (selected)="menu.run($event)"
-                (sourcePlayRequested)="playFromSource($event)"
-                (sourcePinRequested)="pinSource($event)"
-                (sourceCheckRequested)="checkSource($event)"
-                (autoFailoverToggled)="setAutoFailover($event)"
-            />
         }
     }
-    <app-view-in-portal-action />
+    <app-vod-more-menu
+        [sections]="menu.sections()"
+        [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
+        testId="vod-more-menu"
+        [sources]="multiSource.sources()"
+        [sourcesTitle]="multiSourceTitle()"
+        [matchKind]="multiSource.matchKind()"
+        [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
+        [autoFailoverSupported]="autoFailoverSupported()"
+        [playbackLive]="playbackLive()"
+        (selected)="menu.run($event)"
+        (sourcePlayRequested)="playFromSource($event)"
+        (sourcePinRequested)="pinSource($event)"
+        (sourceCheckRequested)="checkSource($event)"
+        (autoFailoverToggled)="setAutoFailover($event)"
+    />
 </ng-template>
 
 <ng-template #vodCredits>

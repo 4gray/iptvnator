@@ -37,7 +37,7 @@ export const SETTINGS_SECTION_DEFINITIONS: readonly SettingsSectionDefinition[] 
             id: 'epg',
             navLabelKey: 'SETTINGS.NAV_EPG',
             icon: 'calendar_month',
-            requires: ['epg'],
+            requires: ['epg-display'],
             group: 'app',
         },
         {

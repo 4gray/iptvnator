@@ -1,0 +1,52 @@
+<div
+    aria-hidden="true"
+    class="channel-context-menu-anchor"
+    [style.left]="position().x"
+    [style.top]="position().y"
+    [matMenuTriggerFor]="menu"
+></div>
+
+<mat-menu #menu="matMenu">
+    @if (showMapEpg()) {
+        <button mat-menu-item type="button" (click)="mapEpg.emit()">
+            <mat-icon>settings_remote</mat-icon>
+            <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
+        </button>
+    }
+    @if (showDetails()) {
+        <button mat-menu-item type="button" (click)="details.emit()">
+            <mat-icon>info</mat-icon>
+            <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
+        </button>
+    }
+    @if (openInPlaylistName() !== null) {
+        <button
+            mat-menu-item
+            type="button"
+            data-testid="channel-open-in-playlist"
+            (click)="openInPlaylist.emit()"
+        >
+            <mat-icon>open_in_new</mat-icon>
+            <span>{{
+                'PORTALS.VIEW_IN_PORTAL_TOOLTIP'
+                    | translate: { name: openInPlaylistName() }
+            }}</span>
+        </button>
+    }
+    @if (showRemoveFromHistory()) {
+        @if (hasLeadingRows()) {
+            <mat-divider />
+        }
+        <button
+            mat-menu-item
+            type="button"
+            class="app-menu-item--danger"
+            (click)="removeFromHistory.emit()"
+        >
+            <mat-icon>delete</mat-icon>
+            <span>{{
+                'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate
+            }}</span>
+        </button>
+    }
+</mat-menu>

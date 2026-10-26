@@ -1,0 +1,100 @@
+import { useEffect, useState } from 'preact/hooks';
+import { LibrarySettings } from './library-settings';
+import { PhoneSetup } from './phone-setup';
+import { BackendConnection } from './backend-connection';
+import { DirectAccessProbe } from './direct-probe';
+import { TmdbSettings } from './tmdb-settings';
+import { TvModel } from './use-tv';
+export function Settings({ tv }: { tv: TvModel }) {
+    const [layout, setLayout] = useState(tv.data.layout);
+    const [epg, setEpg] = useState(tv.data.epg);
+    const [saved, setSaved] = useState(false);
+    useEffect(() => {
+        setLayout(tv.data.layout);
+        setEpg(tv.data.epg);
+    }, [tv.data.layout, tv.data.epg]);
+    const save = (event: SubmitEvent) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget as HTMLFormElement);
+        const persist = () =>
+            tv
+                .update((d) => ({
+                    ...d,
+                    layout: form.get('layout') === 'shelf' ? 'shelf' : 'cinema',
+                    epg: form.has('epg'),
+                }))
+                .then(() => {
+                    setSaved(true);
+                    tv.setError('');
+                })
+                .catch(() =>
+                    tv.setError(
+                        'Settings could not be saved.',
+                        () => void persist(),
+                        'Retry saving settings'
+                    )
+                );
+        setSaved(false);
+        void persist();
+    };
+    return (
+        <>
+            <BackendConnection tv={tv} label="Backend URL" />
+            <PhoneSetup tv={tv} purpose="settings" />
+            <LibrarySettings tv={tv} />
+            <form
+                class="source-form"
+                key={`${tv.data.layout}:${tv.data.epg}`}
+                onSubmit={save}
+            >
+                <label>
+                    Home composition
+                    <select
+                        name="layout"
+                        value={layout}
+                        onChange={(event) =>
+                            setLayout(
+                                event.currentTarget.value === 'shelf'
+                                    ? 'shelf'
+                                    : 'cinema'
+                            )
+                        }
+                    >
+                        <option value="cinema">Кинозал · Cinema</option>
+                        <option value="shelf">Витрина · Showcase</option>
+                    </select>
+                </label>
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="epg"
+                        checked={epg}
+                        onChange={(event) =>
+                            setEpg(event.currentTarget.checked)
+                        }
+                    />{' '}
+                    Show provider programme guide
+                </label>
+                <button class="primary">Save settings</button>
+                {saved ? <p role="status">Settings saved on this TV.</p> : null}
+            </form>
+            <DirectAccessProbe tv={tv} />
+            <TmdbSettings tv={tv} />
+            <h2>Your remote</h2>
+            <p class="muted">
+                Arrows move focus. OK selects. Back returns to your last title.
+                <br />
+                Live: first OK starts preview; OK again opens fullscreen.
+                <br />
+                Text fields: Up / Down leaves the field. Select lists: Left /
+                Right leaves the list.
+                <br />
+                Playback: Play / Pause, Rewind and Fast Forward are supported.
+            </p>
+            <p class="muted">
+                Favorites and viewing progress stay on this TV. Native media
+                compatibility must be checked on your device.
+            </p>
+        </>
+    );
+}

@@ -9,6 +9,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import { ServerStorageStatusService } from '@iptvnator/services';
+import { DialogFooterDirective, DialogShellComponent } from '@iptvnator/ui/components';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 import { PlaylistStorageBackend } from '@iptvnator/services';
 
@@ -35,6 +37,8 @@ type SettingsDeleteSummaryItem = {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CommonModule,
+        DialogFooterDirective,
+        DialogShellComponent,
         MatButtonModule,
         MatDialogModule,
         MatIconModule,
@@ -45,6 +49,8 @@ export class SettingsDeleteAllPlaylistsDialogComponent {
     readonly sharedLibrary = inject(PlaylistStorageBackend).kind() === 'server';
     readonly dialogData =
         inject<SettingsDeleteAllPlaylistsDialogData>(MAT_DIALOG_DATA);
+    /** Self-hosted server storage: the playlists go for every device. */
+    readonly clearsServer = inject(ServerStorageStatusService).isActive;
 
     readonly summaryItems = computed<SettingsDeleteSummaryItem[]>(() => [
         {

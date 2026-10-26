@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, WritableSignal } from '@angular/core';
 import {
     ResolvedLiveCollectionDetail,
@@ -58,6 +59,7 @@ export function createUnifiedLiveSelection(options: {
     isSelecting: WritableSignal<boolean>;
     generation: UnifiedLiveSelectionGeneration;
     supportsEpg: boolean;
+    supportsProviderEpg: boolean;
     isRadioDetail(
         detail: ResolvedLiveCollectionDetail | null | undefined
     ): boolean;
@@ -77,6 +79,9 @@ export function createUnifiedLiveSelection(options: {
 
     /** Stream URL of the radio playback whose header override this configured. */
     let radioHeaderScopeUrl: string | null = null;
+    // The mounted stream keeps its guide while a replacement resolves or fails.
+    // Pending row highlights use the separate playback selection generation.
+    let guideOwner: symbol | null = null;
     /**
      * The selection still resolving. `activeUid` alone cannot tell a pending
      * highlight from the stream on screen — `activeItem`/`activeDetail` stay
@@ -96,30 +101,30 @@ export function createUnifiedLiveSelection(options: {
         radioHeaderScopeUrl = null;
     };
 
-    const hydrateSelectedM3uPrograms = async (
+    const hydrateSelectedPrograms = async (
         item: UnifiedCollectionItem,
         detail: ResolvedLiveCollectionDetail,
-        generation: number
+        owner: symbol
     ): Promise<void> => {
-        if (detail.epgMode !== 'm3u' || detail.channel?.radio === 'true') {
-            return;
+        if (item.radio === 'true' || detail.channel?.radio === 'true') return;
+        try {
+            const guide =
+                detail.epgMode === 'm3u'
+                    ? {
+                          epgPrograms:
+                              await streamResolver.loadM3uProgramsForItem(
+                                  item,
+                                  detail.channel
+                              ),
+                      }
+                    : { epgItems: await streamResolver.loadEpgItems(item) };
+            if (guideOwner !== owner) return;
+            options.activeDetail.update((current) =>
+                current === detail ? { ...current, ...guide } : current
+            );
+        } catch {
+            // A missing background guide must never interrupt the mounted stream.
         }
-
-        const epgPrograms = await streamResolver.loadM3uProgramsForItem(
-            item,
-            detail.channel
-        );
-        if (generation !== options.generation.current()) {
-            return;
-        }
-
-        options.activeDetail.update((currentDetail) => {
-            if (!currentDetail || currentDetail.epgMode !== 'm3u') {
-                return currentDetail;
-            }
-
-            return { ...currentDetail, epgPrograms };
-        });
     };
 
     /** Set by `dispose`: the host is gone and must not be notified. */
@@ -145,6 +150,7 @@ export function createUnifiedLiveSelection(options: {
 
     const close = (): void => {
         options.generation.next();
+        guideOwner = null;
         pendingActivation = null;
         options.isSelecting.set(false);
         options.activeDetail.set(null);
@@ -161,6 +167,7 @@ export function createUnifiedLiveSelection(options: {
         isAutoOpen = false,
         startPlayback = false
     ): Promise<void> {
+        if (isCatalogUnavailable(item)) return;
         const activeDetail = options.activeDetail();
         // The row is on screen only when it is both the highlight and the
         // resolved item: while a replacement resolves, `activeUid` already
@@ -207,7 +214,9 @@ export function createUnifiedLiveSelection(options: {
             const detail =
                 item.sourceType === 'm3u'
                     ? await streamResolver.resolveM3uPlaybackDetail(item)
-                    : await streamResolver.resolveLiveDetail(item);
+                    : await streamResolver.resolveLiveDetail(item, {
+                          includeEpg: false,
+                      });
             if (generation !== options.generation.current()) {
                 return;
             }
@@ -233,9 +242,15 @@ export function createUnifiedLiveSelection(options: {
             options.activeTimeshift.set(null);
             options.activeItem.set(item);
             options.activeDetail.set(detail);
+            const owner = Symbol();
+            guideOwner = owner;
 
-            if (options.supportsEpg && detail.epgMode === 'm3u') {
-                void hydrateSelectedM3uPrograms(item, detail, generation);
+            const supportsGuide =
+                detail.epgMode === 'm3u'
+                    ? options.supportsEpg
+                    : options.supportsProviderEpg;
+            if (supportsGuide) {
+                void hydrateSelectedPrograms(item, detail, owner);
             }
 
             if (
@@ -300,6 +315,7 @@ export function createUnifiedLiveSelection(options: {
         close,
         dispose(): void {
             disposed = true;
+            guideOwner = null;
             // Invalidate a playback continuation still awaiting its header
             // IPC and drop any radio credentials owned by this tab.
             options.generation.next();

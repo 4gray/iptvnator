@@ -12,17 +12,24 @@ import {
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
+import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import { SourceStatusService } from '@iptvnator/portal/shared/data-access';
+import { SourceRemovalService } from '@iptvnator/playlist/shared/ui';
+import { SourcesViewStateService } from '@iptvnator/playlist/shared/util';
 import {
-    selectActiveTypeFilters,
-    selectAllPlaylistsMeta,
-} from '@iptvnator/m3u-state';
-import { SortBy, SortOrder, SortService } from '@iptvnator/services';
+    RuntimeCapabilitiesService,
+    SortBy,
+    SortOrder,
+    SortService,
+} from '@iptvnator/services';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     MenuItemRadioCheckDirective,
     MenuItemRadioDirective,
@@ -41,10 +48,24 @@ class MockRecentPlaylistsComponent {
     readonly addPlaylistClicked = output<void>();
 }
 
+const PLAYLISTS = [
+    { _id: 'playlist-1', title: 'Playlist 1', url: 'https://a.example/1.m3u' },
+    {
+        _id: 'playlist-2',
+        title: 'Playlist 2',
+        serverUrl: 'http://x.example',
+        username: 'u',
+        password: 'p',
+    },
+] as PlaylistMeta[];
+
 describe('WorkspaceSourcesComponent', () => {
     let fixture: ComponentFixture<WorkspaceSourcesComponent>;
+    let setSortOptions: jest.Mock;
 
     beforeEach(async () => {
+        localStorage.clear();
+        setSortOptions = jest.fn();
         await TestBed.configureTestingModule({
             imports: [WorkspaceSourcesComponent, NoopAnimationsModule],
             providers: [
@@ -62,21 +83,29 @@ describe('WorkspaceSourcesComponent', () => {
                 },
                 provideMockStore({
                     selectors: [
-                        {
-                            selector: selectActiveTypeFilters,
-                            value: ['m3u', 'xtream', 'stalker'],
-                        },
-                        {
-                            selector: selectAllPlaylistsMeta,
-                            value: [
-                                {
-                                    _id: 'playlist-1',
-                                    title: 'Playlist 1',
-                                },
-                            ],
-                        },
+                        { selector: selectAllPlaylistsMeta, value: PLAYLISTS },
                     ],
                 }),
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsSourceHealth: true },
+                },
+                {
+                    provide: SourceStatusService,
+                    useValue: {
+                        supportsStatusFilter: true,
+                        statusOf: (p: PlaylistMeta) => ({
+                            reachability: p._id === 'playlist-2' ? 'bad' : 'ok',
+                        }),
+                    },
+                },
+                {
+                    provide: SourceRemovalService,
+                    useValue: {
+                        pendingIds: signal(new Set<string>()),
+                        isPending: () => false,
+                    },
+                },
                 {
                     provide: ActivatedRoute,
                     useValue: {
@@ -91,7 +120,8 @@ describe('WorkspaceSourcesComponent', () => {
                                 by: SortBy.DATE_ADDED,
                                 order: SortOrder.DESC,
                             }),
-                        setSortOptions: jest.fn(),
+                        setSortOptions: (options: unknown) =>
+                            setSortOptions(options),
                     },
                 },
                 {
@@ -140,6 +170,7 @@ describe('WorkspaceSourcesComponent', () => {
                 set: {
                     imports: [
                         MatButtonModule,
+                        MatDividerModule,
                         MatIconModule,
                         MatMenuModule,
                         MenuItemRadioCheckDirective,
@@ -199,35 +230,47 @@ describe('WorkspaceSourcesComponent', () => {
         expect(context.protected('other')).toBe(false);
     });
 
-    it('renders the shared panel header structure without paragraph subtitle margins', async () => {
+    it('puts a 28px title and the visible count on the page', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const header: HTMLElement =
-            fixture.nativeElement.querySelector('.sources-header');
-        const meta: HTMLElement = fixture.nativeElement.querySelector(
-            '.sources-header__meta'
-        );
-        const title: HTMLElement =
-            fixture.nativeElement.querySelector('.sources-title');
-        const subtitle: HTMLElement =
-            fixture.nativeElement.querySelector('.sources-subtitle');
-
-        expect(header).not.toBeNull();
-        expect(meta).not.toBeNull();
-        expect(title.textContent?.trim()).toBe('All Playlists');
-        expect(subtitle.textContent?.trim()).toBe('1 playlist');
-        expect(subtitle.tagName).toBe('SPAN');
+        const element = fixture.nativeElement as HTMLElement;
+        expect(
+            element.querySelector('.sources-title')?.textContent?.trim()
+        ).toBe('All Playlists');
+        expect(
+            element.querySelector('.sources-count')?.textContent?.trim()
+        ).toBe('2');
+        // The header stays; the list below it scrolls.
+        const scroller = element.querySelector('.sources-content');
+        expect(scroller?.classList).toContain('app-scrollbar');
+        expect(
+            scroller?.contains(element.querySelector('.sources-header'))
+        ).toBe(false);
     });
 
-    it('uses the shared always-visible scrollbar utility for the playlist list', async () => {
+    it('titles the page by the status filter and counts what it shows', async () => {
+        TestBed.inject(SourcesViewStateService).setStatus('bad');
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const content: HTMLElement =
-            fixture.nativeElement.querySelector('.sources-content');
+        const element = fixture.nativeElement as HTMLElement;
+        expect(
+            element.querySelector('.sources-title')?.textContent?.trim()
+        ).toBe('WORKSPACE.SOURCES.STATUS_BAD');
+        expect(
+            element.querySelector('.sources-count')?.textContent?.trim()
+        ).toBe('1');
+    });
 
-        expect(content.classList.contains('app-scrollbar')).toBe(true);
+    it('counts sources that do not respond on Clean up', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const pill = (fixture.nativeElement as HTMLElement).querySelector(
+            '.cleanup-trigger .sources-action__count'
+        );
+        expect(pill?.textContent?.trim()).toBe('1');
     });
 
     it('offers the source sorts as radio rows with the active one checked', async () => {
@@ -246,20 +289,29 @@ describe('WorkspaceSourcesComponent', () => {
                 '.cdk-overlay-container [mat-menu-item]'
             )
         );
-        expect(rows.map((row) => row.getAttribute('role'))).toEqual(
-            Array(5).fill('menuitemradio')
-        );
+        expect(rows.map((row) => row.getAttribute('role'))).toEqual([
+            ...Array(7).fill('menuitemradio'),
+            'menuitemcheckbox',
+        ]);
+        // The radio group is named by its section, as every menu group is.
+        expect(
+            rows[0].closest('[role="group"]')?.getAttribute('aria-label')
+        ).toBe('WORKSPACE.REFINE_SORT_SECTION');
         expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual([
             'true',
-            'false',
-            'false',
-            'false',
-            'false',
+            ...Array(7).fill('false'),
         ]);
-        for (const row of rows) {
+        for (const row of rows.slice(0, 7)) {
             expect(row.firstElementChild?.classList).toContain(
                 'app-menu-item-radio-check'
             );
         }
+
+        rows[7].click();
+        expect(setSortOptions).toHaveBeenCalledWith({
+            by: SortBy.DATE_ADDED,
+            order: SortOrder.DESC,
+            failingFirst: true,
+        });
     });
 });

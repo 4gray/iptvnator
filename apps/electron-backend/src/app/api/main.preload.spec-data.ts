@@ -158,6 +158,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [playlistId, operationId],
     },
     {
+        method: 'dbRestoreXtreamFavorites',
+        args: [playlistId, favorites, 'restore-1'],
+        channel: 'DB_RESTORE_XTREAM_FAVORITES',
+        forwardedArgs: [playlistId, favorites, 'restore-1'],
+    },
+    {
         method: 'dbRestoreXtreamUserData',
         args: [playlistId, favorites, recentlyViewed, operationId],
         channel: 'DB_RESTORE_XTREAM_USER_DATA',
@@ -276,6 +282,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [12, playlistId],
         channel: 'DB_IS_FAVORITE',
         forwardedArgs: [12, playlistId],
+    },
+    {
+        method: 'dbGetFavoritesForBackup',
+        args: [playlistId],
+        channel: 'DB_GET_FAVORITES_FOR_BACKUP',
+        forwardedArgs: [playlistId],
     },
     {
         method: 'dbGetFavorites',

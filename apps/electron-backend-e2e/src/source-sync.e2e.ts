@@ -240,6 +240,12 @@ test('authenticates the PWA and retains its isolated source cache while NAS is o
                 'xtream-collection-items': {},
                 'xtream-playback-positions': {},
             },
+            tags: {
+                'xtream-favorites': {},
+                'xtream-recent-items': {},
+                'xtream-collection-items': {},
+                'xtream-playback-positions': {},
+            },
         });
         await server.close();
         await page.reload();

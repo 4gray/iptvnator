@@ -17,11 +17,13 @@ import { TranslateModule } from '@ngx-translate/core';
 import { TmdbApiService, TmdbCacheService } from '@iptvnator/services';
 import type { TmdbCacheStats } from '@iptvnator/shared/interfaces';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
 
 @Component({
     selector: 'app-settings-tmdb-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         MatButtonModule,
         MatFormFieldModule,

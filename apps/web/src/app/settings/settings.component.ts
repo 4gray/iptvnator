@@ -22,9 +22,11 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,
     RuntimeCapabilitiesService,
+    ServerStorageStatusService,
     injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     Language,
@@ -61,6 +63,7 @@ import { SettingsParentalLockSectionComponent } from './settings-parental-sectio
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
 import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
+import { SettingsServerSectionComponent } from './settings-server-section.component';
 import { SettingsSearchFacade } from './settings-search.facade';
 import { SettingsSearchResultsComponent } from './settings-search-results.component';
 import { SettingsTmdbSectionComponent } from './settings-tmdb-section.component';
@@ -73,7 +76,6 @@ import { SettingsUnloadGuardService } from './settings-unload-guard.service';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
-import { SettingsServerSectionComponent } from './settings-server-section.component';
 
 export const SETTINGS_DEFAULT_SECTION = 'general';
 
@@ -109,6 +111,7 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
         SettingsSearchResultsComponent,
+        SettingsServerSectionComponent,
         SettingsTmdbSectionComponent,
         SettingsServerSectionComponent,
     ],
@@ -168,6 +171,9 @@ export class SettingsComponent
         this.runtime.supportsExternalPlayerPathSettings;
     readonly supportsVodMultiSource = this.vodSourceDiscovery.isAvailable;
     readonly supportsRemoteControl = this.runtime.supportsRemoteControl;
+    readonly supportsServerStorage = inject(
+        ServerStorageStatusService
+    ).isActive();
     readonly supportsStartupWindowMode = this.runtime.supportsStartupWindowMode;
     readonly supportsPortalConnectivityGuard =
         this.runtime.supportsPortalConnectivityGuard;
@@ -230,8 +236,9 @@ export class SettingsComponent
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
-        supportsEpg: this.supportsEpg,
+        supportsEpg: this.form.supportsEpgDisplay,
         supportsRemoteControl: this.supportsRemoteControl,
+        supportsServerStorage: this.supportsServerStorage,
     });
 
     get sectionNav(): SettingsSection[] {
@@ -417,7 +424,7 @@ export class SettingsComponent
                     { canSave: boolean },
                     SettingsUnsavedChangesChoice
                 >(SettingsUnsavedChangesDialogComponent, {
-                    width: '440px',
+                    ...dialogSize('sm'),
                     data: { canSave: this.settingsForm.valid },
                 })
                 .afterClosed()

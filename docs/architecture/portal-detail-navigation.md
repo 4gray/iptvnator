@@ -49,7 +49,12 @@ and the history fallback on the list Back returns to.
 
 The header Back is route-level in both states: it emits `backClicked`
 whether or not inline playback is active, so the arrow keeps one meaning and
-the list is one click away while watching. Only Escape unwinds one level: watch
+the list is one click away while watching. The platform Back gestures (the
+mouse Back button, Alt+← / Cmd+[, and Electron's `app-command` and trackpad
+swipe; see "Platform gestures" in
+[Header Back](./workspace-shell.md#header-back)) run the same target, so they
+leave the page in watch too, except while the player is fullscreen, where
+they do nothing. Only Escape unwinds one level: watch
 emits `closePlayerRequested`, browse emits `backClicked`. Hosts retain their
 existing route/inline/collection return behavior. The now-playing bar carries
 no second arrow; its "Close player" button is the pointer counterpart of the
@@ -87,6 +92,20 @@ handler as the header Back.
   one Back arrow returns to the list from either state, while Escape and the
   now-playing bar's Close button close the inline player. See
   [Embedded Inline Playback](./embedded-inline-playback.md).
+- Live collection playback resolves without awaiting EPG
+  (`resolveLiveDetail(item, { includeEpg: false })`). Once that detail is
+  mounted, `UnifiedLiveSelection` hydrates M3U or portal programmes separately;
+  `loadEpgItems` never resolves or launches playback. A guide response must
+  still own both a mounted-guide token and the exact mounted detail before
+  it can update the panel. Pending playback selections use a separate generation:
+  the retained stream can still receive its guide while a replacement resolves
+  or fails. A successful replacement, close or destruction invalidates the
+  mounted-guide token; guide failures leave playback running.
+- Live preview results use `collectionEpgKey` in portal shared util.
+  Xtream/Stalker results include source type, playlist ID and provider channel
+  ID, independently of collection UIDs, names or `tvgId`. Resolver writes,
+  favorites/recent rows and dashboard reads share that helper; XMLTV lookup
+  and mapping keys remain separate from result identity.
 - Favorites and recently viewed collections now use collection-owned inline detail
   for non-live Xtream and Stalker items.
 - Provider-scoped collection routes fall back to the matching global collection
@@ -94,7 +113,9 @@ handler as the header Back.
   so the correct detail host still opens without switching playlist context.
 - Dashboard `Global Favorites` and `Recently Watched` widgets hand off Xtream and
   Stalker movies/series into the matching global collection route with detail
-  pre-opened.
+  pre-opened. Unavailable favorites instead open the all-playlists collection
+  filtered to that content type, with no detail handoff, so an active different
+  playlist cannot hide the saved entry.
 - The dashboard hero CTA and the Continue Watching cards' explicit "Resume
   episode" ⋮ action for Xtream and Stalker series carry a one-shot
   season/episode resume target. The collection-owned detail consumes it after
@@ -130,15 +151,17 @@ handler as the header Back.
   host can resolve, but hides Offline/local/download presentation.
 - Inline collection details (global favorites/recent — which also receive the
   dashboard hero and Continue Watching handoffs — plus a portal's own
-  favorites/recent tabs) expose the same bridge as a separate-row hero action.
-  The shared `app-view-in-portal-action` (`libs/ui/components`) renders only
-  when a host provides `VIEW_IN_PORTAL_HANDOFF`; the two collection-detail
+  favorites/recent tabs) expose the same bridge in the hero’s “…” menu.
+  The shared `app-vod-more-menu` (`libs/ui/components`) adds a navigation group
+  before the provider actions only when a host provides `VIEW_IN_PORTAL_HANDOFF`
+  and the target is available. Its label includes the source name when known.
+  The two collection-detail
   wrappers (`xtream-collection-detail.component.ts`,
   `stalker-collection-detail.component.ts`) are the only providers, so
-  router-mounted category details never show the button. Targets come from
+  router-mounted category details never show the menu item. Targets come from
   `getUnifiedCollectionDetailNavigation()` (`libs/portal/shared/util`), which
   never degrades to a category- or section-only route: an Xtream item without a
-  resolvable category and positive item id keeps the button hidden. Unlike the
+  resolvable category and positive item id keeps the menu item hidden. Unlike the
   download handoff it does NOT pass `detailPresentation: 'provider-only'` — the
   item exists in the provider catalog and the full normal detail is desired.
   The Stalker handoff carries `stalkerReturnTo` so the portal detail's back
@@ -329,10 +352,19 @@ Collection behavior to preserve:
 
 Dashboard behavior to preserve:
 
+- A collection detail handoff shows the shared detail-shell skeleton while
+  the collection validates the saved item, then keeps that layout while the
+  provider detail module loads. Ordinary collection visits retain their list
+  or grid skeletons. The pending presentation must not open provider detail
+  before availability validation or bypass missing-favorite checks.
 - Dashboard `Global Favorites` and `Recently Watched` widgets should route
   Xtream movie/series items into `/workspace/global-favorites` or
   `/workspace/global-recent` with collection detail pre-opened from navigation
   state.
+- Global detail handoffs carry `All playlists` scope in collection view state.
+  The active playlist stays unchanged, but availability is checked against
+  the target favorite's current row even when it belongs to another source.
+  Missing or removed favorites still cannot reopen through stale history.
 - When a series recent (Xtream, or a Stalker row that
   `resolvePortalActivityWatchKind` answers `series` for) has a saved episode
   position, the dashboard hero and Continue Watching card should include that

@@ -1,0 +1,36 @@
+{
+    "name": "tv-e2e",
+    "projectType": "application",
+    "sourceRoot": "apps/tv-e2e/src",
+    "tags": [
+        "scope:tv",
+        "domain:tv",
+        "type:e2e"
+    ],
+    "implicitDependencies": [
+        "tv",
+        "xtream-mock-server",
+        "stalker-mock-server",
+        "web-backend",
+        "tv-setup"
+    ],
+    "targets": {
+        "e2e": {
+            "dependsOn": [
+                {
+                    "target": "build",
+                    "projects": [
+                        "tv",
+                        "tv-setup"
+                    ]
+                }
+            ]
+        },
+        "lint": {
+            "command": "eslint \"apps/tv-e2e/**/*.ts\""
+        },
+        "typecheck": {
+            "command": "tsc -p apps/tv-e2e/tsconfig.spec.json --noEmit"
+        }
+    }
+}

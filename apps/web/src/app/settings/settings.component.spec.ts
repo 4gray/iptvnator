@@ -391,6 +391,50 @@ describe('SettingsComponent', () => {
             ).toBe(false);
         });
 
+        it('shows the EPG page with only its display settings in the browser PWA', () => {
+            fixture.destroy();
+            epgBridge.supportsImport = false;
+            epgBridge.supportsDataManagement = false;
+            window.electron = undefined as unknown as typeof window.electron;
+
+            const pwaFixture = TestBed.createComponent(SettingsComponent);
+            const pwaComponent = pwaFixture.componentInstance;
+            stubSettingsSideEffects(pwaComponent);
+            pwaFixture.detectChanges();
+            // The page itself must render without an `epgUrl` array.
+            setSettingsSection('epg');
+            pwaFixture.detectChanges();
+
+            const pwaPage = pwaFixture.nativeElement as HTMLElement;
+            for (const id of ['epg-view-mode', 'epg-offset']) {
+                expect(
+                    pwaPage.querySelector(`[data-setting-id="${id}"]`)
+                ).not.toBeNull();
+            }
+            for (const id of [
+                'epg-sources',
+                'prefer-uploaded-epg',
+                'epg-clear-data',
+            ]) {
+                expect(
+                    pwaPage.querySelector(`[data-setting-id="${id}"]`)
+                ).toBeNull();
+            }
+            expect(pwaComponent.supportsEpg).toBe(false);
+            expect(pwaComponent.form.supportsEpgDisplay).toBe(true);
+            expect(
+                pwaComponent.sectionNav.map((section) => section.id)
+            ).toContain('epg');
+            expect(
+                pwaComponent.settingsForm.get('epgOffsetMinutes')
+            ).not.toBeNull();
+            expect(pwaComponent.settingsForm.get('epgViewMode')).not.toBeNull();
+            expect(pwaComponent.settingsForm.get('epgUrl')).toBeNull();
+            expect(
+                pwaComponent.settingsForm.get('preferUploadedEpgOverXtream')
+            ).toBeNull();
+        });
+
         it('keeps external player choices when launch support exists without path settings', () => {
             fixture.destroy();
             window.electron = {

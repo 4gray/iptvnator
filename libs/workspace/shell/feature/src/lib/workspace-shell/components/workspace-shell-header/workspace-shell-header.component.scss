@@ -32,6 +32,19 @@
     flex-shrink: 0;
     margin-inline-start: -8px;
     app-region: no-drag;
+    // Fades in while the controls after it slide aside (LayoutSlideDirective)
+    // instead of showing under the switcher that is still moving away.
+    animation: header-back-enter 180ms ease;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+@keyframes header-back-enter {
+    from {
+        opacity: 0;
+    }
 }
 
 // Above the phone breakpoint the context panel is always visible beside the

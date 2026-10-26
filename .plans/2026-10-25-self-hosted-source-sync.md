@@ -284,6 +284,9 @@ pushing; private-repository paid CI requires explicit user authorization.
 
 ### Outstanding work after the sources delivery
 
+- [ ] Refresh the existing draft self-hosting website guide and its screenshots
+  before publication; it describes the earlier whole-document PWA experiment.
+
 - [ ] Add the optional favorites-sync setting and the local/server adapters
   described above. Current favorites remain local in both PWA and Electron.
 - [ ] Synchronize playback progress and watched state across PWA and Electron,
@@ -301,6 +304,17 @@ pushing; private-repository paid CI requires explicit user authorization.
 
 Requested on 2026-10-26: keep these follow-ups in the plan, outside the sources
 pull request. Source sync remains the only synchronization enabled by this PR.
+
+### Integration with current master (2026-10-26)
+
+The Oct 25 audit above describes the original base revision. Current master
+also contains a whole-document PWA client and a TV source-library client.
+The PWA/Electron bootstrap now installs only the source-sync projection and
+device-local user storage. The older server API/client modules remain compatible
+for explicit consumers; their activity synchronization is not enabled alongside
+source sync. Legacy full-document reads materialize raw uploads for TV clients.
+Existing server user-state records are preserved rather than automatically
+copied into, or erased by, the new per-device profiles.
 
 
 ## Implementation and validation record

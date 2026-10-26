@@ -1,293 +1,55 @@
-<div
+<button
+    #trigger
+    type="button"
     class="playlist-switcher-trigger"
-    [class.is-open]="isMenuOpen()"
-    matRipple
-    [matRippleDisabled]="false"
-    [matMenuTriggerFor]="playlistMenu"
-    #menuTrigger="matMenuTrigger"
-    #triggerElement
-    (menuOpened)="onMenuOpened()"
-    (menuClosed)="onMenuClosed()"
+    data-test-id="playlist-switcher-trigger"
+    cdkOverlayOrigin
+    #origin="cdkOverlayOrigin"
+    aria-haspopup="dialog"
+    aria-keyshortcuts="Meta+P Control+P"
+    [attr.aria-expanded]="isOpen()"
+    [class.is-open]="isOpen()"
+    (click)="toggle()"
 >
-    <div class="trigger-icon-container">
-        <mat-icon class="trigger-playlist-icon">playlist_play</mat-icon>
-    </div>
-    <div class="playlist-info">
-        <div class="name">{{ displayTitle() }}</div>
-        <div class="channels-count">{{ subtitle() }}</div>
-    </div>
-    @if (canRefreshActivePlaylist()) {
-        <button
-            type="button"
-            mat-icon-button
-            class="trigger-refresh-button"
-            [disabled]="isRefreshingActivePlaylist()"
-            (click)="onRefreshClick($event)"
-            (mousedown)="$event.stopPropagation()"
-            [matTooltip]="'WORKSPACE.SHELL.REFRESH_PLAYLIST' | translate"
-            [attr.aria-label]="'WORKSPACE.SHELL.REFRESH_PLAYLIST' | translate"
-        >
-            <mat-icon
-                class="trigger-refresh-icon"
-                [class.is-spinning]="isRefreshingActivePlaylist()"
-                >sync</mat-icon
-            >
-        </button>
+    @if (activePlaylist(); as active) {
+        <app-source-tile
+            size="sm"
+            [playlist]="active"
+            [status]="activeStatus()"
+        />
+    } @else {
+        <span class="trigger-placeholder-tile" aria-hidden="true">
+            <mat-icon>playlist_play</mat-icon>
+        </span>
     }
-    <mat-icon class="dropdown-icon" [class.rotated]="isMenuOpen()">
-        expand_more
-    </mat-icon>
-</div>
+    <span class="playlist-info">
+        <span class="name">{{ displayTitle() }}</span>
+        <span class="channels-count">{{ triggerSubtitle() }}</span>
+    </span>
+    <mat-icon class="dropdown-icon" [class.rotated]="isOpen()"
+        >expand_more</mat-icon
+    >
+</button>
 
-<mat-menu
-    #playlistMenu="matMenu"
-    panelClass="playlist-switcher-menu"
-    hasBackdrop
-    backdropClass="playlist-switcher-menu-backdrop"
-    overlapTrigger="false"
-    xPosition="after"
-    yPosition="below"
+<ng-template
+    cdkConnectedOverlay
+    [cdkConnectedOverlayOrigin]="origin"
+    [cdkConnectedOverlayOpen]="isOpen()"
+    [cdkConnectedOverlayPositions]="positions"
+    [cdkConnectedOverlayHasBackdrop]="true"
+    [cdkConnectedOverlayPush]="true"
+    [cdkConnectedOverlayViewportMargin]="8"
+    cdkConnectedOverlayBackdropClass="playlist-switcher-backdrop"
+    cdkConnectedOverlayPanelClass="playlist-switcher-pane"
+    (backdropClick)="close()"
+    (detach)="close()"
+    (overlayKeydown)="onOverlayKeydown($event)"
 >
-    <div class="menu-header">
-        <mat-icon class="menu-header-icon">playlist_play</mat-icon>
-        <span class="menu-header-title">{{
-            'HOME.PLAYLISTS.MY_PLAYLISTS' | translate
-        }}</span>
-        @if (hasSearchToggle()) {
-            <button
-                mat-icon-button
-                type="button"
-                class="search-toggle-btn"
-                [class.is-active]="searchExpanded()"
-                (click)="toggleSearchField($event)"
-                [attr.aria-label]="
-                    'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate
-                "
-            >
-                <mat-icon>search</mat-icon>
-            </button>
-        }
-    </div>
-
-    @if (showSearchField()) {
-        <div class="search-container" (click)="$event.stopPropagation()">
-            <mat-icon class="search-icon">search</mat-icon>
-            <input
-                #searchInput
-                type="text"
-                class="search-input"
-                [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
-                [ngModel]="searchQuery()"
-                (ngModelChange)="setSearchQuery($event)"
-            />
-            @if (searchQuery()) {
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="clear-btn"
-                    [attr.aria-label]="'CLEAR_SEARCH' | translate"
-                    (click)="setSearchQuery('')"
-                >
-                    <mat-icon>close</mat-icon>
-                </button>
-            }
-        </div>
-    }
-
-    @if (showTypeFilters()) {
-        <div class="type-filters" (click)="$event.stopPropagation()">
-            @if (hasType('m3u')) {
-                <button
-                    type="button"
-                    class="type-filter-chip"
-                    [class.selected]="isTypeFilterSelected('m3u')"
-                    (click)="togglePlaylistTypeFilter('m3u', $event)"
-                >
-                    M3U
-                </button>
-            }
-            @if (hasType('stalker')) {
-                <button
-                    type="button"
-                    class="type-filter-chip"
-                    [class.selected]="isTypeFilterSelected('stalker')"
-                    (click)="togglePlaylistTypeFilter('stalker', $event)"
-                >
-                    Stalker
-                </button>
-            }
-            @if (hasType('xtream')) {
-                <button
-                    type="button"
-                    class="type-filter-chip"
-                    [class.selected]="isTypeFilterSelected('xtream')"
-                    (click)="togglePlaylistTypeFilter('xtream', $event)"
-                >
-                    Xtream
-                </button>
-            }
-        </div>
-    }
-
-    <div class="menu-content">
-        @for (playlist of filteredPlaylists(); track playlist._id) {
-            <div
-                class="playlist-item"
-                [class.selected]="isSelected(playlist)"
-                (click)="selectPlaylist(playlist)"
-            >
-                <!-- @if (isSelected(playlist)) {
-                    <mat-icon class="selected-indicator">check</mat-icon>
-                } @else {
-                    <div class="selected-indicator-placeholder"></div>
-                } -->
-
-                <div class="playlist-icon-container">
-                    <mat-icon class="playlist-type-icon">
-                        {{ getPlaylistIcon(playlist) }}
-                    </mat-icon>
-                    @if (runtime.supportsSourceHealth) {
-                        <app-source-health-indicator
-                            [playlist]="playlist"
-                            [enabled]="isMenuOpen()"
-                        />
-                    } @else if (playlist.serverUrl) {
-                        <span
-                            class="status-dot"
-                            [class]="getStatusClass(playlist._id)"
-                        ></span>
-                    }
-                    @if (
-                        playlist.autoRefresh &&
-                        !playlist.serverUrl &&
-                        !playlist.macAddress
-                    ) {
-                        <mat-icon class="auto-refresh-indicator"
-                            >autorenew</mat-icon
-                        >
-                    }
-                </div>
-
-                <div class="playlist-details">
-                    <span class="playlist-title">
-                        {{ playlist.title || playlist.filename }}
-                    </span>
-                    <span class="playlist-meta">
-                        {{ getPlaylistMetaLabel(playlist) }}
-                        @if (playlist.updateDate) {
-                            <span class="separator">·</span>
-                            {{
-                                playlist.updateDate
-                                    | date
-                                        : 'MMM d, HH:mm'
-                                        : undefined
-                                        : currentLocale()
-                            }}
-                        }
-                    </span>
-                </div>
-
-                <button
-                    type="button"
-                    class="item-action-trigger"
-                    mat-icon-button
-                    [matMenuTriggerFor]="itemMenu"
-                    [matMenuTriggerData]="{ playlist: playlist }"
-                    (click)="$event.stopPropagation()"
-                    [attr.aria-label]="
-                        'HOME.PLAYLISTS.PLAYLIST_ACTIONS' | translate
-                    "
-                >
-                    <mat-icon>more_vert</mat-icon>
-                </button>
-            </div>
-        } @empty {
-            <div class="empty-state">
-                <mat-icon>playlist_add</mat-icon>
-                <span>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</span>
-            </div>
-        }
-    </div>
-
-    @if (showAddPlaylist() || showAccountInfo() || showPlaylistInfo()) {
-        <div class="context-actions-section">
-            @if (showPlaylistInfo()) {
-                <button
-                    class="context-action-item"
-                    (click)="requestPlaylistInfo()"
-                >
-                    <mat-icon>info</mat-icon>
-                    <span>{{
-                        'WORKSPACE.SHELL.PLAYLIST_INFO' | translate
-                    }}</span>
-                </button>
-            }
-            @if (showAccountInfo()) {
-                <button
-                    class="context-action-item"
-                    (click)="requestAccountInfo()"
-                >
-                    <mat-icon>person</mat-icon>
-                    <span>{{
-                        'WORKSPACE.SHELL.ACCOUNT_INFO' | translate
-                    }}</span>
-                </button>
-            }
-            @if (showAddPlaylist()) {
-                <button
-                    class="context-action-item"
-                    (click)="requestAddPlaylist()"
-                >
-                    <mat-icon>add</mat-icon>
-                    <span>{{
-                        'WORKSPACE.SHELL.ADD_PLAYLIST' | translate
-                    }}</span>
-                </button>
-            }
-        </div>
-    }
-</mat-menu>
-
-<mat-menu #itemMenu="matMenu" class="playlist-item-action-menu">
-    <ng-template matMenuContent let-playlist="playlist">
-        <button mat-menu-item (click)="openPlaylistInfoFor(playlist, $event)">
-            <mat-icon>info</mat-icon>
-            <span>{{ 'WORKSPACE.SHELL.PLAYLIST_INFO' | translate }}</span>
-        </button>
-        @if (hasAccountInfo(playlist)) {
-            <button
-                mat-menu-item
-                (click)="requestAccountInfoFor(playlist, $event)"
-            >
-                <mat-icon>person</mat-icon>
-                <span>{{ 'WORKSPACE.SHELL.ACCOUNT_INFO' | translate }}</span>
-            </button>
-        }
-        @if (runtime.supportsSourceHealth && sourceHealthType(playlist)) {
-            <button mat-menu-item (click)="recheckSource(playlist)">
-                <mat-icon>network_check</mat-icon
-                ><span>{{ 'SOURCE_HEALTH.RECHECK' | translate }}</span>
-            </button>
-        }
-        @if (canRefreshPlaylist(playlist)) {
-            <button
-                mat-menu-item
-                (click)="refreshPlaylistFor(playlist, $event)"
-            >
-                <mat-icon>sync</mat-icon>
-                <span>{{
-                    'WORKSPACE.SHELL.REFRESH_PLAYLIST' | translate
-                }}</span>
-            </button>
-        }
-        <mat-divider />
-        <button
-            mat-menu-item
-            class="danger"
-            (click)="removePlaylistFor(playlist, $event)"
-        >
-            <mat-icon>delete</mat-icon>
-            <span>{{ 'HOME.PLAYLISTS.REMOVE_DIALOG.TITLE' | translate }}</span>
-        </button>
-    </ng-template>
-</mat-menu>
+    <app-playlist-switcher-panel
+        [style.--playlist-switcher-max-height]="maxHeight()"
+        (closeRequested)="close()"
+        (playlistSelected)="playlistSelected.emit($event)"
+        (addPlaylistRequested)="addPlaylistRequested.emit()"
+        (accountInfoRequested)="accountInfoForPlaylistRequested.emit($event)"
+    />
+</ng-template>

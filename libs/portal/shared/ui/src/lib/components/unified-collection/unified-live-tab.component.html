@@ -11,7 +11,7 @@
     <app-global-favorites-list
         [channels]="channelsForList()"
         [mode]="mode()"
-        [showEpg]="supportsEpg"
+        [showEpg]="supportsAnyEpg"
         [favoriteUids]="favoriteUids()"
         [epgMap]="epgMap()"
         [progressTick]="progressTick()"
@@ -78,7 +78,7 @@
             </div>
         }
 
-        @if (!isRadioSelection() && supportsEpg) {
+        @if (showsEpgPanel()) {
             <div
                 class="epg"
                 [class.epg--inline]="shouldUseInlinePlayer()"
@@ -193,7 +193,7 @@
     <app-global-favorites-list
         [channels]="fullscreenPanelChannels()"
         [mode]="mode()"
-        [showEpg]="supportsEpg"
+        [showEpg]="supportsAnyEpg"
         [favoriteUids]="favoriteUids()"
         [epgMap]="epgMap()"
         [progressTick]="progressTick()"

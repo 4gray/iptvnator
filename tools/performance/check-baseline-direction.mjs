@@ -11,6 +11,9 @@
  * when narrower slack lowers its limit: the value is the measured evidence.
  * Switching an entry between counter and wall-clock (adding or removing
  * `toleranceRatio`) is a weakening too, so that rule cannot be sidestepped.
+ * Changing the effective `autoTighten` policy also needs a maintainer
+ * decision: disabling it bypasses future tightening, while enabling it can
+ * erode an intentionally preserved band. Omitted and true are equivalent.
  * New entries and lowered limits pass.
  *
  * `--allow-increase` turns those failures into printed "allowed" lines. CI
@@ -92,7 +95,13 @@ export function compareBaselineDirection({
         const headSlack = headEntry.slack ?? 0;
         const baseLimit = enforcedLimit(baseEntry);
         const headLimit = enforcedLimit(headEntry);
-        if (headTolerance > baseTolerance) {
+        const baseAutoTighten = baseEntry.autoTighten !== false;
+        const headAutoTighten = headEntry.autoTighten !== false;
+        if (headAutoTighten !== baseAutoTighten) {
+            weakened.push(
+                `${label}: autoTighten changed from ${baseAutoTighten} to ${headAutoTighten}. Disabling automatic tightening or re-enabling it for a preserved band is a maintainer decision (the ${BASELINE_INCREASE_LABEL} label).`
+            );
+        } else if (headTolerance > baseTolerance) {
             weakened.push(
                 `${label}: toleranceRatio widened from ${baseTolerance} to ${headTolerance}. Tolerances are a maintainer decision (the ${BASELINE_INCREASE_LABEL} label); a PR may only narrow them.`
             );
@@ -141,7 +150,7 @@ export function formatDirectionResult(result) {
             : '';
     lines.push(
         result.failures.length > 0
-            ? `Baseline direction check failed: ${result.failures.length} entries raised or removed.`
+            ? `Baseline direction check failed: ${result.failures.length} entries weakened or policy changed.`
             : `Baseline direction OK: ${result.unchanged.length} unchanged, ${result.lowered.length} lowered, ${result.added.length} added${allowed}.`
     );
     return lines.join('\n');

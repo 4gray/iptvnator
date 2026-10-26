@@ -134,7 +134,7 @@ describe('Xtream live auto-open playback queue', () => {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
                         isElectron: false,
-                        supportsEpg: false,
+                        supportsProviderEpg: false,
                         supportsRemoteControl: false,
                     },
                 },

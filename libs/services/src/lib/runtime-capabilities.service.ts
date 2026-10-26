@@ -70,6 +70,15 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    /**
+     * The main process forwards the window's platform Back gestures (mouse
+     * Back buttons and Browser Back through `app-command` on Windows/Linux,
+     * the trackpad swipe on macOS) to the workspace Back.
+     */
+    get supportsWindowBackGestures(): boolean {
+        return this.hasElectronMethod('onWindowBackRequested');
+    }
+
     /** Desktop-only preference: PWA clients cannot configure the shared server guard. */
     get supportsPortalConnectivityGuard(): boolean {
         return (
@@ -168,6 +177,30 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    /**
+     * Xtream and Stalker provider EPG (`get_short_epg`,
+     * `get_simple_data_table`, `get_epg_info`). It needs only the portal
+     * transport: the PWA's PwaService forwards to the web backend proxy,
+     * Electron sends through both portal preload methods. Independent of
+     * XMLTV (`supportsEpg` and its narrower flags).
+     */
+    get supportsProviderEpg(): boolean {
+        return (
+            this.isPwa ||
+            (this.hasElectronMethod('xtreamRequest') &&
+                this.hasElectronMethod('stalkerRequest'))
+        );
+    }
+
+    /**
+     * Xtream catch-up (timeshift) from the EPG panel: watch, copy, download.
+     * Hidden in the browser PWA until a manual check against a real provider
+     * shows its players play the REST MPEG-TS archive URL.
+     */
+    get supportsProviderCatchUp(): boolean {
+        return this.isElectron;
+    }
+
     get supportsSqlite(): boolean {
         return [
             'dbDeleteAllPlaylists',
@@ -212,6 +245,7 @@ export class RuntimeCapabilitiesService {
             'dbSetAppState',
             'dbSearchContent',
             'dbGetFavorites',
+            'dbGetFavoritesForBackup',
             'dbAddFavorite',
             'dbRemoveFavorite',
             'dbIsFavorite',
@@ -223,6 +257,7 @@ export class RuntimeCapabilitiesService {
             ...playbackPositionStorageMethods,
             'dbDeleteXtreamContent',
             'dbRestoreXtreamUserData',
+            'dbRestoreXtreamFavorites',
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
@@ -274,6 +309,8 @@ export class RuntimeCapabilitiesService {
 
     get supportsPortalActivityStorage(): boolean {
         return [
+            'dbGetPlaylist',
+            'dbRestoreXtreamFavorites',
             'dbGetRecentlyViewed',
             'dbClearRecentlyViewed',
             'dbGetAllGlobalFavorites',

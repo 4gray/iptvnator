@@ -33,6 +33,7 @@ import {
     waitForStalkerCatalog,
     waitForXtreamWorkspaceReady,
     writeTemporaryM3uFile,
+    type LaunchedElectronApp,
 } from './electron-test-fixtures';
 import {
     fetchStalkerCategoryFixture,
@@ -48,6 +49,12 @@ import {
     routePlayableStreams,
     startAndConfirmPlayback,
 } from './playable-stream-fixture';
+import {
+    createFavoritesCatalogProxy,
+    readSavedFavorites,
+    refreshFavoriteCatalog,
+    savedFavoriteIdentity,
+} from './support/xtream-favorites-catalog';
 
 test.describe('Electron Favorites', () => {
     for (const origin of ['favorites', 'recent', 'dashboard'] as const) {
@@ -152,9 +159,13 @@ test.describe('Electron Favorites', () => {
                         })
                         .click();
                 }
+                await expect(
+                    page.locator('app-view-in-portal-action')
+                ).toHaveCount(0);
+                await page.locator('[data-testid="vod-more-menu"]').click();
                 await page
-                    .getByRole('button', {
-                        name: 'View in portal',
+                    .getByRole('menuitem', {
+                        name: 'Open in Portal A',
                         exact: true,
                     })
                     .click();
@@ -430,6 +441,262 @@ test.describe('Electron Favorites', () => {
         }
     });
 
+    test('@critical @persistence @xtream @electron keeps durable favorites through partial refresh, repeated refresh, restart and catalog recovery', async ({
+        dataDir,
+        request,
+    }) => {
+        test.setTimeout(150_000);
+        await resetMockServers(request, ['xtream']);
+        const credentials = { username: 'minimal', password: 'minimal' };
+        const fixture = await fetchXtreamVodFixture(request, credentials);
+        const proxy = await createFavoritesCatalogProxy();
+        const portalTitle = 'Durable Partial Favorites';
+        let app: LaunchedElectronApp | undefined;
+        try {
+            app = await launchElectronApp(dataDir);
+            await addXtreamPortal(app.mainWindow, {
+                ...credentials,
+                name: portalTitle,
+                serverUrl: proxy.origin,
+            });
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            const { playlistId, titles } = await saveTwoMovieFavorites(
+                app.mainWindow,
+                fixture
+            );
+            const original = savedFavoriteIdentity(
+                await readSavedFavorites(app.mainWindow, playlistId)
+            );
+            const missing = original.find((row) => row.title === titles[0]);
+            if (!missing) throw new Error('The newly saved movie is missing');
+            expect(missing.favoriteId).toBeGreaterThan(0);
+            proxy.setMode({ kind: 'omit', xtreamId: missing.xtreamId });
+
+            // Both real refresh entry points must retain the same durable records.
+            for (const entry of ['sources', 'header'] as const) {
+                await refreshFavoriteCatalog(
+                    app.mainWindow,
+                    proxy,
+                    playlistId,
+                    portalTitle,
+                    entry
+                );
+                const saved = await readSavedFavorites(
+                    app.mainWindow,
+                    playlistId
+                );
+                expect(savedFavoriteIdentity(saved)).toEqual(original);
+                expect(
+                    saved.find((row) => row.favorite_id === missing.favoriteId)
+                ).toMatchObject({
+                    id: null,
+                    title: titles[0],
+                    catalog_status: 'missing',
+                });
+                expect(
+                    saved.find((row) => row.favorite_id !== missing.favoriteId)
+                ).toMatchObject({
+                    id: expect.any(Number),
+                    catalog_status: 'present',
+                });
+                await expectSavedMovieCards(app.mainWindow, titles);
+                const card = contentCardByTitle(app.mainWindow, titles[0]);
+                await expect(card).toContainText('Not in the current catalog');
+                const activation = card.locator('.content-card__activation');
+                await expect(activation).toHaveAttribute(
+                    'aria-disabled',
+                    'true'
+                );
+                const detailRequests = proxy.responseCount('get_vod_info');
+                await activation.focus();
+                await app.mainWindow.keyboard.press('Enter');
+                await expect(
+                    app.mainWindow.locator('app-content-hero')
+                ).toHaveCount(0);
+                expect(proxy.responseCount('get_vod_info')).toBe(
+                    detailRequests
+                );
+                await switchUnifiedCollectionScope(
+                    app.mainWindow,
+                    'All playlists'
+                );
+                await expect(
+                    contentCardByTitle(app.mainWindow, titles[0])
+                ).toContainText('Not in the current catalog');
+            }
+
+            // The provider still omits the movie while a new Electron process opens.
+            app = await restartElectronApp(app, dataDir);
+            await openSources(app.mainWindow);
+            await sourceRowByTitle(app.mainWindow, portalTitle).first().click();
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await expectSavedMovieCards(app.mainWindow, titles);
+            expect(
+                savedFavoriteIdentity(
+                    await readSavedFavorites(app.mainWindow, playlistId)
+                )
+            ).toEqual(original);
+            await expect(
+                contentCardByTitle(app.mainWindow, titles[0])
+            ).toContainText('Not in the current catalog');
+
+            proxy.setMode({ kind: 'normal' });
+            await refreshFavoriteCatalog(
+                app.mainWindow,
+                proxy,
+                playlistId,
+                portalTitle,
+                'sources'
+            );
+            const recovered = await readSavedFavorites(
+                app.mainWindow,
+                playlistId
+            );
+            expect(savedFavoriteIdentity(recovered)).toEqual(original);
+            expect(recovered).toHaveLength(2);
+            expect(
+                recovered.every(
+                    (row) => row.id != null && row.catalog_status === 'present'
+                )
+            ).toBe(true);
+            await expectSavedMovieCards(app.mainWindow, titles);
+            const recoveredCard = contentCardByTitle(app.mainWindow, titles[0]);
+            await expect(
+                recoveredCard.locator('.content-card__activation')
+            ).not.toHaveAttribute('aria-disabled', 'true');
+            await recoveredCard.click();
+            await expect(
+                app.mainWindow.locator('app-content-hero')
+            ).toContainText(titles[0]);
+            await expect(
+                app.mainWindow
+                    .getByRole('button', { name: /remove from favorites/i })
+                    .first()
+            ).toBeVisible();
+        } finally {
+            try {
+                if (app) await closeElectronApp(app);
+            } finally {
+                await proxy.close();
+            }
+        }
+    });
+
+    test('@persistence @xtream @electron distinguishes an empty catalog from HTTP failure and keeps explicit favorite removal after recovery', async ({
+        dataDir,
+        request,
+    }) => {
+        test.setTimeout(120_000);
+        await resetMockServers(request, ['xtream']);
+        const credentials = { username: 'minimal', password: 'minimal' };
+        const fixture = await fetchXtreamVodFixture(request, credentials);
+        const proxy = await createFavoritesCatalogProxy();
+        const portalTitle = 'Durable Empty Favorites';
+        let app: LaunchedElectronApp | undefined;
+        try {
+            app = await launchElectronApp(dataDir);
+            await addXtreamPortal(app.mainWindow, {
+                ...credentials,
+                name: portalTitle,
+                serverUrl: proxy.origin,
+            });
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            const { playlistId, titles } = await saveTwoMovieFavorites(
+                app.mainWindow,
+                fixture
+            );
+            const original = savedFavoriteIdentity(
+                await readSavedFavorites(app.mainWindow, playlistId)
+            );
+
+            for (const kind of ['empty', 'failure'] as const) {
+                proxy.setMode({ kind });
+                await refreshFavoriteCatalog(
+                    app.mainWindow,
+                    proxy,
+                    playlistId,
+                    portalTitle,
+                    'sources',
+                    kind === 'empty' ? 'completed' : 'failed'
+                );
+                const saved = await readSavedFavorites(
+                    app.mainWindow,
+                    playlistId
+                );
+                expect(savedFavoriteIdentity(saved)).toEqual(original);
+                expect(
+                    saved.every(
+                        (row) =>
+                            row.id === null &&
+                            row.catalog_status ===
+                                (kind === 'empty' ? 'missing' : 'unknown')
+                    )
+                ).toBe(true);
+                await expectSavedMovieCards(app.mainWindow, titles);
+                for (const title of titles) {
+                    await expect(
+                        contentCardByTitle(app.mainWindow, title)
+                    ).toContainText(
+                        kind === 'empty'
+                            ? 'Not in the current catalog'
+                            : 'Catalog status unknown'
+                    );
+                }
+            }
+
+            const removedCard = contentCardByTitle(app.mainWindow, titles[0]);
+            await removedCard
+                .getByRole('button', { name: /remove from favorites/i })
+                .click();
+            await expect(removedCard).toHaveCount(0);
+            const retained = original.filter((row) => row.title !== titles[0]);
+            expect(
+                savedFavoriteIdentity(
+                    await readSavedFavorites(app.mainWindow, playlistId)
+                )
+            ).toEqual(retained);
+
+            proxy.setMode({ kind: 'normal' });
+            // Replaying a stale refresh snapshot must never resurrect an explicit removal.
+            for (let refresh = 0; refresh < 2; refresh++) {
+                await refreshFavoriteCatalog(
+                    app.mainWindow,
+                    proxy,
+                    playlistId,
+                    portalTitle,
+                    'sources'
+                );
+                const saved = await readSavedFavorites(
+                    app.mainWindow,
+                    playlistId
+                );
+                expect(savedFavoriteIdentity(saved)).toEqual(retained);
+                expect(saved[0]).toMatchObject({
+                    id: expect.any(Number),
+                    catalog_status: 'present',
+                });
+                await expectSavedMovieCards(app.mainWindow, [titles[1]]);
+                await expect(
+                    contentCardByTitle(app.mainWindow, titles[0])
+                ).toHaveCount(0);
+                await switchUnifiedCollectionScope(
+                    app.mainWindow,
+                    'All playlists'
+                );
+                await expect(
+                    contentCardByTitle(app.mainWindow, titles[0])
+                ).toHaveCount(0);
+                await expectVisibleContentCardTitle(app.mainWindow, titles[1]);
+            }
+        } finally {
+            try {
+                if (app) await closeElectronApp(app);
+            } finally {
+                await proxy.close();
+            }
+        }
+    });
+
     test('opens Xtream favorite movies and series inline from favorites without switching the playlist or showing the sidebar', async ({
         dataDir,
         request,
@@ -457,6 +724,10 @@ test.describe('Electron Favorites', () => {
                 name: sourcePortalTitle,
             });
             await waitForXtreamWorkspaceReady(app.mainWindow);
+            const sourcePath = new URL(app.mainWindow.url()).pathname;
+            const sourceId = decodeURIComponent(
+                sourcePath.split('/xtreams/')[1].split('/')[0]
+            );
 
             await app.mainWindow
                 .getByRole('link', { name: 'Movies', exact: true })
@@ -485,6 +756,23 @@ test.describe('Electron Favorites', () => {
                 .first()
                 .click();
             await waitForXtreamWorkspaceReady(app.mainWindow);
+
+            // The dashboard includes Source favorites while Host stays active.
+            // A handoff must load all rows before checking saved availability.
+            for (const title of [movieTitle, seriesTitle]) {
+                await goToDashboard(app.mainWindow);
+                await app.mainWindow
+                    .getByTestId('dashboard-favorite-vod-rail-card')
+                    .filter({ hasText: title })
+                    .first()
+                    .click();
+                await expectInlineCollectionDetail(app.mainWindow, {
+                    pathname: /\/workspace\/global-favorites$/,
+                    title,
+                    playlistTitle: hostPortalTitle,
+                });
+            }
+            await goToDashboard(app.mainWindow);
             await openPlaylistFavorites(app.mainWindow);
             await expect(playlistSwitcherTitle(app.mainWindow)).toContainText(
                 hostPortalTitle
@@ -527,6 +815,41 @@ test.describe('Electron Favorites', () => {
             );
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
             await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
+            // Missing favorites must remain visible even while Host is active.
+            await app.mainWindow.evaluate(async (playlistId) => {
+                for (const type of ['movie', 'series'] as const) {
+                    await window.electron.dbClearXtreamImportCache(
+                        playlistId,
+                        type
+                    );
+                    await window.electron.dbSetAppState(
+                        `xtream-import-status:${playlistId}:${type}`,
+                        'completed'
+                    );
+                }
+            }, sourceId);
+            for (const title of [movieTitle, seriesTitle]) {
+                await goToDashboard(app.mainWindow);
+                await app.mainWindow
+                    .getByTestId('dashboard-favorite-vod-rail-card')
+                    .filter({ hasText: title })
+                    .first()
+                    .click();
+                await expectPathname(
+                    app.mainWindow,
+                    /\/workspace\/global-favorites$/
+                );
+                await expectVisibleContentCardTitle(app.mainWindow, title);
+                await expect(
+                    app.mainWindow.locator('app-content-hero')
+                ).toHaveCount(0);
+                await expect(
+                    playlistSwitcherTitle(app.mainWindow)
+                ).toContainText(hostPortalTitle);
+                await expect(
+                    contentCardByTitle(app.mainWindow, title).first()
+                ).toContainText('Not in the current catalog');
+            }
         } finally {
             await closeElectronApp(app);
         }
@@ -739,6 +1062,44 @@ const xtreamCredentials = {
     username: defaultXtreamUsername,
     password: defaultXtreamPassword,
 };
+
+async function saveTwoMovieFavorites(
+    page: Page,
+    fixture: Awaited<ReturnType<typeof fetchXtreamVodFixture>>
+): Promise<{ playlistId: string; titles: [string, string] }> {
+    const playlistId = /\/xtreams\/([^/]+)/.exec(
+        new URL(page.url()).pathname
+    )?.[1];
+    if (!playlistId)
+        throw new Error('The imported Xtream route has no playlist ID');
+    await page.getByRole('link', { name: 'Movies', exact: true }).click();
+    await clickCategoryByNameExact(page, fixture.categoryName);
+    const first = await clickFirstGridListCard(page);
+    await addCurrentDetailToFavorites(page);
+    await goBackFromDetail(page);
+    const second = fixture.items
+        .map(getXtreamTitle)
+        .find((title) => title && title !== first);
+    if (!second) throw new Error('The movie fixture needs two distinct titles');
+    await clickGridListCardByTitle(page, second);
+    await addCurrentDetailToFavorites(page);
+    await goBackFromDetail(page);
+    await expect
+        .poll(async () => (await readSavedFavorites(page, playlistId)).length)
+        .toBe(2);
+    return { playlistId, titles: [first, second] };
+}
+
+async function expectSavedMovieCards(
+    page: Page,
+    titles: readonly string[]
+): Promise<void> {
+    await openPlaylistFavorites(page);
+    for (const title of titles) {
+        await expectVisibleContentCardTitle(page, title);
+        await expect(contentCardByTitle(page, title)).toHaveCount(1);
+    }
+}
 
 // By accessible name, not class: the Xtream movie detail's favorite control is
 // an icon-only button that carries its label in aria-label, while series and

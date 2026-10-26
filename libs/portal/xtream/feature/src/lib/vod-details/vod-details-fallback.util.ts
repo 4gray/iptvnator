@@ -3,6 +3,7 @@ import {
     XtreamVodInfo,
     XtreamVodStream,
     getXtreamVodInfo,
+    readProviderRating,
 } from '@iptvnator/shared/interfaces';
 
 type XtreamCategoryContext = {
@@ -117,9 +118,9 @@ export function buildXtreamVodFallbackViewModel(
         sanitizeText(info?.cover_big) ??
         undefined;
     const rating =
-        sanitizeText(detailItem?.rating_imdb) ??
+        formatRating(detailItem?.rating_imdb) ??
         formatRating(detailItem?.rating) ??
-        sanitizeText(catalogItem?.rating_imdb) ??
+        formatRating(catalogItem?.rating_imdb) ??
         formatRating(catalogItem?.rating);
     const added = formatUnixDate(
         movieData?.added ??
@@ -200,16 +201,16 @@ function numericValue(value: unknown): number | undefined {
     return undefined;
 }
 
+/**
+ * Provider stand-ins and an unrated zero read as no rating, so the next
+ * candidate is reached — see `readProviderRating`.
+ */
 function formatRating(value: unknown): string | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value.toFixed(1);
+    const text = readProviderRating(value);
+    if (text === undefined) {
+        return undefined;
     }
-
-    if (typeof value === 'string' && value.trim().length > 0) {
-        return value.trim();
-    }
-
-    return undefined;
+    return typeof value === 'number' ? value.toFixed(1) : text;
 }
 
 function extractYear(value: string | undefined): string | undefined {

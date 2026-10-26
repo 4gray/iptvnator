@@ -18,10 +18,12 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { WorkspaceHeaderSidebarToggle } from '../../services/helpers/workspace-shell-constants';
+import { LayoutSlideDirective } from '../../layout-slide.directive';
 
 @Component({
     selector: 'app-workspace-shell-header',
     imports: [
+        LayoutSlideDirective,
         MatIcon,
         MatIconButton,
         MatTooltip,
@@ -50,8 +52,6 @@ export class WorkspaceShellHeaderComponent {
     readonly backTarget = input<WorkspaceBackTarget | null>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
-    readonly canOpenPlaylistInfo = input(false);
-    readonly canOpenAccountInfo = input(false);
     readonly searchQuery = input('');
     readonly canUseSearch = input(false);
     readonly searchPlaceholder = input('');
@@ -61,8 +61,6 @@ export class WorkspaceShellHeaderComponent {
     readonly headerSidebarToggle = input<WorkspaceHeaderSidebarToggle | null>(
         null
     );
-    readonly canRefreshPlaylist = input(false);
-    readonly isRefreshingPlaylist = input(false);
     readonly isElectron = input(false);
     readonly hasNoPlaylists = input(false);
     readonly isDownloadsView = input(false);
@@ -119,6 +117,19 @@ export class WorkspaceShellHeaderComponent {
     readonly backYieldsToDrawerToggle = computed(
         () => this.showDrawerToggle() && this.backPhoneSlot() === 'yield'
     );
+    /**
+     * The leading navigation: when Back or the drawer toggle appears or
+     * leaves, the controls after it slide instead of jumping.
+     */
+    readonly leadingNavigationKey = computed(
+        () =>
+            `${this.backTarget() !== null}|${this.showDrawerToggle()}|${this.backYieldsToDrawerToggle()}`
+    );
+    /** Everything else that moves the controls; recorded, not slid. */
+    readonly controlsLayoutKey = computed(
+        () =>
+            `${this.isSettingsRoute()}|${this.hasNoPlaylists()}|${this.isElectron()}|${this.parentalLockState()}|${this.headerSidebarToggle() !== null}|${this.headerShortcut() !== null}`
+    );
 
     readonly backRequested = output<void>();
     readonly searchChanged = output<string>();
@@ -129,10 +140,7 @@ export class WorkspaceShellHeaderComponent {
     readonly headerShortcutRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
-    readonly refreshPlaylistRequested = output<void>();
     readonly downloadsRequested = output<void>();
-    readonly playlistInfoRequested = output<void>();
-    readonly accountInfoRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
     readonly accountInfoForPlaylistRequested = output<PlaylistMeta>();
 
@@ -184,14 +192,6 @@ export class WorkspaceShellHeaderComponent {
         this.backRequested.emit();
     }
 
-    onPlaylistInfoRequested(): void {
-        this.playlistInfoRequested.emit();
-    }
-
-    onAccountInfoRequested(): void {
-        this.accountInfoRequested.emit();
-    }
-
     onAccountInfoForPlaylistRequested(playlist: PlaylistMeta): void {
         this.accountInfoForPlaylistRequested.emit(playlist);
     }
@@ -214,10 +214,6 @@ export class WorkspaceShellHeaderComponent {
 
     onHeaderSidebarToggleRequested(): void {
         this.headerSidebarToggleRequested.emit();
-    }
-
-    onRefreshPlaylistRequested(): void {
-        this.refreshPlaylistRequested.emit();
     }
 
     onDownloadsRequested(): void {

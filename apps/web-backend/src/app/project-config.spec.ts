@@ -27,7 +27,12 @@ describe('Playwright web-backend launch', () => {
                 readSource(configPath).includes('web-backend')
             );
 
-        expect(configs.sort()).toEqual(configsStartingBackend);
+        expect(configs.sort()).toEqual(
+            [
+                ...configsStartingBackend,
+                'apps/tv-e2e/playwright.config.ts',
+            ].sort()
+        );
     });
 
     // Nx starts a run-commands child in its own detached process group, and
@@ -41,9 +46,25 @@ describe('Playwright web-backend launch', () => {
 
             expect(source).not.toMatch(/\bnx\b[^'"`\n]*web-backend/);
             expect(start).toBeGreaterThan(-1);
-            expect(
-                source.indexOf(launchCommand, start + launchCommand.length)
-            ).toBe(-1);
+            // One stateless backend, plus at most one storage-enabled one.
+            const second = source.indexOf(
+                `'${launchCommand}'`,
+                start + launchCommand.length
+            );
+            if (second !== -1) {
+                const storageEntry = source.slice(
+                    second,
+                    source.indexOf('url:', second)
+                );
+                expect(storageEntry).toContain(`IPTVNATOR_STORAGE: 'server'`);
+                expect(storageEntry).toContain('PORT: storageBackendPort,');
+                expect(
+                    source.indexOf(
+                        `'${launchCommand}'`,
+                        second + launchCommand.length
+                    )
+                ).toBe(-1);
+            }
 
             // WEB_BACKEND_PORT relocates the run; its default is the target's.
             const { PORT: port, ...fixedEnv } = serveEnv;
@@ -60,4 +81,28 @@ describe('Playwright web-backend launch', () => {
             );
         }
     );
+    it('keeps TV backend launch isolated and packages the mobile companion', () => {
+        const source = readSource('apps/tv-e2e/playwright.config.ts');
+        expect(source.split(launchCommand)).toHaveLength(3);
+        expect(source).toContain("PORT: '3434'");
+        expect(source).toContain("IPTVNATOR_STORAGE: 'server'");
+        expect(source).toContain("IPTVNATOR_ACCESS_TOKEN: 'tv-library-test'");
+        expect(source).not.toMatch(/\bnx\b[^'"`\n]*web-backend/);
+        expect(source).toContain("PORT: '3433'");
+        expect(source).toContain("CLIENT_URL: 'http://127.0.0.1:4311,null'");
+        expect(source).toContain("TSX_TSCONFIG_PATH: 'tsconfig.base.json'");
+        const project = JSON.parse(readSource('apps/web-backend/project.json'));
+        expect(project.targets.build.dependsOn).toContainEqual({
+            target: 'build',
+            projects: ['tv-setup'],
+        });
+        expect(project.targets.build.options.assets).toContainEqual({
+            input: 'dist/apps/tv-setup',
+            glob: '**/*',
+            output: 'tv-setup',
+        });
+        expect(project.targets.build.options.includeIgnoredAssetFiles).toBe(
+            true
+        );
+    });
 });

@@ -1,4 +1,4 @@
-import { Signal, effect, signal } from '@angular/core';
+import { Signal, effect } from '@angular/core';
 import { ContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import {
     XtreamDetailMetadataSource,
@@ -9,6 +9,12 @@ import {
 /** What the backfill needs off the store, kept structural to avoid a cycle */
 interface ContentMetadataBackfillStore {
     currentPlaylist: Signal<{ id: string } | null | undefined>;
+    checkFavoriteStatus?(
+        xtreamId: number,
+        playlistId: string,
+        contentType: 'movie' | 'series',
+        identity?: ContentMetadataPatch
+    ): Promise<void>;
     backfillContentMetadata(input: {
         xtreamId: number | string;
         contentType: 'live' | 'movie' | 'series';
@@ -36,9 +42,9 @@ export function registerContentMetadataBackfill(options: {
     xtreamId: () => number;
     info: () => XtreamDetailMetadataSource | null | undefined;
 }): void {
-    const lastKey = signal<string | null>(null);
+    let lastKey: string | null = null;
 
-    effect(() => {
+    effect((onCleanup) => {
         const playlistId = options.playlistId();
         const xtreamId = options.xtreamId();
         const patch = xtreamDetailContentMetadata(options.info());
@@ -49,6 +55,7 @@ export function registerContentMetadataBackfill(options: {
             xtreamId <= 0 ||
             !patch
         ) {
+            lastKey = null;
             return;
         }
 
@@ -56,16 +63,36 @@ export function registerContentMetadataBackfill(options: {
         // id in, and a key built from the backdrop alone would suppress the
         // write carrying the id that arrives moments later.
         const key = `${playlistId}:${xtreamId}:${xtreamContentMetadataKey(patch)}`;
-        if (lastKey() === key) {
+        if (lastKey === key) {
             return;
         }
 
-        lastKey.set(key);
-        void options.store.backfillContentMetadata({
-            xtreamId,
-            contentType: options.contentType,
-            playlist: options.store.currentPlaylist,
-            patch,
+        lastKey = null;
+        let active = true;
+        onCleanup(() => {
+            active = false;
+        });
+        void (async () => {
+            try {
+                await options.store.backfillContentMetadata({
+                    xtreamId,
+                    contentType: options.contentType,
+                    playlist: options.store.currentPlaylist,
+                    patch,
+                });
+            } catch {
+                // Optional metadata storage can fail; still refresh from persisted state.
+            }
+            if (!active) return;
+            lastKey = key;
+            await options.store.checkFavoriteStatus?.(
+                xtreamId,
+                playlistId,
+                options.contentType,
+                patch
+            );
+        })().catch(() => {
+            /* Keep optional detail enrichment non-blocking. */
         });
     });
 }

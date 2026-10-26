@@ -213,14 +213,24 @@ export class FullscreenEpisodePanelComponent {
     }
 
     /**
-     * Centers the playing row in the list's own scroll box. Written as
-     * `scrollTop` math rather than `scrollIntoView` so nothing outside the
-     * list — the fullscreen stage, the page — is ever scrolled with it.
+     * Centers the playing row in the list's own scroll box — unless it is
+     * already fully visible, in which case the list stays where the user
+     * put it. Written as `scrollTop` math rather than `scrollIntoView` so
+     * nothing outside the list — the fullscreen stage, the page — is ever
+     * scrolled with it.
      */
     private scrollPlayingRowIntoView(): void {
         const list = this.list()?.nativeElement;
         const row = list?.querySelector<HTMLElement>('[aria-current="true"]');
         if (!list || !row) {
+            return;
+        }
+        const viewTop = list.scrollTop;
+        const viewBottom = viewTop + list.clientHeight;
+        if (
+            row.offsetTop >= viewTop &&
+            row.offsetTop + row.offsetHeight <= viewBottom
+        ) {
             return;
         }
         list.scrollTop = Math.max(

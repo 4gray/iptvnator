@@ -4,7 +4,7 @@ import {
 } from './database-electron.service';
 import { SourceHealthEvidenceService } from './source-health-evidence.service';
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from './lazy-snack-bar/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import {
     aggregateFavoriteChannels,
@@ -28,7 +28,6 @@ import {
     Channel,
     DbStores,
     extractStalkerItemId,
-    isFullStalkerPortalUrl,
     isM3uRecentlyViewedItem,
     M3uFavoriteChannel,
     M3uRecentlyViewedItem,
@@ -38,15 +37,18 @@ import {
     PlaylistUpdateState,
     StalkerPortalItem,
     normalizeStalkerDate,
+    withExplicitStalkerPortalFlag,
 } from '@iptvnator/shared/interfaces';
 import { PLAYLIST_DELETE_CLEANUP } from './playlist-delete-cleanup.token';
 import {
     runWithPlaylistAuthorityMutation,
+    holdsPlaylistAuthority,
     runWithPlaylistAuthorityReset,
 } from './playlist-cross-context-lock';
 import {
     PlaylistDocumentStore,
     PlaylistStorageBackend,
+    PlaylistWriteConflict,
 } from './playlist-storage-backend';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
@@ -83,10 +85,12 @@ export function resolvePlaylistParser(parserModule: PlaylistParserModule) {
     providedIn: 'root',
 })
 export class PlaylistsService {
-    private readonly healthEvidence = inject(SourceHealthEvidenceService, { optional: true });
+    private readonly healthEvidence = inject(SourceHealthEvidenceService, {
+        optional: true,
+    });
     private readonly dbService = inject(NgxIndexedDBService);
     private readonly databaseService = inject(DatabaseService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly snackBar = inject(LazySnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly storageBackend = inject(PlaylistStorageBackend);
     private readonly playlistDeleteCleanups =
@@ -100,6 +104,10 @@ export class PlaylistsService {
     private startupMetas?: Promise<Playlist[]> | null;
     private indexedDbMigrationPromise: Promise<void> | null = null;
     private readonly playlistWriteQueues = new Map<string, Promise<unknown>>();
+    /** "Remove all" in progress: every playlist write waits for it. */
+    private deletingAll: Promise<void> = Promise.resolve();
+    /** Delete All runs in progress (see serializePlaylistWrite). */
+    private resets = 0;
 
     /** Electron bridge or server store; `null` means IndexedDB. */
     private get documentStore(): PlaylistDocumentStore | null {
@@ -128,14 +136,18 @@ export class PlaylistsService {
     }
 
     private async ensureElectronPlaylistMigrations(): Promise<void> {
-        if (!this.usesElectronStorage) {
+        if (!this.usesDocumentStore) {
             return;
         }
 
         if (!this.electronMigrationPromise) {
             this.electronMigrationPromise = (async () => {
-                await this.migrateIndexedDbPlaylistsToSqlite();
-                await this.documentStore?.dbRecoverLegacyPlaylists?.();
+                if (this.usesElectronStorage) {
+                    await this.migrateIndexedDbPlaylistsToSqlite();
+                    await this.documentStore?.dbRecoverLegacyPlaylists?.();
+                }
+                // Server rows too, once per server: a desktop database
+                // copied to the server can predate this migration.
                 await this.migrateStalkerPlaylistMetadataInSqlite();
             })().catch((error) => {
                 this.electronMigrationPromise = null;
@@ -241,19 +253,7 @@ export class PlaylistsService {
     }
 
     private withExplicitLegacyStalkerPortalFlag(playlist: Playlist): Playlist {
-        if (
-            !playlist?.macAddress ||
-            playlist.isFullStalkerPortal !== undefined
-        ) {
-            return playlist;
-        }
-
-        const portalUrl = playlist.portalUrl ?? playlist.url ?? '';
-
-        return {
-            ...playlist,
-            isFullStalkerPortal: isFullStalkerPortalUrl(portalUrl),
-        };
+        return withExplicitStalkerPortalFlag(playlist);
     }
 
     private collectStalkerMetadataMigrationUpdates(
@@ -307,7 +307,20 @@ export class PlaylistsService {
             const updates =
                 this.collectStalkerMetadataMigrationUpdates(storedPlaylists);
 
-            if (updates.length > 0) {
+            if (this.storageBackend.kind() === 'server') {
+                // Shared with other devices: each row is read again and
+                // written on that version, never over a newer copy. A
+                // conflict leaves the flag unset, so the next start retries.
+                for (const { _id } of updates) {
+                    const fresh = await store.dbGetAppPlaylist(_id);
+                    const [update] = fresh
+                        ? this.collectStalkerMetadataMigrationUpdates([fresh])
+                        : [];
+                    if (update) {
+                        await store.dbUpsertAppPlaylist(update);
+                    }
+                }
+            } else if (updates.length > 0) {
                 await store.dbUpsertAppPlaylists(updates);
             }
 
@@ -399,7 +412,12 @@ export class PlaylistsService {
 
             this.startupMetas = null;
             await store.dbUpsertAppPlaylists(playlists);
-            playlists.forEach((playlist) => this.healthEvidence?.connections.next({ id: playlist._id, playlist }));
+            playlists.forEach((playlist) =>
+                this.healthEvidence?.connections.next({
+                    id: playlist._id,
+                    playlist,
+                })
+            );
             return playlists;
         });
     }
@@ -412,9 +430,21 @@ export class PlaylistsService {
         operation: () => Promise<T>
     ): Observable<T> {
         return defer(() => {
-            const previous =
-                this.playlistWriteQueues.get(playlistId) ?? Promise.resolve();
-            const next = previous.then(() => operation());
+            // While Delete All runs, a write waits for it before it joins
+            // its playlist's queue, so no queue holds work blocked on the
+            // reset; a write under a reservation held here (a Stalker repair
+            // or Edit) joins at once, as the reset waits for that reservation.
+            if (this.resets > 0 && !holdsPlaylistAuthority(playlistId)) {
+                return this.deletingAll.then(() =>
+                    firstValueFrom(
+                        this.serializePlaylistWrite(playlistId, operation)
+                    )
+                );
+            }
+            const previous = Promise.resolve(
+                this.playlistWriteQueues.get(playlistId)
+            );
+            const next = previous.then(() => retryOnConflict(operation));
             const tail = next.then(
                 () => undefined,
                 () => undefined
@@ -573,7 +603,9 @@ export class PlaylistsService {
         );
 
         return delete$.pipe(
-            tap(() => this.healthEvidence?.connections.next({ id: playlistId })),
+            tap(() =>
+                this.healthEvidence?.connections.next({ id: playlistId })
+            ),
             switchMap(() => from(this.runPlaylistDeleteCleanups(playlistId))),
             map((cleanupWarnings) =>
                 cleanupWarnings
@@ -1042,7 +1074,9 @@ export class PlaylistsService {
                     return nextPlaylist;
                 })
             )
-        ).pipe(map((rows) => rows.filter((row): row is Playlist => row !== null)));
+        ).pipe(
+            map((rows) => rows.filter((row): row is Playlist => row !== null))
+        );
     }
 
     getFavoriteChannels(playlistId: string) {
@@ -1225,7 +1259,7 @@ export class PlaylistsService {
                 uploadType
             );
         } catch (error) {
-            this.snackBar.open(
+            void this.snackBar.open(
                 this.translateService.instant('HOME.PARSING_ERROR'),
                 undefined,
                 { duration: 2000 }
@@ -1321,23 +1355,37 @@ export class PlaylistsService {
     }
 
     removeAll(): Observable<void> {
-        return defer(() =>
-            runWithPlaylistAuthorityReset(async () => {
-                if (this.usesDocumentStore) {
-                    await this.ensureElectronPlaylistMigrations();
-                    const store = this.documentStore;
-                    if (store) {
-                        this.startupMetas = null;
-                        await store.dbDeleteAllPlaylists();
-                        this.healthEvidence?.connections.next({});
-                    }
-                    return undefined;
-                }
+        // Writes queued so far land first, outside the reset (some take the
+        // shared side of its lock); new ones wait for the delete before they
+        // queue, except those under a reservation held here.
+        return defer(() => {
+            const pending = [...this.playlistWriteQueues.values()];
+            this.resets += 1;
+            const run = Promise.all(pending)
+                .then(() =>
+                    runWithPlaylistAuthorityReset(() => this.deleteAllRows())
+                )
+                .finally(() => (this.resets -= 1));
+            this.deletingAll = run.then(
+                () => undefined,
+                () => undefined
+            );
+            return run;
+        });
+    }
 
-                await firstValueFrom(this.dbService.clear(DbStores.Playlists));
-                return undefined;
-            })
-        );
+    private async deleteAllRows(): Promise<void> {
+        if (this.usesDocumentStore) {
+            await this.ensureElectronPlaylistMigrations();
+            const store = this.documentStore;
+            if (store) {
+                this.startupMetas = null;
+                await store.dbDeleteAllPlaylists();
+                this.healthEvidence?.connections.next({});
+            }
+            return;
+        }
+        await firstValueFrom(this.dbService.clear(DbStores.Playlists));
     }
 
     private normalizePortalRecentIdentity(value: unknown): string {
@@ -1554,5 +1602,21 @@ export class PlaylistsService {
 
     clearM3uRecentlyViewed(playlistId: string) {
         return this.clearPlaylistRecentlyViewed(playlistId);
+    }
+}
+
+/**
+ * A mutation the server refused as built on an older version (another device
+ * wrote since) runs again: it reads the playlist afresh first.
+ */
+async function retryOnConflict<T>(operation: () => Promise<T>): Promise<T> {
+    for (let attempt = 1; ; attempt += 1) {
+        try {
+            return await operation();
+        } catch (error) {
+            if (!(error instanceof PlaylistWriteConflict) || attempt >= 3) {
+                throw error;
+            }
+        }
     }
 }

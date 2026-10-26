@@ -33,7 +33,10 @@
                             'DOWNLOADS.ARIA.OPEN'
                                 | translate: { title: row.item.title }
                         "
-                        [disabled]="isPending(row.item.id) || row.item.contentType === 'catchup'"
+                        [disabled]="
+                            isPending(row.item.id) ||
+                            row.item.contentType === 'catchup'
+                        "
                         (click)="requestOpen(row.item)"
                     >
                         @if (hasPoster(row.item)) {
@@ -74,7 +77,10 @@
                                     'DOWNLOADS.ARIA.OPEN'
                                         | translate: { title: row.item.title }
                                 "
-                                [disabled]="isPending(row.item.id) || row.item.contentType === 'catchup'"
+                                [disabled]="
+                                    isPending(row.item.id) ||
+                                    row.item.contentType === 'catchup'
+                                "
                                 (click)="requestOpen(row.item)"
                             >
                                 {{ row.item.title }}
@@ -281,9 +287,11 @@
                                 </span>
                             </button>
                             @if (canRemove(row)) {
+                                <mat-divider />
                                 <button
                                     type="button"
                                     mat-menu-item
+                                    class="app-menu-item--danger"
                                     data-test-action="remove"
                                     [disabled]="isPending(row.item.id)"
                                     [attr.aria-label]="

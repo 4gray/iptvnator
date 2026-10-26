@@ -1,3 +1,4 @@
+import type { StalkerRequestOptions } from './stalker-request-options';
 import { Injectable, inject } from '@angular/core';
 import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
 import { STALKER_REQUEST } from '@iptvnator/shared/interfaces';
@@ -148,7 +149,9 @@ export class StalkerPortalDiscoveryService {
         rawUrl: string,
         macAddress: string,
         identity: StalkerPortalIdentity = {},
-        options: { credentials?: StalkerPortalCredentials } = {}
+        options: StalkerRequestOptions & {
+            credentials?: StalkerPortalCredentials;
+        } = {}
     ): Promise<StalkerPortalDiscoveryOutcome> {
         const candidates = buildStalkerEndpointCandidates(rawUrl);
         let authRejection: StalkerPortalDiscoveryRejection | null = null;
@@ -173,7 +176,7 @@ export class StalkerPortalDiscoveryService {
                         candidate,
                         macAddress,
                         identity,
-                        options.credentials
+                        options
                     );
                     if (outcome.status === 'resolved') {
                         return outcome;
@@ -224,7 +227,7 @@ export class StalkerPortalDiscoveryService {
                         candidate,
                         macAddress,
                         identity,
-                        options.credentials
+                        options
                     );
                     if (outcome.status === 'resolved') {
                         return outcome;
@@ -256,7 +259,9 @@ export class StalkerPortalDiscoveryService {
         candidate: string,
         macAddress: string,
         identity: StalkerPortalIdentity,
-        credentials?: StalkerPortalCredentials
+        options: StalkerRequestOptions & {
+            credentials?: StalkerPortalCredentials;
+        }
     ): Promise<
         StalkerPortalEndpointResolution | StalkerPortalDiscoveryRejection
     > {
@@ -269,7 +274,11 @@ export class StalkerPortalDiscoveryService {
             candidate,
             macAddress,
             identity,
-            { credentials, signal: abandon.signal }
+            {
+                credentials: options.credentials,
+                signal: abandon.signal,
+                ...(options.silent ? { silent: true } : {}),
+            }
         );
         try {
             const auth = await withTimeout(pending, AUTH_TIMEOUT_MS, () =>

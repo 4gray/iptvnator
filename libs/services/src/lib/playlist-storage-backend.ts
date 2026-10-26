@@ -1,5 +1,9 @@
 import { inject, Injectable } from '@angular/core';
-import type { ElectronBridgeApi, ElectronBridgeResult, Playlist } from '@iptvnator/shared/interfaces';
+import type {
+    ElectronBridgeApi,
+    ElectronBridgeResult,
+    Playlist,
+} from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { sourceConnection } from './source-sync/source-connection';
 
@@ -17,8 +21,12 @@ export type PlaylistDocumentStore = Pick<
     | 'dbGetAppState'
     | 'dbSetAppState'
     | 'dbUpsertAppPlaylists'
-> & { dbUpsertAppPlaylist: (playlist: Playlist, operationId?: string) => Promise<ElectronBridgeResult & { playlist?: Playlist }> } &
-    Partial<
+> & {
+    dbUpsertAppPlaylist: (
+        playlist: Playlist,
+        operationId?: string
+    ) => Promise<ElectronBridgeResult & { playlist?: Playlist }>;
+} & Partial<
         Pick<
             ElectronBridgeApi,
             | 'dbGetAppPlaylistFavoriteChannels'
@@ -28,6 +36,17 @@ export type PlaylistDocumentStore = Pick<
         >
     >;
 
+/**
+ * The server refused a write built on a playlist version another device has
+ * replaced since; the write queue runs the mutation again on a fresh read.
+ */
+export class PlaylistWriteConflict extends Error {
+    constructor(readonly playlistId: string) {
+        super(`Playlist ${playlistId} changed since it was read.`);
+        this.name = 'PlaylistWriteConflict';
+    }
+}
+
 export type PlaylistStorageKind = 'electron' | 'indexeddb' | 'server';
 
 /** Single place that decides where `PlaylistsService` persists playlists. */
@@ -36,18 +55,34 @@ export class PlaylistStorageBackend {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private serverStore: PlaylistDocumentStore | null = null;
     private finishInitialization!: () => void;
-    private readonly initialized = new Promise<void>((resolve) => { this.finishInitialization = resolve; });
+    private readonly initialized = new Promise<void>((resolve) => {
+        this.finishInitialization = resolve;
+    });
     private readonly deferredStore = new Proxy({} as PlaylistDocumentStore, {
-        get: (_target, method: keyof PlaylistDocumentStore) => (...args: unknown[]) =>
-            this.initialized.then(() => {
-                const store = this.serverStore;
-                if (!store || typeof store[method] !== 'function') throw new Error('SOURCE_SYNC.OFFLINE');
-                return (store[method] as (...values: unknown[]) => unknown)(...args);
-            }),
+        get:
+            (_target, method: keyof PlaylistDocumentStore) =>
+            (...args: unknown[]) =>
+                this.initialized.then(() => {
+                    const store = this.serverStore;
+                    if (!store || typeof store[method] !== 'function')
+                        throw new Error('SOURCE_SYNC.OFFLINE');
+                    return (store[method] as (...values: unknown[]) => unknown)(
+                        ...args
+                    );
+                }),
     });
 
-    installServerStore(store: PlaylistDocumentStore): void { this.serverStore = store; }
-    finishServerInitialization(): void { this.finishInitialization(); }
+    installServerStore(store: PlaylistDocumentStore): void {
+        this.serverStore = store;
+    }
+    finishServerInitialization(): void {
+        this.finishInitialization();
+    }
+
+    useServerStore(store: PlaylistDocumentStore): void {
+        this.installServerStore(store);
+        this.finishServerInitialization();
+    }
 
     kind(): PlaylistStorageKind {
         if (sourceConnection() || this.serverStore) return 'server';

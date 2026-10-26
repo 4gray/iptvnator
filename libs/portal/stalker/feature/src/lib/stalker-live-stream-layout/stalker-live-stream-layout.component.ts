@@ -1,4 +1,7 @@
-import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
+import {
+    ChannelContextMenuComponent,
+    ChannelScrollFocusDirective,
+} from '@iptvnator/ui/components';
 import { NgTemplateOutlet } from '@angular/common';
 import {
     DestroyRef,
@@ -25,7 +28,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -154,6 +156,7 @@ import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: ['./stalker-live-stream-layout.component.scss'],
     imports: [
+        ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         AudioPlayerComponent,
         ChannelListItemComponent,
@@ -162,7 +165,6 @@ import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session
         EpgTimelineComponent,
         MatButtonModule,
         MatIconModule,
-        MatMenuModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
         NgTemplateOutlet,
@@ -364,12 +366,12 @@ export class StalkerLiveStreamLayoutComponent
     protected readonly normalizeStalkerEntityId = normalizeStalkerEntityId;
 
     /** Context menu (Map EPG) */
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
     readonly contextMenuChannel = signal<StalkerItvChannel | null>(null);
-    readonly contextMenuPosition = signal({ x: '0px', y: '0px' });
     readonly isElectron = this.runtime.isElectron;
-    readonly supportsEpg = this.runtime.supportsEpg;
+    readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
     readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
@@ -761,7 +763,7 @@ export class StalkerLiveStreamLayoutComponent
                 setTimeout(() => this.checkIfNeedsMoreContent(), 100);
             }
 
-            if (this.isRadioMode() || !this.supportsEpg) {
+            if (this.isRadioMode() || !this.supportsProviderEpg) {
                 this.clearEpgPreviewMaps();
                 // Supersede the queue too — an abandoned ITV view must not
                 // keep spending portal requests on rows that are gone.
@@ -810,7 +812,7 @@ export class StalkerLiveStreamLayoutComponent
             const playlistId = this.stalkerStore.currentPlaylist()?._id;
             if (
                 this.isRadioMode() ||
-                !this.supportsEpg ||
+                !this.supportsProviderEpg ||
                 !hasChannels ||
                 !playlistId
             ) {
@@ -1016,7 +1018,7 @@ export class StalkerLiveStreamLayoutComponent
                 this.stalkerStore.setSelectedItem(item);
             }
 
-            if (this.supportsEpg) {
+            if (this.supportsProviderEpg) {
                 void this.loadEpgForChannel(item);
             }
 
@@ -1274,19 +1276,7 @@ export class StalkerLiveStreamLayoutComponent
 
     onChannelContextMenu(channel: StalkerItvChannel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     async openEpgMapping(): Promise<void> {
@@ -1295,7 +1285,7 @@ export class StalkerLiveStreamLayoutComponent
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const playlistId = this.stalkerStore.currentPlaylist()?._id;
         const channelId = normalizeStalkerEntityId(channel.id);
         if (!playlistId || !channelId) {
@@ -1359,7 +1349,7 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     private async loadEpgForChannel(item: StalkerItvChannel) {
-        if (!this.supportsEpg) {
+        if (!this.supportsProviderEpg) {
             this.fallbackEpgPrograms.set(null);
             this.isLoadingFallbackEpg.set(false);
             this.clearEpgPreviewMaps();
@@ -1513,7 +1503,7 @@ export class StalkerLiveStreamLayoutComponent
         channelId: string,
         programs: EpgProgram[]
     ): void {
-        if (this.isRadioMode() || !this.supportsEpg) {
+        if (this.isRadioMode() || !this.supportsProviderEpg) {
             return;
         }
 
@@ -1708,7 +1698,7 @@ export class StalkerLiveStreamLayoutComponent
         }
         this.epgPreviewRefreshTimer = setTimeout(() => {
             this.epgPreviewRefreshTimer = null;
-            if (this.isRadioMode() || !this.supportsEpg) {
+            if (this.isRadioMode() || !this.supportsProviderEpg) {
                 return;
             }
             this.syncBulkEpgPreviews(this.visibleChannels());

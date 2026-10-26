@@ -1,3 +1,4 @@
+import { builtinModules } from 'node:module';
 import nx from '@nx/eslint-plugin';
 import { maxLinesBaseline } from './tools/eslint/max-lines-baseline.mjs';
 import {
@@ -38,6 +39,24 @@ export default [
                     enforceBuildableLibDependency: true,
                     allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
                     depConstraints: [
+                        {
+                            sourceTag: 'domain:tmdb',
+                            onlyDependOnLibsWithTags: [
+                                'domain:tmdb',
+                                'domain:shared-contracts',
+                            ],
+                        },
+                        {
+                            sourceTag: 'domain:tv',
+                            onlyDependOnLibsWithTags: [
+                                'domain:tv',
+                                'domain:tmdb',
+                                'domain:xtream',
+                                'domain:stalker',
+                                'domain:m3u',
+                                'domain:shared-contracts',
+                            ],
+                        },
                         {
                             sourceTag: 'type:app',
                             onlyDependOnLibsWithTags: [
@@ -254,7 +273,34 @@ export default [
         },
     },
     {
-        // CLAUDE.md file-size rule for production code: target under 300 lines,
+        files: ['apps/tv/src/**/*.{ts,tsx}', 'libs/tv/**/*.{ts,tsx}'],
+        ignores: ['**/testing/**'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    paths: [...legacyBareAliases, ...builtinModules].map(
+                        (name) => ({
+                            name,
+                            message: 'TV uses scoped, browser-only imports.',
+                        })
+                    ),
+                    patterns: [
+                        ...legacyBareAliases.map((name) => `${name}/*`),
+                        '@angular/*',
+                        '@ngrx/*',
+                        'electron',
+                        'electron/*',
+                        'node:*',
+                        '@iptvnator/services',
+                        '@iptvnator/portal/*/data-access',
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        // AGENTS.md file-size rule for production code: target under 300 lines,
         // hard maximum 400. Files that predate the rule are baselined below.
         files: ['**/*.ts', '**/*.tsx'],
         ignores: TEST_FILE_GLOBS,
@@ -294,3 +340,5 @@ export default [
         },
     },
 ];
+
+// TV runtime is browser-only; framework-free provider entry points are explicit.

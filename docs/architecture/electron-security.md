@@ -60,6 +60,27 @@ Do not add broad protocol allow-lists for renderer navigation. If a new
 desktop-only flow needs to open a URL outside IPTVnator, route it through the
 default browser unless the app window is deliberately meant to host that URL.
 
+## Window Back Gestures
+
+`apps/electron-backend/src/app/services/window-back-gestures.ts` forwards the
+main window's `app-command` `browser-backward` (Windows/Linux) and `swipe`
+left (macOS) to the renderer on the push-only channel `WINDOW:BACK_REQUESTED`
+(`WINDOW_BACK_REQUESTED`). The payload is the source name (`app-command` or
+`swipe`); the preload's `onWindowBackRequested` forwards only those two
+values and returns an unsubscribe. There is no renderer → main surface and no
+`ipcMain` handler: the renderer decides whether Back runs, and the main
+process never navigates the window. Forward commands are not forwarded.
+On Linux the Browser Back key is consumed in the window's
+`before-input-event` and sent once per press on the same channel, because
+Electron there raises `app-command` for both its keydown and keyup.
+Electron's Chromium would also traverse history on an unprevented mouse Back
+press, even to entries from before a reload (which reloads the app), so the
+renderer prevents every mouse Back press while it subscribes.
+Renderer code subscribes only behind
+`RuntimeCapabilitiesService.supportsWindowBackGestures`. The renderer
+contract is "Platform gestures" in
+[Header Back](./workspace-shell.md#header-back).
+
 ## Desktop Auto Updates
 
 Desktop application updates are owned by the Electron main process. Renderer

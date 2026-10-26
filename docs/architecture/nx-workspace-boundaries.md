@@ -64,12 +64,14 @@ in both dependency sections and all official Nx packages on one exact version.
 Use `.nvmrc` for development/CI; supported LTS Node ranges are
 `^22.22.3 || ^24.15.0`. Docker uses the supported Node 24 line.
 
-The Angular 22 migration explicitly preserves the old default change detection
-with `ChangeDetectionStrategy.Eager`. Existing OnPush components and
-`provideZoneChangeDetection` remain in their existing modes.
-Existing eager components under Angular ESLint carry a line-scoped explanation
-for the newly recommended OnPush rule; new components keep that rule enabled.
-Adopting OnPush in those components requires a separate behavior review.
+The Angular 22 migration explicitly preserved the old default change detection
+with `ChangeDetectionStrategy.Eager`. Plan item C6 since converted every component
+the renderer uses to OnPush and switched it to
+`provideZonelessChangeDetection()` without the `zone.js` polyfill; see the
+[zoneless migration](zoneless-migration.md). `apps/remote-control-web` and its
+remote-control component still use zone.js and `ChangeDetectionStrategy.Eager`,
+with a line-scoped explanation for the OnPush lint rule; new components keep
+that rule enabled.
 TypeScript 6 migration settings preserve compiler defaults and per-project output roots;
 `ignoreDeprecations: "6.0"` temporarily supports legacy Node test configs and
 `baseUrl`, rather than changing the whole workspace to browser resolution.
@@ -105,8 +107,10 @@ imports `zone.js/testing` for existing `fakeAsync` helpers. This preserves the
 Angular 21 scheduler used by jest-preset-angular 15: its `setupZoneTestEnv` loaded
 Zone but did not provide zone-based change detection on Angular 20+. Preset 17
 does provide it, which disables automatic fixture rendering and changes
-`whenStable()` behavior. Production applications continue to use their existing
-`provideZoneChangeDetection`; browser and Electron E2E validate that runtime.
+`whenStable()` behavior. The production renderer (`apps/web`) runs
+`provideZonelessChangeDetection()` like the tests; `apps/remote-control-web`
+keeps `provideZoneChangeDetection`. Browser and Electron E2E validate both
+runtimes.
 
 ## Vite Dev-Server Patch
 
@@ -197,6 +201,12 @@ which holds "recently viewed" writes until playback is confirmed. It is kept
 out of `@iptvnator/services` on purpose: that barrel ships in the initial
 bundle, and this project is only reached from lazy player and portal code.
 
+`libs/shared/epg` is the pure `shared-epg` utility project, imported through
+`@iptvnator/shared/epg` (scope:shared, domain:shared-contracts, type:util).
+It owns epoch-millisecond time-axis projection, ticks and clipping used by Angular
+EPG and the independent TV grid. Provider parsing, Angular controllers and Preact
+navigation remain with their respective adapters and feature projects.
+
 ## Project Tags
 
 Every Nx project keeps one tag from each family in `project.json`:
@@ -222,6 +232,18 @@ Every Nx project keeps one tag from each family in `project.json`:
 Domain constraints in the same rule are additive to type constraints. If an
 import violates either family, move the contract or implementation to its
 proper owner instead of weakening a constraint.
+
+The independent TV application and its `tv-setup` phone companion use
+`scope:tv` and `domain:tv`. The companion has `type:app`; it is a build asset
+dependency of `web-backend`, not an imported application module. Its domain
+constraint permits TV, TMDB, provider, M3U and shared-contract libraries, while the
+same type constraints still apply. TV runtime imports additionally reject
+Angular, Electron and Node. The framework-free provider sub-entrypoints are
+`@iptvnator/portal/xtream/client` and `@iptvnator/portal/stalker/client`;
+see [TV architecture](tv-application.md). `shared-tmdb` exposes
+`@iptvnator/shared/tmdb` with `scope:shared`, `domain:tmdb`, `type:data-access`.
+Its domain constraint permits only TMDB and shared contracts; the core has no
+Angular dependencies. Angular services retain injectable compatibility wrappers.
 
 `workspace-shell-util` is a deliberate path/tag exception:
 `libs/workspace/shell/util` is tagged `type:data-access` because it exports
@@ -249,6 +271,18 @@ context panel use, out of that barrel for the same reason, and
 `@iptvnator/services/playlist-backup` keeps `PlaylistBackupService` (about
 22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
 barrel.
+
+`@iptvnator/services/pwa-xtream-backup-storage` exposes the framework-free browser
+backup persistence implementation without re-exporting it from the eager services
+barrel. The injected backup service wraps it; deferred restore loads it through a
+local dynamic-import module with the data source's storage. Its map keys live in
+a separate pure module so it does not import the Angular storage token at runtime.
+Electron favorites likewise load their
+legacy pending-conversion helper only when a favorites operation needs it.
+Those lazy helpers value-import the pure normalizer through
+`@iptvnator/shared/interfaces/xtream-restore-state`; their remaining contracts
+use type-only imports so a deferred conversion does not load the interfaces
+barrel's Angular/IndexedDB dependencies.
 
 The web app's root shell (`app.component.ts`, `app.config.ts` and the services
 they construct) is on the renderer's initial path, where a barrel costs its

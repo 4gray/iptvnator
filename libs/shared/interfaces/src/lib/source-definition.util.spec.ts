@@ -25,6 +25,28 @@ const row: Playlist = {
 };
 
 describe('portable source definitions', () => {
+    it('exports parsed-only M3U documents written by existing clients without losing channels', () => {
+        const parsed = {
+            ...row,
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            playlist: {
+                header: { raw: '#EXTM3U' },
+                items: [
+                    {
+                        name: 'TV upload',
+                        url: 'https://media.test/live',
+                        group: { title: 'News' },
+                        tvg: { logo: 'https://img.test/logo' },
+                    },
+                ],
+            },
+        };
+        expect(sourceFromPlaylist(parsed).rawM3u).toBe(
+            '#EXTM3U\n#EXTINF:-1 tvg-logo="https://img.test/logo" group-title="News",TV upload\nhttps://media.test/live'
+        );
+    });
     it('exports connection fields while excluding session and user data', () => {
         const source = sourceFromPlaylist(row);
         expect(source).toEqual({

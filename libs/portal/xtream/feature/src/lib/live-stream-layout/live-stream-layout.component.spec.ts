@@ -222,9 +222,9 @@ describe('LiveStreamLayoutComponent', () => {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
                         supportsDownloads: true,
-                        get supportsEpg() {
-                            return Boolean(window.electron);
-                        },
+                        // The portal transport exists in both runtimes.
+                        supportsProviderEpg: true,
+                        supportsProviderCatchUp: true,
                         get isElectron() {
                             return Boolean(window.electron);
                         },
@@ -342,7 +342,7 @@ describe('LiveStreamLayoutComponent', () => {
 
     liveHistoryTestCases(() => ({ component, xtreamStore, portalPlayer }));
 
-    it('hides the EPG panel in browser/PWA playback', () => {
+    it('renders the provider EPG panel in browser/PWA playback', () => {
         fixture.destroy();
         window.electron = undefined as unknown as typeof window.electron;
 
@@ -352,13 +352,14 @@ describe('LiveStreamLayoutComponent', () => {
         component.playLive(sampleChannel);
         fixture.detectChanges();
 
+        expect(component.isElectron).toBe(false);
         expect(
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
+        expect(fixture.nativeElement.querySelector('.epg')).not.toBeNull();
         expect(
             fixture.nativeElement.querySelector('app-epg-timeline')
-        ).toBeNull();
+        ).not.toBeNull();
     });
 
     it('restores the collapsed live EPG panel state for embedded playback', () => {

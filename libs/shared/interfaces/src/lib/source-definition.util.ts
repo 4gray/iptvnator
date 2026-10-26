@@ -46,12 +46,40 @@ export function sourceFromPlaylist(
             playlist.sourceRawM3u ??
             [
                 playlist.playlist?.header?.raw ?? '#EXTM3U',
-                ...(playlist.playlist?.items ?? []).map(
-                    (item: { raw: string }) => item.raw
-                ),
+                ...(playlist.playlist?.items ?? []).map(sourceItemText),
             ].join('\n');
     }
     return source;
+}
+
+/** Older document clients can store parsed channels without their raw block. */
+function sourceItemText(item: {
+    raw?: string;
+    url?: string;
+    name?: string;
+    tvg?: { id?: string; name?: string; logo?: string };
+    group?: { title?: string };
+}): string {
+    if (item.raw)
+        return (
+            item.raw +
+            (item.url &&
+            !item.raw.split(/\r?\n/).some((line) => line.trim() === item.url)
+                ? `\n${item.url}`
+                : '')
+        );
+    if (!item.url) throw new Error('SOURCE_SYNC.IMPORT_FAILED');
+    const clean = (value: string) => value.replace(/[\r\n"]/g, ' ');
+    const attributes = [
+        ['tvg-id', item.tvg?.id],
+        ['tvg-name', item.tvg?.name],
+        ['tvg-logo', item.tvg?.logo],
+        ['group-title', item.group?.title],
+    ]
+        .filter((entry) => entry[1])
+        .map(([key, value]) => `${key}="${clean(value!)}"`)
+        .join(' ');
+    return `#EXTINF:-1${attributes ? ` ${attributes}` : ''},${clean(item.name ?? item.url)}\n${item.url}`;
 }
 
 /** Replaces only definition fields; local activity and caches survive. */

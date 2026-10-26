@@ -56,6 +56,7 @@ const KEY_ARIA_LABELS = new Map<string, string>([
     ['ArrowUp', 'Up arrow'],
     ['ArrowDown', 'Down arrow'],
     ['Escape', 'Escape'],
+    ['[', 'Left bracket'],
 ]);
 
 const MODIFIER_KEYS = new Set(['Cmd', 'Ctrl', 'Alt', 'Shift']);
@@ -89,6 +90,35 @@ export function isKeyboardShortcutHelpTrigger(event: KeyboardEvent): boolean {
     }
 
     return event.key === '?' || (event.key === '/' && event.shiftKey);
+}
+
+/**
+ * True for the Back chord: Cmd+[ on macOS, Alt+← elsewhere (the browser's
+ * own chords). On macOS the key position counts as well (`BracketLeft`), so
+ * layouts that type `[` with Option still have a Cmd chord on that key.
+ */
+export function isWorkspaceBackShortcut(
+    event: KeyboardEvent,
+    options: { isMac: boolean }
+): boolean {
+    if (event.shiftKey) {
+        return false;
+    }
+
+    if (options.isMac) {
+        return (
+            event.metaKey &&
+            !event.ctrlKey &&
+            (event.key === '[' || event.code === 'BracketLeft')
+        );
+    }
+
+    return (
+        event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        event.key === 'ArrowLeft'
+    );
 }
 
 /**

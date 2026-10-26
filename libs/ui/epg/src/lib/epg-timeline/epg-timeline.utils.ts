@@ -2,6 +2,8 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { addDays, addMinutes, startOfDay } from 'date-fns';
 import { parseEpgDateKey } from '../epg-date';
 import { getProgramDateKey, getProgramTimeMs } from '../epg-program.utils';
+import type { TimelineAxis } from '@iptvnator/shared/epg';
+export type { TimelineAxis } from '@iptvnator/shared/epg';
 
 export const TIMELINE_MINUTE_MS = 60_000;
 /** Pixels per minute on the ribbon (matches the prototype's SCALE). */
@@ -10,13 +12,6 @@ export const TIMELINE_DEFAULT_SCALE = 1.75;
 export const TIMELINE_TICK_STEP_MIN = 120;
 
 export type TimelineWhen = 'past' | 'now' | 'future';
-
-export interface TimelineAxis {
-    /** Local-midnight ms of the first day shown. */
-    readonly startMs: number;
-    /** Local-midnight ms just after the last day shown. */
-    readonly endMs: number;
-}
 
 export interface TimelineBlock {
     readonly program: EpgProgram;

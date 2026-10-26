@@ -5,6 +5,8 @@
         [ngTemplateOutlet]="detailTemplate()?.templateRef ?? null"
         [ngTemplateOutletContext]="detailContext"
     />
+} @else if (isDetailPending()) {
+    <app-portal-detail-shell [isLoading]="true" [backAvailable]="false" />
 } @else if (isLoading()) {
     <div class="collection-header">
         <span class="collection-title">{{ title() | translate }}</span>
@@ -21,7 +23,7 @@
         <div class="skeleton-list">
             <app-channel-list-skeleton
                 [count]="12"
-                [showEpg]="supportsEpg"
+                [showEpg]="skeletonShowsEpg()"
                 [actionCount]="1"
             />
         </div>
@@ -58,7 +60,10 @@
                     ('WORKSPACE.SORT_LABEL' | translate) +
                     (favSortLabelKey() | translate)
                 "
-                [attr.aria-label]="'WORKSPACE.SORT_LABEL' | translate"
+                [attr.aria-label]="
+                    ('WORKSPACE.SORT_LABEL' | translate) +
+                    (favSortLabelKey() | translate)
+                "
             >
                 <mat-icon>sort_by_alpha</mat-icon>
             </button>
@@ -133,15 +138,11 @@
                 >
                     <mat-button-toggle value="playlist">
                         <mat-icon>playlist_play</mat-icon>
-                        <span class="toggle-label">{{
-                            'PORTALS.THIS_PLAYLIST' | translate
-                        }}</span>
+                        <span>{{ 'PORTALS.THIS_PLAYLIST' | translate }}</span>
                     </mat-button-toggle>
                     <mat-button-toggle value="all">
                         <mat-icon>public</mat-icon>
-                        <span class="toggle-label">{{
-                            'PORTALS.ALL_PLAYLISTS' | translate
-                        }}</span>
+                        <span>{{ 'PORTALS.ALL_PLAYLISTS' | translate }}</span>
                     </mat-button-toggle>
                 </mat-button-toggle-group>
             }

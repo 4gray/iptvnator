@@ -102,4 +102,36 @@ describe('SettingsEpgSectionComponent offset stepper', () => {
             '1'
         );
     });
+
+    it('renders only the display settings without XMLTV sources (browser PWA)', () => {
+        const form = new FormGroup({
+            epgViewMode: new FormControl('timeline'),
+            epgOffsetMinutes: new FormControl<number>(0),
+        });
+        fixture.componentRef.setInput('form', form);
+        // The settings form has no `epgUrl` array without XMLTV sources.
+        fixture.componentRef.setInput('epgUrl', null);
+        fixture.componentRef.setInput('showsXmltvSources', false);
+        fixture.componentRef.setInput(
+            'epgViewModeOptions',
+            SETTINGS_EPG_VIEW_MODE_OPTIONS
+        );
+        fixture.detectChanges();
+
+        expect(query('[data-test-id="select-epg-view-mode"]')).not.toBeNull();
+        expect(query('[data-test-id="epg-offset-minutes"]')).not.toBeNull();
+        expect(query('[data-setting-id="epg-sources"]')).toBeNull();
+        expect(query('[data-setting-id="prefer-uploaded-epg"]')).toBeNull();
+        expect(query('[data-setting-id="epg-clear-data"]')).toBeNull();
+    });
+
+    it('keeps the XMLTV sources, preference and clear action by default (desktop)', () => {
+        configure(createForm());
+
+        expect(query('[data-setting-id="epg-view-mode"]')).not.toBeNull();
+        expect(query('[data-setting-id="epg-offset"]')).not.toBeNull();
+        expect(query('[data-setting-id="epg-sources"]')).not.toBeNull();
+        expect(query('[data-setting-id="prefer-uploaded-epg"]')).not.toBeNull();
+        expect(query('[data-setting-id="epg-clear-data"]')).not.toBeNull();
+    });
 });

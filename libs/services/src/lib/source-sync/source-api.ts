@@ -45,7 +45,7 @@ export async function requestSourceServer(
                 : 15000
         ),
         headers: {
-            ...sourceAuthorization(url),
+            ...(request.operation === 'instance' ? {} : sourceAuthorization(url)),
             'Content-Type': 'application/json',
             'X-IPTVnator-Instance-Id': connection.instanceId,
             ...(request.operation === 'create' ? { 'If-None-Match': '*' } : {}),

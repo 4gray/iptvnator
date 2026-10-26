@@ -29,13 +29,13 @@ import {
     SeasonContainerSeasonPlaybackToggleRequest,
     SeasonContainerSeriesPlaybackToggleRequest,
     SimilarRailComponent,
-    ViewInPortalActionComponent,
     VodMoreMenuComponent,
     readSavedEpisodeViewMode,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import {
     registerContentMetadataBackfill,
+    xtreamDetailContentMetadata,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -107,7 +107,6 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         SeasonContainerComponent,
         SimilarRailComponent,
         TranslatePipe,
-        ViewInPortalActionComponent,
         VodMoreMenuComponent,
     ],
 })
@@ -356,7 +355,8 @@ export class SerialDetailsComponent implements OnDestroy {
             this.route.snapshot.params['serialId'],
             playlist.id,
             'series',
-            this.selectedItem()?.info?.backdrop_path?.[0]
+            this.selectedItem()?.info?.backdrop_path?.[0],
+            xtreamDetailContentMetadata(this.selectedItem()?.info) ?? undefined
         );
     }
 

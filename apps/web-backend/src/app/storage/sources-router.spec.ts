@@ -160,6 +160,8 @@ describe('source synchronization API', () => {
                     );
                     expect(created.status).toBe(201);
                     const first = await fetch(`${base}/v1/sources`);
+                    const legacy = await (await fetch(`${base}/v1/playlists/file`)).json();
+                    expect(legacy.playlist.items).toEqual([expect.objectContaining({ name: 'One', url: 'https://media.test/one' })]);
                     expect(JSON.stringify(await first.json())).not.toContain(
                         rawM3u
                     );

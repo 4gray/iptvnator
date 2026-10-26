@@ -2,6 +2,7 @@ import { PLAYBACK_SETTINGS_SEARCH_ENTRIES } from './settings-search-entries-play
 import { SettingsSearchEntry } from './settings-search.types';
 
 const DASHBOARD_KEYWORDS = ['dashboard', 'home', 'rail', 'row'];
+const SERVER_KEYWORDS = ['server', 'self-hosted', 'nas', 'sync', 'docker'];
 
 function dashboardRail(
     id: string,
@@ -90,7 +91,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.EPG_VIEW_MODE',
         descriptionKey: 'SETTINGS.EPG_VIEW_MODE_DESCRIPTION',
         keywords: ['epg', 'tv guide', 'timeline', 'grid', 'programme'],
-        requires: ['epg'],
+        requires: ['epg-display'],
     },
     {
         id: 'epg-offset',
@@ -98,7 +99,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.EPG_OFFSET_TITLE',
         descriptionKey: 'SETTINGS.EPG_OFFSET_HINT',
         keywords: ['epg', 'timezone', 'time shift', 'offset', 'hours'],
-        requires: ['epg'],
+        requires: ['epg-display'],
     },
     {
         id: 'epg-sources',
@@ -253,7 +254,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     {
         id: 'source-server', section: 'server', labelKey: 'SOURCE_SYNC.TITLE',
-        descriptionKey: 'SOURCE_SYNC.DESCRIPTION', keywords: ['server', 'NAS', 'sync', 'sources', 'self-hosted'],
+        descriptionKey: 'SOURCE_SYNC.DESCRIPTION', keywords: [...SERVER_KEYWORDS, 'NAS', 'sync', 'sources'],
     },
     {
         id: 'remove-all-playlists',

@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { workspaceRoot } from '@nx/devkit';
@@ -13,9 +15,15 @@ const baseURL =
 const webServerCommand =
     isStaticPwaE2E
         ? `pnpm nx run web:serve-static --port=${staticPwaPort}`
-        : 'pnpm nx run web:serve';
+        : `pnpm nx run web:serve --port=${new URL(baseURL).port || '4200'}`;
 const reuseExistingWebServer = isStaticPwaE2E ? false : !process.env['CI'];
 const webBackendPort = process.env['WEB_BACKEND_PORT'] ?? '3333';
+const storageBackendPort = process.env['STORAGE_BACKEND_PORT'] ?? '3334';
+// Path only; the backend creates it. A new pid gives every run an empty store.
+const storageBackendDataDir = join(
+    tmpdir(),
+    `iptvnator-web-e2e-storage-${process.pid}`
+);
 
 /**
  * Read environment variables from file.
@@ -67,6 +75,7 @@ export default defineConfig({
             url: baseURL,
             reuseExistingServer: reuseExistingWebServer,
             cwd: workspaceRoot,
+            timeout: 120000,
         },
         /* The mocks run as one node process, not through `nx run …:serve`:
          * Nx starts its command in a detached process group, so Playwright's
@@ -97,13 +106,33 @@ export default defineConfig({
             command: 'node --import tsx apps/web-backend/src/main.ts',
             env: {
                 PORT: webBackendPort,
-                CLIENT_URL: 'http://localhost:4200',
+                CLIENT_URL: new URL(baseURL).origin,
                 BACKEND_URL: '/api',
                 IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: '1',
                 TSX_TSCONFIG_PATH: 'tsconfig.base.json',
             },
             url: `http://localhost:${webBackendPort}/health`,
             reuseExistingServer: !process.env['CI'],
+            cwd: workspaceRoot,
+        },
+        /* A second backend with server storage, used only by
+         * server-storage.e2e.ts; the specs above keep the stateless one.
+         * STORAGE_BACKEND_PORT relocates it like WEB_BACKEND_PORT. */
+        {
+            command: 'node --import tsx apps/web-backend/src/main.ts',
+            env: {
+                PORT: storageBackendPort,
+                CLIENT_URL: new URL(baseURL).origin,
+                BACKEND_URL: '/api',
+                IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: '1',
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+                IPTVNATOR_STORAGE: 'server',
+                IPTVNATOR_DATA_DIR: storageBackendDataDir,
+            },
+            url: `http://localhost:${storageBackendPort}/health`,
+            // Never another backend on that port: the specs delete every
+            // playlist before each test, which would wipe its library.
+            reuseExistingServer: false,
             cwd: workspaceRoot,
         },
     ],

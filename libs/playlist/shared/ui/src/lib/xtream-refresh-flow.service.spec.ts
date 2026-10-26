@@ -9,6 +9,7 @@ import {
     DatabaseService,
     DbOperationEvent,
     PlaybackPositionService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
@@ -77,6 +78,7 @@ describe('XtreamRefreshFlowService', () => {
     let confirmPromise: Promise<void> | undefined;
     let order: string[];
     let databaseService: {
+        restoreXtreamFavoriteSnapshots: jest.Mock;
         createOperationId: jest.Mock;
         deleteXtreamPlaylistContent: jest.Mock;
         updateXtreamPlaylistDetails: jest.Mock;
@@ -94,6 +96,10 @@ describe('XtreamRefreshFlowService', () => {
         order = [];
 
         databaseService = {
+            restoreXtreamFavoriteSnapshots: jest.fn(() => {
+                order.push('save-favorites');
+                return Promise.resolve();
+            }),
             createOperationId: jest.fn((prefix: string) => `${prefix}-op`),
             deleteXtreamPlaylistContent: jest.fn(() => {
                 order.push('delete');
@@ -154,6 +160,53 @@ describe('XtreamRefreshFlowService', () => {
         localStorage.clear();
     });
 
+    it('converts legacy pending favorites before deleting or replacing the old catalog', async () => {
+        localStorage.setItem(
+            'xtream-restore-playlist-1',
+            JSON.stringify({
+                favorites: [{ contentType: 'movie', xtreamId: 7 }],
+                hiddenCategories: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+            })
+        );
+        service.confirmAndRefresh(
+            createPlaylistMeta(),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(
+            databaseService.restoreXtreamFavoriteSnapshots
+        ).toHaveBeenCalledWith(
+            'playlist-1',
+            [{ contentType: 'movie', xtreamId: 7 }],
+            undefined
+        );
+        expect(order.indexOf('save-favorites')).toBeLessThan(
+            order.indexOf('delete')
+        );
+    });
+
+    it('preserves legacy pending state and the catalog when durable conversion fails', async () => {
+        const pending = JSON.stringify({
+            favorites: [{ contentType: 'movie', xtreamId: 7 }],
+        });
+        localStorage.setItem('xtream-restore-playlist-1', pending);
+        databaseService.restoreXtreamFavoriteSnapshots.mockRejectedValue(
+            new Error('SQLite unavailable')
+        );
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        service.confirmAndRefresh(
+            createPlaylistMeta(),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).not.toHaveBeenCalled();
+        expect(localStorage.getItem('xtream-restore-playlist-1')).toBe(pending);
+    });
+
     it('ignores a confirmation that arrives while the playlist is already busy', async () => {
         const { reporter, calls } = createReporter({ isBusy: () => true });
 
@@ -166,6 +219,42 @@ describe('XtreamRefreshFlowService', () => {
             databaseService.deleteXtreamPlaylistContent
         ).not.toHaveBeenCalled();
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('holds the source in the shared registry for the run, and skips a held one', async () => {
+        const activity = TestBed.inject(SourceActivityService);
+        const item = createPlaylistMeta();
+        let heldDuringDelete = false;
+        let runningDuringDelete = false;
+        databaseService.deleteXtreamPlaylistContent.mockImplementationOnce(
+            () => {
+                heldDuringDelete = activity.isBusy(item._id);
+                runningDuringDelete = service.isRunning(item._id);
+                return Promise.resolve({
+                    success: true,
+                    favorites: [],
+                    recentlyViewed: [],
+                    hiddenCategories: [],
+                });
+            }
+        );
+        service.confirmAndRefresh(item, createReporter().reporter);
+        await confirmPromise;
+        expect(heldDuringDelete).toBe(true);
+        expect(runningDuringDelete).toBe(true);
+        expect(activity.isBusy(item._id)).toBe(false);
+        expect(service.isRunning(item._id)).toBe(false);
+
+        // A delete or another refresh already holds it: nothing runs.
+        const release = activity.begin([item._id]);
+        const second = createReporter();
+        service.confirmAndRefresh(item, second.reporter);
+        await confirmPromise;
+        expect(second.calls).toEqual([]);
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).toHaveBeenCalledTimes(1);
+        release();
     });
 
     it('serializes destructive runs for one playlist across entry points', async () => {

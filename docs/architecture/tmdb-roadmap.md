@@ -19,7 +19,7 @@ addresses.
 
 ## 0. The one decision that gates everything
 
-`buildDetailsLookupKey` (`libs/services/src/lib/tmdb/tmdb-matcher.ts:79-83`) is `id:{tmdbId}|v2`. Six separate ideas below each "need a v3 bump", and a bump invalidates **every cached details row for every user**. Make this decision **once**:
+`buildDetailsLookupKey` (`libs/shared/tmdb/src/lib/tmdb-matcher.ts`) is `id:{tmdbId}|v2`. Six separate ideas below each "need a v3 bump", and a bump invalidates **every cached details row for every user**. Make this decision **once**:
 
 **One consolidated append PR** — add `images,release_dates,content_ratings,alternative_titles,aggregate_credits` to the two detail calls (`tmdb-api.service.ts:62,74`), trim `images` down to the chosen logo + top posters _before_ `TmdbCacheService.set`, and bump the key to `v3` — scoped by `mediaType` so movie rows aren't invalidated by the TV-only `aggregate_credits` addition. Everything downstream then ships as pure presentation PRs with no further refetch events.
 
@@ -179,6 +179,11 @@ F1 is a **live compliance gap in shipped code**, not a feature. `tmdb.operations
 ## 5. Implementation sketches — top 3
 
 ### #1 — Distrust broken provider `tmdb_id`
+
+Implementation note (2026-10-22): the recovery and resolver described below now
+live in `libs/shared/tmdb/src/lib/tmdb-metadata-client.ts` and
+`libs/shared/tmdb/src/lib/tmdb-id-resolver.ts`, shared by Angular and TV. The
+following sketch preserves the original defect and proposed design rationale.
 
 **The bug**, in `libs/services/src/lib/tmdb/tmdb-enrichment.service.ts` `enrich()`:
 

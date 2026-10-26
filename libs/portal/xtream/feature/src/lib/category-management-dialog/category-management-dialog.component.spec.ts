@@ -106,6 +106,19 @@ describe('CategoryManagementDialogComponent', () => {
         );
     }
 
+    it('hides the header close while a save is in flight, so the caller always gets a result', () => {
+        const headerClose = () =>
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '.app-dialog__close'
+            );
+        expect(headerClose()).not.toBeNull();
+
+        component.isSaving.set(true);
+        fixture.detectChanges();
+
+        expect(headerClose()).toBeNull();
+    });
+
     it('selects only matches and preserves both states outside the filter', () => {
         component.searchTerm.set('fr');
         component.selectAll();

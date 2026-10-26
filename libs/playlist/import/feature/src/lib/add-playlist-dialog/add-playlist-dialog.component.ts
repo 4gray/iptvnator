@@ -18,6 +18,11 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import {
+    DialogFooterDirective,
+    DialogFooterStartDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DataService } from '@iptvnator/services';
@@ -59,6 +64,9 @@ const METHOD_BY_CANDIDATE_KIND: Record<
 @Component({
     imports: [
         AutoImportComponent,
+        DialogFooterDirective,
+        DialogFooterStartDirective,
+        DialogShellComponent,
         FileUploadComponent,
         MatButtonModule,
         MatDialogModule,

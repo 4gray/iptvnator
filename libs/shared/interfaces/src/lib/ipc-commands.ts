@@ -140,6 +140,11 @@ export const WINDOW_TOGGLE_FULLSCREEN = 'WINDOW:TOGGLE_FULLSCREEN';
 export const WINDOW_CLOSE = 'WINDOW:CLOSE';
 export const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 export const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
+// Main → renderer only: the window received a platform Back gesture (Windows
+// and Linux `app-command` `browser-backward`, macOS trackpad `swipe` left),
+// carrying an `ElectronBridgeBackGestureSource`. The renderer decides
+// whether Back runs; nothing flows the other way.
+export const WINDOW_BACK_REQUESTED = 'WINDOW:BACK_REQUESTED';
 // Synchronous preload request for the persisted app zoom level (answered
 // with `event.returnValue`), and the preload's acknowledgement once it has
 // applied that level with webFrame.setZoomLevel at DOMContentLoaded

@@ -25,6 +25,7 @@ import {
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     epgProviderClockMs,
+    isCatalogUnavailable,
     normalizeDashboardRailsSettings,
     type EpgProgram,
     type PortalActivityItem,
@@ -306,7 +307,7 @@ export class DashboardLiveEpgPresenter {
 
     /** `null` when nothing is known about the card's current programme. */
     detailsFor(card: DashboardRailCard | null): DashboardLiveEpgDetails | null {
-        if (!card) {
+        if (!card || isCatalogUnavailable(card)) {
             return null;
         }
         // A portal answer wins. Its `null` ("asked, nothing on air") and
@@ -392,6 +393,7 @@ function buildDashboardLiveEpgCard(
     return {
         id: `hero-live-${item.playlist_id}-${item.xtream_id ?? item.id}`,
         title: item.title,
+        catalogStatus: item.catalogStatus,
         icon: 'live_tv',
         contentType: 'live',
         link: [],

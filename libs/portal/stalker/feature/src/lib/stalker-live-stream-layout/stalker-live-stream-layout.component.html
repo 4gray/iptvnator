@@ -169,7 +169,7 @@
                 }
             </div>
         }
-        @if (!isRadioMode() && supportsEpg) {
+        @if (!isRadioMode() && supportsProviderEpg) {
             @let canCollapseEpgPanel = !!streamUrl() && isEmbeddedPlayer;
             <div
                 class="epg"
@@ -206,7 +206,7 @@
                 [archivePlaybackAvailable]="false"
                 [archiveDays]="0"
                 [loading]="isLoadingEpg()"
-                [emptyReason]="supportsEpg ? 'none' : 'provider-no-epg'"
+                [emptyReason]="supportsProviderEpg ? 'none' : 'provider-no-epg'"
                 [selectedDate]="selectedLiveEpgDate()"
                 [collapsed]="
                     !!streamUrl() &&
@@ -229,7 +229,7 @@
                 [archivePlaybackAvailable]="false"
                 [archiveDays]="0"
                 [loading]="isLoadingEpg()"
-                [emptyReason]="supportsEpg ? 'none' : 'provider-no-epg'"
+                [emptyReason]="supportsProviderEpg ? 'none' : 'provider-no-epg'"
                 [selectedDate]="selectedLiveEpgDate()"
                 [collapsed]="
                     !!streamUrl() &&
@@ -244,21 +244,7 @@
     </div>
 </ng-template>
 
-<div
-    aria-hidden="true"
-    class="channel-context-menu-anchor"
-    [style.left]="contextMenuPosition().x"
-    [style.top]="contextMenuPosition().y"
-    [matMenuTriggerFor]="channelContextMenu"
-    #contextMenuTrigger="matMenuTrigger"
-></div>
-
-<mat-menu #channelContextMenu="matMenu">
-    <button mat-menu-item (click)="openEpgMapping()">
-        <mat-icon>settings_remote</mat-icon>
-        <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
-    </button>
-</mat-menu>
+<app-channel-context-menu [showMapEpg]="true" (mapEpg)="openEpgMapping()" />
 
 <!-- The channel list, stamped into the sidebar and — with its own search
      term — into the player's fullscreen channel panel. Every instance carries
@@ -291,7 +277,7 @@
         @if (isInitialChannelsLoading()) {
             <app-channel-list-skeleton
                 [count]="9"
-                [showEpg]="supportsEpg && !isRadioMode()"
+                [showEpg]="supportsProviderEpg && !isRadioMode()"
                 [actionCount]="1"
             />
         } @else if (
@@ -322,20 +308,20 @@
                     [logo]="item.logo"
                     [selected]="isSelectedChannel(item)"
                     [epgProgram]="
-                        supportsEpg
+                        supportsProviderEpg
                             ? (epgPreviewPrograms.get(
                                   normalizeStalkerEntityId(item.id)
                               ) ?? null)
                             : null
                     "
                     [progressPercentage]="
-                        supportsEpg
+                        supportsProviderEpg
                             ? (currentProgramsProgress.get(
                                   normalizeStalkerEntityId(item.id)
                               ) ?? 0)
                             : 0
                     "
-                    [showEpg]="supportsEpg && !isRadioMode()"
+                    [showEpg]="supportsProviderEpg && !isRadioMode()"
                     [isRadio]="isRadioMode()"
                     [showFavoriteButton]="true"
                     [showProgramInfoButton]="true"

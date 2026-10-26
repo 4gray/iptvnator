@@ -125,6 +125,16 @@ describe('native source transport and connection IPC', () => {
         ).rejects.toThrow(/^SOURCE_SYNC.OFFLINE$/);
     });
 
+    it('checks the public instance identity without disclosing a saved token', async () => {
+        await sourceServerRequest(connection.apiUrl, 'saved-token', {
+            operation: 'instance',
+        });
+        expect(
+            (requestWithValidatedRedirects as jest.Mock).mock.calls[0][1]
+                .headers
+        ).not.toHaveProperty('Authorization');
+    });
+
     it('validates the server and access token before persisting and restarting', async () => {
         const result = await handler(SOURCE_SYNC_CONFIGURE)(
             {},

@@ -21,6 +21,7 @@ type AnyItem = RawChannel | RawRadioStation | RawVodItem | RawSeriesItem;
  *   genre:    same as category for itv
  *   p:        page number (1-based)
  *   search:   optional search phrase
+ *   sortby:   added (newest first) | name (ascending)
  */
 export function handleGetOrderedList(req: Request, res: Response): void {
     const mac = extractMac(req);
@@ -88,6 +89,30 @@ export function handleGetOrderedList(req: Request, res: Response): void {
         });
     }
 
+    // Sort the complete filtered catalog before paging, as a portal does.
+    const sort = req.query['sortby'];
+    if (
+        (type === 'vod' || type === 'series') &&
+        (sort === 'added' || sort === 'name')
+    ) {
+        const timestamp = (item: AnyItem) => {
+            const value = 'added' in item ? item.added : undefined;
+            if (!value) return 0;
+            return /^\d+$/.test(value)
+                ? Number(value) * 1000
+                : Date.parse(value) || 0;
+        };
+        allItems = allItems
+            .map((item, index) => ({ item, index }))
+            .sort((a, b) => {
+                const order =
+                    sort === 'name'
+                        ? a.item.name.localeCompare(b.item.name)
+                        : timestamp(b.item) - timestamp(a.item);
+                return order || a.index - b.index;
+            })
+            .map(({ item }) => item);
+    }
     const totalItems = allItems.length;
     const totalPages = Math.ceil(totalItems / PAGE_SIZE);
     const offset = (page - 1) * PAGE_SIZE;

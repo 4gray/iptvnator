@@ -1,6 +1,13 @@
+import { statSync } from 'node:fs';
 import { connect } from 'node:net';
+import { join } from 'node:path';
 import express from 'express';
 import { resetAll } from './data-store.js';
+import {
+    DROPPING_EPISODE_CUT_RATIO,
+    DROPPING_EPISODE_REFUSE_MS,
+    resetDroppingEpisodes,
+} from './dropping-episode.js';
 import { LONG_PROGRAMME_TITLE } from './scenarios.js';
 import {
     createXtreamMockApp,
@@ -46,9 +53,37 @@ jest.mock('@faker-js/faker', () => {
 
 jest.setTimeout(60_000);
 
+const DROPPING_EPISODE_URL = '/series/streamdrop/streamdrop/80000.mkv';
+const droppingFixtureSize = statSync(
+    join(process.cwd(), 'apps/xtream-mock-server/src/fixtures/episode.mkv')
+).size;
+const droppingCut = Math.floor(
+    droppingFixtureSize * DROPPING_EPISODE_CUT_RATIO
+);
+
+/** Bytes received before the body ended, and whether it ended cleanly. */
+async function readDroppingBody(
+    response: Response
+): Promise<{ bytes: number; complete: boolean }> {
+    const reader = response.body?.getReader();
+    let bytes = 0;
+    try {
+        for (;;) {
+            const chunk = await reader?.read();
+            if (!chunk || chunk.done) {
+                return { bytes, complete: true };
+            }
+            bytes += chunk.value.length;
+        }
+    } catch {
+        return { bytes, complete: false };
+    }
+}
+
 describe('Xtream mock server factory', () => {
     afterEach(() => {
         resetAll();
+        resetDroppingEpisodes();
         jest.restoreAllMocks();
     });
 
@@ -192,7 +227,9 @@ describe('Xtream mock server factory', () => {
             expect(xml).toContain('<tv ');
             expect(xml).toContain('<display-name>Aurora News</display-name>');
             expect(xml).toContain('channel="aurora-news.fictional"');
-            expect(xml).toContain(`${running.origin}/assets/marketing/logo/aurora-news.svg`);
+            expect(xml).toContain(
+                `${running.origin}/assets/marketing/logo/aurora-news.svg`
+            );
             expect(xml).not.toMatch(/https?:\/\/(?!127\.0\.0\.1|localhost)/);
         } finally {
             await running.close();
@@ -259,9 +296,9 @@ describe('Xtream mock server factory', () => {
             }
             // Movies must finish quickly while episodes stay slow enough to
             // keep a progress row in frame.
-            expect(
-                Number(movie.headers.get('content-length'))
-            ).toBeGreaterThan(Number(episode.headers.get('content-length')));
+            expect(Number(movie.headers.get('content-length'))).toBeGreaterThan(
+                Number(episode.headers.get('content-length'))
+            );
 
             expect(ordinaryMovie.status).toBe(302);
         } finally {
@@ -296,6 +333,71 @@ describe('Xtream mock server factory', () => {
             expect(ordinarySeries.headers.get('location')).toBe(
                 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
             );
+        } finally {
+            await running.close();
+        }
+    });
+
+    it('drops stream-drop episodes a third of the way in, refuses the retry, then serves ranges again', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        try {
+            const first = await fetch(
+                `${running.origin}${DROPPING_EPISODE_URL}`,
+                {
+                    headers: { range: 'bytes=0-' },
+                }
+            );
+            expect(first.status).toBe(206);
+            expect(Number(first.headers.get('content-length'))).toBe(
+                droppingFixtureSize
+            );
+            expect(await readDroppingBody(first)).toEqual({
+                bytes: droppingCut,
+                complete: false,
+            });
+
+            // ffmpeg's own reconnect right after the drop.
+            const retry = await fetch(
+                `${running.origin}${DROPPING_EPISODE_URL}`,
+                {
+                    headers: { range: `bytes=${droppingCut}-` },
+                }
+            );
+            expect(retry.status).toBe(403);
+            await retry.body?.cancel();
+
+            const later = Date.now() + DROPPING_EPISODE_REFUSE_MS + 1;
+            jest.spyOn(Date, 'now').mockReturnValue(later);
+            const resumed = await fetch(
+                `${running.origin}${DROPPING_EPISODE_URL}`,
+                {
+                    headers: { range: `bytes=${droppingCut}-` },
+                }
+            );
+            expect(resumed.status).toBe(206);
+            expect(resumed.headers.get('content-range')).toBe(
+                `bytes ${droppingCut}-${droppingFixtureSize - 1}/${droppingFixtureSize}`
+            );
+            expect(await readDroppingBody(resumed)).toEqual({
+                bytes: droppingFixtureSize - droppingCut,
+                complete: true,
+            });
+
+            // A reset arms the drop again for the next test.
+            expect(
+                (await fetch(`${running.origin}/reset`, { method: 'POST' }))
+                    .status
+            ).toBe(200);
+            const afterReset = await fetch(
+                `${running.origin}${DROPPING_EPISODE_URL}`
+            );
+            expect(afterReset.status).toBe(200);
+            expect(await readDroppingBody(afterReset)).toEqual({
+                bytes: droppingCut,
+                complete: false,
+            });
         } finally {
             await running.close();
         }

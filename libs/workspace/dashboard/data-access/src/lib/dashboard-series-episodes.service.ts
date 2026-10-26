@@ -60,7 +60,11 @@ export function dashboardSeriesEpisodesKey(
 
 /** Another server or account is another catalog. */
 function sourceOf(request: DashboardSeriesEpisodesRequest): string {
-    return `${request.credentials.serverUrl}::${request.credentials.username}`;
+    return JSON.stringify([
+        request.credentials.serverUrl,
+        request.credentials.username,
+        request.credentials.userAgent?.trim() || undefined,
+    ]);
 }
 
 /** Same series, same credentials, same refresh hint, same order. */
@@ -78,6 +82,8 @@ export function sameDashboardSeriesEpisodesRequests(
                 a.credentials.serverUrl === b.credentials.serverUrl &&
                 a.credentials.username === b.credentials.username &&
                 a.credentials.password === b.credentials.password &&
+                (a.credentials.userAgent?.trim() || undefined) ===
+                    (b.credentials.userAgent?.trim() || undefined) &&
                 !!a.refresh === !!b.refresh
             );
         })

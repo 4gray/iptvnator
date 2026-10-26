@@ -67,7 +67,9 @@ export async function sourceServerRequest(
                     ...(instanceId
                         ? { 'X-IPTVnator-Instance-Id': instanceId }
                         : {}),
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    ...(token && request.operation !== 'instance'
+                        ? { Authorization: `Bearer ${token}` }
+                        : {}),
                     ...(request.source
                         ? { 'Content-Type': 'application/json' }
                         : {}),

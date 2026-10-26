@@ -18,7 +18,7 @@ const { release, stats } = Astro.props;
 const facts = [
   stats.stars !== null && { value: formatCompactCount(stats.stars), label: 'GitHub stars' },
   stats.downloads !== null && { value: formatCompactCount(stats.downloads), label: 'downloads' },
-  { value: '19', label: 'languages' },
+  { value: '20', label: 'languages' },
   { value: 'MIT', label: 'license' },
 ].filter((fact): fact is { value: string; label: string } => Boolean(fact));
 

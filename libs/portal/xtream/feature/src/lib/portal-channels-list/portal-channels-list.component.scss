@@ -35,7 +35,10 @@
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    background: var(
+        --app-widget-header-bg,
+        var(--mat-sys-surface-container-high)
+    );
     border-bottom: 1px solid var(--app-separator);
     app-region: drag;
 }
@@ -47,7 +50,11 @@
     border-radius: 10px;
     border: 1px solid rgba(127, 127, 127, 0.22);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.06),
+            rgba(255, 255, 255, 0)
+        ),
         rgba(127, 127, 127, 0.08);
     display: flex;
     align-items: center;
@@ -171,12 +178,4 @@
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-.channel-context-menu-anchor {
-    position: fixed;
-    width: 0;
-    height: 0;
-    opacity: 0;
-    pointer-events: none;
 }

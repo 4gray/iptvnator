@@ -35,6 +35,7 @@ import {
     createXtreamDetailsRequestGuard,
     resolveXtreamVodDetailsSelection,
 } from './xtream-details-request';
+import { stripXtreamSerieInfoPlaceholders } from './xtream-detail-metadata';
 
 /** Facade composing the Xtream feature stores and cross-feature workflows. */
 export const XtreamStore = signalStore(
@@ -143,6 +144,7 @@ export const XtreamStore = signalStore(
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 };
 
                 store.setIsLoadingDetails(true);
@@ -243,6 +245,7 @@ export const XtreamStore = signalStore(
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 };
 
                 store.setIsLoadingDetails(true);
@@ -255,6 +258,9 @@ export const XtreamStore = signalStore(
                         store.setSelectedCategory(params.categoryId);
                         store.setSelectedItem({
                             ...serialDetails,
+                            info: stripXtreamSerieInfoPlaceholders(
+                                serialDetails?.info
+                            ),
                             series_id: params.serialId,
                         });
                         store.resetTmdbSeasonMetadata(params.serialId);

@@ -1,11 +1,5 @@
-import {
-    Injectable,
-    NgZone,
-    computed,
-    effect,
-    inject,
-    signal,
-} from '@angular/core';
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -48,6 +42,7 @@ import {
     toTimestamp,
 } from './dashboard-mappers';
 import {
+    COLLECTION_VIEW_STATE_KEY,
     PORTAL_PLAYBACK_POSITIONS,
     WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
@@ -91,7 +86,6 @@ export class DashboardDataService {
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly ngZone = inject(NgZone);
     private readonly translate = inject(TranslateService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly favoritesAutoRefreshEnabled = signal(false);
@@ -372,13 +366,11 @@ export class DashboardDataService {
         if (generation !== this.playbackPositionsLoadGeneration) {
             return;
         }
-        this.ngZone.run(() => {
-            this.playbackPositionMaps.set(maps);
-            // A playlist whose load failed counts as loaded: its titles
-            // show without progress rather than holding the rail back.
-            this.playbackPositionPlaylistIds.set(playlistIds);
-            this.playbackPositionsReloads.update((count) => count + 1);
-        });
+        this.playbackPositionMaps.set(maps);
+        // A playlist whose load failed counts as loaded: its titles
+        // show without progress rather than holding the rail back.
+        this.playbackPositionPlaylistIds.set(playlistIds);
+        this.playbackPositionsReloads.update((count) => count + 1);
     }
 
     readonly stalkerGlobalFavorites = computed<DashboardFavoriteItem[]>(() => {
@@ -440,11 +432,9 @@ export class DashboardDataService {
                 return;
             }
 
-            this.ngZone.run(() => {
-                this.xtreamRecentlyAddedItemsState.set([]);
-                this.xtreamRecentlyAddedLoadingState.set(false);
-                this.xtreamRecentlyAddedLoadedState.set(true);
-            });
+            this.xtreamRecentlyAddedItemsState.set([]);
+            this.xtreamRecentlyAddedLoadingState.set(false);
+            this.xtreamRecentlyAddedLoadedState.set(true);
         });
     }
 
@@ -490,9 +480,7 @@ export class DashboardDataService {
         if (!this.hasPortalActivityStorage) {
             try {
                 const recentItems = await this.loadPwaXtreamGlobalRecentItems();
-                this.ngZone.run(() =>
-                    this.xtreamGlobalRecentItems.set(recentItems)
-                );
+                this.xtreamGlobalRecentItems.set(recentItems);
             } catch (err) {
                 console.warn(
                     '[DashboardData] Failed to reload PWA recent items',
@@ -510,13 +498,13 @@ export class DashboardDataService {
             const normalized = recentItems.map((item) =>
                 mapDbRecentToItem(item)
             );
-            this.ngZone.run(() => this.xtreamGlobalRecentItems.set(normalized));
+            this.xtreamGlobalRecentItems.set(normalized);
         } catch (err) {
             console.warn(
                 '[DashboardData] Failed to reload global recent items',
                 err
             );
-            this.ngZone.run(() => this.xtreamGlobalRecentItems.set([]));
+            this.xtreamGlobalRecentItems.set([]);
         } finally {
             this.globalRecentDbLoadedState.set(true);
             this.finishInitialGlobalRecentLoadIfReady();
@@ -531,9 +519,7 @@ export class DashboardDataService {
         }
 
         const xtreamReload = this.reloadXtreamGlobalFavorites().finally(() => {
-            this.ngZone.run(() =>
-                this.xtreamGlobalFavoritesLoadedState.set(true)
-            );
+            this.xtreamGlobalFavoritesLoadedState.set(true);
             this.finishInitialGlobalFavoritesLoadIfReady();
         });
         const m3uReload = this.reloadPlaylistBackedGlobalFavorites();
@@ -586,37 +572,31 @@ export class DashboardDataService {
         }
 
         if (!this.hasPortalActivityStorage) {
-            this.ngZone.run(() => {
-                this.xtreamRecentlyAddedItemsState.set([]);
-                this.xtreamRecentlyAddedLoadingState.set(false);
-                this.xtreamRecentlyAddedLoadedState.set(true);
-            });
+            this.xtreamRecentlyAddedItemsState.set([]);
+            this.xtreamRecentlyAddedLoadingState.set(false);
+            this.xtreamRecentlyAddedLoadedState.set(true);
             return;
         }
 
         try {
             const items = await this.getXtreamRecentlyAddedItems(limit);
-            this.ngZone.run(() =>
-                this.xtreamRecentlyAddedItemsState.set(items)
-            );
+            this.xtreamRecentlyAddedItemsState.set(items);
         } catch (err) {
             console.warn(
                 '[DashboardData] Failed to reload Xtream recently added items',
                 err
             );
-            this.ngZone.run(() => this.xtreamRecentlyAddedItemsState.set([]));
+            this.xtreamRecentlyAddedItemsState.set([]);
         } finally {
-            this.ngZone.run(() => {
-                this.xtreamRecentlyAddedLoadingState.set(false);
-                this.xtreamRecentlyAddedLoadedState.set(true);
-            });
+            this.xtreamRecentlyAddedLoadingState.set(false);
+            this.xtreamRecentlyAddedLoadedState.set(true);
         }
     }
 
     private async reloadXtreamGlobalFavorites(): Promise<void> {
         if (!this.hasPortalActivityStorage) {
             const favorites = await this.loadPwaXtreamGlobalFavorites();
-            this.ngZone.run(() => this.xtreamGlobalFavorites.set(favorites));
+            this.xtreamGlobalFavorites.set(favorites);
             return;
         }
 
@@ -625,13 +605,13 @@ export class DashboardDataService {
             const normalized = favorites.map((item) =>
                 mapDbFavoriteToItem(item)
             );
-            this.ngZone.run(() => this.xtreamGlobalFavorites.set(normalized));
+            this.xtreamGlobalFavorites.set(normalized);
         } catch (err) {
             console.warn(
                 '[DashboardData] Failed to reload global favorites',
                 err
             );
-            this.ngZone.run(() => this.xtreamGlobalFavorites.set([]));
+            this.xtreamGlobalFavorites.set([]);
         }
     }
 
@@ -686,6 +666,7 @@ export class DashboardDataService {
         return {
             id: item.id,
             title: item.title,
+            catalogStatus: item.catalog_status,
             type: this.normalizeXtreamActivityType(item.type),
             playlist_id: playlist._id,
             playlist_name: playlist.title || 'Xtream',
@@ -699,17 +680,19 @@ export class DashboardDataService {
     }
 
     private mapPwaXtreamFavoriteItem(
-        item: XtreamContentItem,
+        item: import('@iptvnator/portal/xtream/data-access').XtreamFavoriteItem,
         playlist: PlaylistMeta
     ): DashboardFavoriteItem {
         return {
-            id: item.id,
+            id: item.id ?? `favorite:${item.favorite_id}`,
+            favorite_id: item.favorite_id,
+            catalogStatus: item.catalog_status,
             title: item.title,
             type: this.normalizeXtreamActivityType(item.type),
             playlist_id: playlist._id,
             playlist_name: playlist.title || 'Xtream',
             added_at: item.added_at || item.added || new Date(0).toISOString(),
-            category_id: item.category_id,
+            category_id: item.category_id ?? '',
             xtream_id: item.xtream_id,
             poster_url: item.poster_url,
             backdrop_url: item.backdrop_url ?? undefined,
@@ -730,9 +713,7 @@ export class DashboardDataService {
             return;
         }
 
-        this.ngZone.run(() =>
-            this.playlistBackedGlobalFavoritesLoadedState.set(true)
-        );
+        this.playlistBackedGlobalFavoritesLoadedState.set(true);
         this.finishInitialGlobalFavoritesLoadIfReady();
     }
 
@@ -762,17 +743,15 @@ export class DashboardDataService {
 
         // Drop entries for M3U playlists no longer in the eligible set
         // (removed playlists or playlists whose favorites were cleared).
-        this.ngZone.run(() => {
-            this.m3uPlaylistFavoritesMap.update((prev) => {
-                let next: Map<string, DashboardFavoriteItem[]> | null = null;
-                for (const id of prev.keys()) {
-                    if (!validIds.has(id)) {
-                        next ??= new Map(prev);
-                        next.delete(id);
-                    }
+        this.m3uPlaylistFavoritesMap.update((prev) => {
+            let next: Map<string, DashboardFavoriteItem[]> | null = null;
+            for (const id of prev.keys()) {
+                if (!validIds.has(id)) {
+                    next ??= new Map(prev);
+                    next.delete(id);
                 }
-                return next ?? prev;
-            });
+            }
+            return next ?? prev;
         });
         for (const id of Array.from(this.m3uFavoritesCache.keys())) {
             if (!validIds.has(id)) {
@@ -801,12 +780,10 @@ export class DashboardDataService {
                     items = [];
                 }
 
-                this.ngZone.run(() => {
-                    this.m3uPlaylistFavoritesMap.update((prev) => {
-                        const next = new Map(prev);
-                        next.set(playlist._id, items);
-                        return next;
-                    });
+                this.m3uPlaylistFavoritesMap.update((prev) => {
+                    const next = new Map(prev);
+                    next.set(playlist._id, items);
+                    return next;
                 });
             })
         );
@@ -821,10 +798,8 @@ export class DashboardDataService {
             return;
         }
 
-        this.ngZone.run(() => {
-            this.globalFavoritesLoadedState.set(true);
-            this.globalFavoritesLoadingState.set(false);
-        });
+        this.globalFavoritesLoadedState.set(true);
+        this.globalFavoritesLoadingState.set(false);
     }
 
     private finishInitialGlobalRecentLoadIfReady(): void {
@@ -832,10 +807,8 @@ export class DashboardDataService {
             return;
         }
 
-        this.ngZone.run(() => {
-            this.globalRecentLoadedState.set(true);
-            this.globalRecentLoadingState.set(false);
-        });
+        this.globalRecentLoadedState.set(true);
+        this.globalRecentLoadingState.set(false);
     }
 
     isTypeInKind(
@@ -996,12 +969,21 @@ export class DashboardDataService {
     }
 
     getGlobalFavoriteLink(item: DashboardFavoriteItem): string[] {
+        if (isCatalogUnavailable(item)) return ['/workspace/global-favorites'];
         return getGlobalFavoriteLinkUtil(item);
     }
 
     getGlobalFavoriteNavigationState(
         item: DashboardFavoriteItem
     ): WorkspaceNavigationTarget['state'] {
+        if (isCatalogUnavailable(item)) {
+            return {
+                [COLLECTION_VIEW_STATE_KEY]: {
+                    scope: 'all',
+                    selectedContentType: item.type,
+                },
+            };
+        }
         return getGlobalFavoriteNavigationStateUtil(item);
     }
 
@@ -1019,7 +1001,9 @@ export class DashboardDataService {
         if (item.source === 'xtream') {
             if (this.hasPortalActivityStorage) {
                 await this.dbService.removeFromFavorites(
-                    item.id as number,
+                    item.favorite_id != null
+                        ? { favoriteId: item.favorite_id }
+                        : (item.id as number),
                     item.playlist_id
                 );
             } else {

@@ -63,6 +63,29 @@ describe('UnifiedGridTabComponent posters-only wall', () => {
         fixture.componentRef.setInput('items', ITEMS);
     });
 
+    it('retains the title and removal action while blocking an unavailable favorite', () => {
+        const item = {
+            ...ITEMS[0],
+            catalogStatus: 'missing',
+        } as UnifiedCollectionItem;
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        const selected = jest.fn();
+        const removed = jest.fn();
+        fixture.componentInstance.itemSelected.subscribe(selected);
+        fixture.componentInstance.removeItem.subscribe(removed);
+
+        fixture.componentInstance.onCardClick(item);
+        fixture.componentInstance.onRemove(item);
+
+        expect(selected).not.toHaveBeenCalled();
+        expect(removed).toHaveBeenCalledWith(item);
+        expect(fixture.nativeElement.textContent).toContain(
+            'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
+        );
+        expect(fixture.debugElement.query(By.css('.card-info'))).not.toBeNull();
+    });
+
     const cardInfos = () => fixture.debugElement.queryAll(By.css('.card-info'));
     const overlays = () =>
         fixture.debugElement.queryAll(By.css('.cover-title-overlay'));

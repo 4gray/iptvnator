@@ -4,112 +4,142 @@ import {
     computed,
     inject,
 } from '@angular/core';
+import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
+import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
-import {
-    FilterActions,
-    selectActiveTypeFilters,
-    selectAllPlaylistsMeta,
-} from '@iptvnator/m3u-state';
 import { TranslatePipe } from '@ngx-translate/core';
-import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import {
+    SourceStatusService,
+    sourceStatusBucket,
+} from '@iptvnator/portal/shared/data-access';
+import { SourceRemovalService } from '@iptvnator/playlist/shared/ui';
+import {
+    countSourcesByStatus,
+    countSourcesByType,
+    SourceBucketOf,
+    SourcesStatusFilter,
+    SourcesTypeFilter,
+    SourcesViewStateService,
+} from '@iptvnator/playlist/shared/util';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
+import {
+    WORKSPACE_SHELL_ACTIONS,
+    WorkspaceShellContextDrawerService,
+} from '@iptvnator/workspace/shell/util';
 
-type PlaylistFilterId = 'all' | 'm3u' | 'xtream' | 'stalker';
-
-interface PlaylistFilterOption {
-    id: PlaylistFilterId;
+interface TypeOption {
+    id: SourcesTypeFilter;
     icon: string;
-    label?: string;
-    translationKey?: string;
+    labelKey: string;
 }
 
-const ALL_FILTERS = ['m3u', 'xtream', 'stalker'];
+interface StatusOption {
+    id: SourcesStatusFilter;
+    labelKey: string;
+}
 
+/**
+ * The Sources side list: Type and, on desktop where source health is known,
+ * Status. Both are single-choice and combine; each group counts within the
+ * other group's choice.
+ */
 @Component({
     selector: 'app-workspace-sources-filters-panel',
-    imports: [MatIcon, MatListModule, TranslatePipe],
+    imports: [MatIcon, MatIconButton, MatTooltip, TranslatePipe],
     templateUrl: './workspace-sources-filters-panel.component.html',
     styleUrl: './workspace-sources-filters-panel.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceSourcesFiltersPanelComponent {
     private readonly store = inject(Store);
-    // Root-provided; optional keeps standalone unit tests light. Picking a type
-    // filter is a single-select choice that never navigates, so the phone
-    // drawer closes here to reveal the filtered list.
-    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+    private readonly statusService = inject(SourceStatusService);
+    private readonly removal = inject(SourceRemovalService);
+    private readonly viewState = inject(SourcesViewStateService);
+    private readonly workspaceActions = inject(WORKSPACE_SHELL_ACTIONS, {
         optional: true,
     });
-
-    private readonly activeTypeFilters = this.store.selectSignal(
-        selectActiveTypeFilters
-    );
-    private readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
-
-    readonly typeOptions: PlaylistFilterOption[] = [
+    // Root-provided; optional keeps standalone unit tests light. Picking a
+    // filter never navigates, so the phone drawer closes to reveal the list.
+    private readonly contextDrawer = inject(
+        WorkspaceShellContextDrawerService,
         {
-            id: 'all',
-            icon: 'layers',
-            translationKey: 'WORKSPACE.SOURCES.ALL',
-        },
+            optional: true,
+        }
+    );
+
+    readonly typeOptions: readonly TypeOption[] = [
+        { id: 'all', icon: 'layers', labelKey: 'WORKSPACE.SOURCES.ALL' },
         {
             id: 'm3u',
             icon: SOURCE_TYPE_ICONS.m3u,
-            translationKey: 'HOME.PLAYLIST_TYPES.M3U',
+            labelKey: 'HOME.PLAYLIST_TYPES.M3U',
         },
         {
             id: 'xtream',
             icon: SOURCE_TYPE_ICONS.xtream,
-            translationKey: 'HOME.PLAYLIST_TYPES.XTREAM',
+            labelKey: 'HOME.PLAYLIST_TYPES.XTREAM',
         },
         {
             id: 'stalker',
             icon: SOURCE_TYPE_ICONS.stalker,
-            translationKey: 'HOME.PLAYLIST_TYPES.STALKER',
+            labelKey: 'HOME.PLAYLIST_TYPES.STALKER',
         },
     ];
+    readonly statusOptions: readonly StatusOption[] = [
+        { id: 'all', labelKey: 'WORKSPACE.SOURCES.STATUS_ANY' },
+        { id: 'ok', labelKey: 'WORKSPACE.SOURCES.STATUS_OK' },
+        { id: 'bad', labelKey: 'WORKSPACE.SOURCES.STATUS_BAD' },
+    ];
 
-    readonly typeCounts = computed(() => {
-        const items = this.playlists();
-        return {
-            all: items.length,
-            m3u: items.filter((item) => !item.serverUrl && !item.macAddress)
-                .length,
-            xtream: items.filter((item) => !!item.serverUrl).length,
-            stalker: items.filter((item) => !!item.macAddress).length,
-        };
-    });
+    readonly showStatus = this.statusService.supportsStatusFilter;
+    readonly filter = this.viewState.filter;
 
-    isTypeActive(filterId: PlaylistFilterId): boolean {
-        const selected = this.activeTypeFilters();
-        if (filterId === 'all') {
-            return (
-                selected.length === ALL_FILTERS.length &&
-                ALL_FILTERS.every((id) => selected.includes(id))
-            );
-        }
-
-        return selected.length === 1 && selected[0] === filterId;
-    }
-
-    selectType(filterId: PlaylistFilterId): void {
-        const selectedFilters =
-            filterId === 'all' ? ALL_FILTERS : [filterId];
-        this.store.dispatch(
-            FilterActions.setSelectedFilters({
-                selectedFilters,
-            })
+    private readonly allPlaylists = this.store.selectSignal(
+        selectAllPlaylistsMeta
+    );
+    private readonly playlists = computed(() => {
+        const pending = this.removal.pendingIds();
+        return this.allPlaylists().filter(
+            (playlist) => !pending.has(playlist._id)
         );
+    });
+    private readonly bucketOf: SourceBucketOf = (playlist) => {
+        const status = this.statusService.statusOf(playlist);
+        return status ? sourceStatusBucket(status.reachability) : null;
+    };
+
+    readonly total = computed(() => this.playlists().length);
+    readonly typeCounts = computed(() =>
+        countSourcesByType(
+            this.playlists(),
+            this.showStatus ? this.filter().status : 'all',
+            this.bucketOf
+        )
+    );
+    readonly statusCounts = computed(() =>
+        countSourcesByStatus(
+            this.playlists(),
+            this.filter().type,
+            this.bucketOf
+        )
+    );
+
+    selectType(type: SourcesTypeFilter): void {
+        this.viewState.setType(type);
         this.contextDrawer?.close();
     }
 
-    getTypeCount(filterId: PlaylistFilterId): number {
-        const counts = this.typeCounts();
-        if (filterId === 'all') {
-            return counts.all;
-        }
-        return counts[filterId];
+    selectStatus(status: SourcesStatusFilter): void {
+        this.viewState.setStatus(status);
+        this.contextDrawer?.close();
+    }
+
+    addPlaylist(): void {
+        // On a phone the drawer is a focus-trapped modal of its own: it must
+        // not stay open under the dialog.
+        this.contextDrawer?.close();
+        this.workspaceActions?.openAddPlaylistDialog();
     }
 }

@@ -1,6 +1,7 @@
 @use '@angular/material' as mat;
 @use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
 @use '../../../libs/ui/styles/focus-ring';
+@use '../../../libs/ui/styles/app-controls' as controls;
 @use './settings-theme';
 @use './cover-size';
 
@@ -238,12 +239,58 @@ body.dark-theme {
     overflow-x: hidden !important;
 }
 
-.mat-drawer-inner-container {
-    overflow: hidden !important;
+// Modal overlays tint and blur the page behind their backdrop, on the same
+// token as the switcher popover. The CDK gives a dialog the dark backdrop
+// class by default; menus, selects and popovers open over
+// `cdk-overlay-transparent-backdrop`, which sits at opacity 0 and stays a
+// plain layer without a filter of its own.
+.cdk-overlay-dark-backdrop {
+    background: var(--app-popover-backdrop);
+    backdrop-filter: blur(6px);
 }
 
-.cdk-overlay-backdrop {
-    backdrop-filter: blur(4px);
+// Dialog surfaces may overlap the frameless title bar's drag region.
+.mat-mdc-dialog-surface {
+    app-region: no-drag;
+}
+
+// UI-kit menu panel for every `mat-menu`. The panel renders in the overlay
+// container, outside every component view, so the rule is global; the pane
+// prefix outranks Material's single-class panel rules, which load later.
+.cdk-overlay-pane .mat-mdc-menu-panel {
+    @include controls.menu-panel;
+}
+
+// UI-kit toast for every snack-bar: the floating panel's surface, hairline
+// and shadow on a 10px panel, 13px text, the action in the accent colour
+// without a ripple. Toasts sit at Material's bottom centre; a caller adds a
+// panel class for spacing (the settings save bar), never another look.
+.mat-mdc-snack-bar-container {
+    @include mat.snack-bar-overrides(
+        (
+            container-color: var(--app-widget-bg),
+            container-shape: 10px,
+            supporting-text-color: var(--app-heading-color),
+            supporting-text-size: 13px,
+            supporting-text-line-height: 20px,
+            supporting-text-weight: 500,
+            button-color: var(--app-selection-color),
+        )
+    );
+
+    .mat-mdc-snackbar-surface {
+        border: 1px solid var(--app-line-strong);
+        box-shadow: var(--app-popover-shadow);
+    }
+
+    .mat-mdc-snack-bar-action {
+        @include mat.button-overrides(
+            (
+                text-label-text-weight: 600,
+                text-ripple-color: transparent,
+            )
+        );
+    }
 }
 
 // Command palette dialog — the palette-shell renders its own background, border,
@@ -251,20 +298,7 @@ body.dark-theme {
 // halo peeking out behind the rounded corners.
 .workspace-command-palette-overlay .mat-mdc-dialog-surface {
     background: transparent;
-    box-shadow: none;
-    border-radius: 14px;
-    padding: 0;
-    overflow: visible;
-}
-
-.workspace-shortcuts-overlay,
-.workspace-shortcuts-overlay .mat-mdc-dialog-surface,
-.workspace-shortcuts-overlay .mat-mdc-dialog-container {
-    app-region: no-drag;
-}
-
-.workspace-shortcuts-overlay .mat-mdc-dialog-surface {
-    background: transparent;
+    border: 0;
     box-shadow: none;
     border-radius: 14px;
     padding: 0;

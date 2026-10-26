@@ -119,8 +119,12 @@ describe('nextSourceExpiryChangeMs', () => {
         const boundary = next as number;
         expect(boundary).toBeGreaterThan(nowMs);
         // Unchanged up to the boundary, different from it on.
-        expect(badgeAt(expiresAt, boundary - 1)).toBe(badgeAt(expiresAt, nowMs));
-        expect(badgeAt(expiresAt, boundary)).not.toBe(badgeAt(expiresAt, nowMs));
+        expect(badgeAt(expiresAt, boundary - 1)).toBe(
+            badgeAt(expiresAt, nowMs)
+        );
+        expect(badgeAt(expiresAt, boundary)).not.toBe(
+            badgeAt(expiresAt, nowMs)
+        );
     });
 
     it('never schedules for facts whose badge cannot change any more', () => {
@@ -203,7 +207,13 @@ describe('DashboardSourceExpiryService', () => {
             expiresAtSeconds,
         });
 
-        await service.refresh([xtreamPlaylist]);
+        await service.refresh([
+            {
+                ...xtreamPlaylist,
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+        ]);
 
         expect(service.facts().get('xtream-1')).toEqual({
             expiresAtSeconds,
@@ -214,7 +224,11 @@ describe('DashboardSourceExpiryService', () => {
         ).toHaveBeenCalledWith(
             'https://provider.example.test',
             'demo',
-            'secret'
+            'secret',
+            {
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            }
         );
     });
 

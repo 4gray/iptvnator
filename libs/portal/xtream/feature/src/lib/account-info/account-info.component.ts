@@ -21,6 +21,10 @@ import {
     resolveXtreamPortalStatus,
     type XtreamAccountInfoDialogData,
 } from '@iptvnator/shared/interfaces';
+import {
+    DialogHeaderEndDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 type AccountLoadState = 'loading' | 'ready' | 'error';
 
@@ -46,7 +50,14 @@ interface AccountPort {
 
 @Component({
     selector: 'app-account-info',
-    imports: [MatButtonModule, MatDialogModule, MatIconModule, TranslatePipe],
+    imports: [
+        DialogHeaderEndDirective,
+        DialogShellComponent,
+        MatButtonModule,
+        MatDialogModule,
+        MatIconModule,
+        TranslatePipe,
+    ],
     templateUrl: './account-info.component.html',
     styleUrl: './account-info.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -256,6 +267,7 @@ export class AccountInfoComponent {
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,
+                userAgent: playlist.userAgent?.trim() || undefined,
             });
 
             this.accountInfo.set(accountInfo);

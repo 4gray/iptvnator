@@ -30,11 +30,12 @@ export function handleCreateLink(req: Request, res: Response): void {
             : `http://${req.headers['host'] ?? 'localhost:3210'}`;
     // Radio plays in an <audio> element, which needs a fixture with an audio
     // track; ITV/VOD get the video fixture.
-    const gatedFile =
-        req.query['type'] === 'radio' ? 'audio.mp4' : 'video.mp4';
-    const streamUrl = getScenario(mac).gatedStream
-        ? `${requestOrigin}/stream/gated/${gatedFile}`
-        : resolveStreamUrl(cmd, itemIndex);
+    const gatedFile = req.query['type'] === 'radio' ? 'audio.mp4' : 'video.mp4';
+    const streamUrl = getScenario(mac).tvLazySeriesFixture
+        ? `${requestOrigin}/stream/tv-video.webm`
+        : getScenario(mac).gatedStream
+          ? `${requestOrigin}/stream/gated/${gatedFile}`
+          : resolveStreamUrl(cmd, itemIndex);
 
     console.log(`[create_link] MAC=${mac} cmd=${cmd} → ${streamUrl}`);
 

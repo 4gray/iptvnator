@@ -3,7 +3,9 @@ import { PlaylistStorageBackend } from './playlist-storage-backend';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { sourceConnection } from './source-sync/source-connection';
 
-jest.mock('./source-sync/source-connection', () => ({ sourceConnection: jest.fn(() => null) }));
+jest.mock('./source-sync/source-connection', () => ({
+    sourceConnection: jest.fn(() => null),
+}));
 
 describe('PlaylistStorageBackend', () => {
     const testWindow = window as unknown as { electron?: unknown };
@@ -47,12 +49,20 @@ describe('PlaylistStorageBackend', () => {
     });
 
     it('selects server authority before early settings reads and waits for its first projection', async () => {
-        (sourceConnection as jest.Mock).mockReturnValue({ apiUrl: 'https://nas.test/api', instanceId: 'nas' });
+        (sourceConnection as jest.Mock).mockReturnValue({
+            apiUrl: 'https://nas.test/api',
+            instanceId: 'nas',
+        });
         const backend = create(true);
         expect(backend.kind()).toBe('server');
         const get = jest.fn(async () => []);
         let settled = false;
-        const pending = backend.documentStore()!.dbGetAppPlaylists().then(() => { settled = true; });
+        const pending = backend
+            .documentStore()!
+            .dbGetAppPlaylists()
+            .then(() => {
+                settled = true;
+            });
         await Promise.resolve();
         expect(settled).toBe(false);
         backend.installServerStore({ dbGetAppPlaylists: get } as never);
@@ -60,5 +70,15 @@ describe('PlaylistStorageBackend', () => {
         backend.finishServerInitialization();
         await pending;
         expect(get).toHaveBeenCalledTimes(1);
+    });
+    it('prefers the server store once it is set', () => {
+        testWindow.electron = undefined;
+        const backend = create(false);
+        const store = { dbGetAppPlaylists: jest.fn() } as never;
+
+        backend.useServerStore(store);
+
+        expect(backend.kind()).toBe('server');
+        expect(backend.documentStore()).toBe(store);
     });
 });
