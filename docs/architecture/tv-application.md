@@ -147,6 +147,11 @@ existing controls.
 Right/OK enters the category's last available control, Left returns to its category
 except in text fields, and Back returns to categories before leaving Settings.
 Native text caret and select-choice keys retain the shared remote contract.
+Within a panel, Up/Down follow visible enabled controls instead of crossing into
+categories; Right leaves a select for the next control (including Save), while
+OK toggles a checkbox without submitting its form. Closed-disclosure fields are
+excluded from entry and restoration. At a panel control boundary, Up/Down can
+scroll the remaining explanatory content without changing category.
 Phone setup is a compact action available above every category; an open QR session
 owns modal directional and Tab focus. A viewport backdrop blocks background
 pointer access, and a focus guard rejects programmatic focus outside the dialog.

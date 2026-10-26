@@ -173,3 +173,28 @@ The corrected 0.1.15 IPK SHA-256 is
 `e6ee58d43a93fa0f2765c8822b4e57fd5575925fae40e105105fe33adde17217`
 (bundle `index-E4_eqUog.js`). This supersedes the initial local 0.1.15 artifact
 for publication; the earlier on-device checks above describe the initial build.
+
+
+The third completed review identifies a missing select-to-Save remote path,
+closed-disclosure fields retained as focus candidates, and vertical navigation
+escaping Metadata into another category. New browser regressions cover Save at
+1920×1080 and 1280×720, Metadata's complete control sequence, and closed token
+entry/restoration. Settings now owns panel control traversal while retaining
+native caret and select-choice keys. A separate before/after regression also
+confirms OK toggles the EPG checkbox without implicit form submission; only the
+explicit Save action commits it and the result survives relaunch.
+
+
+At the last control, Down now scrolls remaining panel explanations instead of
+switching categories or blocking access to the diagnostic help. This also has a
+failing pre-fix regression. The final navigation batch passes all 19 focused
+Settings/phone/presentation scenarios, all 106 full TV E2E scenarios, 85 unit
+tests, 12 lint/typecheck tasks, build/ES2018/package and notes/guidance checks.
+
+Latest publication package (0.1.15) SHA-256:
+`64f5a55fb0090386a1fe84d501c674d20f922f7e7dc12ffbe878871e54c6105b`
+(bundle `index-DpwqkW9E.js`). Prior artifact hashes and on-device checks above
+are historical; the publication package includes the subsequent review fixes.
+The first attempt to reconnect to LG on 2026-10-26 times out, so that attempt
+cannot certify installation of the corrected artifact. The existing initial
+0.1.15 installation and its matching before/after data digests remain valid.
