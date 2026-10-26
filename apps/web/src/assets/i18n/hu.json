@@ -1258,6 +1258,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "Nem sikerült frissíteni a megtekintési állapotot",
         "EPISODES_WATCHED": "Megtekintett epizódok: {{count}} / {{total}}",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "A lejátszás és a letöltés nem érhető el: a szolgáltató nem adta meg a stream címét vagy formátumát.",
             "STATUS": "A portál metaadatai nem állnak rendelkezésre",
             "NOTE": "A portál nem adott meg részletes metaadatokat.",
             "STREAM_ID": "Adatfolyam-azonosító",

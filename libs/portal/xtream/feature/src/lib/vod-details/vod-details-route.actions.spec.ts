@@ -526,6 +526,58 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         );
     });
 
+    it('passes a resolved direct address to external playback and downloads', async () => {
+        const url = 'https://media.example/film?token=demo';
+        const item = {
+            ...richItem(),
+            movie_data: {
+                ...richItem().movie_data,
+                container_extension: null,
+                direct_source: url,
+            },
+        } as unknown as XtreamVodDetails;
+        selectedItem.set(item);
+        downloadsAvailable.set(true);
+        isEmbeddedPlayer.mockReturnValue(false);
+        fixture.detectChanges();
+        constructVodStreamUrl.mockReturnValueOnce(url);
+        await fixture.componentInstance.playVod(item);
+        expect(openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: url,
+                contentInfo: {
+                    playlistId: 'playlist-1',
+                    contentXtreamId: 650020,
+                    contentType: 'vod',
+                },
+            }),
+            true
+        );
+        constructVodStreamUrl.mockReturnValueOnce(url);
+        await fixture.componentInstance.downloadVod(item);
+        expect(startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url,
+                xtreamId: 650020,
+                playlistId: 'playlist-1',
+            })
+        );
+    });
+
+    it('cannot launch or download when URL construction rejects stored credentials', async () => {
+        const item = richItem();
+        selectedItem.set(item);
+        downloadsAvailable.set(true);
+        fixture.detectChanges();
+        constructVodStreamUrl.mockReturnValueOnce('');
+        await fixture.componentInstance.playVod(item);
+        constructVodStreamUrl.mockReturnValueOnce('');
+        await fixture.componentInstance.downloadVod(item);
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
+        expect(startDownload).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.inlinePlayback()).toBeNull();
+    });
+
     it('keeps external playback in the browse shell', () => {
         const item = sparseItem();
         selectedItem.set(item);
@@ -699,6 +751,51 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             })
         );
     });
+
+    it.each([null, undefined, '', '   '])(
+        'keeps collection actions without a playback extension %p',
+        async (extension) => {
+            selectedItem.set({
+                ...richItem(),
+                movie_data: {
+                    ...richItem().movie_data,
+                    container_extension: extension,
+                },
+            } as XtreamVodDetails);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            const host = fixture.nativeElement as HTMLElement;
+            const primary =
+                host.querySelector<HTMLButtonElement>('button.play-btn');
+            expect(primary).not.toBeNull();
+            expect(primary?.disabled).toBe(true);
+            expect(host.textContent).toContain(
+                'XTREAM.DETAIL_FALLBACK.PLAYBACK_UNAVAILABLE'
+            );
+            host.querySelector<HTMLButtonElement>(
+                '[data-testid="vod-favorite-toggle"]'
+            )?.click();
+            expect(toggleFavorite).toHaveBeenCalledWith(
+                '650020',
+                'playlist-1',
+                'movie',
+                undefined,
+                expect.anything()
+            );
+            const watched = host.querySelector<HTMLButtonElement>(
+                '[data-testid="vod-watched-toggle"]'
+            );
+            expect(watched).not.toBeNull();
+            expect(watched?.disabled).toBe(false);
+            watched?.click();
+            await fixture.whenStable();
+            expect(savePlaybackPositionOrThrow).toHaveBeenCalled();
+            expect(constructVodStreamUrl).not.toHaveBeenCalled();
+            expect(startDownload).not.toHaveBeenCalled();
+            expect(openResolvedPlayback).not.toHaveBeenCalled();
+        }
+    );
 
     it('plays a rich downloaded movie locally without a usable provider source', async () => {
         selectedItem.set(unplayableRichItem());

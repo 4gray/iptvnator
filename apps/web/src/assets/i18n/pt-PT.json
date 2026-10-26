@@ -1258,6 +1258,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "Não foi possível atualizar o estado de visualização.",
         "EPISODES_WATCHED": "Episódios vistos: {{count}} de {{total}}",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "A reprodução e a transferência não estão disponíveis: o fornecedor não indicou o endereço ou o formato da transmissão.",
             "STATUS": "Metadados do portal indisponíveis",
             "NOTE": "Este portal não forneceu metadados adicionais.",
             "STREAM_ID": "ID da transmissão",

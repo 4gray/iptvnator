@@ -38,8 +38,9 @@ debt, not precedent.
   collection-owned inline detail. Preserve enough provider/route identity to
   recover hidden categories without sending a local database ID to the API.
 - Sparse VOD publishes the fallback selection first and recovers its provider
-  category in the background. A playable source is one complete positive
-  stream-ID + extension pair; never combine fields from incomplete candidates.
+  category in the background. A playable candidate pairs a positive stream ID
+  with an extension or an explicit HTTP(S) direct address. Never combine fields
+  from incomplete candidates; Favorite/Watched do not require playback fields.
 - VOD multi-source is capability-gated, owner-scoped, Electron-only
   Xtream-to-Xtream movie behavior. Its reusable core belongs in portal shared
   data access; the screen session/host belongs in the Xtream feature.

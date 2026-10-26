@@ -4,14 +4,81 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     collectionSnapshotMatchesContent,
+    collectionKey,
+    cachedContentIdentity,
     itemCollectionKey,
     mergeCollectionItem,
     normalizeCollectionIdentity,
     type CollectionKey,
 } from './pwa-collection-identity';
 import type { PwaCollectionStorage } from './pwa-collection-storage';
-import type { XtreamContentItem } from './xtream-data-source.interface';
+import {
+    XTREAM_CONTENT_TYPES,
+    type XtreamContentItem,
+} from './xtream-data-source.interface';
+import type { XtreamCachedContentItem } from './pwa-cached-content';
 import { rememberColdFavoriteMetadata } from './pwa-cold-favorite';
+
+/** Provider rows are normalized only when a catalog is fetched or saved. */
+export function normalizePwaCatalogContent(
+    items: readonly XtreamCachedContentItem[],
+    type: 'live' | 'movie' | 'series'
+): XtreamContentItem[] {
+    return items.map((item) => {
+        const xtreamId = cachedContentIdentity(item, type);
+        const title = item.title ?? item.name ?? item.stream_display_name ?? '';
+        const posterUrl =
+            item.poster_url ??
+            item.stream_icon ??
+            item.cover ??
+            item.cover_big ??
+            item.movie_image ??
+            item.poster ??
+            '';
+
+        return {
+            ...item,
+            ...normalizeCollectionIdentity(item as XtreamContentItem),
+            added: item.added ?? item.last_modified ?? '',
+            category_id: item.category_id ?? '',
+            id: xtreamId,
+            name: item.name ?? title,
+            poster_url: posterUrl,
+            rating: String(item.rating ?? ''),
+            title,
+            type,
+            xtream_id: xtreamId,
+        } as XtreamContentItem;
+    });
+}
+
+/** Cache enrichment loads alongside detail metadata and explicit Favorite writes. */
+export function enrichPwaCatalogCache(
+    cache: Map<string, XtreamCachedContentItem[]>,
+    playlistId: string,
+    key: CollectionKey,
+    patch: ContentMetadataPatch
+): void {
+    for (const type of XTREAM_CONTENT_TYPES) {
+        const cacheKey = `${playlistId}-${type}-content`;
+        const content = cache.get(cacheKey);
+        if (content)
+            cache.set(
+                cacheKey,
+                content.map((item) =>
+                    collectionKey({
+                        id: cachedContentIdentity(item, type),
+                        type,
+                    }) === key
+                        ? enrichPwaCatalogMetadata(
+                              item as XtreamContentItem,
+                              patch
+                          )
+                        : item
+                )
+            );
+    }
+}
 
 /** Detail-only module: catalog evidence and each saved identity retain separate ownership. */
 export function enrichPwaContentMetadata(

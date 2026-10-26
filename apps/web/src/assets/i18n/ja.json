@@ -1258,6 +1258,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "視聴状態の更新に失敗しました",
         "EPISODES_WATCHED": "{{count}} / {{total}}エピソード視聴済み",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "再生とダウンロードは利用できません。プロバイダーからストリームのアドレスまたは形式が提供されていません。",
             "STATUS": "ポータルのメタデータは利用できません",
             "NOTE": "このポータルから拡張メタデータは提供されませんでした。",
             "STREAM_ID": "ストリームID",

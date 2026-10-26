@@ -1,15 +1,80 @@
-import { XTREAM_FAVORITE_IDENTITY_CONFLICT } from '@iptvnator/shared/interfaces';
+import {
+    XTREAM_FAVORITE_IDENTITY_CONFLICT,
+    type ContentMetadataPatch,
+} from '@iptvnator/shared/interfaces';
 import {
     collectionSnapshotMatchesContent,
     itemCollectionKey,
     type CollectionKey,
+    type CollectionIdentity,
+    type collectionRefIdentity,
 } from './pwa-collection-identity';
 import type { PwaCollectionStorage } from './pwa-collection-storage';
 import type { XtreamContentItem } from './xtream-data-source.interface';
 import { coldFavoriteCandidate } from './pwa-cold-favorite';
 
+/** Keep removal and its identity guard in one synchronous storage operation. */
+export function removePwaFavorite(
+    storage: PwaCollectionStorage,
+    playlistId: string,
+    key: CollectionKey,
+    expected: ReturnType<typeof collectionRefIdentity>,
+    matchingKeysFor: (ids: CollectionKey[]) => Set<CollectionKey>
+): void {
+    if (storage.hasFavoriteIdentityConflict(playlistId, key, expected))
+        throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
+
+    const allFavorites = storage.getFavoritesFromStorage();
+    if (allFavorites[playlistId]) {
+        const matchingKeys = matchingKeysFor(allFavorites[playlistId]);
+        allFavorites[playlistId] = allFavorites[playlistId].filter(
+            (id) => !matchingKeys.has(id)
+        );
+    }
+    storage.saveFavoritesToStorage(allFavorites);
+}
+
+/** Cold-detail preparation belongs to the explicit action, not app startup. */
+export async function savePwaFavorite(
+    storage: PwaCollectionStorage,
+    playlistId: string,
+    key: CollectionKey,
+    expected: ReturnType<typeof collectionRefIdentity>,
+    current: (
+        catalogOnly?: boolean,
+        identity?: CollectionIdentity
+    ) => XtreamContentItem | undefined,
+    hydrate: () => Promise<unknown>,
+    enrichCatalog: (patch: ContentMetadataPatch) => Promise<void>,
+    matchingKeysFor: (ids: CollectionKey[]) => Set<CollectionKey>,
+    backdropUrl?: string
+): Promise<void> {
+    if (
+        expected &&
+        !Object.values(
+            storage.getCollectionItemsFromStorage()[playlistId] ?? {}
+        ).some((item) => itemCollectionKey(item) === key)
+    ) {
+        if (!current()) await hydrate();
+        if (current(true))
+            await enrichCatalog({
+                tmdbId: expected.tmdb_id,
+                releaseYear: expected.release_year,
+            });
+    }
+    addPwaFavorite(
+        storage,
+        playlistId,
+        key,
+        current(true, expected),
+        matchingKeysFor,
+        backdropUrl,
+        expected
+    );
+}
+
 /** Loaded only for an explicit favorite action; all storage writes remain synchronous. */
-export function addPwaFavorite(
+function addPwaFavorite(
     storage: PwaCollectionStorage,
     playlistId: string,
     key: CollectionKey,

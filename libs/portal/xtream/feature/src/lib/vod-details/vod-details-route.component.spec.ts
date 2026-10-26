@@ -300,8 +300,8 @@ describe('VodDetailsRouteComponent', () => {
         fixture.detectChanges();
 
         const host = fixture.nativeElement as HTMLElement;
-        expect(host.querySelector('button.play-btn')).toBeNull();
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).toBeNull();
+        expect(host.querySelector<HTMLButtonElement>('button.play-btn')?.disabled).toBe(true);
+        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).not.toBeNull();
 
         selectedItem.set({
             info: [],

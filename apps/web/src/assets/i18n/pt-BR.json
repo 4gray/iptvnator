@@ -1258,6 +1258,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "A atualização do estado de assistido falhou",
         "EPISODES_WATCHED": "Episódios assistidos: {{count}} de {{total}}",
         "DETAIL_FALLBACK": {
+            "PLAYBACK_UNAVAILABLE": "Reprodução e download indisponíveis: o provedor não informou o endereço ou o formato do fluxo.",
             "STATUS": "Metadados do portal indisponíveis",
             "NOTE": "Metadados estendidos não foram fornecidos por este portal.",
             "STREAM_ID": "ID do stream",

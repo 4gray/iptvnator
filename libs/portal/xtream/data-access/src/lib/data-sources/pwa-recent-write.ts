@@ -12,6 +12,24 @@ import type {
     XtreamPlayedContent,
 } from './xtream-data-source.interface';
 
+/** Read the latest history only after the action module is available. */
+export function removePwaRecentItem(
+    storage: PwaCollectionStorage,
+    playlistId: string,
+    matchingKeysFor: (ids: CollectionKey[]) => Set<CollectionKey>
+): void {
+    const allRecent = storage.getRecentItemsFromStorage();
+    if (allRecent[playlistId]) {
+        const matchingKeys = matchingKeysFor(
+            allRecent[playlistId].map((item) => item.id)
+        );
+        allRecent[playlistId] = allRecent[playlistId].filter(
+            (item) => !matchingKeys.has(item.id)
+        );
+    }
+    storage.saveRecentItemsToStorage(allRecent);
+}
+
 /** Keep the snapshot and viewedAt write synchronous against fresh storage. */
 export function addPwaRecentItem(
     storage: PwaCollectionStorage,
