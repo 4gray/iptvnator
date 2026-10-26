@@ -1,19 +1,27 @@
 import {
+    assertSourceRequestAllowed,
+    sourceAuthorization,
+    verifySourceInstance,
+} from '@iptvnator/services/source-sync/authorization';
+import {
     HttpErrorResponse,
     type HttpInterceptorFn,
 } from '@angular/common/http';
 import { catchError, from, switchMap, throwError } from 'rxjs';
 import { isGatewayOutage } from '@iptvnator/services';
 import {
-    assertSourceRequestAllowed,
     invalidateSourceVerification,
-    sourceAuthorization,
     sourceConnection,
     sourceVerificationEpoch,
-    verifySourceInstance,
 } from '@iptvnator/services/source-sync/connection';
 
 let pending: { epoch: number; promise: Promise<void> } | undefined;
+
+export { invalidateSourceVerification } from '@iptvnator/services/source-sync/connection';
+export function sourceProxyHeaders(url: string): Record<string, string> {
+    assertSourceRequestAllowed(url);
+    return sourceAuthorization(url);
+}
 
 /** An outage revokes the identity proof for both provider transports. */
 export async function ensureSourceProxy(url: string): Promise<void> {

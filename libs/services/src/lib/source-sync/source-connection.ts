@@ -7,11 +7,9 @@ import {
 export const CONNECTION_KEY = 'iptvnator:source-server';
 export const DISABLED_KEY = 'iptvnator:source-server-disabled';
 const INCOMPATIBLE = 'SOURCE_SYNC.INCOMPATIBLE';
-const INSTANCE_CHANGED = 'SOURCE_SYNC.INSTANCE_CHANGED';
 const OFFLINE = 'SOURCE_SYNC.OFFLINE';
 let selected: SourceServerConnection | null = null;
 let readFailed = false;
-let verified = false;
 let verificationEpoch = 0;
 
 export const sourceConnection = () => selected;
@@ -114,7 +112,6 @@ export async function prepareSourceConnection(
         if (instance.storage === 'none') return;
         assertSourceInstance(instance);
         selected = { apiUrl, instanceId: instance.instanceId! };
-        verified = true;
     } catch {
         selected = { apiUrl, instanceId: `pending:${apiUrl}` };
     }
@@ -133,22 +130,7 @@ export async function prepareSourceConnection(
     }
 }
 
-/** A replacement database at the same address must never receive saved secrets. */
-export function verifySourceInstance(
-    value: unknown,
-    expected = selected,
-    epoch = verificationEpoch
-): void {
-    if (epoch !== verificationEpoch) throw new Error(OFFLINE);
-    verified = false;
-    assertSourceInstance(value);
-    if (value.instanceId !== expected?.instanceId)
-        throw new Error(INSTANCE_CHANGED);
-    verified = true;
-}
-
 export function invalidateSourceVerification(): void {
-    verified = false;
     verificationEpoch++;
 }
 
@@ -160,20 +142,4 @@ export function isSourceBackendRequest(url: string): boolean {
         target.origin === backend.origin &&
         target.pathname.startsWith(`${backend.pathname.replace(/\/+$/, '')}/`)
     );
-}
-
-/** Block the whole proxy call: its body/query may contain provider credentials. */
-export function assertSourceRequestAllowed(url: string): void {
-    if (isSourceBackendRequest(url) && !verified)
-        throw new Error(INSTANCE_CHANGED);
-}
-
-export function sourceAuthorization(url: string): Record<string, string> {
-    if (!verified || !isSourceBackendRequest(url)) return {};
-    try {
-        const token = sessionStorage.getItem(tokenKey(selected!));
-        return token ? { Authorization: `Bearer ${token}` } : {};
-    } catch {
-        return {};
-    }
 }

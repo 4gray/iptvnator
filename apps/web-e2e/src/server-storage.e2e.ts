@@ -247,92 +247,112 @@ test.describe('server storage @self-hosted @persistence', () => {
         }
     });
 
-    test('blocks provider credentials after an instance-change rejection from a source edit', async ({
-        browser,
-        request,
-    }) => {
-        const page = await newServerPage(browser);
-        const id = 'mutation-identity';
-        const title = 'Mutation guarded source';
-        expect(
-            (
-                await request.put(`${STORAGE_BACKEND_URL}/v1/playlists/${id}`, {
-                    data: {
-                        _id: id,
-                        title,
-                        serverUrl: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}`,
-                        username: 'user1',
-                        password: 'pass1',
-                    },
-                })
-            ).ok()
-        ).toBe(true);
-        try {
-            await openSources(page);
-            const dialog = await openSourceEditor(page, title);
-            await updateSourceDialog(dialog, { title: 'Rejected rename' });
-            await page.evaluate(
-                (apiUrl) =>
-                    sessionStorage.setItem(
-                        `iptvnator:server-token:${JSON.stringify([apiUrl, JSON.parse(localStorage.getItem('iptvnator:source-server')!).instanceId])}`,
-                        'synthetic-saved-secret'
-                    ),
-                STORAGE_BACKEND_URL
-            );
-            const instance = await (
-                await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
-            ).json();
-            let replaced = false;
-            await page.route(`${STORAGE_BACKEND_URL}/v1/instance`, (route) =>
-                replaced
-                    ? route.fulfill({
-                          json: {
-                              ...instance,
-                              instanceId: 'replacement-instance',
-                          },
-                      })
-                    : route.continue()
-            );
-            await page.route(
-                `${STORAGE_BACKEND_URL}/v1/sources/${id}`,
-                (route) => {
-                    if (route.request().method() !== 'PATCH')
-                        return route.continue();
-                    replaced = true;
-                    return route.fulfill({
-                        status: 409,
-                        json: { code: 'instance_changed' },
-                    });
-                }
-            );
-            const outgoing: string[] = [];
-            page.on('request', (request) => {
-                const url = new URL(request.url());
-                if (
-                    url.origin === STORAGE_BACKEND_URL &&
-                    ['/xtream', '/provider-targets'].includes(url.pathname)
-                )
-                    outgoing.push(request.url());
-            });
-            await dialog
-                .locator('mat-dialog-actions')
-                .getByRole('button', { name: 'Save', exact: true })
-                .click();
-            await expect(
-                page.locator('[data-test-id="source-sync-status"]')
-            ).toContainText('The server identity changed');
-            expect(replaced).toBe(true);
-            await dialog
-                .getByRole('button', { name: 'Close', exact: true })
-                .click();
-            await expect(dialog).toBeHidden();
-            await sourceRowByTitle(page, title).click();
-            await expect(page.locator('app-playlist-error-view')).toBeVisible();
-            expect(outgoing).toEqual([]);
-        } finally {
-            await page.context().close();
-        }
-    });
+    for (const failure of ['instance-changed', 'network', 'gateway']) {
+        test(`blocks provider credentials after a ${failure} source edit failure`, async ({
+            browser,
+            request,
+        }) => {
+            const page = await newServerPage(browser);
+            const id = 'mutation-identity';
+            const title = 'Mutation guarded source';
+            expect(
+                (
+                    await request.put(
+                        `${STORAGE_BACKEND_URL}/v1/playlists/${id}`,
+                        {
+                            data: {
+                                _id: id,
+                                title,
+                                serverUrl: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}`,
+                                username: 'user1',
+                                password: 'pass1',
+                            },
+                        }
+                    )
+                ).ok()
+            ).toBe(true);
+            try {
+                await openSources(page);
+                const dialog = await openSourceEditor(page, title);
+                await updateSourceDialog(dialog, { title: 'Rejected rename' });
+                await page.evaluate(
+                    (apiUrl) =>
+                        sessionStorage.setItem(
+                            `iptvnator:server-token:${JSON.stringify([apiUrl, JSON.parse(localStorage.getItem('iptvnator:source-server')!).instanceId])}`,
+                            'synthetic-saved-secret'
+                        ),
+                    STORAGE_BACKEND_URL
+                );
+                const instance = await (
+                    await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
+                ).json();
+                let replaced = false;
+                await page.route(
+                    `${STORAGE_BACKEND_URL}/v1/instance`,
+                    (route) =>
+                        replaced
+                            ? route.fulfill({
+                                  json: {
+                                      ...instance,
+                                      instanceId: 'replacement-instance',
+                                  },
+                              })
+                            : route.continue()
+                );
+                await page.route(
+                    `${STORAGE_BACKEND_URL}/v1/sources/${id}`,
+                    (route) => {
+                        if (route.request().method() !== 'PATCH')
+                            return route.continue();
+                        replaced = true;
+                        if (failure === 'network') return route.abort('failed');
+                        if (failure === 'gateway')
+                            return route.fulfill({
+                                status: 502,
+                                contentType: 'text/html',
+                                body: 'Gateway unavailable',
+                            });
+                        return route.fulfill({
+                            status: 409,
+                            json: { code: 'instance_changed' },
+                        });
+                    }
+                );
+                const outgoing: string[] = [];
+                page.on('request', (request) => {
+                    const url = new URL(request.url());
+                    if (
+                        url.origin === STORAGE_BACKEND_URL &&
+                        ['/xtream', '/provider-targets'].includes(url.pathname)
+                    )
+                        outgoing.push(request.url());
+                });
+                await dialog
+                    .locator('mat-dialog-actions')
+                    .getByRole('button', { name: 'Save', exact: true })
+                    .click();
+                await expect(
+                    page.locator('[data-test-id="source-sync-status"]')
+                ).toContainText(
+                    failure === 'instance-changed'
+                        ? 'The server identity changed'
+                        : 'Server unavailable'
+                );
+                expect(replaced).toBe(true);
+                await dialog
+                    .getByRole('button', { name: 'Close', exact: true })
+                    .click();
+                await expect(dialog).toBeHidden();
+                await sourceRowByTitle(page, title).click();
+                await expect(
+                    page.locator('app-playlist-error-view')
+                ).toBeVisible();
+                expect(outgoing).toEqual([]);
+            } finally {
+                await page.context().close();
+            }
+        });
+    }
 
     for (const transport of ['provider-targets', 'stalker']) {
         test(`blocks provider credentials after a ${transport} proxy outage reveals a replacement server`, async ({

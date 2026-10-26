@@ -1,3 +1,4 @@
+import { verifySourceInstance } from './source-authorization';
 import { saveBrowserSourceConnection } from './source-browser-settings';
 import {
     computed,
@@ -19,12 +20,10 @@ import {
 import { DataService } from '../data.service';
 import { PLAYLIST_DELETE_CLEANUP } from '../playlist-delete-cleanup.token';
 import { PlaylistStorageBackend } from '../playlist-storage-backend';
-import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { indexedDbDocumentStore } from './indexeddb-document-store';
 import { requestSourceServer } from './source-api';
 import {
     assertSourceInstance,
-    verifySourceInstance,
     invalidateSourceVerification,
     sourceVerificationEpoch,
     sourceConnection,
@@ -36,11 +35,11 @@ import { SyncedPlaylistStore } from './synced-playlist-store';
 import { materializeSource } from './source-materializer';
 import { migrateLegacyPlaylistActivity } from './legacy-playlist-activity';
 import { recoverPendingStatelessBackend } from './pending-source-discovery';
+import { SourceCleanupQueue } from './source-cleanup-queue';
 
 @Injectable({ providedIn: 'root' })
 export class SourceSyncService {
     private readonly backend = inject(PlaylistStorageBackend);
-    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly db = inject(NgxIndexedDBService);
     private readonly data = inject(DataService);
     private readonly snackBar = inject(LazySnackBar);
@@ -74,6 +73,7 @@ export class SourceSyncService {
     private nextPollAt = 0;
     private browserProfile = false;
     private metadataDirty = false;
+    private cleanupQueue?: SourceCleanupQueue;
 
     async initialize(): Promise<void> {
         if (!this.connection) {
@@ -88,23 +88,9 @@ export class SourceSyncService {
         const local = native
             ? { ...native }
             : indexedDbDocumentStore(this.db, sourceProfileName());
-        const removeLocal = local.dbDeletePlaylist.bind(local);
-        // SQL owns relational sidecars, while cleanup hooks also remove
-        // non-relational state such as the parental-lock store on both runtimes.
-        local.dbDeletePlaylist = async (id) => {
-            const result = await removeLocal(id);
-            for (const cleanup of this.cleanups) await cleanup(id);
-            return result;
-        };
-        if (!this.runtime.supportsXtreamSqliteDataSource) {
-            const clear = local.dbDeleteAllPlaylists.bind(local);
-            local.dbDeleteAllPlaylists = async () => {
-                for (const row of await local.dbGetAppPlaylists()) {
-                    for (const cleanup of this.cleanups) await cleanup(row._id);
-                }
-                return clear();
-            };
-        }
+        this.cleanupQueue = new SourceCleanupQueue(local, this.cleanups);
+        local.dbDeletePlaylist = this.cleanupQueue.remove;
+        local.dbDeleteAllPlaylists = this.cleanupQueue.clear;
         this.store = new SyncedPlaylistStore(
             local,
             (request) => this.request(request),
@@ -156,6 +142,8 @@ export class SourceSyncService {
                     const wasReady = this.store!.ready;
                     this.errorKey.set(null);
                     if (!this.store!.ready) this.state.set('connecting');
+                    // Finish previous deletions before a reused ID can be projected.
+                    await this.cleanupQueue!.retry();
                     const epoch = sourceVerificationEpoch();
                     const probe = await this.request({ operation: 'instance' });
                     if (
@@ -304,16 +292,17 @@ export class SourceSyncService {
         request: SourceServerRequest
     ): Promise<SourceServerResponse> {
         try {
-            if (
-                !['instance', 'list', 'get'].includes(request.operation) &&
-                this.state() !== 'connected'
-            ) {
+            const mutation = !['instance', 'list', 'get'].includes(
+                request.operation
+            );
+            if (mutation && this.state() !== 'connected') {
                 throw new Error(
                     this.state() === 'locked'
                         ? 'SOURCE_SYNC.LOCKED'
                         : (this.errorKey() ?? 'SOURCE_SYNC.OFFLINE')
                 );
             }
+            if (mutation) await this.cleanupQueue!.retry();
             const response = await requestSourceServer(request);
             if (response.status >= 400) {
                 const key =

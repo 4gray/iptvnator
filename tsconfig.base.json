@@ -144,6 +144,9 @@
             "@iptvnator/services/source-sync": [
                 "libs/services/src/lib/source-sync/index.ts"
             ],
+            "@iptvnator/services/source-sync/authorization": [
+                "libs/services/src/lib/source-sync/source-authorization.ts"
+            ],
             "@iptvnator/services/source-sync/connection": [
                 "libs/services/src/lib/source-sync/source-connection.ts"
             ],

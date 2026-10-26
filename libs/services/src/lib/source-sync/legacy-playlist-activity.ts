@@ -1,3 +1,4 @@
+import { sourceAuthorization } from './source-authorization';
 import {
     type Playlist,
     type SourceServerConnection,
@@ -7,7 +8,7 @@ import {
     sourceFromPlaylist,
 } from '@iptvnator/shared/interfaces/source-definition';
 import type { PlaylistDocumentStore } from '../playlist-storage-backend';
-import { assertSourceInstance, sourceAuthorization } from './source-connection';
+import { assertSourceInstance } from './source-connection';
 import { requestSourceServer } from './source-api';
 import { wasLegacySourceClient } from './legacy-source-client';
 

@@ -784,3 +784,47 @@ used by CI was also run without the Nx cache and passes at 1,200,285 bytes,
 within the unchanged 1,200,301-byte launch/renderer.initialBytes limit. A duplicate
 redirect option was removed from a raw-fetch caller; its transport continues
 setting redirect:error centrally. Release notes and agent guidance validate.
+
+### PR #2013 review follow-up before local review fifteen
+
+Local Codex round fourteen and GitHub Codex both accepted
+`d59754c2f3663d3f8ea93cc9bdac034e5fbbfc02` without actionable findings; the local
+review independently ran 1,957 tests. PR #2013 was opened and attached. Greptile
+then identified two valid gaps: source-write outages retained authorization,
+and failed local deletion cleanup was forgotten after the source row disappeared.
+Both are addressed together before the next push; no findings are declined.
+
+The shared browser source transport now revokes proof on network/parse failures,
+server 5xx, rejected tokens and instance-change responses, including direct
+import callers. Logical conflicts retain their normal conditional-write behavior.
+Provider retries re-probe anonymously before carrying saved secrets. Twenty-one
+new transport/service regression cases failed against the previous code. Extra
+coverage verifies direct imports, JSON 5xx and the provider retry boundary.
+
+`SourceCleanupQueue` writes a profile-local marker per source ID before deleting
+cache rows or clearing the inventory. Hooks and marker removal are retryable;
+failed work survives row deletion and restart. Refresh and source mutations finish
+pending work before incoming IDs can be reused. Per-ID keys preserve work from
+other tabs/profiles. Failed marker persistence prevents deletion; unsuccessful
+SQL deletion never clears locks prematurely. A native E2E uses real SQLite
+triggers to fail parental-store writes, restarts the app, then verifies cleanup
+and safe ID reuse. No schema or migration change was needed.
+
+A temporary managed worktree validated the exact GitHub merge commit
+`90b94edd83665f2afbdbd41b0b6a938b8c42ee13`: 956 service and 94 shared-TMDB tests
+passed, but initial bytes exceeded the limit by 308. Master #2009 was merged
+into this branch as `14714ae76738cd2f9dd272d13e09f33c5d322beb`; frozen install,
+lock comparison and Nx discovery were repeated. The temporary checkout was
+archived. Authorization now lives in a deferred transport module; bootstrap
+selects the namespace and does not grant secret-bearing access. Standalone
+fetch behavior keeps its synchronous start. The exact CI production build
+passes at 1,200,187 bytes, within the unchanged 1,200,301-byte limit.
+
+Final local results before review fifteen: all 27 production Chromium PWA
+scenarios and nine mixed-runtime scenarios pass; 986 service, 564 web and
+94 shared-TMDB tests pass with coverage. Merged 36-project coverage passes at
+statements 84.94%, branches 75.93%, functions 83.11%, lines 85.32%. Advisory
+same-name-spec warnings include upstream TMDB files and the authorization
+module covered by the connection/transport suites. Affected lint, application/
+spec/E2E types, 168 release notes and agent guidance validate. Prior shared-
+interface/backend results remain 660 / 2,702 tests. No gate was weakened.

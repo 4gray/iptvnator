@@ -1,4 +1,8 @@
 import {
+    sourceAuthorization,
+    verifySourceInstance,
+} from '@iptvnator/services/source-sync/authorization';
+import {
     HttpClientTestingModule,
     HttpTestingController,
 } from '@angular/common/http/testing';
@@ -28,9 +32,7 @@ import {
 import { PwaService } from './pwa.service';
 import {
     prepareSourceConnection,
-    sourceAuthorization,
     tokenKey,
-    verifySourceInstance,
 } from '@iptvnator/services/source-sync/connection';
 
 describe('PwaService', () => {

@@ -204,6 +204,10 @@ compared verbatim. Nullable optional form fields are omitted from source
 definitions and compared as absent; the source API still rejects null input.
 Remote deletions run the shared cleanup hooks on both runtimes, including
 native parental-lock JSON/in-memory state in addition to SQL-owned sidecars.
+Per-source markers in profile-scoped localStorage are written before cache
+deletion. Failed hooks remain retryable after the row is gone and after restart;
+refreshes and source mutations finish this work before reusing an ID. Each ID
+has its own marker so one tab cannot overwrite another deletion's pending work.
 Bootstrap waits only for local profile readiness, then starts network
 refresh in the background. Slow URL providers cannot hold the app behind its
 splash: cached sources and settings remain accessible. An uninitialized cache
@@ -230,6 +234,10 @@ older probe from restoring authorization after a newer failure. The proxy guard
 and inventory/view subscriptions load only for a selected server or recovery.
 Browser token entries are bound to both the API address and instance ID; a
 selection changed by another tab cannot reuse the prior instance's token.
+Source API failures, including direct imports, revoke authorization at the
+transport boundary for network/parse errors, server 5xx, rejected tokens and
+instance-change responses. Namespace discovery alone does not grant access;
+the deferred authorization module requires a current successful identity probe.
 Unbound legacy entries are never forwarded automatically.
 Accepted source mutations schedule an immediate inventory refresh.
 Uploaded M3U text is fetched only for changed revisions and parsed locally;

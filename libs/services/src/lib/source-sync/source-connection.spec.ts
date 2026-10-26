@@ -1,13 +1,15 @@
+import {
+    sourceAuthorization,
+    verifySourceInstance,
+    assertSourceRequestAllowed,
+} from './source-authorization';
 import { saveBrowserSourceConnection } from './source-browser-settings';
 import {
     prepareSourceConnection,
-    sourceAuthorization,
     sourceConnection,
     sourceProfileName,
     tokenKey,
     sourceConnectionReadFailed,
-    verifySourceInstance,
-    assertSourceRequestAllowed,
     invalidateSourceVerification,
     sourceVerificationEpoch,
 } from './source-connection';
@@ -89,6 +91,16 @@ describe('source server selection and authorization', () => {
         await prepareSourceConnection('https://nas.test/backend');
         expect(sourceConnection()?.apiUrl).toBe('https://nas.test/backend');
         expect(sourceProfileName()).toBe('iptvnator-server:nas');
+        expect(sourceAuthorization('https://nas.test/backend/xtream')).toEqual(
+            {}
+        );
+        verifySourceInstance({
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            instanceId: 'nas',
+            capabilities: ['sources-v1'],
+        });
         sessionStorage.setItem(
             tokenKey({ apiUrl: 'https://nas.test/backend', instanceId: 'nas' }),
             'synthetic-nas-token'

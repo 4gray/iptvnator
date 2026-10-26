@@ -1,3 +1,7 @@
+import {
+    sourceAuthorization,
+    assertSourceRequestAllowed,
+} from './source-authorization';
 import { saveBrowserSourceConnection } from './source-browser-settings';
 import { TestBed } from '@angular/core/testing';
 import { LazySnackBar } from '../lazy-snack-bar/lazy-snack-bar';
@@ -14,14 +18,10 @@ import { PLAYLIST_DELETE_CLEANUP } from '../playlist-delete-cleanup.token';
 import { PlaylistStorageBackend } from '../playlist-storage-backend';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { requestSourceServer } from './source-api';
-import {
-    sourceConnection,
-    prepareSourceConnection,
-    sourceAuthorization,
-    assertSourceRequestAllowed,
-} from './source-connection';
+import { sourceConnection, prepareSourceConnection } from './source-connection';
 import { SourceSyncService } from './source-sync.service';
 import type { SyncedPlaylistStore } from './synced-playlist-store';
+import { sourceProfileStorageKey } from './source-profile-storage';
 
 jest.mock('./source-api', () => ({ requestSourceServer: jest.fn() }));
 jest.mock('./source-connection', () => ({
@@ -59,6 +59,7 @@ describe('source synchronization lifecycle', () => {
     let fetchPlaylistDefinition: jest.Mock;
 
     beforeEach(() => {
+        localStorage.clear();
         rows = new Map();
         receipt = null;
         inventory = [];
@@ -163,6 +164,54 @@ describe('source synchronization lifecycle', () => {
         await service.refresh();
         expect(rows.has('removed')).toBe(false);
         expect(cleanup).toHaveBeenCalledWith('removed');
+    });
+
+    it('retries failed cleanup after the local source row is gone, before projecting a reused ID', async () => {
+        Object.assign(TestBed.inject(RuntimeCapabilitiesService), {
+            supportsXtreamSqliteDataSource: true,
+        });
+        rows.set(
+            'removed',
+            applySourceDefinition({ ...source, id: 'removed' })
+        );
+        cleanup.mockRejectedValueOnce(new Error('lock store unavailable'));
+        await service.initialize();
+        await service.refresh();
+        expect(rows.has('removed')).toBe(false);
+        expect(service.state()).toBe('offline');
+        inventory = [{ ...source, id: 'removed', title: 'Reused ID' }];
+        await service.refresh();
+        expect(cleanup).toHaveBeenCalledTimes(2);
+        expect(service.state()).toBe('connected');
+        expect(rows.get('removed')?.title).toBe('Reused ID');
+    });
+    it('finishes pending cleanup from another context before accepting a reused source ID', async () => {
+        await service.initialize();
+        await service.refresh();
+        const id = 'reused';
+        localStorage.setItem(
+            sourceProfileStorageKey(`source-sync-cleanup:${id}`),
+            '1'
+        );
+        request.mockClear();
+        request.mockResolvedValueOnce({
+            status: 200,
+            body: { ...source, id },
+            etag: '"created"',
+        });
+        await store.dbUpsertAppPlaylist(
+            applySourceDefinition({ ...source, id })
+        );
+        expect(cleanup).toHaveBeenCalledWith(id);
+        expect(cleanup.mock.invocationCallOrder[0]).toBeLessThan(
+            request.mock.invocationCallOrder[0]
+        );
+        expect(rows.get(id)?.title).toBe(source.title);
+        expect(
+            localStorage.getItem(
+                sourceProfileStorageKey(`source-sync-cleanup:${id}`)
+            )
+        ).toBeNull();
     });
 
     it('projects changed sources and portable uploads, retains local activity and cleans remote deletions', async () => {

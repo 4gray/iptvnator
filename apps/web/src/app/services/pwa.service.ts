@@ -42,12 +42,7 @@ import {
     createLogger,
 } from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
-import {
-    sourceAuthorization,
-    isSourceBackendRequest,
-    invalidateSourceVerification,
-    assertSourceRequestAllowed,
-} from '@iptvnator/services/source-sync/connection';
+import { isSourceBackendRequest } from '@iptvnator/services/source-sync/connection';
 
 /**
  * How long to wait for the backend to forget a host before giving up.
@@ -857,9 +852,11 @@ export class PwaService extends DataService {
         url: string,
         init: RequestInit
     ): Promise<Response> {
-        if (isSourceBackendRequest(url))
-            await (await import('./source-proxy')).ensureSourceProxy(url);
-        assertSourceRequestAllowed(url);
+        const proxy = isSourceBackendRequest(url)
+            ? await import('./source-proxy')
+            : undefined;
+        if (proxy) await proxy.ensureSourceProxy(url);
+        const authorization = proxy?.sourceProxyHeaders(url);
         const token = this.serverAccessToken(url);
         let response: Response;
         try {
@@ -869,7 +866,7 @@ export class PwaService extends DataService {
                 headers: {
                     ...(init.headers as Record<string, string> | undefined),
                     ...bearer(token),
-                    ...sourceAuthorization(url),
+                    ...authorization,
                 },
             });
         } catch (error) {
@@ -877,7 +874,7 @@ export class PwaService extends DataService {
                 error instanceof DOMException && error.name === 'AbortError'
             )) {
                 this.serverStatus.reportOffline();
-                if (isSourceBackendRequest(url)) invalidateSourceVerification();
+                proxy?.invalidateSourceVerification();
             }
             throw error;
         }
@@ -888,7 +885,7 @@ export class PwaService extends DataService {
             )
         ) {
             this.serverStatus.reportOffline();
-            if (isSourceBackendRequest(url)) invalidateSourceVerification();
+            proxy?.invalidateSourceVerification();
         } else if (
             response.status === 401 &&
             isServerAccessChallenge(

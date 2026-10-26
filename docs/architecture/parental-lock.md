@@ -549,6 +549,10 @@ failed cleanup left behind; the restore retries a failed lock-store read
 first (`ensureLocksReadable`) and aborts while it still fails, so that check
 never runs against the empty fail-closed snapshot.
 
+Source synchronization retains a profile-local per-ID cleanup marker before
+deleting cached rows. Failed cleanup stays pending across restart and retries
+before incoming projections or source mutations can reuse that ID.
+
 ## Backup
 
 A backup carrying lock lists replaces the matching playlists' locks,
