@@ -192,6 +192,12 @@ the server revision has not changed, including after restart. Successful
 projection refreshes an open M3U channel list without publishing it back.
 Detected M3U EPG URLs are projected locally while manual/disabled choices
 remain device-local. Delayed activity writes retain the latest parsed source.
+Authoritative inventory replacement retains only parsed payloads, so removing
+a connection field cannot revive its previous value. Active Stalker routes
+reconcile changed connections against their persisted rows and restart the
+session/catalog only when connection fields differ. Backup restore follows
+the server's canonical source ID, including local activity and parental locks
+when a source added since the last poll deduplicates during import.
 
 Browser source caches use IndexedDB `iptvnator-server:<instanceId>` and prefix
 Xtream local user-data keys with that profile. Desktop databases live at

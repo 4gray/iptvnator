@@ -1,5 +1,5 @@
 import { on } from '@ngrx/store';
-import { Channel } from '@iptvnator/shared/interfaces';
+import { Channel, Playlist } from '@iptvnator/shared/interfaces';
 import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
 import { PlaylistActions } from '../actions';
 import { playlistsAdapter } from '../playlists.state';
@@ -26,8 +26,11 @@ export const playlistReducers = [
                 : playlistsAdapter.addMany)(
                 action.authoritative
                     ? action.playlists.map((playlist) => ({
-                          ...state.playlists.entities[playlist._id],
                           ...playlist,
+                          playlist: (
+                              state.playlists.entities[playlist._id] as
+                                  Playlist | undefined
+                          )?.playlist,
                       }))
                     : action.playlists,
                 {

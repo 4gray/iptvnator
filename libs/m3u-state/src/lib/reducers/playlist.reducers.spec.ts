@@ -8,6 +8,38 @@ import { Channel, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 const reducer = createReducer(initialState, ...playlistReducers);
 
 describe('playlistReducers', () => {
+    it('drops removed source metadata while retaining only the parsed payload', () => {
+        const before = {
+            _id: 'shared',
+            title: 'Before',
+            referrer: 'https://old.test',
+            stalkerDeviceId1: 'old-device',
+            stalkerToken: 'old-session',
+            playlist: { items: [{ name: 'Cached' }] },
+        } as Playlist;
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(before, initialState.playlists),
+        };
+        const incoming = {
+            _id: 'shared',
+            title: 'After',
+            count: 1,
+            importDate: '',
+            autoRefresh: false,
+        };
+        const next = reducer(
+            state,
+            PlaylistActions.loadPlaylistsSuccess({
+                playlists: [incoming],
+                authoritative: true,
+            })
+        );
+        expect(next.playlists.entities['shared']).toEqual({
+            ...incoming,
+            playlist: before.playlist,
+        });
+    });
     it('rehydrates an open shared M3U with the latest parsed channels', () => {
         const playlist = {
             _id: 'shared',

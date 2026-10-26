@@ -32,6 +32,45 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         localStorage.clear();
     });
 
+    it('restores activity and parental locks under the source ID accepted after an inventory race', async () => {
+        const collaborators = createRestoreCollaborators();
+        collaborators.playlistsService.getAllData.mockReturnValue(of([]));
+        collaborators.playlistsService.addPlaylist.mockImplementation(
+            (playlist: Playlist) => of({ ...playlist, _id: 'canonical' })
+        );
+        const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            parentalLock: {
+                initialize: jest.fn().mockResolvedValue(undefined),
+                locksReadable: jest.fn(() => true),
+                ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                requestUnlock: jest.fn().mockResolvedValue(true),
+                locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
+                replacePlaylistLocks,
+            },
+        });
+        const manifest = createXtreamManifest([]);
+        (
+            manifest.playlists[0] as XtreamPlaylistBackupEntry
+        ).userState.lockedCategories = [];
+        const summary = await service.importBackup(JSON.stringify(manifest));
+        expect(summary).toMatchObject({ merged: 1, failed: 0 });
+        expect(
+            collaborators.playlistsService.addPlaylist
+        ).toHaveBeenLastCalledWith(
+            expect.objectContaining({ _id: 'canonical' })
+        );
+        expect(collaborators.pendingRestoreService.set).toHaveBeenCalledWith(
+            'canonical',
+            expect.any(Object)
+        );
+        expect(replacePlaylistLocks).toHaveBeenCalledWith(
+            'canonical',
+            expect.any(Object)
+        );
+    });
+
     it('exports hidden categories with their xtream IDs', async () => {
         const collaborators = createRestoreCollaborators();
         const service = createPlaylistBackupService({

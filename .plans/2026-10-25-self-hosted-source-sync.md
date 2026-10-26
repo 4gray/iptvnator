@@ -392,3 +392,12 @@ detected EPG alongside local manual/disabled choices; and retain a selected
 custom API base when reconnecting. Regression unit checks and all five mixed
 PWA/Electron scenarios pass, including active M3U replacement and restoration
 of the original Electron library after a relaunch with inherited environment.
+
+The second local review identified canonical-ID races during backup import,
+open Stalker connections retaining old configuration and authoritative inventory
+merges reviving removed metadata. Restore now follows the accepted source ID
+for activity and parental locks, duplicate source creation retains device-local
+activity, and inventory replacement keeps only the omitted parsed payload.
+Open Stalker routes reconcile persisted connection changes through their
+serialized route/session owner. Optional favorites synchronization, EPG and
+viewing progress synchronization remain outside this delivery.

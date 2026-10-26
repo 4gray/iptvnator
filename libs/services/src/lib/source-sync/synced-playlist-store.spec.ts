@@ -82,6 +82,36 @@ describe('source synchronization with local activity', () => {
         expect(request).not.toHaveBeenCalled();
         expect(rows.get('a')?.favorites).toEqual(['channel']);
     });
+    it('merges device activity under the canonical ID when a newly added source deduplicates', async () => {
+        const { store, rows } = setup();
+        rows.set('a', {
+            ...cached(),
+            favorites: ['existing'],
+            autoRefresh: true,
+            position: 5,
+        });
+        const result = await store.dbUpsertAppPlaylist({
+            ...applySourceDefinition({ ...source, id: 'backup' }),
+            favorites: ['restored'],
+            recentlyViewed: [
+                {
+                    source: 'm3u',
+                    id: 'restored',
+                    url: 'https://media.test/live',
+                    title: 'Restored',
+                    category_id: 'live',
+                    added_at: '2026-10-26',
+                },
+            ],
+        });
+        expect(result.playlist._id).toBe('a');
+        expect(rows.get('a')?.favorites).toEqual(['existing', 'restored']);
+        expect(rows.get('a')).toMatchObject({ autoRefresh: true, position: 5 });
+        expect(rows.get('a')?.recentlyViewed).toEqual([
+            expect.objectContaining({ title: 'Restored' }),
+        ]);
+        expect(rows.has('backup')).toBe(false);
+    });
     it('sends only a source definition and its original revision when editing', async () => {
         const { store, request } = setup();
         await store.dbUpsertAppPlaylist({

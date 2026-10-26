@@ -414,6 +414,37 @@ test('opens shared Xtream and Stalker sources on PWA and independent Electron pr
         ).json();
         expect(inventory.entries).toHaveLength(2);
         expect(JSON.stringify(inventory)).not.toContain('stalkerToken');
+        const sharedStalker = inventory.entries.find(
+            (entry: { source: { kind: string } }) =>
+                entry.source.kind === 'stalker'
+        );
+        const changedMac = '02:00:00:00:00:02';
+        const refreshedSession = page.waitForRequest(
+            (request) => {
+                const url = new URL(request.url());
+                return (
+                    url.pathname.endsWith('/stalker') &&
+                    url.searchParams.get('macAddress') === changedMac
+                );
+            },
+            { timeout: 25000 }
+        );
+        const changedConnection = await fetch(
+            `${server.apiUrl}/v1/sources/${sharedStalker.source.id}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'If-Match': sharedStalker.revision,
+                },
+                body: JSON.stringify({
+                    ...sharedStalker.source,
+                    macAddress: changedMac,
+                }),
+            }
+        );
+        expect(changedConnection.status).toBe(200);
+        await refreshedSession;
 
         await openSettings(page);
         await openSettingsSection(page, 'server');

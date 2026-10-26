@@ -299,6 +299,11 @@ The shared playlist UI exposes only
 layer implements the token with Stalker data-access; the UI library must not
 import Stalker discovery directly.
 
+Open Stalker workspace routes also listen for completed source-sync projections.
+They read the persisted row and compare connection fields with the active store.
+A changed connection reinitializes the session and category catalog under the
+route session's existing generation/queue guard; a rename keeps the session.
+
 **Lazy repair (existing playlists).** The flag is frozen in the DB, so
 records persisted by the old guess stay broken without repair — but a large
 share of users are on working reseller panels, and only probing can tell the

@@ -88,7 +88,19 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 revision = response.etag;
                 if (accepted.id !== playlist._id) {
                     const canonical = await this.project(accepted, revision!);
-                    return { success: true, playlist: canonical };
+                    const merged = {
+                        ...canonical,
+                        favorites: mergeActivity(
+                            canonical.favorites,
+                            playlist.favorites
+                        ),
+                        recentlyViewed: mergeActivity(
+                            canonical.recentlyViewed,
+                            playlist.recentlyViewed
+                        ),
+                    };
+                    await this.local.dbUpsertAppPlaylist(merged);
+                    return { success: true, playlist: merged };
                 }
             }
             if (!accepted || !revision) throw new Error('SOURCE_SYNC.OFFLINE');
@@ -135,4 +147,15 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
             this.pendingSources.clear();
             return { success: true };
         });
+}
+
+function mergeActivity<T>(current: T[] = [], incoming: T[] = []): T[] {
+    return [
+        ...new Map(
+            [...current, ...incoming].map((item) => [
+                JSON.stringify(item),
+                item,
+            ])
+        ).values(),
+    ];
 }
