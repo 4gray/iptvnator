@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import type { Page } from '@playwright/test';
 import {
     addXtreamPortal,
     closeElectronApp,
@@ -14,6 +15,37 @@ import {
     xtreamMockServer,
 } from './electron-test-fixtures';
 import { applyTheme, expectTextContrast } from './theme-contrast';
+
+async function applySettledTheme(page: Page, theme: 'light' | 'dark') {
+    await applyTheme(page, theme);
+    // Contrast assertions can pass before the header's 150 ms theme
+    // transition ends. Capture the settled theme, not an intermediate gray.
+    await page.evaluate(async () => {
+        await Promise.all(
+            document
+                .getAnimations()
+                .filter((animation) => animation instanceof CSSTransition)
+                .map((animation) => animation.finished.catch(() => undefined))
+        );
+    });
+    await expect(
+        page.getByRole('searchbox', { name: 'Search', exact: true })
+    ).toBeEnabled();
+    const searchColors = await page
+        .locator('.search-field')
+        .evaluate((field) => {
+            const probe = document.createElement('div');
+            probe.style.backgroundColor = 'var(--app-search-bg)';
+            field.appendChild(probe);
+            const expected = getComputedStyle(probe).backgroundColor;
+            probe.remove();
+            return {
+                expected,
+                actual: getComputedStyle(field).backgroundColor,
+            };
+        });
+    expect(searchColors.actual).toBe(searchColors.expected);
+}
 
 test('keeps cached portal statuses and scroll ownership consistent across all portal screens', async ({
     dataDir,
@@ -39,7 +71,14 @@ test('keeps cached portal statuses and scroll ownership consistent across all po
             } else {
                 catalogRequests++;
             }
-            const upstream = await fetch(url);
+            // Incoming URLs supply query parameters only. Neither an absolute
+            // URL nor a different path may choose the proxy's upstream target.
+            const upstream = await request.get(
+                `${xtreamMockServer}/player_api.php`,
+                {
+                    params: Object.fromEntries(url.searchParams),
+                }
+            );
             const payload = (await upstream.json()) as {
                 user_info?: { status: string; exp_date: string; auth: number };
             };
@@ -88,6 +127,9 @@ test('keeps cached portal statuses and scroll ownership consistent across all po
         ]) {
             await openWorkspaceSection(page, section);
             await expect(strip).toBeVisible();
+            await expect(
+                page.getByRole('searchbox', { name: 'Search', exact: true })
+            ).toBeEnabled();
             const pane = page.locator(
                 'app-xtream-content-gate .xtream-route-content'
             );
@@ -186,7 +228,7 @@ test('keeps cached portal statuses and scroll ownership consistent across all po
             await expect(strip).toHaveAttribute('data-status', next);
             await expect(strip.getByRole('button')).toBeEnabled();
             for (const theme of ['light', 'dark'] as const) {
-                await applyTheme(page, theme);
+                await applySettledTheme(page, theme);
                 await expectTextContrast(strip.locator('strong'));
                 await expectTextContrast(
                     strip.locator('.xtream-cached-offline-notice__copy > span')
@@ -215,6 +257,14 @@ test('keeps cached portal statuses and scroll ownership consistent across all po
         const grid = page.locator('app-category-content-view app-grid-list');
         const cards = grid.locator('mat-card[role="button"]');
         const firstTitle = await cards.first().getAttribute('aria-label');
+        // Recovery must preserve a real nonzero offset; a grid reset to the
+        // top must not accidentally pass because the snapshot was already 0.
+        await grid.evaluate((el) => {
+            el.scrollTop = 400;
+        });
+        await expect
+            .poll(() => grid.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(100);
         const scrollBeforeRecovery = await grid.evaluate((el) => el.scrollTop);
         pendingCheck = new Promise<void>((resolve) => {
             finishCheck = resolve;
@@ -226,7 +276,7 @@ test('keeps cached portal statuses and scroll ownership consistent across all po
         await expect(strip.getByRole('button')).toBeDisabled();
         await expect(strip).toHaveAttribute('aria-busy', 'true');
         for (const theme of ['light', 'dark'] as const) {
-            await applyTheme(page, theme);
+            await applySettledTheme(page, theme);
             await expectTextContrast(strip.locator('strong'));
             await page.screenshot({
                 path: testInfo.outputPath(`status-checking-${theme}.png`),
