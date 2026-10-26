@@ -127,6 +127,8 @@ export interface LibrarySettings {
     originals: Record<string, Source>;
 }
 export interface UserData {
+    /** Local-only mapping from saved identities to opaque Luma launch handles. */
+    lumaIds?: Record<string, string>;
     library?: LibrarySettings;
     sources: Source[];
     activeId: string;
@@ -242,3 +244,6 @@ export * from './series-context';
 export * from './programme-guide';
 
 export * from './grid-guide';
+
+export { lumaArtwork } from './luma';
+export { withLumaIds } from './luma-identities';

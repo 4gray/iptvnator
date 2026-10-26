@@ -437,3 +437,51 @@ IPC, database migration or native player implementation is changed. Browser
 native-video workflows and the separately scoped LG observations above cover
 the relevant playback paths. Publication and merge remain gated on review of
 the committed PR revision.
+
+### Coordinated device restore and resumed-review fixes — prototype 0.1.23
+
+The user reports episode artwork/title returning on Home. Device inspection
+confirms a different `index-C30JouBY.js` from the primary checkout has replaced
+the earlier deployment, despite appinfo still reporting 0.1.21. With explicit
+user permission, the adjacent Luma task agrees to stop deploying the TV client.
+The verified 0.1.22 IPK is restored through root SSH. Installer status, appinfo
+and packaged/runtime `index-Bu790X2H.js` provenance agree; runtime JS SHA-256 is
+`21f0f66380ab25def6c28c2a12e63d5017298e1027c98107e03768a63e4fab10`.
+Home again shows **Ted Lasso s04**, the lower cover matches its saved parent,
+and a direct TMDB TV-details comparison confirms the background is the show's
+backdrop, not the episode still. Before/after key, favorites, history and position
+fingerprints match; only the Stalker session token changes. Personal Luma config
+is preserved byte-for-byte. The adjacent task provides a separate artwork bridge
+patch, merged here without replacing series context or navigation.
+
+The resumed review of `eae1e934e` completes after one capacity-related attempt
+produces no verdict. It finds three accepted issues: M3U IDs can embed stream
+URLs in Luma cards, warm Luma detail launches can leave the old player fullscreen,
+and localized/original-title or regular/VOD catalog lookups can choose a version
+before later completed lookups contribute candidates. Random Luma handles are now
+committed in an additive local mapping before publishing and survive relaunch;
+unprepared items are never exported. Saved provider identities and commands stay
+unchanged. Warm detail launches stop playback. Matching combines/deduplicates
+completed lookup results before ranking. Regression tests fail before these fixes.
+
+The artwork bridge adds static provider covers, exact-name M3U logo fallback,
+year/season/episode metadata and a bounded best-effort library read. Artwork
+rejects query/fragment/basic-auth URLs and known source credentials in its path.
+All **113/113 TV unit tests**, **14 focused TV browser workflows**, and the three
+Luma workflows, including credential-bearing M3U identity/cold-launch coverage,
+pass. Nine affected lint targets, three TV type programs, **166 release notes**
+and the guidance gate pass. No local review finding is declined.
+
+The final 0.1.23 full run passes **123/123 TV browser scenarios**. Its audited
+IPK SHA-256 is
+`a119c0adca10102df6e1e226dc8773b95ff1e82de484d503992f014ce3a06637`.
+Root installation reports installed/0.1.23; the running `index-C0xc9e41.js`
+matches the packaged SHA-256
+`6ddd862cd6ef8f14e1e688afb6fe83e04f4c6d2cd1417bb7abca411aa44becd6`.
+The same Home title, parent cover and TMDB series-backdrop checks pass on this
+version. All **8 published Luma cards have artwork and opaque handles**;
+the two recent series retain their parent names and kind. The 3 sources,
+20 history entries, 8 favorites, 20 positions and TMDB key retain their before/
+after identity/command/progress fingerprints, with the expected Stalker session
+token refresh. Personal config is unchanged. These deployment observations use
+sanitized summaries; full private snapshots remain outside the checkout.

@@ -43,6 +43,55 @@ function provider(catalog: ProviderClient['catalog']): ProviderClient {
     };
 }
 const signal = () => new AbortController().signal;
+test('matching versions across localized/original queries and series catalogs are combined before selection', async () => {
+    const versions = [item('localized'), item('original')];
+    const client = provider(async (_kind, _category, page, query) => ({
+        items: [versions[query === 'Фильм' ? 0 : 1]],
+        total: 1,
+        page,
+        categories: [],
+    }));
+    const query = { ...credit, title: 'Фильм', originalTitle: 'The Film' };
+    assert.deepEqual(
+        await findFilmographyTitle(client, 'source', query, signal()),
+        {
+            status: 'choices',
+            items: versions,
+        }
+    );
+    versions[0] = item('localized', { year: '2019' });
+    assert.deepEqual(
+        await findFilmographyTitle(client, 'source', query, signal()),
+        {
+            status: 'found',
+            item: versions[1],
+        }
+    );
+    const series = versions.map((m) => ({
+        ...m,
+        kind: 'series' as const,
+        year: '2020',
+    }));
+    const mixed = provider(async (kind, _category, page) => ({
+        items: [series[kind === 'series' ? 0 : 1]],
+        total: 1,
+        page,
+        categories: [],
+    }));
+    mixed.capabilities.vodSeries = true;
+    assert.deepEqual(
+        await findFilmographyTitle(
+            mixed,
+            'source',
+            { ...credit, mediaType: 'tv' },
+            signal()
+        ),
+        {
+            status: 'choices',
+            items: series,
+        }
+    );
+});
 test('filmography searches every result page in the current portal and opens the year-corroborated provider item', async () => {
     const wanted = item('correct');
     const requests: unknown[] = [];

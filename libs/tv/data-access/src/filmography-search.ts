@@ -97,6 +97,7 @@ export async function findFilmographyTitle(
         ),
     ];
     let incomplete = false;
+    const matches = new Map<string, { item: Media; score: number }>();
     for (const query of queries) {
         for (const catalogKind of catalogs) {
             const hits = new Map<string, { item: Media; score: number }>();
@@ -139,9 +140,13 @@ export async function findFilmographyTitle(
                 incomplete = true;
                 continue;
             }
-            if (hits.size) return bestMatch(hits);
+            hits.forEach((hit, id) => {
+                if (!matches.has(id) || matches.get(id)!.score < hit.score)
+                    matches.set(id, hit);
+            });
         }
     }
+    if (matches.size) return bestMatch(matches);
     if (incomplete) throw new Error('Portal search is incomplete.');
     return { status: 'missing' };
 }

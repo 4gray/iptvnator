@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { ServerLibrary } from '@iptvnator/tv/data-access';
-import { lumaFeed, lumaSelection, type Media } from '@iptvnator/tv/util';
+import {
+    ServerLibrary,
+    lumaChannelLogos,
+    lumaPoster,
+} from '@iptvnator/tv/data-access';
+import {
+    lumaFeed,
+    lumaSelection,
+    withLumaIds,
+    type Media,
+} from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
 
 interface Config {
@@ -19,7 +28,10 @@ export function useLuma(tv: TvModel) {
     const { data, storageReady: loaded, ready, update, setError: report } = tv;
     const open = (item: Media) => {
         if (item.kind === 'episode') void tv.play(item);
-        else tv.open(item);
+        else {
+            tv.stop();
+            tv.open(item);
+        }
     };
     const latest = useRef({ data, loaded, update, open, report });
     latest.current = { data, loaded, update, open, report };
@@ -87,13 +99,44 @@ export function useLuma(tv: TvModel) {
         );
         let busy = false;
         let previous = '';
+        let logos = new Map<string, string>();
+        let logoAttempt = 0;
         async function publish() {
             if (busy || !latest.current.loaded || abort.signal.aborted) return;
-            const feed = lumaFeed(latest.current.data, 0);
-            const signature = JSON.stringify(feed);
-            if (previous === signature) return;
             busy = true;
             try {
+                if (Date.now() - logoAttempt > 5 * 60000) {
+                    logoAttempt = Date.now();
+                    const refresh = new AbortController();
+                    const cancel = () => refresh.abort();
+                    abort.signal.addEventListener('abort', cancel);
+                    const deadline = setTimeout(cancel, 3000);
+                    try {
+                        logos = lumaChannelLogos(
+                            await library.lumaPlaylists(refresh.signal)
+                        );
+                    } catch {
+                        /* Covers and existing logos remain available if the library is offline. */
+                    } finally {
+                        clearTimeout(deadline);
+                        abort.signal.removeEventListener('abort', cancel);
+                    }
+                }
+                if (abort.signal.aborted) return;
+                const before = latest.current.data;
+                let snapshot = withLumaIds(before);
+                if (snapshot !== before)
+                    await latest.current.update((current) => {
+                        if (abort.signal.aborted) return current;
+                        if (current !== before) snapshot = withLumaIds(current);
+                        return snapshot;
+                    });
+                if (abort.signal.aborted) return;
+                const feed = lumaFeed(snapshot, 0, (item) =>
+                    lumaPoster(item, snapshot, logos)
+                );
+                const signature = JSON.stringify(feed);
+                if (previous === signature) return;
                 await library.publishLuma(
                     { ...feed, updatedAt: Date.now() },
                     abort.signal

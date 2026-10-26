@@ -144,6 +144,27 @@ export class ServerLibrary {
             body: JSON.stringify({ value: JSON.stringify(feed) }),
         });
     }
+    async lumaPlaylists(signal: AbortSignal): Promise<unknown[]> {
+        await this.identify(signal);
+        const meta = await this.request('/playlists?view=meta', signal);
+        if (!Array.isArray(meta)) return [];
+        const documents = [];
+        for (const entry of meta
+            .filter(
+                (m) =>
+                    m && typeof m === 'object' && !m.serverUrl && !m.macAddress
+            )
+            .slice(0, 4)) {
+            if (typeof entry._id !== 'string') continue;
+            documents.push(
+                await this.request(
+                    `/playlists/${encodeURIComponent(entry._id)}`,
+                    signal
+                )
+            );
+        }
+        return documents;
+    }
     async upload(source: Source, signal: AbortSignal) {
         const current = await this.read(signal);
         // Existing server data wins; never overwrite a library, favorites or history.

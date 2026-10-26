@@ -1,6 +1,77 @@
 import { expect, test } from '@playwright/test';
 import { addSource, nav, start } from './helpers';
 
+test('M3U Luma cards publish opaque handles and open the same saved movie after relaunch', async ({
+    page,
+}) => {
+    let card: { id: string; sourceId: string; title: string } | undefined;
+    let publication = '';
+    await start(page);
+    await page.route('**/luma-config.js', (route) =>
+        route.fulfill({
+            contentType: 'application/javascript',
+            body: 'window.__IPTVNATOR_LUMA__={url:"http://127.0.0.1:4455/api",instanceId:"luma-test"};',
+        })
+    );
+    await page.route('**/api/v1/instance', (route) =>
+        route.fulfill({
+            json: {
+                service: 'iptvnator',
+                apiVersion: 1,
+                storage: 'server',
+                auth: 'none',
+                instanceId: 'luma-test',
+            },
+        })
+    );
+    await page.route('**/api/v1/playlists?**', (route) =>
+        route.fulfill({ json: [] })
+    );
+    await page.route('**/api/v1/app-state/luma-home-v1', async (route) => {
+        publication = route.request().postDataJSON().value;
+        card = JSON.parse(publication).favorites[0];
+        await route.fulfill({ json: { success: true } });
+    });
+    await page.route('**/parse?**', (route) =>
+        route.fulfill({
+            json: {
+                playlist: {
+                    items: [
+                        {
+                            name: 'Saved M3U movie',
+                            url: 'https://portal.test/movie/private-user/private-password/1.mp4',
+                        },
+                    ],
+                },
+            },
+        })
+    );
+    await page.reload();
+    await addSource(page, 'm3u');
+    await nav(page, 'Movies');
+    await page.locator('.poster-card').first().click();
+    await page.getByRole('button', { name: /add.*favorite/i }).click();
+    await expect
+        .poll(() => card?.title, { timeout: 20000 })
+        .toBe('Saved M3U movie');
+    expect(publication).not.toMatch(
+        /private-user|private-password|portal\.test|mp4|providerId|raw/
+    );
+    expect(card!.id).toMatch(/^luma-[a-f0-9]{32}$/);
+    const request = { action: 'open', id: card!.id, sourceId: card!.sourceId };
+    await page.addInitScript(
+        (luma) =>
+            Object.defineProperty(window, 'webOSSystem', {
+                value: { launchParams: JSON.stringify({ luma }) },
+                configurable: true,
+            }),
+        request
+    );
+    await page.reload();
+    await expect(page.locator('.detail-hero h1')).toHaveText('Saved M3U movie');
+    await expect(page.locator('video[src], video source')).toHaveCount(0);
+});
+
 test('Luma publishes only saved cards and handles warm and cold item launches', async ({
     page,
 }) => {
@@ -131,6 +202,9 @@ test('Luma series cards show the parent name and cold/warm launches open its epi
     await nav(page, 'Home');
     await expect.poll(() => recent[0]?.title, { timeout: 20000 }).toBe(title);
     expect(recent[0].kind).toBe('series');
+    // A warm launch must replace an existing fullscreen playback session.
+    await page.locator('.resume-card').first().click();
+    await expect(page.locator('.player-controls')).toBeVisible();
     const request = {
         action: 'open',
         id: recent[0].id,
@@ -144,6 +218,7 @@ test('Luma series cards show the parent name and cold/warm launches open its epi
         request
     );
     await expect(page.locator('.detail-hero h1')).toHaveText(title);
+    await expect(page.locator('video[src], video source')).toHaveCount(0);
     await expect(
         page.getByRole('heading', { name: 'Episodes', exact: true })
     ).toBeVisible();

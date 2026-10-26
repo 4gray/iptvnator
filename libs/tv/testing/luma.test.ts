@@ -2,9 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     initialData,
+    identity,
     lumaFeed,
     lumaSelection,
     withSeriesContext,
+    withLumaIds,
     type Media,
 } from '@iptvnator/tv/util';
 import { ServerLibrary } from '@iptvnator/tv/data-access';
@@ -32,7 +34,7 @@ function fixture() {
     data.activeId = 'source';
     data.favorites = [item];
     data.history = [{ item, seconds: 60, duration: 120, updated: 1 }];
-    return data;
+    return withLumaIds(data);
 }
 test('Luma feed contains bounded saved cards and progress, never provider secrets or raw playback', () => {
     const data = fixture();
@@ -51,6 +53,36 @@ test('Luma feed contains bounded saved cards and progress, never provider secret
         poster: 'https://image.tmdb.org/t/p/w342/film.jpg',
     };
     assert.equal(lumaFeed(data).favorites[0].poster, data.favorites[0].poster);
+});
+test('M3U Luma handles never expose a stream URL and survive storage round trips', () => {
+    const data = fixture();
+    data.sources[0].provider = 'm3u';
+    const url = 'https://portal.test/movie/private-user/private-password/1.mp4';
+    const saved = {
+        ...item,
+        id: identity(data.sources[0], 'movie', url),
+        providerId: url,
+    };
+    data.favorites = [saved];
+    data.history = [{ item: saved, seconds: 60, duration: 120, updated: 1 }];
+    const prepared = withLumaIds(data);
+    const feed = lumaFeed(prepared);
+    assert.doesNotMatch(
+        JSON.stringify(feed),
+        /private-user|private-password|portal\.test|https:|mp4/
+    );
+    const command = {
+        action: 'open',
+        id: feed.favorites[0].id,
+        sourceId: saved.sourceId,
+    };
+    assert.deepEqual(
+        lumaSelection(JSON.parse(JSON.stringify(prepared)), command),
+        saved
+    );
+    assert.equal(withLumaIds(prepared), prepared);
+    assert.equal(lumaFeed(data).favorites.length, 0);
+    assert.equal(data.favorites[0].id, saved.id);
 });
 test('Luma opens only a currently saved media identity and source, never supplied stream URLs', () => {
     const data = fixture();
@@ -126,13 +158,14 @@ test('Luma identifies a saved series by its parent name and opens its episode li
     );
     data.favorites = [];
     data.history = [{ item: episode, seconds: 60, duration: 120, updated: 1 }];
+    data.lumaIds = withLumaIds(data).lumaIds;
     const feed = lumaFeed(data);
     assert.equal(feed.recent[0].title, parent.title);
     assert.equal(feed.recent[0].kind, 'series');
     assert.equal(feed.recent[0].poster, parent.poster);
     const command = {
         action: 'open',
-        id: episode.id,
+        id: feed.recent[0].id,
         sourceId: episode.sourceId,
     };
     assert.deepEqual(lumaSelection(data, command), episode.parentSeries);

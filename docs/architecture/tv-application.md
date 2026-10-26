@@ -202,7 +202,12 @@ Favorites, history, progress and TV preferences are not synchronized in this pha
 An optional personal Luma integration publishes the active source's unfinished
 titles and saved favorites to `/v1/app-state/luma-home-v1`. Local IndexedDB remains
 authoritative. Credentials, raw provider data and playback URLs are excluded;
-artwork is limited to public TMDB images. The shipped empty `luma-config.js`
+artwork accepts static HTTP(S) PNG/JPEG/WebP images without query strings,
+fragments, embedded authentication or known source credentials in the path.
+Exact-name M3U library logos fill missing channel artwork. At most four M3U
+documents are read, with a three-second total logo-refresh deadline and a
+five-minute cache; unavailable logos do not block the ordinary feed.
+The shipped empty `luma-config.js`
 disables the integration. A personal `{url, instanceId, token?}` configuration
 uses the existing library gateway when necessary and verifies instance identity
 before publishing. Updates run every 15 seconds and on visibility changes;
@@ -210,11 +215,15 @@ failures retry without interrupting playback. Each personal TV needs its own
 feed key before multiple TVs can share a server.
 
 Luma passes `{luma:{action:"open",id,sourceId}}` in cold/warm launch parameters.
+Published IDs are random opaque handles, committed to a local additive mapping
+before publication; provider IDs, including M3U playback URLs, stay local.
+The mapping survives relaunch and retires entries no longer saved on this TV.
 Only identities still saved on this TV resolve, and source changes wait for the
 provider connection. Series cards show the parent name and open the saved parent
 and episode list. Historical episodes without a saved parent resume directly
 instead of opening an orphan episode detail. Movies open details and channels
-follow existing playback. Deleted entries show a recovery message.
+follow existing playback. A warm details launch stops existing playback and
+leaves fullscreen before navigating. Deleted entries show a recovery message.
 Source credentials are cached locally just like manually entered TV sources.
 Custom header fields are retained for copying; only the existing M3U parser's
 User-Agent option is applied here. Native video still cannot attach arbitrary
@@ -527,11 +536,15 @@ name/original-name/title fields as well as its chosen display title.
 Search pages finish before choosing between one match and several equally
 strong versions, including exact title/year matches on different pages. An
 incomplete search retains Retry even when an earlier page contains a match.
+Matches are combined across completed localized/original-title lookups and both
+Stalker catalogs before ranking and choosing a version; repeated IDs are deduplicated.
 Several equally strong versions require a choice. Found entries open actual provider
 details, preserving all stream coordinates and commands. A finished search with
-no match reports that the title is unavailable in this portal. Errors, repeated
-pages, the 20-page safety limit and the 15-second deadline report an incomplete
-search with retry. Cancellation, source changes and navigation discard obsolete
+no match reports that the title is unavailable in this portal. Only complete
+lookups contribute candidates, retaining valid fallback results when an alternate
+catalog is unsupported. Without a complete match, errors, repeated pages, the
+20-page safety limit and the 15-second deadline report an incomplete search with
+retry. Cancellation, source changes and navigation discard obsolete
 results. Person/detail Back preserves card focus and scroll position.
 Back cancels pending detail browsing before restoring its previous route. Route
 commits also cancel browsing during layout cleanup, so a late detail response
