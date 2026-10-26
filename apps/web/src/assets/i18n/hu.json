@@ -10,7 +10,7 @@
     "SHOW_LESS": "Kevesebb megjelenítése",
     "PLAYLISTS": "Lejátszási listák",
     "HOME": {
-        "TITLE": "IPTVnator",
+        "TITLE": "NatorTV",
         "SUBTITLE": "Válasszon egy lejátszási listát, vagy adjon hozzá újat.",
         "TABS": {
             "RECENTLY_ADDED": "Legutóbb hozzáadott lejátszási listák",
@@ -26,7 +26,7 @@
             "UNTITLED_PLAYLIST": "Névtelen lejátszási lista",
             "PLAYLIST_ACTIONS": "Lejátszási lista műveletei",
             "ADD_FIRST": "Adja hozzá az első lejátszási listát",
-            "WELCOME_TITLE": "Üdvözöljük az IPTVnatorban!",
+            "WELCOME_TITLE": "Üdvözöljük az NatorTVban!",
             "WELCOME_DESCRIPTION": "A kezdéshez adja hozzá első lejátszási listáját. Kapcsolódjon IPTV-szolgáltatójához, és élvezze az élő adásokat, filmeket és sorozatokat.",
             "ADD_YOUR_FIRST": "Első lejátszási lista hozzáadása",
             "FEATURE_M3U": "M3U/M3U8-fájlok",
@@ -192,7 +192,7 @@
             "ERROR_TLS_HOST_UNKNOWN": "Nem sikerült azonosítani a lejátszási lista kiszolgálóját. Ismételje meg a műveletet kézzel.",
             "TRUST_TLS_HOST": "Kiszolgáló megbízhatónak jelölése",
             "TRUST_TLS_HOST_TITLE": "Megbízik ebben a kiszolgálóban az érvénytelen tanúsítvány ellenére?",
-            "TRUST_TLS_HOST_WARNING": "Csak akkor folytassa, ha megbízik a lejátszási lista kiszolgálójában. Az IPTVnator ennél a kiszolgálónál engedélyezi az érvénytelen TLS-tanúsítványokat, más kiszolgálóknál azonban továbbra is érvényes tanúsítványt követel meg."
+            "TRUST_TLS_HOST_WARNING": "Csak akkor folytassa, ha megbízik a lejátszási lista kiszolgálójában. Az NatorTV ennél a kiszolgálónál engedélyezi az érvénytelen TLS-tanúsítványokat, más kiszolgálóknál azonban továbbra is érvényes tanúsítványt követel meg."
         },
         "TEXT_IMPORT": {
             "LABEL": "M3U/M3U8-lejátszási lista beillesztése szövegként"
@@ -319,7 +319,7 @@
         "NAV_SERVER": "Kiszolgáló",
         "SERVER_DESCRIPTION": "A lejátszási listákat, a kedvenceket és a lejátszási előrehaladást a kiszolgáló tárolja, így azok minden, ehhez a címhez csatlakozó eszközön elérhetők.",
         "SERVER_CONNECTION": "Kapcsolat",
-        "SERVER_CONNECTION_DESCRIPTION": "Az IPTVnator alkalmazás adatainak tárolására használt kiszolgáló.",
+        "SERVER_CONNECTION_DESCRIPTION": "Az NatorTV alkalmazás adatainak tárolására használt kiszolgáló.",
         "SERVER_CONNECTED": "Csatlakozva",
         "SERVER_OFFLINE": "Nem érhető el",
         "SERVER_STORAGE": "Tárhely",
@@ -386,7 +386,7 @@
         "TMDB_ATTRIBUTION": "Ez a termék a TMDB API-ját használja, de a TMDB nem hagyta jóvá és nem tanúsította.",
         "APP_PREFERENCES": "Az alkalmazás beállításai",
         "HERO_EYEBROW": "Munkaterület-beállítások",
-        "HERO_TITLE": "Az IPTVnator személyre szabása",
+        "HERO_TITLE": "Az NatorTV személyre szabása",
         "HERO_DESCRIPTION": "A lejátszás, a műsorújság, a távoli hozzáférés és az adatkezelés beállítása egy helyen, a munkaterület jelenlegi megjelenésének megtartásával.",
         "SUBTITLE": "Az alkalmazás beállításainak módosítása",
         "DESCRIPTION": "Módosítsa az alábbi beállításokat, majd erősítse meg a változtatásokat a Változtatások mentése gombbal.",
@@ -444,7 +444,7 @@
         "EPG_SOURCE_FORMATS_EXAMPLES": "Példák:",
         "VIDEO_PLAYER_DESCRIPTION": "Az alapértelmezett videólejátszó kiválasztása",
         "WEB_PLAYER_SHARED_CONTROLS": "Egységes vezérlők a webes lejátszókhoz",
-        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Az IPTVnator közös vezérlőinek használata a HTML5-, Video.js- és ArtPlayer-lejátszóban.",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Az NatorTV közös vezérlőinek használata a HTML5-, Video.js- és ArtPlayer-lejátszóban.",
         "PLAYER_AMBIENT_MODE": "Elmosott háttér a lejátszó körül",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "A lejátszó körüli terület kitöltése elmosott, elsötétített borítóképpel egyszerű fekete sávok helyett.",
         "PLAY_TRAILERS_IN_BACKGROUND": "Előzetesek lejátszása a részletek hátterében",
@@ -502,7 +502,7 @@
         "SUPPORT_DESCRIPTION": "Az IPTVnator ingyenes és nyílt forráskódú alkalmazás, amelynek fejlesztése is nyilvánosan zajlik. Ha a mindennapjai részévé vált, egy kisebb hozzájárulás is segít életben tartani a projektet és alakítani a jövőjét – köszönjük.",
         "SUPPORT_SPONSORS_HINT": "Rendszeres vagy egyszeri támogatás",
         "SUPPORT_KOFI_HINT": "Hívjon meg egy kávéra",
-        "EPG_NOTE": "Az EPG jelenleg csak az IPTVnator Electron-alapú változatában érhető el.",
+        "EPG_NOTE": "Az EPG jelenleg csak az NatorTV Electron-alapú változatában érhető el.",
         "EPG_NOTE_URL_TEXT": "További információ",
         "IMPORT_EXPORT_DATA": "Lejátszási listák biztonsági mentéseinek importálása és exportálása",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "Lejátszási lista biztonsági mentéseinek exportálása vagy visszaállítása, beleértve az M3U-pillanatképeket, az Xtream/Stalker-kapcsolati metaadatokat, a felhasználói állapotot és az EPG-források URL-címeit.",
@@ -532,10 +532,10 @@
         "PLAYLISTS_REMOVED": "Az összes lejátszási listát és a hozzájuk tartozó adatokat eltávolítottuk.",
         "MPV_PLAYER_PATH_LABEL": "Az MPV elérési útja",
         "MPV_PLAYER_PATH_DESCRIPTION": "Adja meg az MPV elérési útját. macOS rendszeren használható az MPV alkalmazáscsomag, például /Applications/mpv.app, vagy a futtatható fájl elérési útja.",
-        "MPV_COMPATIBLE_PLAYER_TIP": "macOS rendszeren az IINA MPV-kompatibilis lejátszóként indítható, de a futtatható fájl elérési útját adja meg, például /Applications/IINA.app/Contents/MacOS/iina-cli vagy /Applications/IINA.app/Contents/MacOS/IINA. Az IPTVnator vezérlőfunkciói, a lejátszási pozíció lekérdezése és a példány újrafelhasználása csak MPV IPC használatakor garantált.",
+        "MPV_COMPATIBLE_PLAYER_TIP": "macOS rendszeren az IINA MPV-kompatibilis lejátszóként indítható, de a futtatható fájl elérési útját adja meg, például /Applications/IINA.app/Contents/MacOS/iina-cli vagy /Applications/IINA.app/Contents/MacOS/IINA. Az NatorTV vezérlőfunkciói, a lejátszási pozíció lekérdezése és a példány újrafelhasználása csak MPV IPC használatakor garantált.",
         "MPV_PLAYER_PATH": "Az MPV-lejátszó elérési útja",
         "MPV_PLAYER_ARGUMENTS_LABEL": "MPV parancssori argumentumai",
-        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "Az IPTVnator új külső lejátszófolyamat indításakor ezeket a nem kötelező argumentumokat adja át az MPV-nek.",
+        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "Az NatorTV új külső lejátszófolyamat indításakor ezeket a nem kötelező argumentumokat adja át az MPV-nek.",
         "MPV_PLAYER_ARGUMENTS": "MPV-argumentumok",
         "MPV_REUSE_INSTANCE_LABEL": "MPV-példány újrafelhasználása",
         "MPV_REUSE_INSTANCE_DESCRIPTION": "Bekapcsolásakor az alkalmazás ugyanabban az MPV-ablakban játssza le a különböző adatfolyamokat. Kikapcsolásakor minden adatfolyam új MPV-ablakban nyílik meg.",
@@ -547,9 +547,9 @@
         "VLC_PLAYER_PATH_DESCRIPTION": "Adja meg a VLC elérési útját. macOS rendszeren használható a VLC alkalmazáscsomag, például /Applications/VLC.app, vagy a futtatható fájl elérési útja.",
         "VLC_PLAYER_PATH": "A VLC-lejátszó elérési útja",
         "VLC_PLAYER_ARGUMENTS_LABEL": "VLC parancssori argumentumai",
-        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "Az IPTVnator új külső lejátszófolyamat indításakor ezeket a nem kötelező argumentumokat adja át a VLC-nek.",
+        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "Az NatorTV új külső lejátszófolyamat indításakor ezeket a nem kötelező argumentumokat adja át a VLC-nek.",
         "VLC_PLAYER_ARGUMENTS": "VLC-argumentumok",
-        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "Soronként egy argumentumot adjon meg. Az alkalmazás ezeket az adatfolyamhoz tartozó IPTVnator-beállítások előtt alkalmazza.",
+        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "Soronként egy argumentumot adjon meg. Az alkalmazás ezeket az adatfolyamhoz tartozó NatorTV-beállítások előtt alkalmazza.",
         "VLC_REUSE_INSTANCE_LABEL": "VLC-példány újrafelhasználása",
         "VLC_REUSE_INSTANCE_DESCRIPTION": "Bekapcsolásakor az alkalmazás ugyanabban a VLC-ablakban játssza le a különböző adatfolyamokat. Kikapcsolásakor minden adatfolyam új VLC-ablakban nyílik meg.",
         "REMOTE_CONTROL": "Távvezérlés",
@@ -673,12 +673,12 @@
         "MIGRATION_FAILED": "Az áthelyezés nem sikerült. A lejátszási listák továbbra is megvannak ebben a böngészőben. A Beállítások → Kiszolgáló menüpontban próbálkozhat újra.",
         "MIGRATION_RELOAD": "Újratöltés",
         "SIGN_IN_TITLE": "Hozzáférési token szükséges",
-        "SIGN_IN_DESCRIPTION": "Ez az IPTVnator-kiszolgáló hozzáférési tokent kér a lejátszási listák megjelenítéséhez.",
+        "SIGN_IN_DESCRIPTION": "Ez az NatorTV-kiszolgáló hozzáférési tokent kér a lejátszási listák megjelenítéséhez.",
         "SIGN_IN_TOKEN_LABEL": "Hozzáférési token",
         "SIGN_IN_HINT": "A tokent a kiszolgáló IPTVNATOR_ACCESS_TOKEN beállításánál találja.",
         "SIGN_IN_REJECTED": "A kiszolgáló elutasította a tokent. Ellenőrizze, majd próbálja újra.",
         "SIGN_IN_UNREACHABLE": "A kiszolgáló nem érhető el. Ellenőrizze a kapcsolatot, majd próbálja újra.",
-        "SIGN_IN_STORAGE": "Ez a böngésző nem engedi, hogy az IPTVnator megőrizze a tokent. Engedélyezze a webhelyadatokat ehhez az oldalhoz, és próbálja újra.",
+        "SIGN_IN_STORAGE": "Ez a böngésző nem engedi, hogy az NatorTV megőrizze a tokent. Engedélyezze a webhelyadatokat ehhez az oldalhoz, és próbálja újra.",
         "SIGN_IN_CONTINUE": "Tovább",
         "STATUS_ONLINE": "Kapcsolat a kiszolgálóval létrejött",
         "STATUS_OFFLINE": "A kiszolgáló nem érhető el",
@@ -1044,10 +1044,10 @@
         "RETRY": "Újrapróbálkozás",
         "ALLOW_PRIVATE_SOURCE": "Forrás engedélyezése",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Engedélyezi a magánhálózaton található EPG-forrást?",
-        "ALLOW_PRIVATE_SOURCE_WARNING": "Csak akkor engedélyezze, ha megbízik az EPG-forrásban. Az IPTVnator engedélyezi, hogy a megadott EPG URL-címe magánhálózati vagy helyi hálózati címekhez kapcsolódjon.",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Csak akkor engedélyezze, ha megbízik az EPG-forrásban. Az NatorTV engedélyezi, hogy a megadott EPG URL-címe magánhálózati vagy helyi hálózati címekhez kapcsolódjon.",
         "TRUST_TLS_HOST": "Kiszolgáló megbízhatónak jelölése",
         "TRUST_TLS_HOST_TITLE": "Megbízik ebben a kiszolgálóban az érvénytelen tanúsítvány ellenére?",
-        "TRUST_TLS_HOST_WARNING": "Csak akkor folytassa, ha megbízik ebben a kiszolgálóban. Az IPTVnator ennél a kiszolgálónál engedélyezi az érvénytelen TLS-tanúsítványokat, más kiszolgálóknál azonban továbbra is érvényes tanúsítványt követel meg.",
+        "TRUST_TLS_HOST_WARNING": "Csak akkor folytassa, ha megbízik ebben a kiszolgálóban. Az NatorTV ennél a kiszolgálónál engedélyezi az érvénytelen TLS-tanúsítványokat, más kiszolgálóknál azonban továbbra is érvényes tanúsítványt követel meg.",
         "CURRENT_PROGRAM": "Aktuális műsor",
         "ARCHIVE_PLAYBACK": "Műsor visszanézése",
         "COLLAPSE_PANEL": "EPG-panel összecsukása",
@@ -1619,7 +1619,7 @@
         "STOP_RECORDING": "Felvétel leállítása",
         "REMOVE_RECORDING_DIALOG": {
             "TITLE": "Eltávolítja a felvételt a kezelőből?",
-            "MESSAGE": "A művelet eltávolítja a bejegyzést az IPTVnator alkalmazásból. A felvett fájl a lemezen marad."
+            "MESSAGE": "A művelet eltávolítja a bejegyzést az NatorTV alkalmazásból. A felvett fájl a lemezen marad."
         },
         "RECORDING_DETAIL": {
             "PROGRAMS": "Felvett műsorok",
@@ -1630,7 +1630,7 @@
         "REMOVE_FROM_MANAGER": "Eltávolítás a letöltéskezelőből",
         "REMOVE_COMPLETED_DIALOG": {
             "TITLE": "Eltávolítja a letöltéskezelőből?",
-            "MESSAGE": "A művelet eltávolítja a bejegyzést az IPTVnator letöltéskezelőjéből. A letöltött médiafájl a lemezen marad."
+            "MESSAGE": "A művelet eltávolítja a bejegyzést az NatorTV letöltéskezelőjéből. A letöltött médiafájl a lemezen marad."
         },
         "REMOVE_PARTIAL_DIALOG": {
             "TITLE": "Eltávolítja a részleges letöltést?",
@@ -1718,8 +1718,8 @@
             "TOGGLE_MUTE": "Nem sikerült be- vagy kikapcsolni a némítást",
             "STATUS": "Nem sikerült lekérni a távvezérlés állapotát"
         },
-        "HEADER": "IPTVnator távvezérlő",
-        "FOOTER": "IPTVnator távvezérlő"
+        "HEADER": "NatorTV távvezérlő",
+        "FOOTER": "NatorTV távvezérlő"
     },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Csak kedvencek",
@@ -2020,7 +2020,7 @@
         },
         "SHORTCUTS": {
             "TITLE": "Billentyűparancsok",
-            "SUBTITLE": "Az IPTVnator munkaterületének, navigációjának, lejátszójának, párbeszédpaneljeinek és listáinak billentyűparancsai.",
+            "SUBTITLE": "Az NatorTV munkaterületének, navigációjának, lejátszójának, párbeszédpaneljeinek és listáinak billentyűparancsai.",
             "OPEN_TOOLTIP": "Billentyűparancsok (?)",
             "OPEN_ARIA": "Billentyűparancsok megnyitása",
             "PLATFORM": {

@@ -10,7 +10,7 @@
     "SHOW_LESS": "Minder",
     "PLAYLISTS": "Afspeellijst",
     "HOME": {
-        "TITLE": "IPTVnator",
+        "TITLE": "NatorTV",
         "SUBTITLE": "Selecteer een afspeellijst of voeg een nieuwe lijst toe",
         "TABS": {
             "RECENTLY_ADDED": "Recent toegevoegde afspeellijst",
@@ -26,7 +26,7 @@
             "UNTITLED_PLAYLIST": "Naamloze afspeellijst",
             "PLAYLIST_ACTIONS": "Afspeellijstacties",
             "ADD_FIRST": "Voeg je afspeellijst toe",
-            "WELCOME_TITLE": "Welkom bij IPTVnator",
+            "WELCOME_TITLE": "Welkom bij NatorTV",
             "WELCOME_DESCRIPTION": "Begin je streamingavontuur door je eerste afspeellijst toe te voegen. Maak verbinding met je favoriete IPTV-dienst en geniet van live tv, films en series.",
             "ADD_YOUR_FIRST": "Voeg je eerste afspeellijst toe",
             "FEATURE_M3U": "M3U/M3U8-bestanden",
@@ -192,7 +192,7 @@
             "ERROR_TLS_HOST_UNKNOWN": "Kan de afspeellijsthost niet bepalen. Probeer het handmatig opnieuw.",
             "TRUST_TLS_HOST": "Host vertrouwen",
             "TRUST_TLS_HOST_TITLE": "Ongeldig certificaat vertrouwen?",
-            "TRUST_TLS_HOST_WARNING": "Ga alleen verder als u deze afspeellijsthost vertrouwt. IPTVnator staat ongeldige TLS-certificaten voor deze host toe, maar andere hosts moeten nog steeds geldige certificaten gebruiken."
+            "TRUST_TLS_HOST_WARNING": "Ga alleen verder als u deze afspeellijsthost vertrouwt. NatorTV staat ongeldige TLS-certificaten voor deze host toe, maar andere hosts moeten nog steeds geldige certificaten gebruiken."
         },
         "TEXT_IMPORT": {
             "LABEL": "Voer een m3u(8)-afspeellijst in als tekst"
@@ -319,7 +319,7 @@
         "NAV_SERVER": "Server",
         "SERVER_DESCRIPTION": "Afspeellijsten, favorieten en kijkvoortgang worden op deze server bewaard en gedeeld met elk apparaat dat hem opent.",
         "SERVER_CONNECTION": "Verbinding",
-        "SERVER_CONNECTION_DESCRIPTION": "De IPTVnator-server waarop deze app opslaat.",
+        "SERVER_CONNECTION_DESCRIPTION": "De NatorTV-server waarop deze app opslaat.",
         "SERVER_CONNECTED": "Verbonden",
         "SERVER_OFFLINE": "Niet bereikbaar",
         "SERVER_STORAGE": "Opslag",
@@ -386,7 +386,7 @@
         "TMDB_ATTRIBUTION": "Dit product maakt gebruik van de TMDB API, maar wordt niet onderschreven of gecertificeerd door TMDB.",
         "APP_PREFERENCES": "App-voorkeuren",
         "HERO_EYEBROW": "Werkruimte-instellingen",
-        "HERO_TITLE": "Bepaal hoe IPTVnator aanvoelt",
+        "HERO_TITLE": "Bepaal hoe NatorTV aanvoelt",
         "HERO_DESCRIPTION": "Stem afspelen, gidsen, externe toegang en gegevensverwerking af op één plek zonder de huidige werkruimtestijl te verliezen.",
         "SUBTITLE": "Wijzig de configuratie van de applicatie",
         "DESCRIPTION": "Pas de instellingen aan en bevestig met de knop 'Wijzigingen opslaan'.",
@@ -444,7 +444,7 @@
         "EPG_SOURCE_FORMATS_EXAMPLES": "Voorbeelden:",
         "VIDEO_PLAYER_DESCRIPTION": "Selecteer de standaard videospeler",
         "WEB_PLAYER_SHARED_CONTROLS": "Uniforme bediening voor webspelers",
-        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Gebruik de gedeelde IPTVnator-bediening in HTML5, Video.js en ArtPlayer.",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Gebruik de gedeelde NatorTV-bediening in HTML5, Video.js en ArtPlayer.",
         "PLAYER_AMBIENT_MODE": "Ambient achtergrond",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Vult de ruimte rond de speler met een vervaagde, gedimde posterafbeelding in plaats van zwarte balken.",
         "PLAY_TRAILERS_IN_BACKGROUND": "Trailers afspelen achter de details",
@@ -475,7 +475,7 @@
         "EPG_VIEW_MODE_TIMELINE": "Tijdlijn",
         "EPG_VIEW_MODE_LIST": "Lijst",
         "STARTUP_BEHAVIOR": "Opstartweergave",
-        "STARTUP_BEHAVIOR_DESCRIPTION": "Kies of IPTVnator de eerste beschikbare werkruimteweergave opent of je laatste sectieweergave herstelt. Eerste weergave betekent het dashboard wanneer ingeschakeld, anders Bronnen.",
+        "STARTUP_BEHAVIOR_DESCRIPTION": "Kies of NatorTV de eerste beschikbare werkruimteweergave opent of je laatste sectieweergave herstelt. Eerste weergave betekent het dashboard wanneer ingeschakeld, anders Bronnen.",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "Eerste beschikbare weergave",
         "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "Laatste weergave herstellen",
         "STARTUP_WINDOW_MODE": "Venster bij opstarten",
@@ -502,7 +502,7 @@
         "SUPPORT_DESCRIPTION": "IPTVnator is gratis en open source, gebouwd in de openbaarheid. Als het deel uitmaakt van je dagelijkse routine, helpt een kleine bijdrage het project levend te houden en mee te bepalen wat er komt — bedankt.",
         "SUPPORT_SPONSORS_HINT": "Terugkerend of eenmalig",
         "SUPPORT_KOFI_HINT": "Trakteer me op een koffie",
-        "EPG_NOTE": "EPG is momenteel alleen beschikbaar in de op Electron gebaseerde versie van IPTVnator.",
+        "EPG_NOTE": "EPG is momenteel alleen beschikbaar in de op Electron gebaseerde versie van NatorTV.",
         "EPG_NOTE_URL_TEXT": "Hier controleren",
         "IMPORT_EXPORT_DATA": "Afspeellijsten importeren/exporteren",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "Exporteer of herstel back-ups van afspeellijsten, inclusief M3U-momentopnamen, Xtream/Stalker-verbindingsmetadata, gebruikersstatus en URL's van EPG-bronnen.",
@@ -532,10 +532,10 @@
         "PLAYLISTS_REMOVED": "Alle afspeellijsten en afspeellijstgegevens zijn verwijderd.",
         "MPV_PLAYER_PATH_LABEL": "mpv-pad",
         "MPV_PLAYER_PATH_DESCRIPTION": "Stel het pad naar MPV in. Op macOS kun je de MPV-appbundel gebruiken, zoals /Applications/mpv.app, of het pad naar het uitvoerbare bestand.",
-        "MPV_COMPATIBLE_PLAYER_TIP": "IINA kan op macOS als MPV-compatibele speler worden gestart, maar gebruik het uitvoerbare pad, zoals /Applications/IINA.app/Contents/MacOS/iina-cli of /Applications/IINA.app/Contents/MacOS/IINA. IPTVnator-bediening, positie-polling en hergebruik van de instantie zijn alleen gegarandeerd met MPV IPC.",
+        "MPV_COMPATIBLE_PLAYER_TIP": "IINA kan op macOS als MPV-compatibele speler worden gestart, maar gebruik het uitvoerbare pad, zoals /Applications/IINA.app/Contents/MacOS/iina-cli of /Applications/IINA.app/Contents/MacOS/IINA. NatorTV-bediening, positie-polling en hergebruik van de instantie zijn alleen gegarandeerd met MPV IPC.",
         "MPV_PLAYER_PATH": "mpv-speler bestandspad",
         "MPV_PLAYER_ARGUMENTS_LABEL": "mpv-opdrachtregelargumenten",
-        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "Optionele argumenten die aan mpv worden doorgegeven wanneer IPTVnator een nieuw extern spelerproces start.",
+        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "Optionele argumenten die aan mpv worden doorgegeven wanneer NatorTV een nieuw extern spelerproces start.",
         "MPV_PLAYER_ARGUMENTS": "mpv-argumenten",
         "MPV_REUSE_INSTANCE_LABEL": "MPV-instantie hergebruiken",
         "MPV_REUSE_INSTANCE_DESCRIPTION": "Wanneer ingeschakeld, wordt hetzelfde MPV-venster hergebruikt voor het afspelen van verschillende streams. Wanneer uitgeschakeld, wordt elke stream geopend in een nieuw MPV-venster.",
@@ -547,9 +547,9 @@
         "VLC_PLAYER_PATH_DESCRIPTION": "Stel het pad naar VLC in. Op macOS kun je de VLC-appbundel gebruiken, zoals /Applications/VLC.app, of het pad naar het uitvoerbare bestand.",
         "VLC_PLAYER_PATH": "Pad naar VLC-speler",
         "VLC_PLAYER_ARGUMENTS_LABEL": "VLC-opdrachtregelargumenten",
-        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "Optionele argumenten die aan VLC worden doorgegeven wanneer IPTVnator een nieuw extern spelerproces start.",
+        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "Optionele argumenten die aan VLC worden doorgegeven wanneer NatorTV een nieuw extern spelerproces start.",
         "VLC_PLAYER_ARGUMENTS": "VLC-argumenten",
-        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "Gebruik één argument per regel. Deze waarden worden toegepast vóór streamspecifieke IPTVnator-opties.",
+        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "Gebruik één argument per regel. Deze waarden worden toegepast vóór streamspecifieke NatorTV-opties.",
         "VLC_REUSE_INSTANCE_LABEL": "VLC-instantie hergebruiken",
         "VLC_REUSE_INSTANCE_DESCRIPTION": "Wanneer ingeschakeld, wordt hetzelfde VLC-venster hergebruikt voor het afspelen van verschillende streams. Wanneer uitgeschakeld, wordt elke stream geopend in een nieuw VLC-venster.",
         "REMOTE_CONTROL": "Afstandsbediening",
@@ -673,12 +673,12 @@
         "MIGRATION_FAILED": "Verplaatsen is mislukt. Je afspeellijsten staan nog in deze browser; probeer het opnieuw via Instellingen → Server.",
         "MIGRATION_RELOAD": "Opnieuw laden",
         "SIGN_IN_TITLE": "Toegangstoken vereist",
-        "SIGN_IN_DESCRIPTION": "Deze IPTVnator-server vraagt om een toegangstoken voordat hij je afspeellijsten toont.",
+        "SIGN_IN_DESCRIPTION": "Deze NatorTV-server vraagt om een toegangstoken voordat hij je afspeellijsten toont.",
         "SIGN_IN_TOKEN_LABEL": "Toegangstoken",
         "SIGN_IN_HINT": "Je vindt het in de instelling IPTVNATOR_ACCESS_TOKEN van de server.",
         "SIGN_IN_REJECTED": "Token geweigerd. Controleer het en probeer het opnieuw.",
         "SIGN_IN_UNREACHABLE": "De server is niet bereikbaar. Controleer de verbinding en probeer het opnieuw.",
-        "SIGN_IN_STORAGE": "Deze browser laat IPTVnator het token niet bewaren. Sta sitegegevens voor deze pagina toe en probeer het opnieuw.",
+        "SIGN_IN_STORAGE": "Deze browser laat NatorTV het token niet bewaren. Sta sitegegevens voor deze pagina toe en probeer het opnieuw.",
         "SIGN_IN_CONTINUE": "Doorgaan",
         "STATUS_ONLINE": "Server verbonden",
         "STATUS_OFFLINE": "Server niet bereikbaar",
@@ -1044,10 +1044,10 @@
         "RETRY": "Opnieuw proberen",
         "ALLOW_PRIVATE_SOURCE": "Bron toestaan",
         "ALLOW_PRIVATE_SOURCE_TITLE": "EPG-bron op privénetwerk toestaan?",
-        "ALLOW_PRIVATE_SOURCE_WARNING": "Sta dit alleen toe als u de EPG-bron vertrouwt. IPTVnator staat toe dat deze exacte EPG-URL verbinding maakt met privé- of lokale netwerkadressen.",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Sta dit alleen toe als u de EPG-bron vertrouwt. NatorTV staat toe dat deze exacte EPG-URL verbinding maakt met privé- of lokale netwerkadressen.",
         "TRUST_TLS_HOST": "Host vertrouwen",
         "TRUST_TLS_HOST_TITLE": "Ongeldig certificaat vertrouwen?",
-        "TRUST_TLS_HOST_WARNING": "Ga alleen verder als u deze host vertrouwt. IPTVnator staat ongeldige TLS-certificaten voor deze host toe, maar andere hosts moeten nog steeds geldige certificaten gebruiken.",
+        "TRUST_TLS_HOST_WARNING": "Ga alleen verder als u deze host vertrouwt. NatorTV staat ongeldige TLS-certificaten voor deze host toe, maar andere hosts moeten nog steeds geldige certificaten gebruiken.",
         "CURRENT_PROGRAM": "Huidig programma",
         "ARCHIVE_PLAYBACK": "Archief afspelen",
         "COLLAPSE_PANEL": "EPG-paneel inklappen",
@@ -1619,7 +1619,7 @@
         "STOP_RECORDING": "Opname stoppen",
         "REMOVE_RECORDING_DIALOG": {
             "TITLE": "Opname uit downloadbeheer verwijderen?",
-            "MESSAGE": "Hiermee wordt het item uit IPTVnator verwijderd. Het opgenomen bestand blijft op de schijf staan."
+            "MESSAGE": "Hiermee wordt het item uit NatorTV verwijderd. Het opgenomen bestand blijft op de schijf staan."
         },
         "RECORDING_DETAIL": {
             "PROGRAMS": "Opgenomen programma's",
@@ -1630,7 +1630,7 @@
         "REMOVE_FROM_MANAGER": "Uit de downloadbeheerder verwijderen",
         "REMOVE_COMPLETED_DIALOG": {
             "TITLE": "Uit de downloadbeheerder verwijderen?",
-            "MESSAGE": "Hiermee verwijdert u het item uit IPTVnator. Het gedownloade mediabestand blijft op de schijf staan."
+            "MESSAGE": "Hiermee verwijdert u het item uit NatorTV. Het gedownloade mediabestand blijft op de schijf staan."
         },
         "REMOVE_PARTIAL_DIALOG": {
             "TITLE": "Gedeeltelijke download verwijderen?",
@@ -1718,8 +1718,8 @@
             "TOGGLE_MUTE": "In- of uitschakelen van dempen mislukt",
             "STATUS": "Ophalen van status op afstand mislukt"
         },
-        "HEADER": "IPTVnator-afstandsbediening",
-        "FOOTER": "IPTVnator-afstandsbediening"
+        "HEADER": "NatorTV-afstandsbediening",
+        "FOOTER": "NatorTV-afstandsbediening"
     },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Alleen favorieten",
@@ -2020,7 +2020,7 @@
         },
         "SHORTCUTS": {
             "TITLE": "Sneltoetsen",
-            "SUBTITLE": "Sneltoetsen voor werkruimte, navigatie, afspelen en dialoogvensters die beschikbaar zijn in IPTVnator.",
+            "SUBTITLE": "Sneltoetsen voor werkruimte, navigatie, afspelen en dialoogvensters die beschikbaar zijn in NatorTV.",
             "OPEN_TOOLTIP": "Sneltoetsen (?)",
             "OPEN_ARIA": "Sneltoetsen openen",
             "PLATFORM": {
