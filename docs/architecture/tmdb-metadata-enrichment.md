@@ -44,6 +44,10 @@ Framework-free code lives in `libs/shared/tmdb/` (`@iptvnator/shared/tmdb`,
 `scope:shared`, `domain:tmdb`, `type:data-access`). It owns the API client,
 ID resolver, movie/TV metadata orchestration and the pure configuration,
 matching, credits, cache-payload and language-fallback helpers listed below.
+`TmdbSeasonClient` owns lazy per-season requests, language-scoped caching and
+original-language text fallback for both the Angular facade and TV adapter.
+`TmdbPersonClient` and the pure person/filmography projections are shared too;
+Angular retains its default 80-credit limit while TV requests the complete list.
 `TmdbApiClient` accepts optional request cancellation; `TmdbMetadataClient`
 accepts runtime/cache interfaces and a sanitized failure callback. A bounded
 `TmdbMemoryCache` serves the TV runtime. Pure helper tests live with this core.
@@ -52,7 +56,8 @@ The Angular service layer remains in `libs/services/src/lib/tmdb/`:
 `TmdbApiService`, `TmdbIdResolverService` and `TmdbEnrichmentService` wrap the
 shared classes with dependency injection; old helper paths explicitly re-export
 the shared public API. Desktop SQLite/PWA cache, runtime settings, provider
-merges and person/season/trending/discovery services remain Angular-owned.
+merges and trending/discovery services remain Angular-owned. Person and season
+services are injectable facades for the shared clients.
 The existing portal API and persisted cache keys are unchanged. TV integration
 and its narrower feature scope are specified in [TV architecture](tv-application.md).
 
@@ -195,6 +200,11 @@ For mixed catalogs, a Cyrillic search that has no confident Ukrainian match
 retries in Russian. Each language keeps its own cached verdict; a cached
 Ukrainian miss still permits the Russian lookup. Transient API errors do not
 trigger a retry in another language.
+Latin provider titles also retry a confident miss in `en-US` when the preferred
+language is different. This covers English translations of foreign shows whose
+localized and original names both differ (for example, The Chestnut Man).
+The same strict title/year gate applies, each language caches its own verdict,
+and details still use the user's selected metadata language.
 
 ## Details Fetch and Localization
 
@@ -354,6 +364,22 @@ disabled everything is a no-op — the `SeasonContainer` UI already renders
 every episode field conditionally.
 
 ## Actor Pages
+
+TV also opens person pages from circular actor/director/creator controls. The
+complete deduplicated acting/directing/creating filmography is virtualized.
+Selecting a credit performs an on-demand search in the active provider only,
+using localized and original titles, existing title normalization and compatible
+release years. A found provider item opens its own details; equally strong
+versions are offered for selection. Only a completed search reports absence.
+Failures, repeated/incomplete pages (20-page limit) and the 15-second deadline
+show a retry, while cancellation or navigation prevents stale results opening.
+Movie and series identities remain separate; TMDB IDs never become stream IDs.
+Back restores the previous person/detail/card focus and scroll position.
+TV episode stills are stored separately from the parent cover. Home resume cards
+retain series artwork, while season cards show available stills and descriptions.
+Home and fullscreen playback can open the exact parent series, including
+historical progress recovered from its current provider identity.
+See the [TV contract](tv-application.md#artwork-and-optional-tmdb-metadata).
 
 Cast chips carry the TMDB person id (`tmdbPersonId` on
 `TmdbEnrichedCastMember`) and navigate to `actor/:personId` inside the

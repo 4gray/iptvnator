@@ -198,6 +198,7 @@ test('regular and embedded series retain commands and episode numbers', async ()
         );
         assert.equal(regular.length, 2);
         assert.equal(regular[1].episode, 2);
+        assert.equal(regular[1].seriesTitle, parent.title);
         assert.equal(regular[1].raw.cmd, 'ffrt http://cdn.invalid/show');
         const embedded = await stalkerEpisodes(
             session,
@@ -213,6 +214,7 @@ test('regular and embedded series retain commands and episode numbers', async ()
             new AbortController().signal
         );
         assert.equal(embedded[0].episode, 4);
+        assert.equal(embedded[0].seriesTitle, parent.title);
         assert.equal(embedded[0].raw.series, 4);
     } finally {
         session.dispose();

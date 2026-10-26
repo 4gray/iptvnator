@@ -1,6 +1,9 @@
 import { cloneElement, VNode } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
+const windowRow = (index: number, columns: number) =>
+    Math.max(0, Math.floor(index / columns) - 2);
+
 /** Window the DOM while retaining loaded data and stable scroll coordinates. */
 export function VirtualCollection<T extends { id: string }>({
     items,
@@ -38,17 +41,16 @@ export function VirtualCollection<T extends { id: string }>({
                   ? 5
                   : 6;
     const [windowed, setWindow] = useState(() => ({
-        row: Math.max(
-            0,
-            Math.floor(
-                items.findIndex((x) => x.id === restoreKey) / initialColumns
-            ) - 2
+        row: windowRow(
+            items.findIndex((x) => x.id === restoreKey),
+            initialColumns
         ),
         columns: initialColumns,
         step: layout === 'channels' ? 95 : layout === 'episodes' ? 200 : 430,
     }));
     const pending = useRef<{ index: number; origin: HTMLElement }>();
     const focusAfterRender = useRef<number>();
+    const reflowScroll = useRef<{ root: HTMLElement; top: number }>();
     const latest = useRef({ items, more, busy, error, loadMore, windowed });
     latest.current = { items, more, busy, error, loadMore, windowed };
     const rows = layout === 'channels' ? 20 : 10;
@@ -63,6 +65,7 @@ export function VirtualCollection<T extends { id: string }>({
                 : document.querySelector('main')!;
         if (restoreScroll !== undefined) root.scrollTop = restoreScroll;
         let frame = 0;
+        let measured = false;
         let restoreChannel =
             layout === 'channels' &&
             restoreScroll === undefined &&
@@ -81,7 +84,11 @@ export function VirtualCollection<T extends { id: string }>({
                           .length;
             const gap =
                 parseFloat(style.rowGap) || (layout === 'channels' ? 9 : 0);
-            const step = first.getBoundingClientRect().height + gap;
+            const track =
+                layout === 'episodes' ? parseFloat(style.gridAutoRows) : NaN;
+            const step =
+                (track > 0 ? track : first.getBoundingClientRect().height) +
+                gap;
             if (restoreChannel) {
                 const index = current.items.findIndex(
                     (item) => item.id === restoreKey
@@ -91,17 +98,35 @@ export function VirtualCollection<T extends { id: string }>({
                     restoreChannel = false;
                 }
             }
-            const relative = Math.max(
+            let relative = Math.max(
                 0,
                 root.getBoundingClientRect().top -
                     element.getBoundingClientRect().top
             );
+            const active = document.activeElement as HTMLElement;
+            const resized =
+                columns !== current.windowed.columns ||
+                Math.abs(step - current.windowed.step) > 1;
+            if (measured && layout === 'episodes' && resized) {
+                const anchor =
+                    element.contains(active) && active.dataset.virtualIndex
+                        ? Number(active.dataset.virtualIndex)
+                        : Math.floor(relative / current.windowed.step) *
+                          current.windowed.columns;
+                const delta =
+                    Math.floor(anchor / columns) * step -
+                    Math.floor(anchor / current.windowed.columns) *
+                        current.windowed.step;
+                // Apply after new spacers render so a long-season offset cannot clamp.
+                reflowScroll.current = { root, top: root.scrollTop + delta };
+                relative = Math.max(0, relative + delta);
+            }
+            measured = true;
             let row = Math.max(0, Math.floor(relative / step) - 2);
             row = Math.min(
                 row,
                 Math.max(0, Math.ceil(current.items.length / columns) - rows)
             );
-            const active = document.activeElement as HTMLElement;
             if (element.contains(active) && active.dataset.virtualIndex) {
                 const index = Number(active.dataset.virtualIndex);
                 if (index < row * columns || index >= (row + rows) * columns)
@@ -110,11 +135,7 @@ export function VirtualCollection<T extends { id: string }>({
                         (row + 2) * columns + (index % columns)
                     );
             }
-            if (
-                row !== current.windowed.row ||
-                columns !== current.windowed.columns ||
-                Math.abs(step - current.windowed.step) > 1
-            )
+            if (row !== current.windowed.row || resized)
                 setWindow({ row, columns, step });
             if (
                 current.more &&
@@ -146,6 +167,11 @@ export function VirtualCollection<T extends { id: string }>({
         };
     }, [layout]);
     useLayoutEffect(() => {
+        const scroll = reflowScroll.current;
+        if (scroll) {
+            scroll.root.scrollTop = scroll.top;
+            reflowScroll.current = undefined;
+        }
         const move = pending.current;
         if (move && document.activeElement !== move.origin)
             pending.current = undefined;
@@ -153,7 +179,7 @@ export function VirtualCollection<T extends { id: string }>({
             focusAfterRender.current = move.index;
             setWindow((w) => ({
                 ...w,
-                row: Math.max(0, Math.floor(move.index / w.columns) - 2),
+                row: windowRow(move.index, w.columns),
             }));
             pending.current = undefined;
         }
@@ -219,10 +245,7 @@ export function VirtualCollection<T extends { id: string }>({
                             focusAfterRender.current = next;
                             setWindow((w) => ({
                                 ...w,
-                                row: Math.max(
-                                    0,
-                                    Math.floor(next / w.columns) - 2
-                                ),
+                                row: windowRow(next, w.columns),
                             }));
                         }
                     } else if (down && more && !error) {

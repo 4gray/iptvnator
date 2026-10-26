@@ -1,8 +1,22 @@
 import { resolveStalkerArtwork } from '@iptvnator/portal/stalker/client';
-import { Media, Source } from '@iptvnator/tv/util';
+import { Media, Source, seriesForEpisode } from '@iptvnator/tv/util';
 
-/** Older saved Stalker items retain raw artwork even when their mapped poster is absent. */
-export function storedMediaPoster(item: Media, source?: Source) {
+/** Prefer exact current/saved series covers; retain raw Stalker artwork for older items. */
+export function storedMediaPoster(
+    item: Media,
+    source?: Source,
+    parents: Media[] = []
+): string | undefined {
+    const parent = seriesForEpisode(item, parents);
+    if (parent) {
+        const saved = seriesForEpisode(item);
+        return (
+            storedMediaPoster(parent, source) ||
+            (saved && saved !== parent
+                ? storedMediaPoster(saved, source)
+                : undefined)
+        );
+    }
     if (item.poster) return item.poster;
     if (source?.id !== item.sourceId || source.provider !== 'stalker')
         return undefined;

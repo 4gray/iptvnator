@@ -10,6 +10,10 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
     const [checking, setChecking] = useState(false);
     const [saving, setSaving] = useState(false);
     const request = useRef<AbortController>();
+    const dirty =
+        enabled !== tv.data.tmdb.enabled ||
+        key.trim() !== tv.data.tmdb.apiKey ||
+        language !== tv.data.tmdb.language;
     useEffect(() => {
         request.current?.abort();
         setChecking(false);
@@ -28,7 +32,7 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
         if (!abort.signal.aborted) {
             setStatus(
                 valid
-                    ? 'TMDB key is valid.'
+                    ? `TMDB key is valid.${!tv.data.tmdb.enabled ? ' Metadata is disabled. Enable it and save to use enrichment.' : dirty ? ' Save your changes to use this key and language.' : ''}`
                     : 'TMDB could not validate this key. Check the key and connection.'
             );
             setChecking(false);
@@ -42,7 +46,9 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
                 ...data,
                 tmdb: { enabled, apiKey: key.trim(), language },
             }));
-            setStatus('TMDB settings saved on this TV.');
+            setStatus(
+                `TMDB settings saved on this TV. Metadata is ${enabled ? 'enabled' : 'disabled'}.`
+            );
         } catch {
             setStatus(
                 'TMDB settings were not saved. Free TV storage and retry.'
@@ -55,9 +61,16 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
         <section class="tmdb-settings">
             <h2>Metadata · TMDB</h2>
             <p class="muted">
-                Add movie and series artwork and descriptions to Home and
-                details. When enabled, title searches go directly to TMDB.
+                Add movie and series artwork, descriptions, cast and episode
+                information. When enabled, title searches go directly to TMDB.
                 Playback stays with your provider.
+            </p>
+            <p class="tmdb-state" aria-live="polite">
+                Metadata is {tv.data.tmdb.enabled ? 'enabled' : 'disabled'} on
+                this TV.
+                {dirty
+                    ? ' Unsaved changes: choose Save TMDB settings to apply.'
+                    : ''}
             </p>
             <form class="source-form" onSubmit={save}>
                 <label class="check">

@@ -9,3 +9,7 @@ export * from './lib/tmdb-client-contracts';
 export * from './lib/tmdb-id-resolver';
 export * from './lib/tmdb-metadata-client';
 export * from './lib/tmdb-memory-cache';
+export * from './lib/tmdb-season-client';
+export * from './lib/tmdb-episode-title';
+export * from './lib/tmdb-person';
+export * from './lib/tmdb-person-client';

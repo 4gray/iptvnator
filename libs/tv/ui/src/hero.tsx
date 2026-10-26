@@ -1,4 +1,4 @@
-import type { Media, Progress } from '@iptvnator/tv/util';
+import { mediaTitle, type Media, type Progress } from '@iptvnator/tv/util';
 export function Hero({
     item,
     open,
@@ -8,6 +8,7 @@ export function Hero({
     count = 0,
     select,
     compact = false,
+    detailsBusy = false,
 }: {
     item?: Media;
     open: (item: Media) => void;
@@ -17,6 +18,7 @@ export function Hero({
     count?: number;
     select: (index: number) => void;
     compact?: boolean;
+    detailsBusy?: boolean;
 }) {
     return (
         <section
@@ -29,11 +31,11 @@ export function Hero({
                         ? 'PICK UP WHERE YOU LEFT OFF'
                         : 'YOUR OWN CINEMA'}
                 </span>
-                <h1>{item?.title ?? 'Make yourself at home.'}</h1>
+                <h1>{item ? mediaTitle(item) : 'Make yourself at home.'}</h1>
                 {progress ? (
                     <div class="hero-position">
                         {progress.item.kind === 'episode'
-                            ? `S${progress.item.season ?? 1} · E${progress.item.episode ?? 1} · `
+                            ? `S${progress.item.season ?? 1} · E${progress.item.episode ?? 1} · ${progress.item.title} · `
                             : ''}
                         {Math.floor(progress.seconds / 60)} min watched
                         {progress.duration > 0 ? (
@@ -65,9 +67,14 @@ export function Hero({
                         <button
                             class={progress ? '' : 'primary'}
                             data-focus="hero"
+                            disabled={detailsBusy}
                             onClick={() => open(item)}
                         >
-                            {progress ? 'Details →' : 'Explore title →'}
+                            {detailsBusy
+                                ? 'Finding series…'
+                                : progress
+                                  ? 'Details →'
+                                  : 'Explore title →'}
                         </button>
                     </div>
                 ) : null}

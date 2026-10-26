@@ -95,15 +95,16 @@ test('Stalker sends server sort through append and changing order starts again a
     await addSource(page, 'stalker', { mac: '00:1A:79:00:00:01' });
     await nav(page, 'Movies');
     await expect(page.getByLabel('Sort by')).toHaveValue('recent');
-    await page.locator('main').evaluate((e) => {
-        e.scrollTop = e.scrollHeight;
-    });
     await expect
-        .poll(() =>
-            calls.some(
+        .poll(async () => {
+            // Each appended page extends the list; keep browsing its new end.
+            await page.locator('main').evaluate((e) => {
+                e.scrollTop = e.scrollHeight;
+            });
+            return calls.some(
                 (c) => c.type === 'vod' && c.sort === 'added' && c.page === '3'
-            )
-        )
+            );
+        })
         .toBe(true);
     await page.getByLabel('Sort by').selectOption('title');
     await expect

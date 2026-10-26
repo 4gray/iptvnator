@@ -425,6 +425,15 @@ parent artwork fills missing episode covers without requesting a new catalog.
 Historical Stalker history/favorites recover missing covers from their saved raw
 fields through the provider artwork resolver, without rewriting saved commands,
 positions or credentials.
+Episode mappings persist `seriesTitle`, `seriesYear` and an exact `parentSeries`
+snapshot independently of their
+episode title, parent-scoped ID and command. Home, resume cards and the player
+show the parent title with separate episode information. Historical records gain
+this context when their exact source/parent appears in Home, a catalog, favorites
+or the selected series; unavailable parent names are not guessed. This additive
+repair also updates retained positions without changing seconds or timestamps.
+Parent snapshots retain provider fields needed to reopen regular, embedded and
+lazy series, but exclude cached Xtream episode lists and nested parent snapshots.
 
 Home features up to three recently watched, unfinished titles from the active
 source. A series contributes its latest watched episode; a completed latest
@@ -432,7 +441,26 @@ episode does not revive older unfinished episodes. Unknown-duration positions
 remain resumable. The Continue watching rail retains up to eight titles using
 the same grouping. Previous/Next controls wrap on OK or pointer click; there is
 no automatic rotation or playback on focus. Continue watching resolves the
-original saved media identity, while Details opens its provider detail view.
+original saved media identity, while Details opens the parent series and episode
+list for an episode. The feature uses the series title, artwork and description;
+episode coordinates and title remain secondary progress information. A saved
+parent works even outside the Home catalog preview after relaunch. Historical
+entries retain Details and resolve their exact parent in the current provider,
+using the saved series name to narrow catalog queries. Only a matching
+source/parent identity can open; title similarity never synthesizes a parent.
+Named unfinished entries recover context in the background on Home. Lookups
+are bounded to 20 pages per catalog and 15 seconds, preserve playback data,
+and offer an explicit retry through Details when recovery is unavailable.
+Fullscreen episode playback also has Series details: it saves/stops playback and
+opens the parent episode list. Exiting fullscreen cancels a pending parent lookup;
+its late response cannot navigate away from Home.
+Starting a newer playback request also cancels pending series-details navigation,
+including Home lookups; the details action's own stop does not cancel its transition.
+Series-details retries use the current provider and retire with their route/source;
+a successful retry retains the original navigation focus and scroll.
+Playback captures its actual initiating control and main scroll position before
+resolution; returning from series details restores
+the hero Continue watching button or resume card that started it.
 Selection survives detail/player Back; source changes and relaunch start at the
 latest unfinished title. With no unfinished history, the first catalog movie
 (or first available item) remains the featured fallback. Artwork-only parent
@@ -455,10 +483,84 @@ desktop default. Requests go directly to TMDB, independently of the provider bac
 `@iptvnator/shared/tmdb` owns the framework-free API client, title/year confidence
 matching, dead provider-ID recovery, language fallback and metadata orchestration.
 The TV adapter enriches the Home feature and selected movie/series details for
-all providers. It only replaces artwork and description; provider identity,
-stream ID/extension pairs, episode hierarchy and playback commands stay authoritative.
-Live channels and episodes do not trigger enrichment. Whole-catalog enrichment,
-TMDB discovery, people, trailers and episode metadata are not included here.
+all providers, including episode features with saved parent titles. Artwork,
+description and displayed cast/directors/creators come from the shared merge
+helpers; provider identity, stream ID/extension pairs, episode hierarchy and
+playback commands stay authoritative. Movie directors and series creators have
+distinct labels; a TV series has no invented show-level director.
+The selected season loads through shared `TmdbSeasonClient`, with the existing
+language cache/fallback and explicit single-season title-marker correction.
+Episodes match by number within that season. TMDB fills descriptions/stills and
+generic titles; meaningful provider titles and every playback coordinate remain
+unchanged. Missing TMDB episodes/fields leave provider content usable. Live
+channels, whole-catalog enrichment, discovery and trailers remain
+outside this TV integration.
+Episode landscape artwork lives in `episodeStill`, separately from the series
+cover in `poster`/the parent snapshot. Home and Continue watching use the
+series cover. Provider details save the series backdrop and cover in the exact
+parent snapshot; sparse catalog repairs retain validated artwork, overview and
+year without replacing episode-specific descriptions. Home and
+Continue watching prefer current parent artwork, then validated saved parent
+artwork. Historical episode images are not cover/backdrop fallbacks when a parent
+is known. Episode cards use the still.
+Cards with stills show a larger image
+and up to three description lines. Missing stills keep compact text cards, and a
+season without stills retains its previous layout. Rich episode grids use fixed
+row tracks so mixed card heights do not corrupt virtual scrolling or focus.
+When delayed metadata changes episode row height, virtualization preserves the
+focused episode and its viewport offset. Apply the corrected scroll after the
+new spacer heights render so offsets near the end of a long season cannot clamp.
+Circular actor/director/creator controls open cached, language-scoped person
+details and the complete combined acting/directing/creating filmography. Missing
+photos keep initials. Selecting a filmography card searches only the current
+provider, trying display and original titles and paging its search results.
+Stalker TV credits search both the regular series catalog and VOD-embedded/lazy
+series. A failed catalog or query does not suppress a match from another one;
+absence is reported only after every relevant lookup completes.
+Normalized title/year confidence keeps remakes and movie/series collisions
+separate; canonical numeric titles do not become release-year tags.
+Local Xtream/M3U catalog filters admit punctuation/diacritic equivalents before
+filmography matching. A later TV year is accepted only for an explicitly marked
+season after season 1; an unmarked show must corroborate its premiere year.
+Explicit bracketed release years corroborate matches even without a separate
+provider year field. Release-year suffixes across all matching alternate names
+must agree with the requested release; an exact original name or separate year
+field cannot hide a conflicting remake year. Canonical numeric titles remain
+titles, including when a different alias appends the actual release year. Season metadata reads markers across the provider's raw
+name/original-name/title fields as well as its chosen display title.
+Search pages finish before choosing between one match and several equally
+strong versions, including exact title/year matches on different pages. An
+incomplete search retains Retry even when an earlier page contains a match.
+Matches are combined across completed localized/original-title lookups and both
+Stalker catalogs before ranking and choosing a version; repeated IDs are deduplicated.
+Several equally strong versions require a choice. Found entries open actual provider
+details, preserving all stream coordinates and commands. A finished search with
+no match reports that the title is unavailable in this portal. Only complete
+lookups contribute candidates, retaining valid fallback results when an alternate
+catalog is unsupported. Without a complete match, errors, repeated pages, the
+20-page safety limit and the 15-second deadline report an incomplete search with
+retry. Cancellation, source changes and navigation discard obsolete
+results. Person/detail Back preserves card focus and scroll position. Filmography
+cards reserve two subtitle lines to keep virtual row heights and scroll coordinates stable.
+The selected series season belongs to its detail-route visit: person-page Back
+restores it, while opening a fresh detail visit starts at the first available season.
+Back cancels pending detail browsing before restoring its previous route. Route
+changes own that cancellation; browser Back on Home keeps catalog requests alive
+when no platform navigation occurs.
+Route commits also cancel browsing during layout cleanup, so a late detail response
+cannot consume the pending person-card focus before its filmography loads.
+Deferred route-entry focus and scroll changes apply only while their destination
+is current, preserving the restored filmography after a fast Back before paint.
+Provider-version choices live in an app-owned snapshot for that exact person
+route visit. New choices receive remote focus; returning from details restores
+the chooser and selected version, while a fresh person visit clears it.
+Replacing the provider settles pending searches with a retry action. Found
+results, including retries, return to the initiating filmography card and scroll
+position rather than an ephemeral status control.
+Focused biographies consume Up/Down to scroll their text; reaching an edge lets
+the next directional press leave the text and continue normal remote navigation.
+Settings distinguishes key validation from saved enablement and warns about
+unsaved changes; checking a key does not enable enrichment automatically.
 
 Provider content renders before metadata. Each selection has cancellation and
 an eight-second deadline; obsolete responses cannot overwrite the current view.

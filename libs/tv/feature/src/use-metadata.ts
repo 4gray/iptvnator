@@ -46,5 +46,6 @@ export function useMetadata(
         item: current?.item ?? item,
         failed: current?.failed ?? false,
         retry: () => setAttempt((n) => n + 1),
+        client,
     };
 }

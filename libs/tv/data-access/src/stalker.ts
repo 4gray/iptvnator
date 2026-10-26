@@ -33,6 +33,7 @@ export class StalkerProvider implements ProviderClient {
         live: true,
         movies: true,
         series: true,
+        vodSeries: true,
         epg: true,
     };
     private session: StalkerSession;

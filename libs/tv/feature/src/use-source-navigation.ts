@@ -15,7 +15,7 @@ export function useSourceNavigation(
         previous.current = sourceId;
         clearHistory();
         setRoute(
-            route.view === 'detail'
+            route.view === 'detail' || route.view === 'person'
                 ? firstRoute()
                 : {
                       ...route,
@@ -25,6 +25,7 @@ export function useSourceNavigation(
                       item: undefined,
                   }
         );
-        if (route.view === 'detail') restoreFocus('nav:home');
+        if (route.view === 'detail' || route.view === 'person')
+            restoreFocus('nav:home');
     }, [sourceId]);
 }
