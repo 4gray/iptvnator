@@ -41,6 +41,9 @@ import {
                 <span>{{
                     sync.errorKey() || sync.stateKey() | translate
                 }}</span>
+                <a mat-button routerLink="/workspace/settings/server">{{
+                    'SOURCE_SYNC.TITLE' | translate
+                }}</a>
                 @if (sync.state() === 'locked') {
                     <label
                         >{{ 'SOURCE_SYNC.TOKEN' | translate }}
@@ -84,6 +87,7 @@ import {
                 background: var(--app-widget-bg);
             }
             button,
+            a,
             input {
                 app-region: no-drag;
             }

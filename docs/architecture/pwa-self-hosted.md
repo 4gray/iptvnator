@@ -170,7 +170,10 @@ A stateless backend reporting `storage: none` retains standalone behavior. If
 initial discovery was unavailable, a temporary `pending:` selection resolves
 back to the original local library after a valid stateless response. It reloads
 without disabling future discovery or overwriting a newer selection from another
-tab. Confirmed source-server profiles never use this fallback.
+tab. Promoting a pending selection to a confirmed instance also checks that the
+saved selection still matches; a newer connect or disconnect wins. The initial
+runtime discovery probe preserves choices made by another tab while it waits.
+Confirmed source-server profiles never use the stateless fallback.
 Once a server is selected, network/authentication/compatibility errors do not
 silently select local storage. The recovery banner remains available even when
 the initial source inventory cannot load. Malformed saved connection data or
@@ -189,7 +192,14 @@ only when a server is selected; the always-mounted status host defers its
 Material view until a connection or recovery notice is present. A native
 settings button remains available if that view chunk fails to load.
 `PlaylistStorageBackend` wraps the selected local store with `SyncedPlaylistStore`; local activity writes stay
-local. Electron Xtream metadata paths in `DatabaseService` use the same wrapper.
+local. Bootstrap waits only for local profile readiness, then starts network
+refresh in the background. Slow URL providers cannot hold the app behind its
+splash: cached sources and settings remain accessible. An uninitialized cache
+defers its first inventory read until refresh settles; a failed projection
+continues rejecting reads rather than exposing a false empty library. Server
+settings bypass the source-loading screen and remain reachable through the
+connection banner. A successful projection publishes its inventory change to
+refresh mounted views. Electron Xtream metadata paths in `DatabaseService` use the same wrapper.
 Source IDs are the server's IDs in every local projection. Inventory views reuse
 the native payload-free metadata API. Browser metadata omits parsed/raw M3U
 and source baselines; opening a shared editor loads one complete local row
@@ -212,7 +222,8 @@ Authoritative inventory replacement retains only parsed payloads, so removing
 a connection field cannot revive its previous value. Active Stalker routes
 reconcile changed connections against their persisted rows and restart the
 session/catalog only when connection fields differ. A title-only update refreshes
-the active source label while retaining its session and catalog. Backup restore follows
+the active source label while retaining its session and catalog. Xtream title
+updates likewise refresh the active source label without reimporting content. Backup restore follows
 the server's canonical source ID, including local activity and parental locks
 when a source added since the last poll deduplicates during import.
 Browser profile writes coordinate through an instance-scoped Web Lock when

@@ -167,6 +167,7 @@ describe('source synchronization lifecycle', () => {
         const changed = jest.fn();
         service.changes.subscribe(changed);
         await service.initialize();
+        await service.refresh();
         expect(service.state()).toBe('connected');
         expect(finish).toHaveBeenCalled();
         expect(rows.get('a')).toMatchObject({
@@ -194,6 +195,7 @@ describe('source synchronization lifecycle', () => {
         const changed = jest.fn();
         service.changes.subscribe(changed);
         await service.initialize();
+        await service.refresh();
         expect(service.state()).toBe('locked');
         expect(service.errorKey()).toBe('SOURCE_SYNC.LOCKED');
         expect(finish).toHaveBeenCalled();
@@ -234,6 +236,7 @@ describe('source synchronization lifecycle', () => {
                     count: 1,
                 });
             await service.initialize();
+            await service.refresh();
             expect(rows.get('url')?.sourceSyncPending).toBe(true);
             expect(rows.get('url')?.count).toBe(0);
             await service.refresh();
@@ -249,11 +252,55 @@ describe('source synchronization lifecycle', () => {
         }
     );
 
+    it.each([null, '1'])(
+        'releases startup while a URL provider is pending (cache receipt %s)',
+        async (initialized) => {
+            receipt = initialized;
+            rows.set('a', applySourceDefinition(source));
+            inventory = [
+                source,
+                {
+                    id: 'slow',
+                    title: 'Slow source',
+                    kind: 'm3u-url',
+                    url: 'https://slow.test/list.m3u',
+                },
+            ];
+            let release!: (value: unknown) => void;
+            let started!: () => void;
+            const downloading = new Promise((resolve) => {
+                release = resolve;
+            });
+            const providerStarted = new Promise<void>((resolve) => {
+                started = resolve;
+            });
+            fetchPlaylistDefinition.mockImplementation(() => {
+                started();
+                return downloading;
+            });
+            let complete = false;
+            const startup = service.initialize().then(() => {
+                complete = true;
+            });
+            await providerStarted;
+            const blocked = !complete;
+            const released = finish.mock.calls.length > 0;
+            release({ playlist: { items: [] }, count: 0 });
+            await startup;
+            await service.refresh();
+            expect(blocked).toBe(false);
+            expect(released).toBe(initialized === '1');
+            expect(finish).toHaveBeenCalled();
+            expect(service.state()).toBe('connected');
+        }
+    );
+
     it('preserves a completed cache offline and rejects source writes until reconnecting', async () => {
         receipt = '1';
         rows.set('a', applySourceDefinition(source));
         request.mockRejectedValueOnce(new Error('unreachable'));
         await service.initialize();
+        await service.refresh();
         expect(service.state()).toBe('offline');
         await expect(store.dbGetAppPlaylists()).resolves.toHaveLength(1);
         const calls = request.mock.calls.length;
@@ -273,6 +320,7 @@ describe('source synchronization lifecycle', () => {
     it('reports a stale edit and retains the accepted local projection', async () => {
         inventory = [source];
         await service.initialize();
+        await service.refresh();
         await expect(
             store.dbUpsertAppPlaylist({
                 ...rows.get('a')!,
@@ -290,6 +338,7 @@ describe('source synchronization lifecycle', () => {
         const changed = jest.fn();
         service.changes.subscribe(changed);
         await service.initialize();
+        await service.refresh();
         const implementation = request.getMockImplementation()!;
         request.mockImplementation(async (command: SourceServerRequest) => {
             if (command.operation === 'update') {
@@ -311,6 +360,7 @@ describe('source synchronization lifecycle', () => {
     it('notifies a sibling tab when another tab already changed or deleted the shared projection', async () => {
         inventory = [source];
         await service.initialize();
+        await service.refresh();
         const firstStore = store;
         const sibling = TestBed.runInInjectionContext(
             () => new SourceSyncService()
@@ -318,6 +368,7 @@ describe('source synchronization lifecycle', () => {
         const changed = jest.fn();
         sibling.changes.subscribe(changed);
         await sibling.initialize();
+        await sibling.refresh();
         const initial = changed.mock.calls.length;
         const implementation = request.getMockImplementation()!;
         request.mockImplementation(async (command: SourceServerRequest) => {
@@ -357,6 +408,7 @@ describe('source synchronization lifecycle', () => {
             body: { ...instance, instanceId: 'replacement' },
         }));
         await service.initialize();
+        await service.refresh();
         expect(service.state()).toBe('offline');
         expect(service.errorKey()).toBe('SOURCE_SYNC.INSTANCE_CHANGED');
         expect(rows.size).toBe(1);

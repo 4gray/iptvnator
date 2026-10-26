@@ -7,6 +7,7 @@ import {
     sourceConnectionReadFailed,
     verifySourceInstance,
     assertSourceRequestAllowed,
+    saveBrowserSourceConnection,
 } from './source-connection';
 
 describe('source server selection and authorization', () => {
@@ -173,6 +174,88 @@ describe('source server selection and authorization', () => {
         await prepareSourceConnection();
         expect(sourceAuthorization(proxy)).toEqual({});
     });
+    it.each(['connect', 'disconnect'])(
+        'does not undo a newer %s when a pending selection resolves',
+        (action) => {
+            const pending = {
+                apiUrl: 'https://old.test/api',
+                instanceId: 'pending:https://old.test/api',
+            };
+            const newer = { apiUrl: 'https://new.test/api', instanceId: 'new' };
+            if (action === 'connect')
+                saveBrowserSourceConnection(newer, 'new-token');
+            else localStorage.setItem('iptvnator:source-server-disabled', '1');
+            const before = localStorage.getItem('iptvnator:source-server');
+            saveBrowserSourceConnection(
+                { ...pending, instanceId: 'resolved-old' },
+                'old-token',
+                pending
+            );
+            expect(localStorage.getItem('iptvnator:source-server')).toBe(
+                before
+            );
+            expect(
+                localStorage.getItem('iptvnator:source-server-disabled')
+            ).toBe(action === 'disconnect' ? '1' : null);
+            expect(sessionStorage.getItem(tokenKey(pending.apiUrl))).toBeNull();
+        }
+    );
+    it('promotes a pending selection only while it remains selected', () => {
+        const pending = {
+            apiUrl: 'https://old.test/api',
+            instanceId: 'pending:https://old.test/api',
+        };
+        localStorage.setItem(
+            'iptvnator:source-server',
+            JSON.stringify(pending)
+        );
+        saveBrowserSourceConnection(
+            { ...pending, instanceId: 'resolved' },
+            'old-token',
+            pending
+        );
+        expect(
+            JSON.parse(localStorage.getItem('iptvnator:source-server')!)
+        ).toEqual({ ...pending, instanceId: 'resolved' });
+    });
+    it.each(['connect', 'disconnect'])(
+        'retains a newer %s while the initial runtime probe is in flight',
+        async (action) => {
+            let release!: () => void;
+            globalThis.fetch = jest.fn(
+                () =>
+                    new Promise((resolve) => {
+                        release = () =>
+                            resolve({
+                                ok: true,
+                                json: async () => ({
+                                    service: 'iptvnator',
+                                    apiVersion: 1,
+                                    storage: 'server',
+                                    instanceId: 'old',
+                                    capabilities: ['sources-v1'],
+                                }),
+                            });
+                    })
+            ) as unknown as typeof fetch;
+            const probing = prepareSourceConnection('https://old.test/api');
+            const newer = { apiUrl: 'https://new.test/api', instanceId: 'new' };
+            if (action === 'connect')
+                saveBrowserSourceConnection(newer, 'new-token');
+            else localStorage.setItem('iptvnator:source-server-disabled', '1');
+            release();
+            await probing;
+            expect(sourceConnection()).toEqual(
+                action === 'connect' ? newer : null
+            );
+            expect(
+                localStorage.getItem('iptvnator:source-server-disabled')
+            ).toBe(action === 'disconnect' ? '1' : null);
+            expect(sourceAuthorization('https://old.test/api/xtream')).toEqual(
+                {}
+            );
+        }
+    );
     it('persists a pending server profile when first discovery fails', async () => {
         globalThis.fetch = jest.fn().mockRejectedValue(new Error('offline'));
         await prepareSourceConnection('https://nas.test/api');

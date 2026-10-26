@@ -580,3 +580,43 @@ unchanged 1,200,301-byte limit. Merged coverage across 36 projects passes at
 statements 84.81%, branches 75.76%, functions 83.04%, lines 85.19%. Two advisory
 same-name-spec warnings remain for the HTTP adapters covered by their owning
 unit projects and browser/mixed-runtime E2E suites.
+
+
+### Ninth review fixes before review ten
+
+Codex reviewed `a2861dc095ff7f4febb2e30f04d5e32fd72eaa51` and reproduced two
+P2 cases. Startup now waits only for local profile readiness and starts network
+refresh in the background. A slow M3U provider cannot hold Angular behind the
+splash; cached sources, settings and disconnect remain accessible. The first read of an incomplete
+cache stays deferred until refresh settles; a failed projection rejects reads
+rather than exposing a false empty library. Server settings bypass the source
+loading screen through a recovery link in the connection banner. A successful
+projection reloads mounted consumers through the existing change notification. Regression tests cover
+both first connection and an already initialized cache.
+
+Pending instance promotion now checks that the saved connection still matches
+the captured pending selection. A newer connection or disconnect wins; the old
+tab reloads without rewriting it or clearing its discovery-disabled marker.
+Initial runtime discovery also preserves a choice made while its anonymous
+probe was in flight. Regressions cover connect, disconnect and normal promotion.
+
+An additional test reproduced an unchanged active Xtream source label after a
+remote rename. The route session now updates its current name/title without
+resetting the session, rechecking portal status or reimporting the catalog. The
+test fails before the fix and passes afterwards. Playlist mapping/bootstrap
+helpers moved to `xtream-route-playlist.ts` to keep the route owner below the
+400-line hard limit without changing that limit or the legacy baseline.
+
+Final checks before review ten pass: 938 service tests, 641 Xtream feature
+tests and the complete web unit project; 21 Chromium production PWA scenarios
+and all five mixed PWA/Electron scenarios. Browser regressions exercise delayed
+provider responses on first/cached startup and pending recovery after another
+tab disconnects. Source inventory readiness still guards the workspace; server
+settings remain accessible while it is pending or failed.
+
+Merged coverage across 36 projects passes at statements 84.82%, branches
+75.78%, functions 83.05%, lines 85.20%. Four advisory same-name-spec warnings
+remain for private helpers/adapters/views covered by owning projects and E2E.
+The production initial payload is 1,199,678 bytes within the unchanged
+1,200,301-byte limit. Affected lint and application/spec/E2E type checks, release
+notes and agent guidance pass. No coverage or line-count limits were weakened.

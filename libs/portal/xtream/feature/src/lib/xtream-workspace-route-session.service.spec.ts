@@ -428,6 +428,29 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.initializeContent).not.toHaveBeenCalled();
     });
 
+    it('updates the active source name without reloading its session or catalog', async () => {
+        activePlaylist.set({
+            ...ACTIVE_PLAYLIST,
+            title: 'Renamed on another device',
+        });
+        currentPlaylist.set(XTREAM_PLAYLIST);
+        playlistId.set(PLAYLIST_ID);
+        isContentInitialized.set(true);
+        contentLoadStateByType.set({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+        expect(currentPlaylist()?.name).toBe('Renamed on another device');
+        expect(currentPlaylist()?.title).toBe('Renamed on another device');
+        expect(xtreamStore.resetStore).not.toHaveBeenCalled();
+        expect(xtreamStore.fetchXtreamPlaylist).not.toHaveBeenCalled();
+        expect(xtreamStore.checkPortalStatus).not.toHaveBeenCalled();
+        expect(xtreamStore.initializeContent).not.toHaveBeenCalled();
+    });
+
     it('does not treat blank and null Xtream connection metadata as a playlist change', async () => {
         router.url = `/workspace/xtreams/${PLAYLIST_ID}/vod/101`;
         activePlaylist.set({

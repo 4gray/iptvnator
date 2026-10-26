@@ -135,6 +135,121 @@ test.describe('server storage @self-hosted @persistence', () => {
         await second.context().close();
     });
 
+    test('opens the app and cached sources while URL materialization is pending', async ({
+        browser,
+        request,
+    }) => {
+        const page = await newServerPage(browser);
+        const id = 'slow-projection';
+        const title = 'Slow shared URL';
+        const provider = `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}`;
+        const put = (url: string) =>
+            request.put(`${STORAGE_BACKEND_URL}/v1/playlists/${id}`, {
+                data: { _id: id, title, url },
+            });
+        expect((await put(`${provider}/playlist.m3u`)).ok()).toBe(true);
+        let release!: () => void;
+        let started!: () => void;
+        let gate: Promise<void>;
+        let providerStarted: Promise<void>;
+        const hold = () => {
+            gate = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            providerStarted = new Promise<void>((resolve) => {
+                started = resolve;
+            });
+        };
+        hold();
+        await page.route(`${STORAGE_BACKEND_URL}/parse?*`, async (route) => {
+            started();
+            await gate;
+            await route.fulfill({
+                json: {
+                    header: { raw: '#EXTM3U', attrs: {} },
+                    items: [
+                        {
+                            name: 'Cached channel',
+                            url: 'https://streams.test/live.ts',
+                        },
+                    ],
+                },
+            });
+        });
+        try {
+            await page.goto('/workspace/sources');
+            await providerStarted!;
+            await page
+                .locator('[data-test-id="source-sync-status"]')
+                .getByRole('link', { name: 'Server', exact: true })
+                .click();
+            await expect(page).toHaveURL(/\/workspace\/settings\/server/);
+            await expect(
+                page.locator('app-settings-server-section')
+            ).toBeVisible();
+            release();
+            await page.locator('a[href="/workspace/sources"]').first().click();
+            await expect(sourceRowByTitle(page, title)).toBeVisible();
+            expect((await put(`${provider}/changed.m3u`)).ok()).toBe(true);
+            hold();
+            await page.reload();
+            await providerStarted!;
+            await expect(sourceRowByTitle(page, title)).toBeVisible();
+            await expect(
+                page.getByRole('link', { name: 'Open settings', exact: true })
+            ).toBeVisible();
+            release();
+        } finally {
+            release();
+            await page.context().close();
+        }
+    });
+
+    test('keeps a newer disconnect from another tab when pending discovery recovers', async ({
+        browser,
+    }) => {
+        const page = await newServerPage(browser);
+        let offline = true;
+        await page.route(`${STORAGE_BACKEND_URL}/v1/instance`, (route) =>
+            offline ? route.abort('connectionfailed') : route.continue()
+        );
+        try {
+            await page.goto('/workspace/sources');
+            const status = page.locator('[data-test-id="source-sync-status"]');
+            await expect(status).toContainText('Server unavailable');
+            const sibling = await page.context().newPage();
+            await sibling.route('**/__preferences__', (route) =>
+                route.fulfill({
+                    contentType: 'text/html',
+                    body: '<!doctype html>',
+                })
+            );
+            await sibling.goto('/__preferences__');
+            await sibling.evaluate(() => {
+                localStorage.removeItem('iptvnator:source-server');
+                localStorage.setItem('iptvnator:source-server-disabled', '1');
+            });
+            offline = false;
+            await page.bringToFront();
+            await status
+                .getByRole('button', { name: 'Refresh', exact: true })
+                .click();
+            await expect(status).toHaveCount(0);
+            expect(
+                await page.evaluate(() =>
+                    localStorage.getItem('iptvnator:source-server')
+                )
+            ).toBeNull();
+            expect(
+                await page.evaluate(() =>
+                    localStorage.getItem('iptvnator:source-server-disabled')
+                )
+            ).toBe('1');
+        } finally {
+            await page.context().close();
+        }
+    });
+
     test('withholds saved server and provider credentials after the instance is replaced', async ({
         browser,
         request,

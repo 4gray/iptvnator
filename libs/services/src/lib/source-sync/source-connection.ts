@@ -106,6 +106,14 @@ export async function prepareSourceConnection(
         selected = { apiUrl, instanceId: `pending:${apiUrl}` };
     }
     try {
+        // Another tab may have connected or disconnected during discovery.
+        if (
+            localStorage.getItem(CONNECTION_KEY) ||
+            localStorage.getItem(DISABLED_KEY)
+        ) {
+            await prepareSourceConnection();
+            return;
+        }
         localStorage.setItem(CONNECTION_KEY, JSON.stringify(selected));
     } catch {
         readFailed = true;
@@ -114,8 +122,20 @@ export async function prepareSourceConnection(
 
 export function saveBrowserSourceConnection(
     connection: SourceServerConnection,
-    token: string
+    token: string,
+    expected?: SourceServerConnection
 ): void {
+    if (expected) {
+        const saved = localStorage.getItem(CONNECTION_KEY);
+        const current = saved
+            ? (JSON.parse(saved) as SourceServerConnection)
+            : null;
+        if (
+            current?.apiUrl !== expected.apiUrl ||
+            current?.instanceId !== expected.instanceId
+        )
+            return;
+    }
     localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
     localStorage.removeItem(DISABLED_KEY);
     sessionStorage.setItem(tokenKey(connection.apiUrl), token);

@@ -106,14 +106,20 @@ export class SourceSyncService {
             this.connection.instanceId
         );
         this.backend.installServerStore(this.store);
+        let initialRefresh: Promise<void> | undefined;
         try {
             this.store.ready =
                 (await local.dbGetAppState('source-sync-initialized')) === '1';
-            await this.refresh();
+            this.state.set('connecting');
+            const refresh = this.refresh();
+            void refresh.catch(() => this.state.set('offline'));
+            if (!this.store.ready) initialRefresh = refresh;
         } catch {
             this.state.set('offline');
         } finally {
-            this.backend.finishServerInitialization();
+            const finish = () => this.backend.finishServerInitialization();
+            if (initialRefresh) void initialRefresh.then(finish, finish);
+            else finish();
         }
         const resume = () => {
             if (!document.hidden) void this.refresh();
@@ -168,7 +174,8 @@ export class SourceSyncService {
                                 },
                                 sessionStorage.getItem(
                                     tokenKey(this.connection!.apiUrl)
-                                ) ?? ''
+                                ) ?? '',
+                                this.connection!
                             );
                             location.reload();
                             return;
