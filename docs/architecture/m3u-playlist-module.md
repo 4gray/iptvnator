@@ -857,8 +857,10 @@ action is reachable whichever view the setting selects.
   channel lands on "now" without the user pressing the Now button. The jump is
   deduped by source/channel identity when `archiveContextKey` is present, and
   by programme-set identity (`programsFocusKey`) otherwise. Day-window loads,
-  the 30s now-tick, zoom changes, or a host re-emitting data never re-jump the viewport;
-  switching channels (or returning after viewing an empty-day channel) re-centres.
+  the 30s now-tick, zoom changes, or a host re-emitting data never re-jump the
+  viewport. If a day load moves the timeline's axis origin, the scroll position
+  adjusts to keep the viewed time in place. Switching channels (or returning
+  after viewing an empty-day channel) re-centres.
   The explicit "Now" button still animates (`behavior: 'smooth'`) since it is a
   deliberate user action. See `TimelineScrollController.maybeAutoFocus` /
   `focusCurrentProgram` in `epg-timeline-scroll.controller.ts`.

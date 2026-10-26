@@ -182,6 +182,52 @@ describe('TimelineScrollController', () => {
             expect(scrollSpy).toHaveBeenCalledTimes(1);
         });
 
+        it('keeps the viewed time when an earlier programme moves the axis origin', () => {
+            let axisStartMs = Date.UTC(2026, 8, 6);
+            const scroller = {
+                scrollLeft: 320,
+                clientWidth: 600,
+                scrollTo: jest.fn(({ left }: { left: number }) => {
+                    scroller.scrollLeft = left;
+                }),
+            } as unknown as HTMLElement;
+            const keepTime = new TimelineScrollController({
+                ribbon: () => scroller,
+                scale: () => 1,
+                axis: () => ({
+                    startMs: axisStartMs,
+                    endMs: axisStartMs + 86_400_000,
+                }),
+                blocks: () => [],
+                nowMs: () => axisStartMs + 60_000,
+                viewDayKey: () => getTodayEpgDateKey(),
+                commitDay: jest.fn(),
+                hasProgramsForDay: () => true,
+            });
+            const frame = jest
+                .spyOn(window, 'requestAnimationFrame')
+                .mockImplementation((callback) => {
+                    callback(0);
+                    return 1;
+                });
+            try {
+                const p = [programAt(0, 60)];
+                keepTime.maybeAutoFocus(scroller, p, 'playlist:channel');
+                scroller.scrollLeft = 320;
+                axisStartMs -= 86_400_000;
+
+                keepTime.maybeAutoFocus(scroller, p, 'playlist:channel');
+
+                expect(scroller.scrollLeft).toBe(320 + 1440);
+                expect(scroller.scrollTo).toHaveBeenLastCalledWith({
+                    left: 320 + 1440,
+                    behavior: 'auto',
+                });
+            } finally {
+                frame.mockRestore();
+            }
+        });
+
         it('restores position when the same channel ribbon remounts (collapse then expand)', () => {
             // Collapse → expand recreates the ribbon as a *new* element at
             // scrollLeft 0, so re-centre the viewed programme — but WITHOUT

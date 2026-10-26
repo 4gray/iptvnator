@@ -39,6 +39,7 @@ export class TimelineScrollController {
     private scrollFrame = 0;
     private lastFocusKey: string | null = null;
     private lastScroller: HTMLElement | null = null;
+    private lastAxisStartMs: number | null = null;
 
     constructor(private readonly ctx: TimelineScrollContext) {}
 
@@ -121,6 +122,7 @@ export class TimelineScrollController {
         if (!scroller || !key) {
             return;
         }
+        const axisStartMs = this.ctx.axis().startMs;
         if (key === this.lastFocusKey) {
             // Same channel already focused. A *new* scroller element means the
             // ribbon was unmounted then remounted (e.g. the inline panel was
@@ -131,7 +133,24 @@ export class TimelineScrollController {
             // we never yank the viewport out from under the user.
             if (scroller !== this.lastScroller) {
                 this.lastScroller = scroller;
+                this.lastAxisStartMs = axisStartMs;
                 this.restorePosition();
+            } else if (
+                this.lastAxisStartMs !== null &&
+                axisStartMs !== this.lastAxisStartMs
+            ) {
+                const shiftPx =
+                    ((this.lastAxisStartMs - axisStartMs) /
+                        TIMELINE_MINUTE_MS) *
+                    this.ctx.scale();
+                this.lastAxisStartMs = axisStartMs;
+                requestAnimationFrame(() => {
+                    if (this.ctx.ribbon() !== scroller) return;
+                    scroller.scrollTo({
+                        left: Math.max(0, scroller.scrollLeft + shiftPx),
+                        behavior: 'auto',
+                    });
+                });
             }
             return;
         }
@@ -144,11 +163,13 @@ export class TimelineScrollController {
         if (!this.ctx.hasProgramsForDay(todayKey)) {
             this.lastFocusKey = key;
             this.lastScroller = scroller;
+            this.lastAxisStartMs = axisStartMs;
             this.restorePosition();
             return;
         }
         this.lastFocusKey = key;
         this.lastScroller = scroller;
+        this.lastAxisStartMs = axisStartMs;
         this.ctx.commitDay(todayKey);
         // Instant: land already centred, no annoying scroll animation.
         this.focusCurrentProgram(false);
