@@ -6,7 +6,8 @@ import {
     recoverSeriesContext,
     seriesForEpisode,
 } from '@iptvnator/tv/util';
-import { focusKey, restoreFocus } from '@iptvnator/tv/ui';
+import { restoreFocus } from '@iptvnator/tv/ui';
+import { navigationOrigin } from './use-route-history';
 import type { TvModel } from './use-tv';
 
 export function useSeriesDetails(tv: TvModel) {
@@ -20,10 +21,12 @@ export function useSeriesDetails(tv: TvModel) {
         if (episode.sourceId !== tv.data.activeId || episode.kind !== 'episode')
             return;
         const job = lane.current.start();
-        const origin = {
-            focus: tv.fullscreen ? episode.id : focusKey(),
-            scroll: document.querySelector('main')?.scrollTop ?? 0,
-        };
+        const origin = tv.fullscreen
+            ? {
+                  ...tv.playbackOrigin,
+                  focus: tv.playbackOrigin.focus || episode.id,
+              }
+            : navigationOrigin();
         const report = () =>
             tv.setError(
                 'Could not find the series details. You can still continue this episode.',

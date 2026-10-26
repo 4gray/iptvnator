@@ -179,7 +179,16 @@ for (const provider of ['xtream', 'stalker'] as const)
             .toBeGreaterThan(7);
         await page.keyboard.press('Escape');
         await expect(page.locator('[data-focus="hero-resume"]')).toBeFocused();
+        await page.locator('[data-focus="hero-resume"]').click();
+        await page.locator('[data-focus="player-series-details"]').click();
+        await expect(page.locator('.episode').first()).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.locator('[data-focus="hero-resume"]')).toBeFocused();
         const resume = page.locator('.resume-card').first();
+        await resume.scrollIntoViewIfNeeded();
+        const resumeScroll = await page
+            .locator('main')
+            .evaluate((el) => el.scrollTop);
         await resume.click();
         await expect(
             page.locator('[data-focus="player-series-details"]')
@@ -192,6 +201,15 @@ for (const provider of ['xtream', 'stalker'] as const)
         await expect(page.locator('video[src], video source')).toHaveCount(0);
         await page.keyboard.press('Escape');
         await expect(resume).toBeFocused();
+        await expect
+            .poll(async () =>
+                Math.abs(
+                    (await page
+                        .locator('main')
+                        .evaluate((el) => el.scrollTop)) - resumeScroll
+                )
+            )
+            .toBeLessThan(8);
     });
 
 test('historical Home episodes recover exact series details and cover without replacing their saved position', async ({

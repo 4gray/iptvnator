@@ -485,3 +485,39 @@ the two recent series retain their parent names and kind. The 3 sources,
 after identity/command/progress fingerprints, with the expected Stalker session
 token refresh. Personal config is unchanged. These deployment observations use
 sanitized summaries; full private snapshots remain outside the checkout.
+
+### Playback-origin and live-launch hardening — prototype 0.1.24
+
+The next review of `f47a12f8e` finds two accepted regressions. Reopening an already
+playing live channel through Luma stops its video before the existing same-channel
+shortcut, leaving an empty player. The stop now applies only to movie/series
+detail launches. A real-playing WebM mock output exercises decoded live video in
+Chromium, while the separate native HLS selection coverage retains its scope.
+The new same-channel browser regression fails with the old stop and passes
+afterwards, checking fullscreen, a retained source and continued playback.
+
+Fullscreen series-details Back also assumed every launch came from a resume
+card, losing Home's hero control. A small playback-origin hook captures the
+initiating control and main scroll before asynchronous stream resolution, and
+restores that snapshot for player Back/Stop and series-details navigation.
+Both Xtream and Stalker hero regressions fail before the fix and pass after it;
+the resume-card round trip additionally asserts its original scroll position.
+The owning hook stays within the 400-line lint cap without a baseline exception.
+
+All three focused browser regressions, **113 TV unit tests**, nine affected lint
+targets, TV/spec/E2E types, **166 release notes** and guidance validation pass.
+No finding from either review is declined. The unchanged TMDB shared/Angular
+results and version-scoped device observations above remain applicable.
+
+The full 0.1.24 run passes **124/124 TV browser scenarios**. Its package and
+archived JavaScript both pass ES2018/unsupported-builtin checks:
+
+- IPK SHA-256: `20e013399dc7a1a7aa920dd607cdb4178fb2361cd8d19adc3c313bcf485b4fd7`.
+- Archived `index-COpQfkKa.js` SHA-256: `a8d29a139605cf93367ed095119ad55e2dc6df678512b5ad43a78aa88b816917`.
+
+The adjacent Luma task supplies a final native LG Home screenshot after 0.1.23
+integration; visual inspection confirms all eight pictures, parent series covers/
+names and the two channel logos. The local copy is retained at
+`dist/tv-verification/luma-artwork-ship-tv.jpg`. Native Luma and its rollback now
+leave the TV client package intact. The final committed fixes enter the next
+local review round; the 0.1.23 hardware observations retain that revision scope.

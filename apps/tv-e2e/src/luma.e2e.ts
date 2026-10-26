@@ -1,6 +1,90 @@
 import { expect, test } from '@playwright/test';
 import { addSource, nav, start } from './helpers';
 
+test('Luma reopening the current live channel retains fullscreen video and keeps playing', async ({
+    page,
+}) => {
+    let card: { id: string; sourceId: string; kind: string } | undefined;
+    await start(page);
+    // Chromium's test runtime uses the mock provider's WebM output. HLS MIME
+    // selection is exercised by the separate native-player coverage.
+    await page.route('**/xtream?**', async (route) => {
+        if (
+            !['get_account_info', '', 'get_profile'].includes(
+                new URL(route.request().url()).searchParams.get('action') ?? ''
+            )
+        )
+            return route.fallback();
+        const response = await route.fetch();
+        const body = await response.json();
+        body.payload.user_info.allowed_output_formats = ['webm'];
+        await route.fulfill({ response, json: body });
+    });
+    await page.route('**/luma-config.js', (route) =>
+        route.fulfill({
+            contentType: 'application/javascript',
+            body: 'window.__IPTVNATOR_LUMA__={url:"http://127.0.0.1:4455/api",instanceId:"luma-test"};',
+        })
+    );
+    await page.route('**/api/v1/instance', (route) =>
+        route.fulfill({
+            json: {
+                service: 'iptvnator',
+                apiVersion: 1,
+                storage: 'server',
+                auth: 'none',
+                instanceId: 'luma-test',
+            },
+        })
+    );
+    await page.route('**/api/v1/playlists?**', (route) =>
+        route.fulfill({ json: [] })
+    );
+    await page.route('**/api/v1/app-state/luma-home-v1', async (route) => {
+        card = JSON.parse(route.request().postDataJSON().value).favorites.find(
+            (m: { kind: string }) => m.kind === 'live'
+        );
+        await route.fulfill({ json: { success: true } });
+    });
+    await page.reload();
+    await addSource(page, 'xtream');
+    await nav(page, 'TV');
+    await page.locator('.channel').first().click();
+    await page.locator('video').evaluate((v: HTMLVideoElement) => {
+        v.loop = true;
+    });
+    await expect
+        .poll(() =>
+            page
+                .locator('video')
+                .evaluate((v: HTMLVideoElement) => v.currentTime)
+        )
+        .toBeGreaterThan(0.1);
+    await page.getByLabel('Favorite channel', { exact: true }).click();
+    await expect.poll(() => !!card, { timeout: 20000 }).toBe(true);
+    await page.getByLabel('Open fullscreen', { exact: true }).click();
+    const time = await page
+        .locator('video')
+        .evaluate((v: HTMLVideoElement) => v.currentTime);
+    await page.evaluate(
+        (luma) =>
+            document.dispatchEvent(
+                new CustomEvent('webOSRelaunch', { detail: { luma } })
+            ),
+        { action: 'open', id: card!.id, sourceId: card!.sourceId }
+    );
+    await expect(page.locator('video[src], video source')).not.toHaveCount(0);
+    await expect(page.locator('.player-controls')).toBeVisible();
+    await expect
+        .poll(() =>
+            page
+                .locator('video')
+                .evaluate((v: HTMLVideoElement) => v.currentTime)
+        )
+        .not.toBe(time);
+    await expect(page.locator('video')).toHaveJSProperty('paused', false);
+});
+
 test('M3U Luma cards publish opaque handles and open the same saved movie after relaunch', async ({
     page,
 }) => {

@@ -223,7 +223,8 @@ provider connection. Series cards show the parent name and open the saved parent
 and episode list. Historical episodes without a saved parent resume directly
 instead of opening an orphan episode detail. Movies open details and channels
 follow existing playback. A warm details launch stops existing playback and
-leaves fullscreen before navigating. Deleted entries show a recovery message.
+leaves fullscreen before navigating. Live launches retain the existing channel
+session when reopening that same channel. Deleted entries show a recovery message.
 Source credentials are cached locally just like manually entered TV sources.
 Custom header fields are retained for copying; only the existing M3U parser's
 User-Agent option is applied here. Native video still cannot attach arbitrary
@@ -477,7 +478,9 @@ Named unfinished entries recover context in the background on Home. Lookups
 are bounded to 20 pages per catalog and 15 seconds, preserve playback data,
 and offer an explicit retry through Details when recovery is unavailable.
 Fullscreen episode playback also has Series details: it saves/stops playback and
-opens the parent episode list. Returning restores the initiating Home card.
+opens the parent episode list. Playback captures its actual initiating control
+and main scroll position before resolution; returning from series details restores
+the hero Continue watching button or resume card that started it.
 Selection survives detail/player Back; source changes and relaunch start at the
 latest unfinished title. With no unfinished history, the first catalog movie
 (or first available item) remains the featured fallback. Artwork-only parent

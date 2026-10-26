@@ -29,7 +29,7 @@ export function useLuma(tv: TvModel) {
     const open = (item: Media) => {
         if (item.kind === 'episode') void tv.play(item);
         else {
-            tv.stop();
+            if (item.kind !== 'live') tv.stop();
             tv.open(item);
         }
     };

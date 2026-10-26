@@ -6,6 +6,9 @@ export interface NavigationOrigin {
     focus: string;
     scroll: number;
 }
+export function navigationOrigin(focus = focusKey()): NavigationOrigin {
+    return { focus, scroll: document.querySelector('main')?.scrollTop ?? 0 };
+}
 /** Shared origin for detail/person navigation, including remote focus and scroll. */
 export function useRouteHistory(route: Route, setRoute: (next: Route) => void) {
     const stack = useRef<{ route: Route; focus: string; scroll: number }[]>([]);
@@ -14,11 +17,7 @@ export function useRouteHistory(route: Route, setRoute: (next: Route) => void) {
     function visit(next: Route, focus: string, origin?: NavigationOrigin) {
         stack.current.push({
             route,
-            focus: origin?.focus ?? focusKey(),
-            scroll:
-                origin?.scroll ??
-                document.querySelector('main')?.scrollTop ??
-                0,
+            ...(origin ?? navigationOrigin()),
         });
         setRoute(next);
         restoreFocus(focus, '', 0, () => current.current === next);

@@ -4,7 +4,7 @@ import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
 import { firstRoute, type View } from './navigation';
 import { useRouteHistory, type NavigationOrigin } from './use-route-history';
-export type { View } from './navigation';
+import { usePlaybackOrigin } from './use-playback-origin';
 import { useUserData } from './user-data';
 import { useContent } from './use-content';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -30,7 +30,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         origin: string;
     }>();
     const { stack, visit } = useRouteHistory(route, setRoute);
-    const playerOrigin = useRef('');
+    const playerOrigin = usePlaybackOrigin();
     const playingCategory = useRef('');
     const pendingFocus = useRef('');
     const pendingScroll = useRef<number>();
@@ -180,11 +180,12 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     ) {
         if (!ready || item.sourceId !== data.activeId || signal?.aborted)
             return false;
+        const originAtStart = playerOrigin.capture(origin);
         playback.current.cancel();
         failedResolution.current = undefined;
         if (playing?.id === item.id && item.kind === 'live') {
             if (!fullscreen) {
-                playerOrigin.current = origin;
+                playerOrigin.remember(originAtStart);
                 setFullscreen(true);
                 restoreFocus('player-toggle');
             }
@@ -200,7 +201,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         try {
             const resolved = await provider.current!.resolve(item, job.signal);
             if (!lane.owns(job)) return false;
-            playerOrigin.current = origin;
+            playerOrigin.remember(originAtStart);
             setPlaying(item);
             if (item.kind === 'live') playingCategory.current = category;
             if (item.kind !== 'live') {
@@ -274,7 +275,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         if (fullscreen) {
             setFullscreen(false);
             if (playing?.kind !== 'live') stop();
-            restoreFocus(playerOrigin.current, 'detail-play');
+            playerOrigin.restore();
             return;
         }
         playback.current.cancel();
@@ -291,8 +292,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     function stopRemote() {
         stop();
         if (fullscreen)
-            restoreFocus(
-                playerOrigin.current,
+            playerOrigin.restore(
                 playing?.kind === 'live' ? playing.id : 'detail-play'
             );
     }
@@ -362,6 +362,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         library,
         guideClient: ready ? provider.current : undefined,
         retryPlayback,
+        playbackOrigin: playerOrigin.current,
         restoreKey: pendingFocus.current,
         restoreScroll: pendingScroll.current,
         backend,
