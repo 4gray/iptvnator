@@ -1,4 +1,5 @@
 import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
+import type { XtreamCachedContentItem } from './pwa-cached-content';
 import {
     TypedXtreamCollectionRef,
     XtreamCollectionRef,
@@ -7,6 +8,21 @@ import {
 } from './xtream-data-source.interface';
 
 export type CollectionKey = number | string;
+
+export function cachedContentIdentity(
+    item: XtreamCachedContentItem,
+    type?: 'live' | 'movie' | 'series'
+): number {
+    const preferredId =
+        item.xtream_id ??
+        (type === 'series' ? item.series_id : item.stream_id) ??
+        item.stream_id ??
+        item.series_id ??
+        item.id;
+    const numericId = Number(preferredId);
+    return Number.isFinite(numericId) && numericId > 0 ? numericId : -1;
+}
+
 export interface StoredRecentItem {
     readonly id: CollectionKey;
     readonly viewedAt: string;

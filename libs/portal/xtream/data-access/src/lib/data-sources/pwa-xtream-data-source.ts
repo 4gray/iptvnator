@@ -41,6 +41,7 @@ import {
 
 import {
     CollectionKey,
+    cachedContentIdentity,
     type CollectionIdentity,
     collectionRefIdentity,
     collectionKey,
@@ -51,6 +52,7 @@ import {
 } from './pwa-collection-identity';
 import { PwaCollectionStorage } from './pwa-collection-storage';
 import { PwaCollectionCatalog } from './pwa-collection-catalog';
+import type { XtreamCachedContentItem } from './pwa-cached-content';
 
 /**
  * Storage keys for PWA persistence
@@ -59,29 +61,6 @@ const STORAGE_KEYS = {
     PLAYLISTS: 'xtream-playlists',
     PLAYBACK_POSITIONS: XTREAM_USER_DATA_KEYS.playbackPositions,
 };
-
-interface XtreamCachedContentItem {
-    readonly added?: string;
-    readonly backdrop_url?: string | null;
-    readonly category_id?: string | number;
-    readonly cover?: string;
-    readonly cover_big?: string;
-    readonly id?: number | string;
-    readonly last_modified?: string;
-    readonly movie_image?: string;
-    readonly name?: string;
-    readonly poster?: string;
-    readonly poster_url?: string;
-    readonly rating?: string | number;
-    readonly series_id?: number;
-    readonly stream_display_name?: string;
-    readonly stream_id?: number;
-    readonly stream_icon?: string;
-    readonly title?: string;
-    readonly type?: string;
-    readonly viewed_at?: string;
-    readonly xtream_id?: number | string;
-}
 
 type StoredXtreamPlaylistData = Omit<XtreamPlaylistData, 'password'> & {
     readonly password?: string;
@@ -628,7 +607,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         item: XtreamCachedContentItem,
         type: 'live' | 'movie' | 'series'
     ): XtreamContentItem {
-        const xtreamId = this.getItemIdentity(item, type);
+        const xtreamId = cachedContentIdentity(item, type);
         const title = item.title ?? item.name ?? item.stream_display_name ?? '';
         const posterUrl =
             item.poster_url ??
@@ -652,20 +631,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             type,
             xtream_id: xtreamId,
         } as XtreamContentItem;
-    }
-
-    private getItemIdentity(
-        item: XtreamCachedContentItem,
-        type?: 'live' | 'movie' | 'series'
-    ): number {
-        const preferredId =
-            item.xtream_id ??
-            (type === 'series' ? item.series_id : item.stream_id) ??
-            item.stream_id ??
-            item.series_id ??
-            item.id;
-        const numericId = Number(preferredId);
-        return Number.isFinite(numericId) && numericId > 0 ? numericId : -1;
     }
 
     // =========================================================================
@@ -731,18 +696,19 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
 
         const expected = collectionRefIdentity(contentId);
-        const { addPwaFavorite, preparePwaFavoriteCatalog } =
-            await import('./pwa-favorite-write');
-        await preparePwaFavoriteCatalog(
+        const { savePwaFavorite } = await import('./pwa-favorite-write');
+        await savePwaFavorite(
             this.collectionStorage,
             playlistId,
             normalizedContentId,
             expected,
-            (catalogOnly) =>
+            (catalogOnly, identity) =>
                 this.getCollectionItemsById(
                     playlistId,
                     [normalizedContentId],
-                    catalogOnly
+                    catalogOnly,
+                    undefined,
+                    identity ? { [normalizedContentId]: identity } : undefined
                 ).get(normalizedContentId),
             () =>
                 this.getCollectionItemsWithHydration(playlistId, [
@@ -753,27 +719,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                     normalizedContentId,
                     playlistId,
                     patch
-                )
-        );
-        addPwaFavorite(
-            this.collectionStorage,
-            playlistId,
-            normalizedContentId,
-            this.getCollectionItemsById(
-                playlistId,
-                [normalizedContentId],
-                true,
-                undefined,
-                expected ? { [normalizedContentId]: expected } : undefined
-            ).get(normalizedContentId),
+                ),
             (ids) =>
                 this.getMatchingCollectionKeys(
                     playlistId,
                     ids,
                     normalizedContentId
                 ),
-            backdropUrl,
-            expected
+            backdropUrl
         );
     }
 
@@ -1207,7 +1160,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             const content = this.contentCache.get(cacheKey) || [];
 
             const found = content.find((item) => {
-                const itemXtreamId = this.getItemIdentity(item, type);
+                const itemXtreamId = cachedContentIdentity(item, type);
                 return itemXtreamId === xtreamId;
             });
 
@@ -1258,27 +1211,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         patch: ContentMetadataPatch
     ): Promise<void> {
-        const { enrichPwaCatalogMetadata } =
+        const { enrichPwaCatalogCache } =
             await import('./pwa-content-metadata');
-        for (const type of this.contentTypes) {
-            const cacheKey = `${playlistId}-${type}-content`;
-            const content = this.contentCache.get(cacheKey);
-            if (content)
-                this.contentCache.set(
-                    cacheKey,
-                    content.map((item) =>
-                        collectionKey({
-                            id: this.getItemIdentity(item, type),
-                            type,
-                        }) === key
-                            ? enrichPwaCatalogMetadata(
-                                  item as XtreamContentItem,
-                                  patch
-                              )
-                            : item
-                    )
-                );
-        }
+        enrichPwaCatalogCache(
+            this.contentCache,
+            playlistId,
+            key,
+            patch
+        );
     }
 
     // =========================================================================

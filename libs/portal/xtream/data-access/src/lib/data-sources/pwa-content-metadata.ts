@@ -4,14 +4,48 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     collectionSnapshotMatchesContent,
+    collectionKey,
+    cachedContentIdentity,
     itemCollectionKey,
     mergeCollectionItem,
     normalizeCollectionIdentity,
     type CollectionKey,
 } from './pwa-collection-identity';
 import type { PwaCollectionStorage } from './pwa-collection-storage';
-import type { XtreamContentItem } from './xtream-data-source.interface';
+import {
+    XTREAM_CONTENT_TYPES,
+    type XtreamContentItem,
+} from './xtream-data-source.interface';
+import type { XtreamCachedContentItem } from './pwa-cached-content';
 import { rememberColdFavoriteMetadata } from './pwa-cold-favorite';
+
+/** Cache enrichment loads alongside detail metadata and explicit Favorite writes. */
+export function enrichPwaCatalogCache(
+    cache: Map<string, XtreamCachedContentItem[]>,
+    playlistId: string,
+    key: CollectionKey,
+    patch: ContentMetadataPatch
+): void {
+    for (const type of XTREAM_CONTENT_TYPES) {
+        const cacheKey = `${playlistId}-${type}-content`;
+        const content = cache.get(cacheKey);
+        if (content)
+            cache.set(
+                cacheKey,
+                content.map((item) =>
+                    collectionKey({
+                        id: cachedContentIdentity(item, type),
+                        type,
+                    }) === key
+                        ? enrichPwaCatalogMetadata(
+                              item as XtreamContentItem,
+                              patch
+                          )
+                        : item
+                )
+            );
+    }
+}
 
 /** Detail-only module: catalog evidence and each saved identity retain separate ownership. */
 export function enrichPwaContentMetadata(
