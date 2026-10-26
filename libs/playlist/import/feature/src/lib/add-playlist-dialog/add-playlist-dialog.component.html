@@ -5,7 +5,7 @@
     >
         <div
             class="apd-method-grid"
-            role="radiogroup"
+            appRadioGroup
             [attr.aria-label]="
                 'HOME.ADD_PLAYLIST.METHOD_GROUP_LABEL' | translate
             "
@@ -13,8 +13,7 @@
             @for (opt of methodOptions; track opt.value) {
                 <button
                     type="button"
-                    role="radio"
-                    [attr.aria-checked]="method() === opt.value"
+                    [appRadioOption]="method() === opt.value"
                     class="apd-method"
                     [class.active]="method() === opt.value"
                     (click)="method.set(opt.value)"

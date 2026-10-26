@@ -39,6 +39,7 @@ export * from './lib/channel-scroll-focus/channel-scroll-focus.directive';
 export * from './lib/scroll-position/create-scroll-position-preserver';
 export * from './lib/category-lock-menu/category-lock-menu.component';
 export * from './lib/menu-item-radio/menu-item-radio.directive';
+export * from './lib/radio-group/radio-group.directive';
 
 export * from './lib/detail-ui/cast-crew.util';
 export * from './lib/detail-ui/cast-crew-row.component';

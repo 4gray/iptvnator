@@ -67,6 +67,7 @@
                                 type="button"
                                 (click)="saveAndCheckForAppUpdate.emit()"
                                 [disabled]="isAppUpdateBusy() || form()!.invalid"
+                                class="settings-primary-button"
                                 data-test-id="app-update-save-and-check"
                             >
                                 <mat-icon>save</mat-icon>
@@ -83,7 +84,7 @@
                             </button>
                         } @else {
                             <button
-                                mat-stroked-button
+                                mat-flat-button
                                 type="button"
                                 (click)="checkForAppUpdate.emit()"
                                 [disabled]="isAppUpdateBusy()"
@@ -184,6 +185,7 @@
                                 mat-flat-button
                                 type="button"
                                 (click)="downloadAppUpdate.emit()"
+                                class="settings-primary-button"
                                 data-test-id="app-update-download"
                             >
                                 <mat-icon>download</mat-icon>
@@ -195,6 +197,7 @@
                                 mat-flat-button
                                 type="button"
                                 (click)="installAppUpdate.emit()"
+                                class="settings-primary-button"
                                 data-test-id="app-update-install"
                             >
                                 <mat-icon>restart_alt</mat-icon>
@@ -203,7 +206,7 @@
                         }
                         @if (canOpenManualAppUpdate()) {
                             <button
-                                mat-stroked-button
+                                mat-flat-button
                                 type="button"
                                 (click)="openManualAppUpdate.emit()"
                                 data-test-id="app-update-open-release"
@@ -277,7 +280,7 @@
                                     }}
                                     <div class="settings-callout__actions">
                                         <button
-                                            mat-stroked-button
+                                            mat-flat-button
                                             type="button"
                                             (click)="openBackup.emit()"
                                             data-test-id="app-update-open-backup"
@@ -395,7 +398,7 @@
             </div>
             <div class="support-card__actions">
                 <a
-                    mat-stroked-button
+                    mat-flat-button
                     class="support-btn support-btn--sponsors"
                     href="https://github.com/sponsors/4gray"
                     target="_blank"
@@ -406,7 +409,7 @@
                     GitHub Sponsors
                 </a>
                 <a
-                    mat-stroked-button
+                    mat-flat-button
                     class="support-btn support-btn--kofi"
                     href="https://ko-fi.com/4gray"
                     target="_blank"

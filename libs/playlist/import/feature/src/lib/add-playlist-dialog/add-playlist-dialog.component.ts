@@ -22,6 +22,8 @@ import {
     DialogFooterDirective,
     DialogFooterStartDirective,
     DialogShellComponent,
+    RadioGroupDirective,
+    RadioOptionDirective,
 } from '@iptvnator/ui/components';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -63,6 +65,8 @@ const METHOD_BY_CANDIDATE_KIND: Record<
 
 @Component({
     imports: [
+        RadioGroupDirective,
+        RadioOptionDirective,
         AutoImportComponent,
         DialogFooterDirective,
         DialogFooterStartDirective,
