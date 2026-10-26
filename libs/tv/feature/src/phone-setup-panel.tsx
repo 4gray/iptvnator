@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 
 export function PhoneSetupPanel({
@@ -7,8 +8,36 @@ export function PhoneSetupPanel({
     compact: boolean;
     children: ComponentChildren;
 }) {
-    return (
+    const panel = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        if (!compact) return;
+        let last: HTMLElement | undefined;
+        const keepFocus = (event: FocusEvent) => {
+            const root = panel.current;
+            if (!root) return;
+            const target = event.target as HTMLElement;
+            if (root.contains(target)) {
+                last = target;
+                return;
+            }
+            event.stopPropagation();
+            const retained =
+                last?.isConnected && !last.matches(':disabled')
+                    ? last
+                    : undefined;
+            (
+                retained ??
+                root.querySelector<HTMLElement>('button:not(:disabled)') ??
+                root
+            ).focus();
+        };
+        document.addEventListener('focusin', keepFocus, true);
+        return () => document.removeEventListener('focusin', keepFocus, true);
+    }, [compact]);
+    const content = (
         <div
+            ref={panel}
+            tabIndex={compact ? -1 : undefined}
             class="phone-pairing"
             data-tv-modal={compact || undefined}
             role={compact ? 'dialog' : undefined}
@@ -47,5 +76,18 @@ export function PhoneSetupPanel({
         >
             {children}
         </div>
+    );
+    return compact ? (
+        <div
+            class="phone-modal-backdrop"
+            onMouseDown={(event) => {
+                if (event.target === event.currentTarget)
+                    event.preventDefault();
+            }}
+        >
+            {content}
+        </div>
+    ) : (
+        content
     );
 }

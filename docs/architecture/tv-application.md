@@ -148,7 +148,10 @@ Right/OK enters the category's last available control, Left returns to its categ
 except in text fields, and Back returns to categories before leaving Settings.
 Native text caret and select-choice keys retain the shared remote contract.
 Phone setup is a compact action available above every category; an open QR session
-owns modal directional focus. Its cancellation and committed-write rules remain
+owns modal directional and Tab focus. A viewport backdrop blocks background
+pointer access, and a focus guard rejects programmatic focus outside the dialog.
+Restoration ignores disabled controls and restores each category's saved scroll
+when its panel becomes visible. Its cancellation and committed-write rules remain
 unchanged. Panel layout uses Chromium-68-compatible flex and explicit dimensions.
 
 Settings has its own purpose-bound QR session for layout, EPG and TMDB

@@ -156,3 +156,20 @@ pass. The TV/feature/UI/data-access/util/tests/E2E/phone lint and available
 typechecks (12 tasks), production build, ES2018 audit, packaging, agent guidance
 and release notes validation pass again. The package remains the local 0.1.15
 prototype; no public package with that version has been published.
+
+
+The completed second local Codex review identifies three additional issues:
+background pointer/programmatic focus can escape the QR modal, disabled controls
+can defeat focus restoration, and a category selected after remount loses its
+remembered scroll. Each has a failing pre-fix browser regression. A viewport
+backdrop plus document focus guard retains modal focus; restoration excludes
+disabled controls and restores scroll whenever a category becomes visible.
+All 10 focused Settings/phone scenarios pass after the fixes.
+
+
+After the modal/restoration fixes, all 85 TV unit tests and all 100 TV browser
+E2E cases pass; lint/typechecks, ES2018 verification and packaging also pass.
+The corrected 0.1.15 IPK SHA-256 is
+`e6ee58d43a93fa0f2765c8822b4e57fd5575925fae40e105105fe33adde17217`
+(bundle `index-E4_eqUog.js`). This supersedes the initial local 0.1.15 artifact
+for publication; the earlier on-device checks above describe the initial build.

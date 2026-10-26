@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 
 export const settingsCategories = [
@@ -42,6 +42,9 @@ export function useSettingsNavigation(memory: SettingsMemory) {
             panel()
         )?.focus();
     };
+    useLayoutEffect(() => {
+        if (panel()) panel()!.scrollTop = memory.scroll[category] ?? 0;
+    }, [category, memory]);
     useEffect(() => {
         const frame = requestAnimationFrame(() => {
             const target = Array.from(
@@ -50,11 +53,10 @@ export function useSettingsNavigation(memory: SettingsMemory) {
             ).find(
                 (element) =>
                     element.dataset.focus === memory.focus &&
-                    !!element.offsetHeight
+                    !!element.offsetHeight &&
+                    !element.matches(':disabled')
             );
             (target ?? categoryButton())?.focus();
-            if (panel())
-                panel()!.scrollTop = memory.scroll[memory.category] ?? 0;
         });
         return () => cancelAnimationFrame(frame);
     }, [memory]);

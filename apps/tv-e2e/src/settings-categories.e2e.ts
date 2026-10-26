@@ -275,3 +275,74 @@ test('dynamic backend results keep control focus keys unique and stable across r
     await nav(page, 'Settings');
     await expect(probe).toBeFocused();
 });
+
+test('phone modal blocks pointer and programmatic focus behind the QR', async ({
+    page,
+}) => {
+    await start(page);
+    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await page.getByRole('button', { name: 'Check and connect' }).click();
+    await expect(page.locator('.connection-status')).toHaveText('Connected');
+    await nav(page, 'Settings');
+    await page
+        .getByRole('button', { name: 'Set up from phone', exact: true })
+        .click();
+    const dialog = page.getByRole('dialog');
+    const close = dialog.getByRole('button', { name: 'Close setup' });
+    await expect(close).toBeFocused();
+    const category = page.getByRole('tab', { name: 'Metadata', exact: false });
+    const box = (await category.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(close).toBeFocused();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(close).toBeFocused();
+    await category.focus();
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(
+        page.getByRole('heading', { name: 'Settings', exact: true })
+    ).toBeVisible();
+});
+
+test('return falls back to the category when the remembered control is disabled', async ({
+    page,
+}) => {
+    await start(page);
+    await nav(page, 'Settings');
+    const category = page.getByRole('tab', { name: 'Metadata', exact: false });
+    await category.click();
+    await page
+        .getByLabel('TMDB API key or read access token')
+        .fill('unsaved-fixture');
+    await page
+        .getByRole('button', { name: 'Check TMDB key', exact: true })
+        .focus();
+    await nav(page, 'Home');
+    await nav(page, 'Settings');
+    await expect(
+        page.getByRole('button', { name: 'Check TMDB key', exact: true })
+    ).toBeDisabled();
+    await expect(category).toBeFocused();
+});
+
+test('return preserves scroll for categories selected after the initial restored panel', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await start(page);
+    await nav(page, 'Settings');
+    const connection = page.locator('#settings-panel-connection');
+    await connection.evaluate((panel) => {
+        panel.scrollTop = panel.scrollHeight;
+    });
+    const scroll = await connection.evaluate((panel) => panel.scrollTop);
+    expect(scroll).toBeGreaterThan(100);
+    await page.getByRole('tab', { name: 'Metadata', exact: false }).click();
+    await nav(page, 'Home');
+    await nav(page, 'Settings');
+    await page.getByRole('tab', { name: 'Connection', exact: false }).click();
+    await expect
+        .poll(() => connection.evaluate((panel) => panel.scrollTop))
+        .toBe(scroll);
+});
