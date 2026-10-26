@@ -120,11 +120,30 @@ export class SourceHealthService {
         let job = this.jobs.get(key);
         if (options.fresh && job?.running && !job.explicit) {
             const deadlineAt = options.deadlineAt ?? Date.now() + 15000;
-            return job.promise.then(() =>
-                this.identities.get(p._id) === key
-                    ? this.check(p, { ...options, deadlineAt })
-                    : { ...sourceHealthUnknown('cancelled'), checkedAt: 0 }
-            );
+            const background = job;
+            // Wait as a consumer: the surface that started the background
+            // attempt can close before it escalates, and that must not cancel
+            // the Retry the user is still waiting on.
+            const user = Symbol();
+            background.users.add(user);
+            const release = () => background.users.delete(user);
+            options.signal?.addEventListener('abort', release, { once: true });
+            return job.promise
+                .then((snapshot) => {
+                    if (this.identities.get(p._id) !== key)
+                        return {
+                            ...sourceHealthUnknown('cancelled'),
+                            checkedAt: 0,
+                        };
+                    // Escalated after this request, so its explicit attempt is fresh.
+                    return background.explicit
+                        ? snapshot
+                        : this.check(p, { ...options, deadlineAt });
+                })
+                .finally(() => {
+                    release();
+                    options.signal?.removeEventListener('abort', release);
+                });
         }
         if (!job) {
             let resolve!: Job['resolve'];
@@ -226,21 +245,22 @@ export class SourceHealthService {
         }
     }
     private async run(job: Job) {
-        const startedAt = Date.now();
         const initial = this.snapshots().get(job.key);
-        const deadlineAt =
-            job.deadlineAt ?? startedAt + (job.explicit ? 15000 : 5000);
-        let snapshot: SourceHealthSnapshot;
-        try {
-            const result =
-                deadlineAt <= startedAt
-                    ? sourceHealthUnknown('timeout')
-                    : await this.checkWithinDeadline(job, deadlineAt);
-            snapshot = { ...result, checkedAt: Date.now() };
-        } catch (error) {
-            snapshot = { ...sourceHealthError(error), checkedAt: Date.now() };
-            if (snapshot.reason === 'cancelled' && Date.now() >= deadlineAt)
-                snapshot.reason = 'timeout';
+        let snapshot = await this.attempt(job);
+        // Five seconds is a background budget, not a verdict: at startup
+        // many accounts are asked at once and providers that share a backend
+        // slow every answer down. Retry as the user's Retry would (fifteen
+        // seconds) before calling the source unresponsive.
+        if (
+            !job.explicit &&
+            snapshot.reason === 'timeout' &&
+            this.jobs.get(job.key) === job
+        ) {
+            job.explicit = true;
+            job.deadlineAt = Date.now() + 15000;
+            job.requestId = crypto.randomUUID();
+            job.controller = new AbortController();
+            snapshot = await this.attempt(job);
         }
         if (job.users.size && [...this.identities.values()].includes(job.key)) {
             const previous = this.snapshots().get(job.key);
@@ -258,23 +278,45 @@ export class SourceHealthService {
         job.resolve(snapshot);
         this.drain();
     }
+    private async attempt(job: Job): Promise<SourceHealthSnapshot> {
+        const startedAt = Date.now();
+        const deadlineAt =
+            job.deadlineAt ?? startedAt + (job.explicit ? 15000 : 5000);
+        try {
+            const result =
+                deadlineAt <= startedAt
+                    ? sourceHealthUnknown('timeout')
+                    : await this.checkWithinDeadline(job, deadlineAt);
+            return { ...result, checkedAt: Date.now() };
+        } catch (error) {
+            const snapshot = {
+                ...sourceHealthError(error),
+                checkedAt: Date.now(),
+            };
+            if (snapshot.reason === 'cancelled' && Date.now() >= deadlineAt)
+                snapshot.reason = 'timeout';
+            return snapshot;
+        }
+    }
     private async checkWithinDeadline(
         job: Job,
         deadlineAt: number
     ): Promise<SourceHealthResult> {
+        // This attempt's transport: an escalation replaces the job's.
+        const { controller, requestId } = job;
         let timer: ReturnType<typeof setTimeout> | undefined;
         let onAbort: (() => void) | undefined;
         const stopped = new Promise<never>((_, reject) => {
             onAbort = () => reject(new Error('cancelled'));
-            job.controller.signal.addEventListener('abort', onAbort, {
+            controller.signal.addEventListener('abort', onAbort, {
                 once: true,
             });
             timer = setTimeout(
                 () => {
                     // Also cancel the transport; the race bounds waits before a socket exists.
                     reject(new Error('deadline exceeded'));
-                    job.controller.abort();
-                    void window.electron.cancelSourceProbe(job.requestId);
+                    controller.abort();
+                    void window.electron.cancelSourceProbe(requestId);
                 },
                 Math.max(0, deadlineAt - Date.now())
             );
@@ -283,15 +325,15 @@ export class SourceHealthService {
             return await Promise.race([
                 this.probes.check(
                     job.playlist,
-                    { requestId: job.requestId, deadlineAt },
-                    job.controller.signal
+                    { requestId, deadlineAt },
+                    controller.signal
                 ),
                 stopped,
             ]);
         } finally {
             clearTimeout(timer);
             if (onAbort)
-                job.controller.signal.removeEventListener('abort', onAbort);
+                controller.signal.removeEventListener('abort', onAbort);
         }
     }
     private publish(key: string, result: SourceHealthSnapshot) {

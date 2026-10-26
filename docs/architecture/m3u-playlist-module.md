@@ -1275,7 +1275,6 @@ cannot start after the chunk arrives or survive an EPG off/on cycle.
 Re-enabling restores ordinary loading and freshness checks without a restart.
 Archive browsing through the programme guide is unavailable while EPG is off.
 
-
 ### Xtream channel-row programme refresh
 
 The "current programme" line under each Xtream Live TV channel used to be
@@ -1293,7 +1292,7 @@ rules, each of which exists to avoid a specific failure:
   programme that is **on air or upcoming** may replace it. A finished
   programme is never re-applied — it would keep presenting itself as current,
   and the earliest-item fallback that fills a blank row on first paint would
-  move an advanced row *backwards*.
+  move an advanced row _backwards_.
 - A cached guide whose programmes have **all** ended is dropped
   (`EpgQueueService.invalidate`) and refetched, because the queue skips any
   stream that still holds a cached answer. An **empty** answer means the
@@ -2114,7 +2113,13 @@ Checks are demand-driven, never a startup readiness barrier: four at a time,
 two per origin, shared between surfaces. Known results remain visible during
 refresh (60-second evidence TTL, 15-second uncertain-result TTL). Background
 requests have a five-second aggregate deadline; explicit checks have fifteen
-seconds, including a handoff from a running background check. M3U streams are
+seconds, including a handoff from a running background check. A background
+check that runs out of its five seconds is not reported: it continues in the
+same slot as an explicit check (new request ID and deadline, as Retry would),
+and an explicit check handed off to it takes that result. Startup asks every
+account at once, and providers that share a backend then answer slower than
+five seconds, so reporting the first timeout listed working sources as not
+responding until the user pressed Retry. M3U streams are
 destroyed on completion, limit, error or cancellation,
 including when a provider ignores Range. Every intermediate redirect stream is
 closed before the next hop is validated or requested. Header/TLS and validated redirect
@@ -2222,7 +2227,6 @@ of them and `enqueueAll` queues the batch, because stopping at the first match
 would silently drop the rest of the selection. Adding an exec code to
 `linux.executableArgs` would suppress the `%U` but also pass that code to the
 app as a real argument, so it is not an option.
-
 
 ## Optional shared favorites
 

@@ -181,16 +181,99 @@ describe('SourceHealthService', () => {
     it('includes the background handoff in the explicit fifteen-second budget', async () => {
         jest.useFakeTimers();
         try {
-            probe.mockImplementation(() => new Promise(() => undefined));
+            let resolveBackground!: (r: SourceHealthResult) => void;
+            probe
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((r) => {
+                            resolveBackground = r;
+                        })
+                )
+                .mockImplementation(() => new Promise(() => undefined));
             const source = playlist('a');
             const start = Date.now();
             const background = service.check(source);
             const explicit = service.check(source, { fresh: true });
-            await jest.advanceTimersByTimeAsync(5000);
+            await jest.advanceTimersByTimeAsync(2000);
+            resolveBackground(active);
             await background;
             expect(probe.mock.calls[1][1].deadlineAt).toBe(start + 15000);
-            await jest.advanceTimersByTimeAsync(10000);
+            await jest.advanceTimersByTimeAsync(13000);
             expect(await explicit).toMatchObject({ reason: 'timeout' });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+    it('retries a background timeout with the explicit budget before reporting it', async () => {
+        jest.useFakeTimers();
+        try {
+            let resolveRetry!: (r: SourceHealthResult) => void;
+            probe
+                .mockImplementationOnce(() => new Promise(() => undefined))
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((r) => {
+                            resolveRetry = r;
+                        })
+                );
+            const source = playlist('slow');
+            const start = Date.now();
+            const check = service.check(source);
+            await jest.advanceTimersByTimeAsync(5000);
+            // The first attempt is cancelled, but no timeout is published.
+            expect(probe.mock.calls[0][2].aborted).toBe(true);
+            expect(window.electron.cancelSourceProbe).toHaveBeenCalledWith(
+                probe.mock.calls[0][1].requestId
+            );
+            expect(service.get(source)?.state).toBe('checking');
+            expect(probe.mock.calls[1][1].deadlineAt).toBe(start + 20000);
+            expect(probe.mock.calls[1][1].requestId).not.toBe(
+                probe.mock.calls[0][1].requestId
+            );
+            await jest.advanceTimersByTimeAsync(4000);
+            resolveRetry(active);
+            expect(await check).toMatchObject(active);
+            expect(service.get(source)).toMatchObject(active);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+    it('keeps a waiting Retry alive when its background surface closes', async () => {
+        jest.useFakeTimers();
+        try {
+            probe.mockImplementation(() => new Promise(() => undefined));
+            const source = playlist('slow');
+            const surface = new AbortController();
+            const background = service.check(source, {
+                signal: surface.signal,
+            });
+            const retry = service.check(source, { fresh: true });
+            await jest.advanceTimersByTimeAsync(1000);
+            // Closing the indicator must not cancel the Retry still waiting.
+            surface.abort();
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(probe).toHaveBeenCalledTimes(1);
+            // The background attempt escalates for it instead of restarting.
+            await jest.advanceTimersByTimeAsync(4000);
+            expect(probe).toHaveBeenCalledTimes(2);
+            await jest.advanceTimersByTimeAsync(15000);
+            expect(await retry).toMatchObject({ reason: 'timeout' });
+            await background;
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+    it('hands an explicit check the escalated attempt of its background check', async () => {
+        jest.useFakeTimers();
+        try {
+            probe.mockImplementation(() => new Promise(() => undefined));
+            const source = playlist('a');
+            const background = service.check(source);
+            const explicit = service.check(source, { fresh: true });
+            await jest.advanceTimersByTimeAsync(20000);
+            expect(await background).toMatchObject({ reason: 'timeout' });
+            expect(await explicit).toMatchObject({ reason: 'timeout' });
+            expect(probe).toHaveBeenCalledTimes(2);
         } finally {
             jest.useRealTimers();
         }
@@ -200,8 +283,8 @@ describe('SourceHealthService', () => {
         jest.useFakeTimers();
         try {
             probe.mockImplementation(() => new Promise(() => undefined));
-            const check = service.check(playlist('slow'));
-            jest.advanceTimersByTime(5000);
+            const check = service.check(playlist('slow'), { fresh: true });
+            jest.advanceTimersByTime(15000);
             expect(await check).toMatchObject({
                 reason: 'timeout',
                 confirmedInactive: false,
