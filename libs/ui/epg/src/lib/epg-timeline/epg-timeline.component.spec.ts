@@ -88,6 +88,12 @@ describe('EpgTimelineComponent', () => {
         expect(component.emptyStateReason()).toBe('channel-unmapped');
     });
 
+    it('keeps day navigation when coverage exists outside the loaded window', () => {
+        setInputs({ programs: [], hasProgramsElsewhere: true });
+        expect(component.renderState()).toBe('empty-day');
+        expect(component.showDateStepper()).toBe(true);
+    });
+
     it('honours an explicit empty reason from the host', () => {
         setInputs({ programs: [], emptyReason: 'provider-no-epg' });
         expect(component.renderState()).toBe('provider-no-epg');
@@ -120,17 +126,21 @@ describe('EpgTimelineComponent', () => {
     });
 
     it('shows the ribbon controls (Now + zoom) only while a ribbon renders', () => {
+        const hasRibbonControls = () => {
+            fixture.detectChanges();
+            return !!fixture.nativeElement.querySelector('.epg-timeline__jump');
+        };
         setInputs({ programs: [programAt(0, 120, 'Now')] });
-        expect(component.showRibbonControls()).toBe(true);
+        expect(hasRibbonControls()).toBe(true);
 
         setInputs({ programs: [programAt(3 * 1440, 60)] }); // empty-day
-        expect(component.showRibbonControls()).toBe(false);
+        expect(hasRibbonControls()).toBe(false);
 
         setInputs({ programs: [] }); // channel-unmapped
-        expect(component.showRibbonControls()).toBe(false);
+        expect(hasRibbonControls()).toBe(false);
 
         setInputs({ programs: [programAt(0, 120)], loading: true });
-        expect(component.showRibbonControls()).toBe(false);
+        expect(hasRibbonControls()).toBe(false);
     });
 
     it('shows the date stepper for ribbon + empty-day, hides it with no EPG anywhere', () => {

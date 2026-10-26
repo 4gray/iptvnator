@@ -81,6 +81,26 @@ describe('EpgListScrollController (channel-select auto-scroll)', () => {
         expect(controller.updateNowStrip).toHaveBeenCalled();
     });
 
+    it('does not return to today when the same channel loads another day', () => {
+        const list = {} as HTMLElement;
+        controller.maybeAutoScroll(
+            list,
+            [programAt(0, 120)],
+            true,
+            'ch',
+            'source:ch'
+        );
+        controller.maybeAutoScroll(
+            list,
+            [programAt(1440, 120)],
+            false,
+            'ch',
+            'source:ch'
+        );
+        expect(commitToday).not.toHaveBeenCalled();
+        expect(scrollSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('restores the now row when the same channel list remounts (collapse then expand)', () => {
         const programs = [programAt(0, 120)];
         controller.maybeAutoScroll({} as HTMLElement, programs, true, 'ch'); // mount

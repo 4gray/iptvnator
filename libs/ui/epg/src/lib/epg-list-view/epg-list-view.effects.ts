@@ -11,6 +11,7 @@ export interface EpgListViewEffectsContext {
     readonly programs: () => readonly EpgProgram[];
     readonly isViewToday: () => boolean;
     readonly channelName: () => string;
+    readonly contextKey: () => string | null;
     readonly scroll: EpgListScrollController;
 }
 
@@ -45,8 +46,15 @@ export function registerEpgListViewEffects(
         const programs = ctx.programs();
         const today = ctx.isViewToday();
         const channel = ctx.channelName();
+        const contextKey = ctx.contextKey();
         untracked(() =>
-            ctx.scroll.maybeAutoScroll(list, programs, today, channel)
+            ctx.scroll.maybeAutoScroll(
+                list,
+                programs,
+                today,
+                channel,
+                contextKey
+            )
         );
     });
 }

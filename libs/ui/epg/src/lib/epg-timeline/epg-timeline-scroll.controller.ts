@@ -112,9 +112,11 @@ export class TimelineScrollController {
      */
     maybeAutoFocus(
         scroller: HTMLElement | undefined,
-        programs: readonly EpgProgram[]
+        programs: readonly EpgProgram[],
+        contextKey?: string | null
     ): void {
-        const key = programsFocusKey(programs);
+        const key =
+            programs.length > 0 ? contextKey || programsFocusKey(programs) : '';
         // Nothing to centre without a ribbon or programmes.
         if (!scroller || !key) {
             return;

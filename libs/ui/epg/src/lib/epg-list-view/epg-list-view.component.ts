@@ -91,6 +91,7 @@ export class EpgListViewComponent {
     readonly isLivePlayback = input(true);
     readonly loading = input(false);
     readonly emptyReason = input<EpgTimelineEmptyReason>('none');
+    readonly hasProgramsElsewhere = input(false);
     readonly selectedDate = input<string | null>(null);
     readonly collapsed = input(false);
     readonly summary = input<EpgTimelineSummary | null>(null);
@@ -163,7 +164,9 @@ export class EpgListViewComponent {
             return reason;
         }
         if (this.programs().length === 0) {
-            return 'channel-unmapped';
+            return this.hasProgramsElsewhere()
+                ? 'empty-day'
+                : 'channel-unmapped';
         }
         if (
             !hasProgramsForDateKey(
@@ -180,7 +183,9 @@ export class EpgListViewComponent {
         const state = this.renderState();
         return state === 'loading' || state === 'list' ? 'none' : state;
     });
-    readonly hasOtherDays = computed(() => this.programs().length > 0);
+    readonly hasOtherDays = computed(
+        () => this.programs().length > 0 || this.hasProgramsElsewhere()
+    );
     readonly showDateStepper = computed(() => {
         const state = this.renderState();
         return state === 'list' || state === 'empty-day';
@@ -231,6 +236,7 @@ export class EpgListViewComponent {
             programs: () => this.programs(),
             isViewToday: () => this.isViewToday(),
             channelName: () => this.channelName(),
+            contextKey: () => this.archiveContextKey(),
             scroll: this.scroll,
         });
     }

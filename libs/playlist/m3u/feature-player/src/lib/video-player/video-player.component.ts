@@ -419,16 +419,21 @@ export class VideoPlayerComponent
             isLikelyM3uMovie(channel)
         );
     }
-    /** Full multi-day programme window for the active channel (timeline). */
+    /** Selected day and current day programmes for the active channel. */
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
     });
+    readonly hasProgramsElsewhere = toSignal(
+        this.epgService.currentChannelHasPrograms$,
+        { initialValue: false }
+    );
+    private readonly catchupPrograms = signal<EpgProgram[] | null>(null);
     /** Catch-up programmes from `utc` up to `lutc` as seek-bar segments. */
     readonly catchupTimelineSegments = computed(() => {
         const playbackUrl = this.activePlaybackUrl();
         return playbackUrl
             ? buildCatchupTimelineSegments(
-                  this.epgPrograms(),
+                  this.catchupPrograms() ?? this.epgPrograms(),
                   this.activeEpgProgramOrNull(),
                   getM3uCatchupWindowEndSeconds(playbackUrl) ?? undefined
               )
@@ -688,7 +693,7 @@ export class VideoPlayerComponent
      * playlist-scoped `url-tvg` source either.
      */
     readonly liveEpgEmptyReason = computed<EpgTimelineEmptyReason>(() => {
-        if (this.epgPrograms().length > 0) {
+        if (this.epgPrograms().length > 0 || this.hasProgramsElsewhere()) {
             return 'none';
         }
 
@@ -844,6 +849,45 @@ export class VideoPlayerComponent
                           toMs: addDays(todayStart, 1).getTime(),
                       }
             );
+        });
+
+        // Archive playback may span more days than the mini-guide is showing.
+        effect((onCleanup) => {
+            const channel = this.activeChannel();
+            const activeProgram = this.activeEpgProgramOrNull();
+            const windowEndSeconds = getM3uCatchupWindowEndSeconds(
+                this.activePlaybackUrl()
+            );
+            const sourceUrls = this.activePlaylistMeta()?.epgUrls ?? [];
+            this.epgService.sourceRevision();
+            const fromMs = Date.parse(activeProgram?.start ?? '');
+            const toMs = (windowEndSeconds ?? 0) * 1000;
+            const channelId = channel
+                ? resolveChannelEpgLookupKey(channel)
+                : '';
+            this.catchupPrograms.set(null);
+            if (!channelId || !Number.isFinite(fromMs) || toMs <= fromMs) {
+                return;
+            }
+
+            let current = true;
+            void this.epgService
+                .getChannelProgramsForProviderWindow(
+                    channelId,
+                    fromMs,
+                    toMs,
+                    sourceUrls
+                )
+                .then((programs) => {
+                    if (current) this.catchupPrograms.set(programs);
+                })
+                .catch((error: unknown) => {
+                    if (current)
+                        console.error('EPG archive lookup error:', error);
+                });
+            onCleanup(() => {
+                current = false;
+            });
         });
 
         // Mirror the legacy uncontrolled epg-list store side effects so the

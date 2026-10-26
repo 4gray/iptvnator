@@ -26,6 +26,7 @@ import {
     normalizeLookupSourceUrls,
 } from './epg-lookup-normalization.util';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
+import { EpgChannelWindowLookup } from './epg-channel-window.lookup';
 
 const debugEpgService = createDevLogger('EpgService');
 
@@ -45,14 +46,21 @@ export class EpgService {
             this.sourceRevision.update((revision) => revision + 1);
             this.clearCache();
             this.currentEpgPrograms.next([]);
+            this.currentChannelHasPrograms.next(false);
             this.epgAvailable.next(true);
         });
     }
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
+    private currentChannelHasPrograms = new BehaviorSubject(false);
     private programRequestId = 0;
     readonly sourceRevision = signal(0);
+    private readonly channelWindow = new EpgChannelWindowLookup(
+        this.epgBridge,
+        (excluding) => this.getGlobalEpgSourceUrls(excluding),
+        () => this.epgOffsetMinutes()
+    );
 
     /** Channel icons/display names; same scope ladder as the programmes. */
     private readonly channelMetadata = new EpgChannelMetadataLookup(
@@ -102,6 +110,8 @@ export class EpgService {
 
     readonly epgAvailable$ = this.epgAvailable.asObservable();
     readonly currentEpgPrograms$ = this.currentEpgPrograms.asObservable();
+    readonly currentChannelHasPrograms$ =
+        this.currentChannelHasPrograms.asObservable();
 
     /**
      * Fetches EPG from the given URLs
@@ -192,46 +202,26 @@ export class EpgService {
     ): Promise<void> {
         const requestId = ++this.programRequestId;
         this.currentEpgPrograms.next([]);
+        this.currentChannelHasPrograms.next(false);
         const lookupKey = channelId.trim();
         if (!this.epgBridge.supportsGuide || !lookupKey) {
             return;
         }
 
-        const playlistUrls = normalizeEpgUrls(playlistSourceUrls);
-        const globalUrls = this.getGlobalEpgSourceUrls(playlistUrls);
-        const scopes = playlistUrls.length
-            ? [playlistUrls, ...(globalUrls.length ? [globalUrls] : [])]
-            : [globalUrls];
-
         try {
-            const loadWindow = async (startMs: number, endMs: number) => {
-                for (const sourceUrls of scopes) {
-                    const result = await this.epgBridge.getProgramsForChannels({
-                        channelIds: [lookupKey],
-                        fromMs: epgProviderClockMs(
-                            startMs,
-                            this.epgOffsetMinutes()
-                        ),
-                        toMs: epgProviderClockMs(
-                            endMs,
-                            this.epgOffsetMinutes()
-                        ),
-                        ...(sourceUrls.length ? { sourceUrls } : {}),
-                    });
-                    if (requestId !== this.programRequestId) return [];
-                    const programs = normalizeEpgPrograms(
-                        result?.[lookupKey] ?? []
-                    );
-                    if (programs.length > 0) return programs;
-                }
-                return [] as EpgProgram[];
-            };
-            const programs = await loadWindow(fromMs, toMs);
+            const programs = await this.channelWindow.programs(
+                lookupKey,
+                fromMs,
+                toMs,
+                playlistSourceUrls
+            );
             if (requestId !== this.programRequestId) return;
             const currentPrograms = currentDayWindow
-                ? await loadWindow(
+                ? await this.channelWindow.programs(
+                      lookupKey,
                       currentDayWindow.fromMs,
-                      currentDayWindow.toMs
+                      currentDayWindow.toMs,
+                      playlistSourceUrls
                   )
                 : [];
             if (requestId !== this.programRequestId) return;
@@ -245,12 +235,39 @@ export class EpgService {
             ).sort((left, right) => left.start.localeCompare(right.start));
             this.currentEpgPrograms.next(combined);
             this.epgAvailable.next(combined.length > 0);
+            const hasAny =
+                combined.length > 0 ||
+                (await this.channelWindow.hasAnyPrograms(
+                    lookupKey,
+                    playlistSourceUrls
+                ));
+            if (requestId !== this.programRequestId) return;
+            this.currentChannelHasPrograms.next(hasAny);
         } catch (error) {
             if (requestId !== this.programRequestId) return;
             console.error('EPG guide programme lookup error:', error);
             this.showErrorSnackbar();
             this.epgAvailable.next(false);
         }
+    }
+
+    /** Raw provider-clock window for archive seek-bar programmes. */
+    getChannelProgramsForProviderWindow(
+        channelId: string,
+        fromMs: number,
+        toMs: number,
+        playlistSourceUrls: string[] = []
+    ): Promise<EpgProgram[]> {
+        if (!this.epgBridge.supportsGuide || !channelId.trim()) {
+            return Promise.resolve([]);
+        }
+        return this.channelWindow.programs(
+            channelId.trim(),
+            fromMs,
+            toMs,
+            playlistSourceUrls,
+            true
+        );
     }
 
     /**

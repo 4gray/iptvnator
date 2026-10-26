@@ -104,6 +104,9 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
         playlistId.set('playlist-1');
         activePlaylistMeta.set(null);
         epgServiceMock.loadChannelProgramsForWindow.mockClear();
+        epgServiceMock.getChannelProgramsForProviderWindow
+            .mockReset()
+            .mockResolvedValue([]);
         epgServiceMock.sourceRevision.set(0);
         player.set(VideoPlayer.VideoJs);
         showCaptions.set(false);
@@ -300,5 +303,35 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
         expect(forwarded()).toEqual([
             { startSeconds: 0, endSeconds: HOUR, title: 'Picked' },
         ]);
+    });
+
+    it('loads intervening archive programmes outside the selected mini-guide day', async () => {
+        const picked = programme('Picked', 0, 1);
+        const middle = programme('Middle day', 24, 25);
+        epgPrograms$.next([picked]);
+        epgServiceMock.getChannelProgramsForProviderWindow.mockResolvedValue([
+            middle,
+        ]);
+        activeEpgProgram.set(picked);
+        activePlaybackUrl.set(
+            `http://localhost/archive.m3u8?utc=${T0}&lutc=${T0 + 26 * HOUR}`
+        );
+        fixture.detectChanges();
+        await Promise.resolve();
+        fixture.detectChanges();
+
+        expect(
+            epgServiceMock.getChannelProgramsForProviderWindow
+        ).toHaveBeenCalledWith(
+            'sample-tvg-id',
+            T0 * 1000,
+            (T0 + 26 * HOUR) * 1000,
+            []
+        );
+        expect(forwarded()).toContainEqual({
+            startSeconds: 24 * HOUR,
+            endSeconds: 25 * HOUR,
+            title: 'Middle day',
+        });
     });
 });

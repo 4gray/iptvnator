@@ -44,13 +44,14 @@ export class EpgListScrollController {
         list: HTMLElement | undefined,
         programs: readonly EpgProgram[],
         today: boolean,
-        channel: string
+        channel: string,
+        contextKey?: string | null
     ): void {
         const setKey = programsFocusKey(programs);
         if (!setKey) {
             return;
         }
-        const key = `${channel}|${setKey}`;
+        const key = contextKey || `${channel}|${setKey}`;
         if (key === this.autoScrollKey) {
             if (!list) {
                 return;
@@ -148,9 +149,7 @@ export class EpgListScrollController {
         this.deps.setNowStripVisible(visible / rowRect.height < 0.5);
     }
 
-    private nowRowElement(
-        list: HTMLElement | undefined
-    ): HTMLElement | null {
+    private nowRowElement(list: HTMLElement | undefined): HTMLElement | null {
         return (
             list?.querySelector<HTMLElement>('.g-row[data-when="now"]') ?? null
         );

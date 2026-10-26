@@ -744,6 +744,10 @@ day has no programme in the playlist sources. With neither source configured,
 it uses the existing unscoped fallback. A separate current-day read keeps the
 live programme available while another day is selected. Channel, day, source
 and offset changes issue a new request; an older response cannot replace it.
+When both loaded days are empty, a source-scoped coverage check distinguishes
+an empty day from a channel with no guide data, keeping date navigation
+available. Archive playback requests its full provider-clock range separately
+for the seek bar, so browsing the mini-guide does not remove intervening titles.
 The legacy `getChannelPrograms` IPC remains available to other callers.
 
 ### EPG display offset
@@ -833,25 +837,27 @@ views also carry the optional `guideAvailable` input and `openGuide` output:
 the M3U host binds them in both branches, so the programme guide's Guide
 action is reachable whichever view the setting selects.
 
-- **One channel, preloaded window.** The panel always shows a single channel.
-  Each provider returns a multi-day window in roughly one call (M3U
-  `GET_CHANNEL_PROGRAMS`; Stalker `get_epg_info`; Xtream `get_simple_data_table`),
-  so the whole ribbon is rendered up front and day navigation is **scroll within
-  the loaded window** — no per-day lazy fetch. The date stepper / "Now" jump
-  scroll the ribbon; the day label follows the scroll position.
+- **One channel, provider-specific window.** The panel always shows a single
+  channel. M3U fetches the selected local day with the guide-window IPC and
+  retains a separate current-day slice. Stalker `get_epg_info` and Xtream
+  `get_simple_data_table` still return their multi-day windows. The date
+  stepper / "Now" jump scroll the ribbon; the day label follows the scroll
+  position. M3U requests a new window when the selected day changes.
 - **Auto-focus on channel select.** When a channel's EPG (re)loads or the ribbon
   (re)mounts, the timeline centres the **currently airing programme** in the
   viewport **instantly** (`behavior: 'auto'`, no scroll animation) — selecting a
   channel lands on "now" without the user pressing the Now button. The jump is
-  deduped by programme-set identity (`programsFocusKey`), so the 30s now-tick,
-  zoom changes, or a host re-emitting the same data never re-jump the viewport;
+  deduped by source/channel identity when `archiveContextKey` is present, and
+  by programme-set identity (`programsFocusKey`) otherwise. Day-window loads,
+  the 30s now-tick, zoom changes, or a host re-emitting data never re-jump the viewport;
   switching channels (or returning after viewing an empty-day channel) re-centres.
   The explicit "Now" button still animates (`behavior: 'smooth'`) since it is a
   deliberate user action. See `TimelineScrollController.maybeAutoFocus` /
   `focusCurrentProgram` in `epg-timeline-scroll.controller.ts`.
 - **Controlled component.** `app-epg-timeline` is presentation-only: it takes
   `programs`, `archivePlaybackAvailable`, `archiveDays`, `activeProgram`,
-  `isLivePlayback`, `loading`, `emptyReason`, `selectedDate`, `collapsed`,
+  `isLivePlayback`, `loading`, `emptyReason`, `hasProgramsElsewhere`,
+  `selectedDate`, `collapsed`,
   `summary` and emits `programActivated`, `returnToLive`, `selectedDateChange`,
   `openEpgSettings`, `retry`, `collapsedChange`. The host layout owns playback,
   persists the collapse state (`live-epg-panel-state` in localStorage), and (for

@@ -170,6 +170,18 @@ describe('TimelineScrollController', () => {
             expect(scrollSpy).toHaveBeenCalledTimes(1);
         });
 
+        it('does not reset the selected day when a stable channel receives another day', () => {
+            const scroller = {} as HTMLElement;
+            const today = [programAt(0, 120, 'Today')];
+            programs = today;
+            controller.maybeAutoFocus(scroller, today, 'playlist:channel');
+            const newDay = [...today, programAt(1440, 60, 'Tomorrow')];
+            programs = newDay;
+            controller.maybeAutoFocus(scroller, newDay, 'playlist:channel');
+            expect(commitDaySpy).toHaveBeenCalledTimes(1);
+            expect(scrollSpy).toHaveBeenCalledTimes(1);
+        });
+
         it('restores position when the same channel ribbon remounts (collapse then expand)', () => {
             // Collapse → expand recreates the ribbon as a *new* element at
             // scrollLeft 0, so re-centre the viewed programme — but WITHOUT

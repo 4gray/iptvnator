@@ -96,6 +96,13 @@ describe('EpgListViewComponent', () => {
         expect(component.renderState()).toBe('channel-unmapped');
     });
 
+    it('keeps day navigation when coverage exists outside the loaded window', () => {
+        setInputs({ programs: [], hasProgramsElsewhere: true });
+        expect(component.renderState()).toBe('empty-day');
+        expect(component.showDateStepper()).toBe(true);
+        expect(component.hasOtherDays()).toBe(true);
+    });
+
     it('honours an explicit empty reason from the host', () => {
         setInputs({ programs: [], emptyReason: 'provider-no-epg' });
         expect(component.renderState()).toBe('provider-no-epg');

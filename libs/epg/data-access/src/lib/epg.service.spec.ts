@@ -30,6 +30,7 @@ describe('EpgService', () => {
             fetchEpg: jest.fn().mockResolvedValue({ success: true }),
             getChannelPrograms: jest.fn().mockResolvedValue([]),
             getProgramsForChannels: jest.fn().mockResolvedValue({}),
+            getProgramCoverage: jest.fn().mockResolvedValue([]),
             getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
             supportsCurrentProgramBatch: false,
             supportsImport: false,
@@ -415,6 +416,9 @@ describe('EpgService', () => {
             expect.objectContaining({ sourceUrls: ['enabled-guide'] })
         );
         expect(await firstValueFrom(service.currentEpgPrograms$)).toEqual([]);
+        expect(await firstValueFrom(service.currentChannelHasPrograms$)).toBe(
+            false
+        );
     });
 
     it('returns null for current program lookup when the desktop bridge is unavailable', async () => {
