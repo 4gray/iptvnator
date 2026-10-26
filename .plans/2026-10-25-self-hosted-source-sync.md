@@ -828,3 +828,22 @@ same-name-spec warnings include upstream TMDB files and the authorization
 module covered by the connection/transport suites. Affected lint, application/
 spec/E2E types, 168 release notes and agent guidance validate. Prior shared-
 interface/backend results remain 660 / 2,702 tests. No gate was weakened.
+
+### Current VOD integration before local review fifteen
+
+Master advanced again with #2007 (`197efc0ae2ac4f1d853edf07f21a52d59911092a`),
+including PWA Xtream data-source changes. It merged without conflicts as
+`865346d87`; frozen install, lock comparison, Nx discovery and the updated
+Xtream skill/compatibility contract were checked. No further source-sync code
+changes were needed for that integration.
+
+All 27 production PWA scenarios pass again, as does the shared Xtream/Stalker
+PWA/Electron playback scenario. The complete nine-scenario mixed suite passed
+for the source transport/journal fixes; the affected provider scenario was
+repeated after #2007. Coverage passes with all 986 service, 564 web, 648 Xtream
+data-access and 514 Xtream feature tests. Merged 36-project coverage is now
+statements 84.95%, branches 75.97%, functions 83.13%, lines 85.33%, with advisory
+same-name-spec warnings. All 94 shared-TMDB tests passed on the preceding
+integration. Exact CI production initial bytes pass at 1,200,246 within the
+unchanged 1,200,301 limit. Six affected lint projects, application and affected
+spec/E2E types, 21-catalogue i18n, release notes, skills and agent guidance pass.
