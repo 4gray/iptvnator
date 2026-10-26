@@ -30,7 +30,8 @@ are excluded from this report.
 - Home and Continue watching use parent series identity, title and cover while
   resuming the actual saved episode. Historical repair requires the exact source
   and parent ID; it does not synthesize a parent from title similarity.
-- Parent snapshots keep validated series artwork through sparse catalog refreshes.
+- Parent snapshots keep validated series artwork, overview and year through sparse
+  catalog refreshes. Episode-specific descriptions remain separate.
   Current parent artwork wins, then the saved parent artwork. Old episode images
   are not cover/backdrop fallbacks when a parent is known. Episode cards use
   `episodeStill`, separate from series artwork, and retain compact text fallback.
@@ -54,7 +55,7 @@ are excluded from this report.
 | Slow fullscreen details | Back cancels a held parent lookup; late responses cannot navigate away from Home. |
 | Slow Home details | A newer playback request cancels the old details action without cancelling its own successful stop/persist/open flow. |
 | Retained Retry | A valid same-source retry restores its original control; an old retained click cannot reopen the previous source. |
-| Sparse series artwork | Detail-only cover/backdrop survive Home and relaunch; deliberately injected legacy episode images stay unused, and newer parent art takes priority. |
+| Sparse series metadata | Detail-only cover/backdrop/overview survive Home and relaunch; deliberately injected legacy episode images stay unused, and newer parent art takes priority. Unit checks retain the series year without replacing episode descriptions. |
 | Browser Home Back | With catalog responses held, a no-op platform Back keeps requests alive and loading completes after release. |
 
 The navigation, artwork, season and virtual-row fixes have fail-before/pass-after
@@ -67,12 +68,21 @@ each after replacing a detached-element geometry snapshot.
 
 Use Node 22.23.2 and pnpm 10.33.0. The TV worktree has its own frozen installation;
 its installed lockfile matches the repository and Nx project discovery succeeds.
-Final TV test/lint/type, notes and guidance results are refreshed for the final
-source scope before the next push and recorded below and in the PR.
+Master `00c8284ac` (Vite 8.1.6) is integrated in this branch. The production
+Angular build and initial-byte guard passed: 1,200,005 bytes against the existing
+1,200,301-byte limit. TV checks cover the final source scope; no threshold,
+probe or performance baseline was changed.
 
 The unchanged shared TMDB implementation passed **94 tests** with coverage:
 80.38% statements, 60.43% branches, 69.04% functions and 80.65% lines. The affected
 Angular TMDB consumers passed **101 tests**. Thresholds are unchanged.
+
+Final results: **109 TV unit tests**, **126 TV E2E scenarios**, lint for all
+nine affected projects and typechecks for all three TV projects passed. All
+**167 release notes**, three agent guidance files and eight repository skills
+validate. The sparse-overview browser assertion failed before the fix with the
+Home placeholder instead of the saved series description, then passed after
+preserving the validated parent fields. The full suite was repeated afterwards.
 
 Relevant commands:
 
@@ -127,17 +137,20 @@ is changed as part of the current source-scope cleanup.
 Prototype 0.1.25 ships one classic deferred IIFE targeting Chrome 68 / ES2018.
 Both the build and the JavaScript extracted from the IPK are parsed and scanned
 for unsupported builtins; the package can minify differently from the raw build.
-Final artifact fingerprints are refreshed below after packaging.
+Final package SHA-256: `d9cf3d3e09bc29b801ecd8b9c55061287b332a7b12dab7f925dee120fa0563e6`.
+The archived `index-B24LcOIh.js` is 270,623 bytes; SHA-256:
+`7563a8d18675482ba773c70954f78d63f0e96c118c4ee0f6d33777e72bc3a9c7`.
 
 Local Codex review of published head `75b94f071` found no actionable regressions.
 GitHub then reported three P2 follow-ups: no-op Home Back cancelling loading,
 a saved series cover lost to an incomplete catalog row, and a stale install
 filename. The first two reproduce before their fixes; the install example now
-matches the package/inspection version. They are collected into one local fix
-round before another push. Greptile CLI is unavailable under the documented
+matches the package/inspection version. The fixes and source-scope cleanup are collected into one update; it passes the
+same local review gate before the next push. The final reviewed head is recorded
+in the PR. Greptile CLI is unavailable under the documented
 [local-review exception](agent-workflow.md#local-review-before-a-pull-request);
 its GitHub review supplied the cover/documentation findings.
 
-Master advanced to `bc4d24e14` through Angular UI/search PR #2008 without changes
-to TV runtime or shared TMDB code. Integration with later overlapping changes
-is assessed before publishing; no unrelated master change is overwritten.
+Master `bc4d24e14` (Angular UI/search PR #2008) and `00c8284ac` (Vite 8.1.6)
+are integrated. Dependencies were installed from the new frozen lockfile before
+Nx discovery and validation; no unrelated master change is overwritten.

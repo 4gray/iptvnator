@@ -25,6 +25,7 @@ export function withSeriesContext(episode: Media, parent?: Media): Media {
         episode.sourceId !== parent.sourceId
     )
         return episode;
+    const saved = seriesForEpisode(episode);
     const raw = { ...parent.raw };
     delete raw.details;
     const snapshot: Media = {
@@ -33,10 +34,10 @@ export function withSeriesContext(episode: Media, parent?: Media): Media {
         providerId: parent.providerId,
         kind: 'series',
         title: parent.title,
-        year: parent.year,
-        poster: parent.poster || seriesForEpisode(episode)?.poster,
-        backdrop: parent.backdrop || seriesForEpisode(episode)?.backdrop,
-        description: parent.description,
+        year: parent.year || saved?.year,
+        poster: parent.poster || saved?.poster,
+        backdrop: parent.backdrop || saved?.backdrop,
+        description: parent.description || saved?.description,
         raw,
     };
     const context = {
@@ -45,7 +46,7 @@ export function withSeriesContext(episode: Media, parent?: Media): Media {
                 ? episode.parentSeries
                 : snapshot,
         seriesTitle: parent.title,
-        seriesYear: parent.year || episode.seriesYear,
+        seriesYear: snapshot.year || episode.seriesYear,
         poster: episode.poster || parent.poster,
         backdrop: episode.backdrop || parent.backdrop,
     };

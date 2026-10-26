@@ -48,6 +48,7 @@ export function useHomeFeature(tv: TvModel) {
     const source = tv.data.sources.find((s) => s.id === original?.sourceId);
     const item = useMemo<Media | undefined>(() => {
         if (!original) return undefined;
+        const saved = seriesForEpisode(original);
         const featured = parent ?? original;
         return {
             ...featured,
@@ -55,7 +56,9 @@ export function useHomeFeature(tv: TvModel) {
                 ...tv.home,
                 ...tv.data.favorites,
             ]),
-            backdrop: featured.backdrop || seriesForEpisode(original)?.backdrop,
+            backdrop: featured.backdrop || saved?.backdrop,
+            year: featured.year || saved?.year,
+            description: featured.description || saved?.description,
         };
     }, [original, parent, source]);
     return {

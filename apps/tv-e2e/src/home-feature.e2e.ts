@@ -497,6 +497,8 @@ test('Home retains saved series-wide artwork without using episode stills and pr
     const poster = 'https://artwork.test/series-poster.jpg';
     const savedWide = 'https://artwork.test/saved-series-wide.jpg';
     const episodeStill = 'https://artwork.test/episode-still.jpg';
+    const overview =
+        'Saved series overview from the detailed provider response.';
     let currentWide = '';
     let currentPoster = '';
     await page.route('https://artwork.test/**', (route) =>
@@ -515,6 +517,8 @@ test('Home retains saved series-wide artwork without using episode stills and pr
         const body = await response.json();
         if (action === 'get_series') {
             for (const row of body.payload) {
+                delete row.plot;
+                delete row.description;
                 if (currentPoster) row.cover = currentPoster;
                 else delete row.cover;
                 if (currentWide) row.backdrop_path = [currentWide];
@@ -522,6 +526,7 @@ test('Home retains saved series-wide artwork without using episode stills and pr
             }
         } else {
             body.payload.info.backdrop_path = [savedWide];
+            body.payload.info.plot = overview;
             body.payload.info.cover = poster;
             body.payload.info.movie_image = poster;
             for (const episodes of Object.values(body.payload.episodes))
@@ -538,6 +543,7 @@ test('Home retains saved series-wide artwork without using episode stills and pr
     await addSource(page, 'xtream');
     const title = await watch(page, 0, true);
     await expect(page.locator('.hero h1')).toHaveText(title);
+    await expect(page.locator('.hero p')).toHaveText(overview);
     await expect(page.locator('.page-backdrop img')).toHaveAttribute(
         'src',
         savedWide

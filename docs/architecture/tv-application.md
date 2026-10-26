@@ -498,7 +498,8 @@ outside this TV integration.
 Episode landscape artwork lives in `episodeStill`, separately from the series
 cover in `poster`/the parent snapshot. Home and Continue watching use the
 series cover. Provider details save the series backdrop and cover in the exact
-parent snapshot; sparse catalog repairs retain that validated artwork. Home and
+parent snapshot; sparse catalog repairs retain validated artwork, overview and
+year without replacing episode-specific descriptions. Home and
 Continue watching prefer current parent artwork, then validated saved parent
 artwork. Historical episode images are not cover/backdrop fallbacks when a parent
 is known. Episode cards use the still.

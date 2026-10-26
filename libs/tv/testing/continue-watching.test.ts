@@ -165,10 +165,12 @@ test('one latest episode per series; completed latest episode cannot revive an o
     );
 });
 
-test('sparse parent repair retains validated series artwork and remains idempotent', () => {
+test('sparse parent repair retains validated series metadata and remains idempotent', () => {
     const parent = {
         ...progress('show', 1).item,
         kind: 'series' as const,
+        year: '2020',
+        description: 'Saved series overview',
         backdrop: 'https://artwork.test/series-wide.jpg',
         poster: 'https://artwork.test/series-poster.jpg',
     };
@@ -176,12 +178,22 @@ test('sparse parent repair retains validated series artwork and remains idempote
         ...progress('episode', 1).item,
         kind: 'episode' as const,
         parentId: parent.id,
+        description: 'Episode overview',
         backdrop: 'https://artwork.test/legacy-episode-still.jpg',
         poster: 'https://artwork.test/legacy-episode-still.jpg',
     };
     const saved = withSeriesContext(episode, parent);
-    const sparse = { ...parent, backdrop: undefined, poster: undefined };
+    const sparse = {
+        ...parent,
+        year: undefined,
+        description: undefined,
+        backdrop: undefined,
+        poster: undefined,
+    };
     const repaired = withSeriesContext(saved, sparse);
+    assert.equal(repaired.parentSeries?.year, parent.year);
+    assert.equal(repaired.parentSeries?.description, parent.description);
+    assert.equal(repaired.description, episode.description);
     assert.equal(repaired.parentSeries?.backdrop, parent.backdrop);
     assert.equal(repaired.parentSeries?.poster, parent.poster);
     assert.equal(
