@@ -309,6 +309,9 @@ pull request. Source sync remains the only synchronization enabled by this PR.
 
 The Oct 25 audit above describes the original base revision. Current master
 also contains a whole-document PWA client and a TV source-library client.
+Provider EPG is already available in PWA independently of source sync. The
+remaining EPG work above means NAS-managed XMLTV import, scheduling, query APIs
+and cross-device policy, rather than adding that existing provider view again.
 The PWA/Electron bootstrap now installs only the source-sync projection and
 device-local user storage. The older server API/client modules remain compatible
 for explicit consumers; their activity synchronization is not enabled alongside
@@ -368,3 +371,15 @@ Relevant local QA logs are `/tmp/iptvnator-source-sync-e2e-final.log`,
 `/tmp/iptvnator-source-sync-docker-qa.log` and the final type/lint logs with
 `/tmp/iptvnator-sync-` prefixes. Screenshots from the production image:
 `/tmp/iptvnator-source-sync-light.png`, `...-dark.png`, `...-mobile.png`.
+
+### PR preparation validation (2026-10-26)
+
+Integrated master through `48fcec10530d5c9dccd323a90ff9ff973a1de9a2`.
+The mixed PWA/Electron source-sync suite passed 4 scenarios; Chromium's
+self-hosted/server-storage suite passed 9 scenarios, including source-only
+backup restoration with existing server favorites preserved. Targeted/full
+owning unit suites, PWA build, TypeScript, affected lint, release-note format,
+agent guidance and 129 local/CI E2E task graphs passed. Review-time evidence
+is in `/tmp/iptvnator-sync-pr-*.log`; the exact reviewed commit is recorded in
+the pull request. The Greptile CLI is unavailable locally (exit 127); repository
+workflow permits proceeding with Codex review and reporting this limitation.

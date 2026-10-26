@@ -70,7 +70,11 @@ describe('Playwright web-backend launch', () => {
             const { PORT: port, ...fixedEnv } = serveEnv;
             const entry = source.slice(start, source.indexOf('url:', start));
             for (const [name, value] of Object.entries(fixedEnv)) {
-                expect(entry).toContain(`${name}: '${value}'`);
+                expect(entry).toContain(
+                    name === 'CLIENT_URL'
+                        ? 'CLIENT_URL: new URL(baseURL).origin,'
+                        : `${name}: '${value}'`
+                );
             }
             expect(source).toContain(
                 `process.env['WEB_BACKEND_PORT'] ?? '${port}'`

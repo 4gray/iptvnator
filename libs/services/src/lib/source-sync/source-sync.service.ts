@@ -5,7 +5,7 @@ import {
     Injectable,
     signal,
 } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '../lazy-snack-bar/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { Subject } from 'rxjs';
@@ -37,7 +37,7 @@ export class SourceSyncService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly db = inject(NgxIndexedDBService);
     private readonly data = inject(DataService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly snackBar = inject(LazySnackBar);
     private readonly translate = inject(TranslateService);
     private readonly destroy = inject(DestroyRef);
     private readonly cleanups =

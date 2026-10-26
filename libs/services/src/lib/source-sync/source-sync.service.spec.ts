@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '../lazy-snack-bar/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import {
@@ -131,7 +131,7 @@ describe('source synchronization lifecycle', () => {
                 },
                 { provide: NgxIndexedDBService, useValue: {} },
                 { provide: DataService, useValue: {} },
-                { provide: MatSnackBar, useValue: { open: notify } },
+                { provide: LazySnackBar, useValue: { open: notify } },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },

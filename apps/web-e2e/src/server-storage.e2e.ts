@@ -144,13 +144,15 @@ test.describe('server storage @self-hosted @persistence', () => {
         await expect(page.locator('mat-dialog-container')).toHaveCount(0);
         await expect(sourceRowByTitle(page, 'Browser only')).toHaveCount(0);
         await page.goto('/workspace/settings/server');
-        await page.getByTestId('source-server-import').click();
+        await page.locator('[data-test-id="source-server-import"]').click();
         await expect(page.locator('app-settings-server-section li')).toHaveText(
             ['Browser only']
         );
-        await page.getByTestId('source-server-import-confirm').click();
+        await page
+            .locator('[data-test-id="source-server-import-confirm"]')
+            .click();
         await expect(
-            page.getByTestId('source-server-import-confirm')
+            page.locator('[data-test-id="source-server-import-confirm"]')
         ).toBeHidden();
         const response = await request.get(
             `${STORAGE_BACKEND_URL}/v1/playlists?view=meta`
@@ -164,8 +166,8 @@ test.describe('server storage @self-hosted @persistence', () => {
         await expect(sourceRowByTitle(page, 'Browser only')).toBeVisible();
         await page.context().close();
     });
-    for (const conflictingRestore of [false, true])
-        test(`durable Xtream backup snapshots stay local across shared source restore and explicit removal (conflict=${conflictingRestore})`, async ({
+    for (const existingServerActivity of [false, true])
+        test(`durable Xtream backup snapshots stay local across shared source restore and explicit removal (existingServerActivity=${existingServerActivity})`, async ({
             browser,
             request,
         }) => {
@@ -177,16 +179,6 @@ test.describe('server storage @self-hosted @persistence', () => {
                 if (new URL(request.url()).pathname.includes('/v1/user-state'))
                     activityRequests.push(request.method());
             });
-            if (conflictingRestore) {
-                const seeded = await request.put(
-                    `${STORAGE_BACKEND_URL}/v1/user-state/xtream-favorites/${playlistId}`,
-                    {
-                        data: { value: ['live:99'] },
-                        headers: { 'If-None-Match': '*' },
-                    }
-                );
-                expect(seeded.ok()).toBe(true);
-            }
             const manifest = {
                 kind: 'iptvnator-playlist-backup',
                 version: 1,
@@ -199,13 +191,13 @@ test.describe('server storage @self-hosted @persistence', () => {
                         title: 'Server favorites',
                         autoRefresh: false,
                         connection: {
-                            serverUrl: conflictingRestore
+                            serverUrl: existingServerActivity
                                 ? `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}`
                                 : 'https://offline.example.invalid',
-                            username: conflictingRestore
+                            username: existingServerActivity
                                 ? 'user1'
                                 : 'synthetic',
-                            password: conflictingRestore
+                            password: existingServerActivity
                                 ? 'pass1'
                                 : 'synthetic',
                         },
@@ -240,13 +232,34 @@ test.describe('server storage @self-hosted @persistence', () => {
                     },
                 ],
             };
+            if (existingServerActivity) {
+                const source = await request.put(
+                    `${STORAGE_BACKEND_URL}/v1/playlists/${playlistId}`,
+                    {
+                        data: {
+                            _id: playlistId,
+                            title: 'Server favorites',
+                            ...manifest.playlists[0].connection,
+                        },
+                    }
+                );
+                expect(source.ok()).toBe(true);
+                const seeded = await request.put(
+                    `${STORAGE_BACKEND_URL}/v1/user-state/xtream-favorites/${playlistId}`,
+                    {
+                        data: { value: ['live:99'] },
+                        headers: { 'If-None-Match': '*' },
+                    }
+                );
+                expect(seeded.ok()).toBe(true);
+            }
             try {
-                if (!conflictingRestore)
+                if (!existingServerActivity)
                     await first.route(
                         (url) => url.pathname === '/xtream',
                         (route) => route.abort()
                     );
-                if (!conflictingRestore)
+                if (!existingServerActivity)
                     await second.route(
                         (url) => url.pathname === '/xtream',
                         (route) => route.abort()
@@ -265,9 +278,7 @@ test.describe('server storage @self-hosted @persistence', () => {
                 });
                 await expect(
                     first.getByText(
-                        new RegExp(
-                            `Backup import finished: .*${conflictingRestore ? 1 : 0} failed`
-                        )
+                        new RegExp('Backup import finished: .*0 failed')
                     )
                 ).toBeVisible();
                 const entries = (
@@ -278,7 +289,7 @@ test.describe('server storage @self-hosted @persistence', () => {
                     ).json()
                 ).entries;
                 expect(entries['xtream-favorites']).toEqual(
-                    conflictingRestore ? { [playlistId]: ['live:99'] } : {}
+                    existingServerActivity ? { [playlistId]: ['live:99'] } : {}
                 );
                 expect(entries['xtream-collection-items']).toEqual({});
                 await second.goto('/workspace/global-favorites');

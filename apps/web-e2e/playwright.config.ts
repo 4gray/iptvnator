@@ -12,10 +12,11 @@ const baseURL =
     (isStaticPwaE2E
         ? `http://localhost:${staticPwaPort}`
         : 'http://localhost:4200');
-const webServerCommand =
-    isStaticPwaE2E
-        ? `pnpm nx run web:serve-static --port=${staticPwaPort}`
-        : `pnpm nx run web:serve --port=${new URL(baseURL).port || '4200'}`;
+const webServerCommand = isStaticPwaE2E
+    ? `pnpm nx run web:serve-static --port=${staticPwaPort}`
+    : process.env['BASE_URL']
+      ? `pnpm nx run web:serve --port=${new URL(baseURL).port || '4200'}`
+      : 'pnpm nx run web:serve';
 const reuseExistingWebServer = isStaticPwaE2E ? false : !process.env['CI'];
 const webBackendPort = process.env['WEB_BACKEND_PORT'] ?? '3333';
 const storageBackendPort = process.env['STORAGE_BACKEND_PORT'] ?? '3334';
