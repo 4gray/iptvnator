@@ -124,14 +124,20 @@
             stroke: currentColor;
             opacity: 0.7;
 
-            &.arc-1 { opacity: 0.9; }
-            &.arc-2 { opacity: 0.7; }
-            &.arc-3 { opacity: 0.5; }
+            &.arc-1 {
+                opacity: 0.9;
+            }
+            &.arc-2 {
+                opacity: 0.7;
+            }
+            &.arc-3 {
+                opacity: 0.5;
+            }
         }
     }
 
     .welcome-dashboard__title {
-        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-family: inherit;
         font-weight: 600;
         font-size: clamp(1.4rem, 3.4vh, 2.1rem);
         margin: 0;
@@ -147,7 +153,7 @@
     }
 
     .welcome-dashboard__tagline {
-        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-family: inherit;
         font-size: clamp(0.95rem, 1.9vh, 1.05rem);
         font-weight: 500;
         color: var(--app-heading-color);
@@ -157,7 +163,7 @@
     }
 
     .welcome-dashboard__description {
-        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-family: inherit;
         font-size: clamp(0.8125rem, 1.7vh, 0.9375rem);
         color: var(--app-body-color);
         margin: 0;
@@ -237,9 +243,15 @@
         cursor: default;
         min-width: 0;
 
-        &:nth-child(2) { transform: rotate(1.5deg); }
-        &:nth-child(3) { transform: rotate(-1deg); }
-        &:nth-child(4) { transform: rotate(2deg); }
+        &:nth-child(2) {
+            transform: rotate(1.5deg);
+        }
+        &:nth-child(3) {
+            transform: rotate(-1deg);
+        }
+        &:nth-child(4) {
+            transform: rotate(2deg);
+        }
 
         &:hover {
             transform: rotate(0deg) translateY(-4px) scale(1.04);
@@ -295,7 +307,7 @@
     }
 
     .feature-card__title {
-        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-family: inherit;
         font-size: 0.9rem;
         font-weight: 600;
         margin: 0;
@@ -304,7 +316,7 @@
     }
 
     .feature-card__desc {
-        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-family: inherit;
         font-size: 0.78125rem;
         color: var(--app-body-color);
         margin: 0;

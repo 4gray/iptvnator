@@ -46,17 +46,6 @@
     &:focus-visible {
         @include focus-ring.focus-ring-declarations($offset: -2px);
     }
-
-    :host(.is-active) &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 8px;
-        bottom: 8px;
-        width: 3px;
-        border-radius: 0 3px 3px 0;
-        background: $accent-blue;
-    }
 }
 
 .epg-guide-row__num {

@@ -35,6 +35,7 @@ are not prerequisites for reading repository contracts.
 
 | Area / code ownership | Required contracts | Repository skill |
 | --- | --- | --- |
+| Product audience, priority and interaction context | [Primary Electron/PWA player](../../apps/web/PRODUCT.md), [secondary experimental TV client](../../apps/tv/PRODUCT.md), [secondary desktop web remote](../../apps/remote-control-web/PRODUCT.md); detailed behavior remains in the subsystem contracts below | Use Impeccable when available for product/design context work |
 | Web engines, controls, tracks, PiP, radio and display sleep; `libs/ui/playback` | [Player controls](../architecture/player-controls-contract.md), [inline playback/diagnostics/recovery](../architecture/embedded-inline-playback.md) | Read the contract directly |
 | Embedded MPV, platform engines, addon, pinned runtime and packaging; Electron native services, `tools/embedded-mpv` | [Native MPV](../architecture/embedded-mpv-native.md), [runtime build and licensing](../../tools/embedded-mpv/README.md) | Read the contract directly |
 | Live panels, keyboard focus, grid/layout conventions; shared UI and portal views | [UI guidelines](../architecture/iptvnator-ui-guidelines.md), [detail navigation](../architecture/portal-detail-navigation.md) | [UI design](../../.agents/skills/iptvnator-ui-design/SKILL.md), [theme/style](../../.agents/skills/iptvnator-theme-style/SKILL.md) |

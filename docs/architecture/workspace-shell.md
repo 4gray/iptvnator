@@ -85,6 +85,11 @@ Provider route integration:
 The shell is intentionally split into four persistent regions:
 
 1. Left rail:
+    The desktop rail is 60 px wide (56 px at intermediate widths). Below
+    640 px it becomes a 52 px horizontal row with contained scrolling.
+    Navigation uses icons with localized tooltips and accessible names;
+    visible captions are omitted to keep long translations from crowding it.
+
     1. Static workspace links for dashboard, sources, global favorites, and
        recently viewed. The routed global-search rail link is Electron-only
        because its data source is the SQLite worker bridge.

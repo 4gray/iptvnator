@@ -1398,6 +1398,8 @@
             "NO_SEARCH_RESULTS": "Nessun risultato, prova a modificare la ricerca."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "Impossibile completare la ricerca",
+            "ERROR_DESCRIPTION": "La ricerca e i filtri sono conservati. Riprova.",
             "INITIAL_TITLE": "Cerca contenuti",
             "INITIAL_DESCRIPTION": "Inserisci almeno 3 caratteri per cercare tra TV in diretta, film e serie.",
             "RESULTS_FOUND": "{{count}} risultati trovati",

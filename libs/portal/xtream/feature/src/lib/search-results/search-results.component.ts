@@ -454,7 +454,7 @@ export class SearchResultsComponent implements AfterViewInit {
             if (append) {
                 this.hasMoreGlobalResults.set(false);
             } else {
-                this.xtreamStore.resetSearchResults();
+                this.xtreamStore.setSearchError();
             }
         } finally {
             if (requestVersion === this.globalSearchRequestVersion) {

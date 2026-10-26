@@ -1398,6 +1398,8 @@
             "NO_SEARCH_RESULTS": "Hiçbir şey bulunamadı, aramanızı değiştirmeyi deneyin."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "Arama tamamlanamadı",
+            "ERROR_DESCRIPTION": "Sorgunuz ve filtreleriniz korundu. Tekrar arayın.",
             "INITIAL_TITLE": "İçerik ara",
             "INITIAL_DESCRIPTION": "Canlı TV, filmler ve diziler arasında arama yapmak için en az 3 karakter girin.",
             "RESULTS_FOUND": "{{count}} sonuç bulundu",

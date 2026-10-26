@@ -54,6 +54,7 @@ class MockXtreamStore {
     readonly searchFilters = signal(DEFAULT_SEARCH_FILTERS);
     readonly searchResults = signal<XtreamContentItem[]>([]);
     readonly isSearching = signal(false);
+    readonly searchError = signal(false);
     readonly isLoadingContent = signal(false);
     readonly isLoadingCategories = signal(false);
     readonly isImporting = signal(false);
@@ -72,6 +73,10 @@ class MockXtreamStore {
         this.isSearching.set(state);
     });
     resetSearchResults = jest.fn();
+    setSearchError = jest.fn(() => {
+        this.searchResults.set([]);
+        this.searchError.set(true);
+    });
     searchContent = jest.fn();
     setSelectedContentType = jest.fn();
 }
@@ -129,6 +134,30 @@ describe('SearchResultsComponent global search', () => {
         expect(component.searchTerm()).toBe('');
         expect(component.isGlobalSearch).toBe(true);
         expect(component.backAvailable).toBe(false);
+    });
+
+    it('keeps the global query and type filters when search fails', async () => {
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const database = TestBed.inject(DatabaseService);
+        jest.spyOn(database, 'globalSearchContent').mockRejectedValueOnce(
+            new Error('offline')
+        );
+        const component = TestBed.runInInjectionContext(
+            () => new SearchResultsComponent()
+        );
+        store.searchTerm.set('matrix');
+        store.searchFilters.set({ live: false, movie: true, series: false });
+
+        await component.searchGlobal('matrix', ['movie'], true);
+
+        expect(store.searchError()).toBe(true);
+        expect(store.searchTerm()).toBe('matrix');
+        expect(store.searchFilters()).toEqual({
+            live: false,
+            movie: true,
+            series: false,
+        });
+        expect(store.resetSearchResults).not.toHaveBeenCalled();
     });
 
     it('navigates global search selection to workspace xtream route', () => {

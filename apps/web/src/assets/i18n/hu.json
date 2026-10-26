@@ -1398,6 +1398,8 @@
             "NO_SEARCH_RESULTS": "Nincs találat. Próbálja módosítani a keresést."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "A keresés nem sikerült",
+            "ERROR_DESCRIPTION": "A keresés és a szűrők megmaradtak. Próbálja újra.",
             "INITIAL_TITLE": "Tartalom keresése",
             "INITIAL_DESCRIPTION": "Adjon meg legalább 3 karaktert az élő csatornák, filmek és sorozatok közötti kereséshez.",
             "RESULTS_FOUND": "{{count}} találat",

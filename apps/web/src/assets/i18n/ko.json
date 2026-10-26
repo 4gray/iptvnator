@@ -1398,6 +1398,8 @@
             "NO_SEARCH_RESULTS": "아무것도 찾지 못했습니다. 검색 요청을 변경해 보세요."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "검색을 완료하지 못했습니다",
+            "ERROR_DESCRIPTION": "검색어와 필터가 유지됩니다. 다시 검색해 주세요.",
             "INITIAL_TITLE": "콘텐츠 검색",
             "INITIAL_DESCRIPTION": "라이브 TV, 영화, 시리즈에서 검색하려면 3자 이상 입력하세요.",
             "RESULTS_FOUND": "{{count}}개의 결과를 찾았습니다",
