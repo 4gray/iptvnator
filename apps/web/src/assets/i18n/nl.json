@@ -1398,6 +1398,8 @@
             "NO_SEARCH_RESULTS": "Niets gevonden. Probeer uw zoekopdracht te wijzigen."
         },
         "SEARCH_VIEW": {
+            "ERROR_TITLE": "Zoeken is mislukt",
+            "ERROR_DESCRIPTION": "Je zoekopdracht en filters blijven bewaard. Probeer het opnieuw.",
             "INITIAL_TITLE": "Zoek naar inhoud",
             "INITIAL_DESCRIPTION": "Voer ten minste 3 tekens in om te zoeken in live tv, films en series.",
             "RESULTS_FOUND": "{{count}} resultaten gevonden",

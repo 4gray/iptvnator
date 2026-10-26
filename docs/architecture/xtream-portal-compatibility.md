@@ -772,6 +772,12 @@ and the facade maps page 0 to the skeleton and later pages to the tail
 spinner. These catalog/search surfaces use incremental loading instead of
 page buttons.
 
+A failed initial search is distinct from a successful empty result. The search
+store exposes an error state to the shared search layout; Retry retains the
+query, content-type filters and hidden-category choice. New searches clear the
+error, and obsolete failures cannot replace newer results. Global search uses
+the same recovery surface without resetting the user's query or filters.
+
 ## Forced external launches from detail pages
 
 The "…" menu's MPV/VLC launch follows the shared rules in
