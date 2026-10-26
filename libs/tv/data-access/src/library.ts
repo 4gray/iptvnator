@@ -136,6 +136,14 @@ export class ServerLibrary {
             sources,
         };
     }
+    async publishLuma(feed: unknown, signal: AbortSignal) {
+        await this.identify(signal);
+        await this.request('/app-state/luma-home-v1', signal, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value: JSON.stringify(feed) }),
+        });
+    }
     async upload(source: Source, signal: AbortSignal) {
         const current = await this.read(signal);
         // Existing server data wins; never overwrite a library, favorites or history.

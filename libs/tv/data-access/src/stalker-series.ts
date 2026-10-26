@@ -11,7 +11,13 @@ import {
     type StalkerEpisodeCommand,
 } from '@iptvnator/portal/stalker/client';
 import { isStalkerSeriesFlag } from '@iptvnator/shared/interfaces';
-import { Media, Source, identity, rows } from '@iptvnator/tv/util';
+import {
+    Media,
+    Source,
+    identity,
+    rows,
+    withSeriesContext,
+} from '@iptvnator/tv/util';
 import { StalkerSession } from './stalker-session';
 export function unwrap(value: unknown): unknown {
     const js = (value as { js?: unknown })?.js;
@@ -197,34 +203,39 @@ export async function stalkerEpisodes(
                 e.originalId ?? e.id,
                 e.episode_num,
             ]);
-            episodes.push({
-                id: identity(source, 'episode', coordinates),
-                sourceId: source.id,
-                providerId: e.originalId ?? e.id,
-                kind: 'episode',
-                title: e.title || `Episode ${e.episode_num}`,
-                season: e.season,
-                episode: e.episode_num,
-                parentId: item.id,
-                seriesTitle: item.title,
-                seriesYear: item.year,
-                backdrop: item.backdrop,
-                poster: item.poster,
-                raw: {
-                    cmd: e.originalCmd,
-                    ...(lazy
-                        ? {
-                              lazyEpisode: {
-                                  originalCmd: e.originalCmd,
-                                  custom_sid: e.custom_sid,
-                                  vodEpisode: e.vodEpisode,
-                              },
-                          }
-                        : {}),
-                    origin: 'vod',
-                    series: lazy ? undefined : e.episode_num,
-                },
-            });
+            episodes.push(
+                withSeriesContext(
+                    {
+                        id: identity(source, 'episode', coordinates),
+                        sourceId: source.id,
+                        providerId: e.originalId ?? e.id,
+                        kind: 'episode',
+                        title: e.title || `Episode ${e.episode_num}`,
+                        season: e.season,
+                        episode: e.episode_num,
+                        parentId: item.id,
+                        seriesTitle: item.title,
+                        seriesYear: item.year,
+                        backdrop: item.backdrop,
+                        poster: item.poster,
+                        raw: {
+                            cmd: e.originalCmd,
+                            ...(lazy
+                                ? {
+                                      lazyEpisode: {
+                                          originalCmd: e.originalCmd,
+                                          custom_sid: e.custom_sid,
+                                          vodEpisode: e.vodEpisode,
+                                      },
+                                  }
+                                : {}),
+                            origin: 'vod',
+                            series: lazy ? undefined : e.episode_num,
+                        },
+                    },
+                    item
+                )
+            );
         })
     );
     return episodes;

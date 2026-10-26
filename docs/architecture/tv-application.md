@@ -199,6 +199,22 @@ refresh applies changes and removes missing server entries, retaining local view
 data and restoring an original local source when one was linked. Disconnect restores
 original local configurations and keeps other downloaded sources as local copies.
 Favorites, history, progress and TV preferences are not synchronized in this phase.
+An optional personal Luma integration publishes the active source's unfinished
+titles and saved favorites to `/v1/app-state/luma-home-v1`. Local IndexedDB remains
+authoritative. Credentials, raw provider data and playback URLs are excluded;
+artwork is limited to public TMDB images. The shipped empty `luma-config.js`
+disables the integration. A personal `{url, instanceId, token?}` configuration
+uses the existing library gateway when necessary and verifies instance identity
+before publishing. Updates run every 15 seconds and on visibility changes;
+failures retry without interrupting playback. Each personal TV needs its own
+feed key before multiple TVs can share a server.
+
+Luma passes `{luma:{action:"open",id,sourceId}}` in cold/warm launch parameters.
+Only identities still saved on this TV resolve, and source changes wait for the
+provider connection. Series cards show the parent name and open the saved parent
+and episode list. Historical episodes without a saved parent resume directly
+instead of opening an orphan episode detail. Movies open details and channels
+follow existing playback. Deleted entries show a recovery message.
 Source credentials are cached locally just like manually entered TV sources.
 Custom header fields are retained for copying; only the existing M3U parser's
 User-Agent option is applied here. Native video still cannot attach arbitrary
@@ -425,12 +441,15 @@ parent artwork fills missing episode covers without requesting a new catalog.
 Historical Stalker history/favorites recover missing covers from their saved raw
 fields through the provider artwork resolver, without rewriting saved commands,
 positions or credentials.
-Episode mappings persist `seriesTitle` and `seriesYear` independently of their
+Episode mappings persist `seriesTitle`, `seriesYear` and an exact `parentSeries`
+snapshot independently of their
 episode title, parent-scoped ID and command. Home, resume cards and the player
 show the parent title with separate episode information. Historical records gain
 this context when their exact source/parent appears in Home, a catalog, favorites
 or the selected series; unavailable parent names are not guessed. This additive
 repair also updates retained positions without changing seconds or timestamps.
+Parent snapshots retain provider fields needed to reopen regular, embedded and
+lazy series, but exclude cached Xtream episode lists and nested parent snapshots.
 
 Home features up to three recently watched, unfinished titles from the active
 source. A series contributes its latest watched episode; a completed latest
@@ -438,7 +457,18 @@ episode does not revive older unfinished episodes. Unknown-duration positions
 remain resumable. The Continue watching rail retains up to eight titles using
 the same grouping. Previous/Next controls wrap on OK or pointer click; there is
 no automatic rotation or playback on focus. Continue watching resolves the
-original saved media identity, while Details opens its provider detail view.
+original saved media identity, while Details opens the parent series and episode
+list for an episode. The feature uses the series title, artwork and description;
+episode coordinates and title remain secondary progress information. A saved
+parent works even outside the Home catalog preview after relaunch. Historical
+entries retain Details and resolve their exact parent in the current provider,
+using the saved series name to narrow catalog queries. Only a matching
+source/parent identity can open; title similarity never synthesizes a parent.
+Named unfinished entries recover context in the background on Home. Lookups
+are bounded to 20 pages per catalog and 15 seconds, preserve playback data,
+and offer an explicit retry through Details when recovery is unavailable.
+Fullscreen episode playback also has Series details: it saves/stops playback and
+opens the parent episode list. Returning restores the initiating Home card.
 Selection survives detail/player Back; source changes and relaunch start at the
 latest unfinished title. With no unfinished history, the first catalog movie
 (or first available item) remains the featured fallback. Artwork-only parent
@@ -473,6 +503,12 @@ generic titles; meaningful provider titles and every playback coordinate remain
 unchanged. Missing TMDB episodes/fields leave provider content usable. Live
 channels, whole-catalog enrichment, discovery and trailers remain
 outside this TV integration.
+Episode landscape artwork lives in `episodeStill`, separately from the series
+cover in `poster`/the parent snapshot. Home, Continue watching and Luma use the
+series cover; episode cards use the still. Cards with stills show a larger image
+and up to three description lines. Missing stills keep compact text cards, and a
+season without stills retains its previous layout. Rich episode grids use fixed
+row tracks so mixed card heights do not corrupt virtual scrolling or focus.
 Circular actor/director/creator controls open cached, language-scoped person
 details and the complete combined acting/directing/creating filmography. Missing
 photos keep initials. Selecting a filmography card searches only the current
@@ -488,12 +524,20 @@ season after season 1; an unmarked show must corroborate its premiere year.
 Explicit bracketed release years corroborate matches even without a separate
 provider year field. Season metadata reads markers across the provider's raw
 name/original-name/title fields as well as its chosen display title.
+Search pages finish before choosing between one match and several equally
+strong versions, including exact title/year matches on different pages. An
+incomplete search retains Retry even when an earlier page contains a match.
 Several equally strong versions require a choice. Found entries open actual provider
 details, preserving all stream coordinates and commands. A finished search with
 no match reports that the title is unavailable in this portal. Errors, repeated
 pages, the 20-page safety limit and the 15-second deadline report an incomplete
 search with retry. Cancellation, source changes and navigation discard obsolete
 results. Person/detail Back preserves card focus and scroll position.
+Back cancels pending detail browsing before restoring its previous route. Route
+commits also cancel browsing during layout cleanup, so a late detail response
+cannot consume the pending person-card focus before its filmography loads.
+Deferred route-entry focus and scroll changes apply only while their destination
+is current, preserving the restored filmography after a fast Back before paint.
 Provider-version choices live in an app-owned snapshot for that exact person
 route visit. New choices receive remote focus; returning from details restores
 the chooser and selected version, while a fresh person visit clears it.

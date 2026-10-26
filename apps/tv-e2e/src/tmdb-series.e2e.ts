@@ -39,6 +39,21 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
 }) => {
     await start(page);
     await addSource(page, 'xtream');
+    await page.route('**/xtream?**', async (route) => {
+        if (
+            new URL(route.request().url()).searchParams.get('action') !==
+            'get_series_info'
+        )
+            return route.fallback();
+        const response = await route.fetch();
+        const body = await response.json();
+        for (const episodes of Object.values(body.payload.episodes ?? {}))
+            if (Array.isArray(episodes))
+                episodes.forEach((episode) => {
+                    if (episode.info) delete episode.info.movie_image;
+                });
+        await route.fulfill({ response, json: body });
+    });
     const paths: string[] = [];
     let failSeason = true;
     await page.route('https://image.tmdb.org/**', (route) =>
@@ -113,6 +128,12 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
         page.getByRole('button', { name: 'Retry episode metadata' })
     ).toBeVisible();
     await expect(page.locator('.episode').first()).toBeVisible();
+    expect(
+        await page
+            .locator('.episode')
+            .first()
+            .evaluate((el) => el.getBoundingClientRect().height)
+    ).toBe(260);
     failSeason = false;
     await page.getByRole('button', { name: 'Retry episode metadata' }).click();
     await expect(page.locator('.episode-description').first()).toHaveText(
@@ -123,6 +144,30 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
         /\/episode.jpg$/
     );
     await expect(page.locator('.episode-still').first()).toBeVisible();
+    expect(
+        await page
+            .locator('.episode')
+            .first()
+            .evaluate((el) => el.getBoundingClientRect().height)
+    ).toBe(480);
+    expect(
+        await page
+            .locator('.episode')
+            .nth(1)
+            .evaluate((el) => el.getBoundingClientRect().height)
+    ).toBe(260);
+    expect(
+        await page
+            .locator('.episode-still')
+            .first()
+            .evaluate((el) => el.getBoundingClientRect().width)
+    ).toBeGreaterThan(120);
+    const seriesCover = await page
+        .locator('.detail-poster img')
+        .getAttribute('src');
+    await page.screenshot({
+        path: '../../dist/tv-verification/tv-rich-episodes.png',
+    });
     const title = await page.locator('.episode strong').first().innerText();
     // Meaningful provider episode titles are retained.
     expect(title).not.toBe('TMDB episode');
@@ -150,6 +195,10 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
     await nav(page, 'Home');
     await expect(page.locator('.hero h1')).toHaveText(seriesTitle);
     await expect(page.locator('.hero-position')).toContainText(title);
+    await expect(page.locator('.resume-card img').first()).toHaveAttribute(
+        'src',
+        seriesCover!
+    );
     await page.reload();
     await expect(page.locator('.hero h1')).toHaveText(seriesTitle);
     await page.locator('[data-focus="hero-resume"]').click();

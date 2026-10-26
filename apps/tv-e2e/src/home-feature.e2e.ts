@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { addSource, nav, start } from './helpers';
+import { addSource, nav, start, xtream } from './helpers';
 
 async function watch(page: Page, index: number, episode = false) {
     await nav(page, episode ? 'Series' : 'Movies');
@@ -118,29 +118,138 @@ test('home features three unfinished titles with manual wrap, remote focus, deta
     await expect(page.locator('.resume-card')).toHaveCount(0);
 });
 
-test('featured episode resumes the saved episode after relaunch', async ({
+for (const provider of ['xtream', 'stalker'] as const)
+    test(`${provider}: featured series opens the parent and resumes its saved episode after relaunch`, async ({
+        page,
+    }) => {
+        await start(page);
+        await addSource(page, provider);
+        // Real local media responses support byte-range seeks; mocked full-file
+        // responses do not prove that the saved position can be resumed.
+        await page.route('**/tv-test-media.webm', (route) => route.continue());
+        if (provider === 'stalker')
+            await page.route('**/stalker?**', (route) =>
+                new URL(route.request().url()).searchParams.get('action') ===
+                'create_link'
+                    ? route.fulfill({
+                          json: {
+                              action: 'create_link',
+                              payload: {
+                                  js: { cmd: `${xtream}/tv-test-media.webm` },
+                              },
+                          },
+                      })
+                    : route.fallback()
+            );
+        const seriesTitle = await watch(
+            page,
+            provider === 'xtream' ? 13 : 0,
+            true
+        );
+        await page.reload();
+        await expect(page.locator('.hero-position')).toContainText('S1 · E1');
+        await expect(page.locator('.hero-switcher')).toHaveCount(0);
+        const title = await page.locator('.hero h1').innerText();
+        expect(title).toBe(seriesTitle);
+        await expect(page.locator('.resume-card strong').first()).toHaveText(
+            seriesTitle
+        );
+        if (provider === 'xtream')
+            await expect(
+                page
+                    .locator('.rail .poster-card strong')
+                    .filter({ hasText: seriesTitle })
+            ).toHaveCount(0);
+        await page.locator('[data-focus="hero"]').click();
+        await expect(page.locator('.detail-hero h1')).toHaveText(seriesTitle);
+        await expect(
+            page.getByRole('heading', { name: 'Episodes', exact: true })
+        ).toBeVisible();
+        await expect(page.locator('.episode').first()).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.locator('[data-focus="hero"]')).toBeFocused();
+        await page.locator('[data-focus="hero-resume"]').click();
+        await expect(page.locator('.player-bottom h1')).toHaveText(title);
+        await expect
+            .poll(() =>
+                page
+                    .locator('video')
+                    .evaluate((v: HTMLVideoElement) => v.currentTime)
+            )
+            .toBeGreaterThan(7);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('[data-focus="hero-resume"]')).toBeFocused();
+        const resume = page.locator('.resume-card').first();
+        await resume.click();
+        await expect(
+            page.locator('[data-focus="player-series-details"]')
+        ).toBeVisible();
+        await page.locator('[data-focus="player-series-details"]').click();
+        await expect(page.locator('.detail-hero h1')).toHaveText(seriesTitle);
+        await expect(
+            page.getByRole('heading', { name: 'Episodes', exact: true })
+        ).toBeVisible();
+        await expect(page.locator('video[src], video source')).toHaveCount(0);
+        await page.keyboard.press('Escape');
+        await expect(resume).toBeFocused();
+    });
+
+test('historical Home episodes recover exact series details and cover without replacing their saved position', async ({
     page,
 }) => {
     await start(page);
     await addSource(page, 'xtream');
-    const seriesTitle = await watch(page, 0, true);
-    await page.reload();
-    await expect(page.locator('.hero-position')).toContainText('S1 · E1');
-    await expect(page.locator('.hero-switcher')).toHaveCount(0);
-    const title = await page.locator('.hero h1').innerText();
-    expect(title).toBe(seriesTitle);
-    await expect(page.locator('.resume-card strong').first()).toHaveText(
-        seriesTitle
+    const title = await watch(page, 13, true);
+    await page.evaluate(
+        () =>
+            new Promise<void>((resolve, reject) => {
+                const r = indexedDB.open('iptvnator-tv-user-data', 1);
+                r.onsuccess = () => {
+                    const db = r.result,
+                        tx = db.transaction('state', 'readwrite'),
+                        store = tx.objectStore('state');
+                    const read = store.get('user');
+                    read.onsuccess = () => {
+                        const saved = read.result;
+                        for (const progress of [
+                            ...saved.data.history,
+                            ...Object.values(saved.data.positions),
+                        ] as { item: Record<string, unknown> }[]) {
+                            if (progress.item.kind === 'episode') {
+                                delete progress.item.parentSeries;
+                                progress.item.poster =
+                                    'https://image.tmdb.org/t/p/w300/old-episode-still.jpg';
+                            }
+                        }
+                        store.put(saved, 'user');
+                    };
+                    tx.oncomplete = () => {
+                        db.close();
+                        resolve();
+                    };
+                    tx.onerror = () => {
+                        db.close();
+                        reject(Error('Fixture write failed'));
+                    };
+                };
+            })
     );
-    await page.locator('[data-focus="hero-resume"]').click();
-    await expect(page.locator('.player-bottom h1')).toHaveText(title);
-    await expect
-        .poll(() =>
-            page
-                .locator('video')
-                .evaluate((v: HTMLVideoElement) => v.currentTime)
-        )
-        .toBeGreaterThan(7);
+    await page.reload();
+    await expect(page.locator('.hero h1')).toHaveText(title);
+    await expect(page.locator('[data-focus="hero"]')).toBeVisible();
+    await page.locator('[data-focus="hero"]').click();
+    await expect(page.locator('.detail-hero h1')).toHaveText(title);
+    await expect(
+        page.getByRole('heading', { name: 'Episodes', exact: true })
+    ).toBeVisible();
+    const cover = await page.locator('.detail-poster img').getAttribute('src');
     await page.keyboard.press('Escape');
-    await expect(page.locator('[data-focus="hero-resume"]')).toBeFocused();
+    await expect(page.locator('.resume-card img').first()).toHaveAttribute(
+        'src',
+        cover!
+    );
+    await expect(page.locator('.resume-card progress').first()).toHaveAttribute(
+        'value',
+        /^(8|9)/
+    );
 });

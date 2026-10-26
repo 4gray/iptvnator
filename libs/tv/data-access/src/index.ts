@@ -30,6 +30,7 @@ export {
 export * from './backend';
 export * from './pairing';
 export { storedMediaPoster } from './stored-artwork';
+export { findParentSeries } from './parent-series';
 
 export * from './library';
 export * from './library-sources';

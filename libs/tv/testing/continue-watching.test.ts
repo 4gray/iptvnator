@@ -6,6 +6,8 @@ import {
     Progress,
     recoverSeriesContext,
     mediaTitle,
+    seriesForEpisode,
+    withSeriesContext,
 } from '@iptvnator/tv/util';
 const progress = (
     id: string,
@@ -63,6 +65,49 @@ test('historical episodes gain their exact parent title without changing identit
     assert.equal(next.favorites[0].id, saved.item.id);
     assert.equal(recoverSeriesContext(next, [parent]), next);
     assert.equal(data.history[0], saved);
+});
+test('saved parent context survives JSON storage without copying cached episode lists or accepting foreign parents', () => {
+    const parent = {
+        ...progress('show', 1).item,
+        kind: 'series' as const,
+        title: 'Series title',
+        raw: {
+            origin: 'vod',
+            is_series: true,
+            series: [1, 2],
+            cmd: 'parent-command',
+            details: { episodes: ['large cached list'] },
+        },
+    };
+    const episode = {
+        ...progress('episode', 2).item,
+        kind: 'episode' as const,
+        title: 'Episode title',
+        parentId: parent.id,
+        raw: { cmd: 'episode-command' },
+    };
+    const saved = withSeriesContext(episode, parent);
+    const restored = JSON.parse(JSON.stringify(saved));
+    const restoredParent = seriesForEpisode(restored);
+    assert.equal(restoredParent?.title, parent.title);
+    assert.equal(restoredParent?.providerId, parent.providerId);
+    assert.deepEqual(restoredParent?.raw, {
+        origin: 'vod',
+        is_series: true,
+        series: [1, 2],
+        cmd: 'parent-command',
+    });
+    assert.equal(saved.raw, episode.raw);
+    assert.equal(withSeriesContext(saved, parent), saved);
+    assert.equal(seriesForEpisode({ ...saved, parentId: 'other' }), undefined);
+    assert.equal(
+        seriesForEpisode({ ...saved, sourceId: 'foreign' }),
+        undefined
+    );
+    assert.equal(
+        withSeriesContext(episode, { ...parent, sourceId: 'foreign' }),
+        episode
+    );
 });
 test('continuation is source-scoped, newest first, limited and never mutates saved history', () => {
     const data = initialData();

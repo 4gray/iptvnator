@@ -9,6 +9,8 @@ export interface NavigationOrigin {
 /** Shared origin for detail/person navigation, including remote focus and scroll. */
 export function useRouteHistory(route: Route, setRoute: (next: Route) => void) {
     const stack = useRef<{ route: Route; focus: string; scroll: number }[]>([]);
+    const current = useRef(route);
+    current.current = route;
     function visit(next: Route, focus: string, origin?: NavigationOrigin) {
         stack.current.push({
             route,
@@ -19,7 +21,7 @@ export function useRouteHistory(route: Route, setRoute: (next: Route) => void) {
                 0,
         });
         setRoute(next);
-        restoreFocus(focus, '', 0);
+        restoreFocus(focus, '', 0, () => current.current === next);
     }
     return { stack, visit };
 }

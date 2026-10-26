@@ -16,6 +16,7 @@ import {
     text,
     artwork,
     identity,
+    withSeriesContext,
 } from '@iptvnator/tv/util';
 import type { XtreamVodDetails } from '@iptvnator/shared/interfaces';
 import { ProviderTransport } from './transport';
@@ -144,25 +145,31 @@ export class XtreamProvider implements ProviderClient {
             rows(data.episodes?.[season]).forEach((r) => {
                 const providerId = text(r.id);
                 const info = (r.info ?? {}) as Record<string, unknown>;
-                result.push({
-                    ...this.media(r, 'episode'),
-                    id: identity(
-                        this.source,
-                        'episode',
-                        `${item.providerId}:${season}:${providerId}`
-                    ),
-                    providerId,
-                    parentId: item.id,
-                    seriesTitle: item.title,
-                    seriesYear: item.year,
-                    poster: artwork(info.movie_image) || detail.poster,
-                    description: text(info.plot ?? info.description),
-                    backdrop: detail.backdrop,
-                    season: Number(r.season ?? season),
-                    episode: Number(r.episode_num),
-                    title: text(r.title) || `Episode ${r.episode_num}`,
-                    raw: r,
-                });
+                result.push(
+                    withSeriesContext(
+                        {
+                            ...this.media(r, 'episode'),
+                            id: identity(
+                                this.source,
+                                'episode',
+                                `${item.providerId}:${season}:${providerId}`
+                            ),
+                            providerId,
+                            parentId: item.id,
+                            seriesTitle: item.title,
+                            seriesYear: item.year,
+                            poster: detail.poster || item.poster,
+                            episodeStill: artwork(info.movie_image),
+                            description: text(info.plot ?? info.description),
+                            backdrop: detail.backdrop,
+                            season: Number(r.season ?? season),
+                            episode: Number(r.episode_num),
+                            title: text(r.title) || `Episode ${r.episode_num}`,
+                            raw: r,
+                        },
+                        item
+                    )
+                );
             })
         );
         return result;

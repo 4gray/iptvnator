@@ -8,9 +8,19 @@ import {
     Poster,
     ResumeCard,
 } from '@iptvnator/tv/ui';
-import { Media } from '@iptvnator/tv/util';
+import { Media, seriesForEpisode } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
-export function Home({ tv, feature }: { tv: TvModel; feature: HomeFeature }) {
+export function Home({
+    tv,
+    feature,
+    openSeries,
+    detailsBusy,
+}: {
+    tv: TvModel;
+    feature: HomeFeature;
+    openSeries: (item: Media) => Promise<void>;
+    detailsBusy: boolean;
+}) {
     const items = tv.home;
     const sourceId = tv.data.activeId;
     const history = feature.history;
@@ -34,7 +44,12 @@ export function Home({ tv, feature }: { tv: TvModel; feature: HomeFeature }) {
                 index={feature.index}
                 count={feature.count}
                 select={feature.select}
-                open={tv.open}
+                open={(item) =>
+                    item.kind === 'episode'
+                        ? void openSeries(item)
+                        : tv.open(item)
+                }
+                detailsBusy={detailsBusy}
                 compact={tv.data.layout === 'shelf'}
             />
             {history.length ? (
@@ -46,17 +61,15 @@ export function Home({ tv, feature }: { tv: TvModel; feature: HomeFeature }) {
                                 key={p.item.id}
                                 progress={p}
                                 play={tv.play}
-                                poster={
-                                    storedMediaPoster(
-                                        p.item,
-                                        tv.data.sources.find(
-                                            (s) => s.id === p.item.sourceId
-                                        )
-                                    ) ||
-                                    [...tv.home, ...tv.data.favorites].find(
-                                        (m) => m.id === p.item.parentId
-                                    )?.poster
-                                }
+                                poster={storedMediaPoster(
+                                    seriesForEpisode(p.item, [
+                                        ...tv.home,
+                                        ...tv.data.favorites,
+                                    ]) ?? p.item,
+                                    tv.data.sources.find(
+                                        (s) => s.id === p.item.sourceId
+                                    )
+                                )}
                             />
                         ))}
                     </div>

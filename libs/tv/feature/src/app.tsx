@@ -15,6 +15,8 @@ import { Live } from './live';
 import { Backdrop, TvIcon } from '@iptvnator/tv/ui';
 import { useMetadata } from './use-metadata';
 import { useSeriesContext } from './use-series-context';
+import { useLuma } from './use-luma';
+import { useSeriesDetails } from './use-series-details';
 import { mediaTitle } from '@iptvnator/tv/util';
 import { PersonPage } from './person-page';
 import type { FilmographyMemory } from './use-filmography-search';
@@ -37,6 +39,8 @@ export function TvApp() {
     });
     const video = useRef<HTMLVideoElement>(null);
     const tv = useTv(video);
+    useLuma(tv);
+    const seriesDetails = useSeriesDetails(tv);
     useSeriesContext(tv);
     const browse = useLiveBrowse(tv);
     const overlay = useLiveOverlay(tv, browse);
@@ -196,6 +200,8 @@ export function TvApp() {
                     <Home
                         tv={display}
                         feature={{ ...feature, item: metadata.item }}
+                        openSeries={seriesDetails.open}
+                        detailsBusy={seriesDetails.busy}
                     />
                 ) : r.view === 'sources' ? (
                     <Sources tv={tv} />
@@ -289,6 +295,19 @@ export function TvApp() {
                                 >
                                     {element?.paused ? 'Play ▶' : 'Pause Ⅱ'}
                                 </button>
+                                {current?.kind === 'episode' ? (
+                                    <button
+                                        data-focus="player-series-details"
+                                        disabled={seriesDetails.busy}
+                                        onClick={() =>
+                                            void seriesDetails.open(current)
+                                        }
+                                    >
+                                        {seriesDetails.busy
+                                            ? 'Finding series…'
+                                            : 'Series details →'}
+                                    </button>
+                                ) : null}
                                 {current?.kind !== 'live' ? (
                                     <>
                                         <button

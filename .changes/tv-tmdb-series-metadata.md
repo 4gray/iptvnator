@@ -3,4 +3,4 @@ type: fix
 area: tv
 ---
 
-TV details show TMDB cast, directors or creators, and available episode descriptions and stills. Home and viewing history retain the series title separately from its episode. TMDB settings clearly show whether enrichment is enabled and saved, and translated title matching also checks English names.
+TV shows TMDB people and episode details. Home and Continue watching use the series name and cover. Open series details from Home or fullscreen playback; episodes with stills show larger cards and descriptions, while missing artwork keeps compact cards. TMDB settings explain saved enablement, and translated searches also check English names.

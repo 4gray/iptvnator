@@ -81,7 +81,11 @@ export function VirtualCollection<T extends { id: string }>({
                           .length;
             const gap =
                 parseFloat(style.rowGap) || (layout === 'channels' ? 9 : 0);
-            const step = first.getBoundingClientRect().height + gap;
+            const track =
+                layout === 'episodes' ? parseFloat(style.gridAutoRows) : NaN;
+            const step =
+                (track > 0 ? track : first.getBoundingClientRect().height) +
+                gap;
             if (restoreChannel) {
                 const index = current.items.findIndex(
                     (item) => item.id === restoreKey

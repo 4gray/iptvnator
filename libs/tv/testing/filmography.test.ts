@@ -235,16 +235,30 @@ test('canonical numeric titles are not release tags, while TV season-year tags m
     assert.equal(remake.status, 'missing');
 });
 
-test('an exact title/year match can open without scanning a portal that ignores its search filter', async () => {
+test('exact title/year versions on different pages require a choice after paging finishes', async () => {
+    const versions = [item('1080'), item('4k')];
+    const pages: number[] = [];
+    const client = provider(async (_kind, _category, page) => {
+        pages.push(page);
+        return { items: [versions[page]], total: 2, page, categories: [] };
+    });
+    assert.deepEqual(
+        await findFilmographyTitle(client, 'source', credit, signal()),
+        { status: 'choices', items: versions }
+    );
+    assert.deepEqual(pages, [0, 1]);
+});
+
+test('an exact match cannot auto-open when a portal repeats pages instead of completing the search', async () => {
     let calls = 0;
     const wanted = item('found');
     const client = provider(async (_kind, _category, page) => {
         calls++;
         return { items: [wanted], total: 100000, page, categories: [] };
     });
-    assert.deepEqual(
-        await findFilmographyTitle(client, 'source', credit, signal()),
-        { status: 'found', item: wanted }
+    await assert.rejects(
+        findFilmographyTitle(client, 'source', credit, signal()),
+        /incomplete/
     );
-    assert.equal(calls, 1);
+    assert.equal(calls, 2);
 });

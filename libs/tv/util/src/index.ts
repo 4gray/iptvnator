@@ -4,6 +4,7 @@ import {
     normalizeCatalogSort,
 } from './catalog-sort';
 export type Kind = 'live' | 'movie' | 'series' | 'episode';
+export { lumaFeed, lumaSelection, type LumaCard } from './luma';
 export type Provider = 'xtream' | 'stalker' | 'm3u';
 export interface Source {
     id: string;
@@ -35,6 +36,8 @@ export interface Media {
     title: string;
     addedAt?: number;
     poster?: string;
+    /** Episode landscape still, independent of its series cover. */
+    episodeStill?: string;
     backdrop?: string;
     description?: string;
     category?: string;
@@ -45,6 +48,8 @@ export interface Media {
     /** Parent editorial context is independent of episode identity and playback. */
     seriesTitle?: string;
     seriesYear?: string;
+    /** Exact parent for Home details; excludes cached episode lists. */
+    parentSeries?: Media;
     metadata?: {
         tmdbId: number;
         cast: {

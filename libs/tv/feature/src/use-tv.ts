@@ -279,6 +279,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         }
         playback.current.cancel();
         const previous = stack.current.pop();
+        content.cancelBrowse();
         if (previous) {
             pendingFocus.current = previous.focus;
             pendingScroll.current = previous.scroll;

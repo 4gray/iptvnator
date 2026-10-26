@@ -119,7 +119,8 @@ test('season metadata uses the marked season, merges by episode number and prese
     assert.deepEqual(requests, ['/3/tv/97546/season/4']);
     assert.equal(result.items[0].title, 'Real episode');
     assert.equal(result.items[0].description, 'Episode plot');
-    assert.match(result.items[0].poster!, /\/still.jpg$/);
+    assert.match(result.items[0].episodeStill!, /\/still.jpg$/);
+    assert.equal(result.items[0].poster, episode.poster);
     assert.equal(result.items[0].id, episode.id);
     assert.equal(result.items[0].raw, episode.raw);
     assert.equal(result.items[0].season, 1);

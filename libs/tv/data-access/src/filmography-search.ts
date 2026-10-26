@@ -124,10 +124,6 @@ export async function findFilmographyTitle(
                         const score = matchScore(item, credit);
                         if (score !== null) hits.set(item.id, { item, score });
                     });
-                    // A matching title and exact release year is enough to open this
-                    // provider version, even if its server ignores the search filter.
-                    if ([...hits.values()].some((hit) => hit.score === 3))
-                        return bestMatch(hits);
                     if (!catalog.items.length || seen.size >= catalog.total) {
                         complete = true;
                         break;

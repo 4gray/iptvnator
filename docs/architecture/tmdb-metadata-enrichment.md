@@ -372,6 +372,10 @@ Failures, repeated/incomplete pages (20-page limit) and the 15-second deadline
 show a retry, while cancellation or navigation prevents stale results opening.
 Movie and series identities remain separate; TMDB IDs never become stream IDs.
 Back restores the previous person/detail/card focus and scroll position.
+TV episode stills are stored separately from the parent cover. Home resume cards
+retain series artwork, while season cards show available stills and descriptions.
+Home and fullscreen playback can open the exact parent series, including
+historical progress recovered from its current provider identity.
 See the [TV contract](tv-application.md#artwork-and-optional-tmdb-metadata).
 
 Cast chips carry the TMDB person id (`tmdbPersonId` on

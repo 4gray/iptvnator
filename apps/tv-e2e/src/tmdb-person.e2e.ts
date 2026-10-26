@@ -145,7 +145,7 @@ async function setup(
     await expect(
         page.getByRole('button', { name: 'View filmography: Fixture Actor' })
     ).toBeVisible();
-    return { title, apiPaths };
+    return { title, year, apiPaths };
 }
 test('@tmdb-person a long biography scrolls with the remote and releases focus at its boundaries', async ({
     page,
@@ -411,6 +411,7 @@ test('@tmdb-person reconnecting settles a pending lookup and retry preserves the
         .getByRole('button', { name: 'View filmography: Fixture Actor' })
         .click();
     await expect(page.locator('.person-page h2')).toContainText('103');
+    await expect(page.locator('[data-focus="person-back"]')).toBeFocused();
     await page.locator('main').evaluate((el) => {
         el.scrollTop = el.scrollHeight;
     });
@@ -448,10 +449,10 @@ test('@tmdb-person reconnecting settles a pending lookup and retry preserves the
         )
         .toBeLessThan(8);
 });
-test('@tmdb-person provider choices survive a detail round trip and expire for a fresh person visit', async ({
+test('@tmdb-person paged provider choices survive a detail round trip and expire for a fresh person visit', async ({
     page,
 }) => {
-    const { title } = await setup(page, 'stalker', true);
+    const { title, year } = await setup(page, 'stalker', true);
     await page.route('**/stalker?**', async (route) => {
         const url = new URL(route.request().url());
         if (
@@ -464,13 +465,19 @@ test('@tmdb-person provider choices survive a detail round trip and expire for a
                 action: 'get_ordered_list',
                 payload: {
                     js: {
-                        data: ['1080', '4k'].map((id) => ({
-                            id,
-                            name: title,
-                            cmd: 'https://fixture.invalid/movie',
-                        })),
+                        data: ['1080', '4k']
+                            .slice(
+                                Number(url.searchParams.get('p')) - 1,
+                                Number(url.searchParams.get('p'))
+                            )
+                            .map((id) => ({
+                                id,
+                                name: title,
+                                year,
+                                cmd: 'https://fixture.invalid/movie',
+                            })),
                         total_items: 2,
-                        max_page_items: 14,
+                        max_page_items: 1,
                     },
                 },
             },
@@ -480,6 +487,7 @@ test('@tmdb-person provider choices survive a detail round trip and expire for a
         .getByRole('button', { name: 'View filmography: Fixture Actor' })
         .click();
     await expect(page.locator('.person-page h2')).toContainText('103');
+    await expect(page.locator('[data-focus="person-back"]')).toBeFocused();
     await page.locator('main').evaluate((el) => {
         el.scrollTop = el.scrollHeight;
     });
@@ -503,6 +511,7 @@ test('@tmdb-person provider choices survive a detail round trip and expire for a
     await expect(page.locator('.person-page h1')).toHaveText('Fixture Actor');
     await expect(choices).toHaveCount(0);
     await expect(page.locator('.person-page h2')).toContainText('103');
+    await expect(page.locator('[data-focus="person-back"]')).toBeFocused();
     await page.locator('main').evaluate((el) => {
         el.scrollTop = el.scrollHeight;
     });

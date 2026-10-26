@@ -23,7 +23,12 @@ import {
     pickSeasonMarkedTitle,
     resolveEnrichmentSeasonNumber,
 } from '@iptvnator/shared/interfaces';
-import { artwork, Media, UserData } from '@iptvnator/tv/util';
+import {
+    artwork,
+    Media,
+    UserData,
+    withSeriesContext,
+} from '@iptvnator/tv/util';
 
 /** The caller owns cancellation; the deadline also bounds offline/slow API calls. */
 async function withDeadline<T>(
@@ -223,19 +228,22 @@ export class TvMetadata {
                             : undefined;
                     return !match
                         ? e
-                        : {
-                              ...e,
-                              title:
-                                  match.name?.trim() &&
-                                  isGenericEpisodeTitle(e.title)
-                                      ? match.name
-                                      : e.title,
-                              description:
-                                  match.overview?.trim() || e.description,
-                              poster:
-                                  artwork(tmdbStillUrl(match.still_path)) ||
-                                  e.poster,
-                          };
+                        : withSeriesContext(
+                              {
+                                  ...e,
+                                  title:
+                                      match.name?.trim() &&
+                                      isGenericEpisodeTitle(e.title)
+                                          ? match.name
+                                          : e.title,
+                                  description:
+                                      match.overview?.trim() || e.description,
+                                  episodeStill:
+                                      artwork(tmdbStillUrl(match.still_path)) ||
+                                      e.episodeStill,
+                              },
+                              parent
+                          );
                 }),
             };
         });

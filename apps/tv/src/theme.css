@@ -1334,6 +1334,28 @@ main.live-page {
     font-size: 16px;
     margin-bottom: 8px;
 }
+.rich-episodes .episode-grid {
+    grid-auto-rows: 480px;
+    align-items: start;
+}
+.rich-episodes .virtual-collection .episode.with-still {
+    height: 480px;
+    flex-direction: column;
+    padding: 0;
+}
+.with-still .episode-still {
+    width: 100%;
+    height: 200px;
+    margin: 0;
+}
+.with-still .episode-copy {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 20px;
+}
+.with-still .episode-description {
+    -webkit-line-clamp: 3;
+}
 .people-list {
     display: flex;
     flex-wrap: wrap;

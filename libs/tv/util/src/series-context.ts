@@ -3,6 +3,18 @@ import type { Media, UserData } from './index';
 export const mediaTitle = (item: Media) =>
     item.kind === 'episode' ? item.seriesTitle || item.title : item.title;
 
+export function seriesForEpisode(item: Media, parents: Media[] = []) {
+    if (item.kind !== 'episode') return undefined;
+    const matches = (parent?: Media) =>
+        parent?.kind === 'series' &&
+        parent.id === item.parentId &&
+        parent.sourceId === item.sourceId;
+    return (
+        parents.find(matches) ??
+        (matches(item.parentSeries) ? item.parentSeries : undefined)
+    );
+}
+
 export function withSeriesContext(episode: Media, parent?: Media): Media {
     if (
         episode.kind !== 'episode' ||
@@ -13,7 +25,25 @@ export function withSeriesContext(episode: Media, parent?: Media): Media {
         episode.sourceId !== parent.sourceId
     )
         return episode;
+    const raw = { ...parent.raw };
+    delete raw.details;
+    const snapshot: Media = {
+        id: parent.id,
+        sourceId: parent.sourceId,
+        providerId: parent.providerId,
+        kind: 'series',
+        title: parent.title,
+        year: parent.year,
+        poster: parent.poster,
+        backdrop: parent.backdrop,
+        description: parent.description,
+        raw,
+    };
     const context = {
+        parentSeries:
+            JSON.stringify(episode.parentSeries) === JSON.stringify(snapshot)
+                ? episode.parentSeries
+                : snapshot,
         seriesTitle: parent.title,
         seriesYear: parent.year || episode.seriesYear,
         poster: episode.poster || parent.poster,

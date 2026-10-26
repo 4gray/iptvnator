@@ -366,3 +366,74 @@ It fails before the fix and passes afterwards. **14/14 targeted TMDB workflows**
 **101 TV unit tests**, all nine affected lint targets and the three TV type
 programs pass. This is the seventh accepted local-review finding; none are
 declined. The final package and committed branch enter the fifth local round.
+
+## Resumed review and series navigation — prototype 0.1.21
+
+The fifth review of `d6412f4f9` finds that an exact-year filmography match can
+open before later provider pages contribute other versions. The user explicitly
+authorizes fixing this finding and starting another local review cycle. Search
+now exhausts the relevant pages before selecting a title; an incomplete or
+repeated page remains retryable. The split-page exact-year regression fails
+before the fix and passes afterwards. No finding is declined.
+
+The subsequent requested series work stores an additive exact parent snapshot
+without episode lists or altered playback commands. Home and Continue watching
+show the parent series name and cover. Details is available from the Home hero
+and fullscreen episode player. Historical items can recover their exact parent
+through a bounded, cancellable provider lookup. TMDB/provider episode stills are
+stored separately from series covers; episodes with stills have larger cards
+with descriptions, while missing artwork keeps compact cards.
+
+The rooted-TV Luma integration from the user's adjacent setup is retained as an
+explicit installation opt-in. Its narrow feed contains saved identities, public
+TMDB images and display text, without portal credentials or playback commands.
+Series selections open the saved parent; historical entries without a recovered
+parent can still resume their episode. The packaged configuration is empty.
+
+On 26 October 2026, root SSH replaces the deliberately removed Developer Mode
+installation path. Prototype **0.1.20**, then **0.1.21**, are installed using the
+native application installer. The 0.1.21 installer reports `state: installed`,
+appinfo reports 0.1.21, and the relaunched Home shows **Ted Lasso s04**. The
+runtime references `index-C6h2culx.js`; its SHA-256 equals the file extracted
+from the installed IPK:
+
+- IPK: `6b35e17a8048e8753dc4c8847a431a36042442c3836cc8f6d355399074e7da3e`.
+- Runtime JS: `bcb051553d51e48bc3df01d485628678a695e0ad688e646fc8453f3bbc67faf3`.
+
+Private before/after snapshots retain **3 sources, 20 history entries,
+8 favorites and 20 positions**. The key, favorite identities/commands, history
+identities/commands/times and position fingerprints match exactly. The only
+changed source field is the active Stalker session token; library sync metadata
+also refreshes normally. The personal Luma configuration is backed up and
+restored byte-for-byte before launch. No secrets or private snapshots enter the
+repository. This deployment confirms the current package and data preservation;
+the earlier detailed native playback acceptance retains its original revision
+scope, and the new controls remain available for the user's physical testing.
+
+### Final local gates — prototype 0.1.22
+
+A repeated fast detail/Back workflow exposes an older route-entry animation
+frame resetting the restored filmography's scroll. Deferred focus now checks
+that its destination is still current before changing focus or scroll. Initial
+person navigation tests await the actual entry focus before scrolling, while
+the fast Back assertions retain their immediate navigation and exact card/scroll
+requirements. The three filmography round-trip workflows pass **30/30 repeated
+executions** after this fix.
+
+The final full TV run passes **122/122 browser scenarios**, including both
+provider Home/parent/resume flows, historical parent recovery, fullscreen series
+details, mixed rich/compact episode cards and cold/warm Luma selections. All
+**110/110 TV unit tests**, nine affected lint targets, and the TV/spec/E2E type
+programs pass. The unchanged shared TMDB **90/90** and Angular TMDB **101/101**
+results remain applicable. Release notes validate **165 entries** and guidance
+validation checks **3 files**; no threshold or baseline changes are made.
+
+The 0.1.22 package passes the classic deferred IIFE, ES2018 and unsupported
+builtin audits. Its SHA-256 is
+`7229ed2015672e0b5b7726ab874d57fd34a6aeb464c67fcc8c5adcdf10e228b0`.
+The current committed branch enters the resumed local Codex review; Greptile
+remains unavailable under the documented missing-CLI exception. No Electron
+IPC, database migration or native player implementation is changed. Browser
+native-video workflows and the separately scoped LG observations above cover
+the relevant playback paths. Publication and merge remain gated on review of
+the committed PR revision.

@@ -85,7 +85,13 @@ export function Detail({
             </section>
             <MetadataCredits item={item} open={tv.openPerson} />
             {item.kind === 'series' ? (
-                <section>
+                <section
+                    class={
+                        episodes.some((e) => e.episodeStill)
+                            ? 'rich-episodes'
+                            : ''
+                    }
+                >
                     <div class="section-title">
                         <h2>Episodes</h2>
                         <label>
@@ -120,14 +126,14 @@ export function Detail({
                             <button
                                 data-focus={e.id}
                                 key={e.id}
-                                class="episode"
+                                class={`episode ${e.episodeStill ? 'with-still' : ''}`}
                                 onClick={() => tv.play(e)}
                             >
-                                {e.poster ? (
+                                {e.episodeStill ? (
                                     <img
-                                        key={e.poster}
+                                        key={e.episodeStill}
                                         class="episode-still"
-                                        src={e.poster}
+                                        src={e.episodeStill}
                                         alt=""
                                         loading="lazy"
                                         onError={(event) => {
