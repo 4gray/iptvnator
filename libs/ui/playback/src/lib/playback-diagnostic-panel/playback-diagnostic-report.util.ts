@@ -50,7 +50,7 @@ export function createDiagnosticReport(
     return JSON.stringify(
         {
             schemaVersion: 1,
-            app: 'IPTVnator',
+            app: 'NatorTV',
             appVersion:
                 /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-(?:alpha|beta|rc)\.?\d{1,5})?$/.test(
                     appVersion

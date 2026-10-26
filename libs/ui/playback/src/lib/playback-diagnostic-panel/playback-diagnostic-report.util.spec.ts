@@ -32,7 +32,7 @@ describe('safe diagnostic report', () => {
             'Mozilla/5.0 (Macintosh) Electron/42 secret'
         );
         expect(JSON.parse(report)).toMatchObject({
-            app: 'IPTVnator',
+            app: 'NatorTV',
             appVersion: '1.0.0',
             os: 'macOS',
             runtime: 'electron',
