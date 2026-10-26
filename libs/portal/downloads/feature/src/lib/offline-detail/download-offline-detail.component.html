@@ -87,7 +87,7 @@
                 "
             >
                 <button
-                    mat-stroked-button
+                    mat-flat-button
                     type="button"
                     data-testid="view-in-portal"
                     [disabled]="!canOpenInPortal() || providerPending()"
@@ -411,7 +411,7 @@
         @if (redirectFailed()) {
             <div hero-error-actions class="offline-detail__not-found-actions">
                 <button
-                    mat-stroked-button
+                    mat-flat-button
                     type="button"
                     data-testid="redirect-back"
                     (click)="goBack()"
@@ -435,7 +435,7 @@
                     {{ 'DOWNLOADS.OFFLINE_DETAIL.NOT_FOUND_BODY' | translate }}
                 </p>
                 <button
-                    mat-stroked-button
+                    mat-flat-button
                     type="button"
                     data-testid="not-found-back"
                     (click)="goBack()"

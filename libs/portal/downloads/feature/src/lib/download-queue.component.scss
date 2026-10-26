@@ -1,4 +1,5 @@
 @use '../../../../../ui/styles/focus-ring';
+@use '../../../../../ui/styles/app-controls' as controls;
 
 :host {
     display: block;
@@ -36,7 +37,7 @@
                 transparent
             );
         border-radius: 14px;
-        background: var(--mat-sys-surface-container-low);
+        background: var(--app-widget-bg);
     }
 
     &__item {
@@ -147,12 +148,15 @@
 
     &__title {
         min-width: 0;
+        max-width: 100%;
         overflow: hidden;
         padding: 2px 0;
         border: 0;
         background: transparent;
-        color: var(--mat-sys-on-surface);
-        font: var(--mat-sys-title-medium);
+        color: var(--app-heading-color);
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 600;
         text-align: start;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -176,8 +180,9 @@
         flex-wrap: wrap;
         gap: 6px 12px;
         min-width: 0;
-        color: var(--mat-sys-on-surface-variant);
-        font: var(--mat-sys-body-small);
+        color: var(--app-body-color);
+        font: inherit;
+        font-size: 0.78rem;
     }
 
     &__status {
@@ -243,46 +248,20 @@
 
     &__actions {
         justify-content: flex-end;
+        flex-wrap: wrap;
         gap: 4px;
+        min-width: 0;
 
-        button {
+        button[mat-icon-button] {
+            @include controls.ghost-icon-button;
             flex: none;
-            transition:
-                background-color 140ms ease,
-                transform 140ms ease;
-
-            &:hover:not(:disabled) {
-                background: var(
-                    --app-selection-surface,
-                    var(--mat-sys-secondary-container)
-                );
-                transform: translateY(-1px);
-            }
-        }
-
-        // The one action that moves the download forward
-        // (pause/resume/retry). Destructive commands live in the
-        // overflow menu.
-        .download-queue__primary {
-            background: var(--mat-sys-primary-container);
-            color: var(--mat-sys-on-primary-container);
-
-            &:hover:not(:disabled) {
-                background: color-mix(
-                    in srgb,
-                    var(--mat-sys-primary) 24%,
-                    var(--mat-sys-primary-container)
-                );
-            }
         }
     }
 
     &__recover {
-        white-space: nowrap;
-
-        mat-icon {
-            margin-inline-end: 6px;
-        }
+        @include controls.secondary-button(sm);
+        height: auto;
+        min-height: 32px;
     }
 
     button:focus-visible {
@@ -341,8 +320,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .download-queue {
-        &__artwork,
-        &__actions button {
+        &__artwork {
             transition: none;
 
             &:hover:not(:disabled) {

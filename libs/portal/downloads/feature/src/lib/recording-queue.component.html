@@ -140,7 +140,7 @@
                             <button
                                 type="button"
                                 mat-icon-button
-                                class="recording-queue__stop"
+                                class="recording-queue__stop app-destructive-button"
                                 data-test-action="stop-recording"
                                 [matTooltip]="
                                     'DOWNLOADS.STOP_RECORDING' | translate
@@ -156,7 +156,7 @@
                         } @else {
                             <button
                                 type="button"
-                                mat-stroked-button
+                                mat-button
                                 data-test-action="remove-recording"
                                 [disabled]="isPending(row.item.id)"
                                 (click)="emitAction('remove', row.item)"

@@ -1,4 +1,5 @@
 @use '../../../../../../ui/styles/focus-ring';
+@use '../../../../../../ui/styles/app-controls' as controls;
 
 :host {
     display: block;
@@ -46,57 +47,21 @@ button,
 }
 
 .offline-detail__season-tabs {
-    display: flex;
-    gap: 8px;
-    padding-block: 0 16px;
-    overflow-x: auto;
-    scrollbar-width: thin;
+    @include controls.segmented-track;
+    margin-block-end: 16px;
 }
 
 .offline-detail__season-tab {
+    @include controls.segment(48px);
     display: grid;
-    flex: 0 0 auto;
     gap: 2px;
-    min-width: 132px;
-    padding: 10px 14px;
-    border: 1px solid var(--mat-sys-outline-variant, var(--tag-border));
-    border-radius: var(--mat-sys-corner-medium, 10px);
-    background: var(--mat-sys-surface-container, var(--tag-bg));
-    color: var(--mat-sys-on-surface, var(--text-primary));
-    font: inherit;
+    height: auto;
+    min-height: 48px;
+    padding-block: 6px;
     text-align: start;
-    cursor: pointer;
-    transition:
-        background-color 140ms ease,
-        border-color 140ms ease;
-
-    &:hover {
-        background: var(--mat-sys-surface-container-high, var(--tag-bg));
-    }
 
     &--selected {
-        border-color: var(
-            --app-selection-border,
-            var(--mat-sys-primary, var(--text-primary))
-        );
-        background: var(
-            --app-selection-surface,
-            var(--mat-sys-secondary-container, var(--tag-bg))
-        );
-        color: var(
-            --app-selection-color,
-            var(--mat-sys-on-secondary-container, var(--text-primary))
-        );
-        box-shadow:
-            inset 0 0 0 1px var(--app-selection-border, var(--mat-sys-primary)),
-            0 12px 20px -18px var(--app-selection-glow, var(--mat-sys-primary));
-
-        &:hover {
-            background: var(
-                --app-selection-surface-strong,
-                var(--mat-sys-secondary-container, var(--tag-bg))
-            );
-        }
+        @include controls.segment-selected;
     }
 
     &:focus-visible {
@@ -105,7 +70,7 @@ button,
 }
 
 .offline-detail__season-count {
-    color: var(--mat-sys-on-surface-variant, var(--text-secondary));
+    color: var(--app-body-color);
     font-size: 0.75rem;
 }
 
@@ -121,9 +86,9 @@ button,
     gap: 16px;
     min-height: 72px;
     padding: 12px 12px 12px 16px;
-    border: 1px solid var(--mat-sys-outline-variant, var(--tag-border));
+    border: 1px solid var(--app-separator);
     border-radius: var(--mat-sys-corner-medium, 10px);
-    background: var(--mat-sys-surface-container, var(--surface-bg));
+    background: var(--app-widget-bg);
 }
 
 .offline-detail__episode-copy {
@@ -143,7 +108,7 @@ button,
 
 .offline-detail__episode-title {
     overflow: hidden;
-    color: var(--mat-sys-on-surface, var(--text-primary));
+    color: var(--app-heading-color);
     font-size: 0.9375rem;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -154,7 +119,7 @@ button,
     display: flex;
     flex-wrap: wrap;
     gap: 6px 14px;
-    color: var(--mat-sys-on-surface-variant, var(--text-secondary));
+    color: var(--app-body-color);
     font-size: 0.75rem;
 }
 
@@ -168,7 +133,7 @@ button,
     display: grid;
     justify-items: center;
     gap: 12px;
-    color: var(--mat-sys-on-surface-variant, var(--text-secondary));
+    color: var(--app-body-color);
 
     p {
         margin: 0;
@@ -186,8 +151,18 @@ button,
     }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .offline-detail__season-tab {
-        transition: none;
-    }
+button[mat-flat-button] {
+    @include controls.secondary-button;
+}
+
+button.offline-detail__primary-action {
+    @include controls.accent-button;
+}
+
+button[mat-icon-button] {
+    @include controls.ghost-icon-button;
+}
+
+.offline-detail__episode-actions button[mat-flat-button] {
+    @include controls.secondary-button(sm);
 }
