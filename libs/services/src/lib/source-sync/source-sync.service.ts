@@ -197,7 +197,9 @@ export class SourceSyncService {
                             this.connection!,
                             new Set(entries.map((entry) => entry.source.id))
                         );
-                    let changed = this.metadataDirty;
+                    let changed =
+                        this.metadataDirty ||
+                        response.etag !== this.store!.collectionRevision;
                     for (const entry of entries) {
                         const current =
                             await this.store!.local.dbGetAppPlaylist(

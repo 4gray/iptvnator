@@ -62,6 +62,12 @@ export async function migrateLegacyPlaylistActivity(
             lastUsage: row.lastUsage ?? '',
             favorites: row.favorites ?? [],
             recentlyViewed: row.recentlyViewed ?? [],
+            hiddenGroupTitles: row.hiddenGroupTitles,
+            position: row.position,
+            detectedEpgUrls: row.detectedEpgUrls,
+            epgUrls: row.epgUrls,
+            manualEpgUrls: row.manualEpgUrls,
+            disabledEpgUrls: row.disabledEpgUrls,
             ...(!row.macAddress && !row.serverUrl && row.playlist
                 ? {
                       playlist: row.playlist,

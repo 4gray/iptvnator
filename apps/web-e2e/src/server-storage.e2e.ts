@@ -133,6 +133,85 @@ test.describe('server storage @self-hosted @persistence', () => {
         await second.context().close();
     });
 
+    test('updates sibling tabs after another tab projects a rename or deletion', async ({
+        browser,
+        request,
+    }) => {
+        const first = await newServerPage(browser);
+        const id = 'sibling-tabs';
+        const original = {
+            _id: id,
+            title: 'Shared in tabs',
+            count: 1,
+            playlist: {
+                header: { raw: '#EXTM3U' },
+                items: [
+                    {
+                        id: 'one',
+                        name: 'Channel',
+                        url: 'https://streams.example.test/live.ts',
+                    },
+                ],
+            },
+        };
+        expect(
+            (
+                await request.put(`${STORAGE_BACKEND_URL}/v1/playlists/${id}`, {
+                    data: original,
+                })
+            ).ok()
+        ).toBe(true);
+        try {
+            await openSources(first);
+            const second = await first.context().newPage();
+            await openSources(second);
+            await expect(
+                sourceRowByTitle(second, original.title)
+            ).toBeVisible();
+            expect(
+                (
+                    await request.put(
+                        `${STORAGE_BACKEND_URL}/v1/playlists/${id}`,
+                        { data: { ...original, title: 'Renamed in tabs' } }
+                    )
+                ).ok()
+            ).toBe(true);
+            await first.evaluate(() =>
+                window.dispatchEvent(new Event('focus'))
+            );
+            await expect(
+                sourceRowByTitle(first, 'Renamed in tabs')
+            ).toBeVisible();
+            await second.evaluate(() =>
+                window.dispatchEvent(new Event('focus'))
+            );
+            await expect(
+                sourceRowByTitle(second, 'Renamed in tabs')
+            ).toBeVisible();
+            expect(
+                (
+                    await request.delete(
+                        `${STORAGE_BACKEND_URL}/v1/playlists/${id}`
+                    )
+                ).ok()
+            ).toBe(true);
+            await first.evaluate(() =>
+                window.dispatchEvent(new Event('focus'))
+            );
+            await expect(
+                sourceRowByTitle(first, 'Renamed in tabs')
+            ).toHaveCount(0);
+            await second.evaluate(() =>
+                window.dispatchEvent(new Event('focus'))
+            );
+            await expect(
+                sourceRowByTitle(second, 'Renamed in tabs')
+            ).toHaveCount(0);
+        } finally {
+            await first.context().close();
+        }
+    });
+
     test('adopts legacy M3U and Stalker activity once for an established browser', async ({
         browser,
         request,
@@ -144,6 +223,17 @@ test.describe('server storage @self-hosted @persistence', () => {
         const m3u = {
             _id: m3uId,
             title: 'Legacy M3U',
+            hiddenGroupTitles: ['Hidden legacy group'],
+            manualEpgUrls: ['https://epg.example.test/manual.xml'],
+            disabledEpgUrls: ['https://epg.example.test/disabled.xml'],
+            detectedEpgUrls: [
+                'https://epg.example.test/detected.xml',
+                'https://epg.example.test/disabled.xml',
+            ],
+            epgUrls: [
+                'https://epg.example.test/detected.xml',
+                'https://epg.example.test/manual.xml',
+            ],
             count: 1,
             favorites: [stream],
             recentlyViewed: [
@@ -226,7 +316,40 @@ test.describe('server storage @self-hosted @persistence', () => {
             const stalkerEntry = first.playlists.find(
                 (row: { exportedId: string }) => row.exportedId === stalkerId
             );
+            const migrated = await page.evaluate(
+                ({ instanceId, id }) =>
+                    new Promise<Record<string, unknown>>((resolve, reject) => {
+                        const opening = indexedDB.open(
+                            `iptvnator-server:${instanceId}`
+                        );
+                        opening.onerror = () => reject(opening.error);
+                        opening.onsuccess = () => {
+                            const db = opening.result;
+                            const reading = db
+                                .transaction('playlists', 'readonly')
+                                .objectStore('playlists')
+                                .get(id);
+                            reading.onerror = () => {
+                                db.close();
+                                reject(reading.error);
+                            };
+                            reading.onsuccess = () => {
+                                db.close();
+                                resolve(reading.result);
+                            };
+                        };
+                    }),
+                { instanceId: instance.instanceId, id: m3uId }
+            );
+            expect(migrated).toMatchObject({
+                hiddenGroupTitles: m3u.hiddenGroupTitles,
+                manualEpgUrls: m3u.manualEpgUrls,
+                disabledEpgUrls: m3u.disabledEpgUrls,
+                detectedEpgUrls: m3u.detectedEpgUrls,
+                epgUrls: m3u.epgUrls,
+            });
             expect(m3uEntry.userState).toMatchObject({
+                hiddenGroupTitles: m3u.hiddenGroupTitles,
                 favorites: [stream],
                 recentlyViewed: [expect.objectContaining({ url: stream })],
             });

@@ -308,6 +308,47 @@ describe('source synchronization lifecycle', () => {
         expect(changed).toHaveBeenCalledTimes(2);
     });
 
+    it('notifies a sibling tab when another tab already changed or deleted the shared projection', async () => {
+        inventory = [source];
+        await service.initialize();
+        const firstStore = store;
+        const sibling = TestBed.runInInjectionContext(
+            () => new SourceSyncService()
+        );
+        const changed = jest.fn();
+        sibling.changes.subscribe(changed);
+        await sibling.initialize();
+        const initial = changed.mock.calls.length;
+        const implementation = request.getMockImplementation()!;
+        request.mockImplementation(async (command: SourceServerRequest) => {
+            if (command.operation === 'update') {
+                inventory = [command.source!];
+                revision = '"renamed"';
+                return { status: 200, body: command.source, etag: revision };
+            }
+            if (command.operation === 'delete') {
+                inventory = [];
+                revision = '"deleted"';
+                return { status: 204 };
+            }
+            return implementation(command);
+        });
+        await firstStore.dbUpsertAppPlaylist({
+            ...rows.get('a')!,
+            title: 'Renamed elsewhere',
+        });
+        await service.refresh();
+        await sibling.refresh();
+        expect(changed).toHaveBeenCalledTimes(initial + 1);
+        await firstStore.dbDeletePlaylist('a');
+        await service.refresh();
+        await sibling.refresh();
+        expect(changed).toHaveBeenCalledTimes(initial + 2);
+        expect([...sibling.sourceIds()]).toEqual([]);
+        await sibling.refresh();
+        expect(changed).toHaveBeenCalledTimes(initial + 2);
+    });
+
     it('keeps the selected cache isolated when a different NAS database appears at the same URL', async () => {
         receipt = '1';
         rows.set('a', applySourceDefinition(source));

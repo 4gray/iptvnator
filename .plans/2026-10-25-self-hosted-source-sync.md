@@ -525,3 +525,21 @@ The Chromium run passes 17 scenarios, including replay-safe legacy archive
 exports and source import with `randomUUID` unavailable. All five mixed PWA/Electron scenarios pass again. Targeted lint, runtime
 and affected spec type checks, release notes and agent guidance pass before
 the seventh committed-branch review.
+
+### Seventh review fixes before review eight
+
+Codex reviewed `916d5f8ed00dd44b4caa0f8cf51acc8d5ffbea30` and reproduced
+two P2 cases. A sibling tab that found its shared IndexedDB already updated
+failed to notify its own NgRx consumers; each tab now publishes a collection
+revision change regardless of who wrote the projection. Legacy playlist
+adoption also omitted hidden groups and curated EPG state; the seed now
+retains those preferences and local ordering alongside favorites/history.
+Both regression tests failed before the fixes and pass afterwards. All 928
+service tests pass, targeted lint and type checks pass, and merged coverage
+passes at statements 84.80%, branches 75.76%, functions 83.02%, lines 85.18%.
+All 18 Chromium scenarios pass, including two tabs sharing one IndexedDB and
+verification of migrated hidden groups and EPG selections in the stored row.
+The initial payload stays at 1,199,068 bytes within the unchanged limit.
+
+All five mixed PWA/Electron scenarios pass again. Release-note and agent
+guidance validation pass before the eighth committed-branch review.

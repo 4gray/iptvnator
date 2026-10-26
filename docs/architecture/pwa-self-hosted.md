@@ -216,7 +216,9 @@ retry re-reads and reapplies the edit. Source edits retain concurrent activity
 that the caller did not change. Title-only edits also retain a concurrent
 channel/EPG projection refresh unless the caller explicitly replaces its parsed
 payload. Accepted source metadata is reloaded after every
-mutation, so later edits retain their original server revision.
+mutation, so later edits retain their original server revision. Each client
+also notifies its views when its collection revision changes, even if a sibling
+tab has already updated or removed the shared IndexedDB projection.
 
 Browser source caches use IndexedDB `iptvnator-server:<instanceId>` and prefix
 Xtream local user-data keys with that profile. On upgrade, each activity
@@ -229,8 +231,8 @@ copy and its migration receipt, newer profile values win, and consumption
 cannot resurrect the original unprefixed archive. Unverified browsers and native
 profiles keep their original archives isolated. This Xtream migration reads no server user-state
 and uploads nothing. An established browser with evidence of having used the
-selected instance also adopts legacy M3U/Stalker favorites and recent items
-once from `/v1/playlists`, before projecting source definitions. It validates
+selected instance also adopts legacy M3U/Stalker favorites, recent items,
+hidden groups, ordering and curated EPG selections once from `/v1/playlists`, before projecting source definitions. It validates
 the instance again before committing, preserves existing local rows and records
 a receipt only after success. New clients skip that adoption, and later activity
 changes remain local. Browser PIN and category locks are similarly adopted from

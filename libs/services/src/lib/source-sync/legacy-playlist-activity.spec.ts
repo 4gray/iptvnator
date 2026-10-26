@@ -82,6 +82,32 @@ describe('existing browser playlist activity upgrade', () => {
         expect(fetch).toHaveBeenCalledTimes(1);
         expect(rows.get('p')!.favorites).toEqual([]);
     });
+    it('retains hidden groups, ordering and curated EPG selections during legacy adoption', async () => {
+        const preferences = {
+            hiddenGroupTitles: ['Private group'],
+            position: 7,
+            detectedEpgUrls: [
+                'https://epg.test/detected.xml',
+                'https://epg.test/disabled.xml',
+            ],
+            manualEpgUrls: ['https://epg.test/manual.xml'],
+            disabledEpgUrls: ['https://epg.test/disabled.xml'],
+            epgUrls: [
+                'https://epg.test/detected.xml',
+                'https://epg.test/manual.xml',
+            ],
+        };
+        localStorage.setItem('iptvnator-server:cache-owner', 'nas');
+        (fetch as jest.Mock).mockResolvedValueOnce({
+            ok: true,
+            json: async () => [{ ...old, ...preferences }],
+        });
+        await migrateLegacyPlaylistActivity(local, connection, new Set(['p']));
+        expect(rows.get('p')).toMatchObject(preferences);
+        rows.get('p')!.hiddenGroupTitles = [];
+        await migrateLegacyPlaylistActivity(local, connection, new Set(['p']));
+        expect(rows.get('p')?.hiddenGroupTitles).toEqual([]);
+    });
     it('recognizes a remembered M3U-only client and refuses another server instance', async () => {
         localStorage.setItem(
             'iptvnator-server:instance',
