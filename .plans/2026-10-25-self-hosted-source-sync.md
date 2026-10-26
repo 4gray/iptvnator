@@ -620,3 +620,30 @@ remain for private helpers/adapters/views covered by owning projects and E2E.
 The production initial payload is 1,199,678 bytes within the unchanged
 1,200,301-byte limit. Affected lint and application/spec/E2E type checks, release
 notes and agent guidance pass. No coverage or line-count limits were weakened.
+
+
+### Tenth review fixes before review eleven
+
+Codex reviewed `9a847e409dede9a5f733801a9bd2a81279a3f98a` and reproduced
+a P2 normalization mismatch after a native SQLite round trip. An empty optional
+header survived in the accepted source baseline but read back as `undefined`
+in the local row. Device-only favorites/history writes then attempted a source
+PATCH and failed while offline. Source equality now compares the effective
+SQLite representation of projected string fields, including trimmed/empty
+values, without modifying inputs. Raw M3U and payload-only Stalker identity
+remain exact. Offline-write regressions for all three headers fail before the
+fix and pass afterwards, with no server request.
+
+A further capability regression proves that a browser with an unrelated
+`window.electron` object can still resolve pending discovery when the source
+bridge is absent. The branch now checks the specific source-connection bridge
+rather than generic Electron presence, following the runtime capability contract.
+This regression also fails before the fix and passes afterwards.
+
+Before review eleven, all 942 service, 659 interface and 241 web-backend tests
+pass. Chromium passes all 21 scenarios and mixed PWA/Electron all five.
+Application/spec type checks, affected lint, release notes and agent guidance
+pass. The unchanged initial-byte limit passes at 1,199,678 bytes. Merged
+coverage across 36 projects passes at statements 84.82%, branches 75.79%,
+functions 83.05%, lines 85.20%, with advisory private-helper/view spec warnings.
+No coverage, payload or line-count gate was weakened.

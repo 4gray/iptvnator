@@ -165,7 +165,7 @@ export class SourceSyncService {
                             this.connection!.instanceId.startsWith(
                                 'pending:'
                             ) &&
-                            !window.electron
+                            !window.electron?.sourceSyncConnection
                         ) {
                             saveBrowserSourceConnection(
                                 {

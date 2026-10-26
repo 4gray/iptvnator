@@ -192,7 +192,10 @@ only when a server is selected; the always-mounted status host defers its
 Material view until a connection or recovery notice is present. A native
 settings button remains available if that view chunk fails to load.
 `PlaylistStorageBackend` wraps the selected local store with `SyncedPlaylistStore`; local activity writes stay
-local. Bootstrap waits only for local profile readiness, then starts network
+local. Source comparisons use SQLite's trimmed/nonempty representation for
+projected string columns, so normalized empty headers cannot turn offline
+activity into a source PATCH. Raw M3U and payload-only Stalker identity are
+compared verbatim. Bootstrap waits only for local profile readiness, then starts network
 refresh in the background. Slow URL providers cannot hold the app behind its
 splash: cached sources and settings remain accessible. An uninitialized cache
 defers its first inventory read until refresh settles; a failed projection

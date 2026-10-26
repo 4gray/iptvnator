@@ -400,6 +400,38 @@ describe('source synchronization lifecycle', () => {
         expect(changed).toHaveBeenCalledTimes(initial + 2);
     });
 
+    it('resolves browser discovery when an unrelated Electron global has no source bridge', async () => {
+        const oldElectron = window.electron;
+        const errors = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        const pending = {
+            apiUrl: 'https://nas.test/api',
+            instanceId: 'pending:https://nas.test/api',
+        };
+        try {
+            window.electron = {} as typeof window.electron;
+            localStorage.setItem(
+                'iptvnator:source-server',
+                JSON.stringify(pending)
+            );
+            (sourceConnection as jest.Mock).mockReturnValue(pending);
+            const recovery = TestBed.runInInjectionContext(
+                () => new SourceSyncService()
+            );
+            await recovery.initialize();
+            await recovery.refresh();
+            expect(
+                JSON.parse(localStorage.getItem('iptvnator:source-server')!)
+            ).toEqual({ ...pending, instanceId: 'nas' });
+            expect(recovery.errorKey()).toBeNull();
+        } finally {
+            window.electron = oldElectron;
+            localStorage.removeItem('iptvnator:source-server');
+            errors.mockRestore();
+        }
+    });
+
     it('keeps the selected cache isolated when a different NAS database appears at the same URL', async () => {
         receipt = '1';
         rows.set('a', applySourceDefinition(source));

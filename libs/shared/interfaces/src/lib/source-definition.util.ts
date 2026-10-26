@@ -110,10 +110,31 @@ export function applySourceDefinition(
     return next;
 }
 
+// These columns are trimmed by the shared SQLite playlist codec. Compare
+// their effective values without rewriting raw M3U or payload-only identity.
+const PROJECTED_SOURCE_STRINGS = new Set<keyof SourceDefinition>([
+    'title',
+    'url',
+    'serverUrl',
+    'portalUrl',
+    'username',
+    'password',
+    'macAddress',
+    'userAgent',
+    'referrer',
+    'origin',
+]);
+function sourceValue(source: SourceDefinition, key: keyof SourceDefinition) {
+    const value = source[key];
+    return PROJECTED_SOURCE_STRINGS.has(key) && typeof value === 'string'
+        ? value.trim() || undefined
+        : value;
+}
+
 export function sameSource(a: SourceDefinition, b: SourceDefinition): boolean {
     return (
         ['id', 'title', 'kind', 'rawM3u', ...SOURCE_CONNECTION_FIELDS] as const
-    ).every((key) => a[key] === b[key]);
+    ).every((key) => sourceValue(a, key) === sourceValue(b, key));
 }
 
 /** Accept only portable connection fields, never runtime/user-state fields. */

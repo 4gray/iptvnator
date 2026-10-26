@@ -95,6 +95,49 @@ describe('source synchronization with local activity', () => {
         expect(meta).not.toHaveProperty('sourceSyncBase');
         expect(await store.dbGetAppPlaylist('a')).toMatchObject(full);
     });
+    it.each(['userAgent', 'referrer', 'origin'] as const)(
+        'keeps favorites and history local after SQLite normalizes an empty %s',
+        async (field) => {
+            const { store, rows, request } = setup();
+            const definition: SourceDefinition = {
+                id: 'a',
+                title: 'M3U',
+                kind: 'm3u-url',
+                url: 'https://provider.test/list.m3u',
+            };
+            rows.set('a', {
+                ...applySourceDefinition(definition),
+                [field]: undefined,
+                sourceSyncBase: { ...definition, [field]: '' },
+                sourceSyncRevision: '"1"',
+            });
+            request.mockRejectedValue(new Error('offline'));
+            const snapshot = (await store.dbGetAppPlaylist('a'))!;
+            await expect(
+                store.dbUpsertAppPlaylist({
+                    ...snapshot,
+                    favorites: ['offline-favorite'],
+                })
+            ).resolves.toMatchObject({ success: true });
+            const updated = (await store.dbGetAppPlaylist('a'))!;
+            await store.dbUpsertAppPlaylist({
+                ...updated,
+                recentlyViewed: [
+                    {
+                        source: 'm3u',
+                        id: '1',
+                        url: 'https://media.test/live',
+                        title: 'Watched offline',
+                        category_id: 'live',
+                        added_at: '2026-10-26',
+                    },
+                ],
+            });
+            expect(rows.get('a')?.favorites).toEqual(['offline-favorite']);
+            expect(rows.get('a')?.recentlyViewed).toHaveLength(1);
+            expect(request).not.toHaveBeenCalled();
+        }
+    );
     it('rejects a stale local activity snapshot so the complete mutation can retry on a fresh read', async () => {
         const { store, rows, local, request } = setup();
         const other = new SyncedPlaylistStore(

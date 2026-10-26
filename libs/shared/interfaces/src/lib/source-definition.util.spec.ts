@@ -25,6 +25,41 @@ const row: Playlist = {
 };
 
 describe('portable source definitions', () => {
+    it('compares SQLite-projected strings canonically without changing raw content or configured Stalker identity', () => {
+        const source = {
+            id: 'a',
+            title: 'Name',
+            kind: 'xtream' as const,
+            serverUrl: 'https://panel.test',
+            username: 'user',
+            password: 'secret',
+        };
+        const baseline = {
+            ...source,
+            title: ' Name ',
+            username: ' user ',
+            password: ' secret ',
+            userAgent: '  ',
+        };
+        expect(sameSource(source, baseline)).toBe(true);
+        expect(baseline.password).toBe(' secret ');
+        expect(sameSource(source, { ...source, password: 'sec ret' })).toBe(
+            false
+        );
+        expect(
+            sameSource(
+                { ...source, stalkerDeviceId1: 'pinned' },
+                { ...source, stalkerDeviceId1: ' pinned ' }
+            )
+        ).toBe(false);
+        const raw = {
+            id: 'raw',
+            title: 'Raw',
+            kind: 'm3u-text' as const,
+            rawM3u: '#EXTM3U\n',
+        };
+        expect(sameSource(raw, { ...raw, rawM3u: '#EXTM3U' })).toBe(false);
+    });
     it('keeps a trailing slash inside a signed query value when deduplicating sources', () => {
         const source = {
             id: 'a',
