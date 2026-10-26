@@ -200,3 +200,101 @@ loading, director navigation, matched/missing filmography titles, season episode
 fields, and a controlled resume/relaunch observation remain pending. No new LG
 screenshots are captured in this reconnect session. Local implementation checks
 above remain valid; no runtime source changes are made for this installation.
+
+
+## Integrated Settings update and completed LG gate — prototype 0.1.18
+
+On 2026-10-26, fetch observes merged Settings PR #2006 at `5b9724cb3`.
+The isolated TMDB branch merges that master revision locally in `513729116`,
+retaining the newer stable focus keys, remote form navigation, modal focus and
+committed phone-draft refresh. Prototype metadata and package examples advance
+to **0.1.18**. Main and Settings checkouts/branches are not modified.
+Frozen installation completes with the required Node/pnpm versions, the local
+lockfile matches, and Nx discovery succeeds after integration.
+
+The live device reveals an additional compatibility case: this portal's
+`series/get_ordered_list` replies with `js: false`, while its VOD catalog holds
+embedded series. The previous filmography lookup stops at that response.
+Revision `037f91cd0dc5e3044b4f0bc5bd8fd83c5b83006f` adds an explicit Stalker
+VOD-series capability and tries both relevant catalogs and display/original
+queries. A failed lookup cannot suppress a later match; any unresolved lookup
+still prevents a false absence message. Provider identity and playback commands
+remain authoritative. A unit regression reproduces the original failure before
+the fix, then passes, including a same-title movie collision and unresolved
+availability. A production-browser regression covers the VOD-series round trip.
+
+Local validation of the final runtime revision:
+
+| Check | Result |
+| --- | --- |
+| TV unit tests | **97/97** |
+| Shared TMDB unit/coverage suite | **90/90**, unchanged cached inputs/results |
+| Angular TMDB service/helper tests | **101/101**, 11 suites |
+| Lint | **9 affected projects pass**, existing warnings only |
+| TV, TV-tests and TV-E2E types | Pass |
+| Production-browser regression selection | **31/31** |
+| TV build/package, classic deferred IIFE, ES2018 and builtin scans | Pass |
+| Archived IPK JavaScript ES2018 and builtin scans | Pass |
+| Release-note/guidance/diff checks | Pass |
+
+The 31 browser cases include all current Settings category/remote scenarios,
+phone settings confirmation and unchanged-value draft refresh, storage failures,
+Home resume/relaunch, actor/director filmographies, errors/cancellation, complete
+long filmographies, selected seasons, and obsolete metadata responses. They run
+against the production bundle, local backend/provider fixtures and port offset
+700. Shared TMDB coverage remains 80.38% statements / 60.60% branches / 69.04%
+functions / 80.65% lines. Earlier Angular entrypoint/spec type checks remain
+applicable because integration does not alter their TMDB inputs. No thresholds
+or baselines change. Full unrelated workspace/Electron suites are not repeated:
+the new runtime fix is TV-only and unrelated merged master changes are retained
+as published. No push, paid CI, PR, merge to master or NAS deployment is performed.
+
+Final package: `dist/tv-package/com.iptvnator.tv.prototype_0.1.18_all.ipk`.
+SHA-256: `932bf560ce743db9fd9b1181473fa258cb5bc52bc615e09bde1180bff0235823`.
+Installation and launch succeed; installed-app inventory reports **0.1.18**.
+CDP reads `index-CuHfTAtL.js` from the running LG: **263,387 bytes**, with a
+SHA-256 **exactly matching the archived IPK script**. This replaces the earlier
+filename/size-only runtime provenance limitation. Before/after comparisons of
+the full source snapshot and TMDB key match; saved enablement/language and all
+source/favorite/history/position counts are unchanged by installation.
+
+Real-device workflow evidence, using the active Stalker source:
+
+- After relaunch, Settings still has six categories. A remote Right from
+  Metadata enters the stable `tmdb:enabled` control; enablement and Russian
+  language remain saved and the existing key stays present in a password field.
+- Actor and creator photos load inside 96px circular containers; a missing
+  creator photo retains initials. The real Jason Sudeikis page has **112**
+  filmography credits. Denis Chernov opens from the movie director control,
+  with a circular loaded profile and **19** credits. The checked pages have
+  no horizontal overflow.
+- Choosing **An SNL Thanksgiving** finishes with the portal-unavailable
+  message. Denis Chernov → **Край чудес** opens the actual provider movie
+  with its Watch action. The latter two observations first run on 0.1.17;
+  their implementation is retained in 0.1.18.
+- On installed **0.1.18**, Jason Sudeikis → **Тед Лассо** now opens the real
+  VOD series **Ted Lasso (1 season)** despite the unsupported regular-series
+  catalog. Names, descriptions and loaded episode stills appear. Back restores
+  focus to the exact `filmography:tv:97546` card.
+- Selecting **Ted Lasso s04** uses TMDB season **4**. Its actual HTTP-200
+  payload contains **10 episodes, 10 descriptions and 10 still paths**.
+  The LG displays localized episode titles (Дом, Любопытнее и любопытнее!,
+  Ричмонд ищет таланты), descriptions and loaded still images.
+- Episode 3 resumes from saved **1197.544 s**; native video reports
+  **1198.732 s**, ready state 4, unpaused and no media error. The player shows
+  the series name separately from **Ричмонд ищет таланты**. After Back the
+  saved position is **1210.573 s**, with the playback identity/command
+  fingerprint unchanged.
+- A controlled `ares-launch --close` followed by launch preserves that exact
+  **1210.573 s** value. Home and Continue watching show the parent, localized
+  episode and season/episode coordinates. Home Continue resumes playback near
+  that point (**1208.025 s** observed; normal native stream seek granularity),
+  ready state 4 and no media error. Back stops the test playback.
+
+Locally retained device screenshots: `dist/tv-verification/lg17-credits.png`,
+`lg17-director.png`, `lg18-season1.png` and `lg18-season4.png`. They show artwork
+and cleaned titles without keys, portal/media addresses, MACs or auth headers;
+raw network events are never printed. The previously pending physical gate is
+now complete for the exercised source and titles. Other providers retain the
+mocked Xtream/Stalker coverage; this is not a claim of exhaustive real-portal
+compatibility.
