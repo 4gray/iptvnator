@@ -187,12 +187,19 @@ Electron resume. Failures back off to two minutes; rejected tokens wait for
 sign-in. Accepted source mutations schedule an immediate inventory refresh.
 Uploaded M3U text is fetched only for changed revisions and parsed locally;
 URL M3U snapshots are fetched through the runtime's provider transport.
+Failed URL materialization is marked in the local row and retried even when
+the server revision has not changed, including after restart. Successful
+projection refreshes an open M3U channel list without publishing it back.
+Detected M3U EPG URLs are projected locally while manual/disabled choices
+remain device-local. Delayed activity writes retain the latest parsed source.
 
 Browser source caches use IndexedDB `iptvnator-server:<instanceId>` and prefix
 Xtream local user-data keys with that profile. Desktop databases live at
 `<data-root>/server-profiles/<sha256(instanceId)>/databases/iptvnator.db`;
-the original standalone database is unchanged. Legacy automatic source
-recovery does not run through the server document-store wrapper. Desktop
+the original standalone database is unchanged. Profile selection is cleared
+on disconnect and on startup without a saved connection, including environment
+inherited by an Electron relaunch. Legacy automatic source recovery does not
+run through the server document-store wrapper. Desktop
 EPG ownership reconciliation uses the successful local
 `source-sync-initialized` receipt in a selected server profile, rather than a
 legacy IndexedDB migration receipt. Ordinary standalone profiles still require

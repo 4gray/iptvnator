@@ -159,7 +159,9 @@ export class SourceSyncService {
                     }
                     const response = await this.request({
                         operation: 'list',
-                        revision: this.store!.collectionRevision,
+                        revision: this.store!.pendingSources.size
+                            ? undefined
+                            : this.store!.collectionRevision,
                     });
                     if (response.status === 304) {
                         this.failures = 0;
@@ -175,7 +177,10 @@ export class SourceSyncService {
                             await this.store!.local.dbGetAppPlaylist(
                                 entry.source.id
                             );
-                        if (current?.sourceSyncRevision === entry.revision)
+                        if (
+                            current?.sourceSyncRevision === entry.revision &&
+                            !current.sourceSyncPending
+                        )
                             continue;
                         let source = entry.source;
                         if (source.kind === 'm3u-text')
@@ -195,6 +200,7 @@ export class SourceSyncService {
                     for (const row of await this.store!.local.dbGetAppPlaylists()) {
                         if (!ids.has(row._id)) {
                             await this.store!.local.dbDeletePlaylist(row._id);
+                            this.store!.pendingSources.delete(row._id);
                             changed = true;
                         }
                     }

@@ -116,5 +116,44 @@ describe('source projection into a local runtime', () => {
         expect(projected.count).toBe(0);
         expect(projected.updateState).toBe(PlaylistUpdateState.NOT_UPDATED);
         expect(projected.url).toBe(source.url);
+        expect(projected.sourceSyncPending).toBe(true);
     });
+
+    it.each(['m3u-url', 'm3u-text'] as const)(
+        'keeps detected EPG and local choices when materializing %s',
+        async (kind) => {
+            const source: SourceDefinition = {
+                id: 'epg',
+                title: 'EPG',
+                kind,
+                ...(kind === 'm3u-url'
+                    ? { url: 'https://provider.test/list.m3u' }
+                    : {
+                          rawM3u: '#EXTM3U x-tvg-url="https://provider.test/epg.xml"\n#EXTINF:-1,Channel\nhttps://media.test/live',
+                      }),
+            };
+            const detected = ['https://provider.test/epg.xml'];
+            const current = {
+                ...applySourceDefinition(source),
+                manualEpgUrls: ['https://manual.test/epg.xml'],
+                disabledEpgUrls: detected,
+            };
+            const fetchPlaylistDefinition = jest.fn().mockResolvedValue({
+                playlist: { header: { raw: '#EXTM3U' }, items: [] },
+                count: 0,
+                detectedEpgUrls: detected,
+                epgUrls: detected,
+            });
+            const projected = await materializeSource(source, current, {
+                fetchPlaylistDefinition,
+            } as unknown as DataService);
+            expect(projected.detectedEpgUrls).toEqual(detected);
+            expect(projected.epgUrls).toEqual(current.manualEpgUrls);
+            expect(projected.disabledEpgUrls).toEqual(detected);
+            const fresh = await materializeSource(source, undefined, {
+                fetchPlaylistDefinition,
+            } as unknown as DataService);
+            expect(fresh.epgUrls).toEqual(detected);
+        }
+    );
 });

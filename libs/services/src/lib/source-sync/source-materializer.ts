@@ -6,7 +6,10 @@ import {
     type Playlist,
     type SourceDefinition,
 } from '@iptvnator/shared/interfaces';
-import { createPlaylistObject } from '@iptvnator/shared/m3u-utils';
+import {
+    createPlaylistObject,
+    resolvePlaylistEpgSourceState,
+} from '@iptvnator/shared/m3u-utils';
 import type { DataService } from '../data.service';
 
 export async function materializeSource(
@@ -15,6 +18,7 @@ export async function materializeSource(
     data: DataService
 ): Promise<Playlist> {
     let next = applySourceDefinition(source, current);
+    if (source.kind !== 'm3u-url') delete next.sourceSyncPending;
     const previous = current ? sourceFromPlaylist(current) : undefined;
     const connectionChanged =
         previous && !sameSource({ ...previous, title: source.title }, source);
@@ -41,6 +45,7 @@ export async function materializeSource(
             ...next,
             playlist: parsed.playlist,
             count: parsed.count,
+            ...projectEpgSources(parsed, next),
             _id: source.id,
             favorites: next.favorites,
             recentlyViewed: next.recentlyViewed,
@@ -48,7 +53,7 @@ export async function materializeSource(
         };
     } else if (
         source.kind === 'm3u-url' &&
-        (!current?.playlist || connectionChanged)
+        (!current?.playlist || current.sourceSyncPending || connectionChanged)
     ) {
         if (current?.url !== source.url) {
             next.playlist = { header: { raw: '#EXTM3U' }, items: [] };
@@ -66,10 +71,23 @@ export async function materializeSource(
                 ...next,
                 playlist: materialized.playlist,
                 count: materialized.count,
+                ...projectEpgSources(materialized, next),
+                updateState: PlaylistUpdateState.UPDATED,
             };
+            delete next.sourceSyncPending;
         } catch {
             next.updateState = PlaylistUpdateState.NOT_UPDATED;
+            next.sourceSyncPending = true;
         }
     }
     return next;
+}
+
+function projectEpgSources(parsed: Partial<Playlist>, current: Playlist) {
+    return resolvePlaylistEpgSourceState({
+        detectedEpgUrls: parsed.detectedEpgUrls,
+        enabledEpgUrls: parsed.epgUrls,
+        manualEpgUrls: current.manualEpgUrls,
+        disabledEpgUrls: current.disabledEpgUrls,
+    });
 }

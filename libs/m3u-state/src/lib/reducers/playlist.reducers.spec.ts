@@ -8,13 +8,73 @@ import { Channel, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 const reducer = createReducer(initialState, ...playlistReducers);
 
 describe('playlistReducers', () => {
+    it('rehydrates an open shared M3U with the latest parsed channels', () => {
+        const playlist = {
+            _id: 'shared',
+            title: 'Before',
+            count: 1,
+            importDate: '2026-01-01',
+            lastUsage: '',
+            autoRefresh: false,
+            playlist: { items: [{ name: 'Old channel' }] },
+            favorites: ['local-favorite'],
+        } as Playlist;
+        const state = {
+            ...initialState,
+            channels: playlist.playlist.items,
+            playlists: {
+                ...playlistsAdapter.addOne(playlist, initialState.playlists),
+                selectedId: playlist._id,
+            },
+        };
+        const updated = {
+            ...playlist,
+            title: 'After',
+            playlist: { items: [{ name: 'New channel' }] },
+        };
+        const next = reducer(
+            state,
+            PlaylistActions.hydrateSharedPlaylist({
+                playlistId: playlist._id,
+                playlist: updated,
+            })
+        );
+        expect(next.channels).toEqual(updated.playlist.items);
+        expect(
+            (next.playlists.entities[playlist._id] as Playlist)?.playlist
+        ).toEqual(updated.playlist);
+        expect(next.playlists.entities[playlist._id]?.favorites).toEqual([
+            'local-favorite',
+        ]);
+    });
     it('applies remote renames and deletions while preserving the retained active payload', () => {
-        const kept = { _id: 'keep', title: 'Before', count: 1, importDate: '2026-01-01', autoRefresh: false, playlist: { items: [{ name: 'Channel' }] } } as Playlist;
+        const kept = {
+            _id: 'keep',
+            title: 'Before',
+            count: 1,
+            importDate: '2026-01-01',
+            autoRefresh: false,
+            playlist: { items: [{ name: 'Channel' }] },
+        } as Playlist;
         const removed = { ...kept, _id: 'removed' };
-        const state = { ...initialState, playlists: playlistsAdapter.addMany([kept, removed], initialState.playlists) };
-        const next = reducer(state, PlaylistActions.loadPlaylistsSuccess({ playlists: [{ ...kept, title: 'After' }], authoritative: true }));
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addMany(
+                [kept, removed],
+                initialState.playlists
+            ),
+        };
+        const next = reducer(
+            state,
+            PlaylistActions.loadPlaylistsSuccess({
+                playlists: [{ ...kept, title: 'After' }],
+                authoritative: true,
+            })
+        );
         expect(next.playlists.entities['keep']?.title).toBe('After');
-        expect(next.playlists.entities['keep']?.playlist).toEqual(kept.playlist);
+        expect((next.playlists.entities['keep'] as Playlist)?.playlist).toEqual(
+            kept.playlist
+        );
         expect(next.playlists.entities['removed']).toBeUndefined();
     });
     it('keeps a failed initial inventory unready until a retry succeeds', () => {

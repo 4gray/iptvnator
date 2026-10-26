@@ -26,6 +26,7 @@ export function activateSourceServerProfile(): void {
         process.env.IPTVNATOR_SOURCE_PROFILE = createHash('sha256')
             .update(config.instanceId)
             .digest('hex');
+    else delete process.env.IPTVNATOR_SOURCE_PROFILE;
 }
 
 let sessionToken: string | undefined;
@@ -69,4 +70,5 @@ export function saveSourceServerConfig(
 export function clearSourceServerConfig(): void {
     if (existsSync(filename())) unlinkSync(filename());
     sessionToken = undefined;
+    delete process.env.IPTVNATOR_SOURCE_PROFILE;
 }

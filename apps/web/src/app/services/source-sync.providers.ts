@@ -4,7 +4,12 @@ import { Store } from '@ngrx/store';
 import { Router } from '@angular/router';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { dbConfig } from '@iptvnator/shared/interfaces';
-import { USER_DATA_STORAGE, type UserDataStorage } from '@iptvnator/services';
+import {
+    PlaylistsService,
+    USER_DATA_STORAGE,
+    type UserDataStorage,
+} from '@iptvnator/services';
+import { firstValueFrom } from 'rxjs';
 import { CONFIG_TOKEN } from 'ngx-indexed-db';
 import {
     SourceSyncService,
@@ -44,6 +49,7 @@ export function provideSourceSync() {
             const sync = inject(SourceSyncService);
             const store = inject(Store);
             const router = inject(Router);
+            const playlists = inject(PlaylistsService);
             sync.changes.subscribe(() => {
                 store.dispatch(PlaylistActions.loadSharedPlaylists());
                 const activeId = router.url.match(
@@ -52,8 +58,28 @@ export function provideSourceSync() {
                 if (
                     activeId &&
                     !sync.sourceIds().has(decodeURIComponent(activeId))
-                )
+                ) {
                     void router.navigateByUrl('/workspace/sources');
+                    return;
+                }
+                const activeM3uId = router.url.match(
+                    /\/workspace\/playlists\/([^/?]+)/
+                )?.[1];
+                if (activeM3uId) {
+                    const url = router.url;
+                    const id = decodeURIComponent(activeM3uId);
+                    void firstValueFrom(playlists.getPlaylistById(id))
+                        .then((playlist) => {
+                            if (router.url === url && playlist?.playlist)
+                                store.dispatch(
+                                    PlaylistActions.hydrateSharedPlaylist({
+                                        playlist,
+                                        playlistId: id,
+                                    })
+                                );
+                        })
+                        .catch(() => undefined);
+                }
             });
             return sync.initialize();
         }),

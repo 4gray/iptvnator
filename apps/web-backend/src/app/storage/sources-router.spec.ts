@@ -62,7 +62,7 @@ describe('source synchronization API', () => {
                             { 'If-None-Match': '*' }
                         )
                     );
-                    expect((await duplicate.json()).id).toBe('x');
+                    expect(await duplicate.json()).toMatchObject({ id: 'x' });
                     storage.playlists.upsert(
                         {
                             ...storage.playlists.get('x'),
@@ -96,7 +96,9 @@ describe('source synchronization API', () => {
                     ).toBe(412);
                     const inventory = await fetch(url);
                     const list = await inventory.json();
-                    expect(list.entries).toHaveLength(1);
+                    expect(list).toMatchObject({
+                        entries: [expect.any(Object)],
+                    });
                     expect(JSON.stringify(list)).not.toContain('keep-me');
                     expect(JSON.stringify(list)).not.toContain('local-session');
                     expect(
@@ -160,8 +162,19 @@ describe('source synchronization API', () => {
                     );
                     expect(created.status).toBe(201);
                     const first = await fetch(`${base}/v1/sources`);
-                    const legacy = await (await fetch(`${base}/v1/playlists/file`)).json();
-                    expect(legacy.playlist.items).toEqual([expect.objectContaining({ name: 'One', url: 'https://media.test/one' })]);
+                    const legacy = await (
+                        await fetch(`${base}/v1/playlists/file`)
+                    ).json();
+                    expect(legacy).toMatchObject({
+                        playlist: {
+                            items: [
+                                expect.objectContaining({
+                                    name: 'One',
+                                    url: 'https://media.test/one',
+                                }),
+                            ],
+                        },
+                    });
                     expect(JSON.stringify(await first.json())).not.toContain(
                         rawM3u
                     );

@@ -50,6 +50,7 @@ describe('source synchronization lifecycle', () => {
     let finish: jest.Mock;
     let notify: jest.Mock;
     let request: jest.Mock;
+    let fetchPlaylistDefinition: jest.Mock;
 
     beforeEach(() => {
         rows = new Map();
@@ -59,6 +60,7 @@ describe('source synchronization lifecycle', () => {
         cleanup = jest.fn();
         finish = jest.fn();
         notify = jest.fn();
+        fetchPlaylistDefinition = jest.fn();
         (sourceConnection as jest.Mock).mockReturnValue({
             apiUrl: 'https://nas.test/api',
             instanceId: 'nas',
@@ -130,7 +132,7 @@ describe('source synchronization lifecycle', () => {
                     useValue: { supportsXtreamSqliteDataSource: false },
                 },
                 { provide: NgxIndexedDBService, useValue: {} },
-                { provide: DataService, useValue: {} },
+                { provide: DataService, useValue: { fetchPlaylistDefinition } },
                 { provide: LazySnackBar, useValue: { open: notify } },
                 {
                     provide: TranslateService,
@@ -203,6 +205,49 @@ describe('source synchronization lifecycle', () => {
         await expect(store.dbGetAppPlaylists()).resolves.toEqual([]);
         expect(changed).toHaveBeenCalledTimes(1);
     });
+    it.each([false, true])(
+        'retries an unavailable URL without a NAS revision change (persisted failure: %s)',
+        async (persisted) => {
+            const urlSource: SourceDefinition = {
+                id: 'url',
+                title: 'Provider',
+                kind: 'm3u-url',
+                url: 'https://provider.test/list.m3u',
+            };
+            inventory = [urlSource];
+            if (persisted)
+                rows.set('url', {
+                    ...applySourceDefinition(urlSource),
+                    sourceSyncBase: urlSource,
+                    sourceSyncRevision: revision,
+                    sourceSyncPending: true,
+                    playlist: { items: [] },
+                    count: 0,
+                });
+            fetchPlaylistDefinition
+                .mockRejectedValueOnce(new Error('provider offline'))
+                .mockResolvedValue({
+                    playlist: {
+                        header: { raw: '#EXTM3U' },
+                        items: [{ name: 'Recovered' }],
+                    },
+                    count: 1,
+                });
+            await service.initialize();
+            expect(rows.get('url')?.sourceSyncPending).toBe(true);
+            expect(rows.get('url')?.count).toBe(0);
+            await service.refresh();
+            expect(rows.get('url')?.sourceSyncPending).toBeUndefined();
+            expect(rows.get('url')?.playlist.items[0].name).toBe('Recovered');
+            await service.refresh();
+            expect(fetchPlaylistDefinition).toHaveBeenCalledTimes(2);
+            expect(
+                request.mock.calls
+                    .filter(([command]) => command.operation === 'list')
+                    .at(-1)?.[0].revision
+            ).toBe(revision);
+        }
+    );
 
     it('preserves a completed cache offline and rejects source writes until reconnecting', async () => {
         receipt = '1';

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -134,6 +134,13 @@ test('shares source changes between independent PWA and Electron clients @critic
             (value: { source: { title: string } }) =>
                 value.source.title === 'NAS shared upload'
         );
+        await other
+            .getByRole('main')
+            .getByRole('button', { name: 'NAS shared upload', exact: true })
+            .click();
+        await expect(
+            other.locator('app-channel-list-item').first()
+        ).toContainText('NAS shared upload');
         const renamed = await fetch(
             `${server.apiUrl}/v1/sources/${entry.source.id}`,
             {
@@ -151,6 +158,13 @@ test('shares source changes between independent PWA and Electron clients @critic
             }
         );
         expect(renamed.status).toBe(200);
+        await expect(
+            other.locator('app-channel-list-item').first()
+        ).toContainText('Renamed channel', { timeout: 25000 });
+        await expect(other.locator('app-channel-list-item')).toHaveCount(1);
+        expect(other.url()).toContain(
+            `/workspace/playlists/${entry.source.id}`
+        );
         await expect(
             other.getByText('Renamed on NAS', { exact: true }).first()
         ).toBeVisible({ timeout: 25000 });
@@ -194,6 +208,65 @@ test('shares source changes between independent PWA and Electron clients @critic
         await second.close();
         await server.close();
         rmSync(desktopDir, { recursive: true, force: true });
+    }
+});
+
+test('restores the original Electron library after disconnect despite an inherited NAS profile @electron @m3u', async () => {
+    const server = await startSourceSyncServer();
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-sync-disconnect-'));
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        desktop = await launchElectronApp(directory);
+        await openSources(desktop.mainWindow);
+        await addTextSource(desktop.mainWindow, 'Original desktop source');
+        await closeElectronApp(desktop);
+        desktop = undefined;
+        const instance = await (
+            await fetch(`${server.apiUrl}/v1/instance`)
+        ).json();
+        writeFileSync(
+            join(directory, 'source-server.json'),
+            JSON.stringify({
+                apiUrl: server.apiUrl,
+                instanceId: instance.instanceId,
+            })
+        );
+        desktop = await launchElectronApp(directory);
+        await openSources(desktop.mainWindow);
+        await expect(
+            desktop.mainWindow.getByText('Original desktop source', {
+                exact: true,
+            })
+        ).toHaveCount(0);
+        await addTextSource(desktop.mainWindow, 'NAS desktop source');
+        const inheritedProfile = await desktop.electronApp.evaluate(
+            () => process.env['IPTVNATOR_SOURCE_PROFILE']!
+        );
+        await closeElectronApp(desktop);
+        desktop = undefined;
+        // app.relaunch inherits the old process environment after disconnect.
+        unlinkSync(join(directory, 'source-server.json'));
+        desktop = await launchElectronApp(directory, {
+            env: { IPTVNATOR_SOURCE_PROFILE: inheritedProfile },
+        });
+        await openSources(desktop.mainWindow);
+        await expect(
+            desktop.mainWindow
+                .getByText('Original desktop source', { exact: true })
+                .first()
+        ).toBeVisible();
+        await expect(
+            desktop.mainWindow.getByText('NAS desktop source', { exact: true })
+        ).toHaveCount(0);
+        expect(
+            await desktop.electronApp.evaluate(
+                () => process.env['IPTVNATOR_SOURCE_PROFILE']
+            )
+        ).toBeUndefined();
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        await server.close();
+        rmSync(directory, { recursive: true, force: true });
     }
 });
 

@@ -75,7 +75,11 @@ export class SettingsServerSectionComponent {
         this.busy.set(true);
         this.message.set('');
         try {
-            const apiUrl = normalizeSourceServerUrl(this.url);
+            const input = this.url.trim().replace(/\/+$/, '');
+            const apiUrl =
+                input === this.sync.connection?.apiUrl
+                    ? input
+                    : normalizeSourceServerUrl(input);
             if (window.electron?.sourceSyncConfigure) {
                 await window.electron.sourceSyncConfigure(
                     apiUrl,

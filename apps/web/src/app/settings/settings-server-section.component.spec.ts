@@ -156,6 +156,25 @@ describe('source server settings', () => {
         expect(component.token).toBe('');
     });
 
+    it.each(['https://nas.test/backend', 'http://127.0.0.1:3347'])(
+        'preserves the selected API base %s when updating credentials',
+        async (apiUrl) => {
+            const configure = jest.fn().mockResolvedValue({});
+            window.electron = {
+                sourceSyncConfigure: configure,
+            } as unknown as typeof window.electron;
+            const original = sync.connection.apiUrl;
+            try {
+                sync.connection.apiUrl = apiUrl;
+                fixture.componentInstance.url = apiUrl;
+                await fixture.componentInstance.connect();
+                expect(configure).toHaveBeenCalledWith(apiUrl, '', true);
+            } finally {
+                sync.connection.apiUrl = original;
+            }
+        }
+    );
+
     it('returns to the retained native profile when disconnected', async () => {
         const disconnect = jest.fn().mockResolvedValue(undefined);
         window.electron = {

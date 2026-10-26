@@ -383,3 +383,12 @@ agent guidance and 129 local/CI E2E task graphs passed. Review-time evidence
 is in `/tmp/iptvnator-sync-pr-*.log`; the exact reviewed commit is recorded in
 the pull request. The Greptile CLI is unavailable locally (exit 127); repository
 workflow permits proceeding with Codex review and reporting this limitation.
+
+The first completed local Codex review identified six issues, all addressed:
+clear inherited Electron profile selection after disconnect; retain the newest
+parsed source during delayed activity writes; retry failed URL materialization
+at unchanged source revisions; rehydrate an open M3U channel list; preserve
+detected EPG alongside local manual/disabled choices; and retain a selected
+custom API base when reconnecting. Regression unit checks and all five mixed
+PWA/Electron scenarios pass, including active M3U replacement and restoration
+of the original Electron library after a relaunch with inherited environment.

@@ -118,6 +118,42 @@ describe('source synchronization with local activity', () => {
         expect(rows.size).toBe(0);
         expect(request).not.toHaveBeenCalled();
     });
+    it('retains the latest parsed channels and cleared session during a delayed local activity write', async () => {
+        const { store, rows, request } = setup();
+        const old: SourceDefinition = {
+            id: 'a',
+            title: 'Upload',
+            kind: 'm3u-text',
+            rawM3u: '#EXTM3U\nold',
+        };
+        const latest = { ...old, rawM3u: '#EXTM3U\nnew' };
+        const stale = {
+            ...applySourceDefinition(old),
+            sourceSyncBase: old,
+            sourceSyncRevision: '"1"',
+            playlist: { items: [{ name: 'Old' }] },
+            count: 1,
+            stalkerToken: 'obsolete',
+            favorites: ['private'],
+        };
+        rows.set('a', {
+            ...applySourceDefinition(latest),
+            sourceSyncBase: latest,
+            sourceSyncRevision: '"2"',
+            playlist: { items: [{ name: 'New' }, { name: 'Second' }] },
+            count: 2,
+        });
+        await store.dbUpsertAppPlaylist(stale);
+        expect(rows.get('a')).toMatchObject({
+            sourceRawM3u: latest.rawM3u,
+            sourceSyncRevision: '"2"',
+            playlist: { items: [{ name: 'New' }, { name: 'Second' }] },
+            count: 2,
+            favorites: ['private'],
+        });
+        expect(rows.get('a')?.stalkerToken).toBeUndefined();
+        expect(request).not.toHaveBeenCalled();
+    });
     it('preserves local data when a conditional update fails', async () => {
         const { store, request, rows } = setup();
         request.mockRejectedValueOnce(new Error('SOURCE_SYNC.CONFLICT'));

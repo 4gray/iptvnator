@@ -12,7 +12,15 @@ export const PlaylistActions = createActionGroup({
     events: {
         'Load Playlists': emptyProps(),
         'Load Shared Playlists': emptyProps(),
-        'Load Playlists Success': props<{ playlists: PlaylistMeta[]; authoritative?: boolean }>(),
+        /** A local projection is already persisted; this only rehydrates the open view. */
+        'Hydrate Shared Playlist': props<{
+            playlist: Playlist;
+            playlistId: string;
+        }>(),
+        'Load Playlists Success': props<{
+            playlists: PlaylistMeta[];
+            authoritative?: boolean;
+        }>(),
         'Load Playlists Failure': emptyProps(),
         'Add Playlist': props<{ playlist: Playlist }>(),
         'Add Many Playlists': props<{ playlists: Playlist[] }>(),

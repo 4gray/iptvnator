@@ -8,6 +8,7 @@ import {
     type SourceServerResponse,
 } from '@iptvnator/shared/interfaces';
 import type { PlaylistDocumentStore } from '../playlist-storage-backend';
+import { retainSourceProjection } from './retain-source-projection';
 
 export type SourceRequest = (
     request: SourceServerRequest
@@ -18,6 +19,7 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
     private tail = Promise.resolve();
     ready = false;
     collectionRevision?: string;
+    readonly pendingSources = new Set<string>();
     constructor(
         readonly local: PlaylistDocumentStore,
         private readonly request: SourceRequest,
@@ -45,6 +47,8 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
         next.sourceSyncBase = source;
         next.sourceSyncRevision = revision;
         await this.local.dbUpsertAppPlaylist(next);
+        if (next.sourceSyncPending) this.pendingSources.add(source.id);
+        else this.pendingSources.delete(source.id);
         return next;
     }
 
@@ -88,20 +92,17 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 }
             }
             if (!accepted || !revision) throw new Error('SOURCE_SYNC.OFFLINE');
-            const next = applySourceDefinition(accepted, playlist);
+            let next = applySourceDefinition(accepted, playlist);
             next.sourceSyncBase = accepted;
             next.sourceSyncRevision = revision;
             // A local mutation based on an older snapshot cannot revert a remote edit.
             if (
                 current?.sourceSyncBase &&
                 baseline &&
-                sameSource(source, baseline)
+                sameSource(source, baseline) &&
+                !sameSource(current.sourceSyncBase, baseline)
             ) {
-                Object.assign(
-                    next,
-                    applySourceDefinition(current.sourceSyncBase, next)
-                );
-                next.sourceSyncBase = current.sourceSyncBase;
+                next = retainSourceProjection(current, next);
             }
             await this.local.dbUpsertAppPlaylist(next);
             return { success: true, playlist: next };
@@ -121,6 +122,7 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 revision: current?.sourceSyncRevision,
             });
             await this.local.dbDeletePlaylist(id);
+            this.pendingSources.delete(id);
             return { success: true };
         });
     dbDeleteAllPlaylists = () =>
@@ -130,6 +132,7 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 revision: this.collectionRevision,
             });
             await this.local.dbDeleteAllPlaylists();
+            this.pendingSources.clear();
             return { success: true };
         });
 }

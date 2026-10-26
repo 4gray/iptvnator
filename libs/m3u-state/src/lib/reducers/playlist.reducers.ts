@@ -21,17 +21,28 @@ export const playlistReducers = [
     on(PlaylistActions.loadPlaylistsSuccess, (state, action): PlaylistState => {
         return {
             ...state,
-            playlists: (action.authoritative ? playlistsAdapter.setAll : playlistsAdapter.addMany)(
+            playlists: (action.authoritative
+                ? playlistsAdapter.setAll
+                : playlistsAdapter.addMany)(
                 action.authoritative
-                    ? action.playlists.map((playlist) => ({ ...state.playlists.entities[playlist._id], ...playlist }))
+                    ? action.playlists.map((playlist) => ({
+                          ...state.playlists.entities[playlist._id],
+                          ...playlist,
+                      }))
                     : action.playlists,
                 {
-                ...state.playlists,
-                ...(action.authoritative && !action.playlists.some((playlist) => playlist._id === state.playlists.selectedId)
-                    ? { selectedId: '' } : {}),
-                allPlaylistsLoaded: true,
-                loadFailed: false,
-            }),
+                    ...state.playlists,
+                    ...(action.authoritative &&
+                    !action.playlists.some(
+                        (playlist) =>
+                            playlist._id === state.playlists.selectedId
+                    )
+                        ? { selectedId: '' }
+                        : {}),
+                    allPlaylistsLoaded: true,
+                    loadFailed: false,
+                }
+            ),
         };
     }),
     on(
@@ -53,52 +64,60 @@ export const playlistReducers = [
             };
         }
     ),
-    on(PlaylistActions.updatePlaylist, (state, action): PlaylistState => {
-        const isActivePlaylist =
-            state.playlists.selectedId === action.playlistId;
-        const currentPlaylist = state.playlists.entities[action.playlistId];
-        const epgSourceState = resolvePlaylistEpgSourceState({
-            detectedEpgUrls:
-                action.playlist.detectedEpgUrls ??
-                currentPlaylist?.detectedEpgUrls,
-            enabledEpgUrls: action.playlist.epgUrls ?? currentPlaylist?.epgUrls,
-            manualEpgUrls:
-                action.playlist.manualEpgUrls ?? currentPlaylist?.manualEpgUrls,
-            disabledEpgUrls:
-                action.playlist.disabledEpgUrls ??
-                currentPlaylist?.disabledEpgUrls,
-        });
-        return {
-            ...state,
-            channels: isActivePlaylist
-                ? (action.playlist.playlist.items as Channel[])
-                : state.channels,
-            channelsLoading: isActivePlaylist ? false : state.channelsLoading,
-            playlists: playlistsAdapter.updateOne(
-                {
-                    id: action.playlistId,
-                    changes: {
-                        ...action.playlist,
-                        _id: action.playlistId,
-                        updateDate: Date.now(),
-                        count: action.playlist.playlist.items.length,
-                        userAgent:
-                            action.playlist.userAgent ??
-                            currentPlaylist?.userAgent,
-                        favorites: currentPlaylist?.favorites ?? [],
-                        epgUrls: epgSourceState.epgUrls,
-                        detectedEpgUrls: epgSourceState.detectedEpgUrls,
-                        manualEpgUrls: epgSourceState.manualEpgUrls,
-                        disabledEpgUrls: epgSourceState.disabledEpgUrls,
-                        autoRefresh:
-                            currentPlaylist?.autoRefresh ??
-                            action.playlist.autoRefresh,
+    on(
+        PlaylistActions.updatePlaylist,
+        PlaylistActions.hydrateSharedPlaylist,
+        (state, action): PlaylistState => {
+            const isActivePlaylist =
+                state.playlists.selectedId === action.playlistId;
+            const currentPlaylist = state.playlists.entities[action.playlistId];
+            const epgSourceState = resolvePlaylistEpgSourceState({
+                detectedEpgUrls:
+                    action.playlist.detectedEpgUrls ??
+                    currentPlaylist?.detectedEpgUrls,
+                enabledEpgUrls:
+                    action.playlist.epgUrls ?? currentPlaylist?.epgUrls,
+                manualEpgUrls:
+                    action.playlist.manualEpgUrls ??
+                    currentPlaylist?.manualEpgUrls,
+                disabledEpgUrls:
+                    action.playlist.disabledEpgUrls ??
+                    currentPlaylist?.disabledEpgUrls,
+            });
+            return {
+                ...state,
+                channels: isActivePlaylist
+                    ? (action.playlist.playlist.items as Channel[])
+                    : state.channels,
+                channelsLoading: isActivePlaylist
+                    ? false
+                    : state.channelsLoading,
+                playlists: playlistsAdapter.updateOne(
+                    {
+                        id: action.playlistId,
+                        changes: {
+                            ...action.playlist,
+                            _id: action.playlistId,
+                            updateDate: Date.now(),
+                            count: action.playlist.playlist.items.length,
+                            userAgent:
+                                action.playlist.userAgent ??
+                                currentPlaylist?.userAgent,
+                            favorites: currentPlaylist?.favorites ?? [],
+                            epgUrls: epgSourceState.epgUrls,
+                            detectedEpgUrls: epgSourceState.detectedEpgUrls,
+                            manualEpgUrls: epgSourceState.manualEpgUrls,
+                            disabledEpgUrls: epgSourceState.disabledEpgUrls,
+                            autoRefresh:
+                                currentPlaylist?.autoRefresh ??
+                                action.playlist.autoRefresh,
+                        },
                     },
-                },
-                state.playlists
-            ),
-        };
-    }),
+                    state.playlists
+                ),
+            };
+        }
+    ),
     on(PlaylistActions.addPlaylist, (state, action): PlaylistState => {
         return {
             ...state,
