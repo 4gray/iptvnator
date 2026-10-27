@@ -204,7 +204,10 @@ describe('WebPlayerViewComponent live format integration', () => {
         expect(component.resolvedPlayback().streamUrl).toBe(
             'https://example.com/live.m3u8'
         );
-        expect(component.visiblePlaybackDiagnostic()).not.toBeNull();
+        // Catalog.5: a temporary 403 is retried, but a stream that has
+        // already played must never switch silently to the TS fallback.
+        expect(component.autoRetryAttempt()).toBe(1);
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
     });
 
     it('destroys the previous transport before the TS header handoff', async () => {
