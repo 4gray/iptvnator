@@ -146,9 +146,11 @@ export class GlobalFavoritesListComponent {
             const epgKey = ch.m3uChannel
                 ? resolveChannelEpgLookupKey(ch.m3uChannel)
                 : ch.tvgId?.trim() || ch.name?.trim();
-            const currentEpgProgram = epgKey
-                ? (epgMap.get(epgKey) ?? null)
-                : null;
+            // Global lists have their own per-row First Exact XMLTV lookup.
+            // Source playlists may reuse the same tvg-id for HD/UHD rows, so
+            // prefer the stable UID instead of colliding on the raw tvg-id.
+            const currentEpgProgram = epgMap.get(ch.uid) ??
+                (epgKey ? (epgMap.get(epgKey) ?? null) : null);
             return {
                 ...ch,
                 currentEpgProgram,
