@@ -951,6 +951,10 @@ export class DatabaseService {
     /**
      * Get recently viewed items for a specific playlist
      */
+    async getRecentItemsOrThrow(playlistId: string): Promise<XtreamContent[]> {
+        return window.electron.dbGetRecentItems(playlistId);
+    }
+
     async getRecentItems(playlistId: string): Promise<XtreamContent[]> {
         if (typeof window.electron?.dbGetRecentItems !== 'function') {
             return [];

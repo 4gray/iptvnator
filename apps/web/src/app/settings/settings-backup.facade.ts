@@ -1,4 +1,4 @@
-import { inject, Injectable, Injector, signal } from '@angular/core';
+import { computed, inject, Injectable, Injector, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -20,16 +20,25 @@ export class SettingsBackupFacade {
     private readonly injector = inject(Injector);
 
     readonly isExportingData = signal(false);
+    readonly isImportingData = signal(false);
+    private readonly isChoosingFile = signal(false);
+    readonly isBusy = computed(
+        () =>
+            this.isExportingData() ||
+            this.isImportingData() ||
+            this.isChoosingFile()
+    );
+    readonly importSummary = signal<PlaylistBackupImportSummary | null>(null);
+    readonly importFailed = signal(false);
 
     async exportData(waitForUiFeedbackFrame: () => Promise<void>) {
-        if (this.isExportingData()) {
+        if (this.isBusy()) {
             return;
         }
 
         this.isExportingData.set(true);
-        await waitForUiFeedbackFrame();
-
         try {
+            await waitForUiFeedbackFrame();
             const backup = await this.playlistBackupService.exportBackup();
 
             if (this.runtime.supportsDesktopFileSave && window.electron) {
@@ -58,10 +67,10 @@ export class SettingsBackupFacade {
             this.settingsSnackbar.open(
                 this.translate.instant('SETTINGS.BACKUP_EXPORTED')
             );
-        } catch (error) {
-            console.error('Failed to export playlist backup:', error);
-            this.settingsSnackbar.open(
-                this.translate.instant('SETTINGS.BACKUP_EXPORT_FAILED')
+        } catch {
+            this.settingsSnackbar.error(
+                this.translate.instant('SETTINGS.BACKUP_EXPORT_FAILED'),
+                this.translate.instant('CLOSE')
             );
         } finally {
             this.isExportingData.set(false);
@@ -69,17 +78,37 @@ export class SettingsBackupFacade {
     }
 
     importData(onImported: () => void): void {
+        if (this.isBusy()) return;
+        this.isChoosingFile.set(true);
         const input = document.createElement('input');
+        const returnFocus =
+            document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
         input.type = 'file';
-        input.accept = 'application/json';
+        input.accept = '.json,application/json';
+        input.addEventListener(
+            'cancel',
+            () => {
+                this.isChoosingFile.set(false);
+                this.restoreFocus(returnFocus);
+            },
+            { once: true }
+        );
 
         input.addEventListener('change', async (event: Event) => {
             const target = event.target as HTMLInputElement;
             const file = target.files?.[0];
 
+            this.isChoosingFile.set(false);
             if (!file) {
+                this.restoreFocus(returnFocus);
                 return;
             }
+            if (this.isImportingData()) return;
+            this.isImportingData.set(true);
+            this.importSummary.set(null);
+            this.importFailed.set(false);
 
             try {
                 const summary = await this.playlistBackupService.importBackup(
@@ -89,33 +118,42 @@ export class SettingsBackupFacade {
                     .get(XtreamStore, null)
                     ?.reconcilePendingRestoreBlock();
 
-                if (summary.imported > 0 || summary.merged > 0) {
+                if (
+                    summary.imported > 0 ||
+                    summary.merged > 0 ||
+                    summary.failed > 0
+                ) {
                     this.store.dispatch(PlaylistActions.removeAllPlaylists());
                     this.store.dispatch(PlaylistActions.loadPlaylists());
                 }
 
                 onImported();
-                this.settingsSnackbar.open(
-                    this.buildBackupImportSummary(summary)
-                );
-
-                if (summary.errors.length > 0) {
-                    console.error(
-                        'Playlist backup import completed with issues:',
-                        summary.errors
-                    );
-                }
-            } catch (error) {
-                console.error('Failed to import playlist backup:', error);
-                this.settingsSnackbar.open(
-                    error instanceof Error
-                        ? error.message
-                        : this.translate.instant('SETTINGS.IMPORT_ERROR')
-                );
+                this.importSummary.set(summary);
+            } catch {
+                this.importFailed.set(true);
+            } finally {
+                this.isImportingData.set(false);
+                this.restoreFocus(returnFocus);
             }
         });
 
-        input.click();
+        try {
+            input.click();
+        } catch {
+            this.isChoosingFile.set(false);
+            this.importFailed.set(true);
+        }
+    }
+
+    private restoreFocus(target: HTMLElement | null): void {
+        window.requestAnimationFrame(() => {
+            if (
+                target?.isConnected &&
+                document.activeElement === document.body
+            ) {
+                target.focus();
+            }
+        });
     }
 
     private downloadBackupInBrowser(
@@ -131,16 +169,5 @@ export class SettingsBackupFacade {
         link.download = defaultFileName;
         link.click();
         window.URL.revokeObjectURL(url);
-    }
-
-    private buildBackupImportSummary(
-        summary: PlaylistBackupImportSummary
-    ): string {
-        return this.translate.instant('SETTINGS.BACKUP_IMPORT_SUMMARY', {
-            imported: summary.imported,
-            merged: summary.merged,
-            skipped: summary.skipped,
-            failed: summary.failed,
-        });
     }
 }

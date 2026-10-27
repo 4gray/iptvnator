@@ -131,7 +131,7 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
     function playlistsService(playlists: Playlist[]) {
         return {
             getAllData: jest.fn(() => of(playlists)),
-            addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
+            restorePlaylist: jest.fn((playlist: Playlist) => of(playlist)),
             getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
         };
     }

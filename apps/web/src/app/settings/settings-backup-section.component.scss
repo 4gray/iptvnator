@@ -48,3 +48,13 @@ app-settings-backup-section {
 .danger-zone__button--busy {
     background: color-mix(in srgb, var(--mat-sys-error) 12%, transparent);
 }
+
+app-settings-backup-section .backup-result {
+    padding-inline: 16px;
+    overflow-wrap: anywhere;
+    color: var(--app-body-color);
+
+    p {
+        margin: 0 0 16px;
+    }
+}

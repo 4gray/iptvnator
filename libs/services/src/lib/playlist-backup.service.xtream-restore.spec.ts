@@ -1,3 +1,4 @@
+import { DatabaseService } from './database-electron.service';
 import { of } from 'rxjs';
 import {
     Playlist,
@@ -35,7 +36,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
     it('restores activity and parental locks under the source ID accepted after an inventory race', async () => {
         const collaborators = createRestoreCollaborators();
         collaborators.playlistsService.getAllData.mockReturnValue(of([]));
-        collaborators.playlistsService.addPlaylist.mockImplementation(
+        collaborators.playlistsService.restorePlaylist.mockImplementation(
             (playlist: Playlist) => of({ ...playlist, _id: 'canonical' })
         );
         const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
@@ -57,7 +58,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         const summary = await service.importBackup(JSON.stringify(manifest));
         expect(summary).toMatchObject({ merged: 1, failed: 0 });
         expect(
-            collaborators.playlistsService.addPlaylist
+            collaborators.playlistsService.restorePlaylist
         ).toHaveBeenLastCalledWith(
             expect.objectContaining({ _id: 'canonical' })
         );
@@ -70,6 +71,59 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
             expect.any(Object)
         );
     });
+
+    it('fails export rather than serializing unreadable recent history as empty', async () => {
+        const collaborators = createRestoreCollaborators();
+        const db = Object.assign(
+            Object.create(DatabaseService.prototype),
+            collaborators.databaseService,
+            {
+                getRecentItems: DatabaseService.prototype.getRecentItems,
+            }
+        );
+        delete db.getRecentItemsOrThrow;
+        electronWindow.electron = {
+            dbGetRecentItems: jest
+                .fn()
+                .mockRejectedValue(new Error('read failed')),
+        };
+        jest.spyOn(console, 'error').mockImplementation();
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            databaseService: db,
+        });
+        await expect(service.exportBackup()).rejects.toThrow();
+    });
+
+    it.each([1, 2])(
+        'retains pending restore when visibility write %s fails',
+        async (failedCall) => {
+            const collaborators = createRestoreCollaborators();
+            collaborators.databaseService.updateCategoryVisibility.mockImplementation(
+                async () => true
+            );
+            for (let i = 1; i < failedCall; i++) {
+                collaborators.databaseService.updateCategoryVisibility.mockResolvedValueOnce(
+                    true
+                );
+            }
+            collaborators.databaseService.updateCategoryVisibility.mockResolvedValueOnce(
+                false
+            );
+            const service = createPlaylistBackupService(collaborators);
+            const summary = await service.importBackup(
+                JSON.stringify(
+                    createXtreamManifest([
+                        { categoryType: 'live', xtreamId: 101 },
+                    ])
+                )
+            );
+            expect(summary.failed).toBe(1);
+            expect(
+                collaborators.pendingRestoreService.clear
+            ).not.toHaveBeenCalled();
+        }
+    );
 
     it('exports hidden categories with their xtream IDs', async () => {
         const collaborators = createRestoreCollaborators();
@@ -230,7 +284,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         expect(requestUnlock).toHaveBeenCalled();
         expect(replacePlaylistLocks).not.toHaveBeenCalled();
         expect(
-            collaborators.playlistsService.addPlaylist
+            collaborators.playlistsService.restorePlaylist
         ).not.toHaveBeenCalled();
     });
 

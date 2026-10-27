@@ -1,3 +1,7 @@
+import {
+    hasValidBackupEntryData,
+    hasValidBackupSettings,
+} from './playlist-backup-validation';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistsService } from './playlists.service';
@@ -205,7 +209,7 @@ export class PlaylistBackupService {
                 );
 
                 const saved = await firstValueFrom(
-                    this.playlistsService.addPlaylist(nextPlaylist)
+                    this.playlistsService.restorePlaylist(nextPlaylist)
                 );
                 if (saved._id !== targetId) {
                     targetId = saved._id;
@@ -213,7 +217,7 @@ export class PlaylistBackupService {
                     // A source created since the inventory read can deduplicate
                     // to another ID. Restore activity and locks only under that ID.
                     await firstValueFrom(
-                        this.playlistsService.addPlaylist(
+                        this.playlistsService.restorePlaylist(
                             await this.buildImportedPlaylist(
                                 entry,
                                 targetId,
@@ -303,11 +307,13 @@ export class PlaylistBackupService {
             userState: {
                 favorites: this.uniqueStrings(favorites),
                 recentlyViewed: recentlyViewed.map((item) => ({ ...item })),
-                hiddenGroupTitles: this.uniqueStrings(
-                    Array.isArray(playlist.hiddenGroupTitles)
-                        ? playlist.hiddenGroupTitles
-                        : []
-                ),
+                hiddenGroupTitles: [
+                    ...new Set(
+                        Array.isArray(playlist.hiddenGroupTitles)
+                            ? playlist.hiddenGroupTitles
+                            : []
+                    ),
+                ],
                 ...this.optionalLockedGroupTitles(playlist._id),
             },
         };
@@ -390,7 +396,7 @@ export class PlaylistBackupService {
             this.databaseService.getAllXtreamCategories(playlist._id, 'movies'),
             this.databaseService.getAllXtreamCategories(playlist._id, 'series'),
             this.databaseService.getFavoritesOrThrow(playlist._id),
-            this.databaseService.getRecentItems(playlist._id),
+            this.databaseService.getRecentItemsOrThrow(playlist._id),
             this.playbackPositionService.getAllPlaybackPositionsOrThrow(
                 playlist._id
             ),
@@ -559,6 +565,10 @@ export class PlaylistBackupService {
             );
         }
 
+        if (!hasValidBackupSettings(manifest.settings)) {
+            throw new PlaylistBackupError('Backup has invalid EPG settings.');
+        }
+
         for (const entry of manifest.playlists) {
             this.validateEntry(entry);
         }
@@ -576,6 +586,12 @@ export class PlaylistBackupService {
         if (!entry.exportedId || !entry.title) {
             throw new PlaylistBackupError(
                 'Backup contains a playlist entry without required metadata.'
+            );
+        }
+
+        if (!hasValidBackupEntryData(entry)) {
+            throw new PlaylistBackupError(
+                'Backup contains incomplete user state or invalid playlist data.'
             );
         }
 
@@ -846,9 +862,7 @@ export class PlaylistBackupService {
             recentlyViewed: entry.userState.recentlyViewed.map((item) =>
                 this.normalizeM3uRecentlyViewedItem(item)
             ),
-            hiddenGroupTitles: this.uniqueStrings(
-                entry.userState.hiddenGroupTitles
-            ),
+            hiddenGroupTitles: [...new Set(entry.userState.hiddenGroupTitles)],
             ...(entry.source.url
                 ? { url: entry.source.url }
                 : { url: undefined }),
@@ -1128,10 +1142,15 @@ export class PlaylistBackupService {
                 continue;
             }
 
-            await this.databaseService.updateCategoryVisibility(
+            const reset = await this.databaseService.updateCategoryVisibility(
                 categories.map((category) => category.id),
                 false
             );
+            if (!reset) {
+                throw new PlaylistBackupError(
+                    'Restoring category visibility failed.'
+                );
+            }
 
             const hiddenCategoryIds = categories
                 .filter((category) =>
@@ -1144,10 +1163,16 @@ export class PlaylistBackupService {
                 .map((category) => category.id);
 
             if (hiddenCategoryIds.length > 0) {
-                await this.databaseService.updateCategoryVisibility(
-                    hiddenCategoryIds,
-                    true
-                );
+                const hidden =
+                    await this.databaseService.updateCategoryVisibility(
+                        hiddenCategoryIds,
+                        true
+                    );
+                if (!hidden) {
+                    throw new PlaylistBackupError(
+                        'Restoring hidden categories failed.'
+                    );
+                }
             }
         }
     }
