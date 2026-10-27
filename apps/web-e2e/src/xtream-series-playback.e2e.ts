@@ -59,6 +59,27 @@ test.describe('@xtream inline series fullscreen', () => {
         await expect(playerView.locator('app-html-video-player')).toBeVisible({
             timeout: 15_000,
         });
+        const actions = page.locator(
+            'app-portal-inline-player .player-shell__actions'
+        );
+        for (const dark of [false, true]) {
+            await page.evaluate(
+                (value) => document.body.classList.toggle('dark-theme', value),
+                dark
+            );
+            const close = actions.getByRole('button', {
+                name: 'Close player',
+                exact: true,
+            });
+            await expect(close).toHaveCSS('border-top-left-radius', '10px');
+            await expect(close).toHaveCSS('border-top-style', 'none');
+            await expect(
+                actions.getByRole('button', {
+                    name: 'Copy Stream URL',
+                    exact: true,
+                })
+            ).toHaveCSS('height', '40px');
+        }
         const waitForMetadata = () =>
             expect
                 .poll(() =>

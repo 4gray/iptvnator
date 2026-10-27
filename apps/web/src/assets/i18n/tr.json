@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "Ek sağlayıcı ayarları",
             "MAC_ADDRESS": "MAC adresi",
             "MAC_ADDRESS_HINT": "Biçim: 00:1A:79:XX:XX:XX. Tireler, noktalar ve küçük harfler sizin için düzeltilir.",
             "MAC_ADDRESS_OUI_HINT": "Bu adres, Infomir'in 00:1A:79 aralığının dışında kalıyor. Çoğu portal yalnızca bu aralığı kabul eder ve diğer adresleri nedenini belirtmeden reddeder.",
@@ -297,6 +298,7 @@
         "GENERAL": "Genel",
         "GENERAL_SUBTITLE": "Dil, görünüm ve uygulamanın nasıl başlayacağı.",
         "PLAYBACK": "Oynatma",
+        "SAVE_EPG_SOURCES": "EPG kaynaklarını kaydet",
         "EPG_SOURCES": "EPG kaynakları",
         "EPG_SOURCES_DESCRIPTION": "Bir veya daha fazla XMLTV kaynağı ekleyin: uzak bağlantılar veya yerel dosyalar",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "Algılanan {{detected}} oynatma listesi EPG kaynağından {{enabled}} tanesi içe aktarma için otomatik seçildi.",

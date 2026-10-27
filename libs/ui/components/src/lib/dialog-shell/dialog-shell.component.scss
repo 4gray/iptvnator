@@ -223,3 +223,42 @@ app-dialog-shell {
         }
     }
 }
+
+// Body actions opt into a role; footer Save remains the dialog's primary.
+.app-dialog__body {
+    .app-dialog__secondary {
+        @include controls.secondary-button(md);
+    }
+
+    .app-dialog__secondary--sm {
+        @include controls.secondary-button(sm);
+    }
+
+    .app-dialog__ghost {
+        @include controls.ghost-button(md);
+    }
+}
+
+// Native details supplies Enter/Space disclosure and keeps values mounted.
+.app-dialog__body .app-dialog-disclosure {
+    min-width: 0;
+
+    > summary {
+        min-height: 40px;
+        padding-block: 8px;
+        box-sizing: border-box;
+        color: var(--app-heading-color);
+        cursor: pointer;
+        font-size: 13.5px;
+        font-weight: 600;
+        line-height: 1.5;
+        app-region: no-drag;
+    }
+
+    > .app-dialog-disclosure__fields {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding-top: 10px;
+    }
+}

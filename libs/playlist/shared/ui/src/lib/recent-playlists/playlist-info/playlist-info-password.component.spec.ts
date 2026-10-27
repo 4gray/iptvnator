@@ -73,6 +73,25 @@ describe('PlaylistInfoComponent password field', () => {
         return fixture;
     }
 
+    it('starts blank Stalker identity collapsed and keeps entered values when folded', () => {
+        const fixture = render({ ...stalker, username: '', password: '' });
+        const details = fixture.nativeElement.querySelector(
+            'details'
+        ) as HTMLDetailsElement;
+        expect(details.open).toBe(false);
+        fixture.componentInstance.playlistDetails
+            .get('stalkerDeviceId1')
+            ?.setValue('PINNED-ID');
+        fixture.detectChanges();
+        expect(details.open).toBe(true);
+        details.open = false;
+        fixture.detectChanges();
+        expect(
+            fixture.componentInstance.playlistDetails.getRawValue()
+                .stalkerDeviceId1
+        ).toBe('PINNED-ID');
+    });
+
     it.each([
         ['Xtream', xtream],
         ['Stalker', stalker],

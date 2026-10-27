@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "プロバイダーの追加設定",
             "MAC_ADDRESS": "MACアドレス",
             "MAC_ADDRESS_HINT": "形式は00:1A:79:XX:XX:XXです。ハイフンやドット、小文字は自動的に修正されます。",
             "MAC_ADDRESS_OUI_HINT": "このアドレスはInfomirの00:1A:79の範囲外です。ほとんどのポータルはこの範囲のみを受け付け、それ以外は理由を示さずに拒否します。",
@@ -297,6 +298,7 @@
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "言語、外観、アプリの起動方法。",
         "PLAYBACK": "再生",
+        "SAVE_EPG_SOURCES": "EPGソースを保存",
         "EPG_SOURCES": "EPGソース",
         "EPG_SOURCES_DESCRIPTION": "1つ以上の XMLTV ソース（リモートのリンクまたはローカルファイル）を追加",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "検出された {{detected}} 件のプレイリスト EPG ソースのうち、{{enabled}} 件がインポート用に自動選択されました。",

@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "Aanvullende providerinstellingen",
             "MAC_ADDRESS": "MAC-adres",
             "MAC_ADDRESS_HINT": "Formaat 00:1A:79:XX:XX:XX. Streepjes, punten en kleine letters worden automatisch voor je gecorrigeerd.",
             "MAC_ADDRESS_OUI_HINT": "Dit adres valt buiten het 00:1A:79-bereik van Infomir. De meeste portalen accepteren alleen dat bereik en weigeren al het andere zonder uitleg.",
@@ -297,6 +298,7 @@
         "GENERAL": "Algemeen",
         "GENERAL_SUBTITLE": "Taal, weergave en hoe de app start.",
         "PLAYBACK": "Afspelen",
+        "SAVE_EPG_SOURCES": "EPG-bronnen opslaan",
         "EPG_SOURCES": "EPG-bronnen",
         "EPG_SOURCES_DESCRIPTION": "Voeg een of meer XMLTV-bronnen toe: externe links of lokale bestanden",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "{{enabled}} van {{detected}} gedetecteerde EPG-bronnen in de afspeellijst zijn automatisch geselecteerd voor import.",

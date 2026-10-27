@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "Additional provider settings",
             "MAC_ADDRESS": "MAC address",
             "MAC_ADDRESS_HINT": "Format 00:1A:79:XX:XX:XX. Hyphens, dots and lowercase are corrected for you.",
             "MAC_ADDRESS_OUI_HINT": "This address is outside Infomir's 00:1A:79 range. Most portals only accept that range and reject anything else without saying why.",
@@ -297,6 +298,7 @@
         "GENERAL": "General",
         "GENERAL_SUBTITLE": "Language, appearance and how the app starts.",
         "PLAYBACK": "Playback",
+        "SAVE_EPG_SOURCES": "Save EPG sources",
         "EPG_SOURCES": "EPG sources",
         "EPG_SOURCES_DESCRIPTION": "Add one or more XMLTV sources: remote links or local files",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "{{enabled}} of {{detected}} detected playlist EPG sources were auto-selected for import.",

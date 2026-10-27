@@ -39,11 +39,8 @@
 
 .bulk-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
-
-    button {
-        font-size: 12px;
-    }
 }
 
 .search-inline {

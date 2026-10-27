@@ -50,22 +50,9 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
             </div>
         }
     `,
-    styleUrl: './xtream-status-layout.scss',
-    styles: [
-        `
-            .xtream-content-gate {
-                display: grid;
-                gap: 16px;
-                justify-items: center;
-                padding: 24px;
-                overflow: auto;
-            }
-
-            .xtream-content-gate__actions {
-                display: flex;
-                justify-content: center;
-            }
-        `,
+    styleUrls: [
+        './xtream-status-layout.scss',
+        './xtream-content-gate.component.scss',
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
