@@ -44,7 +44,13 @@ export class EpgSourceSettingsService {
     private reconciliation: Promise<void> | undefined;
     private failedReconciliation: { urls: string[] } | undefined;
     readonly revision = signal(0);
+    /** EPG data import/refresh completion, distinct from source URL changes. */
+    readonly guideRevision = signal(0);
     readonly changed$ = new Subject<void>();
+
+    notifyGuideUpdated(): void {
+        this.guideRevision.update((revision) => revision + 1);
+    }
 
     retainCurrentSources(urls: string[], requestedRevision: number): string[] {
         return requestedRevision === this.revision()
