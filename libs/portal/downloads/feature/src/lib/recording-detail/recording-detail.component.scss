@@ -1,3 +1,6 @@
+@use '@angular/material' as mat;
+@use '../../../../../../ui/styles/app-controls' as controls;
+
 :host {
     display: block;
     height: 100%;
@@ -24,14 +27,10 @@
     word-break: break-all;
 }
 
-.recording-detail__stop-action {
-    background: var(--mat-sys-error);
-    color: var(--mat-sys-on-error);
-}
-
 .recording-detail__error-actions {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
     justify-content: center;
 }
 
@@ -88,4 +87,28 @@
     margin-top: 2px;
     color: var(--mat-sys-on-surface-variant);
     font-size: 0.8rem;
+}
+
+button[mat-flat-button] {
+    @include controls.secondary-button;
+}
+
+button.recording-detail__primary-action {
+    @include controls.accent-button;
+}
+
+button[mat-icon-button] {
+    @include controls.ghost-icon-button;
+}
+
+button.recording-detail__stop-action {
+    @include mat.button-overrides(
+        (
+            filled-container-color: var(--app-danger-surface),
+            filled-disabled-container-color: var(--app-danger-surface),
+            filled-label-text-color: var(--app-danger-text),
+            filled-disabled-label-text-color: var(--app-danger-text),
+            filled-state-layer-color: var(--app-danger-text),
+        )
+    );
 }

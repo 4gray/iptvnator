@@ -1026,3 +1026,48 @@ materialization. The existing feature release note covers these fixes. The
 prior full Chromium result (218 passed, one static-only skip, no retries) belongs
 to the pre-runtime-fix commit; the affected production scenarios above were
 rerun after these changes, and PR CI will exercise the complete combined tree.
+
+
+### Review twenty and master integration (2026-10-27)
+
+Codex accepted `a71848a45afd57d46a4fca99747e454533c57a0d` with no actionable
+regressions and independently passed 200 focused tests. Greptile CLI remains
+unavailable (exit 127). All 30 GitHub checks then passed on merge
+`606c1f480a587a02c2dc0eba7217e19e328c0b85` with master
+`fbda4564ac8860c55f8341283cfbce8b82cc067f`: unit/type/coverage gates, 220 Chromium
+tests (one static-PWA-only skip, no retries), all nine Electron shards across
+Windows/Linux/macOS, every installer build, Docker, CodeQL, performance gates
+and the automatic PR artifact draft job. Both GitHub review threads are resolved.
+
+During that long CI run, master advanced to
+`1f09b0f80f2b296854ea162fddbd6ba62022c649` (#2014). The final readiness check
+caught two conflicts before reporting the PR ready. The favorite-removal test
+had independently received the same async-persistence correction upstream;
+retain the polling assertion and disappearance check together with the stateless
+proxy fixture. The server-settings template had been replaced by this feature,
+while upstream changed its former whole-document controls to shared kit roles.
+Keep the source-only connection/import/recovery UI and apply those roles to its
+controls: Connect and confirmed Import are accent actions; Refresh, preview
+Import and Disconnect are secondary actions; Cancel keeps the ghost role.
+The obsolete whole-document UI is not reintroduced.
+
+The integration also incorporates #2010, already exercised by the previous
+CI merge, into the branch ancestry. Frozen install, lock comparison and Nx
+discovery pass after the merge. Two added browser cases verify the shared-source
+server actions in light/dark themes. All 48 production PWA scenarios pass,
+including those cases and the upstream radio keyboard/disabled-control checks.
+All 12 mixed PWA/Electron cases pass as one suite, plus both native settings
+kit cases. Web (564), UI components (467) and playlist import (118) tests pass
+with coverage. Merged 36-project gates pass at statements 84.97%, branches 76%,
+functions 83.14%, lines 85.35%. The pre-commit health output has four advisory
+same-name-spec warnings on upstream settings/download views; their owning tests
+and E2E cover the affected flows, and no fake specs or weakened gates were added.
+The native/source core is unchanged from the previously reviewed and CI-tested
+commit.
+
+The exact production build without Nx cache passes at 1,200,262 / 1,200,301
+initial bytes. Owning lint, application/spec/E2E types, release notes and guidance
+pass. The current UI guidelines already define the merged action roles; the
+existing source-sync feature note and upstream UI note cover this integration.
+Repeat the committed-branch review gate before pushing this merge, then validate
+the new PR merge tree. Do not infer readiness from the prior head checks.

@@ -1065,6 +1065,8 @@ test('@xtream @collections sparse detail hearts cannot delete a retained conflic
     await page
         .getByRole('button', { name: 'Remove from favorites', exact: true })
         .click();
+    // Removal awaits the identity lookup and lazy write module. Verify the
+    // persisted result after it settles, then confirm that the card is gone.
     await expect
         .poll(() =>
             page.evaluate(

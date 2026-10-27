@@ -1,4 +1,5 @@
 @use '../../../../../ui/styles/focus-ring';
+@use '../../../../../ui/styles/app-controls' as controls;
 
 :host {
     display: flex;
@@ -33,11 +34,7 @@
     padding: clamp(18px, 2.2vw, 28px) clamp(16px, 2.6vw, 34px) 16px;
     border-bottom: 1px solid
         var(--app-separator, var(--mat-sys-outline-variant));
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface) 94%,
-        var(--mat-sys-surface-container) 6%
-    );
+    background: var(--app-widget-bg);
 }
 
 .downloads__heading {
@@ -49,6 +46,7 @@
 .downloads__title-row {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     min-width: 0;
 
@@ -67,8 +65,8 @@
     min-height: 24px;
     padding: 2px 9px;
     border-radius: 999px;
-    color: var(--mat-sys-on-primary-container);
-    background: var(--mat-sys-primary-container);
+    color: var(--app-list-selected-fg);
+    background: var(--app-list-selected-bg);
     font-size: 0.75rem;
     font-weight: 700;
     white-space: nowrap;
@@ -96,11 +94,15 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 8px;
     min-width: 0;
 
     button {
+        @include controls.secondary-button(sm);
         flex: none;
+        height: auto;
+        min-height: 32px;
     }
 }
 
@@ -164,62 +166,28 @@
     flex: none;
     gap: 8px;
     padding: 12px clamp(16px, 2.6vw, 34px);
-    overflow-x: auto;
     border-bottom: 1px solid
         color-mix(
             in srgb,
             var(--app-separator, var(--mat-sys-outline-variant)) 74%,
             transparent
         );
-    scrollbar-width: none;
+}
 
-    &::-webkit-scrollbar {
-        display: none;
-    }
+.downloads__filter-track {
+    @include controls.segmented-track;
 }
 
 .downloads__filter {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    min-height: 34px;
-    padding: 6px 11px;
-    border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
-    border-radius: 999px;
-    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
-    background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
-    font: inherit;
-    font-size: 0.79rem;
-    font-weight: 600;
+    @include controls.segment(28px);
     white-space: nowrap;
-    cursor: pointer;
-    transition:
-        color 150ms ease,
-        background 150ms ease,
-        border-color 150ms ease,
-        transform 150ms ease;
-
-    &:hover {
-        color: var(--app-heading-color, var(--mat-sys-on-surface));
-        border-color: var(--mat-sys-outline);
-    }
-
-    &:active {
-        transform: scale(0.98);
-    }
 
     &:focus-visible {
         @include focus-ring.focus-ring-declarations;
     }
 
     &.is-selected {
-        color: var(--mat-sys-on-primary-container);
-        border-color: color-mix(
-            in srgb,
-            var(--mat-sys-primary) 52%,
-            transparent
-        );
-        background: var(--mat-sys-primary-container);
+        @include controls.segment-selected;
     }
 }
 
@@ -440,10 +408,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .downloads__filter {
-        transition: none;
-    }
-
     .downloads__skeleton-poster::after,
     .downloads__skeleton-copy::after,
     .downloads__skeleton-action::after {

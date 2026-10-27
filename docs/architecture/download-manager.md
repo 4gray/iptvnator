@@ -336,7 +336,13 @@ available after restart and after the source archive expires.
   Large cover preference behaves like it does elsewhere in the app. All
   surfaces use the existing `--app-*` and Material system tokens. Ready cards
   do not repeat an Offline badge; source provenance is available at the top of
-  their overflow menus. The global
+  their overflow menus. Header and recovery actions use the shared
+  `app-controls` secondary buttons; queue and downloaded-episode actions use
+  square ghost buttons, with destructive recording actions retaining the
+  semantic danger treatment. Filters and offline season tabs use the kit's
+  segmented track and preserve their pressed/tab keyboard semantics. Recording
+  rows move actions below the copy in panes up to 680 px wide; channel names,
+  errors and translated actions wrap without covering each other. The global
   workspace download shortcut displays the service's active count, while the
   page badge and filter counts reflect the current route scope.
 - **Honest interactions**

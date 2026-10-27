@@ -52,7 +52,7 @@
                 <div class="setting-item__control">
                     <div
                         class="theme-switcher"
-                        role="radiogroup"
+                        appRadioGroup
                         [attr.aria-label]="'SETTINGS.THEME' | translate"
                         data-test-id="select-theme"
                     >
@@ -66,11 +66,10 @@
                                 [class.theme-switcher__option--selected]="
                                     form().value.theme === themeOption.value
                                 "
-                                [attr.aria-checked]="
+                                [appRadioOption]="
                                     form().value.theme === themeOption.value
                                 "
                                 [attr.data-test-id]="themeOption.value"
-                                role="radio"
                                 (click)="selectTheme.emit(themeOption.value)"
                             >
                                 <mat-icon>{{ themeOption.icon }}</mat-icon>
@@ -89,7 +88,7 @@
                 <div class="setting-item__control">
                     <div
                         class="theme-switcher"
-                        role="radiogroup"
+                        appRadioGroup
                         [attr.aria-label]="'SETTINGS.COVER_SIZE' | translate"
                         data-test-id="select-cover-size"
                     >
@@ -100,13 +99,12 @@
                                 [class.theme-switcher__option--selected]="
                                     form().value.coverSize === option.value
                                 "
-                                [attr.aria-checked]="
+                                [appRadioOption]="
                                     form().value.coverSize === option.value
                                 "
                                 [attr.data-test-id]="
                                     'cover-size-' + option.value
                                 "
-                                role="radio"
                                 (click)="selectCoverSize.emit(option.value)"
                             >
                                 <mat-icon>{{ option.icon }}</mat-icon>
