@@ -32,3 +32,47 @@
     opacity: 0.65;
     font-size: 0.85rem;
 }
+
+.favorites-sort-options {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+
+    label {
+        font-size: 12px;
+    }
+}
+
+.favorites-sort-select {
+    color-scheme: light;
+    background-color: #fff;
+    color: #202431;
+    border: 1px solid #777;
+    border-radius: 4px;
+    padding: 3px 6px;
+    min-width: 112px;
+
+    option {
+        background-color: #fff;
+        color: #202431;
+    }
+
+    &:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+}
+
+:host-context(body.dark-theme) .favorites-sort-select {
+    color-scheme: dark;
+    background-color: #242938;
+    color: #eef2ff;
+    border-color: #59637d;
+
+    option {
+        background-color: #242938;
+        color: #eef2ff;
+    }
+}
