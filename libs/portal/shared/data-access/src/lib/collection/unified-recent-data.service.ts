@@ -3,6 +3,7 @@ import { Store } from '@ngrx/store';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { firstValueFrom, map } from 'rxjs';
 import { rememberLastPlayedLive } from '@iptvnator/shared/interfaces';
+import { classifyM3uContent, m3uContentOverrideKey } from '@iptvnator/shared/m3u-utils';
 import {
     DatabaseService,
     PlaylistsService,
@@ -267,7 +268,7 @@ export class UnifiedRecentDataService {
             );
 
             this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
-            if (item.radio !== 'true') {
+            if (item.radio !== 'true' && item.contentType === 'live') {
                 rememberLastPlayedLive({ sourceType: 'm3u', playlistId: item.playlistId, itemId: item.streamUrl });
             }
 
@@ -620,6 +621,13 @@ export class UnifiedRecentDataService {
                 }
 
                 seenUrls.add(channel.url);
+                // Legacy rows were all written as 'live', even for watched
+                // M3U movies and series. Resolve against the *current* catalog
+                // and the user's manual override, never mutate old history.
+                const preferred = meta.m3uContentOverrides?.[m3uContentOverrideKey(channel)];
+                const kind = preferred ?? classifyM3uContent(channel);
+                const contentType = kind === 'movies' ? 'movie'
+                    : kind === 'series' ? 'series' : 'live';
 
                 return {
                     uid: buildCollectionUid(
@@ -632,7 +640,7 @@ export class UnifiedRecentDataService {
                         channel.name ||
                         recentItem.tvg_name?.trim() ||
                         recentItem.url,
-                    contentType: 'live' as const,
+                    contentType,
                     sourceType: 'm3u' as const,
                     playlistId: meta._id,
                     playlistName: meta.title || meta.filename || 'M3U',
