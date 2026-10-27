@@ -187,7 +187,7 @@ export class StreamResolverService {
         channel?: Channel
     ): Promise<EpgProgram[]> {
         const epgLookupKey = channel
-            ? this.getM3uEpgLookupKey(channel, item)
+            ? await this.getFirstExactM3uKey(channel, item)
             : await this.getM3uEpgLookupKeyForItem(item);
 
         return this.fetchM3uPrograms(epgLookupKey);
@@ -937,7 +937,7 @@ export class StreamResolverService {
         const epgPrograms =
             includePrograms && this.supportsProgramLookup
                 ? await this.fetchM3uPrograms(
-                      this.getM3uEpgLookupKey(channel, item)
+                      await this.getFirstExactM3uKey(channel, item)
                   )
                 : [];
 
@@ -959,7 +959,32 @@ export class StreamResolverService {
             this.findM3uChannel(playlist?.playlist?.items ?? [], item) ??
             this.buildFallbackM3uChannel(item);
 
-        return this.getM3uEpgLookupKey(channel, item);
+        return this.getFirstExactM3uKey(channel, item);
+    }
+
+    /** Selected-channel timeline uses the same name-first verdict as the
+     * global row: it must not fall back to raw tvg-id after the row displays
+     * a valid programme (BBC EARTH HD/UHD cold-start regression). */
+    private async getFirstExactM3uKey(
+        channel: Channel,
+        item: UnifiedCollectionItem
+    ): Promise<string> {
+        const raw = resolveRawChannelEpgLookupKey(channel);
+        const [manual, guide] = await Promise.all([
+            raw ? (this.epgBridge.getEpgMappingsBatch?.([raw]) ?? Promise.resolve(null)).catch(() => null)
+                : Promise.resolve(null),
+            (this.epgBridge.getEpgChannels?.() ?? Promise.resolve(null)).catch(() => null),
+        ]);
+        const explicit = raw ? manual?.[raw] : undefined;
+        if (explicit) return explicit;
+        const index = createXmltvIdentityIndex(guide?.channels ?? []);
+        const match = resolveOrderedXmltvId({
+            channelName: channel.name,
+            tvgName: channel.tvg?.name,
+            tvgId: channel.tvg?.id,
+        }, index.ids, index.names,
+        this.settingsStore.resolvedEpgMatchOrder?.() ?? DEFAULT_EPG_MATCH_ORDER);
+        return match || this.getM3uEpgLookupKey(channel, item);
     }
 
     private async fetchM3uPrograms(
