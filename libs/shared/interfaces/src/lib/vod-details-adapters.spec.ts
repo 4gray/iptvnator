@@ -193,7 +193,9 @@ describe('youtubeEmbedUrl', () => {
             youtubeEmbedUrl('https://www.youtube.com/watch?v=zAGVQLHvwOY')
         ).toBe('https://www.youtube-nocookie.com/embed/zAGVQLHvwOY');
         expect(
-            youtubeEmbedUrl('https://www.youtube.com/watch?feature=x&v=abc123def')
+            youtubeEmbedUrl(
+                'https://www.youtube.com/watch?feature=x&v=abc123def'
+            )
         ).toBe('https://www.youtube-nocookie.com/embed/abc123def');
     });
 
@@ -214,4 +216,24 @@ describe('youtubeEmbedUrl', () => {
         expect(youtubeEmbedUrl('not a video!!!')).toBeNull();
         expect(youtubeEmbedUrl('https://vimeo.com/12345')).toBeNull();
     });
+});
+
+describe('malformed saved age classifications', () => {
+    it.each([{}, 'broken', null])(
+        'keeps provider classification when TMDB field is %p',
+        (tmdb_certifications) => {
+            const details = {
+                info: {
+                    name: 'Northstar Harbor',
+                    age: '12+',
+                    mpaa_rating: 'R',
+                    tmdb_certifications,
+                },
+            } as unknown as import('./xtream-vod-details.interface').XtreamVodDetails;
+            expect(normalizeXtreamVod(details).certifications).toEqual([
+                { value: 'R', countryCode: 'US', source: 'provider' },
+                { value: '12+', source: 'provider' },
+            ]);
+        }
+    );
 });

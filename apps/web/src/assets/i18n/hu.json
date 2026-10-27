@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Szülői felügyelet kikapcsolva",
             "PIN_CHANGED_TOAST": "PIN-kód módosítva",
             "LOCKED_TOAST": "Zárolva"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Korhatár-besorolás országa",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Válassza ki a besorolás országát. Helyi adatok hiányában amerikai vagy szolgáltatói adatok jelenhetnek meg.",
+        "AGE_RATING_COUNTRY_AUTO": "Automatikus — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Nem sikerült menteni a kiszolgálóra. Ellenőrizze a kapcsolatot, majd próbálja újra.",
@@ -1522,7 +1525,12 @@
             "TRAILER_MUTE": "Előzetes némítása",
             "TRAILER_UNMUTE": "Előzetes hangjának bekapcsolása",
             "PROGRESS_RESET": "A lejátszási előrehaladás visszaállítva.",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Eltávolítva a „Megtekintés folytatása” sávból"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Eltávolítva a „Megtekintés folytatása” sávból",
+            "AGE_RATING_UNKNOWN": "Korhatár: nincs adat",
+            "AGE_RATING_PROVIDER": "Szolgáltató",
+            "AGE_RATING_DESCRIPTION": "Korhatár-besorolás: {{rating}}. Forrás: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Nincs besorolás ehhez: {{country}}; megjelenítve: {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "A besorolások kiadásonként eltérnek."
         },
         "SCROLL_LEFT": "Görgetés balra",
         "SCROLL_RIGHT": "Görgetés jobbra",

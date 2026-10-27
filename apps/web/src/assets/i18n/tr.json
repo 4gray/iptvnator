@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Ebeveyn kilidi devre dışı bırakıldı",
             "PIN_CHANGED_TOAST": "PIN değiştirildi",
             "LOCKED_TOAST": "Kilitlendi"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Yaş sınıflandırması ülkesi",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Sınıflandırma ülkesini seçin. Yerel veri yoksa ABD veya sağlayıcı verileri kullanılabilir.",
+        "AGE_RATING_COUNTRY_AUTO": "Otomatik — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Sunucuya kaydedilemedi. Bağlantıyı kontrol edip tekrar deneyin.",
@@ -1522,7 +1525,12 @@
             "TRAILER_MUTE": "Fragmanı sessize al",
             "TRAILER_UNMUTE": "Fragman sesini aç",
             "PROGRESS_RESET": "İlerleme sıfırlandı",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "“İzlemeye devam et”ten gizlendi"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "“İzlemeye devam et”ten gizlendi",
+            "AGE_RATING_UNKNOWN": "Yaş: veri yok",
+            "AGE_RATING_PROVIDER": "Sağlayıcı",
+            "AGE_RATING_DESCRIPTION": "Yaş sınıflandırması: {{rating}}. Kaynak: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "{{country}} için sınıflandırma yok; {{fallback}} gösteriliyor.",
+            "AGE_RATING_MULTIPLE": "Sınıflandırmalar sürümlere göre değişir."
         },
         "SCROLL_LEFT": "Sola kaydır",
         "SCROLL_RIGHT": "Sağa kaydır",

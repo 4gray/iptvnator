@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Ouderlijk toezicht uitgeschakeld",
             "PIN_CHANGED_TOAST": "Pincode gewijzigd",
             "LOCKED_TOAST": "Vergrendeld"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Land voor leeftijdsclassificatie",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Kies het land voor de leeftijdsclassificatie. Ontbrekende lokale gegevens kunnen worden aangevuld met Amerikaanse of aanbiedergegevens.",
+        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Opslaan op de server is mislukt. Controleer de verbinding en probeer het opnieuw.",
@@ -1522,7 +1525,12 @@
             "TRAILER_MUTE": "Trailer dempen",
             "TRAILER_UNMUTE": "Trailergeluid aan",
             "PROGRESS_RESET": "Voortgang gewist",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Verborgen uit ‘Verder kijken’"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Verborgen uit ‘Verder kijken’",
+            "AGE_RATING_UNKNOWN": "Leeftijd: geen gegevens",
+            "AGE_RATING_PROVIDER": "Aanbieder",
+            "AGE_RATING_DESCRIPTION": "Leeftijdsclassificatie: {{rating}}. Bron: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Geen classificatie voor {{country}}; getoond: {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Classificaties verschillen per uitgave."
         },
         "SCROLL_LEFT": "Naar links scrollen",
         "SCROLL_RIGHT": "Naar rechts scrollen",

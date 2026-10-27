@@ -211,29 +211,51 @@ export class TmdbMetadataClient {
         const lookupKey = buildDetailsLookupKey(tmdbId);
 
         const cached = await this.cache.get(mediaType, lookupKey, language);
+        let legacy: TmdbDetails | null = null;
         if (
             this.cache.isFresh(cached, TMDB_DETAILS_CACHE_TTL_MS) &&
             cached?.payload
         ) {
             try {
-                return JSON.parse(cached.payload) as TmdbDetails;
+                const parsed = JSON.parse(cached.payload) as TmdbDetails;
+                if (
+                    parsed &&
+                    typeof parsed === 'object' &&
+                    !Array.isArray(parsed)
+                ) {
+                    const field =
+                        mediaType === 'movie'
+                            ? 'release_dates'
+                            : 'content_ratings';
+                    if (Object.prototype.hasOwnProperty.call(parsed, field))
+                        return parsed;
+                    legacy = parsed;
+                }
             } catch {
                 // Corrupt cache row — fall through to a fresh fetch
             }
         }
 
-        const details =
-            mediaType === 'movie'
-                ? await this.api.getMovieDetails(
-                      tmdbId,
-                      language,
-                      this.runtime.apiKey()
-                  )
-                : await this.api.getTvDetails(
-                      tmdbId,
-                      language,
-                      this.runtime.apiKey()
-                  );
+        let details: TmdbDetails;
+        try {
+            details =
+                mediaType === 'movie'
+                    ? await this.api.getMovieDetails(
+                          tmdbId,
+                          language,
+                          this.runtime.apiKey()
+                      )
+                    : await this.api.getTvDetails(
+                          tmdbId,
+                          language,
+                          this.runtime.apiKey()
+                      );
+        } catch (error) {
+            // A failed optional capability upgrade must not cost the fresh
+            // metadata we already have. Never extend its freshness timestamp.
+            if (legacy) return legacy;
+            throw error;
+        }
 
         await this.cache.set({
             mediaType,

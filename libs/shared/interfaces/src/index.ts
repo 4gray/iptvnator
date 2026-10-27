@@ -118,3 +118,8 @@ export * from './lib/source-reachability';
 export * from './lib/server-storage.contract';
 
 export { sourceIdentity } from './lib/playlist-source-identity.util';
+
+export type {
+    ContentCertification,
+    AgeRatingDisplay,
+} from './lib/content-certification';

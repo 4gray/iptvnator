@@ -1,7 +1,7 @@
 import {
     TmdbEnrichmentService,
     extractYear,
-    mergeStalkerInfoWithTmdb,
+    loadTmdbMergers,
 } from '@iptvnator/services';
 import { StalkerVodInfo, TmdbMediaType } from '@iptvnator/shared/interfaces';
 import { StalkerVodSource } from '../models';
@@ -78,6 +78,9 @@ export async function enrichStalkerSelectionWithTmdb(
         return;
     }
 
+    const mergers = await loadTmdbMergers().catch(() => null);
+    if (!mergers) return;
+
     const current = isCurrent();
     const currentInfo = current?.info as StalkerVodInfo | null | undefined;
     if (!current || !currentInfo?.name) {
@@ -87,7 +90,11 @@ export async function enrichStalkerSelectionWithTmdb(
     try {
         applyEnrichedItem({
             ...current,
-            info: mergeStalkerInfoWithTmdb(currentInfo, details, mediaType),
+            info: mergers.mergeStalkerInfoWithTmdb(
+                currentInfo,
+                details,
+                mediaType
+            ),
         });
     } catch (error) {
         // Never degrade provider data over a malformed payload shape

@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "자녀 보호가 꺼졌습니다",
             "PIN_CHANGED_TOAST": "PIN이 변경되었습니다",
             "LOCKED_TOAST": "잠겼습니다"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "연령 등급 국가",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "연령 등급에 사용할 국가를 선택하세요. 현지 정보가 없으면 미국 또는 제공업체 정보를 사용할 수 있습니다.",
+        "AGE_RATING_COUNTRY_AUTO": "자동 — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
@@ -1522,7 +1525,12 @@
             "TRAILER_MUTE": "예고편 음소거",
             "TRAILER_UNMUTE": "예고편 소리 켜기",
             "PROGRESS_RESET": "진행 상태를 초기화했습니다",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "‘이어서 보기’에서 숨겼습니다"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "‘이어서 보기’에서 숨겼습니다",
+            "AGE_RATING_UNKNOWN": "연령: 정보 없음",
+            "AGE_RATING_PROVIDER": "제공업체",
+            "AGE_RATING_DESCRIPTION": "연령 등급: {{rating}}. 출처: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "{{country}} 등급이 없어 {{fallback}} 정보를 표시합니다.",
+            "AGE_RATING_MULTIPLE": "공개 버전에 따라 등급이 다릅니다."
         },
         "SCROLL_LEFT": "왼쪽으로 스크롤",
         "SCROLL_RIGHT": "오른쪽으로 스크롤",

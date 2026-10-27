@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Parental lock disabled",
             "PIN_CHANGED_TOAST": "PIN changed",
             "LOCKED_TOAST": "Locked"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Age rating country",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Choose the country used for age classifications. Missing local ratings may use US or provider data.",
+        "AGE_RATING_COUNTRY_AUTO": "Automatic — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Could not save to the server. Check the connection and try again.",
@@ -1522,7 +1525,12 @@
             "TRAILER_MUTE": "Mute trailer",
             "TRAILER_UNMUTE": "Unmute trailer",
             "PROGRESS_RESET": "Progress reset",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Hidden from Continue Watching"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Hidden from Continue Watching",
+            "AGE_RATING_UNKNOWN": "Age: no data",
+            "AGE_RATING_PROVIDER": "Provider",
+            "AGE_RATING_DESCRIPTION": "Age classification: {{rating}}. Source: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "No classification for {{country}}; showing {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Classifications differ between releases."
         },
         "SCROLL_LEFT": "Scroll left",
         "SCROLL_RIGHT": "Scroll right",

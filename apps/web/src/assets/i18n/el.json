@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Ο γονικός έλεγχος απενεργοποιήθηκε",
             "PIN_CHANGED_TOAST": "Το PIN άλλαξε",
             "LOCKED_TOAST": "Κλειδώθηκε"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Χώρα ηλικιακής κατάταξης",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Επιλέξτε τη χώρα κατάταξης. Αν δεν υπάρχουν τοπικά στοιχεία, μπορεί να χρησιμοποιηθούν στοιχεία ΗΠΑ ή παρόχου.",
+        "AGE_RATING_COUNTRY_AUTO": "Αυτόματα — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Δεν ήταν δυνατή η αποθήκευση στον διακομιστή. Ελέγξτε τη σύνδεση και δοκιμάστε ξανά.",
@@ -1522,7 +1525,12 @@
             "TRAILER_MUTE": "Σίγαση τρέιλερ",
             "TRAILER_UNMUTE": "Ενεργοποίηση ήχου τρέιλερ",
             "PROGRESS_RESET": "Η πρόοδος επαναφέρθηκε",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Αποκρύφθηκε από το «Συνέχεια παρακολούθησης»"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Αποκρύφθηκε από το «Συνέχεια παρακολούθησης»",
+            "AGE_RATING_UNKNOWN": "Ηλικία: χωρίς στοιχεία",
+            "AGE_RATING_PROVIDER": "Πάροχος",
+            "AGE_RATING_DESCRIPTION": "Ηλικιακή κατάταξη: {{rating}}. Πηγή: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Δεν υπάρχει κατάταξη για {{country}}· εμφανίζεται {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Οι κατατάξεις διαφέρουν ανά έκδοση."
         },
         "SCROLL_LEFT": "Κύλιση αριστερά",
         "SCROLL_RIGHT": "Κύλιση δεξιά",

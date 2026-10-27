@@ -115,6 +115,17 @@ costs nothing but the next few requests — enrichment refetches on demand
 — and it is also the escape hatch when a lookup-key version bump orphans
 rows, since a bump makes them unreachable rather than deleting them.
 
+Age classification runtime helpers use the public secondary entries
+`@iptvnator/shared/interfaces/age-rating`, `@iptvnator/shared/tmdb/certifications`
+and `@iptvnator/services/age-rating`, rather than adding their code to eager
+barrels. Pure provider merges are exposed by `@iptvnator/services/tmdb-merge`.
+The eager Xtream/Stalker data layer loads those merges through
+`loadTmdbMergers` only after a details lookup, and repeats its selection guard
+after the asynchronous module load. A module-load failure leaves provider
+metadata intact. Offline detail mapping imports the pure secondary entry
+statically inside its already-lazy feature. These entries preserve the startup
+bundle budget while keeping the existing synchronous merge contracts.
+
 ## Match Confidence
 
 Wrong metadata is worse than no metadata, so id resolution is conservative:
@@ -205,6 +216,56 @@ language is different. This covers English translations of foreign shows whose
 localized and original names both differ (for example, The Chestnut Man).
 The same strict title/year gate applies, each language caches its own verdict,
 and details still use the user's selected metadata language.
+
+## Age classifications in movie and series details
+
+The primary Angular player shows one informational classification chip in the
+routed Xtream and shared collection/Stalker movie details, Xtream/Stalker
+series details (including embedded-VOD
+series), and recognized M3U movie details. Live channels, catalog cards, TV UI
+and the separate Downloads offline details are outside this scope. Series use
+show-level classifications, never inferred episode or season classifications.
+
+`Settings.ageRatingCountry` is `auto` by default (also for legacy settings),
+or an ISO 3166-1 alpha-2 country. Automatic follows the existing app-language
+mapping, e.g. `de` → `de-DE` → `DE`; it does not detect the viewer's location.
+An explicit country survives language changes. The Metadata settings section
+offers this selector even with TMDB disabled: provider metadata needs no opt-in.
+Normal Save/Cancel, settings search and dirty tracking apply.
+
+Movie details append `release_dates`, TV details append `content_ratings` to
+the existing request. `ContentCertification` retains the source, country and
+original value; movie entries can also retain the release type. All countries
+stay in the cached payload and `info.tmdb_certifications`, so switching the
+classification country is a local projection with no HTTP or playback restart.
+Stalker's normalization whitelist preserves this field, including an empty
+array clearing an older value. Raw provider age fields remain unchanged.
+
+Display priority is selected-country TMDB, selected-country provider, US TMDB,
+other known-country provider, then provider with no known country. The chip
+always labels a known country and identifies unscoped provider data as such.
+It never chooses an arbitrary foreign TMDB country or uses production country.
+Differing classifications in one country remain visible together, deduplicated
+and ordered consistently; the explanation identifies differing releases.
+There is no conversion between systems such as `R`, `PG-13` and numeric ages.
+
+The initial provider adapter recognizes Xtream movie `mpaa_rating` values G,
+PG, PG-13, R and NC-17 as US classifications, and numeric `age` labels in the
+range 0–21 without inventing a country. Bare provider zero is ambiguous and
+omitted; explicit `0+` is retained. Official TMDB `0` remains valid. Blank,
+N/A, NR and Unrated do not mean unrestricted. Missing or failed metadata shows
+“Age: no data”; Play remains available. Tooltip and accessible text explain
+the source and foreign-country fallback. This is descriptive metadata, not
+an age gate or a promise that content is suitable for children.
+
+Fresh legacy details cached under `id:<id>|v2` may lack the appended property.
+On the next lookup of that title only, the shared client refreshes that same
+row in place. If the optional upgrade fails, the readable **fresh** legacy
+payload still supplies existing metadata without extending its timestamp.
+Expired rows receive no such fallback. Presence of the appended property,
+including empty results or an appended error object, prevents repeated
+capability upgrades until ordinary TTL expiry. This requires no SQLite schema
+change, mass cache invalidation, new cache key or title-search key change.
 
 ## Details Fetch and Localization
 

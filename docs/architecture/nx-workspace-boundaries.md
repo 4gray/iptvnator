@@ -284,6 +284,19 @@ Those lazy helpers value-import the pure normalizer through
 use type-only imports so a deferred conversion does not load the interfaces
 barrel's Angular/IndexedDB dependencies.
 
+Age classifications use explicit secondary entries too:
+`@iptvnator/services/age-rating` exposes the detail/settings presentation service,
+`@iptvnator/shared/interfaces/age-rating` exposes country validation and display
+selection, and `@iptvnator/shared/tmdb/certifications` exposes TMDB extraction.
+Their runtime exports stay out of the eager barrels; classification types remain
+type-only exports of shared interfaces. Provider parsing stays with the existing
+provider metadata readers so ordinary normalization does not import ISO countries
+or UI selection helpers. `@iptvnator/services/tmdb-merge` is the public pure merge
+entry for lazy consumers. Eager provider data access calls `loadTmdbMergers`, whose
+local dynamic import defers that implementation until metadata enrichment, then
+checks the current selection again before applying it. This keeps age metadata
+off the launch path without changing the module-boundary rules.
+
 The web app's root shell (`app.component.ts`, `app.config.ts` and the services
 they construct) is on the renderer's initial path, where a barrel costs its
 whole library: esbuild keeps every Angular component module a barrel
