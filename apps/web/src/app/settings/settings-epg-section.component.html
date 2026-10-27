@@ -138,6 +138,56 @@
         </div>
     </section>
 
+    <section class="settings-section" data-test-id="epg-auto-refresh-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.EPG_AUTO_REFRESH' | translate }}</h3>
+        </div>
+        <div class="settings-card">
+            <div class="setting-item" data-setting-id="epg-auto-refresh">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.EPG_AUTO_REFRESH' | translate }}</h4>
+                    <p>{{ 'SETTINGS.EPG_AUTO_REFRESH_DESC' | translate }}</p>
+                </div>
+                <div class="setting-item__control">
+                    <mat-slide-toggle formControlName="epgAutoRefresh"
+                        data-test-id="epg-auto-refresh-toggle"
+                        [attr.aria-label]="'SETTINGS.EPG_AUTO_REFRESH' | translate" />
+                </div>
+            </div>
+            @if (form().get('epgAutoRefresh')?.value) {
+                <div class="setting-item" data-setting-id="epg-refresh-on-startup">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.EPG_REFRESH_ON_STARTUP' | translate }}</h4>
+                        <p>{{ 'SETTINGS.EPG_REFRESH_ON_STARTUP_DESC' | translate }}</p>
+                    </div>
+                    <div class="setting-item__control">
+                        <label>
+                            <input type="checkbox" formControlName="epgRefreshOnStartup"
+                                data-test-id="epg-refresh-on-startup" />
+                            {{ 'SETTINGS.EPG_REFRESH_ON_STARTUP' | translate }}
+                        </label>
+                    </div>
+                </div>
+                <div class="setting-item" data-setting-id="epg-refresh-interval">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.EPG_REFRESH_INTERVAL' | translate }}</h4>
+                        <p>{{ 'SETTINGS.EPG_REFRESH_INTERVAL_DESC' | translate }}</p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-radio-group formControlName="epgRefreshIntervalHours"
+                            data-test-id="epg-refresh-interval"
+                            [attr.aria-label]="'SETTINGS.EPG_REFRESH_INTERVAL' | translate">
+                            <mat-radio-button [value]="6">6h</mat-radio-button>
+                            <mat-radio-button [value]="12">12h</mat-radio-button>
+                            <mat-radio-button [value]="18">18h</mat-radio-button>
+                            <mat-radio-button [value]="24">24h</mat-radio-button>
+                        </mat-radio-group>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
     <section class="settings-section">
         <div class="settings-section__header">
             <h3>{{ 'SETTINGS.CARD_SOURCES' | translate }}</h3>
