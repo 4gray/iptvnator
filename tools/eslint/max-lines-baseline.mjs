@@ -40,7 +40,6 @@ export const maxLinesBaseline = [
     'libs/portal/xtream/data-access/src/lib/data-sources/pwa-xtream-data-source.ts',
     'libs/portal/xtream/data-access/src/lib/services/xtream-url.service.ts',
     'libs/portal/xtream/data-access/src/lib/stores/features/with-content.feature.ts',
-    'libs/portal/xtream/data-access/src/lib/stores/features/with-selection.feature.ts',
     'libs/portal/xtream/feature/src/lib/live-stream-layout/live-stream-layout.component.ts',
     'libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts',
     'libs/portal/xtream/feature/src/lib/search-results/search-results.component.ts',

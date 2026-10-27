@@ -1,3 +1,4 @@
+import type { PlaybackPositionsState } from './with-playback-positions.feature';
 import { TestBed } from '@angular/core/testing';
 import { computed } from '@angular/core';
 import { patchState, signalStore, withState } from '@ngrx/signals';
@@ -11,6 +12,15 @@ const TestPwaVisibleContentStore = signalStore(
             { category_id: '', title: 'Uncategorized PWA item' },
             { category_id: '99', title: 'Unknown-category PWA item' },
         ],
+    }),
+    withState<
+        PlaybackPositionsState & { currentPlaylist: { id: string } | null }
+    >({
+        playbackPositions: new Map(),
+        seriesPositions: new Map(),
+        positionsPlaylistId: 'a',
+        positionsLoadState: 'ready',
+        currentPlaylist: { id: 'a' },
     }),
     withSelection()
 );
@@ -40,6 +50,15 @@ const TestVisibleContentStore = signalStore(
             { category_id: '50', title: 'Visible Night Series' },
             { category_id: '60', title: 'Hidden Night Series' },
         ],
+    }),
+    withState<
+        PlaybackPositionsState & { currentPlaylist: { id: string } | null }
+    >({
+        playbackPositions: new Map(),
+        seriesPositions: new Map(),
+        positionsPlaylistId: 'a',
+        positionsLoadState: 'ready',
+        currentPlaylist: { id: 'a' },
     }),
     withSelection()
 );
