@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "Parcourir toute la TV en direct",
         "VIEW_IN_PORTAL": "Voir dans le portail",
         "VIEW_IN_PORTAL_TOOLTIP": "Ouvrir dans {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "Le catalogue enregistré est affiché. La lecture peut être indisponible.",
+            "CHECKING": "Vérification du portail…"
+        },
         "SIDEBAR": {
             "MAIN": "Principal",
             "MOVIES": "Films",

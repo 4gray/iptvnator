@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "Ver toda a TV em direto",
         "VIEW_IN_PORTAL": "Ver no portal",
         "VIEW_IN_PORTAL_TOOLTIP": "Abrir em {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "A mostrar o catálogo guardado. A reprodução pode estar indisponível.",
+            "CHECKING": "A verificar o portal…"
+        },
         "SIDEBAR": {
             "MAIN": "Principal",
             "MOVIES": "Filmes",

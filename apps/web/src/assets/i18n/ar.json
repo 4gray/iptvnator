@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "تصفح جميع قنوات البث المباشر",
         "VIEW_IN_PORTAL": "عرض في البوابة",
         "VIEW_IN_PORTAL_TOOLTIP": "فتح في {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "يتم عرض الكتالوج المحفوظ. قد لا يكون التشغيل متاحًا.",
+            "CHECKING": "جارٍ التحقق من البوابة…"
+        },
         "SIDEBAR": {
             "MAIN": "الرئيسية",
             "MOVIES": "الأفلام",

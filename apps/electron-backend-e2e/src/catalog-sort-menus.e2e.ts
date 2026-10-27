@@ -272,6 +272,41 @@ test.describe('Electron catalog sort menus', () => {
                 if (locale !== 'en') await switchLanguage(page, locale);
                 const chipLabels = sortChipLabels(locale);
 
+                const layout = await page
+                    .locator(
+                        'app-category-content-view .category-content-header'
+                    )
+                    .evaluate((header) => {
+                        const rect = (selector: string) => {
+                            const element = header.querySelector(selector);
+                            if (!element)
+                                throw new Error(`Missing ${selector}`);
+                            const bounds = element.getBoundingClientRect();
+                            return {
+                                left: bounds.left,
+                                right: bounds.right,
+                                center: bounds.y + bounds.height / 2,
+                            };
+                        };
+                        return {
+                            meta: rect('.category-meta'),
+                            chips: rect('.active-refinements'),
+                            refine: rect('.refine-action'),
+                        };
+                    });
+                expect(
+                    Math.abs(layout.meta.center - layout.chips.center),
+                    `${locale}: sort chips share the title row`
+                ).toBeLessThanOrEqual(1);
+                expect(
+                    Math.abs(layout.meta.center - layout.refine.center),
+                    `${locale}: Refine shares the title row`
+                ).toBeLessThanOrEqual(1);
+                expect(layout.chips.left).toBeGreaterThanOrEqual(
+                    layout.meta.right
+                );
+                expect(layout.refine.left).toBeGreaterThan(layout.chips.right);
+
                 for (const [index, chipLabel] of chipLabels.entries()) {
                     menu = await openRefineMenu(page);
                     await menu
@@ -333,6 +368,59 @@ test.describe('Electron catalog sort menus', () => {
                 );
                 await closeMenu(page, ratings);
                 await closeMenu(page, menu);
+            }
+
+            // Synthetic provider text exercises the title's shrinking
+            // boundary without changing the catalog or its selected category.
+            await page
+                .locator('.category-content-header .category-title')
+                .evaluate((el) => {
+                    el.textContent =
+                        'A very long category name with multilingual titles — Очень длинное название категории — 長いカテゴリ名 '.repeat(
+                            3
+                        );
+                });
+            for (const width of [1280, 1024, 640, 360]) {
+                await page.setViewportSize({ width, height: 800 });
+                const bounds = await page
+                    .locator('.category-content-header')
+                    .evaluate((header) => {
+                        const meta = header
+                            .querySelector('.category-meta')!
+                            .getBoundingClientRect();
+                        const chips = header
+                            .querySelector('.active-refinements')!
+                            .getBoundingClientRect();
+                        const action = header
+                            .querySelector('.refine-action')!
+                            .getBoundingClientRect();
+                        return {
+                            paneWidth: header.parentElement!.clientWidth,
+                            overflow: header.scrollWidth - header.clientWidth,
+                            metaCenter: meta.y + meta.height / 2,
+                            metaBottom: meta.bottom,
+                            chipsCenter: chips.y + chips.height / 2,
+                            chipsTop: chips.top,
+                            chipsRight: chips.right,
+                            actionLeft: action.left,
+                        };
+                    });
+                expect(
+                    bounds.overflow,
+                    `${width}: toolbar fits`
+                ).toBeLessThanOrEqual(1);
+                expect(bounds.actionLeft).toBeGreaterThan(bounds.chipsRight);
+                if (bounds.paneWidth > 640) {
+                    expect(
+                        Math.abs(bounds.metaCenter - bounds.chipsCenter),
+                        `${width}: long title shares the controls row`
+                    ).toBeLessThanOrEqual(1);
+                } else {
+                    expect(
+                        bounds.chipsTop,
+                        `${width}: narrow toolbar keeps a separate controls row`
+                    ).toBeGreaterThan(bounds.metaBottom);
+                }
             }
         } finally {
             await closeElectronApp(app);

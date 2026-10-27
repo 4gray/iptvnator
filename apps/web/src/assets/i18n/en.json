@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "Browse all live TV",
         "VIEW_IN_PORTAL": "View in portal",
         "VIEW_IN_PORTAL_TOOLTIP": "Open in {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "Showing your saved catalog. Playback may be unavailable.",
+            "CHECKING": "Checking portal…"
+        },
         "SIDEBAR": {
             "MAIN": "Main",
             "MOVIES": "Movies",

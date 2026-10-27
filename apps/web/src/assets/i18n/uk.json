@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "Всі прямі етери",
         "VIEW_IN_PORTAL": "Відкрити в порталі",
         "VIEW_IN_PORTAL_TOOLTIP": "Відкрити в {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "Показано збережений каталог. Відтворення може бути недоступним.",
+            "CHECKING": "Перевірка порталу…"
+        },
         "SIDEBAR": {
             "MAIN": "Головна",
             "MOVIES": "Фільми",

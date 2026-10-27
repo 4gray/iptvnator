@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "瀏覽所有直播電視",
         "VIEW_IN_PORTAL": "在 Portal 中檢視",
         "VIEW_IN_PORTAL_TOOLTIP": "在 {{name}} 中開啟",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "正在顯示已儲存的目錄。播放可能無法使用。",
+            "CHECKING": "正在檢查入口網站…"
+        },
         "SIDEBAR": {
             "MAIN": "主頁",
             "MOVIES": "電影",

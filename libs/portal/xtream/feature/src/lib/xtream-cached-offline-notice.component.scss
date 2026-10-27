@@ -1,0 +1,76 @@
+@use '../../../../../ui/styles/app-controls' as controls;
+
+:host {
+    display: block;
+    flex: none;
+    min-width: 0;
+}
+
+.xtream-cached-offline-notice {
+    --notice-surface: var(--app-expiry-warn-surface);
+    --notice-color: var(--app-expiry-warn-text);
+
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    background: var(--notice-surface);
+    color: var(--notice-color);
+
+    &--error {
+        --notice-surface: var(--app-danger-surface);
+        --notice-color: var(--app-danger-text);
+    }
+
+    &--checking {
+        --notice-surface: var(--app-widget-bg);
+        --notice-color: var(--app-body-color);
+    }
+
+    > mat-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+    }
+}
+
+.xtream-cached-offline-notice__copy {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    overflow-wrap: anywhere;
+
+    strong {
+        font-size: 0.88rem;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    span {
+        font-size: 0.82rem;
+        line-height: 1.4;
+    }
+}
+
+.xtream-cached-offline-notice__retry {
+    @include controls.secondary-button(sm);
+    app-region: no-drag;
+}
+
+@media (max-width: 640px) {
+    .xtream-cached-offline-notice {
+        grid-template-columns: 20px minmax(0, 1fr);
+        padding-inline: 12px;
+        gap: 8px 12px;
+    }
+
+    .xtream-cached-offline-notice__retry {
+        grid-column: 2;
+        justify-self: start;
+        max-width: 100%;
+        height: auto;
+        min-height: 40px;
+        padding-block: 8px;
+    }
+}

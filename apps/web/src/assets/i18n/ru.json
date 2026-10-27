@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "Всё Live TV",
         "VIEW_IN_PORTAL": "Открыть в портале",
         "VIEW_IN_PORTAL_TOOLTIP": "Открыть в {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "Показан сохранённый каталог. Воспроизведение может быть недоступно.",
+            "CHECKING": "Проверка портала…"
+        },
         "SIDEBAR": {
             "MAIN": "Главная",
             "MOVIES": "Фильмы",

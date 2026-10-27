@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "すべてのライブTVを表示",
         "VIEW_IN_PORTAL": "ポータルで表示",
         "VIEW_IN_PORTAL_TOOLTIP": "{{name}}で開く",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "保存済みのカタログを表示しています。再生できない場合があります。",
+            "CHECKING": "ポータルを確認中…"
+        },
         "SIDEBAR": {
             "MAIN": "メイン",
             "MOVIES": "映画",

@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "Tüm canlı TV'ye göz at",
         "VIEW_IN_PORTAL": "Portalda görüntüle",
         "VIEW_IN_PORTAL_TOOLTIP": "{{name}} içinde aç",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "Kayıtlı katalog gösteriliyor. Oynatma kullanılamayabilir.",
+            "CHECKING": "Portal kontrol ediliyor…"
+        },
         "SIDEBAR": {
             "MAIN": "Ana Menü",
             "MOVIES": "Filmler",

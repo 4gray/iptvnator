@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "Przeglądaj całą telewizję na żywo",
         "VIEW_IN_PORTAL": "Pokaż w portalu",
         "VIEW_IN_PORTAL_TOOLTIP": "Otwórz w {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "Wyświetlany jest zapisany katalog. Odtwarzanie może być niedostępne.",
+            "CHECKING": "Sprawdzanie portalu…"
+        },
         "SIDEBAR": {
             "MAIN": "Główne",
             "MOVIES": "Filmy",

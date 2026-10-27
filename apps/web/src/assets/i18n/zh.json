@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "浏览所有直播电视",
         "VIEW_IN_PORTAL": "在门户中查看",
         "VIEW_IN_PORTAL_TOOLTIP": "在{{name}}中打开",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "正在显示已保存的目录。播放可能不可用。",
+            "CHECKING": "正在检查门户…"
+        },
         "SIDEBAR": {
             "MAIN": "主页",
             "MOVIES": "电影",

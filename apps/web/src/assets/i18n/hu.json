@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "Összes élő csatorna böngészése",
         "VIEW_IN_PORTAL": "Megtekintés a portálon",
         "VIEW_IN_PORTAL_TOOLTIP": "Megnyitás: {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "A mentett katalógus látható. Előfordulhat, hogy a lejátszás nem érhető el.",
+            "CHECKING": "Portál ellenőrzése…"
+        },
         "SIDEBAR": {
             "MAIN": "Főmenü",
             "MOVIES": "Filmek",

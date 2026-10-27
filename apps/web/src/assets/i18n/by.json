@@ -1342,6 +1342,10 @@
         "BROWSE_ALL_LIVE": "Прагледзець увесь прамы эфір",
         "VIEW_IN_PORTAL": "Паказаць у партале",
         "VIEW_IN_PORTAL_TOOLTIP": "Адкрыць у {{name}}",
+        "STATUS_NOTICE": {
+            "CACHED_DESCRIPTION": "Паказаны захаваны каталог. Прайграванне можа быць недаступным.",
+            "CHECKING": "Праверка партала…"
+        },
         "SIDEBAR": {
             "MAIN": "Галоўная",
             "MOVIES": "Фільмы",
