@@ -7,6 +7,9 @@ import { SETTINGS_EPG_VIEW_MODE_OPTIONS } from './settings-options';
 function createForm(offset = 0): FormGroup {
     return new FormGroup({
         epgUrl: new FormArray<FormControl<string | null>>([]),
+        epgAutoRefresh: new FormControl(true),
+        epgRefreshOnStartup: new FormControl(false),
+        epgRefreshIntervalHours: new FormControl(12),
         epgViewMode: new FormControl('timeline'),
         epgMatchOrder: new FormControl(['channel-name','tvg-name','tvg-id']),
         epgOffsetMinutes: new FormControl<number>(offset, [
@@ -40,6 +43,16 @@ describe('SettingsEpgSectionComponent offset stepper', () => {
             imports: [SettingsEpgSectionComponent, TranslateModule.forRoot()],
         }).compileComponents();
         fixture = TestBed.createComponent(SettingsEpgSectionComponent);
+    });
+
+    it('offers an auto-refresh switch, startup checkbox and exclusive four interval choices', () => {
+        const form = configure(createForm());
+        expect(fixture.nativeElement.querySelector('[data-test-id="epg-auto-refresh-toggle"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-test-id="epg-refresh-on-startup"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelectorAll('mat-radio-button').length).toBeGreaterThanOrEqual(4);
+        form.get('epgAutoRefresh')?.setValue(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-test-id="epg-refresh-interval"]')).toBeNull();
     });
 
     it('swaps matching priorities without duplicates and marks the form dirty', () => {
