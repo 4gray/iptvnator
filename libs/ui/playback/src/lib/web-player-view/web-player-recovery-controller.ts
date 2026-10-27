@@ -55,7 +55,7 @@ export interface WebPlayerRecoveryControllerDeps {
  */
 export class WebPlayerRecoveryController {
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
-    /** 1–3 retries for transient PHP/extensionless live-stream failures. */
+    /** Up to five retries for PHP, extensionless and HLS live streams. */
     readonly autoRetryAttempt = signal(0);
     private autoRetryTimer: ReturnType<typeof setTimeout> | null = null;
     private retrySession: string | null = null;
@@ -196,14 +196,17 @@ export class WebPlayerRecoveryController {
 
     private scheduleAutoRetry(issue: PlaybackDiagnostic): boolean {
         const status = issue.httpStatus ?? issue.vhs?.httpStatus ?? issue.hls?.httpStatus;
-        const transient = status == null || status === 408 || status === 429 || status >= 500;
+        const transient = status == null || status === 403 || status === 408 || status === 429 || status >= 500;
+        const url = this.deps.streamUrl();
+        const isHls = /\.m3u8(?:[?#]|$)/i.test(url);
         if (!this.deps.resolvedIsLive() ||
-            !isAmbiguousStreamUrl(this.deps.streamUrl()) ||
+            !(isAmbiguousStreamUrl(url) || isHls) ||
             !transient ||
             !(issue.code === PlaybackDiagnosticCode.NetworkError ||
               issue.code === PlaybackDiagnosticCode.MediaDecodeError ||
-              issue.code === PlaybackDiagnosticCode.UnknownPlaybackError) ||
-            this.autoRetryAttempt() >= 3) return false;
+              issue.code === PlaybackDiagnosticCode.UnknownPlaybackError ||
+              (status === 403 && issue.code === PlaybackDiagnosticCode.BrowserAccessError)) ||
+            this.autoRetryAttempt() >= 5) return false;
 
         const attempt = this.autoRetryAttempt() + 1;
         const session = this.deps.playbackSessionKey();
@@ -218,7 +221,7 @@ export class WebPlayerRecoveryController {
                 return;
             }
             this.performRetry();
-        }, 1000 * (2 ** (attempt - 1)));
+        }, [1000, 2000, 4000, 8000, 12000][attempt - 1]);
         return true;
     }
 
