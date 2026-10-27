@@ -54,6 +54,7 @@ function handler(channel: string) {
 }
 
 describe('native source transport and connection IPC', () => {
+    const prepareRestart = jest.fn();
     beforeEach(() => {
         jest.clearAllMocks();
         (readSourceServerConfig as jest.Mock).mockReturnValue(connection);
@@ -62,7 +63,37 @@ describe('native source transport and connection IPC', () => {
             headers: { etag: '"revision"' },
             data: instance,
         });
-        registerSourceSyncEvents();
+        registerSourceSyncEvents(prepareRestart);
+    });
+
+    it.each(['connect', 'disconnect'])(
+        'tears down managed services before forcing a %s restart',
+        async (operation) => {
+            const calls: string[] = [];
+            prepareRestart.mockImplementationOnce(() => calls.push('shutdown'));
+            (app.relaunch as jest.Mock).mockImplementationOnce(() =>
+                calls.push('relaunch')
+            );
+            (app.exit as jest.Mock).mockImplementationOnce(() =>
+                calls.push('exit')
+            );
+            if (operation === 'connect')
+                await handler(SOURCE_SYNC_CONFIGURE)(
+                    {},
+                    connection.apiUrl,
+                    '',
+                    true
+                );
+            else await handler(SOURCE_SYNC_DISCONNECT)();
+            expect(calls).toEqual(['shutdown', 'relaunch', 'exit']);
+        }
+    );
+
+    it('keeps managed services running when only renewing credentials', async () => {
+        await handler(SOURCE_SYNC_CONFIGURE)({}, connection.apiUrl, '', false);
+        expect(prepareRestart).not.toHaveBeenCalled();
+        expect(app.relaunch).not.toHaveBeenCalled();
+        expect(app.exit).not.toHaveBeenCalled();
     });
 
     it('uses the configured API path, scopes credentials and pins redirects for LAN connections', async () => {
@@ -319,6 +350,7 @@ describe('native source transport and connection IPC', () => {
             )
         ).rejects.toThrow('SOURCE_SYNC.LOCKED');
         expect(saveSourceServerConfig).not.toHaveBeenCalled();
+        expect(prepareRestart).not.toHaveBeenCalled();
     });
 
     it('exposes only public connection selection and disconnects without source deletion', async () => {

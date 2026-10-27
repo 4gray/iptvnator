@@ -193,7 +193,10 @@ private temporary file followed by an atomic rename.
 
 Settings → Data → Server connects a desktop or browser client, refreshes the
 library, previews/imports original local sources, and disconnects. Connection
-changes restart/reload the app. The original local library is retained. Imports
+changes restart/reload the app. Before a forced native restart, the shared
+shutdown handler stops managed MPV/VLC and embedded-player sessions and shuts
+down the database worker; `app.exit()` itself does not emit `will-quit`.
+The original local library is retained. Imports
 send definitions only and match M3U URL/raw-text, Xtream endpoint + username,
 or Stalker endpoint + MAC fingerprints. Repeating a partial import is safe.
 

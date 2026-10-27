@@ -1293,3 +1293,33 @@ The final sequence passes all 14 mixed PWA/Electron scenarios and all 52
 production-PWA scenarios without retries, then repeats the exact uncached
 production command and 1,200,284-byte gate. Commit the combined change and run
 review twenty-four before any push; require fresh CI for the eventual head.
+
+### Forced native restart cleanup (review twenty-four)
+
+Codex review of `130dcb6f42c53e6bb5acd82aa2e096e9e377e05c` found that
+source-server connection changes called `app.exit()` without the normal
+`will-quit` teardown. Reused MPV/VLC processes could outlive the application.
+The deferred bootstrap now supplies its existing shutdown handler to source
+IPC. Both connect/reconfigure and disconnect invoke it before relaunch/exit;
+renewing credentials without a restart keeps services running. No finding was
+declined. The user-authorized review-limit exception remains in effect.
+
+Two IPC regression cases fail before the fix and pass afterwards; another
+checks that credential renewal does not stop services. All 2,712 Electron
+backend tests pass with coverage. The shared shutdown implementation and
+database IPC remain unchanged. The real Electron regression starts a retained
+player child through the normal MPV bridge and checks its termination before
+ordinary quit, for both connection and disconnection. A local HTTP gateway
+mirrors nginx's `/api` mount so initial connection follows the deployed URL
+normalization path. The fixture retains restart/process ownership and cleans
+up its own child even when an assertion fails.
+
+The merged 36-project coverage remains statements 84.98%, branches 76.05%,
+functions 83.16%, lines 85.36%; health passes with two advisory same-name-spec
+warnings (the deferred bootstrap and M3U utility barrel). Owning lint and
+native application/spec/E2E types pass. The existing feature release note
+covers this pre-delivery correction; the self-hosted contract records teardown
+before forced restart. Production-PWA code and its validated 52 scenarios and
+1,200,284-byte initial payload are unchanged. The final mixed-runtime run passes
+all 16 scenarios together without retries (3.2 minutes), including both real
+player shutdown cases. Commit and run review twenty-five before pushing.

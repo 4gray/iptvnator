@@ -1,6 +1,7 @@
 import { setSourceStateWriteFailure } from './source-sync-sqlite-fault';
 import { verifySharedStalkerSessionEditing } from './source-sync-stalker-session';
 import { verifyDelayedSharedM3uRefresh } from './source-sync-m3u-refresh';
+import { verifySourceRestartStopsPlayer } from './source-sync-player-restart';
 import { test, expect, type Page } from '@playwright/test';
 import {
     mkdtempSync,
@@ -38,6 +39,12 @@ test.skip(
     process.env['IPTVNATOR_E2E_SOURCE_SYNC'] !== '1',
     'Run with playwright.source-sync.config.ts'
 );
+
+for (const operation of ['connect', 'disconnect'] as const) {
+    test(`stops the managed player before a source ${operation} restart @electron @persistence`, async () => {
+        await verifySourceRestartStopsPlayer(operation);
+    });
+}
 
 test('discards a delayed native M3U refresh after the NAS URL changes @electron @m3u @persistence', async ({
     request,

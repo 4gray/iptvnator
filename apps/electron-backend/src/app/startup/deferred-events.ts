@@ -97,7 +97,7 @@ export function bootstrapDeferredEvents(
     registerM3uSourceProbe();
     registerSourceProbeCancellation();
     registerConnectivityGuardHandlers();
-    registerSourceSyncEvents();
+    registerSourceSyncEvents(shutdownDeferredServices);
     DatabaseEvents.bootstrapDatabaseEvents();
     EpgEvents.bootstrapEpgEvents();
     RemoteControlEvents.bootstrapRemoteControlEvents();
