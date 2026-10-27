@@ -367,6 +367,30 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.resolvedEpgOffsetMinutes()).toBe(0);
     });
 
+    it('saves and restores EPG auto-refresh, startup and interval without losing other settings', async () => {
+        storedSettings = { epgAutoRefresh: true, epgRefreshOnStartup: true, epgRefreshIntervalHours: 18 };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        expect(store.getSettings()).toEqual(expect.objectContaining({
+            epgAutoRefresh: true,
+            epgRefreshOnStartup: true,
+            epgRefreshIntervalHours: 18,
+        }));
+
+        await store.updateSettings({ epgAutoRefresh: false, epgRefreshIntervalHours: 24 });
+        expect(storage.set).toHaveBeenCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                epgAutoRefresh: false,
+                epgRefreshOnStartup: true,
+                epgRefreshIntervalHours: 24,
+            })
+        );
+        await store.updateSettings({ showCaptions: true });
+        expect(store.getSettings().epgAutoRefresh).toBe(false);
+        expect(store.getSettings().epgRefreshIntervalHours).toBe(24);
+    });
+
     it('restores a persisted EPG display offset', async () => {
         storedSettings = { epgOffsetMinutes: -90 };
         const store = injector.get(SettingsStore);
