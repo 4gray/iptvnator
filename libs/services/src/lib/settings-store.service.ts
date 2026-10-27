@@ -253,6 +253,12 @@ export const SettingsStore = signalStore(
                     remoteControl: store.remoteControl(),
                     remoteControlPort: store.remoteControlPort(),
                     epgUrl: store.epgUrl(),
+                    epgAutoRefresh:
+                        store.epgAutoRefresh?.() ?? DEFAULT_SETTINGS.epgAutoRefresh,
+                    epgRefreshOnStartup:
+                        store.epgRefreshOnStartup?.() ?? DEFAULT_SETTINGS.epgRefreshOnStartup,
+                    epgRefreshIntervalHours:
+                        store.epgRefreshIntervalHours?.() ?? DEFAULT_SETTINGS.epgRefreshIntervalHours,
                     downloadFolder:
                         store.downloadFolder?.() ??
                         DEFAULT_SETTINGS.downloadFolder,
