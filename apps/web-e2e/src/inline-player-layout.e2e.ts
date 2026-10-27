@@ -110,6 +110,16 @@ for (const language of ['en', 'ru']) {
                 }
                 await expect(copy).toHaveCSS('width', '40px');
                 await expect(shell).toHaveCSS('background-image', 'none');
+                // Match the shared widget and heading palette in m3-theme.scss.
+                // Fixed expectations catch a panel stuck in the opposite theme.
+                await expect(shell).toHaveCSS(
+                    'background-color',
+                    dark ? 'rgb(30, 35, 48)' : 'rgb(255, 255, 255)'
+                );
+                await expect(heading).toHaveCSS(
+                    'color',
+                    dark ? 'rgb(216, 220, 232)' : 'rgb(26, 29, 35)'
+                );
                 await shell.screenshot({
                     path: testInfo.outputPath(
                         `player-${language}-${dark ? 'dark' : 'light'}-${width}.png`
