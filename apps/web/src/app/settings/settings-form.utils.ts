@@ -128,6 +128,9 @@ export function createSettingsForm(
         ...(supportsEpg
             ? {
                   preferUploadedEpgOverXtream: false,
+                  epgAutoRefresh: true,
+                  epgRefreshOnStartup: false,
+                  epgRefreshIntervalHours: 12 as 6 | 12 | 18 | 24,
                   epgViewMode: 'timeline' as EpgViewMode,
                   epgMatchOrder: new FormControl<EpgMatchOrder>([...DEFAULT_EPG_MATCH_ORDER], { nonNullable: true }),
                   epgOffsetMinutes: new FormControl<number>(0, [
@@ -221,6 +224,11 @@ export function createSettingsFromFormValue(
         coverSize: value.coverSize ?? 'medium',
         showCoverTitles: value.showCoverTitles !== false,
         epgUrl,
+        epgAutoRefresh: value.epgAutoRefresh ?? currentSettings.epgAutoRefresh ?? true,
+        epgRefreshOnStartup: value.epgRefreshOnStartup ?? currentSettings.epgRefreshOnStartup ?? false,
+        epgRefreshIntervalHours: ([6, 12, 18, 24] as const).includes(
+            Number(value.epgRefreshIntervalHours ?? currentSettings.epgRefreshIntervalHours ?? 12) as 6 | 12 | 18 | 24
+        ) ? (Number(value.epgRefreshIntervalHours ?? currentSettings.epgRefreshIntervalHours ?? 12) as 6 | 12 | 18 | 24) : 12,
         preferUploadedEpgOverXtream:
             value.preferUploadedEpgOverXtream ??
             currentSettings.preferUploadedEpgOverXtream ??
