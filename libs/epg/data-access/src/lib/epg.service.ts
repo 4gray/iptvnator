@@ -132,6 +132,7 @@ export class EpgService {
                     if (result.success) {
                         this.clearCache();
                         this.epgAvailable.next(true);
+                        this.sourceSettings.notifyGuideUpdated();
                     } else {
                         this.epgAvailable.next(false);
                         // With progress reporting, every failed source is a
