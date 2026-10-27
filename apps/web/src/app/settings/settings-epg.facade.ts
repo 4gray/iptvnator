@@ -5,6 +5,7 @@ import {
 } from '@iptvnator/epg/data-access';
 import { DialogService } from '@iptvnator/ui/components';
 import { TranslateService } from '@ngx-translate/core';
+import { EpgSourceSettingsService } from '@iptvnator/services';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsFormFacade } from './settings-form.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
@@ -18,6 +19,7 @@ export class SettingsEpgFacade {
     private readonly dialogService = inject(DialogService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly epgService = inject(EpgService);
+    private readonly epgSources = inject(EpgSourceSettingsService);
     private readonly formFacade = inject(SettingsFormFacade);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly settingsStore = inject(SettingsStore);
@@ -61,7 +63,9 @@ export class SettingsEpgFacade {
         void this.epgBridge.forceFetchEpg(
             url,
             this.settingsStore.getTrustOptions()
-        );
+        ).then(result => {
+            if (result?.success) this.epgSources.notifyGuideUpdated();
+        }).catch(() => undefined);
     }
 
     /**
@@ -72,9 +76,15 @@ export class SettingsEpgFacade {
     refreshAll(): void {
         if (!this.epgBridge.supportsDataManagement) return;
         const options = this.settingsStore.getTrustOptions();
-        this.formFacade.epgUrls.forEach(
-            (url) => void this.epgBridge.forceFetchEpg(url, options)
-        );
+        void (async () => {
+            for (const url of this.formFacade.epgUrls) {
+                if (!url.trim()) continue;
+                try {
+                    const result = await this.epgBridge.forceFetchEpg(url, options);
+                    if (result?.success) this.epgSources.notifyGuideUpdated();
+                } catch { /* Source progress panel reports the failed URL. */ }
+            }
+        })();
     }
 
     /**
