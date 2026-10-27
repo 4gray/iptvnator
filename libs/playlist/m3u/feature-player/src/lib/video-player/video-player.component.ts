@@ -1372,14 +1372,6 @@ export class VideoPlayerComponent
         playlistId: string,
         channel: Channel
     ): Promise<void> {
-        // This method is entered only after the playback-history gate confirms
-        // a playing stream (or after an external-player handoff). Remember the
-        // channel immediately; waiting for the playlist DB write can allow an
-        // older async write to become the 'last channel' after a quick switch.
-        if (contentType === 'live' && kind === 'live' && channel.radio !== 'true') {
-            rememberLastPlayedLive({ sourceType: 'm3u', playlistId, itemId: channel.url });
-        }
-
         // Recent is a mixed-content collection. Its history must retain the
         // user-visible catalog classification rather than labelling every
         // watched M3U movie and episode as live television.
@@ -1391,6 +1383,12 @@ export class VideoPlayerComponent
             : index.live.some(matches) ? 'live' : 'unclassified';
         const contentType = kind === 'movies' ? 'movie'
             : kind === 'series' ? 'series' : 'live';
+
+        // The history gate confirmed playback. Persist last-live preference
+        // BEFORE asynchronous playlist I/O so rapid switches cannot revert it.
+        if (kind === 'live' && channel.radio !== 'true') {
+            rememberLastPlayedLive({ sourceType: 'm3u', playlistId, itemId: channel.url });
+        }
 
         const recentlyViewedItem: M3uRecentlyViewedItem = {
             source: 'm3u',
