@@ -60,6 +60,7 @@ import {
     UnifiedLiveTimeshift,
 } from './unified-live-catchup';
 import { createUnifiedLiveChannelRows } from './unified-live-channel-rows';
+import { EpgSourceSettingsService } from '@iptvnator/services';
 import { exactEpgNameAliasesRevision } from '@iptvnator/m3u-state';
 import { createUnifiedLiveEpgMap } from './unified-live-epg-map';
 import { createUnifiedLiveEpgView } from './unified-live-epg-view';
@@ -120,6 +121,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
 
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly epgSources = inject(EpgSourceSettingsService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
@@ -256,6 +258,11 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             // XMLTV aliases may arrive after the global Favorites mount.
             // Refresh resolved keys when First Exact Match finishes building.
             exactEpgNameAliasesRevision();
+            // A cold-start Favorites mount may precede XMLTV reconciliation
+            // and the first imported guide. Retry the same list when either
+            // actually becomes available; no navigation/selection required.
+            this.epgSources.revision();
+            this.epgSources.guideRevision();
             if (this.supportsEpg) {
                 this.epgPrograms.load(items);
             } else {
