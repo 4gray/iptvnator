@@ -247,6 +247,19 @@ export class UnifiedRecentDataService {
     ): Promise<UnifiedCollectionItem> {
         const viewedAt = new Date().toISOString();
 
+        // This method is entered for a confirmed played channel. Update the
+        // startup preference before asynchronous provider/history writes, or
+        // an earlier response can replace a more recently played channel.
+        if (item.contentType === 'live' && item.radio !== 'true') {
+            const id = item.sourceType === 'm3u' ? item.streamUrl
+                : item.sourceType === 'xtream' ? item.xtreamId
+                : item.stalkerId;
+            if (id != null && String(id).trim()) {
+                rememberLastPlayedLive({ sourceType: item.sourceType,
+                    playlistId: item.playlistId, itemId: String(id) });
+            }
+        }
+
         if (item.sourceType === 'm3u') {
             if (!item.streamUrl) {
                 return item;
@@ -268,9 +281,6 @@ export class UnifiedRecentDataService {
             );
 
             this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
-            if (item.radio !== 'true' && item.contentType === 'live') {
-                rememberLastPlayedLive({ sourceType: 'm3u', playlistId: item.playlistId, itemId: item.streamUrl });
-            }
 
             return {
                 ...item,
@@ -307,9 +317,6 @@ export class UnifiedRecentDataService {
                 }
             }
 
-            if (item.contentType === 'live' && item.xtreamId != null) {
-                rememberLastPlayedLive({ sourceType: 'xtream', playlistId: item.playlistId, itemId: String(item.xtreamId) });
-            }
             return {
                 ...item,
                 contentId: contentId ?? item.contentId,
@@ -346,9 +353,6 @@ export class UnifiedRecentDataService {
         );
 
         this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
-        if (item.stalkerId != null && item.radio !== 'true') {
-            rememberLastPlayedLive({ sourceType: 'stalker', playlistId: item.playlistId, itemId: String(item.stalkerId) });
-        }
 
         return {
             ...item,
