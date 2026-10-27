@@ -190,6 +190,12 @@ export interface Settings {
      */
     m3uVodDetails?: boolean;
     epgUrl: string[];
+    /** Automatically refresh configured XMLTV sources while the application is running. */
+    epgAutoRefresh?: boolean;
+    /** Trigger a source refresh each time the application launches (when enabled). */
+    epgRefreshOnStartup?: boolean;
+    /** Single selected interval. Valid values: 6, 12, 18 or 24 hours. */
+    epgRefreshIntervalHours?: 6 | 12 | 18 | 24;
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;
     language: Language;
