@@ -141,6 +141,13 @@ for (const upgradeFails of [false, true]) {
                 expect(after?.fetchedAt).toBe(before?.fetchedAt);
                 expect(payload.overview).toBe(overview);
                 expect(after?.payload).toBe(before?.payload);
+                await page.getByTestId('workspace-header-back').click();
+                await clickGridListCardByTitle(page, title);
+                await expect(page.locator('app-content-hero')).toContainText(
+                    overview
+                );
+                await expect(chip).toHaveText('PG-13 · US');
+                expect(detailsRequests).toBe(1);
             } else {
                 expect(payload.release_dates.results[0].iso_3166_1).toBe('DE');
                 // Electron's file renderer cannot reload a routed file URL.

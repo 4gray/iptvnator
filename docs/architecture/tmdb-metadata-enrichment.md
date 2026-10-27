@@ -262,7 +262,10 @@ Fresh legacy details cached under `id:<id>|v2` may lack the appended property.
 On the next lookup of that title only, the shared client refreshes that same
 row in place. If the optional upgrade fails, the readable **fresh** legacy
 payload still supplies existing metadata without extending its timestamp.
-Expired rows receive no such fallback. Presence of the appended property,
+A failed upgrade waits five minutes before another attempt for the same media
+type, id and language. This session-only retry map is bounded to 300 entries
+and never alters the persisted payload or its freshness. Expired rows receive
+no such fallback, even during the retry cooldown. Presence of the appended property,
 including empty results or an appended error object, prevents repeated
 capability upgrades until ordinary TTL expiry. This requires no SQLite schema
 change, mass cache invalidation, new cache key or title-search key change.

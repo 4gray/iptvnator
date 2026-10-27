@@ -101,6 +101,47 @@ it('keeps fresh legacy metadata when the classification upgrade fails', async ()
     );
 });
 
+it('waits five minutes before retrying a failed legacy classification upgrade', async () => {
+    const startedAt = Date.now();
+    const now = jest.spyOn(Date, 'now').mockReturnValue(startedAt);
+    const { seed, api, cache, open } = setup();
+    await seed(legacy);
+    const before = await cache.get('movie', buildDetailsLookupKey(1), 'en-US');
+    const request = jest
+        .spyOn(api, 'getMovieDetails')
+        .mockRejectedValue(new Error('offline'));
+
+    expect(await open()).toEqual(legacy);
+    expect(await open()).toEqual(legacy);
+    expect(request).toHaveBeenCalledTimes(1);
+    now.mockReturnValue(startedAt + 5 * 60 * 1000 - 1);
+    expect(await open()).toEqual(legacy);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(await cache.get('movie', buildDetailsLookupKey(1), 'en-US')).toEqual(
+        before
+    );
+
+    now.mockReturnValue(startedAt + 5 * 60 * 1000);
+    const updated = { ...legacy, release_dates: { results: [] } };
+    request.mockResolvedValue(updated);
+    expect(await open()).toEqual(updated);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(await open()).toEqual(updated);
+    expect(request).toHaveBeenCalledTimes(2);
+});
+
+it('does not reuse legacy metadata that expires during the retry cooldown', async () => {
+    const { seed, api, cache, open } = setup();
+    await seed(legacy);
+    const request = jest
+        .spyOn(api, 'getMovieDetails')
+        .mockRejectedValue(new Error('offline'));
+    expect(await open()).toEqual(legacy);
+    jest.spyOn(cache, 'isFresh').mockReturnValue(false);
+    expect(await open()).toBeNull();
+    expect(request).toHaveBeenCalledTimes(2);
+});
+
 it('never presents expired legacy metadata as a successful refresh', async () => {
     const { seed, api, cache, open } = setup();
     await seed(legacy);

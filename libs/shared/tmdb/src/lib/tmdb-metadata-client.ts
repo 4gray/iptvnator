@@ -19,7 +19,13 @@ import {
     TmdbMovieDetails,
     TmdbTvDetails,
 } from './tmdb.types';
+
+const CLASSIFICATION_UPGRADE_RETRY_MS = 5 * 60 * 1000;
+const CLASSIFICATION_RETRY_LIMIT = 300;
+
 export class TmdbMetadataClient {
+    private readonly classificationRetryAfter = new Map<string, number>();
+
     constructor(
         private readonly runtime: TmdbClientRuntime,
         private readonly api: TmdbApiClient,
@@ -236,6 +242,15 @@ export class TmdbMetadataClient {
             }
         }
 
+        const retryKey = JSON.stringify([mediaType, lookupKey, language]);
+        if (
+            legacy &&
+            (this.classificationRetryAfter.get(retryKey) ?? 0) > Date.now()
+        ) {
+            return legacy;
+        }
+        this.classificationRetryAfter.delete(retryKey);
+
         let details: TmdbDetails;
         try {
             details =
@@ -253,7 +268,23 @@ export class TmdbMetadataClient {
         } catch (error) {
             // A failed optional capability upgrade must not cost the fresh
             // metadata we already have. Never extend its freshness timestamp.
-            if (legacy) return legacy;
+            if (legacy) {
+                this.classificationRetryAfter.set(
+                    retryKey,
+                    Date.now() + CLASSIFICATION_UPGRADE_RETRY_MS
+                );
+                if (
+                    this.classificationRetryAfter.size >
+                    CLASSIFICATION_RETRY_LIMIT
+                ) {
+                    const oldest = this.classificationRetryAfter
+                        .keys()
+                        .next().value;
+                    if (oldest !== undefined)
+                        this.classificationRetryAfter.delete(oldest);
+                }
+                return legacy;
+            }
             throw error;
         }
 
