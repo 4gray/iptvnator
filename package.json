@@ -1,6 +1,6 @@
 {
     "name": "iptvnator",
-    "version": "0.25.0-catalog.4",
+    "version": "0.25.0-catalog.5",
     "engines": {
         "node": "^22.22.3 || ^24.15.0"
     },
