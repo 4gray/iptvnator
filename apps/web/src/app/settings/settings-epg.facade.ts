@@ -76,15 +76,12 @@ export class SettingsEpgFacade {
     refreshAll(): void {
         if (!this.epgBridge.supportsDataManagement) return;
         const options = this.settingsStore.getTrustOptions();
-        void (async () => {
-            for (const url of this.formFacade.epgUrls) {
-                if (!url.trim()) continue;
-                try {
-                    const result = await this.epgBridge.forceFetchEpg(url, options);
-                    if (result?.success) this.epgSources.notifyGuideUpdated();
-                } catch { /* Source progress panel reports the failed URL. */ }
-            }
-        })();
+        this.formFacade.epgUrls.forEach(url => {
+            if (!url.trim()) return;
+            void this.epgBridge.forceFetchEpg(url, options).then(result => {
+                if (result?.success) this.epgSources.notifyGuideUpdated();
+            }).catch(() => undefined);
+        });
     }
 
     /**
