@@ -252,14 +252,15 @@ export class PwaService extends DataService {
         }
 
         const playlistId = payload.id;
-        const { url, userAgent } = payload;
+        const { url } = payload;
+        const userAgent = payload.userAgent?.trim() || undefined;
 
         return new Promise<void>((resolve) => {
             this.getPlaylistFromUrl(url, userAgent).subscribe({
                 next: (playlist: Playlist) => {
                     this.store.dispatch(
                         PlaylistActions.updatePlaylist({
-                            playlist,
+                            playlist: { ...playlist, url, userAgent },
                             playlistId,
                             refreshEpg: true,
                         })

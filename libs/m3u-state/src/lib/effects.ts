@@ -364,11 +364,12 @@ export class PlaylistEffects {
                 ofType(PlaylistActions.updatePlaylist),
                 switchMap((action) =>
                     persistPlaylistUpdate(this.playlistsService, action).pipe(
-                        tap(() => {
-                            this.fetchPlaylistScopedEpg(action.playlist, {
-                                force: action.refreshEpg === true,
-                            });
-                        })
+                        tap((persisted) =>
+                            this.publishRefresh(
+                                persisted,
+                                action.refreshEpg === true
+                            )
+                        )
                     )
                 )
             );
@@ -518,7 +519,7 @@ export class PlaylistEffects {
                         .pipe(
                             tap((persisted) => {
                                 persisted.forEach((playlist) =>
-                                    this.fetchPlaylistScopedEpg(playlist)
+                                    this.publishRefresh(playlist)
                                 );
                             })
                         )
@@ -568,6 +569,17 @@ export class PlaylistEffects {
         }
 
         void this.router.navigate(['/workspace', 'playlists', playlist._id]);
+    }
+
+    private publishRefresh(playlist: Playlist, force = false): void {
+        if (playlist.playlist)
+            this.store.dispatch(
+                PlaylistActions.hydrateSharedPlaylist({
+                    playlistId: playlist._id,
+                    playlist,
+                })
+            );
+        this.fetchPlaylistScopedEpg(playlist, { force });
     }
 
     private fetchPlaylistScopedEpg(

@@ -8,6 +8,7 @@ import {
 } from './server-storage-pwa.helpers';
 import { readFile } from 'node:fs/promises';
 import { verifyConcurrentSourcePruning } from './source-pruning-pwa.helpers';
+import { verifyDelayedBrowserSourceRefresh } from './source-refresh-pwa.helpers';
 import { expect, test } from './fixtures';
 import {
     addM3uUrlPlaylist,
@@ -86,6 +87,13 @@ test.describe('server storage @self-hosted @persistence', () => {
         request,
     }) => {
         await verifyConcurrentSourcePruning(browser, request);
+    });
+
+    test('discards a delayed browser M3U refresh after another device changes the URL', async ({
+        browser,
+        request,
+    }) => {
+        await verifyDelayedBrowserSourceRefresh(browser, request);
     });
 
     test('opens the app and cached sources while URL materialization is pending', async ({

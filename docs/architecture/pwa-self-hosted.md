@@ -244,6 +244,10 @@ transaction. Profile-local markers block projection writes until cleanup has
 finished; conditional retry markers cannot remove a newer revision. Existing
 unconditional cleanup markers remain compatible. Ordinary HTTP 304 polls do
 not read the cached payloads. Inventory reconciliation loads lazily.
+Manual and batch M3U refreshes cannot mutate shared definitions. They retain
+their captured request URL/User-Agent and discard superseded responses, keeping
+the current name, baseline and revision. State reducers reject stale content;
+effects republish the canonical persisted row and use its current EPG inputs.
 Source IDs are the server's IDs in every local projection. Inventory views reuse
 the native payload-free metadata API. Browser metadata omits parsed/raw M3U
 and source baselines; opening a shared editor loads one complete local row

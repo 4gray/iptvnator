@@ -1,5 +1,6 @@
 import { setSourceStateWriteFailure } from './source-sync-sqlite-fault';
 import { verifySharedStalkerSessionEditing } from './source-sync-stalker-session';
+import { verifyDelayedSharedM3uRefresh } from './source-sync-m3u-refresh';
 import { test, expect, type Page } from '@playwright/test';
 import {
     mkdtempSync,
@@ -37,6 +38,12 @@ test.skip(
     process.env['IPTVNATOR_E2E_SOURCE_SYNC'] !== '1',
     'Run with playwright.source-sync.config.ts'
 );
+
+test('discards a delayed native M3U refresh after the NAS URL changes @electron @m3u @persistence', async ({
+    request,
+}) => {
+    await verifyDelayedSharedM3uRefresh(request);
+});
 
 test('retains a confirmed shared Stalker edit session across Electron restart @electron @stalker @persistence', async ({
     request,

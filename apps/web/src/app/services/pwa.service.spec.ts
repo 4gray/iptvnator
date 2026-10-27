@@ -17,6 +17,7 @@ import {
     CONNECTIVITY_GUARD_RESET,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
+    type Playlist,
     STALKER_REQUEST,
     XTREAM_REQUEST,
 } from '@iptvnator/shared/interfaces';
@@ -83,6 +84,36 @@ describe('PwaService', () => {
         http.verify();
         jest.restoreAllMocks();
     });
+
+    it.each([undefined, 'Captured agent'])(
+        'binds a delayed refresh result to its requested URL and User-Agent (%s)',
+        async (userAgent) => {
+            const response = new Subject<Playlist>();
+            jest.spyOn(service, 'getPlaylistFromUrl').mockReturnValue(response);
+            const payload = {
+                id: 'shared',
+                url: 'https://old.test/list',
+                userAgent,
+            };
+            const refreshing = service.refreshPlaylist(payload);
+            payload.url = 'https://changed.test/list';
+            response.next({
+                _id: 'parsed',
+                playlist: { items: [] },
+            } as unknown as Playlist);
+            response.complete();
+            await refreshing;
+            expect(TestBed.inject(Store).dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    playlistId: payload.id,
+                    playlist: expect.objectContaining({
+                        url: 'https://old.test/list',
+                        userAgent,
+                    }),
+                })
+            );
+        }
+    );
 
     it('reloads the page from the update toast once the toast is open and its action is chosen', async () => {
         let showToast!: (ref: {

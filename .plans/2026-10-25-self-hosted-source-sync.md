@@ -1239,3 +1239,57 @@ production build at 1,200,253 / 1,200,301 initial bytes. The corrected metadata
 case is included in the 1,012 passing service tests. All affected types/lint
 and documentation gates pass. Commit this combined fix, run review twenty-three
 on that commit and require fresh PR CI before readiness.
+
+### Review twenty-three: delayed M3U refresh authority
+
+Codex reproduced a delayed manual refresh reverting a newer shared URL on
+`ec73b3479275978970644a34d7b801adbc7f6847`. The canonical refresh merge combined
+an old response's connection with the freshly read source baseline/revision,
+causing a PATCH of the old URL with a fresh If-Match. Its service/M3U-state
+suites and web types passed but did not cover this interleaving. Continue under
+the user's explicit review-limit waiver; Greptile CLI remains unavailable.
+
+Refresh only owns downloaded content. Capture the original URL and effective
+User-Agent on PWA/native refresh results, including explicitly absent agents.
+A shared utility compares captured connection fields and retains the current
+connection/name. The canonical merge discards superseded responses and reapplies
+the accepted source baseline/revision, so neither manual nor batch refresh can
+turn old content into a new definition edit. That merge now loads lazily from
+its own service module. The single and batch persistence methods return their
+canonical saved rows.
+
+Reducers also discard stale refresh actions before replacing channels. Source
+hydration still accepts authoritative connection changes. Refresh effects
+publish the saved row and use its EPG inputs; thus a response cannot leave the
+visible catalog stale after persistence rejects its old connection. A shared
+publication method keeps the manual/batch behavior identical. User-Agent
+replacement uses source metadata/hydration, rather than a download response.
+
+All six single/batch URL/User-Agent/name regressions fail before the fix with
+one unintended PATCH each, then pass with no source request and the accepted
+definition intact. Two stale reducer regressions fail before and pass after.
+Additional tests cover captured/absent User-Agent, canonical publication,
+refresh ownership and authoritative hydration. Full owning suites pass:
+services 1,022, M3U state 72, M3U utilities 199 and web 566 tests. Merged
+36-project coverage passes unchanged gates at statements 84.98%, branches
+76.05%, functions 83.16%, lines 85.36%. Pre-commit health reports three advisory
+same-name-spec warnings on the M3U utility barrel and browser IDB adapters;
+the owning suites and real persistence flows cover them.
+
+Real Electron and production-PWA journeys pause an old download, change the
+URL on the NAS, accept the new projection, then release the old response. Route
+reads join the refresh write queue before verifying the new channels and the
+unchanged NAS ETag. The browser journey also changes the source name. Both
+focused cases pass; all 52 selected production-PWA cases pass without retries.
+
+The first uncached production measurement exceeded the initial-payload gate by
+49 bytes. Deduplicating the effect publication code restores the unchanged gate
+at 1,200,284 / 1,200,301 bytes; no baseline or test threshold changed. Six owning
+lint projects, application/spec/E2E types, release notes and agent/skill guidance
+pass. Canonical M3U and self-hosted contracts describe refresh authority and
+state publication. The existing feature release note covers this fix.
+
+The final sequence passes all 14 mixed PWA/Electron scenarios and all 52
+production-PWA scenarios without retries, then repeats the exact uncached
+production command and 1,200,284-byte gate. Commit the combined change and run
+review twenty-four before any push; require fresh CI for the eventual head.

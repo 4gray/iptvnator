@@ -1,6 +1,10 @@
 import { on } from '@ngrx/store';
 import { Channel, Playlist } from '@iptvnator/shared/interfaces';
-import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
+import {
+    resolvePlaylistEpgSourceState,
+    playlistRefreshMatchesSource,
+    retainPlaylistRefreshSource,
+} from '@iptvnator/shared/m3u-utils';
 import { PlaylistActions } from '../actions';
 import { playlistsAdapter } from '../playlists.state';
 import { PlaylistState } from '../state';
@@ -74,6 +78,12 @@ export const playlistReducers = [
             const isActivePlaylist =
                 state.playlists.selectedId === action.playlistId;
             const currentPlaylist = state.playlists.entities[action.playlistId];
+            const refresh = action.type === PlaylistActions.updatePlaylist.type;
+            if (
+                refresh &&
+                !playlistRefreshMatchesSource(currentPlaylist, action.playlist)
+            )
+                return state;
             const epgSourceState = resolvePlaylistEpgSourceState({
                 detectedEpgUrls:
                     action.playlist.detectedEpgUrls ??
@@ -106,6 +116,9 @@ export const playlistReducers = [
                             userAgent:
                                 action.playlist.userAgent ??
                                 currentPlaylist?.userAgent,
+                            ...(refresh
+                                ? retainPlaylistRefreshSource(currentPlaylist)
+                                : {}),
                             favorites: currentPlaylist?.favorites ?? [],
                             epgUrls: epgSourceState.epgUrls,
                             detectedEpgUrls: epgSourceState.detectedEpgUrls,
