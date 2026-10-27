@@ -196,12 +196,20 @@ export class WebPlayerRecoveryController {
 
     private scheduleAutoRetry(issue: PlaybackDiagnostic): boolean {
         const status = issue.httpStatus ?? issue.vhs?.httpStatus ?? issue.hls?.httpStatus;
-        const transient = status == null || status === 403 || status === 408 || status === 429 || status >= 500;
         const url = this.deps.streamUrl();
         const isHls = /\.m3u8(?:[?#]|$)/i.test(url);
+        const transient = status === 403 || status === 408 ||
+            status === 429 || (status != null && status >= 500);
+        // Explicit .m3u8 URLs retain immediate format/player fallback when
+        // the media engine gives no HTTP status (often a codec/decode fault).
+        // Known transient HTTP status codes, including temporary 403, may
+        // instead benefit from a capped reconnection attempt. PHP and
+        // extensionless sources keep their existing unknown-status retry.
+        const retryableStatus = transient ||
+            (status == null && isAmbiguousStreamUrl(url));
         if (!this.deps.resolvedIsLive() ||
             !(isAmbiguousStreamUrl(url) || isHls) ||
-            !transient ||
+            !retryableStatus ||
             !(issue.code === PlaybackDiagnosticCode.NetworkError ||
               issue.code === PlaybackDiagnosticCode.MediaDecodeError ||
               issue.code === PlaybackDiagnosticCode.UnknownPlaybackError ||
