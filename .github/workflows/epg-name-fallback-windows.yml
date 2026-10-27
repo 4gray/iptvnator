@@ -89,6 +89,15 @@ jobs:
             - name: Test M3U routes and player
               run: pnpm nx test playlist-m3u-feature-player --skip-nx-cache
 
+            - name: Test global EPG resolution and Recently Viewed persistence
+              run: pnpm nx test portal-shared-data-access --runInBand --skip-nx-cache
+
+            - name: Test Recently Viewed movie/series navigation
+              run: pnpm nx test portal-shared-ui --runInBand --skip-nx-cache
+
+            - name: Test settings storage round trips
+              run: pnpm nx test services --runInBand --skip-nx-cache --runTestsByPath libs/services/src/lib/settings-store.service.spec.ts
+
             - name: Test shared portal navigation
               run: pnpm nx test portal-shared-util --runInBand --skip-nx-cache
 
