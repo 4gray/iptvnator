@@ -41,6 +41,7 @@
         "deps:nx:validate": "pnpm run deps:nx:test && pnpm run deps:nx:check",
         "deps:vite:test": "node --test tools/dependencies/vite-transform-filter.test.mjs",
         "deps:electron-builder:test": "node --test tools/dependencies/app-builder-lib-keychain-password.test.mjs",
+        "deps:mpegts:test": "node --test tools/dependencies/mpegts-loader-abort.test.mjs",
         "styles:font-weights:test": "node --test tools/nx/check-font-weights.test.mjs",
         "styles:font-weights:check": "node tools/nx/check-font-weights.mjs",
         "styles:font-weights:validate": "pnpm run styles:font-weights:test && pnpm run styles:font-weights:check",
@@ -343,7 +344,8 @@
         "patchedDependencies": {
             "nx-electron@22.0.0": "patches/nx-electron@22.0.0.patch",
             "app-builder-lib@26.15.7": "patches/app-builder-lib@26.15.7.patch",
-            "vite@8.1.5": "patches/vite@8.1.5.patch"
+            "vite@8.1.5": "patches/vite@8.1.5.patch",
+            "mpegts.js@1.8.2": "patches/mpegts.js@1.8.2.patch"
         }
     }
 }

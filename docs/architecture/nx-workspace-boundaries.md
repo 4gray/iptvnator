@@ -150,6 +150,31 @@ also rejects a mismatch between the patched and installed version.
 Native addon builds additionally require the root `node-gyp` devDependency;
 see [runtime staging](embedded-mpv-native.md#runtime-staging) before removing it.
 
+## mpegts.js loader abort patch
+
+`mpegts.js` 1.8.2 is patched in `patches/mpegts.js@1.8.2.patch`. Its
+`FetchStreamLoader.abort()` skipped `AbortController.abort()` while buffering on
+Chrome, which includes Electron, and cancelled the reader only when the next
+`read()` resolved. A live MPEG-TS stream that stalls without closing never
+resolves it, so destroying the player left the socket open until the renderer
+unloaded. On providers that allow one connection per account, that socket held
+the slot and the next channel was cut. The patch aborts unconditionally;
+`_pump()` already treats an aborted signal as completion. It changes the shipped
+`dist/mpegts.js` (the package `main`) and, for readers,
+`src/io/fetch-stream-loader.js`. The bundle is one minified line, so the patch
+file carries that whole line twice.
+
+Run `pnpm run deps:mpegts:test` after mpegts.js updates; CI runs it too. It
+rejects a version with no patch entry and a bundle that still carries the
+buffering guard. Retire the patch once mpegts.js aborts a buffering fetch itself.
+
+`apps/electron-backend-e2e/src/mpegts-stalled-stream.e2e.ts` also checks the
+behavior in the real Electron app: a local server sends valid MPEG-TS media,
+then leaves the response open without more data. Switching to another channel
+must close that response before the app shuts down and play the new channel
+without an unhandled renderer error. Run it with
+`pnpm nx run electron-backend-e2e:e2e-ci--src/mpegts-stalled-stream.e2e.ts`.
+
 ## Placement Decision
 
 - `apps/` owns runtime applications, development servers, E2E applications,
