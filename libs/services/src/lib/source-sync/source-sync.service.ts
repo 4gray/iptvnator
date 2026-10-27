@@ -12,8 +12,6 @@ import { TranslateService } from '@ngx-translate/core';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { Subject } from 'rxjs';
 import {
-    type SourceDefinition,
-    type SourceInventory,
     type SourceServerRequest,
     type SourceServerResponse,
 } from '@iptvnator/shared/interfaces';
@@ -97,6 +95,13 @@ export class SourceSyncService {
                 return cleanup(id);
             })
         );
+        const mutate = local.dbMutateAppPlaylist;
+        if (mutate)
+            local.dbMutateAppPlaylist = (id, update) =>
+                mutate(id, (current) => {
+                    this.cleanupQueue!.assertWritable(id);
+                    return update(current);
+                });
         local.dbDeletePlaylist = this.cleanupQueue.remove;
         local.dbDeleteAllPlaylists = this.cleanupQueue.clear;
         this.store = new SyncedPlaylistStore(
@@ -205,57 +210,42 @@ export class SourceSyncService {
                         }
                         return;
                     }
-                    const entries = (response.body as SourceInventory).entries;
+                    const { prepareSourceInventory, reconcileSourceInventory } =
+                        await import('./source-inventory-reconciliation');
+                    const inventory = await prepareSourceInventory(
+                        this.store!,
+                        response,
+                        (request) => this.request(request)
+                    );
                     if (!wasReady && this.browserProfile)
                         await migrateLegacyPlaylistActivity(
                             this.store!.local,
                             this.connection!,
-                            new Set(entries.map((entry) => entry.source.id))
+                            new Set(
+                                inventory.entries.map(
+                                    (entry) => entry.source.id
+                                )
+                            )
                         );
-                    let changed =
-                        this.metadataDirty ||
-                        response.etag !== this.store!.collectionRevision;
-                    for (const entry of entries) {
-                        const current =
-                            await this.store!.local.dbGetAppPlaylist(
-                                entry.source.id
-                            );
-                        if (
-                            current?.sourceSyncRevision === entry.revision &&
-                            !current.sourceSyncPending
-                        )
-                            continue;
-                        let source = entry.source;
-                        if (source.kind === 'm3u-text')
-                            source = (
-                                await this.request({
-                                    operation: 'get',
-                                    id: source.id,
-                                })
-                            ).body as SourceDefinition;
-                        await this.store!.project(source, entry.revision);
-                        changed = true;
-                    }
-                    const ids = new Set(
-                        entries.map((entry) => entry.source.id)
+                    const result = await reconcileSourceInventory(
+                        this.store!,
+                        inventory.entries,
+                        inventory.observed,
+                        (request) => this.request(request),
+                        (id, revision) => this.cleanupQueue!.prune(id, revision)
                     );
-                    this.sourceIds.set(ids);
-                    const local = this.store!.local;
-                    for (const row of await (local.dbGetAppPlaylistMetas?.() ??
-                        local.dbGetAppPlaylists())) {
-                        if (!ids.has(row._id)) {
-                            await this.store!.local.dbDeletePlaylist(row._id);
-                            this.store!.pendingSources.delete(row._id);
-                            changed = true;
-                        }
-                    }
+                    this.sourceIds.set(result.ids);
+                    const changed =
+                        this.metadataDirty ||
+                        result.changed ||
+                        inventory.revision !== this.store!.collectionRevision;
                     const receipt = await this.store!.local.dbSetAppState(
                         'source-sync-initialized',
                         '1'
                     );
                     if (receipt?.success === false)
                         throw new Error('SOURCE_SYNC.REQUEST_FAILED');
-                    this.store!.collectionRevision = response.etag;
+                    this.store!.collectionRevision = inventory.revision;
                     this.store!.ready = true;
                     this.failures = 0;
                     this.nextPollAt = 0;

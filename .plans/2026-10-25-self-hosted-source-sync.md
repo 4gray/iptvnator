@@ -1172,3 +1172,70 @@ call. Canonical self-hosted and Stalker contracts describe normalization,
 session reconciliation and the shared fingerprint owner. The existing feature
 release note covers these pre-delivery fixes. Review the committed branch again
 before pushing and require new CI for the final head.
+
+### Review twenty-two: stale inventory pruning without Web Locks
+
+Codex reproduced a further race on `762913470703550fbe0e01045c7f8e0112791a36`:
+while one tab materializes an older inventory, a sibling can create/project a
+source when Web Locks are unavailable, including ordinary HTTP LAN deployments.
+Pruning all rows after that wait removed the new source and its local activity.
+The 127 focused tests and web/Electron types passed during that review; Greptile
+CLI remains unavailable. Continue under the user's explicit review-limit waiver.
+
+Capture local IDs/revisions before an authoritative inventory read and prune
+only those observations. To avoid reading large cached payloads on every 304,
+take the snapshot only after a changed response, then conditionally revalidate
+that response before materialization. Reuse its body on 304 or use the fresh
+inventory/revision on 200. Ordinary unchanged polls keep their cheap path.
+Inventory reconciliation is a lazy service helper.
+
+Browser pruning compares revisions, persists its conditional cleanup marker and
+deletes the row in one IndexedDB write transaction. The existing mutation helper
+shares its transaction plumbing with that operation. Source projection/mutation
+callbacks reject writes while the profile-local cleanup marker exists. Retry
+checks a conditional marker's revision before deleting; a newer cached row is
+outside the abandoned deletion's authority. Existing unconditional markers
+remain compatible. The optional browser-local pruning method never crosses
+Electron IPC; native projection writes retain their existing exclusive owner.
+
+Two service regressions, for a sibling-created ID and a replaced revision,
+fail before the fix and pass afterwards. Added cleanup cases cover a lost
+conditional-delete race, marker-held ID reuse and recovery without deleting a
+newer row. A preparation test checks immutable versions and fresh inventory
+selection. All 1,012 service tests pass with coverage. Merged 36-project gates
+pass unchanged at statements 84.97%, branches 76.02%, functions 83.12%, lines
+85.35%. Four advisory same-name-spec warnings concern the two browser IDB
+adapters and two former Stalker fingerprint owners; actual browser persistence
+and the owning service/provider suites cover those paths.
+
+The added production-PWA case shares IndexedDB between two tabs with Web Locks
+disabled. It pauses the older tab's URL materialization, adds/projects a source
+in its sibling, writes a local favorite and verifies that both survive the old
+refresh and reload. The first fixture URL was blocked during target registration
+before parsing; use the existing localhost mock provider so interception tests
+the intended wait. This case and all 51 selected production-PWA cases pass.
+The token-replacement fixture now models conditional 304 revalidation and
+asserts the exact new-token headers plus ETag; the old token is never sent.
+
+Owning lint, application/spec/E2E types, release notes and agent/skill guidance
+pass. The uncached production measurement passes at 1,200,248 / 1,200,301 bytes.
+The canonical self-hosted contract records safe snapshot pruning and durable
+conditional cleanup. The existing feature release note covers this fix.
+
+The first native E2E run caught an implementation mistake: SQLite's payload-free
+metadata omits source revisions, so comparing that absent field to the full row
+skipped native pruning. Native writes already share the exclusive store owner;
+use the captured ID when its metadata has no revision, retaining the revision
+comparison where available. Browser pruning always uses its atomic revision
+check. A regression with the actual native metadata shape fails before this
+correction and passes afterwards. Interrupted-profile and cleanup/reuse native
+flows must pass again before committing. An interrupted test also left its
+owned temporary backend on port 3347; identify it by PID/worktree/database,
+stop only that process and remove its temporary database before the clean run.
+
+The final clean sequence passes all 13 mixed PWA/Electron scenarios, then all
+51 production-PWA scenarios without retries, followed by the exact uncached
+production build at 1,200,253 / 1,200,301 initial bytes. The corrected metadata
+case is included in the 1,012 passing service tests. All affected types/lint
+and documentation gates pass. Commit this combined fix, run review twenty-three
+on that commit and require fresh PR CI before readiness.

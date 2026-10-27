@@ -25,6 +25,12 @@ export type PlaylistDocumentStore = Pick<
     | 'dbSetAppState'
     | 'dbUpsertAppPlaylists'
 > & {
+    /** Browser-only conditional delete; the marker is set inside its transaction. */
+    dbPruneAppPlaylist?: (
+        id: string,
+        revision: string | undefined,
+        beforeDelete: () => void
+    ) => Promise<boolean>;
     /** Local browser-only atomic read/modify/write; callbacks never cross IPC. */
     dbMutateAppPlaylist?: (
         id: string,

@@ -45,6 +45,66 @@ describe('durable local source cleanup', () => {
         expect(rows.get('a')?.title).toBe('Reused ID');
     });
 
+    function enableConditionalDeletion() {
+        local.dbPruneAppPlaylist = jest.fn(async (id, revision, mark) => {
+            const row = rows.get(id);
+            if (!row || row.sourceSyncRevision !== revision) return false;
+            mark();
+            rows.delete(id);
+            return true;
+        });
+    }
+
+    it('does not mark or clean a newer row when its conditional delete loses the race', async () => {
+        rows.set('a', {
+            _id: 'a',
+            sourceSyncRevision: '"new"',
+            favorites: ['private'],
+        } as Playlist);
+        enableConditionalDeletion();
+        const queue = new SourceCleanupQueue(local, [cleanup], prefix);
+        expect(await queue.prune('a', '"old"')).toBe(false);
+        expect(rows.get('a')?.favorites).toEqual(['private']);
+        expect(cleanup).not.toHaveBeenCalled();
+        expect(localStorage.length).toBe(0);
+    });
+
+    it('blocks another context from reusing the ID until conditional cleanup completes', async () => {
+        enableConditionalDeletion();
+        const queue = new SourceCleanupQueue(local, [cleanup], prefix);
+        const sibling = new SourceCleanupQueue(local, [], prefix);
+        cleanup.mockImplementation(async () => {
+            expect(rows.has('a')).toBe(false);
+            expect(() => sibling.assertWritable('a')).toThrow(
+                'SOURCE_SYNC.REQUEST_FAILED'
+            );
+        });
+        expect(await queue.prune('a', undefined)).toBe(true);
+        expect(() => sibling.assertWritable('a')).not.toThrow();
+    });
+
+    it('recovers a conditional deletion after failed hooks without deleting a newer row', async () => {
+        rows.set('a', { _id: 'a', sourceSyncRevision: '"old"' } as Playlist);
+        enableConditionalDeletion();
+        cleanup.mockRejectedValueOnce(new Error('settings write failed'));
+        const queue = new SourceCleanupQueue(local, [cleanup], prefix);
+        await expect(queue.prune('a', '"old"')).rejects.toThrow(
+            'SOURCE_SYNC.REQUEST_FAILED'
+        );
+        expect(rows.has('a')).toBe(false);
+        expect(localStorage.getItem(`${prefix}a`)).not.toBeNull();
+        // A cache written by an older client must be outside the old marker's authority.
+        rows.set('a', {
+            _id: 'a',
+            sourceSyncRevision: '"new"',
+            favorites: ['new'],
+        } as Playlist);
+        await new SourceCleanupQueue(local, [cleanup], prefix).retry();
+        expect(rows.get('a')?.favorites).toEqual(['new']);
+        expect(cleanup).toHaveBeenCalledTimes(1);
+        expect(localStorage.getItem(`${prefix}a`)).toBeNull();
+    });
+
     it('persists every clear marker before removing rows and retries failed hooks after restart', async () => {
         cleanup.mockRejectedValueOnce(
             new Error('app_state could not be written')

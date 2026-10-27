@@ -154,6 +154,45 @@ describe('source synchronization lifecycle', () => {
     });
     afterEach(() => TestBed.resetTestingModule());
 
+    it.each(['created', 'replaced'] as const)(
+        'does not prune a source %s by another tab while an older inventory materializes',
+        async (mutation) => {
+            const id = 'sibling-source';
+            const before = {
+                ...applySourceDefinition({ ...source, id }),
+                sourceSyncRevision: '"old"',
+            };
+            if (mutation === 'replaced') rows.set(id, before);
+            inventory = [
+                {
+                    id: 'slow',
+                    title: 'Slow M3U',
+                    kind: 'm3u-url',
+                    url: 'https://provider.test/slow.m3u',
+                },
+            ];
+            const newer = {
+                ...before,
+                sourceSyncRevision: '"newer"',
+                favorites: ['new-device-favorite'],
+            };
+            fetchPlaylistDefinition.mockImplementation(async () => {
+                // Separate tab storage writes are not serialized by this store's tail.
+                rows.set(id, newer);
+                return { playlist: { items: [] }, count: 0 };
+            });
+            await service.initialize();
+            await service.refresh();
+            expect(rows.get(id)).toEqual(newer);
+            expect(cleanup).not.toHaveBeenCalledWith(id);
+            expect(
+                localStorage.getItem(
+                    sourceProfileStorageKey(`source-sync-cleanup:${id}`)
+                )
+            ).toBeNull();
+        }
+    );
+
     it.each(['reject', 'unsuccessful'])(
         'retries the inventory after a %s initialization receipt write without publishing false readiness',
         async (failure) => {
@@ -192,6 +231,25 @@ describe('source synchronization lifecycle', () => {
             applySourceDefinition({ ...source, id: 'removed' })
         );
         await service.initialize();
+        await service.refresh();
+        expect(rows.has('removed')).toBe(false);
+        expect(cleanup).toHaveBeenCalledWith('removed');
+    });
+
+    it('prunes native payload-free metadata even though it omits the source revision', async () => {
+        rows.set('removed', {
+            ...applySourceDefinition({ ...source, id: 'removed' }),
+            sourceSyncRevision: '"stored-in-payload"',
+        });
+        const initialization = service.initialize();
+        store.local.dbGetAppPlaylistMetas = async () =>
+            [...rows.values()].map((row) => {
+                const meta = { ...row };
+                delete meta.playlist;
+                delete meta.sourceSyncRevision;
+                return meta;
+            });
+        await initialization;
         await service.refresh();
         expect(rows.has('removed')).toBe(false);
         expect(cleanup).toHaveBeenCalledWith('removed');

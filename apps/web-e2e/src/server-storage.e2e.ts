@@ -7,6 +7,7 @@ import {
     verifyLegacyUploadedChannelIdentity,
 } from './server-storage-pwa.helpers';
 import { readFile } from 'node:fs/promises';
+import { verifyConcurrentSourcePruning } from './source-pruning-pwa.helpers';
 import { expect, test } from './fixtures';
 import {
     addM3uUrlPlaylist,
@@ -78,6 +79,13 @@ test.describe('server storage @self-hosted @persistence', () => {
         request,
     }) => {
         await verifyLegacyUploadedChannelIdentity(browser, request);
+    });
+
+    test('retains a sibling tab source and its activity while an older inventory is materializing without Web Locks', async ({
+        browser,
+        request,
+    }) => {
+        await verifyConcurrentSourcePruning(browser, request);
     });
 
     test('opens the app and cached sources while URL materialization is pending', async ({
@@ -524,22 +532,33 @@ test.describe('server storage @self-hosted @persistence', () => {
                 })
             );
             const credentials: Array<string | undefined> = [];
+            const revisions: Array<string | undefined> = [];
             await page.route(`${STORAGE_BACKEND_URL}/v1/sources`, (route) => {
                 if (route.request().method() !== 'GET') return route.continue();
                 const authorization = route.request().headers()[
                     'authorization'
                 ];
                 credentials.push(authorization);
+                const revision = route.request().headers()['if-none-match'];
+                revisions.push(revision);
                 const accepted = authorization === 'Bearer new-instance-token';
+                const unchanged =
+                    accepted && revision === '"replacement-library"';
                 return route.fulfill({
-                    status: accepted ? 200 : 401,
+                    status: unchanged ? 304 : accepted ? 200 : 401,
                     headers: {
                         'Access-Control-Allow-Origin': new URL(page.url())
                             .origin,
                         'Access-Control-Expose-Headers': 'ETag',
                         ETag: '"replacement-library"',
                     },
-                    json: accepted ? { entries: [] } : { code: 'unauthorized' },
+                    ...(unchanged
+                        ? {}
+                        : {
+                              json: accepted
+                                  ? { entries: [] }
+                                  : { code: 'unauthorized' },
+                          }),
                 });
             });
             await page.reload();
@@ -558,6 +577,12 @@ test.describe('server storage @self-hosted @persistence', () => {
             expect(credentials).toEqual([
                 undefined,
                 'Bearer new-instance-token',
+                'Bearer new-instance-token',
+            ]);
+            expect(revisions).toEqual([
+                undefined,
+                undefined,
+                '"replacement-library"',
             ]);
         } finally {
             await page.context().close();

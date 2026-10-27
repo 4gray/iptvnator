@@ -6,6 +6,33 @@ export function mutateIndexedDbPlaylist(
     id: string,
     mutate: (current: Playlist | null) => Playlist
 ): Promise<Playlist> {
+    return visitPlaylist(profile, id, (store, current) => {
+        const next = mutate(current);
+        store.put(next);
+        return next;
+    });
+}
+
+/** The revision check, durable marker and deletion share the write transaction. */
+export function pruneIndexedDbPlaylist(
+    profile: string,
+    id: string,
+    revision: string | undefined,
+    beforeDelete: () => void
+): Promise<boolean> {
+    return visitPlaylist(profile, id, (store, current) => {
+        if (!current || current.sourceSyncRevision !== revision) return false;
+        beforeDelete();
+        store.delete(id);
+        return true;
+    });
+}
+
+function visitPlaylist<T>(
+    profile: string,
+    id: string,
+    visit: (store: IDBObjectStore, current: Playlist | null) => T
+): Promise<T> {
     return new Promise((resolve, reject) => {
         const open = indexedDB.open(profile);
         open.onerror = () => reject(open.error);
@@ -23,13 +50,12 @@ export function mutateIndexedDbPlaylist(
                 return;
             }
             const store = transaction.objectStore(DbStores.Playlists);
-            let next: Playlist;
+            let next: T;
             let failure: unknown;
             const read = store.get(id);
             read.onsuccess = () => {
                 try {
-                    next = mutate(read.result ?? null);
-                    store.put(next);
+                    next = visit(store, read.result ?? null);
                 } catch (error) {
                     failure = error;
                     transaction.abort();

@@ -236,6 +236,14 @@ Accepted Stalker edits retain their newly negotiated session only when its
 canonical fingerprint matches the accepted full-portal connection. Remote
 connection edits still clear obsolete session/account/watchdog metadata. The
 shared fingerprint check loads lazily with source-session reconciliation.
+Changed inventories are revalidated after capturing local IDs/revisions and
+before materialization. Pruning considers only that snapshot, so a sibling
+tab's later create or replacement cannot be removed by the older response.
+Browser pruning checks the revision and marks/deletes in one IndexedDB write
+transaction. Profile-local markers block projection writes until cleanup has
+finished; conditional retry markers cannot remove a newer revision. Existing
+unconditional cleanup markers remain compatible. Ordinary HTTP 304 polls do
+not read the cached payloads. Inventory reconciliation loads lazily.
 Source IDs are the server's IDs in every local projection. Inventory views reuse
 the native payload-free metadata API. Browser metadata omits parsed/raw M3U
 and source baselines; opening a shared editor loads one complete local row

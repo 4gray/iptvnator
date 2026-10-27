@@ -25,6 +25,37 @@ export class SourceCleanupQueue {
             return this.finish(id);
         });
 
+    /** Source projections must wait until an earlier ID's cleanup completes. */
+    assertWritable(id: string): void {
+        if (localStorage.getItem(`${this.prefix}${id}`) !== null)
+            throw new Error('SOURCE_SYNC.REQUEST_FAILED');
+    }
+
+    prune = (id: string, revision: string | undefined): Promise<boolean> =>
+        this.guard(async () => {
+            if (this.local.dbPruneAppPlaylist) {
+                const removed = await this.local.dbPruneAppPlaylist(
+                    id,
+                    revision,
+                    () => this.mark(id, JSON.stringify([revision ?? null]))
+                );
+                if (!removed) return false;
+            } else {
+                // Native writes share the exclusive owner; payload-free metas
+                // omit the revision, while browser pruning always checks it atomically.
+                const current = await this.local.dbGetAppPlaylist(id);
+                if (
+                    !current ||
+                    (revision !== undefined &&
+                        current.sourceSyncRevision !== revision)
+                )
+                    return false;
+                this.mark(id);
+            }
+            await this.finish(id);
+            return true;
+        });
+
     clear = (): Promise<ElectronBridgeResult> =>
         this.guard(async () => {
             const rows = await (this.local.dbGetAppPlaylistMetas?.() ??
@@ -50,19 +81,38 @@ export class SourceCleanupQueue {
         });
     }
 
-    private mark(id: string): void {
+    private mark(id: string, value = '1'): void {
         const key = `${this.prefix}${id}`;
-        localStorage.setItem(key, '1');
-        if (localStorage.getItem(key) !== '1') throw new Error();
+        localStorage.setItem(key, value);
+        if (localStorage.getItem(key) !== value) throw new Error();
     }
 
     private async finish(id: string): Promise<ElectronBridgeResult> {
-        const result = (await this.local.dbGetAppPlaylist(id))
-            ? await this.removeLocal(id)
-            : { success: true };
+        const key = `${this.prefix}${id}`;
+        const marker = localStorage.getItem(key);
+        if (marker === null) return { success: true };
+        let result: ElectronBridgeResult = { success: true };
+        if (marker !== '1') {
+            const revision =
+                (JSON.parse(marker) as [string | null])[0] ?? undefined;
+            if (await this.local.dbGetAppPlaylist(id)) {
+                if (!this.local.dbPruneAppPlaylist) throw new Error();
+                const removed = await this.local.dbPruneAppPlaylist(
+                    id,
+                    revision,
+                    () => undefined
+                );
+                if (!removed) {
+                    // A newer row is outside this abandoned deletion's authority.
+                    localStorage.removeItem(key);
+                    if (localStorage.getItem(key) !== null) throw new Error();
+                    return result;
+                }
+            }
+        } else if (await this.local.dbGetAppPlaylist(id))
+            result = await this.removeLocal(id);
         if (result?.success === false) throw new Error();
         for (const cleanup of this.cleanups) await cleanup(id);
-        const key = `${this.prefix}${id}`;
         localStorage.removeItem(key);
         if (localStorage.getItem(key) !== null) throw new Error();
         return result;
