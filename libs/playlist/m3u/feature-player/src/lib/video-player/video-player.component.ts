@@ -1372,6 +1372,14 @@ export class VideoPlayerComponent
         playlistId: string,
         channel: Channel
     ): Promise<void> {
+        // This method is entered only after the playback-history gate confirms
+        // a playing stream (or after an external-player handoff). Remember the
+        // channel immediately; waiting for the playlist DB write can allow an
+        // older async write to become the 'last channel' after a quick switch.
+        if (channel.radio !== 'true' && !isLikelyM3uVod(channel)) {
+            rememberLastPlayedLive({ sourceType: 'm3u', playlistId, itemId: channel.url });
+        }
+
         const recentlyViewedItem: M3uRecentlyViewedItem = {
             source: 'm3u',
             id: channel.url,
@@ -1401,9 +1409,6 @@ export class VideoPlayerComponent
                 } as PlaylistMeta,
             })
         );
-        if (channel.radio !== 'true' && !isLikelyM3uVod(channel)) {
-            rememberLastPlayedLive({ sourceType: 'm3u', playlistId, itemId: channel.url });
-        }
     }
 
     private clearConsumedChannelOpenState(): void {
