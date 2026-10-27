@@ -10,7 +10,8 @@ export interface M3uRecentlyViewedItem {
     tvg_id?: string;
     tvg_name?: string;
     group_title?: string;
-    category_id: 'live';
+    /** Backward-compatible with legacy live-only rows. */
+    category_id: 'live' | 'movie' | 'series';
     added_at: string | number;
 }
 
