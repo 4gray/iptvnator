@@ -212,6 +212,23 @@ describe('UnifiedRecentDataService', () => {
         });
     });
 
+    it('preserves persisted M3U movie/episode history classification', async () => {
+        const source = {
+            ...playlistMeta,
+            recentlyViewed: [
+                { source: 'm3u', id: channels[0].url, url: channels[0].url,
+                    title: 'Test Movie', category_id: 'movie', added_at: '2026-03-26T12:00:00.000Z' },
+                { source: 'm3u', id: channels[1].url, url: channels[1].url,
+                    title: 'Test Episode', category_id: 'series', added_at: '2026-03-26T12:01:00.000Z' },
+            ],
+        } satisfies PlaylistMeta;
+        store.select.mockReturnValue(of([source]));
+        const items = await service.getRecentItems('playlist', 'm3u-1', 'm3u');
+        expect(items.map(item => [item.name, item.contentType])).toEqual(
+            expect.arrayContaining([['Test Movie', 'movie'], ['Test Episode', 'series']])
+        );
+    });
+
     it('records M3U live playback through playlist recently viewed storage', async () => {
         const item = {
             uid: 'm3u::m3u-1::https://example.com/1.m3u8',
