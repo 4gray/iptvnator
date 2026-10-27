@@ -630,7 +630,16 @@ export class UnifiedRecentDataService {
                 // and the user's manual override, never mutate old history.
                 const preferred = meta.m3uContentOverrides?.[m3uContentOverrideKey(channel)];
                 const kind = preferred ?? classifyM3uContent(channel);
-                const contentType = kind === 'movies' ? 'movie'
+                // New history rows explicitly remember their Movies/Series
+                // classification. Keep that even if a later playlist refresh
+                // changes its heuristic group title. Legacy 'live'-only rows
+                // continue to be classified from current channels/overrides.
+                const contentType = preferred === 'movies' ? 'movie'
+                    : preferred === 'series' ? 'series'
+                    : preferred === 'live' ? 'live'
+                    : recentItem.category_id === 'movie' ? 'movie'
+                    : recentItem.category_id === 'series' ? 'series'
+                    : kind === 'movies' ? 'movie'
                     : kind === 'series' ? 'series' : 'live';
 
                 return {
