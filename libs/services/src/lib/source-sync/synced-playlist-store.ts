@@ -38,7 +38,11 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
             source: SourceDefinition,
             current?: Playlist
         ) => Promise<Playlist>,
-        private readonly instanceId = 'local'
+        private readonly instanceId = 'local',
+        private readonly pruneSource?: (
+            id: string,
+            revision: string | undefined
+        ) => Promise<boolean>
     ) {}
 
     exclusive<T>(operation: () => Promise<T>): Promise<T> {
@@ -230,14 +234,29 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
         });
     dbDeleteAllPlaylists = () =>
         this.exclusive(async () => {
+            const observed = await (this.local.dbGetAppPlaylistMetas?.() ??
+                this.local.dbGetAppPlaylists());
             await this.request({
                 operation: 'clear',
                 revision: this.collectionRevision,
             });
-            await this.local.dbDeleteAllPlaylists();
-            this.pendingSources.clear();
+            for (const row of observed)
+                if (await this.pruneObserved(row._id, row.sourceSyncRevision))
+                    this.pendingSources.delete(row._id);
             return { success: true };
         });
+
+    private async pruneObserved(id: string, revision: string | undefined) {
+        if (this.pruneSource) return this.pruneSource(id, revision);
+        if (this.local.dbPruneAppPlaylist)
+            return this.local.dbPruneAppPlaylist(id, revision, () => undefined);
+        // Native stores have a single exclusive owner; browser stores prune
+        // inside their IndexedDB transaction through the callback above.
+        const current = await this.local.dbGetAppPlaylist(id);
+        if (!current || current.sourceSyncRevision !== revision) return false;
+        await this.local.dbDeletePlaylist(id);
+        return true;
+    }
 }
 
 function mergeActivity<T>(current: T[] = [], incoming: T[] = []): T[] {

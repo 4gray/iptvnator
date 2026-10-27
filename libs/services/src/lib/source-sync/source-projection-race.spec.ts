@@ -5,6 +5,7 @@ import {
     type PlaylistDocumentStore,
 } from '../playlist-storage-backend';
 import { SyncedPlaylistStore } from './synced-playlist-store';
+import { SourceCleanupQueue } from './source-cleanup-queue';
 
 const original: SourceDefinition = {
     id: 'source',
@@ -48,7 +49,10 @@ function setup(existing = true) {
             rows.delete(id);
             return { success: true };
         },
-        dbDeleteAllPlaylists: jest.fn(),
+        dbDeleteAllPlaylists: jest.fn(async () => {
+            rows.clear();
+            return { success: true };
+        }),
         dbGetAppState: jest.fn(),
         dbSetAppState: jest.fn(),
     };
@@ -79,7 +83,7 @@ function setup(existing = true) {
             playlist: { items: [{ name: 'New download' }] },
         })
     );
-    return { rows, first, second, started, downloaded };
+    return { rows, first, second, started, downloaded, request, local };
 }
 
 describe('source projection across clients without Web Locks', () => {
@@ -137,5 +141,59 @@ describe('source projection across clients without Web Locks', () => {
         downloaded.resolve();
         expect(await projection).toEqual(completed);
         expect(rows.get(original.id)).toEqual(completed);
+    });
+
+    it.each([false, true])(
+        'keeps a sibling source added after the remote clear (reused ID: %s)',
+        async (reuseId) => {
+            const { rows, first, second, started, downloaded, request } =
+                setup();
+            request.mockImplementation(async () => {
+                started.resolve();
+                await downloaded.promise;
+                return { status: 200, body: edited, etag: '"2"' };
+            });
+            const clearing = first.dbDeleteAllPlaylists();
+            await started.promise;
+            const sibling = {
+                ...edited,
+                id: reuseId ? original.id : 'sibling',
+            };
+            await second.project(sibling, '"3"');
+            rows.get(sibling.id)!.favorites = ['sibling-favorite'];
+            const expected = structuredClone(rows.get(sibling.id));
+            downloaded.resolve();
+            await clearing;
+            expect(rows.get(sibling.id)).toEqual(expected);
+            expect([...rows.keys()]).toEqual([sibling.id]);
+        }
+    );
+
+    it('cleans native sources whose payload-free metadata omits revisions', async () => {
+        const { rows, local, request } = setup();
+        local.dbGetAppPlaylistMetas = async () =>
+            [...rows.values()].map((row) => {
+                const meta = { ...row };
+                delete meta.sourceSyncRevision;
+                delete meta.sourceSyncBase;
+                delete meta.playlist;
+                return meta;
+            });
+        const cleanup = jest.fn().mockResolvedValue(undefined);
+        const queue = new SourceCleanupQueue(
+            local,
+            [cleanup],
+            'test:source-clear:'
+        );
+        const store = new SyncedPlaylistStore(
+            local,
+            request,
+            async (value, current) => applySourceDefinition(value, current),
+            'native',
+            queue.prune
+        );
+        await store.dbDeleteAllPlaylists();
+        expect(rows.size).toBe(0);
+        expect(cleanup).toHaveBeenCalledWith(original.id);
     });
 });

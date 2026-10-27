@@ -108,7 +108,8 @@ export class SourceSyncService {
             local,
             (request) => this.request(request),
             (source, current) => materializeSource(source, current, this.data),
-            this.connection.instanceId
+            this.connection.instanceId,
+            (id, revision) => this.cleanupQueue!.prune(id, revision)
         );
         this.backend.installServerStore(this.store);
         let initialRefresh: Promise<void> | undefined;

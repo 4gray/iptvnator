@@ -8,6 +8,7 @@ import {
 } from './server-storage-pwa.helpers';
 import { readFile } from 'node:fs/promises';
 import { verifyConcurrentSourcePruning } from './source-pruning-pwa.helpers';
+import { verifyConcurrentSourceClearing } from './source-clearing-pwa.helpers';
 import {
     verifyCachedSourcesDuringMaterialization,
     verifyConcurrentSourceProjection,
@@ -115,6 +116,15 @@ test.describe('server storage @self-hosted @persistence', () => {
     }) => {
         await verifyCachedSourcesDuringMaterialization(browser, request);
     });
+
+    for (const reuseId of [false, true]) {
+        test(`keeps sibling sources created after a server clear without Web Locks (reused ID: ${reuseId})`, async ({
+            browser,
+            request,
+        }) => {
+            await verifyConcurrentSourceClearing(browser, request, reuseId);
+        });
+    }
 
     test('keeps a newer disconnect from another tab when pending discovery recovers', async ({
         browser,
