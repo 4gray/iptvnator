@@ -11,6 +11,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey, resolveRawChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import {
     createXmltvIdentityIndex,
+    DEFAULT_EPG_MATCH_ORDER,
     resolveOrderedXmltvId,
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
@@ -254,11 +255,11 @@ export class StreamResolverService {
             const channels = m3uItems.map(item => item.m3uChannel ?? this.buildFallbackM3uChannel(item));
             const rawKeys = [...new Set(channels.map(resolveRawChannelEpgLookupKey).filter(Boolean))];
             const [guide, manualMappings] = await Promise.all([
-                this.epgBridge.getEpgChannels().catch(() => null),
-                this.epgBridge.getEpgMappingsBatch(rawKeys).catch(() => null),
+                (this.epgBridge.getEpgChannels?.() ?? Promise.resolve(null)).catch(() => null),
+                (this.epgBridge.getEpgMappingsBatch?.(rawKeys) ?? Promise.resolve(null)).catch(() => null),
             ]);
             const index = createXmltvIdentityIndex(guide?.channels ?? []);
-            const order = this.settingsStore.resolvedEpgMatchOrder();
+            const order = this.settingsStore.resolvedEpgMatchOrder?.() ?? DEFAULT_EPG_MATCH_ORDER;
             const requests = new Map<string, Promise<EpgProgram[]>>();
             for (let i = 0; i < m3uItems.length; i++) {
                 const item = m3uItems[i];
