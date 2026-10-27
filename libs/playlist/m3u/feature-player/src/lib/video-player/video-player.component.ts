@@ -1376,9 +1376,21 @@ export class VideoPlayerComponent
         // a playing stream (or after an external-player handoff). Remember the
         // channel immediately; waiting for the playlist DB write can allow an
         // older async write to become the 'last channel' after a quick switch.
-        if (channel.radio !== 'true' && !isLikelyM3uVod(channel)) {
+        if (contentType === 'live' && kind === 'live' && channel.radio !== 'true') {
             rememberLastPlayedLive({ sourceType: 'm3u', playlistId, itemId: channel.url });
         }
+
+        // Recent is a mixed-content collection. Its history must retain the
+        // user-visible catalog classification rather than labelling every
+        // watched M3U movie and episode as live television.
+        const index = this.contentIndex();
+        const matches = (candidate: Channel) =>
+            candidate.url === channel.url && candidate.name === channel.name;
+        const kind: M3uContentKind = index.movies.some(matches) ? 'movies'
+            : index.series.some(matches) ? 'series'
+            : index.live.some(matches) ? 'live' : 'unclassified';
+        const contentType = kind === 'movies' ? 'movie'
+            : kind === 'series' ? 'series' : 'live';
 
         const recentlyViewedItem: M3uRecentlyViewedItem = {
             source: 'm3u',
@@ -1390,7 +1402,7 @@ export class VideoPlayerComponent
             tvg_id: channel.tvg?.id || undefined,
             tvg_name: channel.tvg?.name || undefined,
             group_title: channel.group?.title || undefined,
-            category_id: 'live',
+            category_id: contentType,
             added_at: new Date().toISOString(),
         };
 
