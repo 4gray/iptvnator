@@ -1,8 +1,8 @@
-<div class="favorites-sort-options" style="display:flex;justify-content:flex-end;padding:4px 12px;gap:8px;align-items:center">
-    <label for="m3u-favorites-sort" style="font-size:12px">Sort</label>
+<div class="favorites-sort-options">
+    <label for="m3u-favorites-sort">Sort</label>
     <select id="m3u-favorites-sort" aria-label="Sort favorites"
             [value]="sortMode()" (change)="setSortMode($any($event.target).value)"
-            style="background:transparent;color:inherit;border:1px solid #555;border-radius:4px;padding:3px">
+            class="favorites-sort-select">
         <option value="custom">Manual order</option>
         <option value="name-asc">A–Z</option>
         <option value="name-desc">Z–A</option>
