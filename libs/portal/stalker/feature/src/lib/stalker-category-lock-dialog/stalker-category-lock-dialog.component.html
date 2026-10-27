@@ -14,7 +14,8 @@
             <div class="bulk-actions">
                 @if (censoredCount() > 0) {
                     <button
-                        mat-stroked-button
+                        mat-flat-button
+                        class="app-dialog__secondary app-dialog__secondary--sm"
                         type="button"
                         data-test-id="stalker-lock-censored"
                         [disabled]="isSaving()"
@@ -24,7 +25,8 @@
                     </button>
                 }
                 <button
-                    mat-stroked-button
+                    mat-flat-button
+                        class="app-dialog__secondary app-dialog__secondary--sm"
                     type="button"
                     [disabled]="isSaving() || lockedCount() === 0"
                     (click)="unlockAll()"

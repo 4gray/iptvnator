@@ -1,3 +1,4 @@
+@use '../../../../../../../ui/styles/app-controls' as controls;
 @use '../../styles/content-grid' as grid;
 
 :host {
@@ -176,4 +177,8 @@
         justify-content: flex-start;
         flex-wrap: wrap;
     }
+}
+
+.search-error button {
+    @include controls.secondary-button;
 }

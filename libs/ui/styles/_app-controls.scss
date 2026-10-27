@@ -84,6 +84,30 @@ $_sizes: (
     @include _disabled;
 }
 
+/// Secondary role for native triggers that own rich CDK popovers.
+@mixin native-secondary-button($size: md) {
+    min-height: _size($size, height);
+    padding: 0 _size($size, padding);
+    border: 0;
+    border-radius: _size($size, radius);
+    background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    color: var(--app-heading-color);
+    font-size: _size($size, text);
+    font-weight: 600;
+    letter-spacing: 0;
+    gap: _size($size, gap);
+    @include _disabled;
+
+    &:hover:not([disabled]),
+    &:focus-visible {
+        background: color-mix(in srgb, var(--app-on-surface) 16%, transparent);
+    }
+
+    &:active:not([disabled]) {
+        background: color-mix(in srgb, var(--app-on-surface) 20%, transparent);
+    }
+}
+
 /// The one accent action of a dialog or form: the selection blue, 40px,
 /// 10px radius, no ripple. Disabled keeps the fill at 40% opacity.
 @mixin accent-button($size: md) {

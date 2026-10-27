@@ -1071,3 +1071,36 @@ pass. The current UI guidelines already define the merged action roles; the
 existing source-sync feature note and upstream UI note cover this integration.
 Repeat the committed-branch review gate before pushing this merge, then validate
 the new PR merge tree. Do not infer readiness from the prior head checks.
+
+### Current dialog-kit integration (2026-10-27)
+
+Master advanced again to `0fb706dbc332b76f6c4b1308b4363c666672a421` (#2017)
+before the committed-branch review. Integrate it without conflicts. The shared
+playlist editor retains asynchronous source-row hydration while adopting the
+upstream Stalker additional-settings disclosure. Its fields stay mounted when
+folded. An added production-PWA regression creates a shared Stalker source on
+the backend, hydrates its editor, folds the prefilled disclosure, renames the
+source and verifies that all configured serial/device/signature/credential
+fields remain on the server.
+
+Frozen install, lock comparison and discovery of 61 Nx projects pass. All 49
+selected production-PWA scenarios, all 12 mixed PWA/Electron scenarios, the
+three upstream browser action cases, the native playlist-dialog case and all
+four native playback-diagnostics cases pass. The production-PWA stylesheet
+case uses a real Service Worker; routed backend fixtures block it explicitly.
+
+Full owning coverage passes for web (564), UI components (470), playback
+(1,663), Xtream feature (648), EPG UI (338), portal shared UI (220), Stalker
+feature (504), playlist import (119), playlist shared UI (172), shared
+interfaces (660) and Stalker data access (630). Merged 36-project coverage
+passes unchanged gates at statements 84.97%, branches 76.01%, functions
+83.14%, lines 85.35%; the four upstream advisory same-name-spec warnings from
+the prior integration remain. Eleven owning lint projects, application/spec/
+E2E types, translations, release notes and agent/skill guidance pass.
+
+The exact production build without Nx cache passes at 1,200,261 / 1,200,301
+initial bytes. The source runtime core remains unchanged from `a71848a45`,
+whose full PR CI passed. The existing source feature note and upstream UI
+notes cover this integration; no new release behavior is added. Run the local
+reviewers on the committed combined branch before pushing, then require fresh
+PR checks for that head rather than reusing the old CI verdict.

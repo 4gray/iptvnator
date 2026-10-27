@@ -1,3 +1,5 @@
+@use '../../../../../../../ui/styles/app-controls' as controls;
+
 :host {
     display: block;
     width: 100%;
@@ -84,6 +86,10 @@
 }
 
 .error-view__actions {
+    .mat-mdc-unelevated-button {
+        @include controls.secondary-button;
+    }
+
     display: flex;
     flex-wrap: wrap;
     justify-content: center;

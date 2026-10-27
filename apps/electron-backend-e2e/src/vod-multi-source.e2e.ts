@@ -14,6 +14,7 @@ import {
     getXtreamTitle,
     pickDistinctTitles,
 } from './portal-mock-fixtures';
+import { applyTheme, expectTextContrast } from './theme-contrast';
 
 /**
  * `multisrc1` and `multisrc2` are two distinct credential pairs that share one
@@ -64,7 +65,9 @@ test.describe('VOD multi-source', () => {
 
             // Discovery is lazy, so the "Other sources" row of the "…" menu
             // appears after the detail view.
-            const more = app.mainWindow.locator('[data-testid="vod-more-menu"]');
+            const more = app.mainWindow.locator(
+                '[data-testid="vod-more-menu"]'
+            );
             await expect(more).toBeVisible({ timeout: 20000 });
             await more.click();
             const sourcesRow = app.mainWindow.locator(
@@ -88,6 +91,30 @@ test.describe('VOD multi-source', () => {
             await expect(
                 rows.filter({ hasText: 'Multi Source B' })
             ).toHaveCount(1);
+
+            await app.mainWindow.keyboard.press('Escape');
+            await app.mainWindow.locator('.play-btn').first().click();
+            const trigger = app.mainWindow.locator(
+                'app-portal-inline-player .sources-chip'
+            );
+            await expect(trigger).toBeVisible();
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(app.mainWindow, theme);
+                await trigger.click();
+                await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+                await expect(trigger).toHaveCSS(
+                    'border-top-left-radius',
+                    '10px'
+                );
+                await expectTextContrast(
+                    trigger.locator('.sources-chip__label')
+                );
+                await expectTextContrast(
+                    trigger.locator('.sources-chip__count')
+                );
+                await app.mainWindow.keyboard.press('Escape');
+                await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+            }
         } finally {
             await closeElectronApp(app);
         }

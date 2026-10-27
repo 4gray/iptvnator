@@ -164,3 +164,61 @@ export async function verifyEditedSourceChannels(
         await page.context().close();
     }
 }
+
+/** Hydration and folded form fields must retain the NAS-owned identity. */
+export async function verifySharedStalkerIdentityEditing(
+    browser: Browser,
+    request: APIRequestContext
+): Promise<void> {
+    const page = await newServerPage(browser);
+    const source = {
+        id: 'shared-stalker-identity',
+        title: 'Shared Stalker identity',
+        kind: 'stalker',
+        portalUrl: `http://localhost:${process.env['MOCK_PORT'] ?? '3210'}/portal.php`,
+        macAddress: '00:1A:79:5F:AB:01',
+        stalkerSerialNumber: 'SN-SYNC',
+        stalkerDeviceId1: 'PINNED-SYNC-1',
+        stalkerDeviceId2: 'PINNED-SYNC-2',
+        stalkerSignature1: 'SIG-SYNC-1',
+        stalkerSignature2: 'SIG-SYNC-2',
+        username: 'sync-user',
+        password: 'sync-password',
+    };
+    try {
+        expect(
+            (
+                await request.put(
+                    `${STORAGE_BACKEND_URL}/v1/sources/${source.id}`,
+                    {
+                        headers: { 'If-None-Match': '*' },
+                        data: source,
+                    }
+                )
+            ).ok()
+        ).toBe(true);
+        await openSources(page);
+        const editor = await openSourceEditor(page, source.title);
+        const disclosure = editor.locator('details');
+        await expect(disclosure).toHaveAttribute('open', '');
+        await expect(
+            editor.locator('[formcontrolname="stalkerSerialNumber"]')
+        ).toHaveValue(source.stalkerSerialNumber);
+        await disclosure.locator('summary').click();
+        await expect(
+            editor.locator('[formcontrolname="password"]')
+        ).toBeHidden();
+        await updateSourceDialog(editor, { title: 'Renamed shared identity' });
+        await saveSourceDialog(editor);
+        const stored = await request.get(
+            `${STORAGE_BACKEND_URL}/v1/sources/${source.id}`
+        );
+        expect(stored.ok()).toBe(true);
+        expect(await stored.json()).toMatchObject({
+            ...source,
+            title: 'Renamed shared identity',
+        });
+    } finally {
+        await page.context().close();
+    }
+}

@@ -127,6 +127,14 @@ test.describe('Electron Xtream Category Management', () => {
                 await waitForXtreamWorkspaceReady(app.mainWindow);
                 await openWorkspaceSection(app.mainWindow, section);
                 let dialog = await openManageCategoriesDialog(app.mainWindow);
+                for (const theme of ['light', 'dark'] as const) {
+                    await applyTheme(app.mainWindow, theme);
+                    const bulk = dialog.locator('.bulk-actions button');
+                    await expect(bulk.first()).toHaveCSS('height', '32px');
+                    await expect(bulk.first()).toHaveCSS('font-size', '12.5px');
+                    await expect(bulk.last()).toHaveCSS('border-top-left-radius', '8px');
+                    await expect(bulk.last()).toHaveCSS('border-top-style', 'none');
+                }
                 const rows = dialog.locator('.category-item');
                 const names = (
                     await rows.locator('.category-name').allTextContents()

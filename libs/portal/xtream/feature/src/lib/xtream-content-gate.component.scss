@@ -1,0 +1,16 @@
+@use '../../../../../ui/styles/app-controls' as controls;
+
+.xtream-content-gate {
+    display: grid;
+    gap: 16px;
+    justify-items: center;
+    padding: 24px;
+}
+
+.xtream-content-gate__actions {
+    display: flex;
+    justify-content: center;
+}
+.xtream-content-gate__actions button {
+    @include controls.accent-button;
+}

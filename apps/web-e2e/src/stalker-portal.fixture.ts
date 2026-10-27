@@ -189,6 +189,9 @@ export async function addFullStalkerPortal(
     await setInputValue(dialog.locator('input#title'), name);
     await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
     await setInputValue(dialog.locator('input#macAddress'), mac);
+    if (username !== undefined || password !== undefined) {
+        await dialog.locator('app-stalker-portal-import summary').click();
+    }
     if (username !== undefined) {
         await setInputValue(dialog.locator('input#username'), username);
     }

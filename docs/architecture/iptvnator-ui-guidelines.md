@@ -260,6 +260,13 @@ Do not hardcode unrelated accent colors for selected state when these tokens alr
 
 ## Player And EPG Theme Boundaries
 
+The inline player's app-chrome header uses ghost Copy and secondary Close
+roles; its Sources popover trigger requests `variant="secondary"` from the
+shared chip. Recovery actions on app surfaces use kit roles: secondary for
+ordinary actions, accent for a standalone empty-state primary.
+Diagnostic utility actions keep an opaque, readable foreground on the fixed
+dark video scrim, independent of the app theme.
+
 The native-view Embedded MPV dock is app chrome: its solid widget background,
 text, separators, sliders and interaction states resolve app tokens together.
 Material icon buttons override their component tokens, including disabled
@@ -1189,6 +1196,10 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   strut, as the programme dialog does.
 - **Order.** Dismiss first, primary last. With end alignment the primary sits
   on the inline end: the right in LTR, the left in RTL.
+- Body actions opt into the shell's `mat-flat-button.app-dialog__secondary`
+  role (add `app-dialog__secondary--sm` for dense bulk tools), or
+  `mat-button.app-dialog__ghost` for a text action. The footer remains the
+  decision row. A separate EPG save explicitly says “Save EPG sources”.
 - **Shell.** A dialog's markup is `app-dialog-shell`
   (`@iptvnator/ui/components`): the heading (its `mat-dialog-title`, so
   the container is named by it), an optional subtitle and 40px icon tile

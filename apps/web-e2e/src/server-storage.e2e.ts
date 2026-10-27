@@ -3,6 +3,7 @@ import {
     newServerPage,
     seedBrowserPlaylist,
     verifyEditedSourceChannels,
+    verifySharedStalkerIdentityEditing,
 } from './server-storage-pwa.helpers';
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './fixtures';
@@ -62,6 +63,13 @@ test.describe('server storage @self-hosted @persistence', () => {
         request,
     }) => {
         await verifyEditedSourceChannels(browser, request);
+    });
+
+    test('retains shared Stalker identity after folding additional fields and saving a title', async ({
+        browser,
+        request,
+    }) => {
+        await verifySharedStalkerIdentityEditing(browser, request);
     });
 
     test('opens the app and cached sources while URL materialization is pending', async ({

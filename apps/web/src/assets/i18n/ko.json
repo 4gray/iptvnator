@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "제공업체 추가 설정",
             "MAC_ADDRESS": "MAC 주소",
             "MAC_ADDRESS_HINT": "형식: 00:1A:79:XX:XX:XX. 하이픈, 점, 소문자는 자동으로 수정됩니다.",
             "MAC_ADDRESS_OUI_HINT": "이 주소는 Infomir의 00:1A:79 범위를 벗어납니다. 대부분의 포털은 해당 범위만 허용하며, 그 외의 주소는 이유를 알리지 않고 거부합니다.",
@@ -297,6 +298,7 @@
         "GENERAL": "일반",
         "GENERAL_SUBTITLE": "언어, 모양 및 앱 시작 방식.",
         "PLAYBACK": "재생",
+        "SAVE_EPG_SOURCES": "EPG 소스 저장",
         "EPG_SOURCES": "EPG 소스",
         "EPG_SOURCES_DESCRIPTION": "하나 이상의 XMLTV 소스(원격 링크 또는 로컬 파일)를 추가합니다",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "감지된 플레이리스트 EPG 소스 {{detected}}개 중 {{enabled}}개가 가져오기 대상으로 자동 선택되었습니다.",

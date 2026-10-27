@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "Impostazioni aggiuntive del fornitore",
             "MAC_ADDRESS": "Indirizzo MAC",
             "MAC_ADDRESS_HINT": "Formato 00:1A:79:XX:XX:XX. Trattini, punti e lettere minuscole vengono corretti automaticamente.",
             "MAC_ADDRESS_OUI_HINT": "Questo indirizzo non rientra nell'intervallo 00:1A:79 di Infomir. La maggior parte dei portali accetta solo quell'intervallo e rifiuta tutto il resto senza spiegarne il motivo.",
@@ -297,6 +298,7 @@
         "GENERAL": "Generale",
         "GENERAL_SUBTITLE": "Lingua, aspetto e avvio dell'app.",
         "PLAYBACK": "Riproduzione",
+        "SAVE_EPG_SOURCES": "Salva fonti EPG",
         "EPG_SOURCES": "Sorgenti EPG",
         "EPG_SOURCES_DESCRIPTION": "Aggiungi una o più sorgenti XMLTV: link remoti o file locali",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "{{enabled}} sorgenti EPG rilevate su {{detected}} nella playlist sono state selezionate automaticamente per l’importazione.",

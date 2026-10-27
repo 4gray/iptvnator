@@ -475,6 +475,13 @@ without being typed is the explicit import-time opt-in described under
 first. (The fixed MAG250 description `get_profile` reports is separate: it
 describes the emulated box, not the account — see "Reported device profile".)
 
+Import and Edit keep serial, device IDs, signatures and optional credentials
+in an “Additional provider settings” disclosure. Its controls stay mounted:
+folding it never clears or disables values. Prefilled/invalid values reveal it,
+as does import authentication feedback; clearing the last optional value does
+not close an editor the user is working in. Device-ID derivation remains an
+explicit import-only opt-in inside that disclosure.
+
 - User-provided `sn`, `device_id`, `device_id2`, `signature`, and `signature2`
   values are trimmed, persisted under the canonical `stalker*` playlist fields,
   and reused for initial auth, token refresh, retry auth, normal API requests,

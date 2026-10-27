@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "إعدادات إضافية لمزود الخدمة",
             "MAC_ADDRESS": "عنوان MAC",
             "MAC_ADDRESS_HINT": "التنسيق: 00:1A:79:XX:XX:XX — تُصحَّح الشرطات والنقاط والأحرف الصغيرة تلقائيًا.",
             "MAC_ADDRESS_OUI_HINT": "هذا العنوان خارج النطاق 00:1A:79 الخاص بشركة Infomir. ومعظم البوابات لا تقبل سوى هذا النطاق وترفض ما عداه دون بيان السبب.",
@@ -297,6 +298,7 @@
         "GENERAL": "عام",
         "GENERAL_SUBTITLE": "اللغة والمظهر وطريقة بدء التطبيق.",
         "PLAYBACK": "التشغيل",
+        "SAVE_EPG_SOURCES": "حفظ مصادر دليل البرامج",
         "EPG_SOURCES": "مصادر EPG",
         "EPG_SOURCES_DESCRIPTION": "أضف مصدر XMLTV واحدًا أو أكثر: روابط بعيدة أو ملفات محلية",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "تم تحديد {{enabled}} من أصل {{detected}} من مصادر EPG المكتشفة في قائمة التشغيل تلقائيًا للاستيراد.",

@@ -50,6 +50,7 @@ import {
     toStalkerImportFeedback,
     toStalkerPlaylistIdentityFields,
 } from './stalker-import-identity';
+import { RevealDetailsDirective } from '@iptvnator/ui/components/reveal-details';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 /**
@@ -65,6 +66,7 @@ interface StalkerSettledIdentity {
 
 @Component({
     imports: [
+        RevealDetailsDirective,
         FormsModule,
         MatCheckboxModule,
         MatFormFieldModule,
@@ -79,36 +81,7 @@ interface StalkerSettledIdentity {
     providers: [provideFormFieldDefaults()],
     templateUrl: './stalker-portal-import.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    styles: [
-        `
-            :host {
-                display: flex;
-                margin: 10px;
-                justify-content: center;
-            }
-
-            form {
-                width: 100%;
-            }
-
-            .loading-container {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .derive-device-ids {
-                margin: 4px 0 12px;
-            }
-
-            .derive-device-ids__note {
-                margin: 4px 0 0;
-                color: var(--mat-sys-on-surface-variant);
-                font-size: 12px;
-                line-height: 1.45;
-            }
-        `,
-    ],
+    styleUrl: './stalker-portal-import.component.scss',
 })
 export class StalkerPortalImportComponent {
     readonly addClicked = output<void>();
@@ -178,6 +151,22 @@ export class StalkerPortalImportComponent {
                 });
             }
         });
+    }
+
+    get hasAdvancedOptions(): boolean {
+        const c = this.form.controls;
+        return (
+            Boolean(this.feedback()) ||
+            [
+                c.serialNumber,
+                c.deviceId1,
+                c.deviceId2,
+                c.signature1,
+                c.signature2,
+                c.username,
+                c.password,
+            ].some((control) => Boolean(control.value) || control.invalid)
+        );
     }
 
     /**
