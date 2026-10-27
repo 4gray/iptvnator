@@ -3,87 +3,10 @@ import type { Playlist } from '@iptvnator/shared/interfaces';
 import type { PlaylistsService } from '@iptvnator/services';
 import type { createLogger } from '@iptvnator/portal/shared/util';
 import { STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS } from './stalker-watchdog.controller';
-import { stalkerIdentityFingerprint } from './stalker-identity.utils';
+import { stalkerSessionFingerprint } from '@iptvnator/shared/interfaces/stalker-session';
 import type { StalkerAuthenticationResult } from './stalker-auth.api';
 
-/**
- * Everything a Stalker session is bound to: the endpoint it was negotiated
- * against, the device identity, and the account credentials.
- *
- * All three halves matter, and each was a real defect when missing:
- *
- * - **Endpoint** — `ensureToken()` re-presents tokens in a handshake, so a
- *   playlist repointed at another portal would disclose the previous one's
- *   bearer token to it. Origin alone is not enough: discovery deliberately
- *   preserves tenant base paths (`/tenant-a/…` vs `/tenant-b/…`), which are
- *   different portals on one host. URL Basic-auth credentials are part of
- *   the endpoint authority too: an edited userinfo identity must not receive
- *   a token negotiated through the previous one.
- * - **Identity** — an edited MAC/serial must not inherit the old session.
- * - **Credentials** — for a status-2 portal the login decides which account
- *   the token represents, so changing it must not keep serving the previous
- *   account's session.
- *
- * Used for BOTH the in-run cache and the persisted session: an edit applies
- * without waiting for a restart.
- */
-export function stalkerSessionFingerprint(
-    playlist: Pick<
-        Playlist,
-        | 'portalUrl'
-        | 'macAddress'
-        | 'username'
-        | 'password'
-        | 'stalkerSerialNumber'
-        | 'stalkerDeviceId1'
-        | 'stalkerDeviceId2'
-        | 'stalkerSignature1'
-        | 'stalkerSignature2'
-    >
-): string {
-    return JSON.stringify([
-        portalEndpoint(playlist.portalUrl),
-        stalkerIdentityFingerprint(playlist as Playlist),
-        playlist.username ?? '',
-        playlist.password ?? '',
-    ]);
-}
-
-/**
- * Origin AND path, minus query/fragment — the endpoint a session belongs to.
- *
- * No attempt is made to treat different handler paths for the same portal
- * (`…/portal.php` vs `…/server/load.php`) as equivalent. Both sides of the
- * comparison read the SAME persisted `portalUrl`, so the same portal always
- * yields the same key; the value changes only on a real edit or repair, and
- * both of those re-authenticate anyway. An equivalence rule would add
- * machinery whose only failure mode is aliasing two genuinely different
- * endpoints — the exact thing this key exists to prevent.
- */
-function portalEndpoint(portalUrl: string | undefined): string {
-    if (!portalUrl) {
-        return '';
-    }
-    try {
-        const parsed = new URL(portalUrl);
-        const endpoint = `${parsed.origin}${parsed.pathname.replace(
-            /\/+$/,
-            ''
-        )}`;
-
-        // URL.origin deliberately omits userinfo. Preserve the legacy value
-        // for ordinary endpoints so an upgrade does not invalidate healthy
-        // sessions, while Basic-auth URLs bind the token to the exact accepted
-        // credentials. JSON avoids ambiguous delimiter collisions.
-        return parsed.username || parsed.password
-            ? JSON.stringify([endpoint, parsed.username, parsed.password])
-            : endpoint;
-    } catch {
-        // Unparseable: fall back to the raw string so a change is still a
-        // change — never to a constant, which would alias every endpoint.
-        return portalUrl;
-    }
-}
+export { stalkerSessionFingerprint } from '@iptvnator/shared/interfaces/stalker-session';
 
 /**
  * Session facts persisted with the playlist between app starts.

@@ -1104,3 +1104,71 @@ whose full PR CI passed. The existing source feature note and upstream UI
 notes cover this integration; no new release behavior is added. Run the local
 reviewers on the committed combined branch before pushing, then require fresh
 PR checks for that head rather than reusing the old CI verdict.
+
+### Review twenty-one: legacy channel identity and accepted Stalker sessions
+
+Codex found two reproducible regressions on
+`1275c1b96de3e13fd969f0f9656a056b10d9b5b4` after 165 focused tests passed.
+The missing Greptile CLI again exited 127. Continue under the user's explicit
+waiver of the five-round limit; do not push until the next committed review
+accepts the fixes.
+
+Legacy whole-document reads parsed raw uploads without assigning channel IDs.
+An established browser could adopt those rows and retain them because the raw
+text already matched. Use the canonical M3U channel normalizer on that API and
+derive stable IDs from source ID, ordinal and URL. Duplicate URLs remain
+distinct, and repeated reads of the same revision retain the same identities.
+Preserve the stored document's own metadata instead of the builder's defaults.
+The new regression fails before the fix and passes afterwards.
+
+Accepted Stalker connection edits previously materialized against the baseline
+connection and removed the Edit coordinator's freshly negotiated session.
+Session reconciliation now preserves a full-portal token/account/watchdog
+patch only when its canonical session fingerprint matches the accepted
+connection. Bare edits with obsolete sessions and remote connection edits
+still clear that metadata. Two local-edit regressions fail before the fix and
+pass afterwards; invalid-session cases continue passing.
+
+Move the unchanged canonical identity/session fingerprint functions into the
+narrow `@iptvnator/shared/interfaces/stalker-session` entry point, preserving
+their former data-access exports and persisted format. This avoids a services
+dependency on provider data access and a second fingerprint implementation.
+Source-session reconciliation loads lazily. The uncached production build
+passes at 1,200,250 / 1,200,301 initial bytes.
+
+Full owning coverage passes: services 1,005, web backend 243, shared interfaces
+671, Stalker data access 630 and Stalker feature 504 tests. Merged 36-project
+coverage passes unchanged gates at statements 84.98%, branches 76.02%, functions
+83.15%, lines 85.35%. Pre-commit health reports advisory same-name-spec warnings
+for the two former fingerprint owner files; their behavior is covered by the
+existing full provider suites and the canonical utility's direct tests. Do not
+add fake specs to silence those advisories.
+
+The native restart regression initially selected the current source's header
+label after restart, rather than its source-list row. The session-persistence
+assertions passed, and the row-scoped selector fixes that fixture failure. All
+12 existing mixed cases passed on that first run. The corrected restart case
+also passes against a real source backend and a fresh Electron main process.
+It verifies persisted token/fingerprint/cadence, successful reopening and
+absence of session fields from the shared source response. The production-PWA
+regression verifies distinct cached channel IDs after actual legacy adoption
+of another device's raw upload.
+
+The final combined runs pass all 13 mixed PWA/Electron cases and all 50
+selected production-PWA cases without retries. The first production run had
+passed 49 cases but exposed an existing sparse-Xtream fixture race: it left
+the VOD route before the returning catalog had hydrated. The corrected fixture
+serves the sparse returning movie as its catalog and waits for that actual
+browse row before navigating to collections. The focused case and combined
+run both pass with all recovery/backup assertions retained; no Xtream runtime
+behavior was changed.
+
+Web-backend and PWA builds pass, followed by the exact uncached production
+command and its 1,200,250-byte initial-payload gate. Owning lint, application/
+spec/E2E types, release notes and agent/skill guidance pass. The standalone
+web-E2E type check uses the ES2022 library matching the Node 22 runtime; its
+older configured library otherwise rejects an existing unrelated replaceAll
+call. Canonical self-hosted and Stalker contracts describe normalization,
+session reconciliation and the shared fingerprint owner. The existing feature
+release note covers these pre-delivery fixes. Review the committed branch again
+before pushing and require new CI for the final head.

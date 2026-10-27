@@ -168,6 +168,9 @@
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
             ],
+            "@iptvnator/shared/interfaces/stalker-session": [
+                "libs/shared/interfaces/src/lib/stalker-session-fingerprint.util.ts"
+            ],
             "@iptvnator/shared/interfaces/source-definition": [
                 "libs/shared/interfaces/src/lib/source-definition.util.ts"
             ],

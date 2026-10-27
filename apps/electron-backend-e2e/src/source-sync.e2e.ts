@@ -1,4 +1,5 @@
 import { setSourceStateWriteFailure } from './source-sync-sqlite-fault';
+import { verifySharedStalkerSessionEditing } from './source-sync-stalker-session';
 import { test, expect, type Page } from '@playwright/test';
 import {
     mkdtempSync,
@@ -36,6 +37,12 @@ test.skip(
     process.env['IPTVNATOR_E2E_SOURCE_SYNC'] !== '1',
     'Run with playwright.source-sync.config.ts'
 );
+
+test('retains a confirmed shared Stalker edit session across Electron restart @electron @stalker @persistence', async ({
+    request,
+}) => {
+    await verifySharedStalkerSessionEditing(request);
+});
 
 async function browserClient(page: Page, apiUrl: string, token = '') {
     await page.route('**/assets/app-config.js', (route) =>

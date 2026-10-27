@@ -707,6 +707,9 @@ outgrew the `max-lines` budget; never re-add it to the baseline):
 - `stalker-token-cache.ts` — the in-run token and pending-auth state, tagged
   with the identity fingerprint each session was negotiated for.
 - `stalker-session-store.ts` — the session persisted on the playlist row.
+- `@iptvnator/shared/interfaces/stalker-session` — canonical identity/session
+  fingerprints, also used by source-sync reconciliation. The former data-access
+  exports re-export these functions and preserve the persisted format.
 - `stalker-response-classification.ts` + `stalker-portal-error.ts` — failure
   detection and the typed `StalkerPortalError` the UI layers render.
 

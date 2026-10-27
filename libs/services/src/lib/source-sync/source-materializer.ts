@@ -25,12 +25,9 @@ export async function materializeSource(
     const connectionChanged =
         previous && !sameSource({ ...previous, title: source.title }, source);
     if (connectionChanged) {
-        delete next.stalkerToken;
-        delete next.stalkerSessionIdentity;
-        delete next.stalkerAccountInfo;
-        delete next.stalkerWatchdogTimeout;
-        delete next.stalkerTimeslot;
-        delete next.serverTimezone;
+        const { invalidateObsoleteSourceSession } =
+            await import('./source-stalker-session');
+        next = invalidateObsoleteSourceSession(next);
     }
     if (
         source.kind === 'm3u-text' &&

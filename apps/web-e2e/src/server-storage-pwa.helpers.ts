@@ -222,3 +222,78 @@ export async function verifySharedStalkerIdentityEditing(
         await page.context().close();
     }
 }
+
+/** An established browser may adopt an upload first created on another device. */
+export async function verifyLegacyUploadedChannelIdentity(
+    browser: Browser,
+    request: APIRequestContext
+): Promise<void> {
+    const page = await newServerPage(browser);
+    const id = 'legacy-shared-upload';
+    try {
+        expect(
+            (
+                await request.put(`${STORAGE_BACKEND_URL}/v1/sources/${id}`, {
+                    headers: { 'If-None-Match': '*' },
+                    data: {
+                        id,
+                        title: 'Legacy shared upload',
+                        kind: 'm3u-text',
+                        rawM3u: '#EXTM3U\n#EXTINF:-1,First\nhttps://media.test/same\n#EXTINF:-1,Second\nhttps://media.test/same',
+                    },
+                })
+            ).ok()
+        ).toBe(true);
+        const { instanceId } = await (
+            await request.get(`${STORAGE_BACKEND_URL}/v1/instance`)
+        ).json();
+        await page.addInitScript(
+            (owner) =>
+                localStorage.setItem('iptvnator-server:cache-owner', owner),
+            instanceId
+        );
+        await openSources(page);
+        await expect(
+            sourceRowByTitle(page, 'Legacy shared upload')
+        ).toBeVisible();
+        const channels = await page.evaluate(
+            ({ instanceId, id }) =>
+                new Promise<{ id?: string; name: string }[]>(
+                    (resolve, reject) => {
+                        const opening = indexedDB.open(
+                            `iptvnator-server:${instanceId}`
+                        );
+                        opening.onerror = () => reject(opening.error);
+                        opening.onsuccess = () => {
+                            const db = opening.result;
+                            const reading = db
+                                .transaction('playlists', 'readonly')
+                                .objectStore('playlists')
+                                .get(id);
+                            reading.onerror = () => {
+                                db.close();
+                                reject(reading.error);
+                            };
+                            reading.onsuccess = () => {
+                                db.close();
+                                resolve(reading.result.playlist.items);
+                            };
+                        };
+                    }
+                ),
+            { instanceId, id }
+        );
+        expect(channels.map((channel) => channel.name)).toEqual([
+            'First',
+            'Second',
+        ]);
+        expect(
+            channels.every(
+                (channel) => typeof channel.id === 'string' && channel.id
+            )
+        ).toBe(true);
+        expect(new Set(channels.map((channel) => channel.id)).size).toBe(2);
+    } finally {
+        await page.context().close();
+    }
+}

@@ -162,16 +162,22 @@ test('@xtream @collections absent saved items recover on sparse return without l
         });
         const response = await route.fetch({ url: mockUrl.toString() });
         const body = await response.json();
-        body.payload.push({
-            stream_id: 99999,
-            name: 'Sparse returning movie',
-            category_id: body.payload[0].category_id,
-            stream_type: 'movie',
-            container_extension: 'mp4',
-        });
+        body.payload = [
+            {
+                stream_id: 99999,
+                name: 'Sparse returning movie',
+                category_id: body.payload[0].category_id,
+                stream_type: 'movie',
+                container_extension: 'mp4',
+            },
+        ];
         await route.fulfill({ response, json: body });
     });
     await page.goto(`${playlistPath}/vod`);
+    // Leaving before hydration finishes can cancel the response under test.
+    await expect(
+        page.getByText('Sparse returning movie', { exact: true })
+    ).toBeVisible();
     await page
         .getByRole('link', { name: 'Global favorites', exact: true })
         .click();

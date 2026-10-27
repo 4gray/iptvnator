@@ -117,6 +117,9 @@ Clients send `X-IPTVnator-Instance-Id`; a different database identity returns
 `409 instance_changed` and requires reconnecting before source mutations.
 Whole-document reads materialize raw M3U uploads for existing clients such as
 TV; lightweight metadata and source inventories still exclude those bodies.
+Those reads use the canonical channel normalizer and deterministic per-source
+channel IDs, including distinct IDs for duplicate URLs. An established browser
+can therefore adopt an upload without retaining channels that lack lookup IDs.
 
 Server storage lives in `apps/web-backend/src/app/storage/`. With
 `IPTVNATOR_STORAGE=server`, `main.ts` opens the shared database through
@@ -229,6 +232,10 @@ Accepted connection or uploaded-body edits materialize the writing client's
 projection before storing the new revision. URL fetch failures keep the row
 pending and force a later inventory retry; title-only edits retain concurrent
 channel refreshes and local activity.
+Accepted Stalker edits retain their newly negotiated session only when its
+canonical fingerprint matches the accepted full-portal connection. Remote
+connection edits still clear obsolete session/account/watchdog metadata. The
+shared fingerprint check loads lazily with source-session reconciliation.
 Source IDs are the server's IDs in every local projection. Inventory views reuse
 the native payload-free metadata API. Browser metadata omits parsed/raw M3U
 and source baselines; opening a shared editor loads one complete local row

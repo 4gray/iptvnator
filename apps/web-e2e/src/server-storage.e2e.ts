@@ -4,6 +4,7 @@ import {
     seedBrowserPlaylist,
     verifyEditedSourceChannels,
     verifySharedStalkerIdentityEditing,
+    verifyLegacyUploadedChannelIdentity,
 } from './server-storage-pwa.helpers';
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './fixtures';
@@ -70,6 +71,13 @@ test.describe('server storage @self-hosted @persistence', () => {
         request,
     }) => {
         await verifySharedStalkerIdentityEditing(browser, request);
+    });
+
+    test('assigns distinct channel IDs when an established browser adopts a shared upload', async ({
+        browser,
+        request,
+    }) => {
+        await verifyLegacyUploadedChannelIdentity(browser, request);
     });
 
     test('opens the app and cached sources while URL materialization is pending', async ({
