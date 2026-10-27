@@ -13,6 +13,7 @@ on:
             - fix/m3u-epg-per-channel-exact
             - feat/m3u-poster-catalog-season-browser
             - feat/m3u-classification-playback-resilience
+            - feat/catalog-5-user-acceptance-fixes
     workflow_dispatch:
 
 concurrency:
@@ -51,6 +52,9 @@ jobs:
 
             - name: Test shared EPG matching utilities
               run: pnpm nx test shared-interfaces --runInBand --skip-nx-cache
+
+            - name: Test automatic EPG settings
+              run: pnpm nx test web --runInBand --skip-nx-cache --runTestsByPath apps/web/src/app/settings/settings-epg-section.component.spec.ts apps/web/src/app/settings/settings-form.utils.spec.ts
 
             - name: Test settings matching preferences
               run: pnpm nx test web --runInBand --skip-nx-cache --runTestsByPath apps/web/src/app/settings/settings-epg-section.component.spec.ts apps/web/src/app/settings/settings-form.utils.spec.ts
@@ -127,7 +131,7 @@ jobs:
             - name: Upload unsigned Windows installer
               uses: actions/upload-artifact@v7
               with:
-                  name: IPTVnator-M3U-Catalog-v0.25.0-catalog.4-Windows-x64
+                  name: IPTVnator-M3U-Catalog-v0.25.0-catalog.5-Windows-x64
                   path: dist/executables/**/*windows-x64-setup.exe
                   if-no-files-found: error
                   retention-days: 14
