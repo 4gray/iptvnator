@@ -104,7 +104,7 @@
     margin: 0 auto;
 
     &--active {
-        padding: 16px 40px 0;
+        padding: 16px 32px 0;
         animation: shell-fade-in 300ms ease 50ms both;
     }
 }
@@ -117,6 +117,10 @@
     &:empty {
         display: none;
     }
+}
+
+.shell__player--active + .shell__episodes:not(:empty) {
+    margin-top: 24px;
 }
 
 .shell__about {
@@ -166,9 +170,13 @@
     }
 }
 
-@media (max-width: 800px) {
+@container detail (max-width: 800px) {
     .shell__player--active {
-        padding: 8px 12px 0;
+        padding: 8px 20px 0;
+    }
+
+    .shell__player--active + .shell__episodes:not(:empty) {
+        margin-top: 16px;
     }
 
     .shell__episodes {
