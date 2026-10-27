@@ -41,6 +41,7 @@ import {
     createDevLogger,
 } from '@iptvnator/shared/interfaces';
 import { AppDateLocaleService } from './app-date-locales';
+import { EpgAutoRefreshService } from './services/epg-auto-refresh.service';
 import { SettingsService } from './services/settings.service';
 import { ParentalLockEnforcementService } from './services/parental-lock-enforcement.service';
 import { PlaybackKeepAwakeService } from './services/playback-keep-awake.service';
@@ -73,6 +74,7 @@ export class AppComponent implements OnInit {
     private readonly dateLocales = inject(AppDateLocaleService);
     private epgBridge = inject(EpgRuntimeBridgeService);
     private epgService = inject(EpgService);
+    private readonly epgAutoRefresh = inject(EpgAutoRefreshService);
     private snackBar = inject(LazySnackBar);
     private router = inject(Router);
     private store = inject(Store);
@@ -145,6 +147,7 @@ export class AppComponent implements OnInit {
         this.translate.setDefaultLang(this.DEFAULT_LANG);
 
         this.initSettings();
+        this.epgAutoRefresh.start();
         this.triggerAutoUpdatePlaylists();
     }
 
@@ -181,6 +184,8 @@ export class AppComponent implements OnInit {
                     // Fetch EPG if URLs are configured (only fetch stale data)
                     if (
                         this.epgBridge.supportsImport &&
+                        settings.epgAutoRefresh !== false &&
+                        settings.epgRefreshOnStartup !== true &&
                         settings.epgUrl?.length > 0 &&
                         settings.epgUrl?.some((u) => u !== '')
                     ) {
