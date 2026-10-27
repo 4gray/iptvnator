@@ -1005,8 +1005,12 @@ export class VideoPlayerComponent
                     ? state.openM3uChannelUrl.trim()
                     : '';
             const targetUrl = globalSearchTargetUrl || recentTargetUrl;
+            // Global Recent movie/episode cards also use this one-shot URL
+            // handoff, but open in Movies/Series rather than the All section.
             const canOpenGlobalSearchTarget =
-                !!globalSearchTargetUrl && currentView === 'all';
+                !!globalSearchTargetUrl &&
+                (currentView === 'all' || currentView === 'movies' ||
+                    currentView === 'series');
             const canOpenRecentTarget =
                 !!recentTargetUrl && currentView === 'recent';
 
