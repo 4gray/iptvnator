@@ -109,6 +109,8 @@ test('@sources @pwa gives the Stalker form the shared labels and a masked passwo
     await expect(
         dialog.getByRole('textbox', { name: 'MAC address', exact: true })
     ).toBeVisible();
+    await expect(dialog.locator('#password')).toBeHidden();
+    await dialog.locator('app-stalker-portal-import summary').click();
     await setInputValue(dialog.locator('#password'), 'secret');
     await expectPasswordToggle(dialog);
     await expect(

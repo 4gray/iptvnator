@@ -40,7 +40,8 @@
                     @if (supportsVisibility) {
                         <div class="bulk-actions">
                             <button
-                                mat-stroked-button
+                                mat-flat-button
+                    class="app-dialog__secondary app-dialog__secondary--sm"
                                 (click)="selectAll()"
                                 [disabled]="
                                     isSaving() ||
@@ -56,7 +57,8 @@
                                 }}
                             </button>
                             <button
-                                mat-stroked-button
+                                mat-flat-button
+                    class="app-dialog__secondary app-dialog__secondary--sm"
                                 (click)="deselectAll()"
                                 [disabled]="
                                     isSaving() || filteredSelectedCount() === 0

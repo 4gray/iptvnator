@@ -1,5 +1,5 @@
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import {
     Component,
     DestroyRef,
@@ -62,6 +62,7 @@ import {
     STALKER_PLAYLIST_CONNECTION_EDITOR,
     STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
 } from './stalker-playlist-connection-editor.token';
+import { RevealDetailsDirective } from '@iptvnator/ui/components/reveal-details';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import {
     DialogFooterDirective,
@@ -168,6 +169,8 @@ type DesktopFileSaveBridge = Pick<
     providers: [provideFormFieldDefaults(), DatePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        RevealDetailsDirective,
+        NgTemplateOutlet,
         DialogFooterDirective,
         DialogFooterStartDirective,
         DialogShellComponent,
@@ -399,6 +402,22 @@ export class PlaylistInfoComponent {
                 this.createPlaylistEpgSourceControl(),
             ]),
         });
+    }
+
+    get hasAdvancedStalkerOptions(): boolean {
+        return [
+            'stalkerSerialNumber',
+            'stalkerDeviceId1',
+            'stalkerDeviceId2',
+            'stalkerSignature1',
+            'stalkerSignature2',
+            'username',
+            'password',
+        ].some(
+            (key) =>
+                Boolean(this.playlistDetails.get(key)?.value) ||
+                this.playlistDetails.get(key)?.invalid
+        );
     }
 
     async saveChanges(playlist: PlaylistMeta): Promise<void> {

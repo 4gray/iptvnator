@@ -1,6 +1,7 @@
 <button
     type="button"
     class="sources-chip"
+    [class.sources-chip--secondary]="variant() === 'secondary'"
     [class.sources-chip--open]="isOpen()"
     cdkOverlayOrigin
     #trigger="cdkOverlayOrigin"

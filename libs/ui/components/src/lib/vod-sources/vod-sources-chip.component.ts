@@ -38,6 +38,7 @@ import { VodSourcesMenuComponent } from './vod-sources-menu.component';
     ],
 })
 export class VodSourcesChipComponent {
+    readonly variant = input<'default' | 'secondary'>('default');
     readonly sources = input.required<VodSourceDescriptor[]>();
     readonly title = input('');
     readonly matchKind = input<VodSourceMatchKind>('title-year');

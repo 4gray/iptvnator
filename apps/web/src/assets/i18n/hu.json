@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "További szolgáltatói beállítások",
             "MAC_ADDRESS": "MAC-cím",
             "MAC_ADDRESS_HINT": "Elvárt formátum: 00:1A:79:XX:XX:XX. A kötőjeles, pontokkal tagolt vagy kisbetűket tartalmazó MAC-címeket az alkalmazás automatikusan a megfelelő formátumra alakítja.",
             "MAC_ADDRESS_OUI_HINT": "Ez a MAC-cím kívül esik az Infomir 00:1A:79 kezdetű címtartományán. A legtöbb portál csak ebből a tartományból fogad el címeket, a többit pedig gyakran indoklás nélkül elutasítja.",
@@ -297,6 +298,7 @@
         "GENERAL": "Általános",
         "GENERAL_SUBTITLE": "Nyelv, megjelenés és az alkalmazás indítása.",
         "PLAYBACK": "Lejátszás",
+        "SAVE_EPG_SOURCES": "EPG-források mentése",
         "EPG_SOURCES": "EPG-források",
         "EPG_SOURCES_DESCRIPTION": "Egy vagy több XMLTV-forrás hozzáadása URL-cím vagy helyi fájl alapján",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "A lejátszási listában észlelt {{detected}} EPG-forrás közül a rendszer {{enabled}} forrást automatikusan kijelölt importálásra.",

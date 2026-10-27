@@ -222,6 +222,7 @@
             }
         },
         "STALKER_PORTAL": {
+            "ADDITIONAL_SETTINGS": "Weitere Anbietereinstellungen",
             "MAC_ADDRESS": "MAC-Adresse",
             "MAC_ADDRESS_HINT": "Format 00:1A:79:XX:XX:XX. Bindestriche, Punkte und Kleinbuchstaben werden automatisch korrigiert.",
             "MAC_ADDRESS_OUI_HINT": "Diese Adresse liegt außerhalb des Infomir-Bereichs 00:1A:79. Die meisten Portale akzeptieren nur diesen Bereich und lehnen alles andere ohne Begründung ab.",
@@ -297,6 +298,7 @@
         "GENERAL": "Allgemein",
         "GENERAL_SUBTITLE": "Sprache, Darstellung und Verhalten beim Start.",
         "PLAYBACK": "Wiedergabe",
+        "SAVE_EPG_SOURCES": "EPG-Quellen speichern",
         "EPG_SOURCES": "EPG-Quellen",
         "EPG_SOURCES_DESCRIPTION": "Eine oder mehrere XMLTV-Quellen hinzufügen: Links oder lokale Dateien",
         "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "{{enabled}} von {{detected}} erkannten EPG-Quellen der Wiedergabeliste wurden automatisch für den Import ausgewählt.",

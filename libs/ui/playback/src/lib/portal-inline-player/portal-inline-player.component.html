@@ -21,6 +21,7 @@
                 <div class="player-shell__actions">
                     @if (allSources().length > 1) {
                         <app-vod-sources-chip
+                            variant="secondary"
                             class="player-shell__sources"
                             [sources]="allSources()"
                             [count]="alternativeSources().length"
@@ -52,7 +53,7 @@
                         {{ 'PORTALS.COPY_STREAM_URL' | translate }}
                     </button>
                     <button
-                        mat-stroked-button
+                        mat-flat-button
                         type="button"
                         (click)="onClose()"
                     >

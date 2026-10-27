@@ -125,6 +125,9 @@
             "@iptvnator/ui/components/radio-group": [
                 "libs/ui/components/src/lib/radio-group/radio-group.directive.ts"
             ],
+            "@iptvnator/ui/components/reveal-details": [
+                "libs/ui/components/src/lib/reveal-details/reveal-details.directive.ts"
+            ],
             "@iptvnator/ui/components/window-controls": [
                 "libs/ui/components/src/lib/window-controls/window-controls.component.ts"
             ],

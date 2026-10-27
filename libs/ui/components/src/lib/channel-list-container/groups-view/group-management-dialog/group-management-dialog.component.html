@@ -17,7 +17,8 @@
             </div>
             <div class="bulk-actions">
                 <button
-                    mat-stroked-button
+                    mat-flat-button
+                    class="app-dialog__secondary app-dialog__secondary--sm"
                     (click)="selectAll()"
                     [disabled]="allSelected()"
                 >
@@ -25,7 +26,8 @@
                     {{ 'CHANNELS.GROUP_MANAGEMENT.SELECT_ALL' | translate }}
                 </button>
                 <button
-                    mat-stroked-button
+                    mat-flat-button
+                    class="app-dialog__secondary app-dialog__secondary--sm"
                     (click)="deselectAll()"
                     [disabled]="selectedCount() === 0"
                 >
