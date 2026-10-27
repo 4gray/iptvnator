@@ -1,6 +1,7 @@
 import {
     buildGlobalCollectionDetailNavigationTarget,
     getUnifiedCollectionNavigation,
+    OPEN_M3U_CHANNEL_URL_STATE_KEY,
     SeriesResumeTarget,
     STALKER_RETURN_TO_STATE_KEY,
     UnifiedCollectionItem,
@@ -69,6 +70,18 @@ export function buildCollectionPortalNavigation(
     item: UnifiedCollectionItem,
     routerUrl: string
 ): WorkspaceNavigationTarget | null {
+    // M3U movies/episodes are original playlist channels, not portal VOD
+    // entities. Reopen their owning media section with the exact stream URL
+    // rather than silently doing nothing from the Recently Viewed grid.
+    if (item.sourceType === 'm3u' && item.contentType !== 'live') {
+        const streamUrl = item.streamUrl?.trim();
+        if (!streamUrl || !item.playlistId) return null;
+        return {
+            link: ['/workspace', 'playlists', item.playlistId,
+                item.contentType === 'movie' ? 'movies' : 'series'],
+            state: { [OPEN_M3U_CHANNEL_URL_STATE_KEY]: streamUrl },
+        };
+    }
     const navigation = getUnifiedCollectionNavigation(item);
     if (!navigation) {
         return null;
