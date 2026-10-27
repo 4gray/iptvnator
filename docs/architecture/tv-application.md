@@ -26,6 +26,11 @@ relative assets for packaged `file://` launch. Runtime module inspection rejects
 Angular, NgRx, RxJS and Electron. TV client lint rejects Node/framework imports
 and existing domain/type constraints remain additive.
 
+Vite consumes the scoped paths from `tsconfig.base.json` in descending alias
+length, so configured sub-entrypoints resolve before a parent barrel. The
+Stalker client uses the shared `stalker-session` sub-entrypoint; `tv:verify-build`
+must continue to build this real graph and enforce the browser-only contract.
+
 ## Provider contract
 
 `ProviderClient` implements connection, paged catalogs/categories, metadata,

@@ -1323,3 +1323,38 @@ before forced restart. Production-PWA code and its validated 52 scenarios and
 1,200,284-byte initial payload are unchanged. The final mixed-runtime run passes
 all 16 scenarios together without retries (3.2 minutes), including both real
 player shutdown cases. Commit and run review twenty-five before pushing.
+
+### CI build compatibility and provider fixture readiness (review twenty-five)
+
+Codex review is clean on `290db4b1333a1d144dd50e42b7a8a4e6ef5dfb7e`,
+including 247 independently passed focused tests and web typechecking. The
+fresh CI round completes 29 checks successfully; its only failed check is the
+Tier B/C validation within the unit job. The TV Vite alias list matches the
+parent interfaces barrel before the newly configured `stalker-session`
+sub-entrypoint. The actual TV graph fails to bundle. Sorting the existing
+scoped aliases by specificity fixes the build without broadening public APIs
+or relaxing the classic-script, ES2018 or browser-only guards. The real build
+fails before the fix and passes afterwards; all Tier B/C commands and 11
+related TV E2E scenarios pass. TV lint and typechecking pass too.
+
+The same CI round's browser job passes with two retry-recovered fixture
+failures: Stalker global-favorite navigation and Xtream source editing. The
+Stalker helper now waits for the committed-write acknowledgement before its
+hard reload. The Xtream helper waits for the dialog's idle fieldset and its
+prefilled title before typing; a new assertion checks that title again before
+Save. The stronger check reproduced the old title returning before Save,
+rather than a persistence failure. All original post-save and reopen-field
+assertions remain. Both provider specs explicitly own their routed network
+requests, select the mock backend and answer its stateless instance probe so
+the same fixtures run on development and production-PWA builds. The separate
+real-Service-Worker stylesheet case remains enabled.
+
+All ten production-PWA repeat runs pass (five of each scenario, no retries).
+The final renderer runtime is unchanged from the reviewed head; all temporary
+diagnostics are removed. All 172 playlist UI tests pass with coverage. The
+36-project merged coverage remains 84.98% statements, 76.05% branches, 83.16%
+functions and 85.36% lines, with unchanged gates. Both full provider files pass
+all 72 production-PWA scenarios without retries (1.9 minutes). Owning lint,
+types and documentation/release-note validation pass. Commit this combined
+correction and run review twenty-six before the next push; fresh CI is still
+required for the eventual reviewed head.

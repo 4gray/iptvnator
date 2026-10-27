@@ -1,5 +1,6 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
+import { configureMockProviderBackend } from './provider-target-route';
 import {
     closeSeriesMenu,
     pressTab,
@@ -48,6 +49,9 @@ import {
 const EPG_USERNAME = 'epg';
 const EPG_PASSWORD = 'epg';
 
+// Keep provider-target and proxy requests under the fixture's page.route mocks.
+test.use({ serviceWorkers: 'block' });
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -75,6 +79,15 @@ async function openPlaylistDetailsDialog(page: Page, title: string) {
 
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
+    // A visible dialog can precede reactive-form setup/hydration. Filling
+    // its first input earlier lets the initial writeValue replace the edit.
+    await expect(dialog.locator('fieldset')).toHaveAttribute(
+        'aria-busy',
+        'false'
+    );
+    await expect(dialog.locator('input[formcontrolname="title"]')).toHaveValue(
+        title
+    );
     return dialog;
 }
 
@@ -84,6 +97,8 @@ async function openPlaylistDetailsDialog(page: Page, title: string) {
 
 test.beforeEach(async ({ page, request }) => {
     await request.post(`${MOCK_SERVER}/reset`);
+
+    await configureMockProviderBackend(page);
 
     // Playwright creates a fresh browser context per test, so extra
     // IndexedDB cleanup here only risks racing with app-managed DB handles.
@@ -549,6 +564,9 @@ test('@xtream playlist details edit is retained in the PWA browser context', asy
     await setInputValue(
         dialog.locator('input[formcontrolname="password"]'),
         'minimal'
+    );
+    await expect(dialog.locator('input[formcontrolname="title"]')).toHaveValue(
+        'Edited PWA Xtream Portal'
     );
     await dialog
         .locator('mat-dialog-actions')

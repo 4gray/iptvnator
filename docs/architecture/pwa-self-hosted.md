@@ -852,6 +852,13 @@ docker compose -f docker/docker-compose.yml config
 Run `docker build -t iptvnator:self-hosted-test -f docker/Dockerfile .` when a
 Docker daemon is available.
 
+Provider fixtures that use `page.route` must block Service Workers and select
+their mocked backend before navigation. An explicit runtime `BACKEND_URL`
+starts server discovery, so a stateless mock must answer `/v1/instance` with
+`storage: 'none'`. Wait for a prefilled editor to finish hydration before
+typing, and for the write acknowledgement before a hard reload. Keep the
+real-Service-Worker stylesheet test separate from these routed fixtures.
+
 For manual Docker smoke testing, run the Xtream and Stalker mock servers plus a
 small M3U fixture, then verify in the browser that M3U, Xtream, and Stalker can
 add sources, play an item, toggle favorites, populate global favorites,
