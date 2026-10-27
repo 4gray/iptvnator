@@ -293,7 +293,13 @@ when a source added since the last poll deduplicates during import.
 Browser profile writes coordinate through an instance-scoped Web Lock when
 available. IndexedDB projection and activity commits also read/modify/write
 atomically, preserving activity changed by another tab during a download even
-without Web Locks. Browser reads carry a local metadata snapshot: a stale
+without Web Locks. A projection captures the row's presence, source revision
+and pending state before materialization, then checks them inside its final
+write transaction. An already completed projection of the same revision is
+reused; a different revision or deletion rejects the obsolete download without
+advancing the collection revision. The next refresh retries against the current
+inventory. Activity-only changes still merge into the result.
+Browser reads carry a local metadata snapshot: a stale
 activity write raises `PlaylistWriteConflict`, and the existing playlist mutation
 retry re-reads and reapplies the edit. Source edits retain concurrent activity
 that the caller did not change. Title-only edits also retain a concurrent

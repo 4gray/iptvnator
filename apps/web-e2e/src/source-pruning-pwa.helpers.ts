@@ -1,4 +1,5 @@
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
+import type { Playlist } from '@iptvnator/shared/interfaces';
 import { expect } from './fixtures';
 import {
     newServerPage,
@@ -6,7 +7,7 @@ import {
 } from './server-storage-pwa.helpers';
 import { openSources, sourceRowByTitle } from './sources-pwa.helpers';
 
-async function cachedSource(
+export async function cachedSource(
     page: Page,
     instanceId: string,
     id: string,
@@ -14,37 +15,35 @@ async function cachedSource(
 ) {
     return page.evaluate(
         ({ instanceId, id, write }) =>
-            new Promise<{ favorites: string[] } | undefined>(
-                (resolve, reject) => {
-                    const opening = indexedDB.open(
-                        `iptvnator-server:${instanceId}`
+            new Promise<Playlist | undefined>((resolve, reject) => {
+                const opening = indexedDB.open(
+                    `iptvnator-server:${instanceId}`
+                );
+                opening.onerror = () => reject(opening.error);
+                opening.onsuccess = () => {
+                    const db = opening.result;
+                    const tx = db.transaction(
+                        'playlists',
+                        write ? 'readwrite' : 'readonly'
                     );
-                    opening.onerror = () => reject(opening.error);
-                    opening.onsuccess = () => {
-                        const db = opening.result;
-                        const tx = db.transaction(
-                            'playlists',
-                            write ? 'readwrite' : 'readonly'
-                        );
-                        const store = tx.objectStore('playlists');
-                        const reading = store.get(id);
-                        reading.onsuccess = () => {
-                            if (write) {
-                                reading.result.favorites = ['sibling-favorite'];
-                                store.put(reading.result);
-                            }
-                        };
-                        tx.oncomplete = () => {
-                            db.close();
-                            resolve(reading.result);
-                        };
-                        tx.onabort = tx.onerror = () => {
-                            db.close();
-                            reject(tx.error);
-                        };
+                    const store = tx.objectStore('playlists');
+                    const reading = store.get(id);
+                    reading.onsuccess = () => {
+                        if (write) {
+                            reading.result.favorites = ['sibling-favorite'];
+                            store.put(reading.result);
+                        }
                     };
-                }
-            ),
+                    tx.oncomplete = () => {
+                        db.close();
+                        resolve(reading.result);
+                    };
+                    tx.onabort = tx.onerror = () => {
+                        db.close();
+                        reject(tx.error);
+                    };
+                };
+            }),
         { instanceId, id, write }
     );
 }

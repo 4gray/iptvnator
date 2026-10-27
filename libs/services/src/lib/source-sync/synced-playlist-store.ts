@@ -9,7 +9,10 @@ import {
     sameSource,
     sourceFromPlaylist,
 } from '@iptvnator/shared/interfaces/source-definition';
-import type { PlaylistDocumentStore } from '../playlist-storage-backend';
+import {
+    PlaylistWriteConflict,
+    type PlaylistDocumentStore,
+} from '../playlist-storage-backend';
 import { retainSourceProjection } from './retain-source-projection';
 import {
     snapshotSourceRow,
@@ -64,12 +67,29 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
         const next = await this.materialize(source, current ?? undefined);
         next.sourceSyncBase = source;
         next.sourceSyncRevision = revision;
+        const merge = (latest: Playlist | null) => {
+            // Another tab may have projected or deleted this source while its
+            // URL was downloading. Activity-only writes still merge below.
+            if (
+                !!latest !== !!current ||
+                latest?.sourceSyncRevision !== current?.sourceSyncRevision ||
+                latest?.sourceSyncPending !== current?.sourceSyncPending
+            ) {
+                if (
+                    latest?.sourceSyncRevision === revision &&
+                    !latest.sourceSyncPending
+                )
+                    return latest;
+                throw new PlaylistWriteConflict(source.id);
+            }
+            return latest ? retainSourceProjection(next, latest) : next;
+        };
         const projected = this.local.dbMutateAppPlaylist
-            ? await this.local.dbMutateAppPlaylist(source.id, (latest) =>
-                  latest ? retainSourceProjection(next, latest) : next
-              )
-            : (await this.local.dbUpsertAppPlaylist(next), next);
-        if (next.sourceSyncPending) this.pendingSources.add(source.id);
+            ? await this.local.dbMutateAppPlaylist(source.id, merge)
+            : merge(await this.local.dbGetAppPlaylist(source.id));
+        if (!this.local.dbMutateAppPlaylist)
+            await this.local.dbUpsertAppPlaylist(projected);
+        if (projected.sourceSyncPending) this.pendingSources.add(source.id);
         else this.pendingSources.delete(source.id);
         return projected;
     }

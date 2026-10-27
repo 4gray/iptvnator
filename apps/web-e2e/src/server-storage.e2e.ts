@@ -8,6 +8,10 @@ import {
 } from './server-storage-pwa.helpers';
 import { readFile } from 'node:fs/promises';
 import { verifyConcurrentSourcePruning } from './source-pruning-pwa.helpers';
+import {
+    verifyCachedSourcesDuringMaterialization,
+    verifyConcurrentSourceProjection,
+} from './source-projection-pwa.helpers';
 import { verifyDelayedBrowserSourceRefresh } from './source-refresh-pwa.helpers';
 import { expect, test } from './fixtures';
 import {
@@ -96,74 +100,20 @@ test.describe('server storage @self-hosted @persistence', () => {
         await verifyDelayedBrowserSourceRefresh(browser, request);
     });
 
+    for (const change of ['edit', 'delete'] as const) {
+        test(`discards an older inventory download after a sibling ${change} without Web Locks`, async ({
+            browser,
+            request,
+        }) => {
+            await verifyConcurrentSourceProjection(browser, request, change);
+        });
+    }
+
     test('opens the app and cached sources while URL materialization is pending', async ({
         browser,
         request,
     }) => {
-        const page = await newServerPage(browser);
-        const id = 'slow-projection';
-        const title = 'Slow shared URL';
-        const provider = `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}`;
-        const put = (url: string) =>
-            request.put(`${STORAGE_BACKEND_URL}/v1/playlists/${id}`, {
-                data: { _id: id, title, url },
-            });
-        expect((await put(`${provider}/playlist.m3u`)).ok()).toBe(true);
-        let release!: () => void;
-        let started!: () => void;
-        let gate: Promise<void>;
-        let providerStarted: Promise<void>;
-        const hold = () => {
-            gate = new Promise<void>((resolve) => {
-                release = resolve;
-            });
-            providerStarted = new Promise<void>((resolve) => {
-                started = resolve;
-            });
-        };
-        hold();
-        await page.route(`${STORAGE_BACKEND_URL}/parse?*`, async (route) => {
-            started();
-            await gate;
-            await route.fulfill({
-                json: {
-                    header: { raw: '#EXTM3U', attrs: {} },
-                    items: [
-                        {
-                            name: 'Cached channel',
-                            url: 'https://streams.test/live.ts',
-                        },
-                    ],
-                },
-            });
-        });
-        try {
-            await page.goto('/workspace/sources');
-            await providerStarted!;
-            await page
-                .locator('[data-test-id="source-sync-status"]')
-                .getByRole('link', { name: 'Server', exact: true })
-                .click();
-            await expect(page).toHaveURL(/\/workspace\/settings\/server/);
-            await expect(
-                page.locator('app-settings-server-section')
-            ).toBeVisible();
-            release();
-            await page.locator('a[href="/workspace/sources"]').first().click();
-            await expect(sourceRowByTitle(page, title)).toBeVisible();
-            expect((await put(`${provider}/changed.m3u`)).ok()).toBe(true);
-            hold();
-            await page.reload();
-            await providerStarted!;
-            await expect(sourceRowByTitle(page, title)).toBeVisible();
-            await expect(
-                page.getByRole('link', { name: 'Open settings', exact: true })
-            ).toBeVisible();
-            release();
-        } finally {
-            release();
-            await page.context().close();
-        }
+        await verifyCachedSourcesDuringMaterialization(browser, request);
     });
 
     test('keeps a newer disconnect from another tab when pending discovery recovers', async ({
