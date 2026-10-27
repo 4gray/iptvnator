@@ -15,7 +15,7 @@ import {
     PlaylistsService,
     SettingsStore,
 } from '@iptvnator/services';
-import { Playlist } from '@iptvnator/shared/interfaces';
+import { Channel, Playlist } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
     ResolvedLiveCollectionDetail,
@@ -89,6 +89,40 @@ describe('StreamResolverService', () => {
         });
 
         service = TestBed.inject(StreamResolverService);
+    });
+
+    it('uses First Exact XMLTV names for global Favorites/Recent even with duplicate raw tvg-id', async () => {
+        const ch = (name: string, id: string): Channel => ({
+            id, name, url: 'https://example.invalid/' + id + '.m3u8',
+            group: { title: 'Live TV' },
+            tvg: { id: 'shared-wrong-id', name, url: '', logo: '', rec: '' },
+            http: { referrer: '', 'user-agent': '', origin: '' },
+            radio: 'false', epgParams: '',
+        });
+        const bbc = ch('BBC EARTH HD', 'bbc-hd');
+        const aHaber = ch('A HABER HD', 'a-haber');
+        epgBridge.getEpgChannels = jest.fn().mockResolvedValue({
+            channels: [
+                { id: 'bbc-xmltv', displayName: 'BBC EARTH HD' },
+                { id: 'ahaber-xmltv', displayName: 'A HABER HD' },
+            ], programs: [],
+        });
+        (epgBridge.getChannelPrograms as jest.Mock).mockImplementation(async (key: string) => [{
+            channel: key, title: key, desc: null, category: null,
+            start: new Date(Date.now() - 60_000).toISOString(),
+            stop: new Date(Date.now() + 60_000).toISOString(),
+        }]);
+        const items: UnifiedCollectionItem[] = [bbc, aHaber].map(channel => ({
+            uid: 'm3u::demo::' + channel.id,
+            name: channel.name, sourceType: 'm3u' as const,
+            contentType: 'live' as const, playlistId: 'demo',
+            playlistName: 'Demo', m3uChannel: channel,
+            streamUrl: channel.url, tvgId: 'shared-wrong-id',
+        }));
+        const programs = await service.loadEpgForItems(items);
+        expect(programs.get(items[0].uid)?.title).toBe('bbc-xmltv');
+        expect(programs.get(items[1].uid)?.title).toBe('ahaber-xmltv');
+        expect(epgBridge.getChannelPrograms).not.toHaveBeenCalledWith('shared-wrong-id');
     });
 
     it('returns M3U live detail with the full channel and raw EPG programs', async () => {
