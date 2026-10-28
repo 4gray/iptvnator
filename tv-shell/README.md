@@ -303,6 +303,10 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   each of them costs a frame of work per screen refresh on a Stick. To compare,
   run `localStorage.setItem('tvshell.fullMotion', '1')` in the WebView console
   (`chrome://inspect`) and reload; `removeItem` turns them off again.
+- **An HLS channel misbehaves with the HTML5 or ArtPlayer engine only**: those
+  engines demux MPEG-TS in hls.js's worker. `localStorage.setItem(
+  'iptvnator.hlsInlineTransmux', '1')` and a reload keep it on the page's
+  thread, as before, to compare.
 
 ### Remote
 

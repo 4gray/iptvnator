@@ -676,8 +676,8 @@ bottom padding stand in for the rows left out, so the host keeps the full
 grid's `scrollHeight`: the infinite-scroll near-end check, the store's
 growing `visibleCount` and the saved `scrollTop` restore work unchanged. The
 `@for` tracks the item identity (`id`, `stream_id`, `series_id`,
-`xtream_id`, else the item object) so the focused card survives a window
-shift. A held D-pad key
+`xtream_id`, else the item's absolute position) so the focused card survives
+a window shift and a consumer that re-maps its items. A held D-pad key
 scrolls faster than a slow TV renders frames, so a capture `keydown` listener
 re-reads the offset and renders the window synchronously before the remote
 layer looks for the next row. Spacers assume one row height, so

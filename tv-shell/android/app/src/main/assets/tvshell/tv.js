@@ -107,9 +107,10 @@
         // and the app moves on), but as a cut: no 700 ms crossfade, no 8 s zoom of a full-width image,
         // no entrance animation, and the dot fills in one step. An idle home screen then draws about
         // one frame a second instead of sixty.
-        'html.tv-shell .hero__dot-fill::before{animation-timing-function:steps(1,end)!important}' +
-        'html.tv-shell .hero__content{animation:none!important}' +
-        'html.tv-shell .hero__backdrop,html.tv-shell .hero__backdrop-image{transition:none!important}';
+        // (Scoped to its host: the detail page's hero uses the same class names.)
+        'html.tv-shell lib-dashboard-hero .hero__dot-fill::before{animation-timing-function:steps(1,end)!important}' +
+        'html.tv-shell lib-dashboard-hero .hero__content{animation:none!important}' +
+        'html.tv-shell lib-dashboard-hero .hero__backdrop,html.tv-shell lib-dashboard-hero .hero__backdrop-image{transition:none!important}';
 
     /** Kill switch for the motion rules: localStorage['tvshell.fullMotion'] = '1', then reload.
      *  Added in October 2026; remove it two releases later if nobody needs it. */
