@@ -133,8 +133,13 @@ export function measureGridGeometry(
         return null;
     }
 
+    const first = cards[0].getBoundingClientRect();
+    if (!(first.height > 0)) {
+        // display:none ancestor: no boxes, but the styles still resolve.
+        return null;
+    }
     const gridStyle = view.getComputedStyle(grid);
-    const firstTop = cards[0].getBoundingClientRect().top;
+    const firstTop = first.top;
     const columns = countColumns(gridStyle.gridTemplateColumns, cards);
     const rowPitch =
         cards.length > columns

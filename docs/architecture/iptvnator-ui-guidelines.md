@@ -676,14 +676,20 @@ bottom padding stand in for the rows left out, so the host keeps the full
 grid's `scrollHeight`: the infinite-scroll near-end check, the store's
 growing `visibleCount` and the saved `scrollTop` restore work unchanged. The
 `@for` tracks the item identity (`id`, `stream_id`, `series_id`,
-`xtream_id`) so the focused card survives a window shift. A held D-pad key
+`xtream_id`, else the item object) so the focused card survives a window
+shift. A held D-pad key
 scrolls faster than a slow TV renders frames, so a capture `keydown` listener
 re-reads the offset and renders the window synchronously before the remote
 layer looks for the next row. Spacers assume one row height, so
 `.grid-list--windowed` turns `content-visibility` off on the cards and
 reserves both title lines. Outside the shell the grid renders every item with
-`track $index`, unchanged. Kill switch:
-`localStorage['grid-list:windowing'] = 'off'`.
+`track $index`, unchanged. A hidden grid (`display: none` ancestor) has no
+geometry and keeps its last window. Rows that re-enter the window re-create
+their `<img>`: posters a provider serves as cacheable come from the disk
+cache, while `no-store` artwork on a slow link shows blank for about the
+request time when scrolling back. Kill switch:
+`localStorage['grid-list:windowing'] = 'off'`; added October 2026, remove it
+two releases later.
 
 ## EPG Views
 

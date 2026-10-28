@@ -1,6 +1,9 @@
 ---
 type: perf
-area: tv
+area: tv-shell
 ---
 
-On the TV, long movie and series categories stay quick to browse with the remote: the poster grid now keeps only the rows around the screen instead of every poster scrolled past, so each press no longer slows down as you go deeper.
+On the TV, long movie and series categories stay quick to browse with the
+remote: the poster grid renders only the rows around the screen, so a press
+no longer slows down the deeper you go (about 0.02 s per press instead of
+0.17 s once 2000 titles are loaded).
