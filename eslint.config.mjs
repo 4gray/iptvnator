@@ -273,6 +273,41 @@ export default [
         },
     },
     {
+        // The lazy /workspace route is entered at every start: these barrels would
+        // put the web players (video.js, hls.js, mpegts.js, ArtPlayer, ~2.7 MB) on it.
+        files: ['libs/workspace/shell/feature/src/**/*.ts'],
+        ignores: ['**/*.spec.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    paths: [
+                        ...legacyBareAliases.map((name) => ({
+                            name,
+                            message:
+                                'Use the scoped @iptvnator/* path alias instead of the legacy bare alias.',
+                        })),
+                        {
+                            name: '@iptvnator/ui/playback',
+                            message:
+                                'The workspace shell loads at every start: import @iptvnator/ui/playback/embedded-mpv-player; the barrel adds the web players.',
+                        },
+                        {
+                            name: '@iptvnator/portal/shared/ui',
+                            message:
+                                'The workspace shell loads at every start: use a file-level entry (e.g. @iptvnator/portal/shared/ui/global-favorites-list); the barrel adds the web players.',
+                        },
+                    ],
+                    patterns: legacyBareAliases.map((name) => ({
+                        group: [`${name}/*`],
+                        message:
+                            'Use the scoped @iptvnator/* path alias instead of the legacy bare alias.',
+                    })),
+                },
+            ],
+        },
+    },
+    {
         files: ['apps/tv/src/**/*.{ts,tsx}', 'libs/tv/**/*.{ts,tsx}'],
         ignores: ['**/testing/**'],
         rules: {
