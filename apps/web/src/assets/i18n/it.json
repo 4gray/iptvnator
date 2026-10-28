@@ -10,7 +10,7 @@
     "SHOW_LESS": "Meno",
     "PLAYLISTS": "Playlist",
     "HOME": {
-        "TITLE": "IPTVnator",
+        "TITLE": "NatorTV",
         "SUBTITLE": "Seleziona una playlist dall'elenco o aggiungi una nuova playlist tramite caricamento del file o tramite URL",
         "TABS": {
             "RECENTLY_ADDED": "Playlist aggiunte di recente",
@@ -26,7 +26,7 @@
             "UNTITLED_PLAYLIST": "Playlist senza titolo",
             "PLAYLIST_ACTIONS": "Azioni playlist",
             "ADD_FIRST": "Aggiungi la tua prima playlist dall'altra scheda",
-            "WELCOME_TITLE": "Benvenuto in IPTVnator",
+            "WELCOME_TITLE": "Benvenuto in NatorTV",
             "WELCOME_DESCRIPTION": "Inizia il tuo viaggio nello streaming aggiungendo la tua prima playlist. Connettiti al tuo servizio IPTV preferito e goditi TV in diretta, film e serie.",
             "ADD_YOUR_FIRST": "Aggiungi la tua prima playlist",
             "FEATURE_M3U": "File M3U/M3U8",
@@ -192,7 +192,7 @@
             "ERROR_TLS_HOST_UNKNOWN": "Impossibile determinare l’host della playlist. Riprova manualmente.",
             "TRUST_TLS_HOST": "Considera attendibile l’host",
             "TRUST_TLS_HOST_TITLE": "Considerare attendibile un certificato non valido?",
-            "TRUST_TLS_HOST_WARNING": "Continua solo se ti fidi di questo host della playlist. IPTVnator consentirà certificati TLS non validi per questo host, ma gli altri host richiederanno comunque certificati validi."
+            "TRUST_TLS_HOST_WARNING": "Continua solo se ti fidi di questo host della playlist. NatorTV consentirà certificati TLS non validi per questo host, ma gli altri host richiederanno comunque certificati validi."
         },
         "TEXT_IMPORT": {
             "LABEL": "Inserisci playlist m3u(8) come testo"
@@ -321,7 +321,7 @@
         "NAV_SERVER": "Server",
         "SERVER_DESCRIPTION": "Playlist, preferiti e avanzamento della visione sono salvati su questo server e condivisi da ogni dispositivo che lo apre.",
         "SERVER_CONNECTION": "Connessione",
-        "SERVER_CONNECTION_DESCRIPTION": "Il server IPTVnator su cui salva questa app.",
+        "SERVER_CONNECTION_DESCRIPTION": "Il server NatorTV su cui salva questa app.",
         "SERVER_CONNECTED": "Connesso",
         "SERVER_OFFLINE": "Non disponibile",
         "SERVER_STORAGE": "Archiviazione",
@@ -388,7 +388,7 @@
         "TMDB_ATTRIBUTION": "Questo prodotto utilizza l'API di TMDB ma non è approvato né certificato da TMDB.",
         "APP_PREFERENCES": "Preferenze app",
         "HERO_EYEBROW": "Impostazioni area di lavoro",
-        "HERO_TITLE": "Modella IPTVnator come preferisci",
+        "HERO_TITLE": "Modella NatorTV come preferisci",
         "HERO_DESCRIPTION": "Regola riproduzione, guida TV, accesso remoto e gestione dati da un unico posto senza perdere lo stile attuale dell'area di lavoro.",
         "SUBTITLE": "Modifica la configurazione dell'applicazione",
         "DESCRIPTION": "Configura le opzioni nell'elenco sottostante e conferma con 'Salva modifiche'",
@@ -446,7 +446,7 @@
         "EPG_SOURCE_FORMATS_EXAMPLES": "Esempi:",
         "VIDEO_PLAYER_DESCRIPTION": "Seleziona lettore video predefinito",
         "WEB_PLAYER_SHARED_CONTROLS": "Controlli unificati per i player web",
-        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Usa i controlli condivisi di IPTVnator in HTML5, Video.js e ArtPlayer.",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Usa i controlli condivisi di NatorTV in HTML5, Video.js e ArtPlayer.",
         "PLAYER_AMBIENT_MODE": "Riempimento ambientale dello sfondo",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Riempie lo spazio intorno al lettore con un poster sfocato e scurito invece delle semplici barre nere.",
         "PLAY_TRAILERS_IN_BACKGROUND": "Riproduci i trailer sullo sfondo dei dettagli",
@@ -477,7 +477,7 @@
         "EPG_VIEW_MODE_TIMELINE": "Timeline",
         "EPG_VIEW_MODE_LIST": "Elenco",
         "STARTUP_BEHAVIOR": "Vista all'avvio",
-        "STARTUP_BEHAVIOR_DESCRIPTION": "Scegli se IPTVnator apre la prima vista dell'area di lavoro disponibile o ripristina l'ultima vista a livello di sezione. La prima vista è la dashboard se attiva, altrimenti Sorgenti.",
+        "STARTUP_BEHAVIOR_DESCRIPTION": "Scegli se NatorTV apre la prima vista dell'area di lavoro disponibile o ripristina l'ultima vista a livello di sezione. La prima vista è la dashboard se attiva, altrimenti Sorgenti.",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "Prima vista disponibile",
         "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "Ripristina ultima vista",
         "STARTUP_WINDOW_MODE": "Finestra all'avvio",
@@ -504,7 +504,7 @@
         "SUPPORT_DESCRIPTION": "IPTVnator è gratuito e open source, sviluppato in modo aperto. Se fa parte della tua routine quotidiana, un piccolo contributo aiuta a mantenere vivo il progetto e a definire i prossimi sviluppi — grazie.",
         "SUPPORT_SPONSORS_HINT": "Ricorrente o una tantum",
         "SUPPORT_KOFI_HINT": "Offrimi un caffè",
-        "EPG_NOTE": "Al momento l’EPG è disponibile solo nella versione di IPTVnator basata su Electron.",
+        "EPG_NOTE": "Al momento l’EPG è disponibile solo nella versione di NatorTV basata su Electron.",
         "EPG_NOTE_URL_TEXT": "Controlla qui",
         "IMPORT_EXPORT_DATA": "Importa/esporta playlist",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "Esporta o ripristina copie di sicurezza delle playlist, inclusi snapshot M3U, metadati di connessione Xtream/Stalker, stato utente e URL delle sorgenti EPG.",
@@ -534,10 +534,10 @@
         "PLAYLISTS_REMOVED": "Tutte le playlist e i dati delle playlist sono stati rimossi.",
         "MPV_PLAYER_PATH_LABEL": "Percorso mpv",
         "MPV_PLAYER_PATH_DESCRIPTION": "Imposta il percorso di MPV. Su macOS puoi usare il bundle dell’app MPV, come /Applications/mpv.app, oppure il percorso dell’eseguibile.",
-        "MPV_COMPATIBLE_PLAYER_TIP": "IINA può essere avviato come player compatibile con MPV su macOS, ma usa il suo percorso eseguibile, come /Applications/IINA.app/Contents/MacOS/iina-cli o /Applications/IINA.app/Contents/MacOS/IINA. I controlli di IPTVnator, il polling della posizione e il riuso dell’istanza sono garantiti solo con MPV IPC.",
+        "MPV_COMPATIBLE_PLAYER_TIP": "IINA può essere avviato come player compatibile con MPV su macOS, ma usa il suo percorso eseguibile, come /Applications/IINA.app/Contents/MacOS/iina-cli o /Applications/IINA.app/Contents/MacOS/IINA. I controlli di NatorTV, il polling della posizione e il riuso dell’istanza sono garantiti solo con MPV IPC.",
         "MPV_PLAYER_PATH": "percorso riproduttore mpv",
         "MPV_PLAYER_ARGUMENTS_LABEL": "Argomenti da riga di comando mpv",
-        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "Argomenti opzionali passati a mpv quando IPTVnator avvia un nuovo processo di player esterno.",
+        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "Argomenti opzionali passati a mpv quando NatorTV avvia un nuovo processo di player esterno.",
         "MPV_PLAYER_ARGUMENTS": "Argomenti mpv",
         "MPV_REUSE_INSTANCE_LABEL": "Riutilizza istanza MPV",
         "MPV_REUSE_INSTANCE_DESCRIPTION": "Quando attivo, la stessa finestra MPV viene riutilizzata per riprodurre stream diversi. Quando disattivo, ogni stream viene aperto in una nuova finestra MPV.",
@@ -549,9 +549,9 @@
         "VLC_PLAYER_PATH_DESCRIPTION": "Imposta il percorso di VLC. Su macOS puoi usare il bundle dell’app VLC, come /Applications/VLC.app, oppure il percorso dell’eseguibile.",
         "VLC_PLAYER_PATH": "Percorso player VLC",
         "VLC_PLAYER_ARGUMENTS_LABEL": "Argomenti da riga di comando VLC",
-        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "Argomenti opzionali passati a VLC quando IPTVnator avvia un nuovo processo di player esterno.",
+        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "Argomenti opzionali passati a VLC quando NatorTV avvia un nuovo processo di player esterno.",
         "VLC_PLAYER_ARGUMENTS": "Argomenti VLC",
-        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "Usa un argomento per riga. Questi valori vengono applicati prima delle opzioni IPTVnator specifiche dello stream.",
+        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "Usa un argomento per riga. Questi valori vengono applicati prima delle opzioni NatorTV specifiche dello stream.",
         "VLC_REUSE_INSTANCE_LABEL": "Riutilizza istanza VLC",
         "VLC_REUSE_INSTANCE_DESCRIPTION": "Quando attivo, la stessa finestra VLC viene riutilizzata per riprodurre stream diversi. Quando disattivo, ogni stream viene aperto in una nuova finestra VLC.",
         "REMOTE_CONTROL": "Telecomando",
@@ -675,12 +675,12 @@
         "MIGRATION_FAILED": "Spostamento non riuscito. Le tue playlist sono ancora in questo browser; riprova da Impostazioni → Server.",
         "MIGRATION_RELOAD": "Ricarica",
         "SIGN_IN_TITLE": "Token di accesso richiesto",
-        "SIGN_IN_DESCRIPTION": "Questo server IPTVnator chiede un token di accesso prima di mostrare le tue playlist.",
+        "SIGN_IN_DESCRIPTION": "Questo server NatorTV chiede un token di accesso prima di mostrare le tue playlist.",
         "SIGN_IN_TOKEN_LABEL": "Token di accesso",
         "SIGN_IN_HINT": "Lo trovi nell’impostazione IPTVNATOR_ACCESS_TOKEN del server.",
         "SIGN_IN_REJECTED": "Token rifiutato. Controllalo e riprova.",
         "SIGN_IN_UNREACHABLE": "Impossibile raggiungere il server. Controlla la connessione e riprova.",
-        "SIGN_IN_STORAGE": "Questo browser non consente a IPTVnator di salvare il token. Consenti i dati del sito per questa pagina e riprova.",
+        "SIGN_IN_STORAGE": "Questo browser non consente a NatorTV di salvare il token. Consenti i dati del sito per questa pagina e riprova.",
         "SIGN_IN_CONTINUE": "Continua",
         "STATUS_ONLINE": "Server connesso",
         "STATUS_OFFLINE": "Server non disponibile",
@@ -1046,10 +1046,10 @@
         "RETRY": "Riprova",
         "ALLOW_PRIVATE_SOURCE": "Consenti sorgente",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Consentire una sorgente EPG di rete privata?",
-        "ALLOW_PRIVATE_SOURCE_WARNING": "Consentilo solo se ti fidi della sorgente EPG. IPTVnator permetterà a questo esatto URL EPG di connettersi a indirizzi di rete privati o locali.",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Consentilo solo se ti fidi della sorgente EPG. NatorTV permetterà a questo esatto URL EPG di connettersi a indirizzi di rete privati o locali.",
         "TRUST_TLS_HOST": "Considera attendibile l’host",
         "TRUST_TLS_HOST_TITLE": "Considerare attendibile un certificato non valido?",
-        "TRUST_TLS_HOST_WARNING": "Continua solo se ti fidi di questo host. IPTVnator consentirà certificati TLS non validi per questo host, ma gli altri host richiederanno comunque certificati validi.",
+        "TRUST_TLS_HOST_WARNING": "Continua solo se ti fidi di questo host. NatorTV consentirà certificati TLS non validi per questo host, ma gli altri host richiederanno comunque certificati validi.",
         "CURRENT_PROGRAM": "Programma attuale",
         "ARCHIVE_PLAYBACK": "Riproduzione archivio",
         "COLLAPSE_PANEL": "Comprimi pannello EPG",
@@ -1625,7 +1625,7 @@
         "STOP_RECORDING": "Interrompi registrazione",
         "REMOVE_RECORDING_DIALOG": {
             "TITLE": "Rimuovere la registrazione dal gestore?",
-            "MESSAGE": "L'elemento viene rimosso da IPTVnator. Il file registrato rimane su disco."
+            "MESSAGE": "L'elemento viene rimosso da NatorTV. Il file registrato rimane su disco."
         },
         "RECORDING_DETAIL": {
             "PROGRAMS": "Programmi registrati",
@@ -1636,7 +1636,7 @@
         "REMOVE_FROM_MANAGER": "Rimuovi dal gestore download",
         "REMOVE_COMPLETED_DIALOG": {
             "TITLE": "Rimuovere dal gestore download?",
-            "MESSAGE": "Questo rimuove la voce da IPTVnator. Il file multimediale scaricato resta sul disco."
+            "MESSAGE": "Questo rimuove la voce da NatorTV. Il file multimediale scaricato resta sul disco."
         },
         "REMOVE_PARTIAL_DIALOG": {
             "TITLE": "Rimuovere il download parziale?",
@@ -1724,8 +1724,8 @@
             "TOGGLE_MUTE": "Impossibile attivare/disattivare l'audio",
             "STATUS": "Impossibile recuperare lo stato remoto"
         },
-        "HEADER": "Telecomando IPTVnator",
-        "FOOTER": "Telecomando IPTVnator"
+        "HEADER": "Telecomando NatorTV",
+        "FOOTER": "Telecomando NatorTV"
     },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Solo preferiti",
@@ -2026,7 +2026,7 @@
         },
         "SHORTCUTS": {
             "TITLE": "Scorciatoie da tastiera",
-            "SUBTITLE": "Scorciatoie disponibili in IPTVnator per area di lavoro, navigazione, riproduzione e dialoghi.",
+            "SUBTITLE": "Scorciatoie disponibili in NatorTV per area di lavoro, navigazione, riproduzione e dialoghi.",
             "OPEN_TOOLTIP": "Scorciatoie da tastiera (?)",
             "OPEN_ARIA": "Apri scorciatoie da tastiera",
             "PLATFORM": {

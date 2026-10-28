@@ -135,6 +135,8 @@ The application is available at <http://localhost:4333>. See
 [`docker/docker-compose.yml`](./docker/docker-compose.yml) for the ready-to-run
 compose file and [`docker/README.md`](./docker/README.md) for environment
 variables, reverse proxy notes, PWA limitations, and build details.
+Without Docker, [`proxmox/README.md`](./proxmox/README.md) installs the same
+PWA and backend in a Proxmox LXC container with one command.
 
 The image keeps playlists, favorites and watch progress on the server, so
 every browser that opens it shares one library. The first browser that opens
@@ -155,6 +157,18 @@ playback are not included. A matching IPTVnator backend is required. Viewing dat
 stays on the TV, and native stream compatibility depends on the device/provider.
 See [TV setup and IPK build instructions](docs/development/tv-development.md)
 and the [TV architecture and limitations](docs/architecture/tv-application.md).
+
+## Fire TV / Android TV shell (experimental)
+
+[`tv-shell/`](./tv-shell/README.md) (NatorTV, an independent app based on
+IPTVnator) wraps the browser PWA in a small Android app for Fire TV sticks and
+Android TV boxes. The web backend is embedded in the APK,
+so nothing has to be hosted; a remote-control layer drives the existing
+interface with the D-pad, and streams the TV's WebView cannot play are handed to
+an installed player such as VLC. The `Build TV shell APK` workflow builds the
+APK and can publish it as a GitHub release (a pre-release by default); see
+[`tv-shell/README.md`](./tv-shell/README.md) for installation, the security
+model and the remote-control key map.
 
 ## Download
 

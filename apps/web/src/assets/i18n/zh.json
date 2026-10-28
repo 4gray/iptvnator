@@ -10,7 +10,7 @@
     "SHOW_LESS": "收起",
     "PLAYLISTS": "播放列表",
     "HOME": {
-        "TITLE": "IPTVnator",
+        "TITLE": "NatorTV",
         "SUBTITLE": "选择一个播放列表或者从URL/文件中添加一个新的播放列表",
         "TABS": {
             "RECENTLY_ADDED": "最近添加的播放列表",
@@ -26,7 +26,7 @@
             "UNTITLED_PLAYLIST": "未命名播放列表",
             "PLAYLIST_ACTIONS": "播放列表操作",
             "ADD_FIRST": "从其他标签页添加你的第一个播放列表",
-            "WELCOME_TITLE": "欢迎使用 IPTVnator",
+            "WELCOME_TITLE": "欢迎使用 NatorTV",
             "WELCOME_DESCRIPTION": "添加您的第一个播放列表，开启流媒体之旅。连接到您喜爱的 IPTV 服务，享受直播、电影和剧集。",
             "ADD_YOUR_FIRST": "添加您的第一个播放列表",
             "FEATURE_M3U": "M3U/M3U8 文件",
@@ -192,7 +192,7 @@
             "ERROR_TLS_HOST_UNKNOWN": "无法确定播放列表主机。请手动重试。",
             "TRUST_TLS_HOST": "信任主机",
             "TRUST_TLS_HOST_TITLE": "信任无效证书？",
-            "TRUST_TLS_HOST_WARNING": "仅在您信任此播放列表主机时继续。IPTVnator 将允许此主机使用无效 TLS 证书，但其他主机仍需要有效证书。"
+            "TRUST_TLS_HOST_WARNING": "仅在您信任此播放列表主机时继续。NatorTV 将允许此主机使用无效 TLS 证书，但其他主机仍需要有效证书。"
         },
         "TEXT_IMPORT": {
             "LABEL": "从文本导入播放列表(m3u, m3u8)"
@@ -321,7 +321,7 @@
         "NAV_SERVER": "服务器",
         "SERVER_DESCRIPTION": "播放列表、收藏和观看进度保存在此服务器上，所有打开它的设备共享这些数据。",
         "SERVER_CONNECTION": "连接",
-        "SERVER_CONNECTION_DESCRIPTION": "此应用保存数据的 IPTVnator 服务器。",
+        "SERVER_CONNECTION_DESCRIPTION": "此应用保存数据的 NatorTV 服务器。",
         "SERVER_CONNECTED": "已连接",
         "SERVER_OFFLINE": "不可用",
         "SERVER_STORAGE": "存储",
@@ -388,7 +388,7 @@
         "TMDB_ATTRIBUTION": "本产品使用 TMDB API，但未获得 TMDB 的认可或认证。",
         "APP_PREFERENCES": "应用偏好",
         "HERO_EYEBROW": "工作区设置",
-        "HERO_TITLE": "定制 IPTVnator 的使用体验",
+        "HERO_TITLE": "定制 NatorTV 的使用体验",
         "HERO_DESCRIPTION": "在同一处调整播放、节目指南、远程访问和数据处理，且不会丢失当前工作区样式。",
         "SUBTITLE": "更改应用程序的配置 ",
         "DESCRIPTION": "请调整以下列表中的选项并使用保存按钮确认",
@@ -446,7 +446,7 @@
         "EPG_SOURCE_FORMATS_EXAMPLES": "示例：",
         "VIDEO_PLAYER_DESCRIPTION": "选择默认视频播放器",
         "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器统一控件",
-        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共享控件。",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 NatorTV 的共享控件。",
         "PLAYER_AMBIENT_MODE": "环境背景填充",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、暗淡的海报填充播放器周围的空白，而不是黑条纹。",
         "PLAY_TRAILERS_IN_BACKGROUND": "在详情背景中播放预告片",
@@ -477,7 +477,7 @@
         "EPG_VIEW_MODE_TIMELINE": "时间轴",
         "EPG_VIEW_MODE_LIST": "列表",
         "STARTUP_BEHAVIOR": "启动视图",
-        "STARTUP_BEHAVIOR_DESCRIPTION": "选择 IPTVnator 启动时是打开第一个可用的工作区视图，还是恢复您上次的章节级视图。第一个视图在启用时为仪表盘，否则为「源」。",
+        "STARTUP_BEHAVIOR_DESCRIPTION": "选择 NatorTV 启动时是打开第一个可用的工作区视图，还是恢复您上次的章节级视图。第一个视图在启用时为仪表盘，否则为「源」。",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "首个可用视图",
         "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "恢复上次视图",
         "STARTUP_WINDOW_MODE": "启动时的窗口",
@@ -504,7 +504,7 @@
         "SUPPORT_DESCRIPTION": "IPTVnator 是免费且开源的，公开开发。如果它已成为您日常的一部分，您的小额贡献将有助于让项目持续发展并塑造未来 — 感谢您。",
         "SUPPORT_SPONSORS_HINT": "定期或一次性",
         "SUPPORT_KOFI_HINT": "请我喝杯咖啡",
-        "EPG_NOTE": "目前 EPG 仅在 IPTVnator 的 Electron 桌面版本中可用。",
+        "EPG_NOTE": "目前 EPG 仅在 NatorTV 的 Electron 桌面版本中可用。",
         "EPG_NOTE_URL_TEXT": "在此查看",
         "IMPORT_EXPORT_DATA": "导入/导出播放列表",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "导出或恢复播放列表备份，包括 M3U 快照、Xtream/Stalker 连接元数据、用户状态和 EPG 源 URL。",
@@ -534,10 +534,10 @@
         "PLAYLISTS_REMOVED": "已移除所有播放列表和播放列表数据。",
         "MPV_PLAYER_PATH_LABEL": "mpv 路径",
         "MPV_PLAYER_PATH_DESCRIPTION": "设置 MPV 路径。在 macOS 上可以使用 MPV 应用包，例如 /Applications/mpv.app，也可以使用可执行文件路径。",
-        "MPV_COMPATIBLE_PLAYER_TIP": "IINA 可以在 macOS 上作为兼容 MPV 的播放器启动，但请使用它的可执行文件路径，例如 /Applications/IINA.app/Contents/MacOS/iina-cli 或 /Applications/IINA.app/Contents/MacOS/IINA。IPTVnator 控制、位置轮询和实例复用行为仅对 MPV IPC 保证可用。",
+        "MPV_COMPATIBLE_PLAYER_TIP": "IINA 可以在 macOS 上作为兼容 MPV 的播放器启动，但请使用它的可执行文件路径，例如 /Applications/IINA.app/Contents/MacOS/iina-cli 或 /Applications/IINA.app/Contents/MacOS/IINA。NatorTV 控制、位置轮询和实例复用行为仅对 MPV IPC 保证可用。",
         "MPV_PLAYER_PATH": "mpv 播放器路径",
         "MPV_PLAYER_ARGUMENTS_LABEL": "mpv 命令行参数",
-        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "IPTVnator 启动新的外部播放器进程时传递给 mpv 的可选参数。",
+        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "NatorTV 启动新的外部播放器进程时传递给 mpv 的可选参数。",
         "MPV_PLAYER_ARGUMENTS": "mpv 参数",
         "MPV_REUSE_INSTANCE_LABEL": "复用 MPV 实例",
         "MPV_REUSE_INSTANCE_DESCRIPTION": "启用后，将复用同一个 MPV 窗口播放不同的视频流。禁用后，每个视频流都会在新的 MPV 窗口中打开。",
@@ -549,9 +549,9 @@
         "VLC_PLAYER_PATH_DESCRIPTION": "设置 VLC 路径。在 macOS 上可以使用 VLC 应用包，例如 /Applications/VLC.app，也可以使用可执行文件路径。",
         "VLC_PLAYER_PATH": "VLC 播放器路径",
         "VLC_PLAYER_ARGUMENTS_LABEL": "VLC 命令行参数",
-        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "IPTVnator 启动新的外部播放器进程时传递给 VLC 的可选参数。",
+        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "NatorTV 启动新的外部播放器进程时传递给 VLC 的可选参数。",
         "VLC_PLAYER_ARGUMENTS": "VLC 参数",
-        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "每行一个参数。这些值会在 IPTVnator 的流专用选项之前应用。",
+        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "每行一个参数。这些值会在 NatorTV 的流专用选项之前应用。",
         "VLC_REUSE_INSTANCE_LABEL": "复用 VLC 实例",
         "VLC_REUSE_INSTANCE_DESCRIPTION": "启用后，将复用同一个 VLC 窗口播放不同的视频流。禁用后，每个视频流都会在新的 VLC 窗口中打开。",
         "REMOTE_CONTROL": "远程控制",
@@ -675,12 +675,12 @@
         "MIGRATION_FAILED": "移动失败。您的播放列表仍在此浏览器中；请在“设置 → 服务器”中重试。",
         "MIGRATION_RELOAD": "重新加载",
         "SIGN_IN_TITLE": "需要访问令牌",
-        "SIGN_IN_DESCRIPTION": "此 IPTVnator 服务器在显示您的播放列表前需要访问令牌。",
+        "SIGN_IN_DESCRIPTION": "此 NatorTV 服务器在显示您的播放列表前需要访问令牌。",
         "SIGN_IN_TOKEN_LABEL": "访问令牌",
         "SIGN_IN_HINT": "可在服务器的 IPTVNATOR_ACCESS_TOKEN 设置中找到。",
         "SIGN_IN_REJECTED": "令牌被拒绝。请检查后重试。",
         "SIGN_IN_UNREACHABLE": "无法连接到服务器。请检查连接后重试。",
-        "SIGN_IN_STORAGE": "此浏览器不允许 IPTVnator 保存令牌。请允许此页面的网站数据后重试。",
+        "SIGN_IN_STORAGE": "此浏览器不允许 NatorTV 保存令牌。请允许此页面的网站数据后重试。",
         "SIGN_IN_CONTINUE": "继续",
         "STATUS_ONLINE": "服务器已连接",
         "STATUS_OFFLINE": "服务器不可用",
@@ -1046,10 +1046,10 @@
         "RETRY": "重试",
         "ALLOW_PRIVATE_SOURCE": "允许来源",
         "ALLOW_PRIVATE_SOURCE_TITLE": "允许私有网络 EPG 源？",
-        "ALLOW_PRIVATE_SOURCE_WARNING": "仅当您信任此 EPG 源时才允许。IPTVnator 将允许此 EPG URL 连接到私有或本地网络地址。",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "仅当您信任此 EPG 源时才允许。NatorTV 将允许此 EPG URL 连接到私有或本地网络地址。",
         "TRUST_TLS_HOST": "信任主机",
         "TRUST_TLS_HOST_TITLE": "信任无效证书？",
-        "TRUST_TLS_HOST_WARNING": "仅当您信任此主机时才继续。IPTVnator 将允许此主机使用无效 TLS 证书，但其他主机仍需要有效证书。",
+        "TRUST_TLS_HOST_WARNING": "仅当您信任此主机时才继续。NatorTV 将允许此主机使用无效 TLS 证书，但其他主机仍需要有效证书。",
         "CURRENT_PROGRAM": "当前节目",
         "ARCHIVE_PLAYBACK": "回看播放",
         "COLLAPSE_PANEL": "收起 EPG 面板",
@@ -1625,7 +1625,7 @@
         "STOP_RECORDING": "停止录制",
         "REMOVE_RECORDING_DIALOG": {
             "TITLE": "从管理器中移除录制？",
-            "MESSAGE": "此操作将从 IPTVnator 中移除该条目。录制文件仍保留在磁盘上。"
+            "MESSAGE": "此操作将从 NatorTV 中移除该条目。录制文件仍保留在磁盘上。"
         },
         "RECORDING_DETAIL": {
             "PROGRAMS": "已录制的节目",
@@ -1636,7 +1636,7 @@
         "REMOVE_FROM_MANAGER": "从管理器中移除",
         "REMOVE_COMPLETED_DIALOG": {
             "TITLE": "从管理器中移除？",
-            "MESSAGE": "这会从 IPTVnator 中移除该条目。已下载的媒体文件仍会保留在磁盘上。"
+            "MESSAGE": "这会从 NatorTV 中移除该条目。已下载的媒体文件仍会保留在磁盘上。"
         },
         "REMOVE_PARTIAL_DIALOG": {
             "TITLE": "移除未完成下载？",
@@ -1724,8 +1724,8 @@
             "TOGGLE_MUTE": "切换静音失败",
             "STATUS": "获取远程状态失败"
         },
-        "HEADER": "IPTVnator 遥控器",
-        "FOOTER": "IPTVnator 遥控器"
+        "HEADER": "NatorTV 遥控器",
+        "FOOTER": "NatorTV 遥控器"
     },
     "WORKSPACE": {
         "FAVORITES_ONLY": "仅收藏",
@@ -2026,7 +2026,7 @@
         },
         "SHORTCUTS": {
             "TITLE": "键盘快捷键",
-            "SUBTITLE": "IPTVnator 中可用的工作区、导航、播放和对话框快捷键。",
+            "SUBTITLE": "NatorTV 中可用的工作区、导航、播放和对话框快捷键。",
             "OPEN_TOOLTIP": "键盘快捷键 (?)",
             "OPEN_ARIA": "打开键盘快捷键",
             "PLATFORM": {

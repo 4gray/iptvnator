@@ -25,7 +25,12 @@
                 "assets": [
                     "apps/web/src/favicon.ico",
                     "apps/web/src/assets",
-                    "apps/web/src/manifest.webmanifest"
+                    "apps/web/src/manifest.webmanifest",
+                    {
+                        "glob": "hls.worker.js",
+                        "input": "node_modules/hls.js/dist",
+                        "output": "assets"
+                    }
                 ],
                 "styles": [
                     "apps/web/src/styles.scss",

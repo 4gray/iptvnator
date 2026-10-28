@@ -239,6 +239,18 @@ mat-card {
     }
 }
 
+// ─── Windowed grid (TV shell) ────────────────────────────────────────────────
+// The spacers stand in for whole rows of one measured height, so every row
+// must have it: no skipped-layout placeholder heights, and the title always
+// takes its two clamped lines.
+:host.grid-list--windowed .grid-list__grid mat-card {
+    content-visibility: visible;
+
+    .title {
+        min-height: calc(2em * 1.35);
+    }
+}
+
 .grid-list__tail {
     display: flex;
     align-items: center;

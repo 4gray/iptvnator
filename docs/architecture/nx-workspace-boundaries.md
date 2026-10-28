@@ -332,6 +332,14 @@ not the library alias, is the dynamic-import target because
 `@nx/enforce-module-boundaries` forbids static imports of a library the same
 project also loads dynamically.
 
+The lazy `/workspace` route is entered at every start, so the workspace shell
+follows the same rule: it imports `EmbeddedMpvOverlayVisibilityService` from
+`@iptvnator/ui/playback/embedded-mpv-player` and re-exports the global
+favourites list from `@iptvnator/portal/shared/ui/global-favorites-list`.
+Either barrel puts the web players (video.js, hls.js, mpegts.js, ArtPlayer,
+about 2.7 MB) on the first route; a `no-restricted-imports` block in
+`eslint.config.mjs` keeps both barrels out of `libs/workspace/shell/feature`.
+
 A barrel the initial path imports also costs code it never runs itself:
 code splitting places a module in the chunk shared by every entry point
 that reaches it, so a helper that only lazy routes use, but that an eager

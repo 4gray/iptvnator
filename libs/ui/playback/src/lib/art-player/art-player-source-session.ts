@@ -15,6 +15,7 @@ import {
     collectPlaybackCodecs,
 } from '@iptvnator/playback/util';
 import { isBrowserMediaTypeSupported } from '../web-video-support/browser-media-type-support';
+import { hlsWorkerConfig } from '../web-video-support/hls-worker-config';
 import type { WebVideoControlsAdapter } from '../player-controls';
 import type { ShakaModuleLoader } from '../shaka-engine/shaka-module.types';
 import { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
@@ -143,7 +144,7 @@ export class ArtPlayerSourceSession {
 
         this.prepareForSourceChange();
         if (Hls.isSupported()) {
-            const hls = new Hls();
+            const hls = new Hls(hlsWorkerConfig());
             this.hls = hls;
             this.hlsManifestListener = (_event, data) => {
                 if (this.destroyed || this.hls !== hls) {

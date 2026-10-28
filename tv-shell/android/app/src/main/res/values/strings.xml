@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NatorTV</string>
+    <string name="credits_label">Credits</string>
+    <string name="credits_names">sz and axs</string>
+    <string name="loading">Starting the player…</string>
+    <string name="load_error_title">The player could not be loaded</string>
+    <string name="load_error">Error: %1$s (code %2$s)</string>
+    <string name="server_error">The embedded server could not start (no free port).</string>
+    <string name="load_timeout">The web app did not start in time. The WebView of this device may be too old for NatorTV (Chrome engine 94 or newer is required). The diagnostics are below.</string>
+    <string name="webview_unavailable">The system web view is unavailable (being updated, or disabled). Try again in a minute, or update Amazon WebView / Android System WebView.</string>
+    <string name="port_fallback">Port %1$d is used by another app: running on port %2$d for now. Your saved playlists come back when you return to the app after port %1$d is free.</string>
+    <string name="no_stream_to_open">No stream to open</string>
+    <string name="renderer_restarted">The player was restarted after it ran out of memory.</string>
+    <string name="renderer_gone_loop">The web view keeps stopping (out of memory?). Try a smaller playlist, or erase the app data from the settings.</string>
+    <string name="retry">Retry</string>
+    <string name="settings_title">NatorTV settings</string>
+    <string name="done">Done</string>
+    <string name="cannot_open_link">No app can open this link.</string>
+    <string name="press_back_again">Press Back again to exit</string>
+    <string name="no_external_player">No video player app found. Install VLC for Android.</string>
+    <string name="external_prompt_title">Open in another player?</string>
+    <string name="external_prompt_title_error">This stream cannot be played here</string>
+    <string name="external_prompt_message">%1$s\n\nThe built-in browser player does not support this stream format. Open it in an installed video player (VLC, …)?</string>
+    <string name="external_prompt_open">Open in a player</string>
+    <string name="external_prompt_cancel">Cancel</string>
+    <string name="setting_width">Interface size</string>
+    <string name="setting_width_hint">Width of the web layout. Larger text means less content per screen.</string>
+    <string name="width_960">Large (960)</string>
+    <string name="width_1280">Normal (1280)</string>
+    <string name="width_1600">Dense (1600)</string>
+    <string name="setting_external">External player</string>
+    <string name="setting_prompt_external">Offer an external player when a stream cannot be played</string>
+    <string name="setting_player_hint">Which player should open the streams:</string>
+    <string name="player_system_chooser">Ask every time (system chooser)</string>
+    <string name="setting_advanced">Advanced</string>
+    <string name="setting_web_debug">Allow remote debugging of the web view (chrome://inspect over ADB)</string>
+    <string name="reset_title">Erase NatorTV data</string>
+    <string name="reset_message">Playlists, portals, favourites and settings of the web app will be deleted from this device.</string>
+    <string name="reset_confirm">Erase</string>
+    <string name="reset_done">Data erased</string>
+    <string name="setting_diagnostics">Diagnostics</string>
+    <string name="diagnostics">WebView (Chrome engine): %1$s %2$s\nDevice: %3$s — Android %4$s\nEmbedded server port: %5$s\nScreen: %6$s</string>
+</resources>

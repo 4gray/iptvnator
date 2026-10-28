@@ -1,4 +1,6 @@
+<!-- Poster results: the next chunk is asked for two rows (~303 px each) ahead. -->
 <app-search-layout
+    [nearEndThresholdPx]="640"
     [searchTerm]="searchTerm()"
     [resultsCount]="resultsCount"
     [isLoading]="isInitialSearchLoading()"

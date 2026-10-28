@@ -27,6 +27,7 @@ import {
 } from '@iptvnator/ui/components';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
+import { createGridWindow } from './grid-window.controller';
 
 interface GridListItem {
     id?: number | string;
@@ -86,7 +87,11 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
 
 @Component({
     selector: 'app-grid-list',
-    template: `<div class="grid-list__grid">
+    template: `<div
+            class="grid-list__grid"
+            [style.padding-top.px]="gridWindow.topPx()"
+            [style.padding-bottom.px]="gridWindow.bottomPx()"
+        >
             @if (isLoading()) {
                 @for (row of skeletonRows(); track row) {
                     <div class="grid-skeleton-card" aria-hidden="true">
@@ -104,7 +109,10 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                     </div>
                 }
             } @else {
-                @for (item of items(); track $index) {
+                @for (
+                    item of gridWindow.rendered();
+                    track gridWindow.trackKey($index, item)
+                ) {
                     @let i = $any(item);
                     @let title =
                         channelTitle(i) || ('PORTALS.UNTITLED' | translate);
@@ -280,7 +288,10 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
         ProgressCapsuleComponent,
         WatchedBadgeComponent,
     ],
-    host: { '[class.grid-list--posters-only]': 'postersOnly()' },
+    host: {
+        '[class.grid-list--posters-only]': 'postersOnly()',
+        '[class.grid-list--windowed]': 'gridWindow.enabled',
+    },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GridListComponent {
@@ -297,6 +308,11 @@ export class GridListComponent {
     readonly searchTerm = input<string>('');
     readonly itemClicked = output<GridListItem>();
     readonly retryLoadMore = output<void>();
+    /** TV shell only: renders the rows around the viewport, see grid-window.ts. */
+    protected readonly gridWindow = createGridWindow(
+        this.items,
+        this.isLoading
+    );
 
     readonly variant = input<'poster' | 'logo'>('poster');
     readonly type = input<'vod' | 'series' | 'live' | string>('');

@@ -10,7 +10,7 @@
     "SHOW_LESS": "أقل",
     "PLAYLISTS": "قوائم التشغيل",
     "HOME": {
-        "TITLE": "IPTVnator",
+        "TITLE": "NatorTV",
         "SUBTITLE": "يرجى اختيار قائمة تشغيل من القائمة أو إضافة قائمة جديدة",
         "TABS": {
             "RECENTLY_ADDED": "قوائم التشغيل المضافة مؤخرًا",
@@ -26,7 +26,7 @@
             "UNTITLED_PLAYLIST": "قائمة تشغيل بدون عنوان",
             "PLAYLIST_ACTIONS": "إجراءات قائمة التشغيل",
             "ADD_FIRST": "يرجى إضافة أول قائمة تشغيل",
-            "WELCOME_TITLE": "مرحبًا بك في IPTVnator",
+            "WELCOME_TITLE": "مرحبًا بك في NatorTV",
             "WELCOME_DESCRIPTION": "ابدأ رحلة البث بإضافة قائمة التشغيل الأولى. اتصل بخدمة IPTV المفضلة لديك واستمتع بالتلفزيون المباشر والأفلام والمسلسلات.",
             "ADD_YOUR_FIRST": "أضف قائمة التشغيل الأولى",
             "FEATURE_M3U": "ملفات M3U/M3U8",
@@ -192,7 +192,7 @@
             "ERROR_TLS_HOST_UNKNOWN": "تعذر تحديد مضيف قائمة التشغيل. يرجى إعادة المحاولة يدويًا.",
             "TRUST_TLS_HOST": "الثقة بالمضيف",
             "TRUST_TLS_HOST_TITLE": "الثقة بشهادة غير صالحة؟",
-            "TRUST_TLS_HOST_WARNING": "تابع فقط إذا كنت تثق بمضيف قائمة التشغيل هذا. سيسمح IPTVnator بالشهادات غير الصالحة لهذا المضيف، بينما ستظل المضيفات الأخرى تتطلب شهادات صالحة."
+            "TRUST_TLS_HOST_WARNING": "تابع فقط إذا كنت تثق بمضيف قائمة التشغيل هذا. سيسمح NatorTV بالشهادات غير الصالحة لهذا المضيف، بينما ستظل المضيفات الأخرى تتطلب شهادات صالحة."
         },
         "TEXT_IMPORT": {
             "LABEL": "إدراج قائمة تشغيل M3U(8) كنص"
@@ -321,7 +321,7 @@
         "NAV_SERVER": "الخادم",
         "SERVER_DESCRIPTION": "تُحفظ قوائم التشغيل والمفضلة وتقدّم المشاهدة على هذا الخادم وتتشاركها كل الأجهزة التي تفتحه.",
         "SERVER_CONNECTION": "الاتصال",
-        "SERVER_CONNECTION_DESCRIPTION": "خادم IPTVnator الذي يحفظ فيه هذا التطبيق بياناته.",
+        "SERVER_CONNECTION_DESCRIPTION": "خادم NatorTV الذي يحفظ فيه هذا التطبيق بياناته.",
         "SERVER_CONNECTED": "متصل",
         "SERVER_OFFLINE": "غير متاح",
         "SERVER_STORAGE": "التخزين",
@@ -388,7 +388,7 @@
         "TMDB_ATTRIBUTION": "يستخدم هذا المنتج TMDB API ولكنه غير معتمد أو مصدّق من قِبل TMDB.",
         "APP_PREFERENCES": "تفضيلات التطبيق",
         "HERO_EYEBROW": "إعدادات مساحة العمل",
-        "HERO_TITLE": "خصّص تجربة IPTVnator",
+        "HERO_TITLE": "خصّص تجربة NatorTV",
         "HERO_DESCRIPTION": "اضبط التشغيل، والأدلة، والوصول عن بعد، ومعالجة البيانات من مكان واحد دون فقدان نمط مساحة العمل الحالي.",
         "SUBTITLE": "تعديل تكوين التطبيق",
         "DESCRIPTION": "يرجى ضبط الخيارات أدناه ثم النقر على حفظ التغييرات",
@@ -446,7 +446,7 @@
         "EPG_SOURCE_FORMATS_EXAMPLES": "أمثلة:",
         "VIDEO_PLAYER_DESCRIPTION": "اختر مشغل الفيديو الافتراضي",
         "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحّدة لمشغلات الويب",
-        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استخدم عناصر التحكم المشتركة في IPTVnator مع HTML5 وVideo.js وArtPlayer.",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استخدم عناصر التحكم المشتركة في NatorTV مع HTML5 وVideo.js وArtPlayer.",
         "PLAYER_AMBIENT_MODE": "ملء الخلفية المحيطة",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "تعبئة المساحة حول المشغل بنسخة مشوشة ومعتمة من الملصق بدلاً من الخطوط السوداء.",
         "PLAY_TRAILERS_IN_BACKGROUND": "تشغيل الإعلانات في خلفية التفاصيل",
@@ -477,7 +477,7 @@
         "EPG_VIEW_MODE_TIMELINE": "الجدول الزمني",
         "EPG_VIEW_MODE_LIST": "قائمة",
         "STARTUP_BEHAVIOR": "عرض البدء",
-        "STARTUP_BEHAVIOR_DESCRIPTION": "اختر ما إذا كان IPTVnator يفتح أول عرض متاح في مساحة العمل أو يستعيد آخر عرض على مستوى القسم. العرض الأول يعني لوحة التحكم عند تفعيلها، وإلا فالمصادر.",
+        "STARTUP_BEHAVIOR_DESCRIPTION": "اختر ما إذا كان NatorTV يفتح أول عرض متاح في مساحة العمل أو يستعيد آخر عرض على مستوى القسم. العرض الأول يعني لوحة التحكم عند تفعيلها، وإلا فالمصادر.",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "أول عرض متاح",
         "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "استعادة آخر عرض",
         "STARTUP_WINDOW_MODE": "نافذة التطبيق عند البدء",
@@ -504,7 +504,7 @@
         "SUPPORT_DESCRIPTION": "IPTVnator تطبيق مجاني ومفتوح المصدر، وتم بناؤه بشكل مفتوح. إذا كان جزءًا من روتينك اليومي، فإن أي مساهمة صغيرة تساعد في إبقاء المشروع حيًا وتحديد ما يأتي لاحقًا — شكرًا لك.",
         "SUPPORT_SPONSORS_HINT": "متكرر أو لمرة واحدة",
         "SUPPORT_KOFI_HINT": "اشتري لي قهوة",
-        "EPG_NOTE": "يتوفر EPG حاليًا فقط في إصدار سطح المكتب Electron من IPTVnator.",
+        "EPG_NOTE": "يتوفر EPG حاليًا فقط في إصدار سطح المكتب Electron من NatorTV.",
         "EPG_NOTE_URL_TEXT": "تحقق من ذلك هنا",
         "IMPORT_EXPORT_DATA": "استيراد/تصدير نسخ احتياطية لقوائم التشغيل",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "صدّر أو استعد نسخًا احتياطية لقوائم التشغيل تشمل لقطات M3U وبيانات اتصال Xtream/Stalker وحالة المستخدم وروابط مصادر EPG.",
@@ -534,10 +534,10 @@
         "PLAYLISTS_REMOVED": "تمت إزالة كل قوائم التشغيل وبياناتها.",
         "MPV_PLAYER_PATH_LABEL": "مسار mpv",
         "MPV_PLAYER_PATH_DESCRIPTION": "حدد مسار MPV. على macOS يمكنك استخدام حزمة تطبيق MPV مثل /Applications/mpv.app أو مسار الملف التنفيذي.",
-        "MPV_COMPATIBLE_PLAYER_TIP": "يمكن تشغيل IINA كمشغل متوافق مع MPV على macOS، لكن استخدم مسار الملف التنفيذي مثل /Applications/IINA.app/Contents/MacOS/iina-cli أو /Applications/IINA.app/Contents/MacOS/IINA. عناصر تحكم IPTVnator وتتبع الموضع وإعادة استخدام النافذة مضمونة فقط مع MPV IPC.",
+        "MPV_COMPATIBLE_PLAYER_TIP": "يمكن تشغيل IINA كمشغل متوافق مع MPV على macOS، لكن استخدم مسار الملف التنفيذي مثل /Applications/IINA.app/Contents/MacOS/iina-cli أو /Applications/IINA.app/Contents/MacOS/IINA. عناصر تحكم NatorTV وتتبع الموضع وإعادة استخدام النافذة مضمونة فقط مع MPV IPC.",
         "MPV_PLAYER_PATH": "مسار مشغل MPV",
         "MPV_PLAYER_ARGUMENTS_LABEL": "وسائط سطر أوامر mpv",
-        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "وسائط اختيارية يتم تمريرها إلى mpv عندما يبدأ IPTVnator عملية مشغل خارجي جديدة.",
+        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "وسائط اختيارية يتم تمريرها إلى mpv عندما يبدأ NatorTV عملية مشغل خارجي جديدة.",
         "MPV_PLAYER_ARGUMENTS": "وسائط mpv",
         "MPV_REUSE_INSTANCE_LABEL": "إعادة استخدام نسخة MPV",
         "MPV_REUSE_INSTANCE_DESCRIPTION": "عند التفعيل، سيتم إعادة استخدام نفس نافذة MPV لتشغيل البثوث المختلفة. عند التعطيل، يفتح كل بث في نافذة MPV جديدة.",
@@ -549,9 +549,9 @@
         "VLC_PLAYER_PATH_DESCRIPTION": "حدد مسار VLC. على macOS يمكنك استخدام حزمة تطبيق VLC مثل /Applications/VLC.app أو مسار الملف التنفيذي.",
         "VLC_PLAYER_PATH": "مسار مشغل VLC",
         "VLC_PLAYER_ARGUMENTS_LABEL": "وسائط سطر أوامر VLC",
-        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "وسائط اختيارية يتم تمريرها إلى VLC عندما يبدأ IPTVnator عملية مشغل خارجي جديدة.",
+        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "وسائط اختيارية يتم تمريرها إلى VLC عندما يبدأ NatorTV عملية مشغل خارجي جديدة.",
         "VLC_PLAYER_ARGUMENTS": "وسائط VLC",
-        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "استخدم وسيطًا واحدًا في كل سطر. يتم تطبيق هذه القيم قبل خيارات IPTVnator الخاصة بالبث.",
+        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "استخدم وسيطًا واحدًا في كل سطر. يتم تطبيق هذه القيم قبل خيارات NatorTV الخاصة بالبث.",
         "VLC_REUSE_INSTANCE_LABEL": "إعادة استخدام نسخة VLC",
         "VLC_REUSE_INSTANCE_DESCRIPTION": "عند التفعيل، سيتم إعادة استخدام نفس نافذة VLC لتشغيل البثوث المختلفة. عند التعطيل، يفتح كل بث في نافذة VLC جديدة.",
         "REMOTE_CONTROL": "التحكم عن بعد",
@@ -675,12 +675,12 @@
         "MIGRATION_FAILED": "فشل النقل. ما زالت قوائم التشغيل في هذا المتصفح؛ حاول مجددًا من الإعدادات ← الخادم.",
         "MIGRATION_RELOAD": "إعادة التحميل",
         "SIGN_IN_TITLE": "مطلوب رمز وصول",
-        "SIGN_IN_DESCRIPTION": "يطلب خادم IPTVnator هذا رمز وصول قبل عرض قوائم التشغيل.",
+        "SIGN_IN_DESCRIPTION": "يطلب خادم NatorTV هذا رمز وصول قبل عرض قوائم التشغيل.",
         "SIGN_IN_TOKEN_LABEL": "رمز الوصول",
         "SIGN_IN_HINT": "تجده في إعداد IPTVNATOR_ACCESS_TOKEN على الخادم.",
         "SIGN_IN_REJECTED": "تم رفض الرمز. تحقق منه وحاول مرة أخرى.",
         "SIGN_IN_UNREACHABLE": "تعذّر الوصول إلى الخادم. تحقق من الاتصال وحاول مرة أخرى.",
-        "SIGN_IN_STORAGE": "لا يسمح هذا المتصفح لـ IPTVnator بحفظ الرمز. اسمح ببيانات الموقع لهذه الصفحة وحاول مرة أخرى.",
+        "SIGN_IN_STORAGE": "لا يسمح هذا المتصفح لـ NatorTV بحفظ الرمز. اسمح ببيانات الموقع لهذه الصفحة وحاول مرة أخرى.",
         "SIGN_IN_CONTINUE": "متابعة",
         "STATUS_ONLINE": "الخادم متصل",
         "STATUS_OFFLINE": "الخادم غير متاح",
@@ -1046,10 +1046,10 @@
         "RETRY": "إعادة المحاولة",
         "ALLOW_PRIVATE_SOURCE": "السماح بالمصدر",
         "ALLOW_PRIVATE_SOURCE_TITLE": "السماح بمصدر EPG من شبكة خاصة؟",
-        "ALLOW_PRIVATE_SOURCE_WARNING": "اسمح بذلك فقط إذا كنت تثق بمصدر EPG هذا. سيسمح IPTVnator لهذا الرابط المحدد لـ EPG بالاتصال بعناوين الشبكات الخاصة أو المحلية.",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "اسمح بذلك فقط إذا كنت تثق بمصدر EPG هذا. سيسمح NatorTV لهذا الرابط المحدد لـ EPG بالاتصال بعناوين الشبكات الخاصة أو المحلية.",
         "TRUST_TLS_HOST": "الثقة بالمضيف",
         "TRUST_TLS_HOST_TITLE": "الثقة بشهادة غير صالحة؟",
-        "TRUST_TLS_HOST_WARNING": "تابع فقط إذا كنت تثق بهذا المضيف. سيسمح IPTVnator بالشهادات غير الصالحة لهذا المضيف، بينما ستظل المضيفات الأخرى تتطلب شهادات صالحة.",
+        "TRUST_TLS_HOST_WARNING": "تابع فقط إذا كنت تثق بهذا المضيف. سيسمح NatorTV بالشهادات غير الصالحة لهذا المضيف، بينما ستظل المضيفات الأخرى تتطلب شهادات صالحة.",
         "CURRENT_PROGRAM": "البرنامج الحالي",
         "ARCHIVE_PLAYBACK": "تشغيل الأرشيف",
         "COLLAPSE_PANEL": "طي لوحة EPG",
@@ -1625,7 +1625,7 @@
         "STOP_RECORDING": "إيقاف التسجيل",
         "REMOVE_RECORDING_DIALOG": {
             "TITLE": "إزالة التسجيل من مدير التنزيلات؟",
-            "MESSAGE": "يؤدي هذا إلى إزالة الإدخال من IPTVnator. ويبقى الملف المسجّل على القرص."
+            "MESSAGE": "يؤدي هذا إلى إزالة الإدخال من NatorTV. ويبقى الملف المسجّل على القرص."
         },
         "RECORDING_DETAIL": {
             "PROGRAMS": "البرامج المسجّلة",
@@ -1636,7 +1636,7 @@
         "REMOVE_FROM_MANAGER": "إزالة من مدير التنزيلات",
         "REMOVE_COMPLETED_DIALOG": {
             "TITLE": "إزالة من مدير التنزيلات؟",
-            "MESSAGE": "يؤدي هذا إلى إزالة العنصر من IPTVnator. يبقى ملف الوسائط الذي تم تنزيله على القرص."
+            "MESSAGE": "يؤدي هذا إلى إزالة العنصر من NatorTV. يبقى ملف الوسائط الذي تم تنزيله على القرص."
         },
         "REMOVE_PARTIAL_DIALOG": {
             "TITLE": "إزالة التنزيل الجزئي؟",
@@ -1724,8 +1724,8 @@
             "TOGGLE_MUTE": "فشل تبديل كتم الصوت",
             "STATUS": "فشل جلب حالة التحكم عن بعد"
         },
-        "HEADER": "جهاز تحكم IPTVnator",
-        "FOOTER": "جهاز تحكم IPTVnator"
+        "HEADER": "جهاز تحكم NatorTV",
+        "FOOTER": "جهاز تحكم NatorTV"
     },
     "WORKSPACE": {
         "FAVORITES_ONLY": "المفضلة فقط",
@@ -2026,7 +2026,7 @@
         },
         "SHORTCUTS": {
             "TITLE": "اختصارات لوحة المفاتيح",
-            "SUBTITLE": "اختصارات مساحة العمل والتنقل والتشغيل ومربعات الحوار المتاحة في IPTVnator.",
+            "SUBTITLE": "اختصارات مساحة العمل والتنقل والتشغيل ومربعات الحوار المتاحة في NatorTV.",
             "OPEN_TOOLTIP": "اختصارات لوحة المفاتيح (?)",
             "OPEN_ARIA": "فتح اختصارات لوحة المفاتيح",
             "PLATFORM": {

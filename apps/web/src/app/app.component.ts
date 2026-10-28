@@ -49,6 +49,7 @@ import { PlaylistOpenRequestService } from './services/playlist-open-request.ser
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 import { AppStartupStatusComponent } from './app-startup-status.component';
 import { syncDocumentLanguage } from './services/document-language';
+import { warmPlayerChunk } from './warm-player-chunk';
 
 const debugAppComponent = createDevLogger('AppComponent');
 
@@ -112,6 +113,9 @@ export class AppComponent implements OnInit {
         // Keep the display awake while a built-in player is playing video
         // (Electron powerSaveBlocker / PWA Screen Wake Lock, issue #1095).
         this.playbackKeepAwake.start();
+
+        // The players left the first route: load them once it has rendered.
+        warmPlayerChunk(this.router);
 
         // Parental lock: load the PIN hash and lock store, then keep the
         // in-memory catalogs in step with lock/unlock (issue #285).

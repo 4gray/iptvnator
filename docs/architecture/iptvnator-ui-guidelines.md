@@ -681,6 +681,30 @@ row under VOD and series covers so the grid shows more rows per screen.
   because the card's `overflow: hidden` would clip an outline on the inner
   surface on every edge. Poster `alt` is the title, not a literal.
 
+### Row windowing (TV shell)
+
+Under the TV shell (`tv-shell` class on `<html>`, set by its `tv.js` before
+the app boots) `app-grid-list` renders only the rows around its viewport plus
+three overscan rows on each side (`grid-window.ts`). The grid's top and
+bottom padding stand in for the rows left out, so the host keeps the full
+grid's `scrollHeight`: the infinite-scroll near-end check, the store's
+growing `visibleCount` and the saved `scrollTop` restore work unchanged. The
+`@for` tracks the item identity (`id`, `stream_id`, `series_id`,
+`xtream_id`, else the item's absolute position) so the focused card survives
+a window shift and a consumer that re-maps its items. A held D-pad key
+scrolls faster than a slow TV renders frames, so a capture `keydown` listener
+re-reads the offset and renders the window synchronously before the remote
+layer looks for the next row. Spacers assume one row height, so
+`.grid-list--windowed` turns `content-visibility` off on the cards and
+reserves both title lines. Outside the shell the grid renders every item with
+`track $index`, unchanged. A hidden grid (`display: none` ancestor) has no
+geometry and keeps its last window. Rows that re-enter the window re-create
+their `<img>`: posters a provider serves as cacheable come from the disk
+cache, while `no-store` artwork on a slow link shows blank for about the
+request time when scrolling back. Kill switch:
+`localStorage['grid-list:windowing'] = 'off'`; added October 2026, remove it
+two releases later.
+
 ## EPG Views
 
 The shared timeline and list still contain local dark surfaces, blue selection

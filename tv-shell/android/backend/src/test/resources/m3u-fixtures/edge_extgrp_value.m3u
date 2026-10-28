@@ -1,0 +1,4 @@
+#EXTM3U
+#EXTINF:-1 group-title="Old",A
+#EXTGRP:"New Group"
+http://x/1.ts

@@ -10,7 +10,7 @@
     "SHOW_LESS": "Weniger",
     "PLAYLISTS": "Playlisten",
     "HOME": {
-        "TITLE": "IPTVnator",
+        "TITLE": "NatorTV",
         "SUBTITLE": "Wählen Sie eine Playlist aus oder laden Sie eine neue Playlist hoch",
         "TABS": {
             "RECENTLY_ADDED": "Zuletzt hinzugefügt",
@@ -26,7 +26,7 @@
             "UNTITLED_PLAYLIST": "Unbenannte Playlist",
             "PLAYLIST_ACTIONS": "Playlist-Aktionen",
             "ADD_FIRST": "Bitte fügen Sie eine neue Playlist hinzu",
-            "WELCOME_TITLE": "Willkommen bei IPTVnator",
+            "WELCOME_TITLE": "Willkommen bei NatorTV",
             "WELCOME_DESCRIPTION": "Beginnen Sie Ihre Streaming-Reise, indem Sie Ihre erste Playlist hinzufügen. Verbinden Sie sich mit Ihrem bevorzugten IPTV-Dienst und genießen Sie Live-TV, Filme und Serien.",
             "ADD_YOUR_FIRST": "Ihre erste Playlist hinzufügen",
             "FEATURE_M3U": "M3U/M3U8-Dateien",
@@ -192,7 +192,7 @@
             "ERROR_TLS_HOST_UNKNOWN": "Der Wiedergabelisten-Host konnte nicht ermittelt werden. Bitte versuche es manuell erneut.",
             "TRUST_TLS_HOST": "Host vertrauen",
             "TRUST_TLS_HOST_TITLE": "Ungültigem Zertifikat vertrauen?",
-            "TRUST_TLS_HOST_WARNING": "Fahre nur fort, wenn du diesem Wiedergabelisten-Host vertraust. IPTVnator erlaubt ungültige TLS-Zertifikate für diesen Host, für andere Hosts sind weiterhin gültige Zertifikate erforderlich."
+            "TRUST_TLS_HOST_WARNING": "Fahre nur fort, wenn du diesem Wiedergabelisten-Host vertraust. NatorTV erlaubt ungültige TLS-Zertifikate für diesen Host, für andere Hosts sind weiterhin gültige Zertifikate erforderlich."
         },
         "TEXT_IMPORT": {
             "LABEL": "Füge m3u(8)-Wiedergabeliste hier als Text ein"
@@ -321,7 +321,7 @@
         "NAV_SERVER": "Server",
         "SERVER_DESCRIPTION": "Wiedergabelisten, Favoriten und Wiedergabefortschritt werden auf diesem Server gespeichert und mit jedem Gerät geteilt, das ihn öffnet.",
         "SERVER_CONNECTION": "Verbindung",
-        "SERVER_CONNECTION_DESCRIPTION": "Der IPTVnator-Server, auf dem diese App speichert.",
+        "SERVER_CONNECTION_DESCRIPTION": "Der NatorTV-Server, auf dem diese App speichert.",
         "SERVER_CONNECTED": "Verbunden",
         "SERVER_OFFLINE": "Nicht erreichbar",
         "SERVER_STORAGE": "Speicher",
@@ -388,7 +388,7 @@
         "TMDB_ATTRIBUTION": "Dieses Produkt verwendet die TMDB API, wird jedoch nicht von TMDB unterstützt oder zertifiziert.",
         "APP_PREFERENCES": "App-Einstellungen",
         "HERO_EYEBROW": "Arbeitsbereich",
-        "HERO_TITLE": "IPTVnator anpassen",
+        "HERO_TITLE": "NatorTV anpassen",
         "HERO_DESCRIPTION": "Passen Sie Wiedergabe, Programmführer, Fernzugriff und Datenverwaltung zentral an, ohne den Stil des Arbeitsbereichs zu verlieren.",
         "SUBTITLE": "Die App-Einstellungen ändern",
         "DESCRIPTION": "Bitte vergessen Sie nicht die Änderungen mit dem Speicher-Button zu bestätigen",
@@ -446,7 +446,7 @@
         "EPG_SOURCE_FORMATS_EXAMPLES": "Beispiele:",
         "VIDEO_PLAYER_DESCRIPTION": "Wählen Sie den Standard-Videoplayer aus",
         "WEB_PLAYER_SHARED_CONTROLS": "Einheitliche Steuerung für Web-Player",
-        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Verwendet die gemeinsamen IPTVnator-Steuerelemente in HTML5, Video.js und ArtPlayer.",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Verwendet die gemeinsamen NatorTV-Steuerelemente in HTML5, Video.js und ArtPlayer.",
         "PLAYER_AMBIENT_MODE": "Umgebungs-Hintergrund",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Füllt den Bereich um den Player mit einem unscharfen, gedimmten Poster auf, anstelle von einfachen schwarzen Balken.",
         "PLAY_TRAILERS_IN_BACKGROUND": "Trailer im Hintergrund der Details abspielen",
@@ -477,7 +477,7 @@
         "EPG_VIEW_MODE_TIMELINE": "Zeitleiste",
         "EPG_VIEW_MODE_LIST": "Liste",
         "STARTUP_BEHAVIOR": "Startansicht",
-        "STARTUP_BEHAVIOR_DESCRIPTION": "Legen Sie fest, ob IPTVnator die erste verfügbare Workspace-Ansicht oder Ihre zuletzt geöffnete Abschnittsansicht startet. Erste Ansicht bedeutet Dashboard, wenn aktiviert, sonst Quellen.",
+        "STARTUP_BEHAVIOR_DESCRIPTION": "Legen Sie fest, ob NatorTV die erste verfügbare Workspace-Ansicht oder Ihre zuletzt geöffnete Abschnittsansicht startet. Erste Ansicht bedeutet Dashboard, wenn aktiviert, sonst Quellen.",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "Erste verfügbare Ansicht",
         "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "Letzte Ansicht wiederherstellen",
         "STARTUP_WINDOW_MODE": "Fenster beim Start",
@@ -504,7 +504,7 @@
         "SUPPORT_DESCRIPTION": "IPTVnator ist kostenlose Open-Source-Software, die im Offenen entwickelt wird. Wenn sie Teil deines Alltags ist, hilft ein kleiner Beitrag, das Projekt am Leben zu halten und die nächsten Schritte zu gestalten — danke!",
         "SUPPORT_SPONSORS_HINT": "Wiederkehrend oder einmalig",
         "SUPPORT_KOFI_HINT": "Spendiere einen Kaffee",
-        "EPG_NOTE": "EPG ist derzeit nur in der Electron-basierten Version von IPTVnator verfügbar.",
+        "EPG_NOTE": "EPG ist derzeit nur in der Electron-basierten Version von NatorTV verfügbar.",
         "EPG_NOTE_URL_TEXT": "Hier prüfen",
         "IMPORT_EXPORT_DATA": "Wiedergabelisten importieren/exportieren",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "Exportiere oder stelle Wiedergabelisten-Backups wieder her, einschließlich M3U-Momentaufnahmen, Xtream-/Stalker-Verbindungsmetadaten, Benutzerstatus und EPG-Quell-URLs.",
@@ -534,10 +534,10 @@
         "PLAYLISTS_REMOVED": "Alle Wiedergabelisten und Wiedergabelistendaten wurden entfernt.",
         "MPV_PLAYER_PATH_LABEL": "mpv-Pfad",
         "MPV_PLAYER_PATH_DESCRIPTION": "Lege den Pfad zu MPV fest. Unter macOS kannst du das MPV-App-Bundle wie /Applications/mpv.app oder den ausführbaren Pfad verwenden.",
-        "MPV_COMPATIBLE_PLAYER_TIP": "IINA kann unter macOS als MPV-kompatibler Player gestartet werden, verwende dafür aber den ausführbaren Pfad wie /Applications/IINA.app/Contents/MacOS/iina-cli oder /Applications/IINA.app/Contents/MacOS/IINA. IPTVnator-Steuerung, Positionsabfrage und Wiederverwendung der Instanz sind nur für MPV IPC garantiert.",
+        "MPV_COMPATIBLE_PLAYER_TIP": "IINA kann unter macOS als MPV-kompatibler Player gestartet werden, verwende dafür aber den ausführbaren Pfad wie /Applications/IINA.app/Contents/MacOS/iina-cli oder /Applications/IINA.app/Contents/MacOS/IINA. NatorTV-Steuerung, Positionsabfrage und Wiederverwendung der Instanz sind nur für MPV IPC garantiert.",
         "MPV_PLAYER_PATH": "MPV-Player-Pfad",
         "MPV_PLAYER_ARGUMENTS_LABEL": "mpv-Befehlszeilenargumente",
-        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "Optionale Argumente, die an mpv übergeben werden, wenn IPTVnator einen neuen externen Player-Prozess startet.",
+        "MPV_PLAYER_ARGUMENTS_DESCRIPTION": "Optionale Argumente, die an mpv übergeben werden, wenn NatorTV einen neuen externen Player-Prozess startet.",
         "MPV_PLAYER_ARGUMENTS": "mpv-Argumente",
         "MPV_REUSE_INSTANCE_LABEL": "MPV-Instanz wiederverwenden",
         "MPV_REUSE_INSTANCE_DESCRIPTION": "Wenn aktiviert, wird dasselbe MPV-Fenster zum Abspielen verschiedener Streams wiederverwendet. Wenn deaktiviert, wird jeder Stream in einem neuen MPV-Fenster geöffnet.",
@@ -549,9 +549,9 @@
         "VLC_PLAYER_PATH_DESCRIPTION": "Lege den Pfad zu VLC fest. Unter macOS kannst du das VLC-App-Bundle wie /Applications/VLC.app oder den ausführbaren Pfad verwenden.",
         "VLC_PLAYER_PATH": "VLC-Player-Pfad",
         "VLC_PLAYER_ARGUMENTS_LABEL": "VLC-Befehlszeilenargumente",
-        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "Optionale Argumente, die an VLC übergeben werden, wenn IPTVnator einen neuen externen Player-Prozess startet.",
+        "VLC_PLAYER_ARGUMENTS_DESCRIPTION": "Optionale Argumente, die an VLC übergeben werden, wenn NatorTV einen neuen externen Player-Prozess startet.",
         "VLC_PLAYER_ARGUMENTS": "VLC-Argumente",
-        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "Verwende ein Argument pro Zeile. Diese Werte werden vor stream-spezifischen IPTVnator-Optionen angewendet.",
+        "EXTERNAL_PLAYER_ARGUMENTS_HINT": "Verwende ein Argument pro Zeile. Diese Werte werden vor stream-spezifischen NatorTV-Optionen angewendet.",
         "VLC_REUSE_INSTANCE_LABEL": "VLC-Instanz wiederverwenden",
         "VLC_REUSE_INSTANCE_DESCRIPTION": "Wenn aktiviert, wird dasselbe VLC-Fenster zum Abspielen verschiedener Streams wiederverwendet. Wenn deaktiviert, wird jeder Stream in einem neuen VLC-Fenster geöffnet.",
         "REMOTE_CONTROL": "Fernbedienung",
@@ -675,12 +675,12 @@
         "MIGRATION_FAILED": "Verschieben fehlgeschlagen. Ihre Wiedergabelisten sind weiterhin in diesem Browser; versuchen Sie es unter Einstellungen → Server erneut.",
         "MIGRATION_RELOAD": "Neu laden",
         "SIGN_IN_TITLE": "Zugriffstoken erforderlich",
-        "SIGN_IN_DESCRIPTION": "Dieser IPTVnator-Server verlangt ein Zugriffstoken, bevor er Ihre Wiedergabelisten zeigt.",
+        "SIGN_IN_DESCRIPTION": "Dieser NatorTV-Server verlangt ein Zugriffstoken, bevor er Ihre Wiedergabelisten zeigt.",
         "SIGN_IN_TOKEN_LABEL": "Zugriffstoken",
         "SIGN_IN_HINT": "Es steht in der Einstellung IPTVNATOR_ACCESS_TOKEN des Servers.",
         "SIGN_IN_REJECTED": "Token abgelehnt. Prüfen Sie es und versuchen Sie es erneut.",
         "SIGN_IN_UNREACHABLE": "Server nicht erreichbar. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
-        "SIGN_IN_STORAGE": "Dieser Browser lässt IPTVnator das Token nicht speichern. Erlauben Sie Websitedaten für diese Seite und versuchen Sie es erneut.",
+        "SIGN_IN_STORAGE": "Dieser Browser lässt NatorTV das Token nicht speichern. Erlauben Sie Websitedaten für diese Seite und versuchen Sie es erneut.",
         "SIGN_IN_CONTINUE": "Weiter",
         "STATUS_ONLINE": "Server verbunden",
         "STATUS_OFFLINE": "Server nicht erreichbar",
@@ -1046,10 +1046,10 @@
         "RETRY": "Erneut versuchen",
         "ALLOW_PRIVATE_SOURCE": "Quelle erlauben",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Private Netzwerk-EPG-Quelle erlauben?",
-        "ALLOW_PRIVATE_SOURCE_WARNING": "Erlaube dies nur, wenn du der EPG-Quelle vertraust. IPTVnator lässt diese genaue EPG-URL Verbindungen zu privaten oder lokalen Netzwerkadressen herstellen.",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Erlaube dies nur, wenn du der EPG-Quelle vertraust. NatorTV lässt diese genaue EPG-URL Verbindungen zu privaten oder lokalen Netzwerkadressen herstellen.",
         "TRUST_TLS_HOST": "Host vertrauen",
         "TRUST_TLS_HOST_TITLE": "Ungültigem Zertifikat vertrauen?",
-        "TRUST_TLS_HOST_WARNING": "Fahre nur fort, wenn du diesem Host vertraust. IPTVnator erlaubt ungültige TLS-Zertifikate für diesen Host, für andere Hosts sind weiterhin gültige Zertifikate erforderlich.",
+        "TRUST_TLS_HOST_WARNING": "Fahre nur fort, wenn du diesem Host vertraust. NatorTV erlaubt ungültige TLS-Zertifikate für diesen Host, für andere Hosts sind weiterhin gültige Zertifikate erforderlich.",
         "CURRENT_PROGRAM": "Aktuelle Sendung",
         "ARCHIVE_PLAYBACK": "Archivwiedergabe",
         "COLLAPSE_PANEL": "EPG-Panel einklappen",
@@ -1625,7 +1625,7 @@
         "STOP_RECORDING": "Aufnahme stoppen",
         "REMOVE_RECORDING_DIALOG": {
             "TITLE": "Aufnahme aus dem Manager entfernen?",
-            "MESSAGE": "Dadurch wird der Eintrag aus IPTVnator entfernt. Die aufgenommene Datei bleibt auf der Festplatte erhalten."
+            "MESSAGE": "Dadurch wird der Eintrag aus NatorTV entfernt. Die aufgenommene Datei bleibt auf der Festplatte erhalten."
         },
         "RECORDING_DETAIL": {
             "PROGRAMS": "Aufgenommene Sendungen",
@@ -1636,7 +1636,7 @@
         "REMOVE_FROM_MANAGER": "Aus dem Download-Manager entfernen",
         "REMOVE_COMPLETED_DIALOG": {
             "TITLE": "Aus dem Download-Manager entfernen?",
-            "MESSAGE": "Dies entfernt den Eintrag aus IPTVnator. Die heruntergeladene Mediendatei bleibt auf dem Datenträger."
+            "MESSAGE": "Dies entfernt den Eintrag aus NatorTV. Die heruntergeladene Mediendatei bleibt auf dem Datenträger."
         },
         "REMOVE_PARTIAL_DIALOG": {
             "TITLE": "Teil-Download entfernen?",
@@ -1724,8 +1724,8 @@
             "TOGGLE_MUTE": "Stummschaltung konnte nicht umgeschaltet werden",
             "STATUS": "Status der Fernbedienung konnte nicht abgerufen werden"
         },
-        "HEADER": "IPTVnator-Fernbedienung",
-        "FOOTER": "IPTVnator-Fernbedienung"
+        "HEADER": "NatorTV-Fernbedienung",
+        "FOOTER": "NatorTV-Fernbedienung"
     },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Nur Favoriten",
@@ -2026,7 +2026,7 @@
         },
         "SHORTCUTS": {
             "TITLE": "Tastenkürzel",
-            "SUBTITLE": "In IPTVnator verfügbare Tastenkürzel für Arbeitsbereich, Steuerung, Wiedergabe und Dialoge.",
+            "SUBTITLE": "In NatorTV verfügbare Tastenkürzel für Arbeitsbereich, Steuerung, Wiedergabe und Dialoge.",
             "OPEN_TOOLTIP": "Tastenkürzel (?)",
             "OPEN_ARIA": "Tastenkürzel öffnen",
             "PLATFORM": {

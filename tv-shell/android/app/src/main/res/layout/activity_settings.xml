@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1f1f23"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="40dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_title"
+            android:textColor="#f5f5f7"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            style="@style/SettingsSection"
+            android:text="@string/setting_width" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/setting_width_hint" />
+
+        <RadioGroup
+            android:id="@+id/width_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/width_960"
+                style="@style/SettingsRadio"
+                android:text="@string/width_960" />
+
+            <RadioButton
+                android:id="@+id/width_1280"
+                style="@style/SettingsRadio"
+                android:text="@string/width_1280" />
+
+            <RadioButton
+                android:id="@+id/width_1600"
+                style="@style/SettingsRadio"
+                android:text="@string/width_1600" />
+        </RadioGroup>
+
+        <TextView
+            style="@style/SettingsSection"
+            android:text="@string/setting_external" />
+
+        <CheckBox
+            android:id="@+id/prompt_external"
+            style="@style/SettingsRadio"
+            android:text="@string/setting_prompt_external" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/setting_player_hint" />
+
+        <RadioGroup
+            android:id="@+id/player_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/player_hint"
+            style="@style/SettingsHint"
+            android:text="@string/no_external_player"
+            android:visibility="gone" />
+
+        <TextView
+            style="@style/SettingsSection"
+            android:text="@string/setting_advanced" />
+
+        <CheckBox
+            android:id="@+id/web_debug"
+            style="@style/SettingsRadio"
+            android:text="@string/setting_web_debug" />
+
+        <Button
+            android:id="@+id/reset_data"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/reset_title" />
+
+        <TextView
+            style="@style/SettingsSection"
+            android:text="@string/setting_diagnostics" />
+
+        <TextView
+            android:id="@+id/diagnostics"
+            style="@style/SettingsHint"
+            android:textIsSelectable="false" />
+
+        <Button
+            android:id="@+id/done"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:minWidth="200dp"
+            android:text="@string/done" />
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,3 @@
+#EXTM3U url-tvg="http://195.154.221.171/epg/guidealbania.xml.gz"
+#EXTINF:-1 tvg-id="Agromais.br" user-agent="Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148" group-title="Entertainment",Agromais
+https://agromais/playlist.m3u8
