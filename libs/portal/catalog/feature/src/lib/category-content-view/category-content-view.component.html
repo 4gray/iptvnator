@@ -412,6 +412,7 @@
             } @else {
                 <app-grid-list
                     appInfiniteScroll
+                    [infiniteThresholdPx]="640"
                     [infiniteHasMore]="infiniteHasMore()"
                     [infiniteAppending]="infiniteAppending()"
                     [infiniteItemCount]="contentWithProgress().length"
