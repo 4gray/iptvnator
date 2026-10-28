@@ -151,8 +151,13 @@ if (playable) {
     const reset = await page.evaluate(() => {
         const p = document.querySelector('.video-js') && document.querySelector('.video-js').player;
         try {
-            if (p) p.reset();
-            return p ? 'ok' : 'no player';
+            if (!p) return 'no player';
+            // Player#reset() runs at once only on a paused player; playing, it waits for play()
+            // and swallows any error.
+            p.pause();
+            const paused = p.paused();
+            p.reset();
+            return paused ? 'ok' : 'not paused';
         } catch (e) {
             return String(e);
         }

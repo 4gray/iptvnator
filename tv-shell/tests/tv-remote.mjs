@@ -492,6 +492,52 @@ console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
         pane.remove();
         return out;
     });
+    // With nothing to land on, a page that ends in text scrolls by most of a page, while a virtual
+    // list whose rendered rows ran out scrolls one row; and two repeats on the picture before its
+    // controls come back move the focus once, not twice.
+    const fallback = await page.evaluate(async () => {
+        const settle = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const key = (type) => document.activeElement.dispatchEvent(new KeyboardEvent(type, { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true }));
+        const mount = (html) => {
+            const pane = document.createElement('div');
+            pane.className = 'cdk-overlay-pane'; // its own scope: the app's buttons are not candidates
+            pane.style.cssText = 'position:fixed;left:0;top:0;z-index:99999';
+            pane.innerHTML = html;
+            document.body.appendChild(pane);
+            return pane;
+        };
+        const scrollAfterDown = async (html, scrollerId, buttonId) => {
+            const pane = mount(html);
+            await settle(300); // clear of the previous arrow
+            document.getElementById(buttonId).focus();
+            key('keydown');
+            const scroller = document.getElementById(scrollerId);
+            const out = { scrolled: scroller.scrollTop, page: scroller.clientHeight }; // read at once
+            key('keyup');
+            await settle(150); // let the second look run before the scroller goes
+            pane.remove();
+            return out;
+        };
+        const text = await scrollAfterDown('<div id="tvt-text" style="width:400px;height:600px;overflow:auto;background:#000;color:#fff">'
+            + '<button id="tvt-t0" style="display:block;height:40px;width:200px">only button</button><p style="height:3000px">text</p></div>', 'tvt-text', 'tvt-t0');
+        const virtual = await scrollAfterDown('<cdk-virtual-scroll-viewport id="tvt-v" style="display:block;width:400px;height:600px;overflow:auto;background:#000">'
+            + '<button id="tvt-v0" style="display:block;height:52px;width:200px">row</button><div style="height:3000px"></div></cdk-virtual-scroll-viewport>', 'tvt-v', 'tvt-v0');
+        const pane = mount('<div class="tvt-player" style="position:relative;width:640px;height:480px;background:#000">'
+            + '<video id="tvt-vid" tabindex="0" style="width:640px;height:300px;display:block"></video>'
+            + '<div id="tvt-controls" style="display:none"><button id="tvt-c1" style="display:block;height:40px">c1</button><button id="tvt-c2" style="display:block;height:40px">c2</button></div></div>');
+        const controls = document.getElementById('tvt-controls');
+        pane.querySelector('.tvt-player').addEventListener('pointermove', () => setTimeout(() => { controls.style.display = 'block'; }, 80));
+        await settle(300);
+        document.getElementById('tvt-vid').focus();
+        key('keydown');
+        await settle(50);
+        key('keydown'); // held: a repeat 50 ms later, still on the picture
+        key('keyup');
+        await settle(400);
+        const fromPicture = document.activeElement.id;
+        pane.remove();
+        return { text, virtual, fromPicture };
+    });
     // A rail with nothing on screen to land on: only the layer's own scroll moves it, and at once.
     const railScroll = await page.evaluate(async () => {
         const pane = document.createElement('div');
@@ -517,6 +563,10 @@ console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
     check(held.nextFrame === 'tvt-h2', 'the next repeat after the frame moves again: ' + held.nextFrame);
     check(reach.below > 720 && reach.focused === 'tvt-n10' && reach.scrolled > 0 && reach.scrolled < reach.page * 0.3,
         'the next row past the bottom edge is the next stop, one row down: ' + reach.focused + ', scrollTop ' + reach.scrolled);
+    check(fallback.text.scrolled > fallback.text.page * 0.5, 'a page that ends in text scrolls by most of a page: scrollTop ' + fallback.text.scrolled);
+    check(fallback.virtual.scrolled >= 1 && fallback.virtual.scrolled <= fallback.virtual.page * 0.3,
+        'a virtual list with no row left past the fold scrolls one row: scrollTop ' + fallback.virtual.scrolled);
+    check(fallback.fromPicture === 'tvt-c1', 'two repeats on the picture move the focus once: ' + fallback.fromPicture);
     check(r.scope === 'document', 'a snack bar does not become the navigation scope: ' + r.scope);
     check(railScroll > 0, 'a smooth rail with nothing on screen to land on scrolls at once: scrollLeft ' + railScroll);
 }

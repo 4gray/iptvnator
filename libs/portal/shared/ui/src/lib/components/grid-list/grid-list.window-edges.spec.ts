@@ -135,5 +135,16 @@ describe('GridListComponent windowing with id-less items', () => {
 
         expect(focused.isConnected).toBe(true);
         expect(focused.getAttribute('aria-label')).toBe('Movie 84');
+
+        // A consumer that re-maps its items on each change (progress badges,
+        // an append) hands over new objects: the focused card stays.
+        fixture.componentRef.setInput(
+            'items',
+            Array.from({ length: 260 }, (_, i) => ({ name: `Movie ${i}` }))
+        );
+        await render();
+
+        expect(focused.isConnected).toBe(true);
+        expect(focused.getAttribute('aria-label')).toBe('Movie 84');
     });
 });

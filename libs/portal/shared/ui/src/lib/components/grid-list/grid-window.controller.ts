@@ -73,11 +73,19 @@ export function createGridWindow<T extends object>(
         },
         { equal: sameGridWindow }
     );
+    // Absolute position of each rendered item, for items without an id: a live
+    // card keeps the key it was rendered with, and a re-mapped object (a
+    // consumer rebuilding its items on each change) at the same position
+    // gets the same key, so neither a window shift nor an update re-creates it.
+    const positions = new WeakMap<object, number>();
     const rendered = computed(() => {
         const window = range();
-        return window
+        const start = window?.start ?? 0;
+        const slice = window
             ? items().slice(window.start, window.end)
             : items().slice(0, GRID_WINDOW_INITIAL_ITEMS);
+        slice.forEach((item, i) => positions.set(item, start + i));
+        return slice;
     });
 
     let observedGrid: HTMLElement | null = null;
@@ -151,7 +159,7 @@ export function createGridWindow<T extends object>(
                 keyed.stream_id ??
                 keyed.series_id ??
                 keyed.xtream_id ??
-                item
+                `#${positions.get(item) ?? index}`
             );
         },
     };
