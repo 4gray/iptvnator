@@ -184,7 +184,12 @@ public class WebBackend {
         Utf8Sink record = new Utf8Sink();
         try {
             PlaylistBuilder.write(text, PlaylistBuilder.lastUrlSegment(url), url, userAgent, record);
+        } catch (M3uParser.InvalidPlaylistException e) {
+            return json(500, error("Error, something went wrong", 500));
         } catch (RuntimeException e) {
+            // Not a bad playlist: a bug while items were parsed, decorated or written. The answer is
+            // the same, but the cause stays in logcat (tag System.err) for a user's adb log.
+            e.printStackTrace();
             return json(500, error("Error, something went wrong", 500));
         }
         return new Response(200, JSON_TYPE, record);
