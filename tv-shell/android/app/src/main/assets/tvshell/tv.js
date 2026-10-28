@@ -50,6 +50,7 @@
     var exitArmedUntil = 0;
     var lastArrowAt = 0;
     var heldArrow = null; // arrow pressed and not released yet: only its keydowns can be queued repeats
+    var movePainted = true; // the last D-pad move has reached the screen (a held key waits for it)
     var keepScreenOn = false;
 
     // --------------------------------------------------------------- bridge
@@ -86,7 +87,13 @@
             'scroll-margin:32px;box-shadow:0 0 0 3px rgba(0,0,0,.55)!important;border-radius:6px}' +
             'video.' + FOCUS_CLASS + '{outline-offset:-3px!important}' +
             'body.tv-shell *{cursor:none!important}' +
-            'body.tv-shell ::-webkit-scrollbar{width:0;height:0}';
+            'body.tv-shell ::-webkit-scrollbar{width:0;height:0}' +
+            // A card, a category entry or a rail link animates its box-shadow for 180-200 ms when the
+            // ring lands on it or leaves it: a style and paint pass per frame for two elements after
+            // every press, on a device with no hover to need it.
+            'body.tv-shell mat-card,body.tv-shell .nav-item,body.tv-shell .portal-rail-link{transition:none!important}' +
+            // The LIVE dot's endless pulse restyles the page on every frame while a channel plays.
+            'body.tv-shell .player-controls__live-dot{animation:none!important}';
         (document.head || document.documentElement).appendChild(style);
     }
 
@@ -96,16 +103,27 @@
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
     }
 
+    // Room past the viewport edges a candidate may sit in. move() opens it in the direction of
+    // travel: a virtual list keeps a few rows rendered past the fold and the next one is among them.
+    var reach = { top: 0, right: 0, bottom: 0, left: 0 };
+
+    function inView(r) {
+        if (r.width < 2 || r.height < 2) return false;
+        return !(r.bottom < -reach.top || r.right < -reach.left ||
+            r.top > window.innerHeight + reach.bottom || r.left > window.innerWidth + reach.right);
+    }
+
     function isVisible(el) {
         if (!el.isConnected) return false;
         // The geometry first: it rejects most of a long list before the ancestor walk and the style.
-        var r = el.getBoundingClientRect();
-        if (r.width < 2 || r.height < 2) return false;
-        if (r.bottom < 0 || r.right < 0 || r.top > window.innerHeight || r.left > window.innerWidth) return false;
+        return inView(el.getBoundingClientRect()) && isShown(el);
+    }
+
+    /** The ancestor walk and the computed style: asked only of the few elements that matter. */
+    function isShown(el) {
         if (el.closest('[hidden],[inert],[aria-hidden="true"],.cdk-visually-hidden,.cdk-overlay-backdrop')) return false;
         var cs = getComputedStyle(el);
-        if (cs.visibility === 'hidden' || cs.display === 'none' || cs.opacity === '0' || cs.pointerEvents === 'none') return false;
-        return true;
+        return !(cs.visibility === 'hidden' || cs.display === 'none' || cs.opacity === '0' || cs.pointerEvents === 'none');
     }
 
     function isDisabled(el) {
@@ -170,19 +188,26 @@
         return document;
     }
 
-    function candidates(scope, exclude) {
+    /** The checks that cost: the disabled state, the ancestor walk, the style, the container test. */
+    function qualifies(el) {
+        if (isDisabled(el) || !isShown(el) || !ensureFocusable(el)) return false;
+        // Landing zones (dialog container, scroll owners, detail shells)
+        // are never navigation targets: their children are.
+        return !isContainerFocus(el);
+    }
+
+    /** `lazy`: geometry only; the caller asks qualifies() of the element it picks. */
+    function candidates(scope, exclude, lazy) {
         var nodes = scope.querySelectorAll(CANDIDATE_SELECTOR);
         var out = [];
         for (var i = 0; i < nodes.length; i++) {
             var el = nodes[i];
-            if (el === exclude || isDisabled(el)) continue;
+            if (el === exclude || !el.isConnected) continue;
             if (el.tagName === 'INPUT' && el.type === 'hidden') continue;
-            if (!isVisible(el)) continue;
-            if (!ensureFocusable(el)) continue;
-            // Landing zones (dialog container, scroll owners, detail shells)
-            // are never navigation targets: their children are.
-            if (isContainerFocus(el)) continue;
-            out.push({ el: el, rect: rectOf(el) });
+            var r = el.getBoundingClientRect();
+            if (!inView(r)) continue;
+            if (!lazy && !qualifies(el)) continue;
+            out.push({ el: el, rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height } });
         }
         return out;
     }
@@ -265,7 +290,7 @@
     }
 
     function findNext(dir, srcRect, scope, exclude) {
-        var list = candidates(scope, exclude);
+        var list = candidates(scope, exclude, true);
         var best = null;
         for (var i = 0; i < list.length; i++) {
             var c = list[i];
@@ -274,9 +299,12 @@
                 // for its parent only when the parent is in the direction.
                 if (!isCandidate(srcRect, c.rect, dir)) continue;
             }
+            // The geometry first; the costly checks only for an element that would take the
+            // lead. A hidden or disabled element, or a container, never takes it: the ranking is
+            // the one the qualified elements alone would give (the comparator is not transitive).
             if (best === null) {
-                if (isCandidate(srcRect, c.rect, dir)) best = c;
-            } else if (isBetterCandidate(dir, srcRect, c.rect, best.rect)) {
+                if (isCandidate(srcRect, c.rect, dir) && qualifies(c.el)) best = c;
+            } else if (isBetterCandidate(dir, srcRect, c.rect, best.rect) && qualifies(c.el)) {
                 best = c;
             }
         }
@@ -299,10 +327,14 @@
         return document.scrollingElement || document.documentElement;
     }
 
-    function scrollInDirection(scroller, dir) {
+    function scrollInDirection(scroller, dir, item) {
         var before = dir === 'up' || dir === 'down' ? scroller.scrollTop : scroller.scrollLeft;
         var vertical = dir === 'up' || dir === 'down';
-        var amount = vertical ? Math.max(80, scroller.clientHeight * 0.6) : Math.max(80, scroller.clientWidth * 0.6);
+        // From an item of the list: one item's worth, so the rows a virtual list renders next are the
+        // neighbours (a page at a time lands the focus far from where it was). Else 60% of a page.
+        var box = item ? item.getBoundingClientRect() : null;
+        var size = box ? (vertical ? box.height : box.width) : 0;
+        var amount = size >= 24 ? size : vertical ? Math.max(80, scroller.clientHeight * 0.6) : Math.max(80, scroller.clientWidth * 0.6);
         var delta = dir === 'up' || dir === 'left' ? -amount : amount;
         // Never animated: the next decision reads the rects right away, and a rail with
         // `scroll-behavior: smooth` would still be moving.
@@ -336,6 +368,14 @@
             }
         }
         lastRect = rectOf(el);
+        movePainted = false;
+        requestAnimationFrame(function () {
+            // This frame draws the move and fires the scroll event; the list renders the rows it
+            // uncovered in the change-detection pass scheduled from it (a timer, queued before this one).
+            setTimeout(function () {
+                movePainted = true;
+            }, 0);
+        });
         if (!(opts && opts.silent)) revealPlayerControls(el);
     }
 
@@ -394,17 +434,27 @@
             var cx = (src.left + src.right) / 2, cy = (src.top + src.bottom) / 2;
             src = { left: cx - 1, top: cy - 1, right: cx + 1, bottom: cy + 1, width: 2, height: 2 };
         }
-        var next = findNext(dir, src, scope, exclude);
+        // A row already rendered past the fold is the next stop: scrollIntoView brings it in
+        // by one row, instead of a page scroll and a second look 60 ms later.
+        reach[dir === 'up' ? 'top' : dir === 'down' ? 'bottom' : dir] = dir === 'up' || dir === 'down' ? window.innerHeight : window.innerWidth;
+        var next;
+        try {
+            next = findNext(dir, src, scope, exclude);
+        } finally {
+            reach.top = reach.right = reach.bottom = reach.left = 0;
+        }
         if (next) {
             setFocus(next.el);
             return true;
         }
         if (!retried) {
             var scroller = scrollableAncestor(exclude || (scope === document ? document.body : scope), dir);
-            if (scroller && scrollInDirection(scroller, dir)) {
-                // Virtual scroll renders rows asynchronously: look again shortly.
+            if (scroller && scrollInDirection(scroller, dir, exclude && scroller.contains(exclude) ? exclude : null)) {
+                // Virtual scroll renders rows asynchronously: look again shortly. A held key
+                // waits for that second look as it waits for a drawn move.
+                movePainted = false;
                 setTimeout(function () {
-                    move(dir, true);
+                    if (!move(dir, true)) movePainted = true;
                 }, 60);
                 return true;
             }
@@ -540,6 +590,14 @@
             // repeats that waited in the queue would keep moving focus after the key is released.
             var now = performance.now();
             if (heldArrow === event.key && now - lastArrowAt < 250 && now - event.timeStamp > 120) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return;
+            }
+            if (heldArrow === event.key && !movePainted) {
+                // A repeat before the previous move is drawn: input outranks rendering, so the
+                // focus would run through the list unseen and jump on release. The key is
+                // still down: the next repeat moves again, once this frame is out.
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 return;
@@ -1035,6 +1093,7 @@
                         t.addEventListener(other, function () { syncKeepScreenOn(false); });
                     });
                 }
+                if (type === 'playing' && t.tagName === 'VIDEO') dropVjsSeekBar(t);
                 syncKeepScreenOn(type === 'playing');
             }, true);
         });
@@ -1061,8 +1120,35 @@
                 noteMediaUrl(t.currentSrc || t.getAttribute('src'), null, true);
                 promptedFor = null; // a new load attempt may prompt once more
                 promptedRoot = null;
+                if (t.tagName === 'VIDEO') setTimeout(function () { dropVjsSeekBar(t); }, 0);
             }
         }, true);
+    }
+
+    /** The app runs video.js with `controls: false` (it draws its own controls), yet video.js
+     *  still updates the hidden seek bar every 30 ms while a stream plays (two animation frames,
+     *  a layout read, a time tooltip): about a third of the main thread at Stick speed. Drop that
+     *  one component once the player is ready (plugins add their buttons to the bar then); the rest
+     *  of the bar stays, so Player#reset() and the control-bar plugins keep working. A player that
+     *  shows its own chrome (shared controls switched off) keeps everything. */
+    function dropVjsSeekBar(video) {
+        var root = video.closest && video.closest('.video-js');
+        var p = root && root.player;
+        if (!p || p.__tvSeekBarDropped || typeof p.ready !== 'function') return;
+        p.__tvSeekBarDropped = true;
+        p.ready(function () {
+            try {
+                if (p.controls()) return;
+                var bar = p.getChild('ControlBar');
+                var pc = bar && bar.getChild('ProgressControl');
+                if (!pc) return;
+                bar.removeChild(pc);
+                pc.dispose();
+                bar.progressControl = undefined; // Player#resetProgressBar_ reads it
+            } catch (e) {
+                log('vjs seek bar: ' + e);
+            }
+        });
     }
 
     /** "Copy stream URL" is the app's documented fallback for streams the
