@@ -183,8 +183,14 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
   heap (64 MB at most, about 32 MB on a Fire TV Stick Lite) and refused before
   download when the declared size is larger (`ERR_RESPONSE_TOO_LARGE`). Xtream
   and Stalker JSON answers are validated and passed through verbatim instead
-  of being rebuilt as maps; responses are encoded straight to UTF-8 bytes and
-  the M3U parser walks the text without splitting it into a second copy.
+  of being rebuilt as maps; responses are encoded straight to UTF-8 in chunks
+  (no doubling buffer, no final copy) and served from them. An M3U import is
+  parsed and written in one pass: the parser walks the text without splitting
+  it into a second copy and hands over each channel as soon as it is complete,
+  which `/api/parse` decorates (id, DRM) and writes out at once, so the heap
+  holds the playlist text and the JSON answer, never the channel list as maps
+  (on the JDK, 60 000 channels fit in a 56 MB heap; building the whole list
+  first ran out of memory at 256 MB).
 - The loopback server never lets an `Error` reach Android's default handler
   (which kills the app): request bodies are read directly (no NanoHTTPD temp
   file, whose failure is a bare `java.lang.Error`), a request thread that cannot

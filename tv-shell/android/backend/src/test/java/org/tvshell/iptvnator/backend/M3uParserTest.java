@@ -106,6 +106,46 @@ public class M3uParserTest {
         System.out.println("       " + checked + " fixtures compared");
     }
 
+    /**
+     * /parse writes each item the moment the sink receives it, so the header must come first and
+     * an item handed over must be final: the parser never changes it afterwards.
+     */
+    @SuppressWarnings("unchecked")
+    public void testSinkGetsTheHeaderFirstAndEveryItemFinal() throws IOException {
+        int checked = 0;
+        for (String name : resource("index.txt").trim().split("\n")) {
+            name = name.trim();
+            if (name.isEmpty() || !Boolean.TRUE.equals(((Map<String, Object>) Json.parse(resource(name + ".expected.json"))).get("ok"))) continue;
+            String input = resource(name + ".m3u");
+            final String fixture = name;
+            final List<Object> handed = Json.array();
+            final List<String> asHanded = new java.util.ArrayList<String>();
+            final String[] header = new String[1];
+            M3uParser.parse(input, new M3uParser.ItemSink() {
+                @Override
+                public void header(Map<String, Object> value) {
+                    assertTrue(fixture + ": header once, before any item", header[0] == null && handed.isEmpty());
+                    header[0] = Json.write(value);
+                }
+
+                @Override
+                public void item(Map<String, Object> item) {
+                    assertTrue(fixture + ": item after the header", header[0] != null);
+                    handed.add(item);
+                    asHanded.add(Json.write(item));
+                }
+            });
+            for (int i = 0; i < handed.size(); i++) {
+                assertEquals(fixture + " item " + i + " unchanged after it was handed over", asHanded.get(i), Json.write(handed.get(i)));
+            }
+            Map<String, Object> collected = M3uParser.parse(input);
+            assertEquals(fixture + " header", Json.write(collected.get("header")), header[0]);
+            assertEquals(fixture + " items", Json.write(collected.get("items")), Json.write(handed));
+            checked++;
+        }
+        assertTrue("fixtures streamed: " + checked, checked >= 40);
+    }
+
     /** Lines(): what content.split("\\r?\\n", -1) gives, one at a time, without the String[]. */
     public void testLinesMatchSplitSemantics() {
         String[] samples = {"", "a", "a\n", "a\nb", "a\r\nb\r\n", "\n\n", "a\rb\n", "\r\n", "x\n\r\n\ny\r"};
@@ -117,6 +157,10 @@ public class M3uParserTest {
                 assertEquals("index " + i, Integer.valueOf(i), Integer.valueOf(lines.index));
             }
             assertEquals("end of " + text.replace("\r", "\\r").replace("\n", "\\n"), null, lines.next());
+            // From an offset (a skipped BOM): the lines of the rest, without copying it first.
+            M3uParser.Lines rest = new M3uParser.Lines("\uFEFF" + text, 1);
+            for (int i = 0; i < expected.length; i++) assertEquals("offset line " + i, expected[i], rest.next());
+            assertEquals("offset end", null, rest.next());
         }
     }
 

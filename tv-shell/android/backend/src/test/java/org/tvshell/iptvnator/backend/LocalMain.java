@@ -82,10 +82,15 @@ public final class LocalMain {
                         WebBackend.Response r = backend.handle(exchange.getRequestMethod(), sub, parseQuery(exchange.getRequestURI().getRawQuery()), body);
                         exchange.getResponseHeaders().set("Content-Type", r.contentType);
                         for (Map.Entry<String, String> h : r.headers.entrySet()) exchange.getResponseHeaders().set(h.getKey(), h.getValue());
-                        exchange.sendResponseHeaders(r.status, r.body.length == 0 ? -1 : r.body.length);
-                        if (r.body.length > 0) {
+                        long length = r.bodyLength();
+                        exchange.sendResponseHeaders(r.status, length == 0 ? -1 : length);
+                        if (length > 0) {
+                            // Streamed from the answer's chunks, as TvShellServer hands them to NanoHTTPD.
+                            InputStream in = r.openBody();
                             OutputStream out = exchange.getResponseBody();
-                            out.write(r.body);
+                            byte[] buffer = new byte[16 * 1024];
+                            int read;
+                            while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
                             out.close();
                         } else {
                             exchange.close();

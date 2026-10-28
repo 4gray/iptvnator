@@ -98,14 +98,40 @@ public class JsonTest {
         };
         for (Object sample : samples) {
             byte[] expected = Json.write(sample).getBytes("UTF-8");
-            assertTrue("utf-8 of " + Json.write(sample), java.util.Arrays.equals(expected, Json.writeUtf8(sample)));
+            assertTrue("utf-8 of " + Json.write(sample), java.util.Arrays.equals(expected, Json.writeUtf8(sample).toByteArray()));
         }
-        Json.Utf8Sink sink = new Json.Utf8Sink(1);
+        Utf8Sink sink = new Utf8Sink(1, 3);
         sink.append("ab\ud83d");
         assertEquals("trailing high surrogate", "ab?", new String(sink.toByteArray(), "UTF-8"));
         StringBuilder big = new StringBuilder();
         for (int i = 0; i < 5000; i++) big.append("\u00e9\ud83d\udcfa,");
-        assertTrue("growth", java.util.Arrays.equals(Json.write(big.toString()).getBytes("UTF-8"), Json.writeUtf8(big.toString())));
+        assertTrue("growth", java.util.Arrays.equals(Json.write(big.toString()).getBytes("UTF-8"), Json.writeUtf8(big.toString()).toByteArray()));
+    }
+
+    /**
+     * The chunked sink holds every byte once: multi-byte sequences split across chunks, the
+     * stream and the length agree with the String encoder, and nothing is copied while writing.
+     */
+    public void testUtf8SinkChunksAgreeWithTheStringEncoder() throws Exception {
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < 3000; i++) text.append(i % 7 == 0 ? "\ud83d\udcfa" : i % 5 == 0 ? "\u20ac" : i % 3 == 0 ? "\u00e9" : "a");
+        byte[] expected = Json.write(text.toString()).getBytes("UTF-8");
+        int[][] shapes = {{1, 1}, {1, 3}, {2, 5}, {4096, 7}, {Utf8Sink.FIRST_CHUNK, Utf8Sink.MAX_CHUNK}};
+        for (int[] shape : shapes) {
+            Utf8Sink sink = new Utf8Sink(shape[0], shape[1]);
+            Json.write(text.toString(), sink);
+            String what = "chunks " + shape[0] + ".." + shape[1];
+            assertEquals(what + " length", Long.valueOf(expected.length), Long.valueOf(sink.length()));
+            assertTrue(what + " bytes", java.util.Arrays.equals(expected, sink.toByteArray()));
+            assertTrue(what + " stream", java.util.Arrays.equals(expected, LocalMain.readAll(sink.openStream())));
+            assertTrue(what + " stream again", java.util.Arrays.equals(expected, LocalMain.readAll(sink.openStream())));
+        }
+        byte[] given = "{\"a\":1}".getBytes("UTF-8");
+        Utf8Sink wrapped = Utf8Sink.of(given);
+        assertEquals("wrapped length", Long.valueOf(given.length), Long.valueOf(wrapped.length()));
+        assertTrue("wrapped bytes", java.util.Arrays.equals(given, LocalMain.readAll(wrapped.openStream())));
+        assertEquals("empty", Long.valueOf(0), Long.valueOf(Utf8Sink.of(new byte[0]).length()));
+        assertEquals("empty stream", -1, Integer.valueOf(Utf8Sink.of(null).openStream().read()));
     }
 
     /** validate() skips the same grammar parse() builds: both must agree on every sample. */

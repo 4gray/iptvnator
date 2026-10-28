@@ -181,7 +181,9 @@ public final class TvShellServer extends NanoHTTPD {
                 }
                 Map<String, List<String>> query = session.getParameters();
                 WebBackend.Response r = backend.handle(method.name(), sub, query, body);
-                Response response = newFixedLengthResponse(status(r.status), r.contentType, new ByteArrayInputStream(r.body), r.body.length);
+                // Streamed from the chunks the answer was encoded into: a /parse record of tens of
+                // MB is never copied into one array.
+                Response response = newFixedLengthResponse(status(r.status), r.contentType, r.openBody(), r.bodyLength());
                 for (Map.Entry<String, String> header : r.headers.entrySet()) response.addHeader(header.getKey(), header.getValue());
                 return response;
             }

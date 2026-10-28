@@ -3,7 +3,6 @@ package org.tvshell.iptvnator.backend;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -123,97 +122,22 @@ public final class Json {
     }
 
     /**
-     * The JSON text as UTF-8 bytes, encoded while it is written: one growing byte array instead
-     * of a char buffer, a String and the bytes alive at the same time (a /parse answer for a
-     * large playlist is tens of MB).
+     * The JSON text as UTF-8 bytes, encoded while it is written into chunks ({@link Utf8Sink}):
+     * no char buffer, String, doubling array or final copy on the way (a /parse or Xtream answer
+     * is tens of MB).
      */
-    public static byte[] writeUtf8(Object value) {
-        Utf8Sink sink = new Utf8Sink(4096);
-        try {
-            write(value, sink);
-        } catch (IOException e) {
-            throw new IllegalStateException(e); // the sink never throws
-        }
-        return sink.toByteArray();
+    static Utf8Sink writeUtf8(Object value) {
+        Utf8Sink sink = new Utf8Sink();
+        write(value, sink);
+        return sink;
     }
 
-    /**
-     * Appendable that encodes into a growing UTF-8 byte array without allocating per call
-     * (OutputStreamWriter allocates for every single character). An unpaired surrogate becomes
-     * '?', as String.getBytes(UTF-8) does.
-     */
-    static final class Utf8Sink implements Appendable {
-        private byte[] buf;
-        private int count;
-        private char pendingHigh;
-
-        Utf8Sink(int initial) {
-            buf = new byte[Math.max(16, initial)];
-        }
-
-        @Override
-        public Appendable append(CharSequence csq) {
-            CharSequence text = csq == null ? "null" : csq;
-            return append(text, 0, text.length());
-        }
-
-        @Override
-        public Appendable append(CharSequence csq, int start, int end) {
-            CharSequence text = csq == null ? "null" : csq;
-            for (int i = start; i < end; i++) append(text.charAt(i));
-            return this;
-        }
-
-        @Override
-        public Appendable append(char c) {
-            if (pendingHigh != 0) {
-                char high = pendingHigh;
-                pendingHigh = 0;
-                if (Character.isLowSurrogate(c)) {
-                    int cp = Character.toCodePoint(high, c);
-                    ensure(4);
-                    buf[count++] = (byte) (0xF0 | (cp >> 18));
-                    buf[count++] = (byte) (0x80 | ((cp >> 12) & 0x3F));
-                    buf[count++] = (byte) (0x80 | ((cp >> 6) & 0x3F));
-                    buf[count++] = (byte) (0x80 | (cp & 0x3F));
-                    return this;
-                }
-                put('?');
-            }
-            if (c < 0x80) {
-                put(c);
-            } else if (c < 0x800) {
-                ensure(2);
-                buf[count++] = (byte) (0xC0 | (c >> 6));
-                buf[count++] = (byte) (0x80 | (c & 0x3F));
-            } else if (Character.isHighSurrogate(c)) {
-                pendingHigh = c;
-            } else if (Character.isLowSurrogate(c)) {
-                put('?');
-            } else {
-                ensure(3);
-                buf[count++] = (byte) (0xE0 | (c >> 12));
-                buf[count++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-                buf[count++] = (byte) (0x80 | (c & 0x3F));
-            }
-            return this;
-        }
-
-        byte[] toByteArray() {
-            if (pendingHigh != 0) {
-                pendingHigh = 0;
-                put('?');
-            }
-            return Arrays.copyOf(buf, count);
-        }
-
-        private void put(char ascii) {
-            ensure(1);
-            buf[count++] = (byte) ascii;
-        }
-
-        private void ensure(int extra) {
-            if (count + extra > buf.length) buf = Arrays.copyOf(buf, Math.max(buf.length * 2, count + extra));
+    /** {@link #write(Object, Appendable)} into a sink that never throws. */
+    static void write(Object value, Utf8Sink sink) {
+        try {
+            write(value, (Appendable) sink);
+        } catch (IOException e) {
+            throw new IllegalStateException(e); // the sink never throws
         }
     }
 
