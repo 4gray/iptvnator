@@ -472,6 +472,26 @@ console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
         host.remove();
         return out;
     });
+    // The next row a list already rendered past the bottom edge is the next stop, at once: the list
+    // moves by about a row, not by a page followed by a second look 60 ms later.
+    const reach = await page.evaluate(async () => {
+        const pane = document.createElement('div');
+        pane.className = 'cdk-overlay-pane'; // its own scope: the app's buttons are not candidates
+        pane.style.cssText = 'position:fixed;left:0;top:10px;z-index:99999';
+        pane.innerHTML = '<div id="tvt-reach" style="width:300px;height:710px;overflow:auto;background:#000">'
+            + Array.from({ length: 20 }, (_, i) => '<button id="tvt-n' + i + '" style="display:block;height:52px;width:200px;margin-bottom:20px">row ' + i + '</button>').join('') + '</div>';
+        document.body.appendChild(pane);
+        await new Promise((resolve) => setTimeout(resolve, 300)); // clear of the previous arrow
+        const list = document.getElementById('tvt-reach');
+        document.getElementById('tvt-n9').focus(); // its bottom at 710; the next row starts past the window
+        const below = document.getElementById('tvt-n10').getBoundingClientRect().top;
+        document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true }));
+        const out = { below, focused: document.activeElement.id, scrolled: list.scrollTop, page: list.clientHeight }; // read at once
+        document.activeElement.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 150)); // let a second look run before the list goes
+        pane.remove();
+        return out;
+    });
     // A rail with nothing on screen to land on: only the layer's own scroll moves it, and at once.
     const railScroll = await page.evaluate(async () => {
         const pane = document.createElement('div');
@@ -495,6 +515,8 @@ console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
     check(r.focusedRow === 'tvt-b5' && r.scrollTop > 0, 'a smooth-scroll rail scrolls at once (row ' + r.focusedRow + ', scrollTop ' + r.scrollTop + ')');
     check(held.first === 'tvt-h1' && held.sameFrame === 'tvt-h1', 'a held key waits for the move to be drawn: ' + held.first + ', ' + held.sameFrame);
     check(held.nextFrame === 'tvt-h2', 'the next repeat after the frame moves again: ' + held.nextFrame);
+    check(reach.below > 720 && reach.focused === 'tvt-n10' && reach.scrolled > 0 && reach.scrolled < reach.page * 0.3,
+        'the next row past the bottom edge is the next stop, one row down: ' + reach.focused + ', scrollTop ' + reach.scrolled);
     check(r.scope === 'document', 'a snack bar does not become the navigation scope: ' + r.scope);
     check(railScroll > 0, 'a smooth rail with nothing on screen to land on scrolls at once: scrollLeft ' + railScroll);
 }

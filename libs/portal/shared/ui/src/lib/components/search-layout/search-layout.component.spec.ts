@@ -178,6 +178,24 @@ describe('SearchLayoutComponent', () => {
         expect(nearEndSpy).toHaveBeenCalledTimes(2);
     });
 
+    it('fires nearEnd at the distance the consumer asks for', async () => {
+        holdFillChecks();
+        const nearEndSpy = jest.fn();
+        fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+        fixture.componentRef.setInput('nearEndThresholdPx', 640);
+        const resultsContainer = renderResultsContainer();
+
+        setScrollMetrics(resultsContainer, 200); // 680 px below: outside
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
+        expect(nearEndSpy).not.toHaveBeenCalled();
+
+        setScrollMetrics(resultsContainer, 300); // 580 px below: two poster rows ahead
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
+        expect(nearEndSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('resets the near-end latch when the reset identity changes without a new term', async () => {
         holdFillChecks();
         // Regression: a filter-only search transition replaces the result set

@@ -789,7 +789,13 @@ catalog plus bounded per-selection scroll snapshots for detail/tab
 round-trips; the shared `InfiniteScrollDirective`
 (`libs/portal/shared/ui`) measures container overflow to auto-fill tall
 viewports (terminating on lack of container growth, not on a load count)
-and fires `loadMore` near the bottom. The search layout routes its results
+and fires `loadMore` near the bottom. It reads scroll outside Angular's event
+binding (no change-detection pass per scroll frame) and emits a scroll-triggered
+load in a task after the frame, cancelled on reset, on destroy or by a
+fill-check load, so a synchronous append never lands in the frame of the key
+press that crossed the threshold. Poster surfaces (the catalog grid, the Xtream
+and Stalker search results) ask two rows ahead (`infiniteThresholdPx` /
+`nearEndThresholdPx` 640); other lists keep 240 px. The search layout routes its results
 container through the same directive (`nearEnd*` inputs). Stalker feeds the
 same contract from server-paged appends: portal pages accumulate into one
 deduplicated list, `hasMoreContent` derives from accumulated length vs

@@ -330,8 +330,9 @@
     function scrollInDirection(scroller, dir, item) {
         var before = dir === 'up' || dir === 'down' ? scroller.scrollTop : scroller.scrollLeft;
         var vertical = dir === 'up' || dir === 'down';
-        // From an item of the list: one item's worth, so the rows a virtual list renders next are the
-        // neighbours (a page at a time lands the focus far from where it was). Else 60% of a page.
+        // From an item of a virtual list: one item's worth, so the rows it renders next are the
+        // neighbours (a page at a time lands the focus far from where it was). Else 60% of a page,
+        // which is how a page that ends in text is read.
         var box = item ? item.getBoundingClientRect() : null;
         var size = box ? (vertical ? box.height : box.width) : 0;
         var amount = size >= 24 ? size : vertical ? Math.max(80, scroller.clientHeight * 0.6) : Math.max(80, scroller.clientWidth * 0.6);
@@ -449,7 +450,8 @@
         }
         if (!retried) {
             var scroller = scrollableAncestor(exclude || (scope === document ? document.body : scope), dir);
-            if (scroller && scrollInDirection(scroller, dir, exclude && scroller.contains(exclude) ? exclude : null)) {
+            var virtualList = exclude && /^cdk-virtual-scroll-viewport$/i.test(scroller && scroller.tagName);
+            if (scroller && scrollInDirection(scroller, dir, virtualList ? exclude : null)) {
                 // Virtual scroll renders rows asynchronously: look again shortly. A held key
                 // waits for that second look as it waits for a drawn move.
                 movePainted = false;
@@ -613,7 +615,12 @@
             if (active && (active.tagName === 'VIDEO' || active.tagName === 'AUDIO')) {
                 // Controls auto-hide: bring them back, then look for them.
                 revealPlayerControls(active);
-                if (!move(dir)) setTimeout(function () { move(dir); }, 120);
+                if (!move(dir)) {
+                    setTimeout(function () {
+                        // Only if nothing moved meanwhile: a held key's later repeats are paced.
+                        if (document.activeElement === active) move(dir);
+                    }, 120);
+                }
                 return;
             }
             if (!move(dir)) {

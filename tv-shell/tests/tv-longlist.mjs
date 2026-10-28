@@ -117,6 +117,18 @@ const playable = !!f && (await page.evaluate(() => {
 }));
 check(playable, 'the playable mock channel is not in error: ' + f);
 if (playable) {
+    // video.js updates its hidden seek bar every 30 ms while a stream plays: the TV layer drops that
+    // one component and keeps the rest of the (hidden) bar and its plugins.
+    const vjs = await page.evaluate(() => {
+        const p = document.querySelector('.video-js') && document.querySelector('.video-js').player;
+        const bar = p && p.getChild('ControlBar');
+        return p ? {
+            controls: p.controls(), bar: !!bar, children: bar ? bar.children().length : 0,
+            progress: !!(bar && bar.getChild('ProgressControl')), progressEl: !!document.querySelector('.vjs-progress-control'),
+        } : null;
+    });
+    check(!!vjs && !vjs.controls && vjs.bar && vjs.children > 0 && !vjs.progress && !vjs.progressEl,
+        'the hidden video.js seek bar is dropped, the rest of the bar stays: ' + JSON.stringify(vjs));
     await key('Enter', 1, 600);
     const fs = await page.evaluate(() => {
         const el = document.fullscreenElement;
@@ -135,6 +147,17 @@ if (playable) {
         const after = await focused();
         check(!!after && !/^video/.test(after), 'Back on the focused picture moves the focus off the video: ' + after);
     }
+    // Player#reset() (the raw MPEG-TS path) reads the bar's progress control: it must still work.
+    const reset = await page.evaluate(() => {
+        const p = document.querySelector('.video-js') && document.querySelector('.video-js').player;
+        try {
+            if (p) p.reset();
+            return p ? 'ok' : 'no player';
+        } catch (e) {
+            return String(e);
+        }
+    });
+    check(reset === 'ok', 'video.js still resets without its seek bar: ' + reset);
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;

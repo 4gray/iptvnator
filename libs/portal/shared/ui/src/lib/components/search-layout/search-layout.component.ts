@@ -93,6 +93,13 @@ export class SearchLayoutComponent {
      */
     readonly nearEndResetKey = input<string | null>(null);
 
+    /**
+     * Distance from the bottom, in px, at which `nearEnd` fires. Poster
+     * results ask two rows ahead, so a key press that arrives while the next
+     * chunk renders still has a row to move to.
+     */
+    readonly nearEndThresholdPx = input<number>(240);
+
     /** Initial state description translation key */
     readonly initialDescriptionKey = input<string>(
         'PORTALS.SEARCH_VIEW.INITIAL_DESCRIPTION'
