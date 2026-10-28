@@ -428,19 +428,47 @@ console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
             if (age) Object.defineProperty(ev, 'timeStamp', { value: performance.now() - age });
             document.activeElement.dispatchEvent(ev);
         };
+        const release = () => document.activeElement.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true }));
         document.getElementById('tvt-b0').focus();
         press(0);
         out.afterFresh = document.activeElement.id;
         press(500); // 500 ms old, right after the previous one: a repeat that sat in the queue
         out.afterQueued = document.activeElement.id;
-        document.activeElement.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true }));
+        release();
         press(500); // just as late, but released in between: a second press, kept
         out.afterReleased = document.activeElement.id;
-        for (let i = 0; i < 3; i++) press(0);
+        for (let i = 0; i < 3; i++) {
+            release(); // three taps: a held key would wait for each move to be drawn
+            press(0);
+        }
+        release();
         out.focusedRow = document.activeElement.id;
         out.scrollTop = scroller.scrollTop; // read at once: the scroll must not be animated
         document.getElementById('tvt-close').focus();
         out.scope = window.__tvShell.state().scope;
+        host.remove();
+        return out;
+    });
+    // A held key moves once per drawn frame: a repeat that comes before the move is on screen is
+    // dropped, the next one after the frame moves again.
+    const held = await page.evaluate(async () => {
+        const host = document.createElement('div');
+        host.innerHTML = '<div style="position:fixed;left:0;top:0;width:300px;height:400px;overflow:auto;background:#000;z-index:99999">'
+            + Array.from({ length: 8 }, (_, i) => '<button id="tvt-h' + i + '" style="display:block;height:40px;width:200px">held ' + i + '</button>').join('') + '</div>';
+        document.body.appendChild(host);
+        await new Promise((resolve) => setTimeout(resolve, 300)); // clear of the previous arrow
+        const repeat = () => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true }));
+        const frame = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+        document.getElementById('tvt-h0').focus();
+        const out = {};
+        repeat();
+        out.first = document.activeElement.id;
+        repeat(); // same frame: the move above is not drawn yet
+        out.sameFrame = document.activeElement.id;
+        await frame();
+        repeat();
+        out.nextFrame = document.activeElement.id;
+        document.activeElement.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true }));
         host.remove();
         return out;
     });
@@ -465,6 +493,8 @@ console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
     check(r.afterQueued === 'tvt-b1', 'a queued repeat right after it is dropped: ' + r.afterQueued);
     check(r.afterReleased === 'tvt-b2', 'a second press after a keyup is kept even when late: ' + r.afterReleased);
     check(r.focusedRow === 'tvt-b5' && r.scrollTop > 0, 'a smooth-scroll rail scrolls at once (row ' + r.focusedRow + ', scrollTop ' + r.scrollTop + ')');
+    check(held.first === 'tvt-h1' && held.sameFrame === 'tvt-h1', 'a held key waits for the move to be drawn: ' + held.first + ', ' + held.sameFrame);
+    check(held.nextFrame === 'tvt-h2', 'the next repeat after the frame moves again: ' + held.nextFrame);
     check(r.scope === 'document', 'a snack bar does not become the navigation scope: ' + r.scope);
     check(railScroll > 0, 'a smooth rail with nothing on screen to land on scrolls at once: scrollLeft ' + railScroll);
 }

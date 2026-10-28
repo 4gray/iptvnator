@@ -40,7 +40,7 @@ l'app desktop casserait sa mise à jour automatique).
 
 | Télécommande | Action |
 | --- | --- |
-| D-pad | se déplacer entre les éléments ; sur l'image : ◀ ▶ = recherche, ▲ ▼ = quitter l'image / contrôles ; dans un champ texte, les flèches déplacent le curseur tant qu'il peut bouger |
+| D-pad | se déplacer entre les éléments (flèche maintenue : un élément par image affichée) ; sur l'image : ◀ ▶ = recherche, ▲ ▼ = quitter l'image / contrôles ; dans un champ texte, les flèches déplacent le curseur tant qu'il peut bouger |
 | OK | activer ; sur l'image : plein écran ; sur un champ texte : clavier. Un appui maintenu vaut une activation |
 | Retour | fermer dialogue/menu → quitter le plein écran → page précédente → (2×) quitter l'app ; **appui long** : réglages de NatorTV (télécommandes sans touche Menu) |
 | Menu | menu contextuel de l'élément ; sur l'image : ouvrir le flux dans VLC ; **appui long** : réglages de NatorTV. La touche menu contextuel HDMI-CEC et Y d'une manette font de même |
