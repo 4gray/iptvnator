@@ -2,7 +2,6 @@ package org.tvshell.iptvnator.backend;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
@@ -39,37 +38,76 @@ public final class PlaylistBuilder {
         return segment.length() > 0 ? segment : "Playlist without title";
     }
 
-    @SuppressWarnings("unchecked")
-    public static Map<String, Object> build(Map<String, Object> parsed, String title, String url, String userAgent) {
+    /** createPlaylistObject()'s step for each item: a guid, and the drm its KODIPROP lines carry. */
+    static void decorate(Map<String, Object> item) {
+        Map<String, Object> drm = KodiProp.extractDrmFromRaw(Json.optString(item, "raw"));
+        item.put("id", guid());
+        if (drm != null) item.put("drm", drm);
+    }
+
+    /**
+     * Parses {@code content} and writes its Playlist record to {@code out} as it goes: each item
+     * is decorated, written and dropped, so the heap holds the text and the JSON, never the items
+     * as maps (about 2.3 KB per channel: a 60 000-channel list exhausted a 256 MB heap).
+     *
+     * <p>The record is the web backend's, key order aside: {@code count} follows the items it
+     * counts (the PWA reads the record with JSON.parse, which keeps no order).
+     *
+     * @return the number of items written
+     * @throws M3uParser.InvalidPlaylistException when the text has no {@code #EXTM3U} header
+     */
+    static int write(String content, String title, String url, String userAgent, Utf8Sink out) {
         String timestamp = isoNow();
-        String id = guid();
-        List<Object> items = (List<Object>) parsed.get("items");
-
-        Map<String, Object> playlistCopy = Json.object();
-        playlistCopy.put("header", parsed.get("header"));
-        // The parsed items become the record's items in place: a second map per channel would
-        // double the per-item heap of a 100k-channel playlist while both lists are alive.
-        for (Object itemObj : items) {
-            Map<String, Object> item = (Map<String, Object>) itemObj;
-            Map<String, Object> drm = KodiProp.extractDrmFromRaw(Json.optString(item, "raw"));
-            item.put("id", guid());
-            if (drm != null) item.put("drm", drm);
+        RecordWriter record = new RecordWriter(guid(), title, out);
+        M3uParser.parse(content, record);
+        out.append("]},\"count\":").append(Integer.toString(record.count));
+        out.append(",\"importDate\":");
+        Json.write(timestamp, out);
+        out.append(",\"lastUsage\":");
+        Json.write(timestamp, out);
+        out.append(",\"favorites\":[],\"autoRefresh\":false,\"url\":");
+        Json.write(url, out);
+        if (userAgent != null && !userAgent.isEmpty()) {
+            out.append(",\"userAgent\":");
+            Json.write(userAgent, out);
         }
-        playlistCopy.put("items", items);
+        out.append('}');
+        return record.count;
+    }
 
-        Map<String, Object> playlist = Json.object();
-        playlist.put("id", id);
-        playlist.put("_id", id);
-        playlist.put("filename", title);
-        playlist.put("title", title);
-        playlist.put("count", Integer.valueOf(items.size()));
-        playlist.put("playlist", playlistCopy);
-        playlist.put("importDate", timestamp);
-        playlist.put("lastUsage", timestamp);
-        playlist.put("favorites", Json.array());
-        playlist.put("autoRefresh", Boolean.FALSE);
-        playlist.put("url", url);
-        if (userAgent != null && !userAgent.isEmpty()) playlist.put("userAgent", userAgent);
-        return playlist;
+    /** Opens the record at the header, then appends each item to {@code playlist.items}. */
+    private static final class RecordWriter implements M3uParser.ItemSink {
+        private final String id;
+        private final String title;
+        private final Utf8Sink out;
+        int count;
+
+        RecordWriter(String id, String title, Utf8Sink out) {
+            this.id = id;
+            this.title = title;
+            this.out = out;
+        }
+
+        @Override
+        public void header(Map<String, Object> header) {
+            out.append("{\"id\":");
+            Json.write(id, out);
+            out.append(",\"_id\":");
+            Json.write(id, out);
+            out.append(",\"filename\":");
+            Json.write(title, out);
+            out.append(",\"title\":");
+            Json.write(title, out);
+            out.append(",\"playlist\":{\"header\":");
+            Json.write(header, out);
+            out.append(",\"items\":[");
+        }
+
+        @Override
+        public void item(Map<String, Object> item) {
+            decorate(item);
+            if (count++ > 0) out.append(',');
+            Json.write(item, out);
+        }
     }
 }

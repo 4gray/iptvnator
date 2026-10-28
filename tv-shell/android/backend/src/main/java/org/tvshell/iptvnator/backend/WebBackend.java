@@ -1,5 +1,6 @@
 package org.tvshell.iptvnator.backend;
 
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -33,22 +34,43 @@ public class WebBackend {
     public static final int TIMEOUT_STALKER_MS = 15_000;
     public static final int TIMEOUT_STALKER_CREATE_LINK_MS = 30_000;
     private static final Charset UTF8 = Charset.forName("UTF-8");
+    private static final String JSON_TYPE = "application/json; charset=utf-8";
 
+    /** An answer whose body stays in the chunks it was encoded into, and is served from them. */
     public static final class Response {
         public final int status;
         public final String contentType;
-        public final byte[] body;
         public final Map<String, String> headers = new LinkedHashMap<String, String>();
+        private final Utf8Sink body;
 
         public Response(int status, String contentType, byte[] body) {
+            this(status, contentType, Utf8Sink.of(body));
+        }
+
+        Response(int status, String contentType, Utf8Sink body) {
             this.status = status;
             this.contentType = contentType;
             this.body = body;
             headers.put("Cache-Control", "no-store");
         }
 
+        /** The body size in bytes (the Content-Length). */
+        public long bodyLength() {
+            return body.length();
+        }
+
+        /** The body, read from its chunks in place; a new stream per call. */
+        public InputStream openBody() {
+            return body.openStream();
+        }
+
+        /** The body as one array (a copy): for tests and small answers. */
+        public byte[] bodyBytes() {
+            return body.toByteArray();
+        }
+
         public String bodyText() {
-            return new String(body, UTF8);
+            return new String(bodyBytes(), UTF8);
         }
     }
 
@@ -157,14 +179,15 @@ public class WebBackend {
             if (e.code != null) err.put("code", e.code);
             return json(500, err);
         }
-        Map<String, Object> parsed;
+        // The record is written while the text is parsed, item by item: no list of items as maps,
+        // no doubling buffer. A failure part-way drops what was written and answers the error.
+        Utf8Sink record = new Utf8Sink();
         try {
-            parsed = M3uParser.parse(text);
+            PlaylistBuilder.write(text, PlaylistBuilder.lastUrlSegment(url), url, userAgent, record);
         } catch (RuntimeException e) {
             return json(500, error("Error, something went wrong", 500));
         }
-        text = null; // the playlist text is not needed while the record is built and serialised
-        return json(200, PlaylistBuilder.build(parsed, PlaylistBuilder.lastUrlSegment(url), url, userAgent));
+        return new Response(200, JSON_TYPE, record);
     }
 
     private Response xtream(Map<String, String> query) {
@@ -335,9 +358,9 @@ public class WebBackend {
         return body;
     }
 
-    /** Serialised straight to UTF-8 bytes: one growing buffer, not a char buffer plus a String plus bytes. */
+    /** Serialised straight to UTF-8 chunks: not a char buffer plus a String plus bytes, nor a doubling array. */
     static Response json(int status, Object body) {
-        return new Response(status, "application/json; charset=utf-8", Json.writeUtf8(body));
+        return new Response(status, JSON_TYPE, Json.writeUtf8(body));
     }
 
     /** For tests and diagnostics. */

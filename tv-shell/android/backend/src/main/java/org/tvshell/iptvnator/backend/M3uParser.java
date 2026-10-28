@@ -159,16 +159,52 @@ public final class M3uParser {
     }
 
     /**
+     * Receives a playlist as it is parsed: the header first, then every item as soon as it is
+     * complete, so a caller can write each one out and drop it instead of holding them all.
+     */
+    public interface ItemSink {
+        /** The {@code {attrs, raw}} header; called once, before any item. */
+        void header(Map<String, Object> header);
+
+        /** A complete item, in playlist order; the parser never touches it again. */
+        void item(Map<String, Object> item);
+    }
+
+    /**
      * Parse an M3U/M3U8 IPTV playlist.
      *
      * @return {@code {header: {attrs, raw}, items: [...]}} as JSON-ready maps
      * @throws InvalidPlaylistException when no {@code #EXTM3U} header is found
      */
     public static Map<String, Object> parse(String content) {
-        if (content == null) throw new InvalidPlaylistException("parse() expects an M3U playlist as a string");
-        if (content.length() > 0 && content.charAt(0) == '﻿') content = content.substring(1);
+        final Map<String, Object> playlist = Json.object();
+        final List<Object> items = Json.array();
+        parse(content, new ItemSink() {
+            @Override
+            public void header(Map<String, Object> header) {
+                playlist.put("header", header);
+                playlist.put("items", items);
+            }
 
-        Lines lines = new Lines(content);
+            @Override
+            public void item(Map<String, Object> item) {
+                items.add(item);
+            }
+        });
+        return playlist;
+    }
+
+    /**
+     * Parse an M3U/M3U8 IPTV playlist into {@code sink}: the same header and items as
+     * {@link #parse(String)}, handed over one by one instead of collected.
+     *
+     * @throws InvalidPlaylistException when no {@code #EXTM3U} header is found (before any callback)
+     */
+    public static void parse(String content, ItemSink sink) {
+        if (content == null) throw new InvalidPlaylistException("parse() expects an M3U playlist as a string");
+
+        // A leading BOM is skipped in place: substring(1) would copy the whole playlist.
+        Lines lines = new Lines(content, content.length() > 0 && content.charAt(0) == '﻿' ? 1 : 0);
         String headerLine = lines.next();
         while (headerLine != null && jsTrim(headerLine).isEmpty()) headerLine = lines.next();
         if (headerLine == null) headerLine = "";
@@ -176,10 +212,7 @@ public final class M3uParser {
             throw new InvalidPlaylistException("Playlist is not valid");
         }
 
-        Map<String, Object> playlist = Json.object();
-        playlist.put("header", parseHeader(jsTrim(headerLine)));
-        List<Object> items = Json.array();
-        playlist.put("items", items);
+        sink.header(parseHeader(jsTrim(headerLine)));
 
         String[] fields = new String[W_LEN];
         Map<String, Object> current = null;
@@ -276,7 +309,7 @@ public final class M3uParser {
                         current.put("raw", join(currentRaw));
                         currentRaw = null;
                     }
-                    items.add(current);
+                    sink.item(current);
                     current = null;
                 } else {
                     if (currentRaw == null) {
@@ -290,10 +323,8 @@ public final class M3uParser {
 
         if (current != null) {
             if (currentRaw != null) current.put("raw", join(currentRaw));
-            items.add(current);
+            sink.item(current);
         }
-
-        return playlist;
     }
 
     /**
@@ -308,7 +339,13 @@ public final class M3uParser {
         int index = -1;
 
         Lines(String text) {
+            this(text, 0);
+        }
+
+        /** The lines of {@code text.substring(start)}, without that copy. */
+        Lines(String text, int start) {
             this.text = text;
+            this.pos = start;
         }
 
         /** @return the next line without its terminator, or null after the last one */
