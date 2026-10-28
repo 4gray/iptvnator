@@ -41,7 +41,6 @@ const MAX_AUTO_FILL_STALLS = 3;
 @Directive({
     selector: '[appInfiniteScroll]',
     standalone: true,
-    host: { '(scroll)': 'onScroll()' },
 })
 export class InfiniteScrollDirective {
     private readonly host = inject(ElementRef<HTMLElement>);
@@ -55,12 +54,19 @@ export class InfiniteScrollDirective {
     readonly infiniteItemCount = input(0);
     /** Identity of the rendered list; a change resets the auto-fill budget. */
     readonly infiniteResetKey = input('');
+    /**
+     * Distance from the bottom, in px, at which the next page is requested. A
+     * poster grid asks two rows ahead, so a key press that arrives while the
+     * deferred append renders still has a row to move to.
+     */
+    readonly infiniteThresholdPx = input(NEAR_END_THRESHOLD_PX);
     readonly infiniteLoadMore = output<void>();
 
     private isWithinNearEndThreshold = false;
     private autoFillStalls = 0;
     private lastAutoFillScrollHeight: number | null = null;
     private pendingCheckFrame: number | null = null;
+    private pendingLoadMore: ReturnType<typeof setTimeout> | null = null;
 
     constructor() {
         effect(() => {
@@ -69,6 +75,7 @@ export class InfiniteScrollDirective {
                 this.autoFillStalls = 0;
                 this.lastAutoFillScrollHeight = null;
                 this.isWithinNearEndThreshold = false;
+                this.cancelPendingLoadMore();
                 this.scheduleFillCheck();
             });
         });
@@ -90,8 +97,18 @@ export class InfiniteScrollDirective {
                 : new ResizeObserver(() => this.scheduleFillCheck());
         resizeObserver?.observe(this.host.nativeElement);
 
+        // Registered outside Angular's event binding on purpose: in zoneless
+        // mode a bound listener marks the view dirty and schedules a full
+        // change-detection pass on every scroll frame, though only an emitted
+        // load needs one (the consumer's output listener schedules it).
+        const host = this.host.nativeElement;
+        const onScroll = () => this.onScroll();
+        host.addEventListener('scroll', onScroll, { passive: true });
+
         this.destroyRef.onDestroy(() => {
+            host.removeEventListener('scroll', onScroll);
             resizeObserver?.disconnect();
+            this.cancelPendingLoadMore();
             if (this.pendingCheckFrame !== null) {
                 cancelAnimationFrame(this.pendingCheckFrame);
                 this.pendingCheckFrame = null;
@@ -99,14 +116,39 @@ export class InfiniteScrollDirective {
         });
     }
 
-    protected onScroll(): void {
+    private onScroll(): void {
         const isNearEnd = this.isNearEnd();
 
         if (isNearEnd && !this.isWithinNearEndThreshold && this.canLoad()) {
-            this.infiniteLoadMore.emit();
+            this.scheduleLoadMore();
         }
 
         this.isWithinNearEndThreshold = isNearEnd;
+    }
+
+    /**
+     * Emits after the frame that carries the scroll has painted: a consumer
+     * whose append is synchronous (the Xtream window) would otherwise render
+     * a whole page of cards in the frame of the key press that crossed the
+     * threshold.
+     */
+    private scheduleLoadMore(): void {
+        if (this.pendingLoadMore !== null) {
+            return;
+        }
+        this.pendingLoadMore = setTimeout(() => {
+            this.pendingLoadMore = null;
+            if (this.canLoad()) {
+                this.infiniteLoadMore.emit();
+            }
+        }, 0);
+    }
+
+    private cancelPendingLoadMore(): void {
+        if (this.pendingLoadMore !== null) {
+            clearTimeout(this.pendingLoadMore);
+            this.pendingLoadMore = null;
+        }
     }
 
     private scheduleFillCheck(): void {
@@ -150,13 +192,17 @@ export class InfiniteScrollDirective {
         }
 
         this.lastAutoFillScrollHeight = scrollHeight;
+        // This load also answers a scroll that crossed the threshold meanwhile.
+        this.cancelPendingLoadMore();
         this.infiniteLoadMore.emit();
     }
 
     private isNearEnd(): boolean {
         const { scrollHeight, scrollTop, clientHeight } =
             this.host.nativeElement;
-        return scrollHeight - scrollTop - clientHeight <= NEAR_END_THRESHOLD_PX;
+        return (
+            scrollHeight - scrollTop - clientHeight <= this.infiniteThresholdPx()
+        );
     }
 
     private canLoad(): boolean {

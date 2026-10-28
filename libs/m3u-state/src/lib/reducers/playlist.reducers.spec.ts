@@ -387,4 +387,61 @@ describe('playlistReducers', () => {
             false
         );
     });
+
+    it('keeps only metas in the entity map: the channel list is never stored twice', () => {
+        const channel = { id: 'c1', name: 'One', url: 'http://x/1' } as Channel;
+        const full = {
+            _id: 'p1',
+            title: 'Full record',
+            count: 1,
+            importDate: '2026-03-28T00:00:00.000Z',
+            playlist: { items: [channel] },
+            items: [channel],
+            header: { raw: '#EXTM3U' },
+        } as Playlist;
+        const payloadOf = (state: typeof initialState) => {
+            const entity = state.playlists.entities['p1'] as Playlist;
+            return [entity.playlist, entity.items, entity.header];
+        };
+
+        const added = reducer(
+            initialState,
+            PlaylistActions.addPlaylist({ playlist: full })
+        );
+        expect(added.playlists.entities['p1']?.title).toBe('Full record');
+        expect(payloadOf(added)).toEqual([undefined, undefined, undefined]);
+
+        const byUrl = reducer(
+            initialState,
+            PlaylistActions.handleAddingPlaylistByUrl({
+                isTemporary: false,
+                playlist: full,
+            })
+        );
+        expect(payloadOf(byUrl)).toEqual([undefined, undefined, undefined]);
+
+        const refreshed = reducer(
+            {
+                ...added,
+                playlists: { ...added.playlists, selectedId: 'p1' },
+            },
+            PlaylistActions.updatePlaylist({ playlist: full, playlistId: 'p1' })
+        );
+        expect(refreshed.channels).toEqual([channel]);
+        expect(refreshed.playlists.entities['p1']?.count).toBe(1);
+        expect(payloadOf(refreshed)).toEqual([undefined, undefined, undefined]);
+
+        const many = reducer(
+            initialState,
+            PlaylistActions.addManyPlaylists({ playlists: [full] })
+        );
+        expect(payloadOf(many)).toEqual([undefined, undefined, undefined]);
+        const updatedMany = reducer(
+            many,
+            PlaylistActions.updateManyPlaylists({ playlists: [full] })
+        );
+        expect(payloadOf(updatedMany)).toEqual([undefined, undefined, undefined]);
+        // The action payload itself is left intact for the effects that persist it.
+        expect(full.playlist.items).toEqual([channel]);
+    });
 });

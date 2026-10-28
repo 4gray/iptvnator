@@ -1,9 +1,21 @@
 import { on } from '@ngrx/store';
-import { Channel } from '@iptvnator/shared/interfaces';
+import { Channel, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
 import { PlaylistActions } from '../actions';
 import { playlistsAdapter } from '../playlists.state';
 import { PlaylistState } from '../state';
+
+/**
+ * The entity map holds metas, as its type says: a parsed record's channel list (and its raw
+ * text) lives in `channels` only, never in a second copy kept for the life of the app.
+ */
+function toEntityMeta(playlist: Playlist): PlaylistMeta {
+    const meta = { ...playlist };
+    delete meta.playlist;
+    delete meta.items;
+    delete meta.header;
+    return meta;
+}
 
 export const playlistReducers = [
     on(PlaylistActions.loadPlaylists, (state): PlaylistState => ({
@@ -72,7 +84,7 @@ export const playlistReducers = [
                 {
                     id: action.playlistId,
                     changes: {
-                        ...action.playlist,
+                        ...toEntityMeta(action.playlist),
                         _id: action.playlistId,
                         updateDate: Date.now(),
                         count: action.playlist.playlist.items.length,
@@ -97,7 +109,7 @@ export const playlistReducers = [
         return {
             ...state,
             playlists: playlistsAdapter.addOne(
-                action.playlist,
+                toEntityMeta(action.playlist),
                 state.playlists
             ),
         };
@@ -106,7 +118,7 @@ export const playlistReducers = [
         return {
             ...state,
             playlists: playlistsAdapter.addMany(
-                action.playlists,
+                action.playlists.map(toEntityMeta),
                 state.playlists
             ),
         };
@@ -235,7 +247,7 @@ export const playlistReducers = [
                 action.playlists.map((updatedPlaylist) => ({
                     id: updatedPlaylist._id,
                     changes: {
-                        ...updatedPlaylist,
+                        ...toEntityMeta(updatedPlaylist),
                         updateDate: Date.now(),
                     },
                 })),
@@ -266,7 +278,7 @@ export const playlistReducers = [
                 return {
                     ...state,
                     playlists: playlistsAdapter.addOne(
-                        action.playlist,
+                        toEntityMeta(action.playlist),
                         state.playlists
                     ),
                 };

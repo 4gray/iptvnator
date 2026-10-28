@@ -12,7 +12,8 @@ import {
 import { RouterOutlet } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
-import { EmbeddedMpvOverlayVisibilityService } from '@iptvnator/ui/playback';
+// File-level entry: the @iptvnator/ui/playback barrel would put the web players on the first route.
+import { EmbeddedMpvOverlayVisibilityService } from '@iptvnator/ui/playback/embedded-mpv-player';
 import {
     PlaylistDropOverlayComponent,
     PlaylistDropZoneDirective,

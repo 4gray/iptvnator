@@ -208,8 +208,10 @@
                     </mat-menu>
                 }
             </div>
+            <!-- Next page two poster rows (~303 px each) ahead of the bottom. -->
             <app-grid-list
                 appInfiniteScroll
+                [infiniteThresholdPx]="640"
                 [infiniteHasMore]="infiniteHasMore()"
                 [infiniteAppending]="infiniteAppending()"
                 [infiniteItemCount]="contentWithProgress().length"

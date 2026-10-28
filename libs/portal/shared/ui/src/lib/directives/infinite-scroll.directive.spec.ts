@@ -1,4 +1,9 @@
-import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+import {
+    Component,
+    signal,
+    ChangeDetectionStrategy,
+    ɵChangeDetectionScheduler as ChangeDetectionScheduler,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { InfiniteScrollDirective } from './infinite-scroll.directive';
@@ -11,6 +16,7 @@ import { InfiniteScrollDirective } from './infinite-scroll.directive';
         [infiniteAppending]="appending()"
         [infiniteItemCount]="itemCount()"
         [infiniteResetKey]="resetKey()"
+        [infiniteThresholdPx]="threshold()"
         (infiniteLoadMore)="onLoadMore()"
     ></div>`,
     changeDetection: ChangeDetectionStrategy.Eager,
@@ -21,6 +27,7 @@ class TestHostComponent {
     readonly appending = signal(false);
     readonly itemCount = signal(0);
     readonly resetKey = signal('a');
+    readonly threshold = signal(240);
     loads = 0;
 
     onLoadMore(): void {
@@ -73,6 +80,11 @@ describe('InfiniteScrollDirective', () => {
         });
     }
 
+    /** The load requested by a scroll is emitted in a task after the scroll's frame. */
+    function nextTask(): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
     function flushScheduledChecks(): void {
         while (rafCallbacks.length) {
             const callback = rafCallbacks.shift();
@@ -80,31 +92,110 @@ describe('InfiniteScrollDirective', () => {
         }
     }
 
-    it('emits loadMore only when crossing into the bottom threshold', () => {
+    it('emits loadMore only when crossing into the bottom threshold', async () => {
         flushScheduledChecks();
         host.loads = 0;
 
         setScrollMetrics(500);
         scrollHost.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(host.loads).toBe(0);
 
         setScrollMetrics(700);
         scrollHost.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(host.loads).toBe(1);
 
         // Still inside the threshold — no re-fire without leaving it first.
         setScrollMetrics(710);
         scrollHost.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(host.loads).toBe(1);
 
         setScrollMetrics(500);
         scrollHost.dispatchEvent(new Event('scroll'));
         setScrollMetrics(760);
         scrollHost.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(host.loads).toBe(2);
     });
 
-    it('does not emit on scroll while appending or when nothing more exists', () => {
+    it('emits the load after the scroll event, not inside its frame', async () => {
+        flushScheduledChecks();
+        setScrollMetrics(500); // leave the threshold the initial fill latched
+        scrollHost.dispatchEvent(new Event('scroll'));
+        host.loads = 0;
+
+        setScrollMetrics(700);
+        scrollHost.dispatchEvent(new Event('scroll'));
+        // A synchronous append would render a page of cards in the frame of
+        // the key press that scrolled the list.
+        expect(host.loads).toBe(0);
+        await nextTask();
+        expect(host.loads).toBe(1);
+    });
+
+    it('schedules no change detection for a scroll that requests nothing', () => {
+        flushScheduledChecks();
+        const scheduler = TestBed.inject(ChangeDetectionScheduler);
+        const notify = jest.spyOn(scheduler, 'notify');
+
+        setScrollMetrics(100);
+        scrollHost.dispatchEvent(new Event('scroll'));
+
+        expect(notify).not.toHaveBeenCalled();
+    });
+
+    it('requests the next page at the distance the surface asks for', async () => {
+        host.threshold.set(640);
+        fixture.detectChanges();
+        flushScheduledChecks();
+        host.loads = 0;
+
+        setScrollMetrics(200, 1000, 120); // 680 px left: outside
+        scrollHost.dispatchEvent(new Event('scroll'));
+        await nextTask();
+        expect(host.loads).toBe(0);
+
+        setScrollMetrics(300, 1000, 120); // 580 px left: two rows ahead
+        scrollHost.dispatchEvent(new Event('scroll'));
+        await nextTask();
+        expect(host.loads).toBe(1);
+    });
+
+    it('drops a pending load when the list is replaced before it runs', async () => {
+        flushScheduledChecks();
+        setScrollMetrics(500);
+        scrollHost.dispatchEvent(new Event('scroll'));
+        host.loads = 0;
+
+        setScrollMetrics(700);
+        scrollHost.dispatchEvent(new Event('scroll'));
+        host.resetKey.set('b');
+        fixture.detectChanges();
+        await nextTask();
+
+        expect(host.loads).toBe(0);
+    });
+
+    it('lets a fill-check load answer a scroll that crossed the threshold meanwhile', async () => {
+        flushScheduledChecks();
+        setScrollMetrics(500);
+        scrollHost.dispatchEvent(new Event('scroll'));
+        host.loads = 0;
+
+        setScrollMetrics(700);
+        scrollHost.dispatchEvent(new Event('scroll'));
+        host.itemCount.set(14); // a re-render schedules a fill check
+        fixture.detectChanges();
+        flushScheduledChecks();
+        expect(host.loads).toBe(1);
+        await nextTask();
+
+        expect(host.loads).toBe(1);
+    });
+
+    it('does not emit on scroll while appending or when nothing more exists', async () => {
         flushScheduledChecks();
         host.loads = 0;
 
@@ -112,6 +203,7 @@ describe('InfiniteScrollDirective', () => {
         fixture.detectChanges();
         setScrollMetrics(700);
         scrollHost.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(host.loads).toBe(0);
 
         host.appending.set(false);
@@ -123,6 +215,7 @@ describe('InfiniteScrollDirective', () => {
         scrollHost.dispatchEvent(new Event('scroll'));
         setScrollMetrics(700);
         scrollHost.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(host.loads).toBe(0);
     });
 
@@ -194,7 +287,7 @@ describe('InfiniteScrollDirective', () => {
         expect(host.loads).toBe(4);
     });
 
-    it('clears a stale near-end latch when appended content moves the bottom away', () => {
+    it('clears a stale near-end latch when appended content moves the bottom away', async () => {
         // Empty container: the auto-fill fires and latches "within threshold".
         setScrollMetrics(0, 0, 0);
         flushScheduledChecks();
@@ -212,6 +305,7 @@ describe('InfiniteScrollDirective', () => {
         // genuine crossing again — a stale latch would swallow it.
         setScrollMetrics(1600, 2000, 400);
         scrollHost.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(host.loads).toBe(2);
     });
 
