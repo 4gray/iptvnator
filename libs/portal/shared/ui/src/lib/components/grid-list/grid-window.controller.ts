@@ -151,7 +151,7 @@ export function createGridWindow<T extends object>(
                 keyed.stream_id ??
                 keyed.series_id ??
                 keyed.xtream_id ??
-                `#${(range()?.start ?? 0) + index}`
+                item
             );
         },
     };
