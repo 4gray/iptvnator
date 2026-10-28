@@ -17,6 +17,7 @@ import {
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
+import { hlsWorkerConfig } from '../web-video-support/hls-worker-config';
 import { type Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import { releaseVideoPictureInPicture } from '../player-controls/web-video-picture-in-picture-lifecycle';
 import {
@@ -276,7 +277,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 // containers never reach hls.js: fed an .mkv it raised a
                 // manifest error over media the browser plays by itself.
                 debugHtmlPlayer('Starting HLS playback');
-                const hls = new Hls();
+                const hls = new Hls(hlsWorkerConfig());
                 this.hls = hls;
                 hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
                     if (this.hls !== hls) return;

@@ -88,13 +88,37 @@
             'video.' + FOCUS_CLASS + '{outline-offset:-3px!important}' +
             'body.tv-shell *{cursor:none!important}' +
             'body.tv-shell ::-webkit-scrollbar{width:0;height:0}' +
-            // A card, a category entry or a rail link animates its box-shadow for 180-200 ms when the
-            // ring lands on it or leaves it: a style and paint pass per frame for two elements after
-            // every press, on a device with no hover to need it.
-            'body.tv-shell mat-card,body.tv-shell .nav-item,body.tv-shell .portal-rail-link{transition:none!important}' +
-            // The LIVE dot's endless pulse restyles the page on every frame while a channel plays.
-            'body.tv-shell .player-controls__live-dot{animation:none!important}';
+            (fullMotion() ? '' : LITE_MOTION_CSS);
         (document.head || document.documentElement).appendChild(style);
+    }
+
+    /** Motion a Stick pays for on every frame and a remote never needs (see the performance audit). */
+    var LITE_MOTION_CSS =
+        // A card, a category entry or a rail link animates its box-shadow for 180-200 ms when the
+        // ring lands on it or leaves it: a style and paint pass per frame for two elements after
+        // every press, on a device with no hover to need it.
+        'body.tv-shell mat-card,body.tv-shell .nav-item,body.tv-shell .portal-rail-link{transition:none!important}' +
+        // The LIVE dot's endless pulse restyles the page on every frame while a channel plays.
+        'body.tv-shell .player-controls__live-dot{animation:none!important}' +
+        // The "select a channel" placeholder bobs its icon forever: 60 compositor frames a second on
+        // an idle list, and extra style work on every D-pad step while it shows.
+        'body.tv-shell .empty-state-icon{animation:none!important}' +
+        // Dashboard hero: the slideshow still advances every 8 s (the active dot's fill animation ends
+        // and the app moves on), but as a cut: no 700 ms crossfade, no 8 s zoom of a full-width image,
+        // no entrance animation, and the dot fills in one step. An idle home screen then draws about
+        // one frame a second instead of sixty.
+        'html.tv-shell .hero__dot-fill::before{animation-timing-function:steps(1,end)!important}' +
+        'html.tv-shell .hero__content{animation:none!important}' +
+        'html.tv-shell .hero__backdrop,html.tv-shell .hero__backdrop-image{transition:none!important}';
+
+    /** Kill switch for the motion rules: localStorage['tvshell.fullMotion'] = '1', then reload.
+     *  Added in October 2026; remove it two releases later if nobody needs it. */
+    function fullMotion() {
+        try {
+            return window.localStorage.getItem('tvshell.fullMotion') === '1';
+        } catch (e) {
+            return false;
+        }
     }
 
     // ------------------------------------------------------------- geometry

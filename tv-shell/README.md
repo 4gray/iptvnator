@@ -297,6 +297,12 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   "Screen" line of the diagnostics and change *Interface size* (960 = large,
   1280 = normal, 1600 = dense). If it is still cut off, report the "Screen"
   line and the build.
+- **Less animation than in a browser**: on purpose. `tv.js` turns off the
+  focus-ring transitions, the LIVE pulse, the empty-state bobbing and the
+  dashboard hero's crossfade and zoom (the slideshow still advances, as a cut):
+  each of them costs a frame of work per screen refresh on a Stick. To compare,
+  run `localStorage.setItem('tvshell.fullMotion', '1')` in the WebView console
+  (`chrome://inspect`) and reload; `removeItem` turns them off again.
 
 ### Remote
 
