@@ -30,7 +30,17 @@ export class AppMaintenanceService {
         if (!this.canCheckForUpdates) return;
         // About already renders every updater state, including errors and
         // "no updates". Navigate through the router to retain dirty-form guards.
-        if (await this.router.navigateByUrl('/workspace/settings/about')) {
+        const about = '/workspace/settings/about';
+        if (
+            this.router.url === about ||
+            (await this.router.navigateByUrl(about))
+        ) {
+            const status = await window.electron.getAppUpdateStatus();
+            if (
+                status.status === 'downloading' ||
+                status.status === 'downloaded'
+            )
+                return;
             await window.electron.checkForAppUpdate();
         }
     }

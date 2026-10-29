@@ -25,7 +25,15 @@ async function setSourceReadFailure(app: ElectronApplication, failed: boolean) {
         ipcMain.removeHandler('APP_UPDATE:GET_STATUS');
         ipcMain.removeHandler('APP_UPDATE:CHECK');
         ipcMain.handle('APP_UPDATE:GET_STATUS', () => status);
-        ipcMain.handle('APP_UPDATE:CHECK', () => status);
+        Reflect.set(globalThis, 'syntheticUpdateCheckCount', 0);
+        ipcMain.handle('APP_UPDATE:CHECK', () => {
+            Reflect.set(
+                globalThis,
+                'syntheticUpdateCheckCount',
+                Reflect.get(globalThis, 'syntheticUpdateCheckCount') + 1
+            );
+            return status;
+        });
     }, failed);
 }
 
@@ -62,6 +70,19 @@ test('recovers settings and updates from a failed source read @electron @setting
         await expect(page.getByTestId('app-update-status-chip')).toHaveText(
             'Up to date'
         );
+
+        await desktop.electronApp.evaluate(({ Menu }) => {
+            Menu.getApplicationMenu()!
+                .getMenuItemById('app-check-for-updates')!
+                .click();
+        });
+        await expect
+            .poll(() =>
+                desktop.electronApp.evaluate(() =>
+                    Reflect.get(globalThis, 'syntheticUpdateCheckCount')
+                )
+            )
+            .toBe(2);
 
         await desktop.electronApp.evaluate(({ Menu }) => {
             Menu.getApplicationMenu()!.getMenuItemById('app-settings')!.click();

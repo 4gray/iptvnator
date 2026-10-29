@@ -61,6 +61,9 @@ describe('application menu', () => {
 
     it('loads translated labels and safely falls back when assets are missing', () => {
         const directory = resolve('apps/web/src/assets/i18n');
+        expect(readMenuLabels(directory, 'de-DE').settings).toBe(
+            'Einstellungen…'
+        );
         expect(readMenuLabels(directory, 'ru').settings).toBe('Настройки…');
         expect(readMenuLabels(directory, 'ru').updates).toBe(
             'Проверить обновления…'
@@ -105,6 +108,12 @@ describe('application menu', () => {
         destroyed = true;
         (settings.click as () => void)();
         expect(send).toHaveBeenCalledTimes(1);
+        expect(app.emit).toHaveBeenCalledWith('activate');
+        destroyed = false;
+        installApplicationMenu(window as unknown as Electron.BrowserWindow);
+        loaded();
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(send).toHaveBeenLastCalledWith(APP_MENU_ACTION, 'settings');
         expect(Menu.setApplicationMenu).toHaveBeenCalled();
         expect(app.getLocale).toHaveBeenCalled();
     });

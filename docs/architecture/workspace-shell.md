@@ -12,7 +12,9 @@ Desktop Settings (`Cmd/Ctrl+,`) and Check for Updates commands use the same
 renderer maintenance service. A manual update check opens About, which already
 renders checking, no-update, error, download and install states. Router
 navigation preserves the unsaved-settings guard; checks use the saved update
-channel. macOS places commands in the application menu; Windows/Linux place
+channel. Repeating the command on About checks again; a download in progress or
+ready to install is preserved and shown instead of starting another check.
+macOS places commands in the application menu; Windows/Linux place
 Settings in Edit and update checking in Help. Native custom labels use the OS
 locale's bundled translations, falling back to English.
 
