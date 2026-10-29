@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "ペアレンタルロックを無効にしました",
             "PIN_CHANGED_TOAST": "PIN を変更しました",
             "LOCKED_TOAST": "ロックしました"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "年齢区分の国",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "年齢区分に使用する国を選択します。現地の情報がない場合は米国またはプロバイダーの情報を使用します。",
+        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "サーバーに保存できませんでした。接続を確認して、もう一度お試しください。",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "予告編をミュート",
             "TRAILER_UNMUTE": "予告編の音を出す",
             "PROGRESS_RESET": "再生位置をリセットしました",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "「続きを見る」から隠しました"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "「続きを見る」から隠しました",
+            "AGE_RATING_UNKNOWN": "年齢区分：データなし",
+            "AGE_RATING_PROVIDER": "プロバイダー",
+            "AGE_RATING_DESCRIPTION": "年齢区分：{{rating}}。情報源：{{source}}。",
+            "AGE_RATING_COUNTRY_FALLBACK": "{{country}}の区分がないため、{{fallback}}の情報を表示しています。",
+            "AGE_RATING_MULTIPLE": "公開版によって区分が異なります。"
         },
         "SCROLL_LEFT": "左にスクロール",
         "SCROLL_RIGHT": "右にスクロール",

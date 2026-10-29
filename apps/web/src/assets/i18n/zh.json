@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "家长控制已禁用",
             "PIN_CHANGED_TOAST": "PIN 码已更改",
             "LOCKED_TOAST": "已锁定"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "年龄分级国家",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "选择年龄分级使用的国家。缺少本地分级时，可能使用美国或提供商的数据。",
+        "AGE_RATING_COUNTRY_AUTO": "自动 — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "无法保存到服务器。请检查连接后重试。",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "预告片静音",
             "TRAILER_UNMUTE": "取消预告片静音",
             "PROGRESS_RESET": "进度已重置",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "已从“继续观看”中隐藏"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "已从“继续观看”中隐藏",
+            "AGE_RATING_UNKNOWN": "年龄分级：暂无数据",
+            "AGE_RATING_PROVIDER": "提供商",
+            "AGE_RATING_DESCRIPTION": "年龄分级：{{rating}}。来源：{{source}}。",
+            "AGE_RATING_COUNTRY_FALLBACK": "没有{{country}}的分级，显示{{fallback}}的数据。",
+            "AGE_RATING_MULTIPLE": "不同发行版本的分级有所不同。"
         },
         "SCROLL_LEFT": "向左滚动",
         "SCROLL_RIGHT": "向右滚动",

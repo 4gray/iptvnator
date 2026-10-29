@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "تم تعطيل الرقابة الأبوية",
             "PIN_CHANGED_TOAST": "تم تغيير رمز PIN",
             "LOCKED_TOAST": "تم القفل"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "بلد التصنيف العمري",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "اختر بلد التصنيف. عند غياب البيانات المحلية، يمكن استخدام بيانات الولايات المتحدة أو المزوّد.",
+        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "تعذّر الحفظ على الخادم. تحقق من الاتصال وحاول مرة أخرى.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "كتم صوت الإعلان",
             "TRAILER_UNMUTE": "تشغيل صوت الإعلان",
             "PROGRESS_RESET": "تمت إعادة ضبط التقدم",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "تم الإخفاء من «متابعة المشاهدة»"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "تم الإخفاء من «متابعة المشاهدة»",
+            "AGE_RATING_UNKNOWN": "العمر: لا توجد بيانات",
+            "AGE_RATING_PROVIDER": "المزوّد",
+            "AGE_RATING_DESCRIPTION": "التصنيف العمري: {{rating}}. المصدر: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "لا يوجد تصنيف لبلد {{country}}؛ تُعرض بيانات {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "تختلف التصنيفات حسب الإصدار."
         },
         "SCROLL_LEFT": "التمرير لليسار",
         "SCROLL_RIGHT": "التمرير لليمين",

@@ -261,6 +261,9 @@ describe('stalker-vod.utils regressions', () => {
         ];
         const tmdbGenres = [{ id: 18, name: 'Drama' }];
         const tmdbCountries = [{ code: 'NO', name: 'Norway' }];
+        const tmdbCertifications = [
+            { value: '12', countryCode: 'NO', source: 'tmdb' as const },
+        ];
 
         const info = createStalkerInfo({
             id: '7',
@@ -289,6 +292,7 @@ describe('stalker-vod.utils regressions', () => {
                 tmdb_recommendations: tmdbRecommendations,
                 tmdb_genres: tmdbGenres,
                 tmdb_countries: tmdbCountries,
+                tmdb_certifications: tmdbCertifications,
                 tmdb_media_type: 'tv',
                 tmdb_supplied_release_date: true,
             },
@@ -305,6 +309,13 @@ describe('stalker-vod.utils regressions', () => {
         expect(info.tmdb_recommendations).toEqual(tmdbRecommendations);
         expect(info.tmdb_genres).toEqual(tmdbGenres);
         expect(info.tmdb_countries).toEqual(tmdbCountries);
+        expect(info.tmdb_certifications).toEqual(tmdbCertifications);
+        expect(
+            createStalkerInfo({
+                id: '7',
+                info: { ...info, tmdb_certifications: [] },
+            }).tmdb_certifications
+        ).toEqual([]);
         expect(info.tmdb_media_type).toBe('tv');
         expect(info.tmdb_supplied_release_date).toBe(true);
     });

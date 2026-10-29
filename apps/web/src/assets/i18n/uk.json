@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Батьківський контроль вимкнено",
             "PIN_CHANGED_TOAST": "PIN-код змінено",
             "LOCKED_TOAST": "Заблоковано"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Країна вікового рейтингу",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Виберіть країну класифікації. За відсутності місцевого рейтингу використовуються дані США або провайдера.",
+        "AGE_RATING_COUNTRY_AUTO": "Автоматично — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не вдалося зберегти дані на сервері. Перевірте з’єднання та спробуйте ще раз.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Вимкнути звук у трейлері",
             "TRAILER_UNMUTE": "Увімкнути звук у трейлері",
             "PROGRESS_RESET": "Прогрес скинуто",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Приховано з розділу «Продовжити перегляд»"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Приховано з розділу «Продовжити перегляд»",
+            "AGE_RATING_UNKNOWN": "Вік: немає даних",
+            "AGE_RATING_PROVIDER": "Провайдер",
+            "AGE_RATING_DESCRIPTION": "Вікова класифікація: {{rating}}. Джерело: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Немає класифікації для країни {{country}}; показано дані: {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Класифікації різних версій твору відрізняються."
         },
         "SCROLL_LEFT": "Прокрутити ліворуч",
         "SCROLL_RIGHT": "Прокрутити праворуч",

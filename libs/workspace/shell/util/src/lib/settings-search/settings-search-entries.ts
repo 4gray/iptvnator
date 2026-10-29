@@ -201,6 +201,21 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         fallbackId: 'tmdb-enable',
     },
     {
+        id: 'age-rating-country',
+        section: 'tmdb',
+        labelKey: 'SETTINGS.AGE_RATING_COUNTRY_LABEL',
+        descriptionKey: 'SETTINGS.AGE_RATING_COUNTRY_DESCRIPTION',
+        keywords: [
+            'age',
+            'rating',
+            'classification',
+            'country',
+            'parental',
+            'FSK',
+            'MPAA',
+        ],
+    },
+    {
         id: 'tmdb-cache',
         section: 'tmdb',
         labelKey: 'SETTINGS.TMDB_CACHE',

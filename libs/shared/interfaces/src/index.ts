@@ -123,3 +123,8 @@ export * from './lib/server-storage.contract';
 export * from './lib/source-sync.interface';
 
 export { sourceIdentity } from './lib/playlist-source-identity.util';
+
+export type {
+    ContentCertification,
+    AgeRatingDisplay,
+} from './lib/content-certification';

@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Родительский контроль выключен",
             "PIN_CHANGED_TOAST": "PIN изменён",
             "LOCKED_TOAST": "Заблокировано"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Страна возрастного рейтинга",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Выберите страну классификации. Если местного рейтинга нет, используются данные США или провайдера.",
+        "AGE_RATING_COUNTRY_AUTO": "Автоматически — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не удалось сохранить на сервер. Проверьте подключение и попробуйте снова.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Выключить звук трейлера",
             "TRAILER_UNMUTE": "Включить звук трейлера",
             "PROGRESS_RESET": "Прогресс сброшен",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Скрыто из «Продолжить просмотр»"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Скрыто из «Продолжить просмотр»",
+            "AGE_RATING_UNKNOWN": "Возраст: нет данных",
+            "AGE_RATING_PROVIDER": "Провайдер",
+            "AGE_RATING_DESCRIPTION": "Возрастная классификация: {{rating}}. Источник: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Нет классификации для страны {{country}}; показаны данные: {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Классификации разных версий произведения отличаются."
         },
         "SCROLL_LEFT": "Прокрутить влево",
         "SCROLL_RIGHT": "Прокрутить вправо",

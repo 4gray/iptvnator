@@ -56,6 +56,18 @@ describe('SettingsStore dashboard rail settings', () => {
         });
     });
 
+    it('preserves an explicit age-rating country across saved settings reloads', async () => {
+        storedSettings = { ageRatingCountry: 'DE' };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        expect(store.getSettings().ageRatingCountry).toBe('DE');
+        await store.updateSettings({ theme: Theme.DarkTheme });
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({ ageRatingCountry: 'DE' })
+        );
+    });
+
     it('migrates legacy Portuguese without losing unrelated settings', async () => {
         storedSettings = {
             language: 'pt' as Language,

@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Бацькоўскі кантроль выключаны",
             "PIN_CHANGED_TOAST": "PIN зменены",
             "LOCKED_TOAST": "Заблакіравана"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Краіна ўзроставага рэйтынгу",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Выберыце краіну класіфікацыі. Калі мясцовых звестак няма, выкарыстоўваюцца даныя ЗША або правайдара.",
+        "AGE_RATING_COUNTRY_AUTO": "Аўтаматычна — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не ўдалося захаваць на сервер. Праверце злучэнне і паспрабуйце зноў.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Выключыць гук трэйлера",
             "TRAILER_UNMUTE": "Уключыць гук трэйлера",
             "PROGRESS_RESET": "Прагрэс скінуты",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Схавана з «Працягнуць прагляд»"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Схавана з «Працягнуць прагляд»",
+            "AGE_RATING_UNKNOWN": "Узрост: няма даных",
+            "AGE_RATING_PROVIDER": "Правайдар",
+            "AGE_RATING_DESCRIPTION": "Узроставая класіфікацыя: {{rating}}. Крыніца: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Няма класіфікацыі для краіны {{country}}; паказаны даныя: {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Класіфікацыі розных версій твора адрозніваюцца."
         },
         "SCROLL_LEFT": "Пракруціць налева",
         "SCROLL_RIGHT": "Пракруціць направа",

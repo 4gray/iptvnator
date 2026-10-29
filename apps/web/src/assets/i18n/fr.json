@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Contrôle parental désactivé",
             "PIN_CHANGED_TOAST": "Code PIN modifié",
             "LOCKED_TOAST": "Verrouillé"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Pays de classification par âge",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Choisissez le pays de classification. Sans donnée locale, les données américaines ou du fournisseur peuvent être utilisées.",
+        "AGE_RATING_COUNTRY_AUTO": "Automatique — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossible d’enregistrer sur le serveur. Vérifiez la connexion et réessayez.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Couper le son de la bande-annonce",
             "TRAILER_UNMUTE": "Activer le son de la bande-annonce",
             "PROGRESS_RESET": "Progression réinitialisée",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Masqué de « Reprendre »"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Masqué de « Reprendre »",
+            "AGE_RATING_UNKNOWN": "Âge : aucune donnée",
+            "AGE_RATING_PROVIDER": "Fournisseur",
+            "AGE_RATING_DESCRIPTION": "Classification par âge : {{rating}}. Source : {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Aucune classification pour {{country}} ; données affichées : {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Les classifications diffèrent selon les versions."
         },
         "SCROLL_LEFT": "Faire défiler vers la gauche",
         "SCROLL_RIGHT": "Faire défiler vers la droite",

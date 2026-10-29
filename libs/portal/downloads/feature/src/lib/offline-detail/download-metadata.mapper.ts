@@ -1,14 +1,13 @@
 import {
-    createMovieDownloadSnapshot,
-    createSeriesEpisodeDownloadSnapshot,
-} from '@iptvnator/portal/shared/util';
-import {
     mergeSerieInfoWithTmdb,
     mergeStalkerInfoWithTmdb,
     mergeVodInfoWithTmdb,
-    type TmdbMovieDetails,
-    type TmdbTvDetails,
-} from '@iptvnator/services';
+} from '@iptvnator/services/tmdb-merge';
+import {
+    createMovieDownloadSnapshot,
+    createSeriesEpisodeDownloadSnapshot,
+} from '@iptvnator/portal/shared/util';
+import { type TmdbMovieDetails, type TmdbTvDetails } from '@iptvnator/services';
 import type {
     DownloadMetadataPerson,
     DownloadMetadataSnapshot,

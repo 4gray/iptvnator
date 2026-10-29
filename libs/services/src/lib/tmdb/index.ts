@@ -7,6 +7,6 @@ export * from './tmdb-enrichment.service';
 export * from './tmdb-id-resolver.service';
 export * from './tmdb-episode-merge';
 export * from './tmdb-matcher';
-export * from './tmdb-merge';
 export * from './tmdb-person';
 export * from './tmdb.types';
+export * from './tmdb-lazy-merge';

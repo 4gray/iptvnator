@@ -59,6 +59,16 @@ async function serveTmdb(page: Page): Promise<void> {
                 overview: 'Paul Atreides arrives on Arrakis.',
                 release_date: '2021-09-15',
                 runtime: 155,
+                release_dates: {
+                    results: [
+                        {
+                            iso_3166_1: 'US',
+                            release_dates: [
+                                { certification: 'PG-13', type: 4 },
+                            ],
+                        },
+                    ],
+                },
                 vote_average: 7.8,
                 vote_count: 9000,
                 genres: [{ id: 878, name: 'Science Fiction' }],
@@ -226,7 +236,9 @@ async function configureMetadata(
     await enableTmdb(page);
     if (mode === 'details-disabled') {
         await setSwitch(
-            page.locator('[data-test-id="tmdb-m3u-vod-details"] [role="switch"]'),
+            page.locator(
+                '[data-test-id="tmdb-m3u-vod-details"] [role="switch"]'
+            ),
             false
         );
         await saveSettings(page);
@@ -360,6 +372,12 @@ test('@web @m3u @tmdb recognized movies open the VOD detail view', async ({
     ).toBeVisible();
     await expect(about.getByText('Denis Villeneuve')).toBeVisible();
     await expect(about.getByText('Science Fiction')).toBeVisible();
+    await expect(about.locator('[data-test-id="age-rating-chip"]')).toHaveText(
+        'PG-13 · US'
+    );
+    await about.screenshot({
+        path: test.info().outputPath('m3u-age-rating-watch.png'),
+    });
 
     // A live channel keeps the classic layout.
     await sidebarEntry(page, 'Live One').click();

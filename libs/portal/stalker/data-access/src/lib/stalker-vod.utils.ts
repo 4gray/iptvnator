@@ -202,6 +202,7 @@ type TmdbEnrichmentKey = Extract<keyof StalkerVodInfo, `tmdb_${string}`>;
  */
 const TMDB_ENRICHMENT_KEYS: Record<TmdbEnrichmentKey, true> = {
     tmdb_id: true,
+    tmdb_certifications: true,
     tmdb_cast: true,
     tmdb_directors: true,
     tmdb_status: true,
