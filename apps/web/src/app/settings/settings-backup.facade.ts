@@ -1,7 +1,20 @@
-import { computed, inject, Injectable, Injector, signal } from '@angular/core';
+import {
+    afterNextRender,
+    computed,
+    DestroyRef,
+    inject,
+    Injectable,
+    Injector,
+    signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter, take } from 'rxjs';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistActions } from '@iptvnator/m3u-state';
+import {
+    PlaylistActions,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
@@ -18,6 +31,7 @@ export class SettingsBackupFacade {
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     private readonly injector = inject(Injector);
+    private readonly destroyRef = inject(DestroyRef);
 
     readonly isExportingData = signal(false);
     readonly isImportingData = signal(false);
@@ -146,14 +160,24 @@ export class SettingsBackupFacade {
     }
 
     private restoreFocus(target: HTMLElement | null): void {
-        window.requestAnimationFrame(() => {
-            if (
-                target?.isConnected &&
-                document.activeElement === document.body
-            ) {
-                target.focus();
-            }
-        });
+        this.store
+            .select(selectPlaylistsLoadingFlag)
+            .pipe(filter(Boolean), take(1), takeUntilDestroyed(this.destroyRef))
+            .subscribe(() => {
+                // Reloading the library hides the router outlet until sources are
+                // ready. The trigger must be visible in the completed render.
+                afterNextRender(
+                    () => {
+                        if (
+                            target?.isConnected &&
+                            document.activeElement === document.body
+                        ) {
+                            target.focus();
+                        }
+                    },
+                    { injector: this.injector }
+                );
+            });
     }
 
     private downloadBackupInBrowser(

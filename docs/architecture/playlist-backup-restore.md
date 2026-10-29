@@ -323,8 +323,9 @@ The settings facade guards import, file selection and export with one busy
 state. Reset is disabled while backup work is active; backup actions are
 blocked during reset. Cancelling the chooser or native save is a no-op, and
 file-read/import failures release the busy state. Keyboard focus returns to
-the import trigger if the browser lost it while that trigger was disabled;
-focus the user moved elsewhere is retained.
+the import trigger after the playlist inventory finishes loading and the
+router outlet is visible again, if the browser lost focus while that trigger
+was disabled. Focus the user moved elsewhere is retained.
 
 Import progress and the final counts live in a persistent, localized status
 region on the backup page. A partial result explains that already applied

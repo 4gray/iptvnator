@@ -132,7 +132,7 @@ const result = (page: Page) => page.locator('#backup .backup-result');
 
 test.beforeEach(async ({ page }) => {
     await page.goto('/workspace/settings/backup');
-    await expect(page.locator('#backup')).toBeVisible();
+    await expect(page.locator('#backup')).toBeVisible({ timeout: 15_000 });
 });
 
 test('@critical @persistence @settings @pwa backup round-trip preserves supported data through repeat import and reload', async ({

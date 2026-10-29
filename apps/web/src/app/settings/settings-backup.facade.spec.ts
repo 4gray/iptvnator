@@ -3,10 +3,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import {
     selectAllPlaylistsMeta,
     selectIsEpgAvailable,
+    selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaylistBackupService } from '@iptvnator/services/playlist-backup';
-import { provideMockStore } from '@ngrx/store/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockProvider } from 'ng-mocks';
 import { SettingsBackupFacade } from './settings-backup.facade';
@@ -44,6 +45,7 @@ describe('SettingsBackupFacade', () => {
                     selectors: [
                         { selector: selectAllPlaylistsMeta, value: [] },
                         { selector: selectIsEpgAvailable, value: false },
+                        { selector: selectPlaylistsLoadingFlag, value: true },
                     ],
                 }),
             ],
@@ -278,6 +280,58 @@ describe('SettingsBackupFacade', () => {
             create.mockRestore();
         }
     });
+
+    it.each([false, true])(
+        'waits for source loading and rendering before returning focus (focus moved: %s)',
+        async (moved) => {
+            configure();
+            const store = TestBed.inject(MockStore);
+            const ready = store.overrideSelector(
+                selectPlaylistsLoadingFlag,
+                false
+            );
+            const trigger = document.createElement('button');
+            const other = document.createElement('button');
+            document.body.append(trigger, other);
+            trigger.focus();
+            const input = document.createElement('input');
+            Object.defineProperty(input, 'files', {
+                value: [{ text: () => Promise.resolve('{}') }],
+            });
+            const listeners = jest.spyOn(input, 'addEventListener');
+            const create = jest
+                .spyOn(document, 'createElement')
+                .mockReturnValue(input);
+            jest.spyOn(input, 'click').mockImplementation();
+            (playlistBackupService.importBackup as jest.Mock).mockResolvedValue(
+                { imported: 1, merged: 0, skipped: 0, failed: 0, errors: [] }
+            );
+            try {
+                facade.importData(jest.fn());
+                trigger.disabled = true;
+                other.focus();
+                other.blur();
+                const change = listeners.mock.calls.find(
+                    ([name]) => name === 'change'
+                )?.[1] as (event: Event) => Promise<void>;
+                await change({ target: input } as unknown as Event);
+                await new Promise<void>((done) =>
+                    requestAnimationFrame(() => done())
+                );
+                expect(document.activeElement).not.toBe(trigger);
+                trigger.disabled = false;
+                if (moved) other.focus();
+                ready.setResult(true);
+                store.refreshState();
+                TestBed.tick();
+                expect(document.activeElement).toBe(moved ? other : trigger);
+            } finally {
+                create.mockRestore();
+                trigger.remove();
+                other.remove();
+            }
+        }
+    );
 
     it('does not disclose file or storage contents when an import fails', async () => {
         configure();
