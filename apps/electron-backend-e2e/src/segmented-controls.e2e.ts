@@ -172,14 +172,22 @@ test.describe('Electron segmented controls', () => {
             const header = page
                 .locator('app-unified-collection-page .collection-header')
                 .first();
-            const contentToggle = header.locator('.content-toggle');
-            const scopeToggle = header.locator('.scope-toggle');
-            await expect(contentToggle).toBeVisible({ timeout: 20_000 });
+            // Loading placeholders use the same Material groups. Measure only
+            // the loaded controls, which survive the initial collection read.
+            const contentToggle = header.locator(
+                '.content-toggle:not(.toggle-placeholder)'
+            );
+            const scopeToggle = header.locator(
+                '.scope-toggle:not(.toggle-placeholder)'
+            );
             for (const toggle of [contentToggle, scopeToggle]) {
-                expect(await frame(toggle)).toEqual({
-                    height: 32,
-                    radius: '10px',
-                });
+                await expect(toggle).toBeVisible({ timeout: 20_000 });
+                await expect
+                    .poll(() => frame(toggle))
+                    .toEqual({
+                        height: 32,
+                        radius: '10px',
+                    });
             }
             const unchosen =
                 '.mat-button-toggle:not(.mat-button-toggle-checked)';
