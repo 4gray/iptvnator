@@ -312,7 +312,9 @@ Apply the same visual recipe to selected list items, active channels, and curren
 - Lift:
   `transform: translateY(-1px)` for selected list items only
 - Text:
-  selected text should inherit `var(--app-selection-color)`
+  selected text uses `var(--app-selection-text-color)` on the tinted surface.
+  Selected channel programme titles, times and no-programme copy keep full
+  opacity; fading this foreground again fails contrast in both themes.
 
 Use `var(--app-selection-on-color)` when text or an icon sits directly on a
 solid `var(--app-selection-color)` fill.
