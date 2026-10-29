@@ -17,13 +17,19 @@ import { AppMaintenanceService } from './services/app-maintenance.service';
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatButton, TranslatePipe],
     template: `
-        <button mat-flat-button type="button" (click)="retry()">
+        <button
+            mat-flat-button
+            class="startup-primary"
+            type="button"
+            (click)="retry()"
+        >
             {{ 'RETRY' | translate }}
         </button>
         <div class="startup-recovery-actions">
             <button
-                mat-stroked-button
+                mat-flat-button
                 type="button"
+                class="startup-secondary"
                 data-test-id="startup-open-settings"
                 (click)="maintenance.openSettings()"
             >
@@ -31,8 +37,9 @@ import { AppMaintenanceService } from './services/app-maintenance.service';
             </button>
             @if (maintenance.canCheckForUpdates) {
                 <button
-                    mat-stroked-button
+                    mat-flat-button
                     type="button"
+                    class="startup-secondary"
                     data-test-id="startup-check-updates"
                     (click)="maintenance.checkForUpdates()"
                 >
@@ -52,32 +59,7 @@ import { AppMaintenanceService } from './services/app-maintenance.service';
             </p>
         }
     `,
-    styles: `
-        :host {
-            display: contents;
-        }
-        button,
-        .startup-recovery-actions,
-        p {
-            position: relative;
-            z-index: 1;
-        }
-        button {
-            app-region: no-drag;
-            margin-top: 8px;
-        }
-        .startup-recovery-actions {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 8px;
-        }
-        .startup-version {
-            font-size: 12px;
-            color: var(--app-body-color);
-            margin: 16px 0 0;
-        }
-    `,
+    styleUrl: './app-startup-recovery.component.scss',
 })
 export class AppStartupRecoveryComponent {
     readonly maintenance = inject(AppMaintenanceService);

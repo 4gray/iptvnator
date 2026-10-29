@@ -7,6 +7,7 @@ Source inventory readiness gates library views, but never sign-in or any
 and, when the update bridge is present, Check for updates. The richer recovery
 controls and version/channel information load only on failure; native fallback
 Retry and Open settings buttons remain usable if that chunk cannot load.
+Recovery actions and their native fallback follow the shared application button kit.
 
 Desktop Settings (`Cmd/Ctrl+,`) and Check for Updates commands use the same
 renderer maintenance service. A manual update check opens About, which already

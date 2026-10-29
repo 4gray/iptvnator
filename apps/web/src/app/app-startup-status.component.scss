@@ -1,3 +1,5 @@
+@use '../../../../libs/ui/styles/app-controls' as controls;
+
 :host {
     display: contents;
 }
@@ -49,32 +51,27 @@ button {
     margin-top: 8px;
     app-region: no-drag;
 }
-.startup-secondary:hover {
-    background: var(--app-widget-bg);
-    color: var(--app-heading-color);
-}
-.startup-secondary:focus-visible {
-    outline: 2px solid var(--app-selection-color);
-    outline-offset: 3px;
-}
-/* The flat button's shape in the theme's colours, until the
-           Material button loads. */
-.startup-retry-native {
+// The minimal native fallback matches the kit without carrying all of its
+// Material and disabled-state selectors on the initial launch path. The global
+// focus-visible rule supplies the same keyboard ring as other native controls.
+.startup-button {
     height: 40px;
-    padding: 0 24px;
+    padding: 0 16px;
     border: 0;
-    border-radius: 20px;
-    background: var(--mat-sys-primary);
-    color: var(--mat-sys-on-primary);
+    border-radius: controls.$radius;
+    background: var(--app-selection-color);
+    color: var(--app-selection-on-color);
     font: inherit;
-    font-weight: 500;
+    font-size: 13.5px;
+    font-weight: 600;
     cursor: pointer;
 }
-
 .startup-secondary {
-    border: 1px solid var(--app-separator);
-    background: transparent;
-    color: var(--app-body-color);
+    background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    color: var(--app-heading-color);
+}
+.startup-secondary:hover {
+    background: color-mix(in srgb, var(--app-on-surface) 16%, transparent);
 }
 
 /*

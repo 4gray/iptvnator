@@ -115,7 +115,7 @@ import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
                     }
                     <ng-template #nativeRetry>
                         <button
-                            class="startup-retry-native"
+                            class="startup-button"
                             type="button"
                             (click)="retry()"
                         >
@@ -123,7 +123,7 @@ import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
                         </button>
                         <button
                             type="button"
-                            class="startup-retry-native startup-secondary"
+                            class="startup-button startup-secondary"
                             data-test-id="startup-open-settings"
                             (click)="maintenance.openSettings()"
                         >
