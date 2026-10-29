@@ -1,3 +1,4 @@
+import { configureMockProviderBackend } from './provider-target-route';
 import { expect, test } from './fixtures';
 import {
     addXtreamPortal,
@@ -22,12 +23,7 @@ test.use({ serviceWorkers: 'block' });
 test.describe.configure({ mode: 'serial' });
 
 test.beforeEach(async ({ page }) => {
-    await page.route('**/assets/app-config.js', (route) =>
-        route.fulfill({
-            contentType: 'application/javascript',
-            body: 'window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: "http://localhost:3000" };',
-        })
-    );
+    await configureMockProviderBackend(page);
 });
 
 test('@web @metadata age-rating country saves independently of TMDB', async ({
