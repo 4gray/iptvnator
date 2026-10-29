@@ -9,6 +9,7 @@ import {
 import { readFile } from 'node:fs/promises';
 import { verifyConcurrentSourcePruning } from './source-pruning-pwa.helpers';
 import { verifyConcurrentSourceDeletion } from './source-clearing-pwa.helpers';
+import { verifySourceCleanupOwnership } from './source-cleanup-ownership.helpers';
 import {
     verifyCachedSourcesDuringMaterialization,
     verifyConcurrentSourceProjection,
@@ -38,6 +39,14 @@ test.describe('server storage @self-hosted @persistence', () => {
         );
         expect(response.ok()).toBe(true);
     });
+
+    for (const ending of ['complete', 'close', 'reject'] as const) {
+        test(`owns source cleanup across tabs without Web Locks (owner: ${ending})`, async ({
+            browser,
+        }) => {
+            await verifySourceCleanupOwnership(browser, ending);
+        });
+    }
 
     test('a playlist added on one device appears on another', async ({
         browser,

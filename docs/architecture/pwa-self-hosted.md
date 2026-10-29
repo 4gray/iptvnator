@@ -247,6 +247,14 @@ transaction. Profile-local markers block projection writes until cleanup has
 finished; conditional retry markers cannot remove a newer revision. Existing
 unconditional cleanup markers remain compatible. Ordinary HTTP 304 polls do
 not read the cached payloads. Inventory reconciliation loads lazily.
+Browser cleanup operations also claim one profile-wide owner across tabs,
+including without Web Locks. A separate empty IndexedDB database grants
+ownership only to a version upgrader; its open connection blocks the next
+upgrade until every hook settles. Same-version openers retry at a newer version.
+Closing/crashing the owner tab releases the connection, so retries do not need
+an expiring lease and cannot overtake a slow hook. Source/settings databases
+stay accessible while hooks run. Native cleanup retains its exclusive owner.
+This follows IndexedDB's [connection queue and upgrade ordering](https://w3c.github.io/IndexedDB/).
 Manual and batch M3U refreshes cannot mutate shared definitions. They retain
 their captured request URL/User-Agent and discard superseded responses, keeping
 the current name, baseline and revision. State reducers reject stale content;

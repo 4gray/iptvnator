@@ -6,6 +6,7 @@ import {
     mutateIndexedDbPlaylist,
     pruneIndexedDbPlaylist,
 } from './indexeddb-playlist-mutation';
+import { withIndexedDbCleanupOwnership } from './indexeddb-cleanup-ownership';
 
 /** Local cache for a selected server; the database name is profile-scoped. */
 export function indexedDbDocumentStore(
@@ -17,6 +18,8 @@ export function indexedDbDocumentStore(
         return { success: true };
     };
     return {
+        dbWithSourceCleanup: (operation) =>
+            withIndexedDbCleanupOwnership(profile, operation),
         dbGetAppPlaylists: () =>
             firstValueFrom(db.getAll<Playlist>(DbStores.Playlists)),
         dbGetAppPlaylist: (id) =>

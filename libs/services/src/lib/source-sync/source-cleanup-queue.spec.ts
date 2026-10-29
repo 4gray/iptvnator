@@ -55,6 +55,60 @@ describe('durable local source cleanup', () => {
         });
     }
 
+    it('keeps a deletion fenced until the owner finishes, then skips a sibling retry', async () => {
+        localStorage.setItem(`${prefix}a`, JSON.stringify(['"old"']));
+        rows.delete('a');
+        const locks = new Map([['a', ['old-lock']]]);
+        let tail = Promise.resolve();
+        local.dbWithSourceCleanup = (operation) => {
+            const next = tail.then(operation);
+            tail = next.then(
+                () => undefined,
+                () => undefined
+            );
+            return next;
+        };
+        let entered!: () => void;
+        const started = new Promise<void>((resolve) => (entered = resolve));
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => (release = resolve));
+        const slowCleanup = jest.fn(async (id) => {
+            entered();
+            await held;
+            locks.delete(id);
+        });
+        const fastCleanup = jest.fn(async (id) => {
+            locks.delete(id);
+        });
+        const slow = new SourceCleanupQueue(local, [slowCleanup], prefix);
+        const fast = new SourceCleanupQueue(local, [fastCleanup], prefix);
+        const first = slow.retry();
+        await started;
+        let finished = false;
+        const second = fast.retry().then(() => {
+            finished = true;
+        });
+        try {
+            // Drain all unblocked continuations; the held hook cannot complete.
+            for (let index = 0; index < 30; index++) await Promise.resolve();
+            expect(finished).toBe(false);
+            expect(() => fast.assertWritable('a')).toThrow(
+                'SOURCE_SYNC.REQUEST_FAILED'
+            );
+        } finally {
+            release();
+            await Promise.all([first, second]);
+        }
+        expect(fastCleanup).not.toHaveBeenCalled();
+        expect(slowCleanup).toHaveBeenCalledTimes(1);
+        rows.set('a', { _id: 'a', sourceSyncRevision: '"new"' } as Playlist);
+        locks.set('a', ['restored-lock']);
+        expect(() => fast.assertWritable('a')).not.toThrow();
+        await Promise.all([slow.retry(), fast.retry()]);
+        expect(locks.get('a')).toEqual(['restored-lock']);
+        expect(rows.get('a')?.sourceSyncRevision).toBe('"new"');
+    });
+
     it('does not mark or clean a newer row when its conditional delete loses the race', async () => {
         rows.set('a', {
             _id: 'a',

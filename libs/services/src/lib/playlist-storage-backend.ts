@@ -25,6 +25,8 @@ export type PlaylistDocumentStore = Pick<
     | 'dbSetAppState'
     | 'dbUpsertAppPlaylists'
 > & {
+    /** Browser-only cleanup ownership; callbacks never cross IPC. */
+    dbWithSourceCleanup?: <T>(operation: () => Promise<T>) => Promise<T>;
     /** Browser-only conditional delete; the marker is set inside its transaction. */
     dbPruneAppPlaylist?: (
         id: string,

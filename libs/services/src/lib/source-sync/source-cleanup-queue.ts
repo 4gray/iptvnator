@@ -69,16 +69,20 @@ export class SourceCleanupQueue {
         });
 
     retry(): Promise<void> {
-        return this.guard(async () => {
+        try {
             const keys = Array.from(
                 { length: localStorage.length },
                 (_, index) => localStorage.key(index)
-            );
-            for (const key of keys) {
-                if (key?.startsWith(this.prefix))
+            ).filter((key): key is string => !!key?.startsWith(this.prefix));
+            // Idle inventory polls do not acquire or advance the owner database.
+            if (!keys.length) return Promise.resolve();
+            return this.guard(async () => {
+                for (const key of keys)
                     await this.finish(key.slice(this.prefix.length));
-            }
-        });
+            });
+        } catch {
+            return Promise.reject(new Error('SOURCE_SYNC.REQUEST_FAILED'));
+        }
     }
 
     private mark(id: string, value = '1'): void {
@@ -120,7 +124,8 @@ export class SourceCleanupQueue {
 
     private async guard<T>(operation: () => Promise<T>): Promise<T> {
         try {
-            return await operation();
+            return await (this.local.dbWithSourceCleanup?.(operation) ??
+                operation());
         } catch {
             // Keep markers in place and expose a translated recoverable error.
             throw new Error('SOURCE_SYNC.REQUEST_FAILED');
