@@ -975,7 +975,7 @@ test.describe('server storage @self-hosted @persistence', () => {
         }
     });
 
-    test('imports browser sources explicitly without replacing the original profile', async ({
+    test('imports legacy top-level browser sources explicitly without replacing the original profile', async ({
         browser,
         request,
     }) => {
@@ -1010,8 +1010,21 @@ test.describe('server storage @self-hosted @persistence', () => {
             expect.objectContaining({ title: 'Browser only' }),
         ]);
         expect(metas[0]._id).not.toBe('browser-only');
+        const source = await request.get(
+            `${STORAGE_BACKEND_URL}/v1/sources/${metas[0]._id}`
+        );
+        expect(await source.json()).toMatchObject({
+            kind: 'm3u-text',
+            rawM3u: '#EXTM3U\n#EXTINF:-1,Channel\nhttps://example.invalid/c1.m3u8',
+        });
         await openSources(page);
         await expect(sourceRowByTitle(page, 'Browser only')).toBeVisible();
+        await sourceRowByTitle(page, 'Browser only')
+            .getByRole('button', { name: 'Browser only', exact: true })
+            .click();
+        await expect(
+            page.locator('app-channel-list-item').first()
+        ).toContainText('Channel');
         await page.context().close();
     });
     for (const existingServerActivity of [false, true])

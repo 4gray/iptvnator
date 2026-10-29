@@ -277,6 +277,8 @@ Unbound legacy entries are never forwarded automatically.
 Accepted source mutations schedule an immediate inventory refresh.
 Uploaded M3U text is fetched only for changed revisions and parsed locally;
 URL M3U snapshots are fetched through the runtime's provider transport.
+Source conversion retains channels and raw header EPG URLs from both nested
+and legacy top-level parsed M3U documents; stored raw M3U remains authoritative.
 Failed URL materialization is marked in the local row and retried even when
 the server revision has not changed, including after restart. Successful
 projection refreshes an open M3U channel list without publishing it back.

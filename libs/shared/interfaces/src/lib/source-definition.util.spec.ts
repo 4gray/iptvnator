@@ -25,6 +25,52 @@ const row: Playlist = {
 };
 
 describe('portable source definitions', () => {
+    it.each(['nested', 'top-level', 'empty-nested'] as const)(
+        'retains uploaded channels and header EPG URLs from %s parsed documents',
+        (shape) => {
+            const parsed = {
+                header: {
+                    raw: '#EXTM3U x-tvg-url="https://guide.test/epg.xml"',
+                },
+                items: [
+                    {
+                        raw: '#EXTINF:-1,Raw channel',
+                        url: 'https://media.test/raw',
+                    },
+                    {
+                        name: 'Parsed channel',
+                        url: 'https://media.test/parsed',
+                    },
+                ],
+            };
+            const upload: Playlist = {
+                ...row,
+                serverUrl: undefined,
+                username: undefined,
+                password: undefined,
+                ...(shape === 'nested'
+                    ? { playlist: parsed }
+                    : {
+                          ...parsed,
+                          ...(shape === 'empty-nested' ? { playlist: {} } : {}),
+                      }),
+            };
+            const saved = structuredClone(upload);
+            const expected =
+                '#EXTM3U x-tvg-url="https://guide.test/epg.xml"\n#EXTINF:-1,Raw channel\nhttps://media.test/raw\n#EXTINF:-1,Parsed channel\nhttps://media.test/parsed';
+            expect(sourceFromPlaylist(upload).rawM3u).toBe(expected);
+            expect(
+                sourceFromPlaylist({
+                    ...upload,
+                    sourceRawM3u:
+                        '#EXTM3U\n#EXTINF:-1,Canonical\nhttps://media.test/canonical',
+                }).rawM3u
+            ).toContain('https://media.test/canonical');
+            expect(sourceFromPlaylist(upload, false).rawM3u).toBeUndefined();
+            expect(upload).toEqual(saved);
+        }
+    );
+
     it('compares absent nullable optional fields consistently while keeping API input validation strict', () => {
         const source = sourceFromPlaylist(row);
         const nullable = {

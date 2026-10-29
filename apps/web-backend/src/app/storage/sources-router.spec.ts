@@ -181,10 +181,30 @@ describe('source synchronization API', () => {
                     expect(
                         await (await fetch(`${base}/v1/sources/file`)).json()
                     ).toMatchObject({ rawM3u });
-                    await fetch(
+                    const { playlist, ...legacyUpload } = m3uDocument('legacy');
+                    const header = {
+                        raw: '#EXTM3U x-tvg-url="https://guide.test/epg.xml"',
+                    };
+                    const stored = await fetch(
                         `${base}/v1/playlists/legacy`,
-                        body('PUT', m3uDocument('legacy'))
+                        body('PUT', {
+                            ...legacyUpload,
+                            url: undefined,
+                            ...playlist,
+                            header,
+                        })
                     );
+                    expect(stored.ok).toBe(true);
+                    expect(
+                        await (await fetch(`${base}/v1/sources/legacy`)).json()
+                    ).toMatchObject({
+                        kind: 'm3u-text',
+                        rawM3u: `${header.raw}\n#EXTINF:-1,A\nhttps://example.test/a`,
+                    });
+                    expect(storage.playlists.get('legacy')).toMatchObject({
+                        header,
+                        items: playlist.items,
+                    });
                     const second = await fetch(`${base}/v1/sources`, {
                         headers: {
                             'If-None-Match': first.headers.get('etag')!,

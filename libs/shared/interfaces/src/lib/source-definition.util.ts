@@ -43,11 +43,15 @@ export function sourceFromPlaylist(
     if (kind === 'stalker')
         source.portalUrl = playlist.portalUrl ?? playlist.url;
     if (kind === 'm3u-text' && payload) {
+        const header = (playlist.playlist?.header ?? playlist.header) as
+            { raw?: string } | undefined;
         source.rawM3u =
             playlist.sourceRawM3u ??
             [
-                playlist.playlist?.header?.raw ?? '#EXTM3U',
-                ...(playlist.playlist?.items ?? []).map(sourceItemText),
+                header?.raw ?? '#EXTM3U',
+                ...(playlist.playlist?.items ?? playlist.items ?? []).map(
+                    sourceItemText
+                ),
             ].join('\n');
     }
     return source;

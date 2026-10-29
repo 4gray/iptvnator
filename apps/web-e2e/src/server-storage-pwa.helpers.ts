@@ -28,7 +28,7 @@ export async function newServerPage(browser: Browser): Promise<Page> {
     return page;
 }
 
-/** A legacy browser playlist, written before the app boots. */
+/** A legacy top-level parsed upload, written before the app boots. */
 export async function seedBrowserPlaylist(
     page: Page,
     id: string,
@@ -88,16 +88,14 @@ export async function seedBrowserPlaylist(
                         autoRefresh: false,
                         favorites: [],
                         recentlyViewed: [],
-                        playlist: {
-                            header: { attrs: {}, raw: '#EXTM3U' },
-                            items: [
-                                {
-                                    id: 'c1',
-                                    name: 'Channel',
-                                    url: 'https://example.invalid/c1.m3u8',
-                                },
-                            ],
-                        },
+                        header: { attrs: {}, raw: '#EXTM3U' },
+                        items: [
+                            {
+                                id: 'c1',
+                                name: 'Channel',
+                                url: 'https://example.invalid/c1.m3u8',
+                            },
+                        ],
                     });
                 };
             }),
