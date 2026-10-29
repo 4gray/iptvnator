@@ -35,6 +35,8 @@ test('TV enrichment patches editorial fields only and skips live or disabled req
             backdrop_path: '/wide.jpg',
             poster_path: '/poster.jpg',
             original_language: 'en',
+            release_dates: { results: [] },
+            content_ratings: { results: [] },
             credits: {
                 cast: [{ name: 'Keanu Reeves' }],
                 crew: [{ name: 'Lana Wachowski', job: 'Director' }],
@@ -94,6 +96,8 @@ test('provider-neutral movies and series use confident title search without chan
             first_air_date: '1999-03-30',
             overview: 'Matched description',
             original_language: 'en',
+            release_dates: { results: [] },
+            content_ratings: { results: [] },
         };
         return Response.json(
             url.pathname.includes('/search/') ? { results: [details] } : details

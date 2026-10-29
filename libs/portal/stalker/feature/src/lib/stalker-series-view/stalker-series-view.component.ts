@@ -25,6 +25,7 @@ import {
     stalkerSeriesResumeKey,
 } from './stalker-series-resume';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionSkeletonComponent,
@@ -143,6 +144,7 @@ interface StalkerSeriesPlaybackRequestContext {
     styleUrls: ['../styles/detail-view.scss'],
     imports: [
         FavoritesButtonComponent,
+        AgeRatingChipComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
         DetailActionSkeletonComponent,

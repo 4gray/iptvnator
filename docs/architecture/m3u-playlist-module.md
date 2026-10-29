@@ -290,6 +290,16 @@ overwrite the refreshed channels with an older SQLite/IndexedDB snapshot.
 Mutation-internal reads use `getPlaylistById()` directly to avoid queue re-entry.
 Failed writes release the queue, and other playlist IDs remain independent.
 
+Refresh results retain the URL/file path and effective User-Agent used for the
+download, including an explicitly absent agent. A result captured before those
+connection fields changed is discarded in both the reducer and canonical
+refresh merge. Refresh owns parsed content, rather than source definitions:
+the latest connection/name and, for shared sources, accepted baseline/revision
+survive. Manual and batch effects publish the canonical saved row and use its
+EPG inputs, so a late response cannot PATCH an old NAS definition or republish
+obsolete channels. The canonical refresh merge loads lazily from
+`libs/services/src/lib/playlist-refresh-merge.ts`.
+
 Two paths re-download an M3U playlist from its original source:
 
 - **Explicit refresh** — `PLAYLIST_REFRESH` runs in `playlist-refresh.worker.ts`, reports

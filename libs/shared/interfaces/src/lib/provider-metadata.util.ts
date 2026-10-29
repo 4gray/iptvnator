@@ -1,3 +1,5 @@
+import type { ContentCertification } from './content-certification';
+
 /**
  * Readers for provider detail metadata (`get_vod_info`, Stalker VOD rows).
  *
@@ -56,4 +58,25 @@ export function readProviderRating(value: unknown): string | undefined {
     return text !== undefined && Number(text.replace(',', '.')) === 0
         ? undefined
         : text;
+}
+
+const MPAA_VALUES = new Set(['G', 'PG', 'PG-13', 'R', 'NC-17']);
+
+export function providerCertifications(
+    age: unknown,
+    mpaaRating: unknown
+): ContentCertification[] {
+    const values: ContentCertification[] = [];
+    const mpaa =
+        typeof mpaaRating === 'string' ? mpaaRating.trim().toUpperCase() : '';
+    if (MPAA_VALUES.has(mpaa))
+        values.push({ value: mpaa, countryCode: 'US', source: 'provider' });
+    const rawAge =
+        typeof age === 'string' || typeof age === 'number'
+            ? String(age).trim()
+            : '';
+    if (/^(?:0\+|(?:[1-9]|1\d|2[01])\+?)$/.test(rawAge)) {
+        values.push({ value: rawAge, source: 'provider' });
+    }
+    return values;
 }

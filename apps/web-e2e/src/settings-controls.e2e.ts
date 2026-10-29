@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
+import { newServerPage } from './server-storage-pwa.helpers';
 
 async function openSection(page: Page, section = 'general') {
     await page.goto(`/workspace/settings/${section}`);
@@ -113,5 +114,46 @@ for (const theme of ['Light', 'Dark'] as const) {
         await expect(clear).toBeDisabled();
         await expect(clear).toHaveCSS('border-top-left-radius', '10px');
         await expect(clear).toHaveCSS('opacity', '0.4');
+    });
+}
+
+for (const theme of ['light', 'dark'] as const) {
+    test(`@settings @self-hosted ${theme} shared-source actions retain the kit primary and secondary roles`, async ({
+        browser,
+    }) => {
+        const page = await newServerPage(browser);
+        try {
+            await page.emulateMedia({ colorScheme: theme });
+            await page.goto('/workspace/settings/server');
+            const section = page.locator('app-settings-server-section');
+            const connect = section.locator(
+                '[data-test-id="source-server-connect"]'
+            );
+            await expect(connect).toBeVisible();
+            await expect(connect).toHaveClass(/settings-primary-button/);
+            await expect(connect).toHaveCSS('height', '40px');
+            await expect(connect).toHaveCSS('border-top-left-radius', '10px');
+            const refresh = section.getByRole('button', {
+                name: 'Refresh',
+                exact: true,
+            });
+            await expect(refresh).toHaveCSS('height', '40px');
+            await expect(refresh).toHaveCSS('border-top-style', 'none');
+            await expect(
+                section.locator('[data-test-id="source-server-import"]')
+            ).toHaveCSS('border-top-left-radius', '10px');
+            await expect(
+                section.getByRole('button', { name: 'Disconnect', exact: true })
+            ).toHaveCSS('border-top-style', 'none');
+            const background = (button: Locator) =>
+                button.evaluate(
+                    (element) => getComputedStyle(element).backgroundColor
+                );
+            expect(await background(connect)).not.toBe(
+                await background(refresh)
+            );
+        } finally {
+            await page.context().close();
+        }
     });
 }

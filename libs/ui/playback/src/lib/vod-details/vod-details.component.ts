@@ -13,6 +13,7 @@ import {
     createExternalPlaybackButtonState,
 } from '@iptvnator/portal/shared/util';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionsTemplateDirective,
@@ -84,6 +85,7 @@ import { createVodSimilarInPortals } from './vod-similar-in-portals.state';
     styleUrls: ['../styles/detail-view.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        AgeRatingChipComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
         DetailActionsTemplateDirective,

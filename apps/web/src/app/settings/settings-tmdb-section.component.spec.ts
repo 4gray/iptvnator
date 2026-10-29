@@ -1,3 +1,4 @@
+import { AgeRatingPresentationService } from '@iptvnator/services/age-rating';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -16,6 +17,7 @@ describe('SettingsTmdbSectionComponent', () => {
     const createForm = () =>
         new FormGroup({
             m3uVodDetails: new FormControl(true),
+            ageRatingCountry: new FormControl('auto'),
             tmdb: new FormGroup({
                 enabled: new FormControl(true),
                 apiKey: new FormControl(''),
@@ -59,6 +61,16 @@ describe('SettingsTmdbSectionComponent', () => {
             ],
             providers: [
                 {
+                    provide: AgeRatingPresentationService,
+                    useValue: {
+                        automaticCountry: () => 'US',
+                        countryOptions: () => [
+                            { code: 'DE', label: 'Germany' },
+                        ],
+                        countryName: (code: string) => code,
+                    },
+                },
+                {
                     provide: TmdbCacheService,
                     useValue: { getStats, clear },
                 },
@@ -94,13 +106,25 @@ describe('SettingsTmdbSectionComponent', () => {
         expect(checkbox).not.toBeNull();
 
         (
-            checkbox?.querySelector('button[role="switch"]') as HTMLButtonElement
+            checkbox?.querySelector(
+                'button[role="switch"]'
+            ) as HTMLButtonElement
         ).click();
         fixture.detectChanges();
 
         expect(fixture.componentInstance.m3uVodDetailsControl?.value).toBe(
             false
         );
+    });
+
+    it('offers classification country even with TMDB disabled', async () => {
+        fixture.componentInstance.form().get('tmdb.enabled')?.setValue(false);
+        await settle();
+        expect(queryByTestId('age-rating-country')).not.toBeNull();
+        fixture.componentInstance.ageRatingCountryControl?.setValue('DE');
+        expect(
+            fixture.componentInstance.form().get('tmdb.enabled')?.value
+        ).toBe(false);
     });
 
     it('hides the M3U toggle when TMDB is disabled', async () => {

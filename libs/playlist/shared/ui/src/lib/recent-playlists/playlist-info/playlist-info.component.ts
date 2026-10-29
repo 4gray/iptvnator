@@ -4,6 +4,8 @@ import {
     Component,
     DestroyRef,
     inject,
+    Injector,
+    runInInjectionContext,
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -35,6 +37,7 @@ import {
     createXtreamConnectionTestState,
     DatabaseService,
     PlaylistsService,
+    PlaylistStorageBackend,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -192,6 +195,7 @@ export class PlaylistInfoComponent {
     private datePipe = inject(DatePipe);
     private formBuilder = inject(UntypedFormBuilder);
     private playlistsService = inject(PlaylistsService);
+    private readonly playlistStorage = inject(PlaylistStorageBackend);
     private store = inject(Store);
     private databaseService = inject(DatabaseService);
     private snackBar = inject(MatSnackBar);
@@ -323,7 +327,8 @@ export class PlaylistInfoComponent {
 
     /** Form group with playlist details */
     playlistDetails!: UntypedFormGroup;
-    readonly connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
+    private readonly injector = inject(Injector);
+    connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
 
     constructor() {
         this.dialogRef?.beforeClosed().subscribe(() => {
@@ -333,7 +338,7 @@ export class PlaylistInfoComponent {
         this.connectionTest = createXtreamConnectionTestState(
             this.playlistDetails
         );
-        if (this.playlist.portalUrl) {
+        if (this.playlist.portalUrl || this.playlistStorage.kind() === 'server') {
             this.isHydratingStalkerPlaylist.set(true);
             this.stalkerPlaylistHydration =
                 this.hydrateCompleteStalkerPlaylist();
@@ -450,6 +455,10 @@ export class PlaylistInfoComponent {
                 this.normalizeStalkerPlaylistMeta(
                     this.normalizeXtreamPlaylistMeta(submittedPlaylist)
                 );
+            const sharedSource = this.playlistStorage.kind() === 'server';
+            if (sharedSource) normalizedPlaylist = { ...normalizedPlaylist,
+                sourceSyncBase: this.playlist.sourceSyncBase,
+                sourceSyncRevision: this.playlist.sourceSyncRevision };
             if (this.playlist.portalUrl) {
                 if (
                     hasStalkerConnectionChanged(
@@ -490,7 +499,7 @@ export class PlaylistInfoComponent {
                 this.playlist.password &&
                 this.playlist.serverUrl;
 
-            if (isXtream && this.runtime.supportsXtreamSqliteDataSource) {
+            if (isXtream && this.runtime.supportsXtreamSqliteDataSource && !sharedSource) {
                 await this.updateXtreamPlaylist(normalizedPlaylist);
             }
 
@@ -509,13 +518,19 @@ export class PlaylistInfoComponent {
                 };
             }
 
+            if (sharedSource) {
+                normalizedPlaylist = await firstValueFrom(resolvedStalkerConnection
+                    ? this.playlistsService.getPlaylistById(this.playlist._id)
+                    : this.playlistsService.updatePlaylistMeta(normalizedPlaylist));
+            }
+
             // Resolved Stalker edits cross an awaited, atomic persistence
             // boundary above. Their action updates NgRx only; every other
             // metadata edit keeps the effect-owned persistence path.
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
                     playlist: normalizedPlaylist,
-                    ...(resolvedStalkerConnection ? { persist: false } : {}),
+                    ...(resolvedStalkerConnection || sharedSource ? { persist: false } : {}),
                 })
             );
 
@@ -539,8 +554,9 @@ export class PlaylistInfoComponent {
             this.dialogRef?.close();
         } catch (error) {
             console.error('Error updating playlist:', error);
+            const sourceError = error instanceof Error ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0] : undefined;
             this.snackBar.open(
-                this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'),
+                this.translate.instant(sourceError ?? 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'),
                 this.translate.instant('CLOSE'),
                 {
                     duration: 3000,
@@ -556,11 +572,13 @@ export class PlaylistInfoComponent {
 
     /**
      * Electron's startup metadata projection deliberately excludes the
-     * payload-only Stalker identity and session fields. Editing that summary
+     * payload-only Stalker identity and source revision fields. Editing that summary
      * directly would render the identity controls empty and could clear a
      * portal-pinned serial/device identity on the next discovery. Hydrate the
      * authoritative row before enabling the form in every runtime so Edit
      * always starts from the same persisted connection that playback uses.
+     * Shared editors also capture the complete source baseline and revision here,
+     * while inventory reads remain payload-free.
      */
     private async hydrateCompleteStalkerPlaylist(): Promise<void> {
         try {
@@ -577,6 +595,9 @@ export class PlaylistInfoComponent {
                 id: this.playlistData.id ?? persistedPlaylist._id,
             };
             this.createForm();
+            this.connectionTest = runInInjectionContext(this.injector, () =>
+                createXtreamConnectionTestState(this.playlistDetails)
+            );
         } catch (error) {
             console.error('Failed to load complete Stalker playlist:', error);
             this.stalkerPlaylistHydrationFailed.set(true);

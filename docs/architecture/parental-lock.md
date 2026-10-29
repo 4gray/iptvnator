@@ -46,6 +46,14 @@ follow in a second PR.
 | Relock timeout     | `Settings.parentalLockRelockMinutes`                                              | same                      |
 | Xtream query index | `categories.locked` column                                                        | none (filtered in memory) |
 
+In a selected source-server profile, the browser prefixes the PIN and lock
+keys with that instance. Before its first read or write, it copies missing
+profile values from the original device keys and then records one migration
+receipt. Existing profile values win, clearing locks does not reimport them,
+and the original keys remain available to the standalone profile. A failed
+read or copy uses the same fail-closed behavior as an unreadable lock store.
+These values never synchronize to the source server.
+
 The PIN is hashed with PBKDF2-SHA256 through WebCrypto
 (`parental-lock-pin.util.ts`, format `v1$<iterations>$<salt>$<hash>`), so
 Electron and PWA share one implementation. The hash is deliberately not part
@@ -529,7 +537,8 @@ see the other's result instead of one shared snapshot; the dialogs pass a
 full list, which is the replacement they mean. A deleted playlist's locks leave
 the store through the `PLAYLIST_DELETE_CLEANUP` hook
 (`provideParentalLockPlaylistCleanup`, run by
-`PlaylistsService.deletePlaylist` for every single-playlist deletion; no
+`PlaylistsService.deletePlaylist` for direct single-playlist deletion and
+`SourceSyncService` for remote source deletions on PWA and Electron; no
 re-stamp, the category rows go with the playlist), and "Remove all
 playlists" empties it through `ParentalLockService.clearAllLocks` once the
 deletion has succeeded — the in-memory store empties at once, and a failed
@@ -539,6 +548,10 @@ that playlist from empty locks, so a reused id can never inherit entries a
 failed cleanup left behind; the restore retries a failed lock-store read
 first (`ensureLocksReadable`) and aborts while it still fails, so that check
 never runs against the empty fail-closed snapshot.
+
+Source synchronization retains a profile-local per-ID cleanup marker before
+deleting cached rows. Failed cleanup stays pending across restart and retries
+before incoming projections or source mutations can reuse that ID.
 
 ## Backup
 

@@ -7,7 +7,8 @@ import type {
  * Communicates with the main process database via IPC
  */
 
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { PlaylistStorageBackend } from './playlist-storage-backend';
 import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import type {
     ContentMetadataPatch,
@@ -151,6 +152,7 @@ export interface GlobalRecentlyAddedItem extends XtreamContent {
     providedIn: 'root',
 })
 export class DatabaseService {
+    private readonly playlistBackend = inject(PlaylistStorageBackend);
     private buildXtreamImportStateKey(
         playlistId: string,
         type: 'live' | 'movie' | 'series'
@@ -255,6 +257,10 @@ export class DatabaseService {
         options?: DbOperationOptions
     ): Promise<boolean> {
         try {
+            if (this.playlistBackend?.kind() === 'server') {
+                await this.playlistBackend.documentStore()!.dbDeletePlaylist(playlistId);
+                return true;
+            }
             await this.runWithOperationEvents(
                 'db-delete-playlist',
                 'delete-playlist',
@@ -336,6 +342,10 @@ export class DatabaseService {
 
     async deleteAllPlaylists(options?: DbOperationOptions): Promise<boolean> {
         try {
+            if (this.playlistBackend?.kind() === 'server') {
+                await this.playlistBackend.documentStore()!.dbDeleteAllPlaylists();
+                return true;
+            }
             await this.runWithOperationEvents(
                 'db-delete-all-playlists',
                 'delete-all-playlists',
@@ -359,6 +369,9 @@ export class DatabaseService {
         playlist: Pick<XtreamPlaylist, 'id' | 'name'>
     ): Promise<boolean> {
         try {
+            if (this.playlistBackend?.kind() === 'server') {
+                return this.updateXtreamPlaylistDetails({ id: playlist.id, title: playlist.name });
+            }
             await window.electron.dbUpdatePlaylist(playlist.id, {
                 name: playlist.name,
             });
@@ -381,6 +394,15 @@ export class DatabaseService {
         updateDate?: number;
     }): Promise<boolean> {
         try {
+            if (this.playlistBackend?.kind() === 'server') {
+                const store = this.playlistBackend.documentStore()!;
+                const current = await store.dbGetAppPlaylist(playlist.id);
+                if (!current) throw new Error('Source no longer exists');
+                const { id, updateDate, ...updates } = playlist;
+                void id;
+                await store.dbUpsertAppPlaylist({ ...current, ...updates, ...(updateDate === undefined ? {} : { updateDate }) });
+                return true;
+            }
             const updates: XtreamDatabasePlaylistUpdate = {};
             if (playlist.title) updates.name = playlist.title;
             if (playlist.username) updates.username = playlist.username;
@@ -805,6 +827,11 @@ export class DatabaseService {
      * Create a new playlist
      */
     async createPlaylist(playlist: PlaylistMeta): Promise<void> {
+        if (this.playlistBackend?.kind() === 'server') {
+            const store = this.playlistBackend.documentStore()!;
+            if (!(await store.dbGetAppPlaylist(playlist._id))) throw new Error('Source no longer exists');
+            return;
+        }
         await window.electron.dbCreatePlaylist({
             id: playlist._id,
             name: playlist.title,

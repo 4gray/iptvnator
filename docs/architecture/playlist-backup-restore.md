@@ -3,6 +3,13 @@
 This document describes the versioned playlist backup/restore flow used by the
 settings screen.
 
+Server source import is a separate, definition-only operation in Settings →
+Data → Server. It reads the retained standalone profile, previews its sources,
+then creates or fingerprint-matches them on the server without restoring user
+state or changing the original profile. Full backup import/export retains the
+scope below; it is not the source-sync wire format. See
+[shared source library](pwa-self-hosted.md#shared-source-library).
+
 ## Entry Points
 
 - UI: `apps/web/src/app/settings/settings-backup-section.component.ts`
@@ -169,7 +176,11 @@ Xtream restore is type-aware end to end. The app no longer stores plain
 Runtime contract:
 
 - shared shape: `XtreamPendingRestoreState`
-- persisted in local storage by playlist ID
+- persisted in local storage by playlist ID; selected source-server profiles
+  prefix the key with their instance. A verified legacy browser instance adopts
+  its unprefixed archive once before strict reads or mutations. Migration verifies
+  the copy and receipt, preserves newer profile values and original archives,
+  and prevents consumed snapshots from being reimported.
 - consumed by:
     - Xtream refresh actions
     - settings backup import

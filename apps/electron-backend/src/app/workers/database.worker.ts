@@ -3,6 +3,7 @@ import type {
     XtreamFavoriteRemovalRef,
 } from '@iptvnator/shared/interfaces';
 import { migrateAppPlaylists } from '../database/operations/playlist-migration.operations';
+import { readStandaloneSources } from '../database/operations/standalone-sources.operations';
 import {
     closeWorkerDatabase,
     flushWorkerSqlStatementCount,
@@ -733,6 +734,9 @@ async function executeRequest(
 
         case 'DB_GET_APP_PLAYLISTS':
             return getAppPlaylists(db);
+
+        case 'DB_GET_STANDALONE_SOURCES':
+            return readStandaloneSources();
 
         case 'DB_GET_APP_PLAYLIST_METAS':
             return getAppPlaylistMetas(db);

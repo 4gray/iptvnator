@@ -154,6 +154,8 @@ describe('VodDetailsRouteComponent', () => {
                     provide: SettingsStore,
                     useValue: {
                         theme: signal('dark'),
+                        language: signal('en'),
+                        ageRatingCountry: signal('auto'),
                         player: signal(VideoPlayer.Html5Player),
                     },
                 },
@@ -260,14 +262,19 @@ describe('VodDetailsRouteComponent', () => {
                 ?.textContent
         ).toContain('XTREAM.DETAIL_FALLBACK.STATUS');
         expect(host.querySelector('button.play-btn')).not.toBeNull();
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).not.toBeNull();
-        expect(host.querySelector('[data-testid="vod-download-start"]')).toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).not.toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-download-start"]')
+        ).toBeNull();
     });
 
     it('keeps the fallback visible for a minimal info object', () => {
         selectedItem.set({
             info: {
                 name: 'Only a provider title',
+                mpaa_rating: 'R',
             },
             stream_id: 650020,
             name: 'Catalog title',
@@ -288,6 +295,9 @@ describe('VodDetailsRouteComponent', () => {
             host.querySelector('[data-testid="xtream-vod-fallback"]')
         ).not.toBeNull();
         expect(host.querySelector('button.play-btn')).not.toBeNull();
+        expect(
+            host.querySelector('app-age-rating-chip')?.textContent
+        ).toContain('R · US');
     });
 
     it('reveals fallback actions when async catalog recovery adds a source', () => {
@@ -300,8 +310,12 @@ describe('VodDetailsRouteComponent', () => {
         fixture.detectChanges();
 
         const host = fixture.nativeElement as HTMLElement;
-        expect(host.querySelector<HTMLButtonElement>('button.play-btn')?.disabled).toBe(true);
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).not.toBeNull();
+        expect(
+            host.querySelector<HTMLButtonElement>('button.play-btn')?.disabled
+        ).toBe(true);
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).not.toBeNull();
 
         selectedItem.set({
             info: [],
@@ -311,7 +325,9 @@ describe('VodDetailsRouteComponent', () => {
         fixture.detectChanges();
 
         expect(host.querySelector('button.play-btn')).not.toBeNull();
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).not.toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).not.toBeNull();
     });
 
     it('keeps the full Xtream detail view when usable metadata exists', () => {
@@ -332,7 +348,7 @@ describe('VodDetailsRouteComponent', () => {
                 description: 'A populated description',
                 plot: 'A populated plot',
                 age: '',
-                mpaa_rating: '',
+                mpaa_rating: 'R',
                 rating_count_kinopoisk: 0,
                 country: 'English',
                 genre: 'Drama',
@@ -365,6 +381,9 @@ describe('VodDetailsRouteComponent', () => {
             host.querySelector('[data-testid="xtream-vod-fallback"]')
         ).toBeNull();
         expect(host.querySelector('button.play-btn')).not.toBeNull();
+        expect(
+            host.querySelector('app-age-rating-chip')?.textContent
+        ).toContain('R · US');
     });
 
     it('renders usable metadata when backdrop_path is absent at runtime', () => {

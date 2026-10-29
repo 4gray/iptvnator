@@ -215,7 +215,11 @@ export async function configureSerialDetailsTestBed(
             },
             {
                 provide: SettingsStore,
-                useValue: { player: signal(VideoPlayer.Html5Player) },
+                useValue: {
+                    player: signal(VideoPlayer.Html5Player),
+                    language: signal('en'),
+                    ageRatingCountry: signal('auto'),
+                },
             },
             {
                 provide: DownloadsService,

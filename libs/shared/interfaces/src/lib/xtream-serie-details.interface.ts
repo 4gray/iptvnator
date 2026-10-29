@@ -1,3 +1,4 @@
+import type { ContentCertification } from './content-certification';
 import {
     TmdbCountryFacet,
     TmdbEnrichedCastMember,
@@ -27,6 +28,8 @@ export interface XtreamSerieDetails {
 }
 
 export interface XtreamSerieInfo {
+    /** All country classifications supplied by TMDB. */
+    tmdb_certifications?: readonly ContentCertification[];
     name: string;
     cover: string;
     plot: string;

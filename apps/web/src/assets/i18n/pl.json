@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Kontrola rodzicielska wyłączona",
             "PIN_CHANGED_TOAST": "Kod PIN zmieniony",
             "LOCKED_TOAST": "Zablokowano"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Kraj klasyfikacji wiekowej",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Wybierz kraj klasyfikacji. Jeśli brakuje danych lokalnych, mogą zostać użyte dane z USA lub od dostawcy.",
+        "AGE_RATING_COUNTRY_AUTO": "Automatycznie — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Nie udało się zapisać na serwerze. Sprawdź połączenie i spróbuj ponownie.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Wycisz zwiastun",
             "TRAILER_UNMUTE": "Włącz dźwięk zwiastuna",
             "PROGRESS_RESET": "Postęp zresetowany",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Ukryto z „Kontynuuj oglądanie”"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Ukryto z „Kontynuuj oglądanie”",
+            "AGE_RATING_UNKNOWN": "Wiek: brak danych",
+            "AGE_RATING_PROVIDER": "Dostawca",
+            "AGE_RATING_DESCRIPTION": "Klasyfikacja wiekowa: {{rating}}. Źródło: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Brak klasyfikacji dla {{country}}; wyświetlono {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Klasyfikacje różnią się między wydaniami."
         },
         "SCROLL_LEFT": "Przewiń w lewo",
         "SCROLL_RIGHT": "Przewiń w prawo",
@@ -2232,5 +2240,35 @@
             "INSTALL_INSTRUCTIONS": "Instrukcje instalacji",
             "DONT_SHOW_AGAIN": "Nie pokazuj ponownie"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "Zapisane połączenie z serwerem jest niedostępne. Sprawdź pamięć przeglądarki lub połącz się ponownie w ustawieniach serwera.",
+        "TITLE": "Serwer",
+        "DESCRIPTION": "Udostępniaj źródła z własnego serwera IPTVnator między urządzeniami. Aktywność oglądania pozostaje na tym urządzeniu.",
+        "URL": "Adres serwera",
+        "TOKEN": "Token dostępu (opcjonalny)",
+        "TOKEN_HINT": "Token przeglądarki działa w tej karcie. Aplikacja komputerowa używa chronionego magazynu, jeśli jest dostępny.",
+        "RESTART_HINT": "Połączenie i rozłączenie uruchamia aplikację ponownie. Oryginalna biblioteka lokalna pozostaje zachowana.",
+        "CONNECT": "Połącz",
+        "REFRESH": "Odśwież",
+        "DISCONNECT": "Rozłącz",
+        "IMPORT": "Importuj lokalne źródła",
+        "IMPORT_PREVIEW": "Skopiować lokalne źródła ({{count}}) na serwer? Istniejące źródła są rozpoznawane bez duplikatów. Dane lokalne pozostają zachowane.",
+        "IMPORTED": "Źródła zaimportowane.",
+        "IMPORT_FAILED": "Import nie powiódł się. Ponowna próba nie tworzy duplikatów.",
+        "LAST_SYNC": "Ostatnia synchronizacja",
+        "DELETE_SHARED": "Wspólne źródła zostaną usunięte dla wszystkich połączonych urządzeń.",
+        "INCOMPATIBLE": "Ten serwer nie obsługuje synchronizacji źródeł.",
+        "INSTANCE_CHANGED": "Tożsamość serwera zmieniła się. Połącz ponownie.",
+        "OFFLINE": "Serwer niedostępny. Nie można zapisać zmian wspólnych źródeł.",
+        "LOCKED": "Wprowadź prawidłowy token dostępu.",
+        "CONFLICT": "Źródło zmieniono na innym urządzeniu. Odśwież i ponów zmianę.",
+        "REQUEST_FAILED": "Żądanie do serwera nie powiodło się. Odśwież i spróbuj ponownie.",
+        "STATE_local": "Biblioteka lokalna",
+        "STATE_connecting": "Łączenie z serwerem…",
+        "STATE_connected": "Połączono",
+        "STATE_offline": "Serwer niedostępny. Nie można zapisać zmian wspólnych źródeł.",
+        "STATE_locked": "Wprowadź prawidłowy token dostępu.",
+        "STATE_conflict": "Źródło zmieniono na innym urządzeniu. Odśwież i ponów zmianę."
     }
 }

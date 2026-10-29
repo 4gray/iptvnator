@@ -138,7 +138,7 @@
                 "DELETING_CATEGORIES": "Gyorsítótárazott kategóriák eltávolítása…"
             },
             "GLOBAL_FAVORITES": "Összesített kedvencek",
-            "GLOBAL_FAVORITES_DESCRIPTION": "Az összes lejátszási lista kedvenceit egyesítő, automatikusan létrehozott lejátszási lista",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Az összes lejátszási lista kedvenceiből automatikusan összeállított gyűjtemény",
             "MY_PLAYLISTS": "Lejátszási listáim",
             "MY_PLAYLISTS_SUBTITLE": "Összes elérhető lejátszási lista",
             "PLAYLIST_UPDATE_SUCCESS": "Sikeresen frissült a lejátszási lista.",
@@ -147,8 +147,8 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Nem sikerült frissíteni a lejátszási listát, mert a helyi fájl már nem érhető el. Ellenőrizze a fájl elérési útját, vagy importálja újra a listát.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Nem sikerült frissíteni a lejátszási listát, mert az alkalmazás már nem fér hozzá a helyi fájlhoz.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Sikeresen frissültek a lejátszási listák.",
-            "AUTO_REFRESH_UPDATE_PARTIAL": "A lejátszási listák automatikus frissítése részben sikerült: {{total}} listából {{updated}} frissült, {{failed}} frissítése sikertelen volt.",
-            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "A lejátszási listák automatikus frissítése részben sikerült: {{total}} listából {{updated}} frissült, {{failed}} frissítése sikertelen volt, {{skipped}} pedig kimaradt (hiányzó URL-cím vagy fájlelérési út miatt).",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Az automatikus frissítés csak részben sikerült: {{total}} lejátszási listából {{updated}} frissült, {{failed}} esetében hiba történt.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Az automatikus frissítés csak részben sikerült: {{total}} lejátszási listából {{updated}} frissült, {{failed}} esetében hiba történt, {{skipped}} pedig URL-cím vagy fájlelérési út hiányában kimaradt.",
             "AUTO_REFRESH_UPDATE_FAILED": "A lejátszási listák automatikus frissítése sikertelen volt: a {{total}} lista közül egyet sem sikerült frissíteni.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Automatikus frissítés: {{total}} listából {{updated}} frissült, {{skipped}} pedig kimaradt (hiányzó URL-cím vagy fájlelérési út miatt).",
             "AUTO_REFRESH_ENABLED": "Automatikus frissítés bekapcsolva"
@@ -182,7 +182,7 @@
             "PLAYLIST_URL": "Lejátszási lista URL-címe (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Adjon meg egy http:// vagy https:// kezdetű érvényes URL-címet.",
             "ADD_PLAYLIST": "Lejátszási lista hozzáadása",
-            "CORS_NOTE": "A távoli lejátszási listákat a telepítéshez beállított háttérkiszolgáló tölti le. Csak olyan kiszolgálót használjon, amelyre rábízza a lista URL-címét és a hozzáférési adatokat. Importáljon helyi fájlt, ha nem szeretné elküldeni a lista URL-címét ennek a kiszolgálónak.",
+            "CORS_NOTE": "A távoli lejátszási listákat a telepítéshez beállított háttérkiszolgáló tölti le. Csak olyan kiszolgálót használjon, amelyre rábízza a lejátszási lista URL-címét és a hozzáférési adatait. Ha nem szeretné továbbítani az URL-címet, importálja a listát helyi fájlból.",
             "ERROR_FETCH_FAILED": "Nem sikerült lekérni a lejátszási listát. Ellenőrizze az URL-címet, majd próbálja újra.",
             "ERROR_403": "Hozzáférés megtagadva (403): a kiszolgáló elutasította a kérést. Elképzelhető, hogy az URL-cím hitelesítést igényel, vagy a lejátszási lista korlátozott hozzáférésű.",
             "ERROR_404": "A lejátszási lista nem található (404). Az URL-cím nem érvényes lejátszási listára mutat. Ellenőrizze a címet.",
@@ -372,7 +372,7 @@
         "TMDB_ENABLE": "TMDB-metaadatok engedélyezése",
         "TMDB_ENABLE_DESCRIPTION": "Részletesebb történetleírásokat, szereplőlistákat, értékeléseket és képeket jelenít meg az adatlapokon. Bekapcsolásakor az alkalmazás elküldi a filmek és sorozatok címét a TMDB-nek.",
         "TMDB_API_KEY": "TMDB API-kulcs",
-        "TMDB_API_KEY_DESCRIPTION": "Adja meg saját TMDB API-kulcsát. A beépített kulcs nélküli verzióknak erre van szükségük a metaadatok lekéréséhez.",
+        "TMDB_API_KEY_DESCRIPTION": "Adja meg saját TMDB API-kulcsát. A beépített kulcsot nem tartalmazó kiadásokban erre van szükség a metaadatok lekéréséhez.",
         "TMDB_GET_KEY_HINT": "Ingyenes API-kulcs igénylése a themoviedb.org webhelyen",
         "TMDB_M3U_VOD_DETAILS": "Filmek felismerése az M3U-lejátszási listákban",
         "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "A lejátszási lista filmfájlként felismert elemeinél a műsorújság helyett a film TMDB-metaadatokkal kiegészített adatlapja nyílik meg.",
@@ -454,7 +454,7 @@
         "PLAYER_UP_NEXT_RAIL": "Következő epizódok sávja",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Széles ablakban a sorozatlejátszó balra kerül, mellette pedig megjelennek a következő epizódok.",
         "PLAYER_UP_NEXT_CARD": "„Következik” kártya",
-        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "A következő epizód megjelenítése a lejátszó sarkában röviddel az epizód vége előtt.",
+        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "A következő epizód megjelenítése a lejátszó sarkában, röviddel az aktuális rész vége előtt.",
         "FULLSCREEN_CHANNEL_PANEL": "Csatorna- és epizódlista teljes képernyőn",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "Teljes képernyős módban vigye az egérmutatót a bal szélre, kattintson oda, vagy nyomja meg a C billentyűt. Megjelenik az élő adások csatornalistája vagy a sorozat epizódlistája, így a teljes képernyős mód elhagyása nélkül válthat.",
         "STREAM_FORMAT_DESCRIPTION": "Az Automatikus beállítás elsősorban a HLS-formátumot használja. Ha az élő adás nem indul el az MPV, a VLC vagy a beágyazott MPV lejátszóval, állítsa le a lejátszást, válassza a TS-formátumot, mentse a beállítást, majd nyissa meg újra a csatornát. A böngészős lejátszók az első HLS-alapú HTTP-hiba után egyszer megpróbálhatják a forrás által jelzett TS-formátumot.",
@@ -623,13 +623,13 @@
         "APP_UPDATE_SAVE_AND_CHECK": "Mentés és frissítések keresése ezen a csatornán: {{channel}}",
         "APP_UPDATE_CHANNEL_PENDING_HINT": "Ez az eredmény a következő frissítési csatornára vonatkozik: {{current}}. A „{{next}}” csatornára váltáshoz mentse a beállítást, majd ellenőrizze újra a frissítéseket.",
         "APP_UPDATE_CHANNEL_RETAINED_HINT": "Ezt a frissítést a következő csatornán találtuk: {{current}}. A „{{next}}” csatornán még nem történt frissítéskeresés.",
-        "APP_UPDATE_CHANNEL_NIGHTLY_WARNING": "A Fejlesztői (Nightly) kiadások a master ág nem tesztelt pillanatképei. Hibákat tartalmazhatnak, az általuk végzett adatbázis-módosítások pedig véglegesek. Ha visszavált a Stabil csatornára, a jelenlegi fejlesztői kiadás marad telepítve addig, amíg meg nem jelenik egy nála újabb stabil változat. Váltás előtt készítsen biztonsági mentést a lejátszási listáiról.",
-        "APP_UPDATE_NIGHTLY_ON_STABLE_HINT": "Jelenleg a Fejlesztői (Nightly) kiadást használja. A Stabil csatorna akkor kínálja fel a következő stabil változatot, ha az újabb a telepítettnél.",
+        "APP_UPDATE_CHANNEL_NIGHTLY_WARNING": "A Fejlesztői (Nightly) kiadások a master ág nem tesztelt pillanatképei. Hibákat tartalmazhatnak, az általuk végzett adatbázis-módosítások pedig véglegesek. Ha visszavált a Stabil csatornára, a jelenlegi fejlesztői kiadás addig marad telepítve, amíg meg nem jelenik egy nála újabb végleges változat. Váltás előtt készítsen biztonsági mentést a lejátszási listáiról.",
+        "APP_UPDATE_NIGHTLY_ON_STABLE_HINT": "Jelenleg a Fejlesztői (Nightly) kiadást használja. A Stabil csatorna akkor kínálja fel a következő végleges változatot, ha az újabb a telepítettnél.",
         "EMBEDDED_MPV_FRAME_COPY": "Beágyazott MPV: képkocka-másolásos megjelenítés (kísérleti)",
         "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "A videó az alkalmazás rajzfelületén jelenik meg, így a menük és a párbeszédpanelek a kép fölé kerülhetnek.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Az alkalmazás újraindítása után lép érvénybe.",
         "EMBEDDED_MPV_EXTRA_OPTIONS": "További beágyazott MPV-beállítások",
-        "EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION": "Haladó libmpv-beállítások a beágyazott lejátszóhoz. Soronként egy key=value párt adjon meg, bevezető -- nélkül. A beállítások minden megjelenítőmotorra érvényesek, a beépített beállítások után kerülnek alkalmazásra, és a következő beágyazott MPV-munkamenet indításakor lépnek érvénybe.",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION": "Haladó libmpv-beállítások a beágyazott lejátszóhoz. Soronként egy key=value párt adjon meg, bevezető -- nélkül. Az itt megadott opciók minden megjelenítőmotorra vonatkoznak. A program a beépített beállítások után alkalmazza őket. A módosítások a beágyazott MPV következő munkamenetének indításakor lépnek érvénybe.",
         "EMBEDDED_MPV_EXTRA_OPTIONS_HINT": "Példa: hwdec=auto-safe. A beágyazás működéséhez szükséges beállításokat (wid, vo, input-ipc-server, …) az alkalmazás elutasítja.",
         "EMBEDDED_MPV_EXTRA_OPTIONS_INVALID_LINES": "Nem key=value formátumú sor: {{lines}}",
         "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "Ezek a beállítások nem módosíthatók a beágyazott lejátszónál: {{keys}}",
@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Szülői felügyelet kikapcsolva",
             "PIN_CHANGED_TOAST": "PIN-kód módosítva",
             "LOCKED_TOAST": "Zárolva"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Korhatár-besorolás országa",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Válassza ki a besorolás országát. Helyi adatok hiányában amerikai vagy szolgáltatói adatok jelenhetnek meg.",
+        "AGE_RATING_COUNTRY_AUTO": "Automatikus — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Nem sikerült menteni a kiszolgálóra. Ellenőrizze a kapcsolatot, majd próbálja újra.",
@@ -831,7 +834,7 @@
             "DESCRIPTION": "A kérést a CORS-korlátozások, a vegyes tartalom vagy a szolgáltató HTTP-fejlécekre és proxykra vonatkozó szabályai blokkolhatják. Az MPV vagy a VLC gyakran megkerüli a böngészős lejátszó hozzáférési korlátozásait.",
             "PWA_DESCRIPTION": "A kérést a CORS-korlátozások, a vegyes tartalom vagy a szolgáltató HTTP-fejlécekre és proxykra vonatkozó szabályai blokkolhatják. A PWA nem tud közvetlenül külső lejátszót indítani. Másolja ki az adatfolyam URL-címét, majd nyissa meg kézzel az MPV, a VLC, az IINA vagy más lejátszó segítségével."
         },
-        "UNTRANSFERABLE_DESCRIPTION": "Ez a védett adatfolyam olyan lejátszási beállításokat igényel, amelyek nem vihetők át pusztán az adatfolyam URL-jével.",
+        "UNTRANSFERABLE_DESCRIPTION": "A védett adatfolyam lejátszásához olyan beállítások is szükségesek, amelyeket önmagában az URL-címmel nem lehet átadni.",
         "DRM_OR_ENCRYPTION": {
             "TITLE": "Az adatfolyam titkosított vagy DRM-védelemmel ellátott lehet",
             "DESCRIPTION": "A böngészős lejátszó a jelzett titkosítási vagy kulcshiba miatt nem tudja folytatni a lejátszást. Ha a szolgáltató DRM-védelmet igényel, a külső lejátszás is sikertelen lehet."
@@ -890,7 +893,7 @@
         "ACTION_COPY_DIAGNOSTIC": "Diagnosztika másolása",
         "REPORT_COPIED": "Diagnosztika másolva",
         "COPY_FAILED": "Sikertelen másolás. Próbálja újra.",
-        "REPORT_PRIVACY": "A vágólapra csak a műszaki adatok kerülnek; az adatfolyamok URL-címe, a hitelesítési adatok és az eredeti hibaüzenetek nem."
+        "REPORT_PRIVACY": "A vágólapra csak a műszaki információk kerülnek; az adatfolyamok URL-címe, a hitelesítési adatok és az eredeti hibaüzenetek nem."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Csatornalista elrejtése",
@@ -1260,7 +1263,7 @@
         "MOVIE_WATCH_UPDATE_FAILED": "Nem sikerült frissíteni a megtekintési állapotot",
         "EPISODES_WATCHED": "Megtekintett epizódok: {{count}} / {{total}}",
         "DETAIL_FALLBACK": {
-            "PLAYBACK_UNAVAILABLE": "A lejátszás és a letöltés nem érhető el: a szolgáltató nem adta meg a stream címét vagy formátumát.",
+            "PLAYBACK_UNAVAILABLE": "A tartalom nem játszható le és nem tölthető le, mert a szolgáltató nem adta meg az adatfolyam címét vagy formátumát.",
             "STATUS": "A portál metaadatai nem állnak rendelkezésre",
             "NOTE": "A portál nem adott meg részletes metaadatokat.",
             "STREAM_ID": "Adatfolyam-azonosító",
@@ -1343,7 +1346,7 @@
         "VIEW_IN_PORTAL": "Megtekintés a portálon",
         "VIEW_IN_PORTAL_TOOLTIP": "Megnyitás: {{name}}",
         "STATUS_NOTICE": {
-            "CACHED_DESCRIPTION": "A mentett katalógus látható. Előfordulhat, hogy a lejátszás nem érhető el.",
+            "CACHED_DESCRIPTION": "A mentett katalógus jelenik meg. Előfordulhat, hogy a tartalmak nem játszhatók le.",
             "CHECKING": "Portál ellenőrzése…"
         },
         "SIDEBAR": {
@@ -1406,7 +1409,7 @@
         },
         "SEARCH_VIEW": {
             "ERROR_TITLE": "A keresés nem sikerült",
-            "ERROR_DESCRIPTION": "A keresés és a szűrők megmaradtak. Próbálja újra.",
+            "ERROR_DESCRIPTION": "A megadott keresőkifejezés és a beállított szűrők megmaradtak. Próbálja meg újra a keresést.",
             "INITIAL_TITLE": "Tartalom keresése",
             "INITIAL_DESCRIPTION": "Adjon meg legalább 3 karaktert az élő csatornák, filmek és sorozatok közötti kereséshez.",
             "RESULTS_FOUND": "{{count}} találat",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Előzetes némítása",
             "TRAILER_UNMUTE": "Előzetes hangjának bekapcsolása",
             "PROGRESS_RESET": "A lejátszási előrehaladás visszaállítva.",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Eltávolítva a „Megtekintés folytatása” sávból"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Eltávolítva a „Megtekintés folytatása” sávból",
+            "AGE_RATING_UNKNOWN": "Korhatár: nincs adat",
+            "AGE_RATING_PROVIDER": "Szolgáltató",
+            "AGE_RATING_DESCRIPTION": "Korhatár-besorolás: {{rating}}. Forrás: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Nincs besorolás ehhez: {{country}}; megjelenítve: {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "A besorolások kiadásonként eltérnek."
         },
         "SCROLL_LEFT": "Görgetés balra",
         "SCROLL_RIGHT": "Görgetés jobbra",
@@ -1866,7 +1874,7 @@
             "CLEAR_FAVORITES_TYPE": "Kedvencek törlése – {{type}}",
             "CLEAR_FAVORITES_DIALOG_TITLE": "Az összes kedvenc eltávolítása – {{type}}",
             "CLEAR_FAVORITES_DIALOG_MESSAGE_PLAYLIST": "A lejátszási lista összes, „{{type}}” típusú kedvence törlődik. A művelet nem vonható vissza.",
-            "CLEAR_FAVORITES_DIALOG_MESSAGE_ALL": "Az összes lejátszási lista összes, „{{type}}” típusú kedvence törlődik. A művelet nem vonható vissza.",
+            "CLEAR_FAVORITES_DIALOG_MESSAGE_ALL": "Minden lejátszási listából törlődnek a „{{type}}” típusú kedvencek. A művelet nem vonható vissza.",
             "XTREAM_CODE": "Xtream Codes",
             "STALKER_PORTAL": "Stalker-portál",
             "WINDOW_MINIMIZE": "Ablak kis méretre állítása",
@@ -2118,7 +2126,7 @@
             "PORTAL_TYPE_FULL": "Ministra portál",
             "PORTAL_TYPE_LEGACY": "Klasszikus portál (portal.php)",
             "CACHED_BADGE": "Mentett adatok",
-            "REFRESH_FAILED": "A portál nem érhető el — a portál hozzáadásakor mentett adatok láthatók.",
+            "REFRESH_FAILED": "A portál nem érhető el. A hozzáadásakor mentett adatok jelennek meg.",
             "NO_ACCOUNT_DATA_TITLE": "Nincsenek fiókadatok",
             "NO_ACCOUNT_DATA_DESCRIPTION": "Ez a portál nem tesz közzé fiókadatokat ehhez az eszközhöz."
         }
@@ -2232,5 +2240,35 @@
             "INSTALL_INSTRUCTIONS": "Telepítési útmutató",
             "DONT_SHOW_AGAIN": "Ne jelenjen meg újra"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "A mentett szerverkapcsolat nem érhető el. Ellenőrizze a böngésző tárhelyét, vagy csatlakozzon újra a szerverbeállításokban.",
+        "TITLE": "Szerver",
+        "DESCRIPTION": "Források megosztása az eszközök között a saját IPTVnator-szerverrel. A lejátszási adatok ezen az eszközön maradnak.",
+        "URL": "Szerver címe",
+        "TOKEN": "Hozzáférési token (nem kötelező)",
+        "TOKEN_HINT": "A böngésző tokenje erre a lapra érvényes. Az asztali alkalmazás lehetőség szerint védett tárolót használ.",
+        "RESTART_HINT": "A kapcsolódás és leválasztás újraindítja az alkalmazást. Az eredeti helyi könyvtár megmarad.",
+        "CONNECT": "Kapcsolódás",
+        "REFRESH": "Frissítés",
+        "DISCONNECT": "Leválasztás",
+        "IMPORT": "Helyi források importálása",
+        "IMPORT_PREVIEW": "Másolja a helyi forrásokat ({{count}}) a szerverre? A meglévő források nem duplikálódnak. A helyi adatok megmaradnak.",
+        "IMPORTED": "Források importálva.",
+        "IMPORT_FAILED": "Az importálás sikertelen. Az újrapróbálkozás nem hoz létre másolatokat.",
+        "LAST_SYNC": "Utolsó szinkronizálás",
+        "DELETE_SHARED": "A megosztott források minden csatlakoztatott eszközről törlődnek.",
+        "INCOMPATIBLE": "Ez a szerver nem támogatja a forrásszinkronizálást.",
+        "INSTANCE_CHANGED": "A szerver azonosítója megváltozott. Csatlakozzon újra.",
+        "OFFLINE": "A szerver nem érhető el. A megosztott források változásai nem menthetők.",
+        "LOCKED": "Adjon meg érvényes hozzáférési tokent.",
+        "CONFLICT": "A forrást másik eszköz módosította. Frissítsen, majd ismételje meg a módosítást.",
+        "REQUEST_FAILED": "A szerverkérés sikertelen. Frissítsen és próbálja újra.",
+        "STATE_local": "Helyi könyvtár",
+        "STATE_connecting": "Kapcsolódás a szerverhez…",
+        "STATE_connected": "Csatlakoztatva",
+        "STATE_offline": "A szerver nem érhető el. A megosztott források változásai nem menthetők.",
+        "STATE_locked": "Adjon meg érvényes hozzáférési tokent.",
+        "STATE_conflict": "A forrást másik eszköz módosította. Frissítsen, majd ismételje meg a módosítást."
     }
 }

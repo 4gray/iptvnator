@@ -1,3 +1,4 @@
+import type { ContentCertification } from './content-certification';
 import {
     TmdbCountryFacet,
     TmdbEnrichedCastMember,
@@ -6,6 +7,8 @@ import {
 } from './tmdb.interface';
 
 export interface XtreamVodInfo {
+    /** All country classifications supplied by TMDB. */
+    tmdb_certifications?: readonly ContentCertification[];
     kinopoisk_url: string;
     tmdb_id: number | string;
     name: string;

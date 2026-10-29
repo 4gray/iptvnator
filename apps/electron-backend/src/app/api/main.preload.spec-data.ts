@@ -2,7 +2,7 @@ import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 
 type ElectronBridgeMethodName = Extract<
     {
-        [K in keyof ElectronBridgeApi]: ElectronBridgeApi[K] extends (
+        [K in keyof ElectronBridgeApi]: NonNullable<ElectronBridgeApi[K]> extends (
             ...args: never[]
         ) => unknown
             ? K
@@ -64,6 +64,7 @@ const vodSourcePin = {
 };
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
+    { method: 'sourceSyncLocalSources', args: [], channel: 'DB_GET_STANDALONE_SOURCES', forwardedArgs: [] },
     {
         method: 'dbCreatePlaylist',
         args: [playlist],

@@ -33,6 +33,7 @@
         @if (hero.durationLabel(); as duration) {
             <app-meta-chip>{{ duration }}</app-meta-chip>
         }
+        <app-age-rating-chip [certifications]="meta.certifications" />
         @if (hero.genreChips().length) {
             <app-meta-chip>
                 @for (genre of hero.genreChips(); track genre.label) {

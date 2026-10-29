@@ -44,6 +44,9 @@
                     }
                 </app-meta-chip>
             }
+            <app-age-rating-chip
+                [certifications]="serial.info.tmdb_certifications"
+            />
             @if (hero.genreChips().length) {
                 <app-meta-chip>
                     @for (genre of hero.genreChips(); track genre.label) {

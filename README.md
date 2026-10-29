@@ -300,7 +300,7 @@ needed.
 
 Requirements:
 
-- Node.js 22.22.3 or newer within 22.x, or 24.15.0 or newer within 24.x
+- Node.js 24.22.1 (see `.nvmrc`); patched Node 22.23.4 or newer within 22.x is also supported
 - pnpm 10.33.0 (via Corepack)
 
 The repository's `.nvmrc` pins the Node.js version used by CI. With nvm,

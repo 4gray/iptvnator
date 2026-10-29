@@ -26,7 +26,11 @@
                 <div class="setting-item" data-setting-id="tmdb-api-key">
                     <div class="setting-item__meta">
                         <h4>{{ 'SETTINGS.TMDB_API_KEY' | translate }}</h4>
-                        <p>{{ 'SETTINGS.TMDB_API_KEY_DESCRIPTION' | translate }}</p>
+                        <p>
+                            {{
+                                'SETTINGS.TMDB_API_KEY_DESCRIPTION' | translate
+                            }}
+                        </p>
                         <p>
                             <a
                                 href="https://www.themoviedb.org/settings/api"
@@ -38,7 +42,9 @@
                             </a>
                         </p>
                     </div>
-                    <div class="setting-item__control setting-item__control--stack">
+                    <div
+                        class="setting-item__control setting-item__control--stack"
+                    >
                         <mat-form-field
                             class="settings-text-field"
                             appearance="outline"
@@ -60,7 +66,8 @@
                                 mat-flat-button
                                 type="button"
                                 [disabled]="
-                                    !enteredApiKey || keyTestState() === 'testing'
+                                    !enteredApiKey ||
+                                    keyTestState() === 'testing'
                                 "
                                 (click)="testApiKey()"
                                 data-test-id="tmdb-test-key"
@@ -78,7 +85,9 @@
                                     data-test-id="tmdb-test-success"
                                 >
                                     <mat-icon>check_circle</mat-icon>
-                                    {{ 'SETTINGS.TMDB_TEST_SUCCESS' | translate }}
+                                    {{
+                                        'SETTINGS.TMDB_TEST_SUCCESS' | translate
+                                    }}
                                 </span>
                             } @else if (keyTestState() === 'error') {
                                 <span
@@ -86,7 +95,9 @@
                                     data-test-id="tmdb-test-error"
                                 >
                                     <mat-icon>error</mat-icon>
-                                    {{ 'SETTINGS.TMDB_TEST_FAILED' | translate }}
+                                    {{
+                                        'SETTINGS.TMDB_TEST_FAILED' | translate
+                                    }}
                                 </span>
                             }
                         </div>
@@ -100,7 +111,9 @@
                     >
                         <div class="setting-item__meta">
                             <h4 id="tmdb-m3u-vod-details-label">
-                                {{ 'SETTINGS.TMDB_M3U_VOD_DETAILS' | translate }}
+                                {{
+                                    'SETTINGS.TMDB_M3U_VOD_DETAILS' | translate
+                                }}
                             </h4>
                             <p>
                                 {{
@@ -169,6 +182,64 @@
             </div>
         </div>
     </section>
+
+    @if (ageRatingCountryControl; as countryControl) {
+        <section class="settings-section">
+            <div class="settings-card">
+                <div class="setting-item" data-setting-id="age-rating-country">
+                    <div class="setting-item__meta">
+                        <h4>
+                            {{
+                                'SETTINGS.AGE_RATING_COUNTRY_LABEL' | translate
+                            }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.AGE_RATING_COUNTRY_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field
+                            class="settings-text-field"
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-label>{{
+                                'SETTINGS.AGE_RATING_COUNTRY_LABEL' | translate
+                            }}</mat-label>
+                            <mat-select
+                                [formControl]="countryControl"
+                                data-test-id="age-rating-country"
+                            >
+                                <mat-option value="auto">{{
+                                    'SETTINGS.AGE_RATING_COUNTRY_AUTO'
+                                        | translate
+                                            : {
+                                                  country:
+                                                      ageRatings.countryName(
+                                                          ageRatings.automaticCountry()
+                                                      ),
+                                              }
+                                }}</mat-option>
+                                @for (
+                                    country of ageRatings.countryOptions();
+                                    track country.code
+                                ) {
+                                    <mat-option [value]="country.code"
+                                        >{{ country.label }} ({{
+                                            country.code
+                                        }})</mat-option
+                                    >
+                                }
+                            </mat-select>
+                        </mat-form-field>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
 
     <div class="settings-foot">
         <img src="assets/images/tmdb-logo.svg" alt="TMDB" />

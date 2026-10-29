@@ -1,9 +1,8 @@
 import {
     TmdbEnrichmentService,
     extractYear,
+    loadTmdbMergers,
     mergeEpisodesWithTmdb,
-    mergeSerieInfoWithTmdb,
-    mergeVodInfoWithTmdb,
     tmdbSeasonPosterUrl,
 } from '@iptvnator/services';
 import {
@@ -68,6 +67,9 @@ export async function enrichVodSelectionWithTmdb<TItem extends SelectionRecord>(
         return;
     }
 
+    const mergers = await loadTmdbMergers().catch(() => null);
+    if (!mergers) return;
+
     const current = isCurrent();
     const currentInfo = getXtreamVodInfo(
         current as unknown as XtreamVodDetails | null
@@ -79,7 +81,7 @@ export async function enrichVodSelectionWithTmdb<TItem extends SelectionRecord>(
     try {
         store.setSelectedItem({
             ...current,
-            info: mergeVodInfoWithTmdb(currentInfo, details),
+            info: mergers.mergeVodInfoWithTmdb(currentInfo, details),
         } as unknown as TItem);
     } catch (error) {
         // Never degrade provider data over a malformed payload shape
@@ -123,6 +125,9 @@ export async function enrichSerialSelectionWithTmdb<
         return;
     }
 
+    const mergers = await loadTmdbMergers().catch(() => null);
+    if (!mergers) return;
+
     const current = isCurrent();
     const currentInfo = (current as unknown as XtreamSerieDetails | null)?.info;
     if (!current || !currentInfo || Array.isArray(currentInfo)) {
@@ -132,7 +137,7 @@ export async function enrichSerialSelectionWithTmdb<
     try {
         store.setSelectedItem({
             ...current,
-            info: mergeSerieInfoWithTmdb(currentInfo, details),
+            info: mergers.mergeSerieInfoWithTmdb(currentInfo, details),
         } as unknown as TItem);
     } catch (error) {
         console.warn('[TMDB] series merge failed:', error);

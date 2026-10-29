@@ -29,6 +29,7 @@ handleWorkerRequest(
     (playlists: Record<string, unknown>[]) => playlists
 );
 handleWorkerRequest('DB_GET_APP_PLAYLISTS', () => ({}));
+handleWorkerRequest('DB_GET_STANDALONE_SOURCES', () => ({}));
 handleWorkerRequest('DB_GET_APP_PLAYLIST_METAS', () => ({}));
 handleWorkerRequest('DB_GET_APP_PLAYLIST', (playlistId: string) => ({
     playlistId,

@@ -45,6 +45,9 @@ export default defineConfig({
     resolve: {
         alias: Object.keys(paths)
             .filter((k) => k.startsWith('@iptvnator/'))
+            // Vite matches the first prefix: a sub-entrypoint must precede
+            // its parent barrel, regardless of tsconfig declaration order.
+            .sort((a, b) => b.length - a.length)
             .map((find) => ({
                 find,
                 replacement: resolve(workspace, paths[find][0]),

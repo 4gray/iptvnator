@@ -276,8 +276,11 @@ export class PlaylistEffects {
 
     loadPlaylists$ = createEffect(() => {
         return this.actions$.pipe(
-            ofType(PlaylistActions.loadPlaylists),
-            switchMap(() =>
+            ofType(
+                PlaylistActions.loadPlaylists,
+                PlaylistActions.loadSharedPlaylists
+            ),
+            switchMap((action) =>
                 defer(() => this.playlistsService.getAllPlaylists()).pipe(
                     // Recreate the storage request once for transient failures.
                     // A final failure is state, not an empty source inventory.
@@ -297,6 +300,10 @@ export class PlaylistEffects {
                     map((playlists) =>
                         PlaylistActions.loadPlaylistsSuccess({
                             playlists,
+                            ...(action.type ===
+                            PlaylistActions.loadSharedPlaylists.type
+                                ? { authoritative: true }
+                                : {}),
                         })
                     ),
                     catchError(() => of(PlaylistActions.loadPlaylistsFailure()))
@@ -357,11 +364,12 @@ export class PlaylistEffects {
                 ofType(PlaylistActions.updatePlaylist),
                 switchMap((action) =>
                     persistPlaylistUpdate(this.playlistsService, action).pipe(
-                        tap(() => {
-                            this.fetchPlaylistScopedEpg(action.playlist, {
-                                force: action.refreshEpg === true,
-                            });
-                        })
+                        tap((persisted) =>
+                            this.publishRefresh(
+                                persisted,
+                                action.refreshEpg === true
+                            )
+                        )
                     )
                 )
             );
@@ -410,9 +418,36 @@ export class PlaylistEffects {
                     return this.playlistsService
                         .addPlaylist(action.playlist)
                         .pipe(
-                            tap(() => {
-                                this.fetchPlaylistScopedEpg(action.playlist);
-                                this.navigateToPlaylist(action.playlist);
+                            tap((saved) => {
+                                const playlist = saved as Playlist;
+                                this.fetchPlaylistScopedEpg(playlist);
+                                this.navigateToPlaylist(playlist);
+                                if (playlist._id !== action.playlist._id) {
+                                    this.store.dispatch(
+                                        PlaylistActions.playlistRemovalCommitted(
+                                            { playlistId: action.playlist._id }
+                                        )
+                                    );
+                                }
+                                if (
+                                    playlist.sourceSyncBase ||
+                                    playlist._id !== action.playlist._id
+                                ) {
+                                    this.store.dispatch(
+                                        PlaylistActions.loadSharedPlaylists()
+                                    );
+                                }
+                            }),
+                            catchError(() => {
+                                this.store.dispatch(
+                                    PlaylistActions.playlistRemovalCommitted({
+                                        playlistId: action.playlist._id,
+                                    })
+                                );
+                                this.store.dispatch(
+                                    PlaylistActions.loadPlaylists()
+                                );
+                                return EMPTY;
                             })
                         );
                 })
@@ -484,7 +519,7 @@ export class PlaylistEffects {
                         .pipe(
                             tap((persisted) => {
                                 persisted.forEach((playlist) =>
-                                    this.fetchPlaylistScopedEpg(playlist)
+                                    this.publishRefresh(playlist)
                                 );
                             })
                         )
@@ -534,6 +569,17 @@ export class PlaylistEffects {
         }
 
         void this.router.navigate(['/workspace', 'playlists', playlist._id]);
+    }
+
+    private publishRefresh(playlist: Playlist, force = false): void {
+        if (playlist.playlist)
+            this.store.dispatch(
+                PlaylistActions.hydrateSharedPlaylist({
+                    playlistId: playlist._id,
+                    playlist,
+                })
+            );
+        this.fetchPlaylistScopedEpg(playlist, { force });
     }
 
     private fetchPlaylistScopedEpg(

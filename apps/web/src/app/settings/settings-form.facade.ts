@@ -1,3 +1,4 @@
+import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
 import {
     DestroyRef,
     inject,
@@ -121,7 +122,12 @@ export class SettingsFormFacade {
      */
     hydrateFromStore(): void {
         const currentSettings = this.settingsStore.getSettings();
-        this.form.patchValue(currentSettings);
+        this.form.patchValue({
+            ...currentSettings,
+            ageRatingCountry: normalizeAgeRatingCountry(
+                currentSettings.ageRatingCountry
+            ),
+        });
         this.syncDashboardControlsEnabledState(
             currentSettings.showDashboard ?? true
         );

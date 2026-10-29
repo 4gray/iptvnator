@@ -154,6 +154,16 @@ export class ElectronService extends DataService {
         return AppConfig.version;
     }
 
+    override fetchPlaylistDefinition(
+        url: string,
+        userAgent?: string
+    ): Promise<Playlist> {
+        return window.electron.fetchPlaylistByUrl(url, '', {
+            ...this.settingsStore.getTrustOptions(),
+            userAgent,
+        });
+    }
+
     async sendIpcEvent<T = unknown>(
         type: string,
         payload?: unknown
@@ -444,7 +454,7 @@ export class ElectronService extends DataService {
                     data.title,
                     {
                         ...this.settingsStore.getTrustOptions(),
-                        userAgent: data.userAgent,
+                        userAgent: data.userAgent?.trim() || undefined,
                     }
                 );
             } else if (data.filePath && !data.url) {
@@ -465,6 +475,7 @@ export class ElectronService extends DataService {
                     playlist: {
                         ...playlistObject,
                         _id: data.id,
+                        userAgent: data.userAgent?.trim() || undefined,
                     },
                     playlistId: data.id,
                     refreshEpg: true,

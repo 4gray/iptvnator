@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Parental lock disabled",
             "PIN_CHANGED_TOAST": "PIN changed",
             "LOCKED_TOAST": "Locked"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Age rating country",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Choose the country used for age classifications. Missing local ratings may use US or provider data.",
+        "AGE_RATING_COUNTRY_AUTO": "Automatic — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Could not save to the server. Check the connection and try again.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Mute trailer",
             "TRAILER_UNMUTE": "Unmute trailer",
             "PROGRESS_RESET": "Progress reset",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Hidden from Continue Watching"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Hidden from Continue Watching",
+            "AGE_RATING_UNKNOWN": "Age: no data",
+            "AGE_RATING_PROVIDER": "Provider",
+            "AGE_RATING_DESCRIPTION": "Age classification: {{rating}}. Source: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "No classification for {{country}}; showing {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Classifications differ between releases."
         },
         "SCROLL_LEFT": "Scroll left",
         "SCROLL_RIGHT": "Scroll right",
@@ -2232,5 +2240,35 @@
             "INSTALL_INSTRUCTIONS": "Installation instructions",
             "DONT_SHOW_AGAIN": "Don't show again"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "Saved server connection unavailable. Check browser storage or reconnect in Server settings.",
+        "TITLE": "Server",
+        "DESCRIPTION": "Share sources between devices connected to your self-hosted IPTVnator server. Viewing activity stays on this device.",
+        "URL": "Server URL",
+        "TOKEN": "Access token (optional)",
+        "TOKEN_HINT": "Browser tokens last for this tab. Desktop tokens use protected storage when available.",
+        "RESTART_HINT": "Connecting or disconnecting reloads the app. Your original local library is kept.",
+        "CONNECT": "Connect",
+        "REFRESH": "Refresh",
+        "DISCONNECT": "Disconnect",
+        "IMPORT": "Import local sources",
+        "IMPORT_PREVIEW": "Copy {{count}} local sources to this server? Existing sources are matched without duplicates. Local data is kept.",
+        "IMPORTED": "Sources imported.",
+        "IMPORT_FAILED": "Import failed. You can retry without creating duplicates.",
+        "LAST_SYNC": "Last synchronized",
+        "DELETE_SHARED": "This deletes the shared sources for every connected device.",
+        "INCOMPATIBLE": "This server does not support source synchronization.",
+        "INSTANCE_CHANGED": "The server identity changed. Reconnect before using this library.",
+        "OFFLINE": "Server unavailable. Shared source changes cannot be saved.",
+        "LOCKED": "Enter a valid access token for this server.",
+        "CONFLICT": "The shared source changed on another device. Refresh and reapply your edit.",
+        "REQUEST_FAILED": "The server request failed. Refresh and try again.",
+        "STATE_local": "Local library",
+        "STATE_connecting": "Connecting to server…",
+        "STATE_connected": "Connected",
+        "STATE_offline": "Server unavailable. Shared source changes cannot be saved.",
+        "STATE_locked": "Enter a valid access token for this server.",
+        "STATE_conflict": "The shared source changed on another device. Refresh and reapply your edit."
     }
 }

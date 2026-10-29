@@ -6,6 +6,7 @@ import { TmdbMetadataClient } from './tmdb-metadata-client';
 const movie = {
     id: 603,
     title: 'The Matrix',
+    release_dates: { results: [] },
     release_date: '1999-03-30',
     overview: 'Overview',
     original_language: 'en',
@@ -52,6 +53,7 @@ it('retries an English provider title in English when localized and original nam
             name: 'Каштановый человечек',
             overview: 'Russian plot',
             original_language: 'ru',
+            content_ratings: { results: [] },
         });
     });
     const api = new TmdbApiClient();

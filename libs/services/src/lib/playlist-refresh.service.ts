@@ -45,15 +45,19 @@ export class PlaylistRefreshService {
                 error.name = 'AbortError';
                 throw error;
             }
+            const refreshed = {
+                ...result,
+                userAgent: payload.userAgent?.trim() || undefined,
+            };
             this.healthEvidence?.results.next({
-                playlist: result,
+                playlist: refreshed,
                 result: {
                     state: 'active',
                     reason: 'available',
                     confirmedInactive: false,
                 },
             });
-            return result;
+            return refreshed;
         } finally {
             unsubscribe?.();
         }

@@ -1,3 +1,4 @@
+import type { ContentCertification } from './content-certification';
 import {
     TmdbCountryFacet,
     TmdbEnrichedCastMember,
@@ -21,6 +22,8 @@ export interface StalkerVodDetails {
 }
 
 export interface StalkerVodInfo {
+    /** All country classifications supplied by TMDB. */
+    tmdb_certifications?: readonly ContentCertification[];
     /** Poster/cover image URL */
     movie_image: string;
     /** Plot description */
