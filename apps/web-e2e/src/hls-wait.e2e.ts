@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures';
+import { selectWebPlayer } from './xtream-series-playback.fixture';
 
 const origin = 'https://hls-wait.fixture.invalid';
 const segment = readFileSync(
@@ -11,7 +12,7 @@ test.use({
     serviceWorkers: 'block',
 });
 
-for (const recovery of ['automatic', 'retry']) {
+for (const recovery of ['automatic', 'retry', 'legacy-fullscreen']) {
     test(`HLS prolonged wait stays recoverable: ${recovery}`, async ({
         page,
     }, testInfo) => {
@@ -32,6 +33,8 @@ for (const recovery of ['automatic', 'retry']) {
                     : { status: 404, body: 'Synthetic unavailable segment' }
             );
         });
+        if (recovery === 'legacy-fullscreen')
+            await selectWebPlayer(page, 'Video.js player', false);
         await page.goto('/');
         await page
             .getByRole('button', { name: 'Add playlist', exact: true })
@@ -45,8 +48,19 @@ for (const recovery of ['automatic', 'retry']) {
             .getByRole('button', { name: 'Add playlist', exact: true })
             .click();
         await page.locator('[data-test-id="channel-item"]').first().click();
+        if (recovery === 'legacy-fullscreen') {
+            await page.locator('app-vjs-player .video-js').hover();
+            await page.locator('.vjs-fullscreen-control').click();
+        }
         const notice = page.locator('.vjs-hls-wait');
         await expect(notice).toBeVisible({ timeout: 25000 });
+        if (recovery === 'legacy-fullscreen') {
+            expect(
+                await notice.evaluate((el) =>
+                    document.fullscreenElement?.contains(el)
+                )
+            ).toBe(true);
+        }
         await expect(notice).toContainText('Still waiting for stream data');
         expect(requests).toBeGreaterThan(0);
         await page.screenshot({
@@ -54,7 +68,7 @@ for (const recovery of ['automatic', 'retry']) {
             path: testInfo.outputPath(`hls-wait-${recovery}.png`),
         });
         available = true;
-        if (recovery === 'retry') {
+        if (recovery !== 'automatic') {
             await notice
                 .getByRole('button', { name: 'Retry', exact: true })
                 .focus();
