@@ -154,7 +154,7 @@ export class WorkspaceContextCategoryViewComponent {
 
     isSelected(item: WorkspaceCategoryViewItem): boolean {
         const selectedCategory = this.selectedCategoryId();
-        const itemId = item.category_id ?? item.id;
+        const itemId = item.id ?? item.xtream_id ?? item.category_id;
         return (
             selectedCategory != null &&
             String(selectedCategory) === String(itemId)

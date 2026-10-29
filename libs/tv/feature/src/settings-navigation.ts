@@ -8,6 +8,7 @@ export const settingsCategories = [
     ['epg', 'Programme guide', 'Provider schedules'],
     ['metadata', 'Metadata · TMDB', 'Artwork & descriptions'],
     ['remote', 'Your remote', 'Buttons & navigation'],
+    ['about', 'About', 'App, developer & licence'],
 ] as const;
 export type SettingsCategory = (typeof settingsCategories)[number][0];
 export interface SettingsMemory {

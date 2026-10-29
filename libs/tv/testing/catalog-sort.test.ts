@@ -187,6 +187,54 @@ test('Stalker sort is sent for every page and page cache cannot leak a previous 
     assert.ok(lists.some((p) => p.p === 2 && p.sortby === 'added'));
     provider.dispose();
 });
+test('Stalker VOD catalogs normalize category fields and keep genre zero', async () => {
+    const transport = new Transport((p) =>
+        p.action === 'get_categories'
+            ? {
+                  js: [
+                      {
+                          category_id: '12',
+                          category_name: 'Movies',
+                      },
+                      {
+                          category_id: '34',
+                          category_name: 'Shows',
+                      },
+                  ],
+              }
+            : {
+                  js: {
+                      data: [{ id: '7', name: 'Result' }],
+                      max_page_items: 1,
+                      total_items: 1,
+                  },
+              }
+    );
+    const provider = createProvider(
+        { ...source, provider: 'stalker', full: false, endpoint: source.url },
+        transport,
+        async () => undefined
+    );
+    try {
+        const all = await provider.catalog('movie', '', 0, '', signal);
+        assert.deepEqual(
+            all.categories.map(({ id, name }) => ({ id, name })),
+            [
+                { id: '12', name: 'Movies' },
+                { id: '34', name: 'Shows' },
+            ]
+        );
+        assert.equal(transport.calls.at(-1)?.category, '*');
+        assert.equal(transport.calls.at(-1)?.genre, '0');
+
+        await provider.catalog('movie', '12', 0, 'match', signal);
+        assert.equal(transport.calls.at(-1)?.category, '12');
+        assert.equal(transport.calls.at(-1)?.genre, '0');
+        assert.equal(transport.calls.at(-1)?.search, 'match');
+    } finally {
+        provider.dispose();
+    }
+});
 test('Stalker catalogs use the first nonblank title across live, movies and series', async () => {
     const transport = new Transport((p) =>
         ['get_categories', 'get_genres'].includes(String(p.action))

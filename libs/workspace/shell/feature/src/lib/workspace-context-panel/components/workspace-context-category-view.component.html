@@ -14,7 +14,7 @@
                 class="nav-item category-item"
                 (keydown)="onCategoryKeydown($event)"
                 [attr.data-category-id]="
-                    $any(item).category_id ?? $any(item).xtream_id ?? item.id
+                    item.id ?? $any(item).xtream_id ?? $any(item).category_id
                 "
                 [class.selected]="isSelected(item)"
                 [class.category-item--selected]="isSelected(item)"

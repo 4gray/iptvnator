@@ -110,12 +110,15 @@ export class StalkerProvider implements ProviderClient {
                     signal
                 )
             )
-        ).map((c) => ({ id: text(c.id), name: text(c.title ?? c.name) }));
+        ).map((c) => ({
+            id: text(c.category_id ?? c.id),
+            name: text(c.category_name ?? c.title ?? c.name),
+        }));
         const response = await this.pages.load(
             {
                 type,
                 category: category || '*',
-                genre: category || '*',
+                genre: kind === 'movie' ? '0' : category || '*',
                 search: query,
                 ...(kind !== 'live' && sort !== 'provider'
                     ? { sortby: sort === 'recent' ? 'added' : 'name' }

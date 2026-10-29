@@ -114,6 +114,34 @@
     outline: 3px solid var(--app-focus-ring-color);
     outline-offset: -3px;
 }
+.about-information {
+    max-width: 900px;
+}
+.about-section {
+    margin-bottom: 36px;
+}
+.about-details {
+    margin: 0 0 24px;
+}
+.about-details > div {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 18px;
+    align-items: baseline;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--tv-line);
+}
+.about-details dt {
+    color: var(--tv-muted);
+}
+.about-details dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.about-mono {
+    font-family: monospace;
+}
 .phone-modal-backdrop {
     position: fixed;
     top: 0;

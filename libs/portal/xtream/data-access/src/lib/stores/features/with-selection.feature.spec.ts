@@ -80,18 +80,21 @@ const TestSelectionStore = signalStore(
                 category_id: '10',
                 title: 'First',
                 added: '4',
+                rating_imdb: '7.5',
             },
             {
                 xtream_id: 2,
                 category_id: '10',
                 title: 'Second',
                 added: '3',
+                rating_imdb: '9.0',
             },
             {
                 xtream_id: 3,
                 category_id: '10',
                 title: 'Third',
                 added: '2',
+                rating_imdb: '9.0',
             },
             {
                 xtream_id: 4,
@@ -386,4 +389,61 @@ describe('withSelection', () => {
 
         expect(store.minRating()).toBe(7);
     });
+
+    it('sorts VOD alphabetically in ascending and descending order', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(10);
+
+        store.setContentSortMode('name-asc');
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'First', 'Fourth', 'Second', 'Third',
+        ]);
+
+        store.setContentSortMode('name-desc');
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'Third', 'Second', 'Fourth', 'First',
+        ]);
+    });
+
+    it('sorts VOD by date in both directions', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(10);
+
+        store.setContentSortMode('date-desc');
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'First', 'Second', 'Third', 'Fourth',
+        ]);
+
+        store.setContentSortMode('date-asc');
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'Fourth', 'Third', 'Second', 'First',
+        ]);
+    });
+
+    it('sorts VOD by rating, breaks ties alphabetically, and keeps unrated items last', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(10);
+
+        store.setContentSortMode('rating-desc');
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'Second', 'Third', 'First', 'Fourth',
+        ]);
+
+        store.setContentSortMode('rating-asc');
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'First', 'Second', 'Third', 'Fourth',
+        ]);
+    });
+
+    it('preserves the selected sort order when a search term filters VOD items', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(10);
+        store.setContentSortMode('name-desc');
+        store.setCategorySearchTerm('ir');
+
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'Third', 'First',
+        ]);
+    });
+
 });
