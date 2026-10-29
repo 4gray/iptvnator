@@ -37,6 +37,8 @@ import { TranslatePipe } from '@ngx-translate/core';
     },
 })
 export class WindowControlsComponent implements AfterViewInit {
+    readonly canOpenMenu =
+        typeof window.electron?.showApplicationMenu === 'function';
     readonly isMaximized = signal(false);
     readonly isFullScreen = signal(false);
     readonly maximizeLabelKey = computed(() =>
@@ -70,6 +72,10 @@ export class WindowControlsComponent implements AfterViewInit {
 
     ngAfterViewInit(): void {
         this.enterTopLayer();
+    }
+
+    onOpenMenu(): void {
+        void window.electron?.showApplicationMenu?.();
     }
 
     onMinimize(): void {

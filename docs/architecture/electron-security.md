@@ -68,7 +68,10 @@ command until Angular subscribes, and exposes an unsubscribe function. The
 renderer chooses the settings route through Angular's router and retains its
 unsaved-changes guards; the native menu never supplies an arbitrary URL. Menu
 clicks during initial loading wait for the preload, and a command with no live
-window reactivates the application before delivery.
+window reactivates the application before delivery. The frameless title-bar
+button invokes the payload-free `APP:MENU_OPEN` handler, which resolves the
+live sender window and opens the fixed application menu; renderers cannot
+provide menu entries or commands.
 
 ## Window Back Gestures
 

@@ -49,22 +49,6 @@ button {
     margin-top: 8px;
     app-region: no-drag;
 }
-.startup-recovery-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-}
-.startup-secondary {
-    border: 1px solid var(--app-separator);
-    border-radius: 20px;
-    padding: 10px 16px;
-    min-height: 40px;
-    background: transparent;
-    color: var(--app-body-color);
-    font: inherit;
-    cursor: pointer;
-}
 .startup-secondary:hover {
     background: var(--app-widget-bg);
     color: var(--app-heading-color);
@@ -85,6 +69,12 @@ button {
     font: inherit;
     font-weight: 500;
     cursor: pointer;
+}
+
+.startup-secondary {
+    border: 1px solid var(--app-separator);
+    background: transparent;
+    color: var(--app-body-color);
 }
 
 /*

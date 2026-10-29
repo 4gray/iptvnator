@@ -15,6 +15,7 @@ export const PLAYLIST_CANCEL_REFRESH = 'PLAYLIST:CANCEL_REFRESH';
 
 // General
 export const APP_MENU_ACTION = 'APP:MENU_ACTION';
+export const APP_MENU_OPEN = 'APP:MENU_OPEN';
 export const ERROR = 'ERROR';
 /**
  * Main -> renderer push carrying an `ElectronBridgePlaylistOpenRequest`: a

@@ -1,5 +1,5 @@
 import type { MenuItemConstructorOptions } from 'electron';
-import { app, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import { APP_MENU_ACTION } from '@iptvnator/shared/interfaces';
 import { resolve } from 'node:path';
 import {
@@ -10,9 +10,12 @@ import {
 
 jest.mock('electron', () => ({
     app: { isPackaged: false, getLocale: jest.fn(() => 'en'), emit: jest.fn() },
+    BrowserWindow: { fromWebContents: jest.fn() },
+    ipcMain: { handle: jest.fn() },
     Menu: {
         buildFromTemplate: jest.fn((template) => template),
         setApplicationMenu: jest.fn(),
+        getApplicationMenu: jest.fn(),
     },
 }));
 
@@ -64,6 +67,7 @@ describe('application menu', () => {
         expect(readMenuLabels(directory, 'de-DE').settings).toBe(
             'Einstellungen…'
         );
+        expect(readMenuLabels(directory, 'be-BY').settings).toBe('Налады…');
         expect(readMenuLabels(directory, 'ru').settings).toBe('Настройки…');
         expect(readMenuLabels(directory, 'ru').updates).toBe(
             'Проверить обновления…'
@@ -117,4 +121,25 @@ describe('application menu', () => {
         expect(Menu.setApplicationMenu).toHaveBeenCalled();
         expect(app.getLocale).toHaveBeenCalled();
     });
+});
+
+it('opens the fixed native menu only for a live sender window', () => {
+    const popup = jest.fn();
+    (Menu.getApplicationMenu as jest.Mock).mockReturnValue({ popup });
+    const handler = (ipcMain.handle as jest.Mock).mock.calls.find(
+        ([channel]) => channel === 'APP:MENU_OPEN'
+    )[1];
+    const window = { isDestroyed: () => false };
+    (BrowserWindow.fromWebContents as jest.Mock).mockReturnValue(window);
+    const sender = {};
+    handler({ sender });
+    expect(BrowserWindow.fromWebContents).toHaveBeenCalledWith(sender);
+    expect(popup).toHaveBeenCalledWith({ window });
+    (BrowserWindow.fromWebContents as jest.Mock).mockReturnValue(null);
+    handler({ sender });
+    (BrowserWindow.fromWebContents as jest.Mock).mockReturnValue({
+        isDestroyed: () => true,
+    });
+    handler({ sender });
+    expect(popup).toHaveBeenCalledTimes(1);
 });

@@ -791,6 +791,8 @@ export interface ElectronBridgeApi {
      */
     toggleFullScreenWindow: () => Promise<ElectronBridgeWindowState>;
     closeWindow: () => Promise<void>;
+    /** Opens the fixed native application menu for frameless desktop windows. */
+    showApplicationMenu?: () => Promise<void>;
     /**
      * Zoom shortcuts (Cmd/Ctrl and +/−/0). Synchronous and preload-local:
      * steps the FRAME-BOUND temporary zoom level through `webFrame` (never a

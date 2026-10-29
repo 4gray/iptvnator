@@ -121,28 +121,14 @@ import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
                         >
                             {{ 'RETRY' | translate }}
                         </button>
-                        <div class="startup-recovery-actions">
-                            <button
-                                type="button"
-                                class="startup-secondary"
-                                data-test-id="startup-open-settings"
-                                (click)="maintenance.openSettings()"
-                            >
-                                {{
-                                    'WORKSPACE.SHELL.OPEN_SETTINGS' | translate
-                                }}
-                            </button>
-                            @if (maintenance.canCheckForUpdates) {
-                                <button
-                                    type="button"
-                                    class="startup-secondary"
-                                    data-test-id="startup-check-updates"
-                                    (click)="maintenance.checkForUpdates()"
-                                >
-                                    {{ 'STARTUP.CHECK_UPDATES' | translate }}
-                                </button>
-                            }
-                        </div>
+                        <button
+                            type="button"
+                            class="startup-retry-native startup-secondary"
+                            data-test-id="startup-open-settings"
+                            (click)="maintenance.openSettings()"
+                        >
+                            {{ 'WORKSPACE.SHELL.OPEN_SETTINGS' | translate }}
+                        </button>
                     </ng-template>
                 }
             </section>

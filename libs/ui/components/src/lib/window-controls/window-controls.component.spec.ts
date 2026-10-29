@@ -6,11 +6,11 @@ import { WindowControlsComponent } from './window-controls.component';
 describe('WindowControlsComponent', () => {
     let fixture: ComponentFixture<WindowControlsComponent>;
     let stateChangeCallback:
-        | ((state: ElectronBridgeWindowState) => void)
-        | undefined;
+        ((state: ElectronBridgeWindowState) => void) | undefined;
 
     const unsubscribe = jest.fn();
     const electronMock = {
+        showApplicationMenu: jest.fn(),
         getWindowState: jest.fn(),
         onWindowStateChange: jest.fn(),
         minimizeWindow: jest.fn(),
@@ -48,6 +48,7 @@ describe('WindowControlsComponent', () => {
 
         const translate = TestBed.inject(TranslateService);
         translate.setTranslation('de', {
+            MENU: { OPEN: 'Menü öffnen' },
             WORKSPACE: {
                 SHELL: {
                     WINDOW_MINIMIZE: 'Minimieren',
@@ -78,6 +79,7 @@ describe('WindowControlsComponent', () => {
 
     it('labels every button in the active language', () => {
         for (const [testId, label] of [
+            ['window-menu', 'Menü öffnen'],
             ['window-minimize', 'Minimieren'],
             ['window-maximize', 'Maximieren'],
             ['window-close', 'Schließen'],
@@ -88,6 +90,9 @@ describe('WindowControlsComponent', () => {
     });
 
     it('calls the bridge methods when the buttons are clicked', () => {
+        query('window-menu')?.click();
+        expect(electronMock.showApplicationMenu).toHaveBeenCalledTimes(1);
+
         query('window-minimize')?.click();
         expect(electronMock.minimizeWindow).toHaveBeenCalledTimes(1);
 
@@ -135,6 +140,17 @@ describe('WindowControlsComponent', () => {
                 'is-hidden'
             )
         ).toBe(false);
+    });
+
+    it('hides the menu trigger when its specific bridge is unavailable', () => {
+        fixture.destroy();
+        (window as { electron?: unknown }).electron = {
+            ...electronMock,
+            showApplicationMenu: undefined,
+        };
+        fixture = TestBed.createComponent(WindowControlsComponent);
+        fixture.detectChanges();
+        expect(query('window-menu')).toBeNull();
     });
 
     it('unsubscribes from window state changes on destroy', () => {

@@ -3,6 +3,7 @@ import {
     DbWorkerOperation,
 } from '../workers/database-worker.types';
 import {
+    APP_MENU_OPEN,
     APP_UPDATE_CHECK,
     APP_UPDATE_DOWNLOAD,
     APP_UPDATE_GET_RELEASE_NOTES,
@@ -224,6 +225,11 @@ describe('main preload DB IPC contract', () => {
                 cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01',
             }
         );
+    });
+
+    it('opens the fixed application menu without renderer payloads', async () => {
+        await getExposedApi().showApplicationMenu?.();
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(APP_MENU_OPEN);
     });
 
     it('exposes app update commands and status events through the typed bridge', async () => {

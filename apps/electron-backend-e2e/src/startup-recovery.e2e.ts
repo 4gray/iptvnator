@@ -55,6 +55,27 @@ test('recovers settings and updates from a failed source read @electron @setting
         await expect(
             page.getByRole('button', { name: 'Open settings', exact: true })
         ).toBeVisible();
+        if (process.platform !== 'darwin') {
+            await desktop.electronApp.evaluate(({ Menu }) => {
+                Reflect.set(globalThis, 'syntheticMenuShown', false);
+                Menu.getApplicationMenu()!.once('menu-will-show', () =>
+                    Reflect.set(globalThis, 'syntheticMenuShown', true)
+                );
+            });
+            await page
+                .getByRole('button', { name: 'Open menu', exact: true })
+                .click();
+            await expect
+                .poll(() =>
+                    desktop.electronApp.evaluate(() =>
+                        Reflect.get(globalThis, 'syntheticMenuShown')
+                    )
+                )
+                .toBe(true);
+            await desktop.electronApp.evaluate(({ Menu }) =>
+                Menu.getApplicationMenu()!.closePopup()
+            );
+        }
         await page.getByTestId('startup-open-settings').click();
         await expect(page.getByTestId('settings-container')).toBeVisible();
         await expect(

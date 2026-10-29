@@ -1,13 +1,15 @@
 import {
     app,
+    BrowserWindow,
+    ipcMain,
     Menu,
-    type BrowserWindow,
     type MenuItemConstructorOptions,
 } from 'electron';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
     APP_MENU_ACTION,
+    APP_MENU_OPEN,
     normalizeAppLanguage,
     type ElectronBridgeAppMenuAction,
 } from '@iptvnator/shared/interfaces';
@@ -25,7 +27,9 @@ export function readMenuLabels(directory: string, locale: string): MenuLabels {
                 ? 'zhtw'
                 : code.startsWith('pt')
                   ? code
-                  : code.split('-')[0]
+                  : code.split('-')[0] === 'be'
+                    ? 'by'
+                    : code.split('-')[0]
         );
         const strings = JSON.parse(
             readFileSync(join(directory, `${language}.json`), 'utf8')
@@ -156,3 +160,12 @@ export function installApplicationMenu(window: BrowserWindow): void {
     );
     Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
+
+// Frameless Windows/Linux windows do not display a native menu bar. Their
+// caption menu button opens this same native menu without renderer payloads.
+ipcMain.handle(APP_MENU_OPEN, (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window && !window.isDestroyed()) {
+        Menu.getApplicationMenu()?.popup({ window });
+    }
+});

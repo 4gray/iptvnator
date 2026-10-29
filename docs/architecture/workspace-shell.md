@@ -6,7 +6,7 @@ Source inventory readiness gates library views, but never sign-in or any
 `/workspace/settings` section. A failed source read offers Retry, Open settings
 and, when the update bridge is present, Check for updates. The richer recovery
 controls and version/channel information load only on failure; native fallback
-buttons remain usable if that chunk cannot load.
+Retry and Open settings buttons remain usable if that chunk cannot load.
 
 Desktop Settings (`Cmd/Ctrl+,`) and Check for Updates commands use the same
 renderer maintenance service. A manual update check opens About, which already
@@ -15,7 +15,10 @@ navigation preserves the unsaved-settings guard; checks use the saved update
 channel. Repeating the command on About checks again; a download in progress or
 ready to install is preserved and shown instead of starting another check.
 macOS places commands in the application menu; Windows/Linux place
-Settings in Edit and update checking in Help. Native custom labels use the OS
+Settings in Edit and update checking in Help. Their frameless title bar has an
+Open menu button beside the window controls that opens the native menu as a
+popup; installing an application menu alone does not make it visible there.
+Native custom labels use the OS
 locale's bundled translations, falling back to English.
 
 Settings remain browsable while sources are pending or unavailable. A notice
