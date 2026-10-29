@@ -44,6 +44,11 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v7
 
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+
             - name: Prepare Docker metadata
               id: docker-meta
               shell: bash

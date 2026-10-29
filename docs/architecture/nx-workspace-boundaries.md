@@ -61,8 +61,13 @@ resulting PR runs the full CI pipeline.
 Angular framework/Material 22.1 and CLI/build 22.1 use Nx 23.2 and TypeScript
 6.0. Framework and CLI patch numbers may differ; keep framework packages aligned
 in both dependency sections and all official Nx packages on one exact version.
-Use `.nvmrc` for development/CI; supported LTS Node ranges are
-`^22.22.3 || ^24.15.0`. Docker uses the supported Node 24 line.
+Use `.nvmrc` for development/CI (Node 24.22.1); supported LTS Node ranges are
+`^22.23.4 || ^24.22.1`. These security floors include the October 2026
+Brotli, TLS, DNS and HTTP fixes. All Docker build/native/runtime stages use
+the same pinned Node 24 patch. Changing local Node does not update Electron's
+bundled Node: Electron 43.8.4 supplies Node 24.22.1 to the desktop application.
+The shared Nx inputs include `.nvmrc` and `node --version`, so changing either
+the pin or the actual supported runtime invalidates cached builds and checks.
 
 The Angular 22 migration explicitly preserved the old default change detection
 with `ChangeDetectionStrategy.Eager`. Plan item C6 since converted every component

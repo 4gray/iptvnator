@@ -2,6 +2,9 @@
 # Reuse the existing self-hosted runtime's Node, nginx and native SQLite addon.
 ARG BASE_IMAGE=4gray/iptvnator@sha256:017948eb10ff2a45bea4bb837f645dc6613318773b3f9e53bb360af5605cec66
 FROM ${BASE_IMAGE}
+# A pinned base can predate a Node security release. Reject it even when the
+# backend assets were rebuilt with a patched development runtime.
+RUN node -e 'const [major, minor, patch] = process.versions.node.split(".").map(Number); if (major !== 24 || minor < 22 || (minor === 22 && patch < 1)) throw new Error("TV base requires Node 24.22.1 or newer within 24.x; rebuild docker/Dockerfile and pass BASE_IMAGE")'
 COPY web-backend/ /opt/iptvnator/web-backend/
 COPY nginx.conf /etc/nginx/http.d/tv.conf.template
 COPY start.sh /usr/local/bin/iptvnator-tv-entrypoint
