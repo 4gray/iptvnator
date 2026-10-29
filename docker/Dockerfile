@@ -1,7 +1,8 @@
 # The Nx builds below emit platform-independent JS/static assets. During
 # multi-arch publish builds, keep that heavy build stage on the native builder
 # platform instead of running Node/Nx through QEMU for linux/arm64.
-FROM --platform=$BUILDPLATFORM node:24-alpine AS build
+ARG NODE_VERSION=24.22.1
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS build
 
 RUN apk add --no-cache python3 make g++ git
 
@@ -32,7 +33,7 @@ RUN pnpm nx build web-backend
 # $BUILDPLATFORM, so multi-arch builds produce it for each target platform.
 # prebuild-install downloads a musl binary when one exists and otherwise
 # compiles with the toolchain below.
-FROM node:24-alpine AS native
+FROM node:${NODE_VERSION}-alpine AS native
 
 RUN apk add --no-cache python3 make g++
 
@@ -44,7 +45,7 @@ RUN BETTER_SQLITE3_VERSION="$(node -p 'require("./root-package.json").dependenci
     && npm init -y >/dev/null \
     && npm install --omit=dev --no-audit --no-fund "better-sqlite3@${BETTER_SQLITE3_VERSION}"
 
-FROM node:24-alpine
+FROM node:${NODE_VERSION}-alpine
 
 RUN apk add --no-cache gettext nginx
 

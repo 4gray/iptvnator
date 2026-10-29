@@ -14,6 +14,20 @@ The old external `4gray/iptvnator-backend` repository is not required for the
 default self-hosted deployment. Sync behavior from that repository only when a
 change intentionally restores or imports missing backend capabilities.
 
+## Runtime Security Updates
+
+Development and CI use Node 24.22.1 from `.nvmrc`; the three main Docker
+stages pin the same patch through `NODE_VERSION`. This version includes the
+October 2026 Brotli, TLS, DNS and HTTP fixes. Keep `body-parser` at 2.4.0 or
+newer for its separate compressed-request crash fix: updating Node alone does
+not fix that dependency.
+
+Rebuild and recreate deployed containers after runtime updates. Rebuilding
+JavaScript or pulling an image without recreating the container leaves the
+running Node process unchanged. The optional TV container validates its base
+runtime; follow [its build instructions](../../docker/tv/README.md) to supply
+a patched base rather than reusing the older published digest.
+
 ## Runtime Backend Configuration
 
 The PWA reads `window.__IPTVNATOR_CONFIG__.BACKEND_URL` through
