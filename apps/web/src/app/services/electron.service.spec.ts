@@ -154,6 +154,23 @@ describe('ElectronService', () => {
             expect(post).not.toHaveBeenCalled();
         }
     );
+    it('preserves the HTTP status serialized by a rejected Stalker IPC request', async () => {
+        const message =
+            "Error invoking remote method 'STALKER_REQUEST': Error: HTTP Error 503: Service Unavailable";
+        electronBridge.stalkerRequest.mockRejectedValue(new Error(message));
+        await expect(
+            service.sendIpcEvent(STALKER_REQUEST, {
+                url: 'https://fixture.example',
+                macAddress: '00:1A:79:AA:BB:CC',
+                params: { action: 'get_ordered_list' },
+            })
+        ).rejects.toThrow('503');
+        expect(translateService.instant).toHaveBeenCalledWith(
+            'PORTALS.REQUEST_ERRORS.STALKER',
+            { message, status: 503 }
+        );
+    });
+
     describe('resolved portal request failures', () => {
         // The main process resolves a cancellation or an HTTP 401/403 as this
         // envelope instead of rejecting (Electron logs every rejected handler

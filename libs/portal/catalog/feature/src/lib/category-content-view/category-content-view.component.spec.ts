@@ -80,6 +80,7 @@ describe('CategoryContentViewComponent', () => {
     const hasMore = signal(false);
     const isAppending = signal(false);
     const appendError = signal(false);
+    const contentError = signal(false);
     const routeReady = signal(true);
     const playlist = signal<{ id: string } | null>(null);
     const catalog = {
@@ -94,6 +95,8 @@ describe('CategoryContentViewComponent', () => {
         hasMore,
         isAppending,
         appendError,
+        contentError,
+        retryContent: jest.fn(),
         contentSortMode,
         supportsRatingSort: true,
         minRating,
@@ -138,6 +141,7 @@ describe('CategoryContentViewComponent', () => {
         hasMore.set(false);
         isAppending.set(false);
         appendError.set(false);
+        contentError.set(false);
         catalog.initialize.mockClear();
         catalog.setSearchQuery.mockClear();
         catalog.loadMore.mockClear();
@@ -233,6 +237,32 @@ describe('CategoryContentViewComponent', () => {
 
     afterEach(() => {
         window.history.replaceState({}, '', window.location.href);
+    });
+
+    it('renders a first-page failure and retries the same catalog without showing zero items', () => {
+        catalog.provider = 'stalker';
+        isPaginatedContentLoading.set(false);
+        contentError.set(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('app-grid-list')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('[role="alert"]')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.category-subtitle')
+                ?.textContent
+        ).toContain('PORTALS.CATALOG_LOAD_ERROR.TITLE');
+        (
+            fixture.nativeElement.querySelector(
+                '.catalog-load-error button'
+            ) as HTMLButtonElement
+        ).click();
+        expect(catalog.retryContent).toHaveBeenCalledTimes(1);
+        contentError.set(false);
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('app-grid-list')
+        ).not.toBeNull();
     });
 
     it('shows loading copy in the subtitle instead of 0 items while xtream content is still warming up', () => {

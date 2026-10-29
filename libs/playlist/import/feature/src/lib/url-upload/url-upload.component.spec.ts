@@ -149,6 +149,14 @@ describe('UrlUploadComponent form', () => {
         );
     });
 
+    it.each(['http://', 'https:provider.example', 'file:///playlist.m3u'])(
+        'rejects a malformed or unsupported address: %s',
+        (value) => {
+            component.form.controls.playlistUrl.setValue(value);
+            expect(component.form.valid).toBe(false);
+        }
+    );
+
     it('explains an invalid playlist URL once the field was touched', () => {
         const root = fixture.nativeElement as HTMLElement;
         const url = component.form.controls.playlistUrl;

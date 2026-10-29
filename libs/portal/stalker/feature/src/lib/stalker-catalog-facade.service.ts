@@ -73,16 +73,27 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
      */
     readonly isPaginatedContentLoading = computed(
         () =>
-            this.stalkerStore.isPaginatedContentLoading() &&
+            (this.stalkerStore.isPaginatedContentLoading() ||
+                this.stalkerStore.isContentRetrying()) &&
             this.stalkerStore.page() === 0
     );
     readonly isAppending = computed(
         () =>
-            this.stalkerStore.isPaginatedContentLoading() &&
+            (this.stalkerStore.isPaginatedContentLoading() ||
+                this.stalkerStore.isContentRetrying()) &&
             this.stalkerStore.page() > 0
     );
     readonly hasMore = this.stalkerStore.hasMoreContent;
     readonly appendError = this.stalkerStore.hasContentAppendError;
+    readonly contentError = computed(
+        () =>
+            Boolean(this.stalkerStore.isPaginatedContentFailed()) &&
+            !this.isPaginatedContentLoading()
+    );
+
+    retryContent(): void {
+        void this.stalkerStore.retryContentPage();
+    }
     /**
      * Scroll offsets per list identity for inline-detail round trips. The
      * accumulated portal pages already survive in the store (same-category
@@ -198,6 +209,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     loadMore(): void {
         if (
             this.stalkerStore.isPaginatedContentLoading() ||
+            this.stalkerStore.isContentRetrying() ||
             // A failed append blocks further paging — skipping past the
             // failed portal page would leave a silent hole in the list; the
             // grid tail's retry re-runs it instead.

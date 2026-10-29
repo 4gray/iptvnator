@@ -15,8 +15,9 @@
                     type="button"
                     [appRadioOption]="method() === opt.value"
                     class="apd-method"
+                    [disabled]="urlImport.pending()"
                     [class.active]="method() === opt.value"
-                    (click)="method.set(opt.value)"
+                    (click)="selectMethod(opt.value)"
                 >
                     <span class="apd-method__icon" aria-hidden="true">
                         <mat-icon>{{ opt.icon }}</mat-icon>
@@ -31,7 +32,16 @@
             }
         </div>
 
-        <div class="apd-form-area">
+        <div class="apd-form-area" (input)="urlImport.clearError()">
+            @if (urlImport.pending()) {
+                <p role="status">
+                    {{ 'HOME.URL_UPLOAD.FETCHING' | translate }}
+                </p>
+            } @else if (urlImport.errorKey(); as key) {
+                <p #urlFeedback class="apd-import-error" role="alert">
+                    {{ key | translate }}
+                </p>
+            }
             @switch (playlistType()) {
                 @case ('file') {
                     <app-file-upload
@@ -88,7 +98,9 @@
                     <button
                         mat-flat-button
                         type="button"
-                        [disabled]="!urlUpload()?.form?.valid"
+                        [disabled]="
+                            urlImport.pending() || !urlUpload()?.form?.valid
+                        "
                         (click)="submitUrlPlaylist()"
                     >
                         {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}

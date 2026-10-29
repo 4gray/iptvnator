@@ -179,6 +179,7 @@
             "OPEN_FAILED": "\"{{filename}}\" konnte nicht geöffnet werden."
         },
         "URL_UPLOAD": {
+            "FETCHING": "Die Wiedergabeliste wird geladen… Du kannst den Vorgang abbrechen.",
             "PLAYLIST_URL": "Wiedergabelisten-URL (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Geben Sie eine gültige URL mit http:// oder https:// ein.",
             "ADD_PLAYLIST": "Playlist hinzufügen",
@@ -1313,6 +1314,10 @@
         "GLOBAL_SEARCH_SUMMARY": "Ergebnisse: {{count}} · Playlists: {{playlists}}"
     },
     "PORTALS": {
+        "CATALOG_LOAD_ERROR": {
+            "TITLE": "Diese Kategorie konnte nicht geladen werden",
+            "DESCRIPTION": "Kategorie und Filter bleiben erhalten. Prüfe die Verbindung und versuche es erneut."
+        },
         "REQUESTS_PAUSED": {
             "TITLE": "Anfragen vorübergehend pausiert",
             "DESCRIPTION": "Anfragen wurden nach wiederholten Verbindungsfehlern pausiert. Jetzt erneut versuchen, um das Portal sofort zu kontaktieren.",

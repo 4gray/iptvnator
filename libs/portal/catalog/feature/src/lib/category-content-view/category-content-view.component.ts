@@ -104,14 +104,21 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly infiniteHasMore = this.catalog.hasMore;
     readonly infiniteAppending = this.catalog.isAppending;
     readonly infiniteAppendError = this.catalog.appendError;
-    readonly isXtreamLoadingSubtitle = computed(
-        () =>
-            this.catalog.provider === 'xtream' &&
-            this.isPaginatedContentLoading()
+    readonly contentError = computed(
+        () => this.catalog.contentError?.() ?? false
+    );
+    retryContent(): void {
+        this.catalog.retryContent?.();
+    }
+    readonly isCatalogLoadingSubtitle = computed(() =>
+        this.isPaginatedContentLoading()
     );
     /** Key and params; the template pipe re-renders once translations load. */
     readonly categoryItemSubtitle = computed(() => {
-        if (this.isXtreamLoadingSubtitle()) {
+        if (this.contentError()) {
+            return { key: 'PORTALS.CATALOG_LOAD_ERROR.TITLE', params: {} };
+        }
+        if (this.isCatalogLoadingSubtitle()) {
             return { key: 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING', params: {} };
         }
 

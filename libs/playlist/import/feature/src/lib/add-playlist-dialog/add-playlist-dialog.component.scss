@@ -147,6 +147,10 @@
 .apd-form-area {
     min-height: 0;
 
+    .apd-import-error {
+        color: var(--app-danger-text);
+    }
+
     form {
         display: flex;
         flex-direction: column;

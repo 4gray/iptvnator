@@ -13,6 +13,21 @@ The M3U playlist module provides:
 - Per-playlist group visibility management in the groups view
 - Video playback with multiple player backends
 
+## Adding a URL source
+
+The Add playlist dialog acquires a definition through
+`DataService.fetchPlaylistDefinition()` before dispatching the import action.
+Acquisition keeps the form open, disables repeated submission and method changes,
+and announces loading. Failure leaves the URL, title and user agent editable with
+a localized inline error; HTTP(S) validation requires a hostname. Electron keeps
+its explicit TLS-host trust flow, whose delayed retry belongs to the same draft.
+
+Cancel, Escape, backdrop dismissal, navigation during acquisition and destruction
+retire the dialog's operation. The HTTP/IPC transport may still finish, but a
+retired result cannot save a source or navigate. Only an owned success dispatches
+the existing add-by-URL action and closes the dialog. OS/file import admission
+and serial persistence remain on their existing paths.
+
 ## Desktop upgrades from legacy profiles
 
 v0.19.0 stores the complete source list in IndexedDB database `iptvnator`,

@@ -179,6 +179,7 @@
             "OPEN_FAILED": "Could not open \"{{filename}}\"."
         },
         "URL_UPLOAD": {
+            "FETCHING": "Fetching playlist… You can cancel while it loads.",
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Enter a valid http:// or https:// URL.",
             "ADD_PLAYLIST": "Add playlist",
@@ -1313,6 +1314,10 @@
         "GLOBAL_SEARCH_SUMMARY": "Found {{count}} items across {{playlists}} playlists"
     },
     "PORTALS": {
+        "CATALOG_LOAD_ERROR": {
+            "TITLE": "Could not load this category",
+            "DESCRIPTION": "Your category and filters are kept. Check the connection and try again."
+        },
         "REQUESTS_PAUSED": {
             "TITLE": "Requests temporarily paused",
             "DESCRIPTION": "Requests were paused after repeated connection failures. Retry now to contact the portal immediately.",

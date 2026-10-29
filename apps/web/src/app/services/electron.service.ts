@@ -164,6 +164,13 @@ export class ElectronService extends DataService {
         });
     }
 
+    override recoverPlaylistImportError(
+        error: unknown,
+        retry: () => void
+    ): boolean {
+        return this.handlePlaylistSecurityError(error, retry);
+    }
+
     async sendIpcEvent<T = unknown>(
         type: string,
         payload?: unknown
@@ -359,7 +366,10 @@ export class ElectronService extends DataService {
                                 this.translateService.instant(
                                     'PORTALS.REQUEST_ERRORS.NOT_FOUND'
                                 ),
-                            status: errorInfo?.status ?? 404,
+                            status:
+                                errorInfo?.status ??
+                                this.extractHttpStatusCode(err) ??
+                                '—',
                         }
                     ),
                     this.translateService.instant('CLOSE'),
@@ -435,7 +445,9 @@ export class ElectronService extends DataService {
         }
         // Parse status from error message string (IPC serialization)
         const msg = String((error as { message?: string })?.message ?? error);
-        const match = msg.match(/status code (\d{3})/);
+        const match = msg.match(
+            /(?:status code|HTTP Error|Status:)\s*(\d{3})/i
+        );
         return match ? parseInt(match[1], 10) : null;
     }
 

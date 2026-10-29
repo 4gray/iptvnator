@@ -72,6 +72,36 @@ describe('StalkerPortalImportComponent identity handling', () => {
         );
     });
 
+    it.each(['cancel', 'destroy'])(
+        'does not add a late discovery after %s',
+        async (action) => {
+            let finish!: (value: unknown) => void;
+            portalDiscovery.discover.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        finish = resolve;
+                    })
+            );
+            component.form.patchValue({
+                title: 'Cancelled source',
+                portalUrl: 'https://fixture.example/portal.php',
+                macAddress: '00:1A:79:00:00:03',
+            });
+            const pending = component.addPlaylist();
+            await Promise.resolve();
+            await Promise.resolve();
+            if (action === 'cancel') component.cancelPendingImport();
+            else TestBed.resetTestingModule();
+            finish({
+                status: 'resolved',
+                portalUrl: 'https://fixture.example/portal.php',
+                isFullStalkerPortal: false,
+            });
+            await pending;
+            expect(store.dispatch).not.toHaveBeenCalled();
+        }
+    );
+
     it('reveals additional settings for prefilled values, invalid fields and portal feedback', () => {
         expect(component.hasAdvancedOptions).toBe(false);
         component.form.controls.serialNumber.setValue('SN-A');
@@ -126,7 +156,10 @@ describe('StalkerPortalImportComponent identity handling', () => {
             },
             // Credentials ride along for portals that answer get_profile
             // with status 2 (login/password required).
-            { credentials: { username: '', password: '' } }
+            {
+                signal: expect.any(AbortSignal),
+                credentials: { username: '', password: '' },
+            }
         );
 
         const playlist = store.dispatch.mock.calls[0][0].playlist;
@@ -170,7 +203,10 @@ describe('StalkerPortalImportComponent identity handling', () => {
             'https://portal.example.com/stalker_portal/c',
             '00:1A:79:AA:BB:CC',
             {},
-            { credentials: { username: '', password: '' } }
+            {
+                signal: expect.any(AbortSignal),
+                credentials: { username: '', password: '' },
+            }
         );
 
         const playlist = store.dispatch.mock.calls[0][0].playlist;
@@ -203,7 +239,10 @@ describe('StalkerPortalImportComponent identity handling', () => {
             expect.any(String),
             '00:1A:79:00:00:08',
             {},
-            { credentials: { username: 'user', password: 'secret' } }
+            {
+                signal: expect.any(AbortSignal),
+                credentials: { username: 'user', password: 'secret' },
+            }
         );
         // Persisted so runtime re-auth can repeat do_auth after the portal
         // drops the session.

@@ -205,6 +205,19 @@ plain-text body). Status-less TIMEOUTS also continue (a single handler can
 hang); only connection-level failures (refused, unresolvable host) abort
 discovery, since every candidate shares the host.
 
+For a new source, the Add dialog owns the discovery result. Cancel, dismissal,
+navigation or destroying its import form aborts further discovery/authentication
+steps and suppresses persistence and feedback from late completions. An HTTP
+request already on the wire still drains normally; cancellation never pretends
+to undo a provider-side identity change. The existing persisted-source Edit
+contract below remains different because it must retain remotely pinned identity.
+
+The catalog distinguishes a failed first page from a successfully empty category
+and from an append error. Initial failures keep the selected category and filters,
+show a persistent error with Retry, and do not report zero items. Retry resets the
+host connectivity guard before reloading the same resource. Repeated clicks join
+the reset; a source, category, type, query or page change retires that retry.
+
 The playlist-info Edit dialog compares URL, MAC, username/password, serial,
 device IDs and signatures as one connection identity. A metadata-only edit
 does not run discovery; its queued write omits every connection/mode field so

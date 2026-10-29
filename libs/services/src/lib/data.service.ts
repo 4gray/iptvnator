@@ -29,9 +29,19 @@ export interface ElectronRemote {
 }
 
 export abstract class DataService {
+    /** Optional, explicit user recovery (for example trusting a TLS host). */
+    recoverPlaylistImportError(_error: unknown, _retry: () => void): boolean {
+        void _error;
+        void _retry;
+        return false;
+    }
     /** Fetches a source snapshot without dispatching an import/navigation action. */
-    fetchPlaylistDefinition(_url: string, _userAgent?: string): Promise<import('@iptvnator/shared/interfaces').Playlist> {
-        void _url; void _userAgent;
+    fetchPlaylistDefinition(
+        _url: string,
+        _userAgent?: string
+    ): Promise<import('@iptvnator/shared/interfaces').Playlist> {
+        void _url;
+        void _userAgent;
         return Promise.reject(new Error('Playlist fetching is unavailable'));
     }
     get isElectron(): boolean {

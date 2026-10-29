@@ -1,3 +1,4 @@
+import { EMPTY } from 'rxjs';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -25,7 +26,10 @@ describe('AddPlaylistDialogComponent with the real URL form', () => {
             ],
             providers: [
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
-                { provide: MatDialogRef, useValue: { close: jest.fn() } },
+                {
+                    provide: MatDialogRef,
+                    useValue: { close: jest.fn(), beforeClosed: () => EMPTY },
+                },
                 { provide: Store, useValue: { dispatch: jest.fn() } },
                 { provide: MatSnackBar, useValue: { open: jest.fn() } },
                 { provide: MAT_DIALOG_DATA, useValue: null },
