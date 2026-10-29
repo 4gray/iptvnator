@@ -100,6 +100,31 @@ describe('withSelection visible content', () => {
         ).toEqual(['Visible Night Film']);
     });
 
+    it('uses the local category row ID when an Electron category also exposes a provider ID', () => {
+        patchState(store, {
+            vodCategories: [
+                {
+                    id: 30,
+                    xtream_id: 1030,
+                    category_id: '1030',
+                    hidden: false,
+                },
+            ],
+            vodStreams: [
+                { category_id: '30', title: 'Local-ID Night Film' },
+            ],
+        });
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(30);
+
+        expect(
+            store.selectItemsFromSelectedCategory().map((item) => item.title)
+        ).toEqual(['Local-ID Night Film']);
+        expect(store.getVisibleContentByType()('vod')).toEqual(
+            store.vodStreams()
+        );
+    });
+
     it.each(['live', 'vod', 'series'] as const)(
         'reacts when all %s categories are hidden and then restored',
         (contentType) => {

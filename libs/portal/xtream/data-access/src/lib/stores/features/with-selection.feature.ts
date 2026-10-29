@@ -121,29 +121,29 @@ interface XtreamSelectionItem {
     readonly episodes?: unknown;
     readonly id?: string | number;
     readonly info?:
-        | {
-              readonly actors?: string;
-              readonly backdrop_path?: string[];
-              readonly cast?: string;
-              readonly country?: string;
-              readonly cover?: string;
-              readonly description?: string;
-              readonly director?: string;
-              readonly duration?: string;
-              readonly episode_run_time?: number | string;
-              readonly genre?: string;
-              readonly movie_image?: string;
-              readonly name?: string;
-              readonly plot?: string;
-              readonly rating?: number | string;
-              readonly rating_imdb?: string;
-              readonly rating_kinopoisk?: string;
-              readonly releaseDate?: string;
-              readonly releasedate?: string;
-              readonly youtube_trailer?: string;
-          }
-        | []
-        | null;
+    | {
+        readonly actors?: string;
+        readonly backdrop_path?: string[];
+        readonly cast?: string;
+        readonly country?: string;
+        readonly cover?: string;
+        readonly description?: string;
+        readonly director?: string;
+        readonly duration?: string;
+        readonly episode_run_time?: number | string;
+        readonly genre?: string;
+        readonly movie_image?: string;
+        readonly name?: string;
+        readonly plot?: string;
+        readonly rating?: number | string;
+        readonly rating_imdb?: string;
+        readonly rating_kinopoisk?: string;
+        readonly releaseDate?: string;
+        readonly releasedate?: string;
+        readonly youtube_trailer?: string;
+    }
+    | []
+    | null;
     readonly last_modified?: string;
     readonly movie_data?: {
         readonly name?: string;
@@ -319,8 +319,8 @@ export function withSelection() {
                     contentType === 'live'
                         ? storeAny.liveStreams?.() || []
                         : contentType === 'vod'
-                          ? storeAny.vodStreams?.() || []
-                          : storeAny.serialStreams?.() || [];
+                            ? storeAny.vodStreams?.() || []
+                            : storeAny.serialStreams?.() || [];
 
                 // API-backed data sources do not support category visibility;
                 // preserve streams with missing or unknown category IDs there.
@@ -332,13 +332,13 @@ export function withSelection() {
                     contentType === 'live'
                         ? storeAny.liveCategories?.() || []
                         : contentType === 'vod'
-                          ? storeAny.vodCategories?.() || []
-                          : storeAny.serialCategories?.() || [];
+                            ? storeAny.vodCategories?.() || []
+                            : storeAny.serialCategories?.() || [];
                 const visibleCategoryIds = new Set(
                     categories
                         .filter((category) => !category.hidden)
                         .map((category) =>
-                            Number(category.category_id ?? category.id)
+                            Number(category.id ?? category.xtream_id ?? category.category_id)
                         )
                 );
 
@@ -422,20 +422,30 @@ export function withSelection() {
                 const sortMode = store.contentSortMode();
                 const searchTerm = store.categorySearchTerm();
 
+
                 if (categoryType === 'vod' || categoryType === 'series') {
                     const minRating = store.minRating();
-                    let filtered = categoryId
-                        ? getVisibleContentForType(categoryType).filter(
-                              (item) => Number(item.category_id) === categoryId
-                          )
-                        : sortedContent();
+
+                    // Preserve the existing cached full-catalogue sort when no filters apply.
+                    if (!categoryId && !searchTerm && !minRating) {
+                        return sortedContent();
+                    }
+
+                    // Filter first, then sort the smaller result set only once.
+                    let filtered = getVisibleContentForType(categoryType);
+
+                    if (categoryId) {
+                        filtered = filtered.filter(
+                            (item) => Number(item.category_id) === categoryId
+                        );
+                    }
 
                     filtered = filterBySearchTerm(filtered, searchTerm);
                     filtered = filterByMinRating(filtered, minRating);
-                    return categoryId || searchTerm || minRating
-                        ? sortByMode(filtered, sortMode, categoryType)
-                        : filtered;
+
+                    return sortByMode(filtered, sortMode, categoryType);
                 }
+
 
                 if (!categoryId) {
                     return filterBySearchTerm(sortedContent(), searchTerm);
@@ -501,8 +511,8 @@ export function withSelection() {
                         categoryType === 'live'
                             ? storeAny.liveStreams?.() || []
                             : categoryType === 'vod'
-                              ? storeAny.vodStreams?.() || []
-                              : storeAny.serialStreams?.() || [];
+                                ? storeAny.vodStreams?.() || []
+                                : storeAny.serialStreams?.() || [];
 
                     return content.find(
                         (item) =>
@@ -564,8 +574,8 @@ export function withSelection() {
                     return type === 'live'
                         ? liveItemCounts()
                         : type === 'vod'
-                          ? vodItemCounts()
-                          : seriesItemCounts();
+                            ? vodItemCounts()
+                            : seriesItemCounts();
                 }),
 
                 /**
@@ -579,8 +589,8 @@ export function withSelection() {
                     return type === 'live'
                         ? storeAny.liveCategories?.() || []
                         : type === 'vod'
-                          ? storeAny.vodCategories?.() || []
-                          : storeAny.serialCategories?.() || [];
+                            ? storeAny.vodCategories?.() || []
+                            : storeAny.serialCategories?.() || [];
                 }),
             };
         }),

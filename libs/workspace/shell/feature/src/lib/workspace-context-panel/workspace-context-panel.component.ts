@@ -671,7 +671,7 @@ export class WorkspaceContextPanelComponent {
 
         const context = this.context();
         const section = this.section();
-        const rawCategoryId = category.category_id ?? category.id;
+        const rawCategoryId = category.id ?? category.category_id;
         if (rawCategoryId === undefined || rawCategoryId === null) {
             return;
         }
