@@ -1592,6 +1592,11 @@ heavier faces would exceed the initial-bytes ratchet).
   `be` and `zhtw` to `zh-TW`), so `hyphens`, `text-transform` (Turkish İ) and
   Han glyph fallback use the right locale.
 
+Native navigation buttons inherit the app font family in `_nav-list.scss`,
+then apply the shared 14px/500 normal and 600 selected roles. Category
+consumers must not reset these with a later `font: inherit` shorthand. Different
+content rows retain their own typography and density.
+
 ## Theme Guidance
 
 ### Light Theme
