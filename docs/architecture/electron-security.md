@@ -60,6 +60,16 @@ Do not add broad protocol allow-lists for renderer navigation. If a new
 desktop-only flow needs to open a URL outside IPTVnator, route it through the
 default browser unless the app window is deliberately meant to host that URL.
 
+## Desktop Maintenance Commands
+
+Native application menu commands use the push-only `APP:MENU_ACTION` channel.
+The preload accepts only `settings` and `check-for-updates`, retains the latest
+command until Angular subscribes, and exposes an unsubscribe function. The
+renderer chooses the settings route through Angular's router and retains its
+unsaved-changes guards; the native menu never supplies an arbitrary URL. Menu
+clicks during initial loading wait for the preload, and a command with no live
+window reactivates the application before delivery.
+
 ## Window Back Gestures
 
 `apps/electron-backend/src/app/services/window-back-gestures.ts` forwards the

@@ -1,3 +1,4 @@
+import { createAppMenuListener } from './app-menu-listener';
 import type {
     ElectronBridgeFavoriteReorderUpdate,
     XtreamFavoriteRemovalRef,
@@ -301,6 +302,7 @@ const frameZoomPorts = {
 };
 
 const electronApi: ElectronBridgeApi = {
+    onAppMenuAction: createAppMenuListener(ipcRenderer),
     sourceSyncConnection: () => {
         const result = ipcRenderer.sendSync(SOURCE_SYNC_CONNECTION);
         if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');

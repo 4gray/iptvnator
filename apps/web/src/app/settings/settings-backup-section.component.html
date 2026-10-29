@@ -20,7 +20,7 @@
                     <button
                         mat-flat-button
                         class="inline-actions__button"
-                        [disabled]="isRemovingAllPlaylists() || isExportingData()"
+                        [disabled]="unavailable() || isRemovingAllPlaylists() || isExportingData()"
                         (click)="
                             $event.preventDefault();
                             $event.stopPropagation();
@@ -33,7 +33,7 @@
                         mat-flat-button
                         class="inline-actions__button"
                         [class.inline-actions__button--busy]="isExportingData()"
-                        [disabled]="isRemovingAllPlaylists() || isExportingData()"
+                        [disabled]="unavailable() || isRemovingAllPlaylists() || isExportingData()"
                         [attr.aria-busy]="isExportingData()"
                         (click)="
                             $event.preventDefault();

@@ -2132,6 +2132,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "Güncellemeleri denetle",
+        "SETTINGS_LIMITED": "Kayıtlı kaynakları kullanan işlemler kitaplık yüklenene kadar kullanılamaz. Diğer ayarlar kullanılabilir.",
         "PREPARING": "Kitaplığınız hazırlanıyor",
         "PREPARING_DETAIL": "Kaynaklar yükleniyor ve program rehberi kontrol ediliyor. Büyük kitaplıklar biraz daha uzun sürebilir.",
         "FAILED": "Kaynaklarınız yüklenemedi",

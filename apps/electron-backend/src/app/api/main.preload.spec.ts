@@ -346,7 +346,9 @@ describe('main preload DB IPC contract', () => {
         };
 
         const unsubscribe = api.onDbOperationEvent(callback) as () => void;
-        const handler = mockIpcRenderer.on.mock.calls[0][1];
+        const handler = mockIpcRenderer.on.mock.calls.find(
+            ([channel]) => channel === 'DB_OPERATION_EVENT'
+        )![1];
 
         handler({}, event);
 
@@ -410,7 +412,9 @@ describe('main preload DB IPC contract', () => {
         const callback = jest.fn();
 
         api.onDbSaveContentProgress(callback);
-        const handler = mockIpcRenderer.on.mock.calls[0][1];
+        const handler = mockIpcRenderer.on.mock.calls.find(
+            ([channel]) => channel === 'DB_OPERATION_EVENT'
+        )![1];
 
         handler({}, { operation: 'delete-playlist', status: 'progress' });
         handler({}, { operation: 'save-content', status: 'started' });

@@ -2132,6 +2132,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "Procurar atualizações",
+        "SETTINGS_LIMITED": "As ações que utilizam fontes guardadas ficam indisponíveis até a biblioteca carregar. As restantes definições continuam disponíveis.",
         "PREPARING": "A preparar a biblioteca",
         "PREPARING_DETAIL": "A carregar as fontes e a verificar o guia de programação. Bibliotecas grandes podem demorar mais.",
         "FAILED": "Não foi possível carregar as fontes",

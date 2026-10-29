@@ -1,3 +1,8 @@
+import { Store } from '@ngrx/store';
+import {
+    PlaylistActions,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import {
     Component,
     computed,
@@ -137,6 +142,14 @@ export class SettingsComponent
     readonly backup = inject(SettingsBackupFacade);
     readonly embeddedMpv = inject(SettingsEmbeddedMpvFacade);
     readonly epg = inject(SettingsEpgFacade);
+    private readonly libraryStore = inject(Store);
+    readonly libraryReady = this.libraryStore.selectSignal(
+        selectPlaylistsLoadingFlag
+    );
+    retryLibrary(): void {
+        this.libraryStore.dispatch(PlaylistActions.loadPlaylists());
+    }
+
     readonly form = inject(SettingsFormFacade);
     readonly parentalLock = inject(SettingsParentalLockFacade);
     readonly playlistReset = inject(SettingsPlaylistResetFacade);

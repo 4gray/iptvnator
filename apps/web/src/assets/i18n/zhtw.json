@@ -2132,6 +2132,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "檢查更新",
+        "SETTINGS_LIMITED": "在資料庫載入完成之前，使用已儲存來源的操作暫時無法使用。其他設定仍可使用。",
         "PREPARING": "正在準備媒體庫",
         "PREPARING_DETAIL": "正在載入來源並檢查節目指南。較大的媒體庫可能需要更長時間。",
         "FAILED": "無法載入來源",

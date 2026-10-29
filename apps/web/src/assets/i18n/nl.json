@@ -2132,6 +2132,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "Controleren op updates",
+        "SETTINGS_LIMITED": "Acties die opgeslagen bronnen gebruiken zijn niet beschikbaar totdat de bibliotheek is geladen. Andere instellingen blijven beschikbaar.",
         "PREPARING": "Bibliotheek voorbereiden",
         "PREPARING_DETAIL": "Bronnen laden en de programmagids controleren. Grote bibliotheken kunnen wat meer tijd kosten.",
         "FAILED": "Je bronnen konden niet worden geladen",

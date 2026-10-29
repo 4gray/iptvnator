@@ -1,5 +1,28 @@
 # Workspace Shell
 
+## Startup recovery and desktop menus
+
+Source inventory readiness gates library views, but never sign-in or any
+`/workspace/settings` section. A failed source read offers Retry, Open settings
+and, when the update bridge is present, Check for updates. The richer recovery
+controls and version/channel information load only on failure; native fallback
+buttons remain usable if that chunk cannot load.
+
+Desktop Settings (`Cmd/Ctrl+,`) and Check for Updates commands use the same
+renderer maintenance service. A manual update check opens About, which already
+renders checking, no-update, error, download and install states. Router
+navigation preserves the unsaved-settings guard; checks use the saved update
+channel. macOS places commands in the application menu; Windows/Linux place
+Settings in Edit and update checking in Help. Native custom labels use the OS
+locale's bundled translations, falling back to English.
+
+Settings remain browsable while sources are pending or unavailable. A notice
+offers a retry; backup, parental-lock and XMLTV source actions that require the
+library are disabled. Ordinary preferences and update controls stay available,
+subject to their existing runtime capabilities. `startup-recovery.e2e.ts`
+exercises screen and native-menu recovery through a real Electron source-read
+failure, including light/dark rendering.
+
 This document records the current workspace-first shell contract. It is the
 stable replacement for the older UI refactor summary.
 

@@ -2132,6 +2132,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "Check for updates",
+        "SETTINGS_LIMITED": "Actions that use saved sources are unavailable until your library loads. Other settings remain available.",
         "PREPARING": "Preparing your library",
         "PREPARING_DETAIL": "Loading your sources and checking the programme guide. Large libraries may take a little longer.",
         "FAILED": "Your sources could not be loaded",

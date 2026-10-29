@@ -1,3 +1,4 @@
+export type ElectronBridgeAppMenuAction = 'settings' | 'check-for-updates';
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
 import type { PortalRequestFailureEnvelope } from './portal-request-failure.util';
@@ -743,9 +744,23 @@ export interface ElectronRecordingItem {
 }
 
 export interface ElectronBridgeApi {
-    sourceSyncConnection?: () => import('./source-sync.interface').SourceServerConnection | null;
-    sourceSyncRequest?: (request: import('./source-sync.interface').SourceServerRequest) => Promise<import('./source-sync.interface').SourceServerResponse>;
-    sourceSyncConfigure?: (url: string, token: string, restart: boolean) => Promise<import('./source-sync.interface').SourceServerConnection & { tokenPersisted: boolean }>;
+    onAppMenuAction: (
+        callback: (action: ElectronBridgeAppMenuAction) => void
+    ) => () => void;
+    sourceSyncConnection?: () =>
+        import('./source-sync.interface').SourceServerConnection | null;
+    sourceSyncRequest?: (
+        request: import('./source-sync.interface').SourceServerRequest
+    ) => Promise<import('./source-sync.interface').SourceServerResponse>;
+    sourceSyncConfigure?: (
+        url: string,
+        token: string,
+        restart: boolean
+    ) => Promise<
+        import('./source-sync.interface').SourceServerConnection & {
+            tokenPersisted: boolean;
+        }
+    >;
     sourceSyncDisconnect?: () => Promise<void>;
     sourceSyncLocalSources?: () => Promise<Playlist[]>;
     onSourceSyncResume?: (callback: () => void) => () => void;
