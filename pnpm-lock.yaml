@@ -191,11 +191,11 @@ importers:
         specifier: 3.1.0
         version: 3.1.0
       video.js:
-        specifier: 8.24.1
-        version: 8.24.1
+        specifier: 8.24.2
+        version: 8.24.2
       videojs-contrib-quality-levels:
         specifier: 4.1.0
-        version: 4.1.0(video.js@8.24.1)
+        version: 4.1.0(video.js@8.24.2)
       videojs-quality-selector-hls:
         specifier: 1.1.1
         version: 1.1.1
@@ -10153,8 +10153,9 @@ packages:
   video.js@7.21.7:
     resolution: {integrity: sha512-T2s3WFAht7Zjr2OSJamND9x9Dn2O+Z5WuHGdh8jI5SYh5mkMdVTQ7vSRmA5PYpjXJ2ycch6jpMjkJEIEU2xxqw==}
 
-  video.js@8.24.1:
-    resolution: {integrity: sha512-Qh2WxVyiw6BEvpS95KCoZM8wt10r2iDvembOjHPftVcxY4QR53WVTDQlJEuI1J46Yo9Zw+6rRDIe62C+J+edfQ==}
+  video.js@8.24.2:
+    resolution: {integrity: sha512-Ya8gFnxWxr/m8YYdOOjOqsAVLtbZ4/RI6Vpqn4KoAFdKBjl8vy5KXF/n7Z4GqPtArBG05/Z71WX6/gZS3HWLbg==}
+    engines: {node: ^22.13.0 || >=24}
 
   videojs-contrib-quality-levels@4.1.0:
     resolution: {integrity: sha512-TfrXJJg1Bv4t6TOCMEVMwF/CoS8iENYsWNKip8zfhB5kTcegiFYezEA0eHAJPU64ZC8NQbxQgOwAsYU8VXbOWA==}
@@ -14892,7 +14893,7 @@ snapshots:
       mux.js: 6.0.1
       video.js: 7.21.7
 
-  '@videojs/http-streaming@3.17.5(video.js@8.24.1)':
+  '@videojs/http-streaming@3.17.5(video.js@8.24.2)':
     dependencies:
       '@babel/runtime': 7.29.10
       '@videojs/vhs-utils': 4.1.2
@@ -14901,7 +14902,7 @@ snapshots:
       m3u8-parser: 7.2.0
       mpd-parser: 1.4.0
       mux.js: 7.1.0
-      video.js: 8.24.1
+      video.js: 8.24.2
 
   '@videojs/vhs-utils@3.0.5':
     dependencies:
@@ -21814,10 +21815,10 @@ snapshots:
       videojs-font: 3.2.0
       videojs-vtt.js: 0.15.5
 
-  video.js@8.24.1:
+  video.js@8.24.2:
     dependencies:
       '@babel/runtime': 7.29.10
-      '@videojs/http-streaming': 3.17.5(video.js@8.24.1)
+      '@videojs/http-streaming': 3.17.5(video.js@8.24.2)
       '@videojs/vhs-utils': 4.1.2
       '@videojs/xhr': 2.7.0
       aes-decrypter: 4.0.2
@@ -21825,14 +21826,14 @@ snapshots:
       m3u8-parser: 7.2.0
       mpd-parser: 1.4.0
       mux.js: 7.1.0
-      videojs-contrib-quality-levels: 4.1.0(video.js@8.24.1)
+      videojs-contrib-quality-levels: 4.1.0(video.js@8.24.2)
       videojs-font: 4.2.0
       videojs-vtt.js: 0.15.5
 
-  videojs-contrib-quality-levels@4.1.0(video.js@8.24.1):
+  videojs-contrib-quality-levels@4.1.0(video.js@8.24.2):
     dependencies:
       global: 4.4.0
-      video.js: 8.24.1
+      video.js: 8.24.2
 
   videojs-font@3.2.0: {}
 
@@ -21841,8 +21842,8 @@ snapshots:
   videojs-quality-selector-hls@1.1.1:
     dependencies:
       global: 4.4.0
-      video.js: 8.24.1
-      videojs-contrib-quality-levels: 4.1.0(video.js@8.24.1)
+      video.js: 8.24.2
+      videojs-contrib-quality-levels: 4.1.0(video.js@8.24.2)
 
   videojs-vtt.js@0.15.5:
     dependencies:
