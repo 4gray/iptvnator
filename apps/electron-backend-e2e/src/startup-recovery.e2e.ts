@@ -97,7 +97,9 @@ test('recovers settings and updates from a failed source read @electron @setting
         });
         await expect(page.getByTestId('startup-open-settings')).toBeVisible();
         await expect(page.locator('mat-snack-bar-container')).toBeHidden();
-        await page.screenshot({ path: '/tmp/iptvnator-recovery-dark.png' });
+        await page.screenshot({
+            path: test.info().outputPath('recovery-dark.png'),
+        });
         await expect(
             page.getByRole('button', { name: 'Open settings', exact: true })
         ).toBeVisible();
@@ -111,7 +113,9 @@ test('recovers settings and updates from a failed source read @electron @setting
         });
         await expect(page.getByTestId('startup-check-updates')).toBeVisible();
         await expect(page.locator('mat-snack-bar-container')).toBeHidden();
-        await page.screenshot({ path: '/tmp/iptvnator-recovery-light.png' });
+        await page.screenshot({
+            path: test.info().outputPath('recovery-light.png'),
+        });
         await page.getByTestId('startup-check-updates').click();
         await expect(page.getByTestId('app-update-status-chip')).toHaveText(
             'Up to date'
