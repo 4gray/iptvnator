@@ -5,6 +5,7 @@ import { BackendConnection } from './backend-connection';
 import { DirectAccessProbe } from './direct-probe';
 import { TmdbSettings } from './tmdb-settings';
 import { SettingsPreferences } from './settings-preferences';
+import { AboutDeveloper } from './about';
 import {
     settingsCategories,
     SettingsMemory,
@@ -103,6 +104,8 @@ export function Settings({
                                 key={`tmdb:${phoneRevision}`}
                                 tv={tv}
                             />
+                        ) : id === 'about' ? (
+                            <AboutDeveloper />
                         ) : (
                             <>
                                 <h2>Your remote</h2>
