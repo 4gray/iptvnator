@@ -158,7 +158,7 @@ export class ElectronService extends DataService {
         url: string,
         userAgent?: string
     ): Promise<Playlist> {
-        return window.electron.fetchPlaylistByUrl(url, '', {
+        return window.electron.fetchPlaylistByUrl(url, undefined, {
             ...this.settingsStore.getTrustOptions(),
             userAgent,
         });

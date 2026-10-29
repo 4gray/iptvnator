@@ -2,6 +2,10 @@ import { DestroyRef, inject, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DataService } from '@iptvnator/services';
+import {
+    measureRendererPerformancePhase,
+    RENDERER_PERFORMANCE_PHASE,
+} from '@iptvnator/shared/logging';
 
 export interface UrlPlaylistDraft {
     playlistUrl: string;
@@ -40,13 +44,17 @@ export function createUrlPlaylistImport() {
             );
             if (!current()) return;
             const title = draft.playlistName?.trim();
-            store.dispatch(
-                PlaylistActions.handleAddingPlaylistByUrl({
-                    isTemporary: false,
-                    playlist: title
-                        ? { ...playlist, title, filename: title }
-                        : playlist,
-                })
+            measureRendererPerformancePhase(
+                RENDERER_PERFORMANCE_PHASE.M3U_IMPORT_DISPATCH,
+                () =>
+                    store.dispatch(
+                        PlaylistActions.handleAddingPlaylistByUrl({
+                            isTemporary: false,
+                            playlist: title
+                                ? { ...playlist, title, filename: title }
+                                : playlist,
+                        })
+                    )
             );
             completed();
         } catch (error) {

@@ -418,6 +418,22 @@ describe('ElectronService', () => {
         );
     });
 
+    it('requests the automatic URL title when acquiring a definition without a title', async () => {
+        electronBridge.fetchPlaylistByUrl.mockImplementation(
+            (_url: string, title?: string) =>
+                Promise.resolve({ title: title ?? 'list.m3u' })
+        );
+        const result = await service.fetchPlaylistDefinition(
+            'https://example.test/list.m3u'
+        );
+        expect(result.title).toBe('list.m3u');
+        expect(electronBridge.fetchPlaylistByUrl).toHaveBeenCalledWith(
+            'https://example.test/list.m3u',
+            undefined,
+            expect.any(Object)
+        );
+    });
+
     it('redacts credentials from backend player errors before logging', () => {
         const secret = 'player-error-token-secret';
         const listener = electronBridge.onPlayerError.mock.calls[0][0];

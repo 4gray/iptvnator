@@ -89,6 +89,32 @@ async function openForm(page: Page, method: RegExp) {
     return dialog;
 }
 
+test('M3U URL without an optional title keeps its URL-derived name', async ({
+    dataDir,
+}) => {
+    const source = await faultSource();
+    source.state.m3u = 'ok';
+    const launched = await launchElectronApp(dataDir);
+    const page = launched.mainWindow;
+    try {
+        const dialog = await openForm(page, /M3U URL/);
+        await dialog
+            .getByRole('textbox', { name: /Playlist URL/ })
+            .fill(source.origin + '/list.m3u');
+        await dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click();
+        await expect(dialog).toBeHidden();
+        await page.getByRole('link', { name: 'Sources', exact: true }).click();
+        await expect(page.locator('app-source-row')).toHaveCount(1);
+        await expect(page.locator('app-source-row')).toContainText('list.m3u');
+    } finally {
+        await closeElectronApp(launched);
+        source.release();
+        await source.close();
+    }
+});
+
 test('M3U error keeps input, pending submit is single-flight, Cancel retires late IPC', async ({
     dataDir,
 }, testInfo) => {
