@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import sharp = require('sharp');
+import sharp from 'sharp';
 import { expect } from './fixtures';
 
 export async function applyUiTheme(page: Page, dark: boolean) {
