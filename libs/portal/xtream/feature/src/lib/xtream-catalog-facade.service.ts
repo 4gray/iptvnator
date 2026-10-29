@@ -48,7 +48,12 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
             return null;
         }
         const category = this.selectedCategory();
-        return String(category?.['name'] ?? category?.['title'] ?? '');
+        return String(
+            category?.['name'] ??
+                category?.['title'] ??
+                category?.['category_name'] ??
+                ''
+        );
     });
     readonly categoryItemCount = computed(
         () => this.xtreamStore.selectItemsFromSelectedCategory().length

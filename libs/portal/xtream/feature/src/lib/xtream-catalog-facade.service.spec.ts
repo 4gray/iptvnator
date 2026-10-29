@@ -130,6 +130,31 @@ describe('XtreamCatalogFacadeService', () => {
         expect(service.selectedCategoryTitle()).toBeNull();
     });
 
+    it.each(['vod', 'series'] as const)(
+        'titles a raw PWA %s category without relying on the desktop shape',
+        (type) => {
+            contentType.set(type);
+            selectedCategory.set({
+                category_id: '11',
+                category_name: 'Международное кино · Culture & cinéma',
+                parent_id: 0,
+            });
+
+            expect(service.selectedCategoryTitle()).toBe(
+                'Международное кино · Culture & cinéma'
+            );
+        }
+    );
+
+    it('preserves normalized title precedence and the all-items fallback', () => {
+        selectedCategory.set({ name: 'Desktop', category_name: 'Provider' });
+        expect(service.selectedCategoryTitle()).toBe('Desktop');
+        selectedCategory.set({ title: 'Legacy', category_name: 'Provider' });
+        expect(service.selectedCategoryTitle()).toBe('Legacy');
+        selectedCategoryId.set(null);
+        expect(service.selectedCategoryTitle()).toBeNull();
+    });
+
     it('delegates category search to the Xtream store', () => {
         service.setSearchQuery('matrix');
 

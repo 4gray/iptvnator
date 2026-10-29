@@ -37,6 +37,11 @@ See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
 [Portal Detail Navigation](./portal-detail-navigation.md), and
 [VOD Multi-Source](./vod-multi-source.md).
 
+Catalog category titles accept the desktop `name`/`title` fields and the raw
+PWA `category_name` field in `XtreamCatalogFacadeService`. The all-items title
+remains a view-owned localized fallback when no category is selected; the
+shared catalog header does not normalize provider payloads itself.
+
 ## Cached Catalog Status And Scroll Ownership
 
 When an initialized catalog remains available, Xtream shows one status strip
