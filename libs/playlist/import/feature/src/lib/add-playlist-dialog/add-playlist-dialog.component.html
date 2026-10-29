@@ -17,6 +17,9 @@
                     class="apd-method"
                     [disabled]="urlImport.pending()"
                     [class.active]="method() === opt.value"
+                    [attr.aria-describedby]="
+                        method() === opt.value ? 'apd-method-help' : null
+                    "
                     (click)="selectMethod(opt.value)"
                 >
                     <span class="apd-method__icon" aria-hidden="true">
@@ -25,12 +28,12 @@
                     <span class="apd-method__title">
                         {{ opt.labelKey | translate }}
                     </span>
-                    <span class="apd-method__sub">
-                        {{ opt.subKey | translate }}
-                    </span>
                 </button>
             }
         </div>
+        <p id="apd-method-help" class="apd-method-help">
+            {{ selectedMethod().subKey | translate }}
+        </p>
 
         <div class="apd-form-area" (input)="urlImport.clearError()">
             @if (urlImport.pending()) {

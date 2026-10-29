@@ -112,6 +112,15 @@ fullscreen (the host-supplied `fullscreenTarget`, else its own shell) so the
 recovery actions remain reachable. Clearing the diagnostic restores those paths; it
 does not make the controls contract an owner of the recovery lifecycle.
 
+Video.js HLS has a separate nonterminal waiting notice. After 15 seconds of
+unpaused waiting with insufficient buffered data, it explains the delay and
+offers Retry through the host's current playback binding. VHS keeps its own
+automatic retries; the notice neither emits a terminal diagnostic nor pauses
+the engine. Playback progress, pause, error, end, source replacement and teardown
+clear it. A current binding can request another retry after a later wait;
+callbacks from retired bindings cannot retry a newer source. Both the native
+Video.js controls and shared-controls mode keep this action available.
+
 ## Why this exists
 
 Historically each playback engine owned both media integration and controls UI.

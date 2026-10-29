@@ -45,11 +45,10 @@ import { TextImportComponent } from '../text-import/text-import.component';
 import { UrlUploadComponent } from '../url-upload/url-upload.component';
 import { XtreamCodeImportComponent } from '../xtream-code-import/xtream-code-import.component';
 import { createUrlPlaylistImport } from './url-playlist-import';
+import { createImportDrafts } from './import-drafts';
 
 /**
- * Flat 5-method option model — replaces the prior category × subtype matrix
- * (M3U/Xtream/Stalker × URL/File/Text) which created 9 combinations of which
- * only 5 were real. Now each entry IS a method, no nesting.
+ * Flat connection-method model: each entry selects one form without nesting.
  */
 export interface PlaylistMethodOption {
     value: PlaylistType;
@@ -108,6 +107,13 @@ export class AddPlaylistDialogComponent {
     readonly xtreamImport = viewChild(XtreamCodeImportComponent);
     readonly stalkerImport = viewChild(StalkerPortalImportComponent);
     readonly autoImport = viewChild(AutoImportComponent);
+    private readonly drafts = createImportDrafts({
+        url: this.urlUpload,
+        xtream: this.xtreamImport,
+        stalker: this.stalkerImport,
+        text: this.textImport,
+        file: this.fileUpload,
+    });
 
     readonly method = signal<PlaylistType>('url');
     readonly urlImport = createUrlPlaylistImport();
@@ -181,12 +187,18 @@ export class AddPlaylistDialogComponent {
      * buttons key off this; keeping the name avoids churn in 5 case branches.
      */
     readonly playlistType = computed<PlaylistType>(() => this.method());
+    readonly selectedMethod = computed(() =>
+        this.methodOptions.find((option) => option.value === this.method())!
+    );
 
     constructor() {
         if (this.data?.type) {
             this.method.set(this.data.type);
         }
-        effect(() => this.applyPendingPrefill());
+        effect(() => {
+            this.drafts.restore();
+            this.applyPendingPrefill();
+        });
         afterRenderEffect(() => {
             if (this.urlImport.errorKey())
                 this.urlFeedback()?.nativeElement.scrollIntoView?.({
@@ -196,6 +208,7 @@ export class AddPlaylistDialogComponent {
         const cancel = () => {
             this.urlImport.cancel();
             this.stalkerImport()?.cancelPendingImport?.();
+            this.drafts.clearAll();
         };
         inject(DestroyRef).onDestroy(cancel);
         this.dialogRef
@@ -224,14 +237,17 @@ export class AddPlaylistDialogComponent {
     onCandidateSelected(candidate: ProviderImportCandidate): void {
         this.pendingPrefill.set(candidate);
         this.selectMethod(METHOD_BY_CANDIDATE_KIND[candidate.kind]);
+        this.drafts.discard(METHOD_BY_CANDIDATE_KIND[candidate.kind]);
     }
 
     selectMethod(method: PlaylistType): void {
         if (method === this.method()) return;
+        this.drafts.capture(this.method());
         this.urlImport.cancel();
         this.urlImport.clearError();
         this.stalkerImport()?.cancelPendingImport?.();
         this.method.set(method);
+        this.drafts.request(method);
     }
 
     private applyPendingPrefill(): void {
@@ -400,6 +416,7 @@ export class AddPlaylistDialogComponent {
     }
 
     closeDialog(): void {
+        this.drafts.clearAll();
         this.urlImport.cancel();
         this.stalkerImport()?.cancelPendingImport?.();
         this.dialogRef.close();

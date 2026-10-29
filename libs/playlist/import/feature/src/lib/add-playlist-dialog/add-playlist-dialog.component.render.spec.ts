@@ -6,6 +6,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
+import { StalkerPortalDiscoveryService } from '@iptvnator/portal/stalker/data-access';
 import { AddPlaylistDialogComponent } from './add-playlist-dialog.component';
 
 /**
@@ -25,6 +26,10 @@ describe('AddPlaylistDialogComponent with the real URL form', () => {
                 NoopAnimationsModule,
             ],
             providers: [
+                {
+                    provide: StalkerPortalDiscoveryService,
+                    useValue: { discover: jest.fn() },
+                },
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
                 {
                     provide: MatDialogRef,
@@ -63,6 +68,82 @@ describe('AddPlaylistDialogComponent with the real URL form', () => {
         (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
             'input[formcontrolname="playlistUrl"]'
         );
+
+    it('keeps provider and URL drafts in the dialog and resets only the cleared method', async () => {
+        const component = fixture.componentInstance;
+        component.selectMethod('xtream');
+        await settle();
+        component.xtreamImport()!.form.patchValue({
+            title: 'Draft',
+            serverUrl: 'https://fixture.example',
+            username: 'draft-user',
+            password: 'draft-password',
+        });
+        component.selectMethod('url');
+        await settle();
+        component.urlUpload()!.form.patchValue({
+            playlistUrl: 'https://fixture.example/list.m3u',
+            playlistName: 'M3U draft',
+        });
+        component.selectMethod('xtream');
+        await settle();
+        expect(component.xtreamImport()!.form.getRawValue()).toMatchObject({
+            title: 'Draft',
+            username: 'draft-user',
+            password: 'draft-password',
+        });
+        expect(
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLInputElement>('#password')?.type
+        ).toBe('password');
+        component.clearCurrentForm();
+        component.selectMethod('url');
+        await settle();
+        expect(component.urlUpload()!.form.controls.playlistName.value).toBe(
+            'M3U draft'
+        );
+        component.selectMethod('xtream');
+        await settle();
+        expect(component.xtreamImport()!.form.controls.username.value).toBe('');
+    });
+
+    it('lets a newly detected candidate replace an older method draft', async () => {
+        const component = fixture.componentInstance;
+        component.selectMethod('xtream');
+        await settle();
+        component
+            .xtreamImport()!
+            .form.patchValue({ username: 'old', password: 'old' });
+        component.selectMethod('auto');
+        await settle();
+        component.onCandidateSelected({
+            kind: 'xtream',
+            confidence: 'high',
+            serverUrl: 'https://new.example',
+            username: 'new',
+            password: 'new',
+        });
+        await settle();
+        expect(component.xtreamImport()!.form.controls.username.value).toBe(
+            'new'
+        );
+    });
+
+    it('keeps an existing draft when an intermediate method has not mounted yet', async () => {
+        const component = fixture.componentInstance;
+        component.urlUpload()!.form.patchValue({ playlistName: 'Keep me' });
+        component.selectMethod('xtream');
+        await settle();
+        component.selectMethod('url');
+        component.selectMethod('text');
+        await settle();
+        component.selectMethod('url');
+        await settle();
+        expect(component.urlUpload()!.form.controls.playlistName.value).toBe(
+            'Keep me'
+        );
+    });
 
     it('enables Add once the user types a playlist URL', async () => {
         expect(addButton()?.disabled).toBe(true);

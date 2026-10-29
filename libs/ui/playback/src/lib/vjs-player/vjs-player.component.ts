@@ -52,6 +52,9 @@ import {
     getVideoJsTechVideo,
 } from './vjs-player.types';
 import { VjsVideoElementSession } from './vjs-video-element-session';
+import { VjsHlsWaitState } from './vjs-hls-wait-state';
+import { TranslatePipe } from '@ngx-translate/core';
+import { MatIcon } from '@angular/material/icon';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const debugVjsPlayer = createDevLogger('VjsPlayer');
@@ -64,6 +67,8 @@ const debugVjsPlayer = createDevLogger('VjsPlayer');
     imports: [
         PlayerControlsComponent,
         SeriesPlaybackNavigationControlsComponent,
+        TranslatePipe,
+        MatIcon,
     ],
     providers: [WebVideoControlsAdapter],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -92,6 +97,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackEnded = output<void>();
     readonly playbackStarted = output<void>();
+    readonly retryRequested = output<void>();
+    readonly hlsWait = new VjsHlsWaitState();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
@@ -211,6 +218,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
     ngOnDestroy(): void {
         this.destroyed = true;
+        this.hlsWait.clear();
         this.legacyShortcuts?.detach();
         this.legacyShortcuts = null;
         this.detachPointerFocusRelease?.();
@@ -302,6 +310,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     };
 
     private changeSource(source: VideoPlayerSource | null): void {
+        this.hlsWait.clear();
         this.playbackIssue.emit(null);
         this.controlsBridge?.clearSource();
         this.legacyTracks?.clear();
@@ -318,6 +327,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             return;
         }
         this.player.src(source);
+        const video = this.videoSession.video();
+        if (video) this.hlsWait.bind(video, source);
         this.controlsBridge?.setSource();
         this.resetCoordinator.markSourceApplied();
     }
@@ -345,6 +356,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
 
         this.player.src(source);
+        this.hlsWait.bind(video, source);
         this.controlsBridge?.setSource();
         this.legacyTracks?.bind();
         this.resetCoordinator.markSourceApplied();
@@ -373,6 +385,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             return null;
         }
         this.videoSession.bind(video);
+        this.hlsWait.bind(video, this.desiredSource);
         if (this.sharedControls) {
             if (!this.controlsBridge) {
                 this.controlsBridge = new VjsPlayerControlsBridge({

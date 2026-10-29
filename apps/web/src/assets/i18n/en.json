@@ -804,6 +804,7 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "HLS_WAIT": "Still waiting for stream data. You can keep waiting or retry.",
         "STAGE_LOADER": "Stream loading",
         "STAGE_DEMUX": "Container parsing",
         "DETAIL_STAGE": "Failure stage",

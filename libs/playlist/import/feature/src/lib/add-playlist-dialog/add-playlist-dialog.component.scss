@@ -6,140 +6,82 @@
     --apd-body: var(--app-body-color);
     --apd-muted: var(--app-muted-color);
     --apd-surface-raised: var(--app-widget-header-bg);
-    --apd-accent: var(--app-selection-color);
-    --apd-segment-track: color-mix(
-        in srgb,
-        var(--app-shell-bg) 70%,
-        transparent
-    );
-    --apd-segment-active: color-mix(
-        in srgb,
-        var(--app-widget-header-bg) 70%,
-        white 14%
-    );
 }
 
-// ─── Dialog head (title + helper subtitle) ──────────────────────────────────
-// `mat-dialog-title` carries Material's `.mdc-dialog__title` defaults, which
-// include a 40px-tall `::before` ghost element for baseline alignment plus a
-// 6px/9px asymmetric padding. Both fight our custom two-line head — kill the
-// ghost and apply explicit padding so the title shares the same 24px
-// horizontal inset as `mat-dialog-content` below.
-// ─── Method grid (5 flat cards instead of 2-level segmented control) ────────
-// One card per source method. Replaces the prior 3×3 type×subtype matrix
-// which had 9 cells of which only 5 were real (Xtream-via-file, etc. didn't
-// exist). Each card is self-describing — icon + label + one-line sub.
+// Compact radio choices keep all methods visible while the form owns the space.
 .apd-method-grid {
     display: grid;
-    // 6 methods (URL, file, Xtream, Stalker, text, auto-detect) — a 3×2
-    // grid keeps the cards wide enough for their subtitles; 5 columns left
-    // a lone orphan card on the second row.
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin: 4px 0 16px;
+    gap: 6px;
+    margin: 4px 0 8px;
 }
 
 .apd-method {
     appearance: none;
-    background: var(--apd-segment-track);
-    border: 1px solid var(--apd-border);
-    border-radius: 10px;
-    padding: 10px 11px 12px;
     display: flex;
-    flex-direction: column;
-    gap: 5px;
-    cursor: pointer;
-    text-align: left;
-    font: inherit;
-    color: var(--apd-heading);
+    align-items: center;
+    gap: 8px;
     min-width: 0;
-    // Locks every card to the same height regardless of which has the
-    // longest subtitle. Without this the URL card (short text) collapses
-    // and the Stalker/Xtream cards (longer text) push tall — selection
-    // states then look visually inconsistent.
-    min-height: 132px;
-    transition:
-        background-color 160ms ease,
-        border-color 160ms ease,
-        box-shadow 160ms ease;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--apd-border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--apd-heading);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
 
-    &:hover:not(.active) {
-        background: var(--apd-segment-active);
-        border-color: color-mix(in srgb, var(--apd-accent) 32%, transparent);
-
-        .apd-method__icon {
-            background: color-mix(in srgb, var(--apd-accent) 14%, transparent);
-            color: var(--apd-accent);
-        }
+    &:hover:not(:disabled):not(.active) {
+        background: var(--app-card-hover-bg);
     }
-
     &.active {
-        background: color-mix(in srgb, var(--apd-accent) 12%, transparent);
-        border-color: var(--apd-accent);
-        box-shadow: 0 1px 2px
-            color-mix(in srgb, var(--apd-accent) 32%, transparent);
-
-        .apd-method__icon {
-            background: color-mix(in srgb, var(--apd-accent) 22%, transparent);
-            color: var(--apd-accent);
-        }
-
-        .apd-method__title {
-            color: var(--apd-accent);
-        }
+        background: var(--app-list-selected-bg);
+        color: var(--app-list-selected-fg);
+        border-color: var(--app-list-selected-outline);
     }
-
+    &:disabled {
+        cursor: default;
+        opacity: 0.55;
+    }
     &:focus-visible {
         @include focus-ring.focus-ring-declarations($offset: 1px);
     }
 }
 
 .apd-method__icon {
-    width: 32px;
-    height: 32px;
-    display: grid;
-    place-items: center;
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--apd-surface-raised) 75%, transparent);
-    color: var(--apd-muted);
-    transition:
-        background-color 160ms ease,
-        color 160ms ease;
-
+    display: flex;
+    flex-shrink: 0;
     mat-icon {
-        font-size: 18px;
         width: 18px;
         height: 18px;
+        font-size: 18px;
         line-height: 18px;
     }
 }
-
 .apd-method__title {
     font-size: 13px;
-    font-weight: 600;
-    line-height: 1.25;
-    color: var(--apd-heading);
-    transition: color 160ms ease;
+    font-weight: 500;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
 }
-
-.apd-method__sub {
-    font-size: 11.5px;
-    color: var(--apd-muted);
+.apd-method-help {
+    margin: 0 0 16px;
+    font-size: 13px;
     line-height: 1.4;
+    color: var(--apd-body);
 }
 
-// On narrow widths the 3-column grid wraps to 2 columns to stay legible.
-// 480px keeps the dialog usable down to small modals; below that it stacks
-// fully.
-@media (max-width: 720px) {
+@media (max-width: 600px) {
     .apd-method-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-@media (max-width: 480px) {
-    .apd-method-grid {
-        grid-template-columns: minmax(0, 1fr);
+@media (max-width: 360px) {
+    // Give longer translated names the full button width on small screens.
+    .apd-method__icon {
+        display: none;
     }
 }
 
@@ -188,22 +130,5 @@
         color: var(--apd-muted);
         font-size: 11.5px;
         line-height: 1.45;
-    }
-}
-
-// ─── Light-theme segmented control tweak ────────────────────────────────────
-// `.dark-theme` is on <body>, so target light mode via `body:not(...)`.
-body:not(.dark-theme) .apd {
-    --apd-segment-track: color-mix(
-        in srgb,
-        var(--app-content-bg) 70%,
-        transparent
-    );
-    --apd-segment-active: #ffffff;
-
-    .apd-segment.active {
-        box-shadow:
-            0 1px 2px rgba(0, 0, 0, 0.06),
-            0 0 0 1px rgba(0, 0, 0, 0.06);
     }
 }

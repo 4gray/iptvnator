@@ -28,6 +28,13 @@ retired result cannot save a source or navigate. Only an owned success dispatche
 the existing add-by-URL action and closes the dialog. OS/file import admission
 and serial persistence remain on their existing paths.
 
+Switching connection methods captures each form's raw values in dialog-local
+memory and restores them after its child form mounts. This includes a selected
+file, provider identity fields and Stalker device-ID derivation. Restored password
+inputs start masked. Clear resets only the current form; choosing an auto-detected
+candidate replaces that method's earlier draft. Closing or destroying the dialog
+discards all drafts; they are never written to browser storage.
+
 ## Desktop upgrades from legacy profiles
 
 v0.19.0 stores the complete source list in IndexedDB database `iptvnator`,

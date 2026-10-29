@@ -413,7 +413,11 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.recovery.requestRecommendedPlayer(target);
     }
 
-    retryPlayback(): void {
+    retryPlayback(binding?: PlaybackBinding): void {
+        if (binding && !this.recoverySession.accepts(binding)) return;
+        // A current engine can remain buffering after an earlier manual retry.
+        // Its wait notice is a fresh user action, not a duplicate old callback.
+        if (binding) this.recoverySession.settle(binding);
         this.recovery.retryPlayback();
     }
 }

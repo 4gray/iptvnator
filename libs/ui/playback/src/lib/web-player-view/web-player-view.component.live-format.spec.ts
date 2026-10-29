@@ -153,6 +153,25 @@ describe('WebPlayerViewComponent live format integration', () => {
 
     afterEach(() => fixture.destroy());
 
+    it('routes waiting retries through the current binding, allowing another wait but ignoring retired outputs', async () => {
+        await render();
+        const current = () =>
+            fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+                .componentInstance as StubVjsPlayerComponent;
+        const old = current();
+        const before = component.reloadToken();
+        old.retryRequested.emit();
+        expect(component.reloadToken()).toBe(before + 1);
+        old.retryRequested.emit();
+        expect(component.reloadToken()).toBe(before + 1);
+        await render();
+        expect(component.vjsOptions()!.reloadToken).toBe(before + 1);
+        current().retryRequested.emit();
+        expect(component.reloadToken()).toBe(before + 2);
+        await render();
+        expect(component.vjsOptions()!.reloadToken).toBe(before + 2);
+    });
+
     it('tries advertised TS once after initial terminal HLS HTTP failure', async () => {
         fixture.componentRef.setInput('playback', {
             streamUrl: 'https://example.com/live.m3u8',

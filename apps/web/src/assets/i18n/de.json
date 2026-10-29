@@ -804,6 +804,7 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "HLS_WAIT": "Warte weiter auf Stream-Daten. Du kannst warten oder die Wiedergabe erneut versuchen.",
         "STAGE_LOADER": "Stream laden",
         "STAGE_DEMUX": "Container verarbeiten",
         "DETAIL_STAGE": "Fehlerphase",
