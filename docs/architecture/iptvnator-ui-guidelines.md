@@ -1035,6 +1035,22 @@ The Xtream series page adds an episodes section skeleton under it, and the
 Stalker series hero holds the Play button's place
 (`app-detail-action-skeleton`) while its seasons load.
 
+### Collection header layout
+
+Favorites and recently viewed keep title and icon actions together, with
+content-type and source-scope tracks in a separate filter group. At a pane
+width of 800 px or less the filters take another row; whole tracks wrap
+without shrinking their translated labels. Clear stays in the action group,
+so additional content types cannot push it outside the pane. DOM order follows
+title, actions, filters in both layouts.
+
+The first-load header uses inert, hidden translated segments with the loaded
+controls' metrics, rather than fixed English placeholder widths. Once data is
+available, only the supported type filters render. The live tab owns its
+responsive axis through the shared portal layout; its parent must not override
+the phone column with a row. Scope reloads retain the existing mounted player
+and scroll ownership described below.
+
 ### Reload with content on screen: non-destructive indicator
 
 A reload of a list that is already rendered (the collection page's

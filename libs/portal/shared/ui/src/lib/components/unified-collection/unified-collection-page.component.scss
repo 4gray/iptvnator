@@ -6,7 +6,9 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-width: 0;
     overflow: hidden;
+    container: collection-page / inline-size;
     // Shared with unified-live-tab, which renders inside this page.
     --collection-reload-dim-opacity: 0.6;
 }
@@ -31,9 +33,11 @@
 
 .collection-header {
     position: relative;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, auto) auto minmax(0, 1fr);
+    grid-template-areas: 'title actions filters';
     align-items: center;
-    gap: 12px;
+    gap: 8px 12px;
     padding: 10px 16px;
     flex-shrink: 0;
     border-bottom: 1px solid var(--app-separator);
@@ -75,35 +79,52 @@
 }
 
 .collection-title {
+    grid-area: title;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-size: 0.94rem;
     font-weight: 600;
     letter-spacing: -0.01em;
     color: var(--mat-sys-on-surface);
 }
 
-.favorites-sort-button {
-    margin-left: -4px;
+.collection-header-actions {
+    grid-area: actions;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 40px;
+
+    button {
+        flex-shrink: 0;
+    }
 }
 
 .collection-header-toggles {
+    grid-area: filters;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
-    margin-left: auto;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
 }
 
-// The loading header holds the toggles' place: a segmented control's 32px
-// frame and 10px radius, as wide as the English controls (three content
-// types; This playlist / All playlists).
+// Real translated segments reserve the same width and wrapping as the loaded
+// controls; fixed English placeholder widths clipped on narrow panes.
 .toggle-placeholder {
-    height: 32px;
-    width: 184px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
-
-    &--scope {
-        width: 222px;
+    ::ng-deep .mat-button-toggle-button {
+        visibility: hidden;
     }
+}
+
+.header-action-placeholder {
+    width: 40px;
+    height: 32px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
 }
 
 // The kit's segmented control at the small-button height, the content types
@@ -111,6 +132,25 @@
 .content-toggle,
 .scope-toggle {
     @include controls.segmented-control(26px);
+    flex-shrink: 0;
+
+    &.toggle-placeholder {
+        border-color: transparent;
+        background: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
+    }
+}
+
+@container collection-page (max-width: 800px) {
+    .collection-header {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            'title actions'
+            'filters filters';
+    }
+
+    .collection-header-toggles {
+        justify-content: flex-start;
+    }
 }
 
 app-unified-live-tab,
@@ -123,10 +163,6 @@ app-unified-grid-tab {
 app-unified-grid-tab {
     flex-direction: column;
     transition: opacity var(--collection-reload-dim-duration, 160ms) ease;
-}
-
-app-unified-live-tab {
-    flex-direction: row;
 }
 
 .empty-state {
