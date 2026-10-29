@@ -10,6 +10,9 @@
                     | translate: { count: dialogData.summary.total }
             }}
         </p>
+        @if (sharedLibrary) {
+            <p>{{ 'SOURCE_SYNC.DELETE_SHARED' | translate }}</p>
+        }
         @if (clearsServer()) {
             <p
                 class="settings-delete-dialog__lead"

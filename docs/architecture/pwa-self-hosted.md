@@ -73,8 +73,9 @@ The current self-hosted PWA uses these `apps/web-backend` routes:
 - `GET /xtream?targetId=<id>&username=<u>&password=<p>&action=<action>`
 - `GET /stalker?targetId=<id>&macAddress=<mac>&action=<action>`
 
-Server storage adds versioned routes under `/v1`, which the PWA uses in
-[server storage mode](#server-storage-mode):
+Server storage adds versioned routes under `/v1`. Source synchronization uses
+the source-specific routes below; the older whole-document/user-state routes
+remain compatible but do not enable viewing-activity synchronization:
 
 - `GET /v1/instance` (always public): `{ service, apiVersion, instanceId,
   storage: 'server' | 'none', auth: 'none' | 'token' }`
@@ -98,6 +99,28 @@ Server storage adds versioned routes under `/v1`, which the PWA uses in
   queued on another device cannot bring a deleted playlist's state back
 - `GET|PUT /v1/app-state/:key`
 
+- `GET /v1/sources`: portable source definitions and revisions, without uploaded
+  M3U bodies; collection `ETag` and conditional `304` reads
+- `GET /v1/sources/:id`: complete definition, including uploaded M3U text
+- `PUT /v1/sources/:id`: create with `If-None-Match: *`; matching source
+  fingerprints return the existing source and its ID
+- `PATCH|DELETE /v1/sources/:id`: require the current `If-Match` revision;
+  stale edits return `412`, missing revisions `428`
+- `DELETE /v1/sources`: requires the collection revision
+
+Instances with server storage advertise the additive `sources-v1` capability.
+Source mutations and legacy document mutations invalidate the same revisions.
+Revision checks and writes run synchronously in one server turn. A source
+update never upserts a deleted record. Source operations project only portable
+connection fields; embedded user/session fields in existing documents survive.
+Clients send `X-IPTVnator-Instance-Id`; a different database identity returns
+`409 instance_changed` and requires reconnecting before source mutations.
+Whole-document reads materialize raw M3U uploads for existing clients such as
+TV; lightweight metadata and source inventories still exclude those bodies.
+Those reads use the canonical channel normalizer and deterministic per-source
+channel IDs, including distinct IDs for duplicate URLs. An established browser
+can therefore adopt an upload without retaining channels that lack lookup IDs.
+
 Server storage lives in `apps/web-backend/src/app/storage/`. With
 `IPTVNATOR_STORAGE=server`, `main.ts` opens the shared database through
 `initDatabase()` (path from `IPTVNATOR_DATA_DIR`), so the server has the same
@@ -111,10 +134,8 @@ its database. Storage errors are logged by error name and code only, because
 Drizzle messages can carry bound values such as portal credentials. With
 `IPTVNATOR_ACCESS_TOKEN`, every route except `/`, `/health`, `/config.js`
 and `/v1/instance` requires `Authorization: Bearer <token>`, the proxy
-routes included; its 401 carries `WWW-Authenticate: Bearer
-realm="iptvnator"`, which a provider error passed on by the proxy never
-does; the PWA sends it once its sign-in page has stored it.
-Browser app state written through
+routes included. The PWA supplies this token only to the configured backend
+origin and API path. Browser app state written through
 `/v1/app-state` is stored under a `client:` key prefix, apart from
 server-owned keys such as the instance id.
 
@@ -141,9 +162,222 @@ web-e2e targets carry no Nx `serve` dependency, because Nx refuses a
 non-parallel task with a continuous dependency. The mock servers follow the
 same rule; see [Xtream mock Playwright integration](xtream-mock-server.md#playwright-integration).
 
-The PWA continues to use `PwaService`; only the backend base URL is resolved at
-runtime. Electron routes remain owned by the Electron backend and preload
-bridge.
+The PWA continues to use `PwaService`. A selected source server also supplies
+its backend base URL for browser provider proxy calls. Electron provider
+requests remain owned by the Electron backend and preload bridge.
+
+## Shared source library
+
+The self-hosted PWA discovers the runtime `BACKEND_URL` before Angular bootstrap.
+A stateless backend reporting `storage: none` retains standalone behavior.
+An older stateless proxy answering discovery with HTTP 404 also retains the
+original library; pending discovery can recover the same way. Confirmed server
+profiles retain their cache and recovery controls on discovery failure. If
+initial discovery was unavailable, a temporary `pending:` selection resolves
+back to the original local library after a valid stateless response. It reloads
+without disabling future discovery or overwriting a newer selection from another
+tab. Promoting a pending selection to a confirmed instance also checks that the
+saved selection still matches; a newer connect or disconnect wins. The initial
+runtime discovery probe preserves choices made by another tab while it waits.
+Confirmed source-server profiles never use the stateless fallback.
+Once a server is selected, network/authentication/compatibility errors do not
+silently select local storage. The recovery banner remains available even when
+the initial source inventory cannot load. Malformed saved connection data or
+unavailable browser storage does not prevent Angular bootstrap; a recovery
+alert links directly to the Server settings without discarding the saved data.
+An unreadable native `source-server.json` selects a separate recovery database
+and browser-storage namespace. Inventory reads fail closed while Server settings
+allow explicit reconnection or disconnection; the standalone library and prior
+server projections remain intact. Native configuration saves use a flushed
+private temporary file followed by an atomic rename.
+
+Settings → Data → Server connects a desktop or browser client, refreshes the
+library, previews/imports original local sources, and disconnects. Connection
+changes restart/reload the app. Before a forced native restart, the shared
+shutdown handler stops managed MPV/VLC and embedded-player sessions and shuts
+down the database worker; `app.exit()` itself does not emit `will-quit`.
+The original local library is retained. Imports
+send definitions only and match M3U URL/raw-text, Xtream endpoint + username,
+or Stalker endpoint + MAC fingerprints. Repeating a partial import is safe.
+
+`@iptvnator/services/source-sync` owns connection state, HTTP operations,
+conditional source writes and local projections. Startup loads the sync service
+only when a server is selected; the always-mounted status host defers its
+Material view until a connection or recovery notice is present. A native
+settings button remains available if that view chunk fails to load.
+`PlaylistStorageBackend` wraps the selected local store with `SyncedPlaylistStore`; local activity writes stay
+local. Source comparisons use SQLite's trimmed/nonempty representation for
+projected string columns, so normalized empty headers cannot turn offline
+activity into a source PATCH. Raw M3U and payload-only Stalker identity are
+compared verbatim. Nullable optional form fields are omitted from source
+definitions and compared as absent; the source API still rejects null input.
+Remote deletions run the shared cleanup hooks on both runtimes, including
+native parental-lock JSON/in-memory state in addition to SQL-owned sidecars.
+Per-source markers in profile-scoped localStorage are written before cache
+deletion. Failed hooks remain retryable after the row is gone and after restart;
+refreshes and source mutations finish this work before reusing an ID. Each ID
+has its own marker so one tab cannot overwrite another deletion's pending work.
+Bootstrap waits only for local profile readiness, then starts network
+refresh in the background. Slow URL providers cannot hold the app behind its
+splash: cached sources and settings remain accessible. An uninitialized cache
+defers its first inventory read until refresh settles. Before awaiting cleanup
+hooks, an incomplete profile releases the initialization wait so settings/EPG
+reconciliation cannot deadlock parental cleanup. The store's ready flag keeps
+rejecting incomplete inventory after a failed projection, preserving the loading
+error instead of exposing a false empty library. Server
+settings bypass the source-loading screen and remain reachable through the
+connection banner. A successful projection publishes its inventory change to
+refresh mounted views. Its collection revision advances only after the local
+initialization receipt is persisted, so a failed write retries the inventory
+instead of accepting HTTP 304 with an unreadable cache. Electron Xtream metadata
+paths in `DatabaseService` use the same wrapper.
+Accepted connection or uploaded-body edits materialize the writing client's
+projection before storing the new revision. URL fetch failures keep the row
+pending and force a later inventory retry; title-only edits retain concurrent
+channel refreshes and local activity.
+Accepted Stalker edits retain their newly negotiated session only when its
+canonical fingerprint matches the accepted full-portal connection. Remote
+connection edits still clear obsolete session/account/watchdog metadata. The
+shared fingerprint check loads lazily with source-session reconciliation.
+Changed inventories are revalidated after capturing local IDs/revisions and
+before materialization. Pruning considers only that snapshot, so a sibling
+tab's later create or replacement cannot be removed by the older response.
+Browser pruning checks the revision and marks/deletes in one IndexedDB write
+transaction. Profile-local markers block projection writes until cleanup has
+finished; conditional retry markers cannot remove a newer revision. Existing
+unconditional cleanup markers remain compatible. Ordinary HTTP 304 polls do
+not read the cached payloads. Inventory reconciliation loads lazily.
+Browser cleanup operations also claim one profile-wide owner across tabs,
+including without Web Locks. A separate empty IndexedDB database grants
+ownership only to a version upgrader; its open connection blocks the next
+upgrade until every hook settles. Same-version openers retry at a newer version.
+Closing/crashing the owner tab releases the connection, so retries do not need
+an expiring lease and cannot overtake a slow hook. Source/settings databases
+stay accessible while hooks run. Native cleanup retains its exclusive owner.
+This follows IndexedDB's [connection queue and upgrade ordering](https://w3c.github.io/IndexedDB/).
+Manual and batch M3U refreshes cannot mutate shared definitions. They retain
+their captured request URL/User-Agent and discard superseded responses, keeping
+the current name, baseline and revision. State reducers reject stale content;
+effects republish the canonical persisted row and use its current EPG inputs.
+Source IDs are the server's IDs in every local projection. Inventory views reuse
+the native payload-free metadata API. Browser metadata omits parsed/raw M3U
+and source baselines; opening a shared editor loads one complete local row
+before enabling edits and captures its revision. A visible client
+polls every 15 seconds and also refreshes on focus, reconnect, visibility and
+Electron resume. Failures back off to two minutes; rejected tokens wait for
+sign-in. Browser credentials and provider-proxy requests are held until an
+anonymous instance probe verifies the selected identity. A mismatched or failed
+refresh or an instance-change rejection from a source mutation revokes that
+verification before propagating the error; cached sources remain readable, and
+requests resume only after a successful verification or explicit reconnection.
+Network and gateway outages from either browser provider transport also revoke
+verification. The next proxy request waits for a deduplicated anonymous,
+uncached instance probe. An outage generation prevents a late response from an
+older probe from restoring authorization after a newer failure. The proxy guard
+and inventory/view subscriptions load only for a selected server or recovery.
+Browser token entries are bound to both the API address and instance ID; a
+selection changed by another tab cannot reuse the prior instance's token.
+Source API failures, including direct imports, revoke authorization at the
+transport boundary for network/parse errors, server 5xx, rejected tokens and
+instance-change responses. Namespace discovery alone does not grant access;
+the deferred authorization module requires a current successful identity probe.
+Unbound legacy entries are never forwarded automatically.
+Accepted source mutations schedule an immediate inventory refresh.
+Uploaded M3U text is fetched only for changed revisions and parsed locally;
+URL M3U snapshots are fetched through the runtime's provider transport.
+Source conversion retains channels and raw header EPG URLs from both nested
+and legacy top-level parsed M3U documents; stored raw M3U remains authoritative.
+Failed URL materialization is marked in the local row and retried even when
+the server revision has not changed, including after restart. Successful
+projection refreshes an open M3U channel list without publishing it back.
+Detected M3U EPG URLs are projected locally while manual/disabled choices
+remain device-local. Delayed activity writes retain the latest parsed source.
+Authoritative inventory replacement retains only parsed payloads, so removing
+a connection field cannot revive its previous value. Active Stalker routes
+reconcile changed connections against their persisted rows and restart the
+session/catalog only when connection fields differ. A title-only update refreshes
+the active source label while retaining its session and catalog. Xtream title
+updates likewise refresh the active source label without reimporting content. Backup restore follows
+the server's canonical source ID, including local activity and parental locks
+when a source added since the last poll deduplicates during import.
+Browser profile writes coordinate through an instance-scoped Web Lock when
+available. IndexedDB projection and activity commits also read/modify/write
+atomically, preserving activity changed by another tab during a download even
+without Web Locks. A projection captures the row's presence, source revision
+and pending state before materialization, then checks them inside its final
+write transaction. An already completed projection of the same revision is
+reused; a different revision or deletion rejects the obsolete download without
+advancing the collection revision. The next refresh retries against the current
+inventory. Activity-only changes still merge into the result.
+Single-source deletion captures the cached source revision before its server
+request; shared "delete all" captures cached IDs/revisions. Both use the same
+conditional per-source pruning and cleanup. Sources created
+or replaced by a sibling after the server accepts the deletion retain their
+local activity and locks. Settings does not follow this scoped deletion with
+an unconditional lock reset. `PlaylistsService` leaves server-mode cleanup to
+this queue, so it cannot run unconditional hooks against a replacement row.
+Browser reads carry a local metadata snapshot: a stale
+activity write raises `PlaylistWriteConflict`, and the existing playlist mutation
+retry re-reads and reapplies the edit. Source edits retain concurrent activity
+that the caller did not change. Title-only edits also retain a concurrent
+channel/EPG projection refresh unless the caller explicitly replaces its parsed
+payload. Accepted source metadata is reloaded after every
+mutation, so later edits retain their original server revision. Each client
+also notifies its views when its collection revision changes, even if a sibling
+tab has already updated or removed the shared IndexedDB projection.
+
+Browser source caches use IndexedDB `iptvnator-server:<instanceId>` and prefix
+Xtream local user-data keys with that profile. On upgrade, each activity
+namespace adopts this browser's existing `iptvnator-server:cache:<instanceId>`
+value once if the new profile has no value. Per-namespace migration markers
+preserve newer values and prevent cleared activity from being resurrected;
+the old cache remains intact. Parked Xtream restore archives adopt the matching
+legacy browser instance in the same way: strict reads verify both the scoped
+copy and its migration receipt, newer profile values win, and consumption
+cannot resurrect the original unprefixed archive. Unverified browsers and native
+profiles keep their original archives isolated. Native pending-favorites
+conversion enumerates and reads the same selected profile namespace, including
+collection-wide reads; it never falls back to standalone archives.
+This Xtream migration reads no server user-state
+and uploads nothing. An established browser with evidence of having used the
+selected instance also adopts legacy M3U/Stalker favorites, recent items,
+hidden groups, ordering and curated EPG selections once from `/v1/playlists`, before projecting source definitions. It validates
+the instance again before committing, preserves existing local rows and records
+a receipt only after success. New clients skip that adoption, and later activity
+changes remain local. Browser PIN and category locks are similarly adopted from
+the original device keys before the first profile read; migration errors keep
+the lock closed. Desktop databases live at
+`<data-root>/server-profiles/<sha256(instanceId)>/databases/iptvnator.db`;
+the original standalone database is unchanged. Profile selection is cleared
+on disconnect and on startup without a saved connection, including environment
+inherited by an Electron relaunch. Legacy automatic source recovery does not
+run through the server document-store wrapper. Desktop
+EPG ownership reconciliation uses the successful local
+`source-sync-initialized` receipt in a selected server profile, rather than a
+legacy IndexedDB migration receipt. Ordinary standalone profiles still require
+the original migration barrier. Offline clients
+retain a previously synchronized local projection; shared writes require the
+server. There is no offline mutation queue.
+
+Only source definitions synchronize: names, provider endpoints/credentials,
+configured request headers, Stalker connection identity and uploaded M3U text.
+Absolute file paths, catalog caches, Stalker session tokens, favorites,
+recently viewed, viewing progress, EPG data/settings and device preferences
+remain local. Stalker identity is retained; provider restrictions on concurrent
+sessions still apply. Synchronization does not proxy desktop media through NAS.
+Uploaded M3U shares the playlist text, not media files referenced by it. Streams
+and relative paths must remain reachable from the receiving runtime.
+
+Browser access tokens live in sessionStorage for that tab. Electron encrypts
+tokens with OS-protected `safeStorage` when available; Linux `basic_text` is
+not treated as protected storage. Otherwise the token lasts for the process
+and must be entered again after restart. Source-sync IPC accepts named
+operations, never arbitrary request paths or headers, and refuses redirects.
+The main process verifies the configured instance anonymously before sending
+tokens or source bodies. Identity, authentication and transport failures revoke
+that proof, including direct imports from an already-open preview. Recovery
+requires a fresh successful probe; an older in-flight response cannot restore
+authorization after a newer failure or profile change.
 
 Renderer code that needs to branch by runtime should use
 `RuntimeCapabilitiesService` from `@iptvnator/services` instead of adding new
@@ -183,6 +417,14 @@ MPV and VLC preload launch methods (`openInMpv` and `openInVlc`), and
 expose desktop-only actions in the PWA/shared UI.
 
 ## Server Storage Mode
+
+The sections below describe the legacy whole-document PWA integration and its
+reusable API clients. The current bootstrap does not install these providers:
+PWA and Electron now use the [shared source library](#shared-source-library).
+Viewing activity remains local; the existing user-state API stays compatible
+for explicit consumers. Do not re-enable automatic activity uploads by adding
+`provideServerStorage()` alongside source sync.
+
 
 `main.ts` probes `GET /v1/instance` before bootstrapping, and only when the
 deployment wrote a runtime `BACKEND_URL` into `window.__IPTVNATOR_CONFIG__`
@@ -437,8 +679,8 @@ these limitations explicit in UI, troubleshooting, and release notes:
   past programmes without archive actions until a manual check shows that the
   browser players play the provider's archive URL.
 - The PWA does not use the Electron SQLite database or DB worker. Playlist
-  metadata uses `PlaylistsService` with IndexedDB, which
-  `PlaylistStorageBackend` selects when no SQLite bridge exists; Xtream
+  metadata uses `PlaylistsService` with IndexedDB (a profile-specific local
+  projection when connected to a source server); Xtream
   favorites, recently viewed items, playback positions, and cached collection
   snapshots use `PwaXtreamDataSource` browser storage. In
   [server storage mode](#server-storage-mode) both live on the server
@@ -583,7 +825,7 @@ Default runtime values:
 - `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=0`
 - `NODE_EXTRA_CA_CERTS` unset
 - `IPTVNATOR_STORAGE=server`, `IPTVNATOR_DATA_DIR=/data` (a `VOLUME`)
-- `IPTVNATOR_ACCESS_TOKEN` unset, `IPTVNATOR_MAX_DOCUMENT_MB=64`
+- `IPTVNATOR_ACCESS_TOKEN` unset (optional shared token), `IPTVNATOR_MAX_DOCUMENT_MB=64`
 - `IPTVNATOR_BACKEND_START_TIMEOUT=300`: seconds the entrypoint waits for
   `/health`; the backend migrates its database before it listens
 
@@ -626,11 +868,19 @@ pnpm nx test web --runTestsByPath apps/web/src/app/services/runtime-config.spec.
 pnpm nx build web --configuration=pwa --skip-nx-cache
 pnpm nx build web-backend
 pnpm nx run web-e2e:e2e -- --project=chromium --grep @self-hosted
+pnpm nx run electron-backend-e2e:source-sync
 docker compose -f docker/docker-compose.yml config
 ```
 
 Run `docker build -t iptvnator:self-hosted-test -f docker/Dockerfile .` when a
 Docker daemon is available.
+
+Provider fixtures that use `page.route` must block Service Workers and select
+their mocked backend before navigation. An explicit runtime `BACKEND_URL`
+starts server discovery, so a stateless mock must answer `/v1/instance` with
+`storage: 'none'`. Wait for a prefilled editor to finish hydration before
+typing, and for the write acknowledgement before a hard reload. Keep the
+real-Service-Worker stylesheet test separate from these routed fixtures.
 
 For manual Docker smoke testing, run the Xtream and Stalker mock servers plus a
 small M3U fixture, then verify in the browser that M3U, Xtream, and Stalker can

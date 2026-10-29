@@ -113,6 +113,7 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsSearchResultsComponent,
         SettingsServerSectionComponent,
         SettingsTmdbSectionComponent,
+        SettingsServerSectionComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [

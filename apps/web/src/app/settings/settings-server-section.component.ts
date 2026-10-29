@@ -1,122 +1,187 @@
 import {
     ChangeDetectionStrategy,
     Component,
-    computed,
     inject,
-    output,
     signal,
-    ViewEncapsulation,
 } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { TranslatePipe } from '@ngx-translate/core';
-import { ServerStorageStatusService } from '@iptvnator/services';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { TranslateModule } from '@ngx-translate/core';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import { createRandomId, type Playlist } from '@iptvnator/shared/interfaces';
 import {
-    SERVER_STORAGE_CONFIG,
-    ServerMigrationService,
-    ServerStorageSession,
-    type ServerMigrationResult,
-} from '@iptvnator/services/server-storage';
-import type { ServerStorageStatusResponse } from '@iptvnator/shared/interfaces';
+    normalizeSourceServerUrl,
+    sourceFromPlaylist,
+} from '@iptvnator/shared/interfaces/source-definition';
+import {
+    SourceSyncService,
+    assertSourceInstance,
+    saveBrowserSourceConnection,
+    disconnectBrowserSourceConnection,
+    readLocalSourcesForImport,
+    requestSourceServer,
+} from '@iptvnator/services/source-sync';
 
-/**
- * Settings → Server: shown only when the PWA runs against self-hosted
- * server storage. Rendered without `@defer` so settings search can reveal
- * its rows on the first visit; the code rides in the lazy settings chunk.
- */
 @Component({
     selector: 'app-settings-server-section',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [provideFormFieldDefaults()],
     imports: [
+        DatePipe,
+        FormsModule,
         MatButtonModule,
-        MatIconModule,
-        MatProgressSpinnerModule,
-        TranslatePipe,
+        MatFormFieldModule,
+        MatInputModule,
+        TranslateModule,
     ],
     templateUrl: './settings-server-section.component.html',
-    encapsulation: ViewEncapsulation.None,
-    changeDetection: ChangeDetectionStrategy.OnPush,
+    styles: [
+        `
+            :host {
+                display: block;
+            }
+            .server-fields {
+                display: grid;
+                gap: 16px;
+                padding: 20px;
+            }
+            .server-actions {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+            .server-message {
+                color: var(--app-eyebrow-color);
+                overflow-wrap: anywhere;
+            }
+            button,
+            input,
+            mat-checkbox {
+                app-region: no-drag;
+            }
+        `,
+    ],
 })
 export class SettingsServerSectionComponent {
-    private readonly status = inject(ServerStorageStatusService);
-    private readonly session = inject(ServerStorageSession);
-    private readonly migration = inject(ServerMigrationService);
+    readonly sync = inject(SourceSyncService);
+    readonly busy = signal(false);
+    readonly message = signal('');
+    readonly preview = signal<Playlist[] | null>(null);
+    url = this.sync.connection?.apiUrl ?? '';
+    token = '';
 
-    readonly exportData = output<void>();
-
-    readonly state = this.status.state;
-    readonly usesToken = computed(
-        () => this.status.instance()?.auth === 'token'
-    );
-    /** The backend's origin; the page's own in Docker (`/api`). */
-    readonly address = backendOrigin(inject(SERVER_STORAGE_CONFIG).baseUrl);
-    readonly details = signal<ServerStorageStatusResponse | null>(null);
-    readonly browserPlaylistCount = signal(0);
-    readonly importing = signal(false);
-    readonly importFailed = signal(false);
-    readonly importResult = signal<ServerMigrationResult | null>(null);
-    readonly sizeLabel = computed(() =>
-        formatMegabytes(this.details()?.databaseBytes ?? 0)
-    );
-    readonly showBrowserImport = computed(
-        () => this.browserPlaylistCount() > 0 || this.importResult() !== null
-    );
-    readonly movedSomething = computed(() => {
-        const result = this.importResult();
-        return !!result && result.imported + result.merged > 0;
-    });
-
-    constructor() {
-        void this.load();
-    }
-
-    async load(): Promise<void> {
+    async connect(): Promise<void> {
+        this.busy.set(true);
+        this.message.set('');
         try {
-            this.details.set(await this.session.fetchStatus());
-        } catch {
-            this.details.set(null);
-        }
-        try {
-            this.browserPlaylistCount.set(
-                this.migration.browserDataMoved()
-                    ? 0
-                    : (await this.migration.browserPlaylists()).length
-            );
-        } catch {
-            this.browserPlaylistCount.set(0);
-        }
-    }
-
-    async importBrowserPlaylists(): Promise<void> {
-        this.importing.set(true);
-        this.importFailed.set(false);
-        try {
-            this.importResult.set(await this.migration.moveBrowserData());
-            await this.load();
-        } catch {
-            this.importFailed.set(true);
+            const input = this.url.trim().replace(/\/+$/, '');
+            const apiUrl =
+                input === this.sync.connection?.apiUrl
+                    ? input
+                    : normalizeSourceServerUrl(input);
+            if (window.electron?.sourceSyncConfigure) {
+                await window.electron.sourceSyncConfigure(
+                    apiUrl,
+                    this.token,
+                    true
+                );
+            } else {
+                const response = await fetch(`${apiUrl}/v1/instance`, {
+                    redirect: 'error',
+                    signal: AbortSignal.timeout(10000),
+                });
+                const instance: unknown = await response.json();
+                assertSourceInstance(instance);
+                const check = await fetch(`${apiUrl}/v1/sources`, {
+                    headers: this.token
+                        ? { Authorization: `Bearer ${this.token}` }
+                        : {},
+                    redirect: 'error',
+                    signal: AbortSignal.timeout(10000),
+                });
+                if (!check.ok)
+                    throw new Error(
+                        check.status === 401
+                            ? 'SOURCE_SYNC.LOCKED'
+                            : 'SOURCE_SYNC.REQUEST_FAILED'
+                    );
+                saveBrowserSourceConnection(
+                    { apiUrl, instanceId: instance.instanceId! },
+                    this.token
+                );
+                location.reload();
+            }
+        } catch (error) {
+            this.showError(error);
         } finally {
-            this.importing.set(false);
+            this.busy.set(false);
+            this.token = '';
         }
     }
 
-    signOut(): void {
-        this.session.signOut();
+    async disconnect(): Promise<void> {
+        this.busy.set(true);
+        try {
+            if (window.electron?.sourceSyncDisconnect)
+                await window.electron.sourceSyncDisconnect();
+            else {
+                if (!disconnectBrowserSourceConnection())
+                    throw new Error('SOURCE_SYNC.REQUEST_FAILED');
+                location.reload();
+            }
+        } catch (error) {
+            this.showError(error);
+        } finally {
+            this.busy.set(false);
+        }
     }
 
-    reload(): void {
-        window.location.reload();
+    async previewImport(): Promise<void> {
+        this.busy.set(true);
+        try {
+            this.preview.set(await readLocalSourcesForImport());
+        } catch (error) {
+            this.showError(error);
+        } finally {
+            this.busy.set(false);
+        }
     }
-}
 
-function backendOrigin(baseUrl: string): string {
-    try {
-        return new URL(baseUrl, globalThis.location?.href).origin;
-    } catch {
-        return baseUrl;
+    async importSources(): Promise<void> {
+        this.busy.set(true);
+        this.message.set('');
+        try {
+            for (const playlist of this.preview() ?? []) {
+                const source = {
+                    ...sourceFromPlaylist(playlist),
+                    id: createRandomId(),
+                };
+                const response = await requestSourceServer({
+                    operation: 'create',
+                    id: source.id,
+                    source,
+                });
+                if (response.status >= 400)
+                    throw new Error('SOURCE_SYNC.IMPORT_FAILED');
+            }
+            await this.sync.refresh();
+            this.preview.set(null);
+            this.message.set('SOURCE_SYNC.IMPORTED');
+        } catch (error) {
+            this.showError(error);
+        } finally {
+            this.busy.set(false);
+        }
     }
-}
 
-function formatMegabytes(bytes: number): string {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    private showError(error: unknown): void {
+        const key =
+            error instanceof Error
+                ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0]
+                : undefined;
+        this.message.set(key ?? 'SOURCE_SYNC.REQUEST_FAILED');
+    }
 }

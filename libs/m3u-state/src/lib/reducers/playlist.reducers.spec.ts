@@ -8,6 +8,141 @@ import { Channel, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 const reducer = createReducer(initialState, ...playlistReducers);
 
 describe('playlistReducers', () => {
+    it.each(['url', 'userAgent'] as const)(
+        'discards refresh channels captured before a %s edit',
+        (field) => {
+            const current = {
+                _id: 'shared',
+                title: 'Current name',
+                url: 'https://provider.test/current',
+                userAgent: 'Current agent',
+                playlist: { items: [{ id: 'current', name: 'Current' }] },
+            } as Playlist;
+            const state = {
+                ...initialState,
+                channels: current.playlist!.items as Channel[],
+                playlists: {
+                    ...playlistsAdapter.addOne(current, initialState.playlists),
+                    selectedId: current._id,
+                },
+            };
+            const delayed = {
+                ...current,
+                [field]: 'old',
+                playlist: { items: [{ id: 'old', name: 'Old' }] },
+            } as Playlist;
+            expect(
+                reducer(
+                    state,
+                    PlaylistActions.updatePlaylist({
+                        playlistId: current._id,
+                        playlist: delayed,
+                    })
+                )
+            ).toBe(state);
+        }
+    );
+    it('drops removed source metadata while retaining only the parsed payload', () => {
+        const before = {
+            _id: 'shared',
+            title: 'Before',
+            referrer: 'https://old.test',
+            stalkerDeviceId1: 'old-device',
+            stalkerToken: 'old-session',
+            playlist: { items: [{ name: 'Cached' }] },
+        } as Playlist;
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(before, initialState.playlists),
+        };
+        const incoming = {
+            _id: 'shared',
+            title: 'After',
+            count: 1,
+            importDate: '',
+            autoRefresh: false,
+        };
+        const next = reducer(
+            state,
+            PlaylistActions.loadPlaylistsSuccess({
+                playlists: [incoming],
+                authoritative: true,
+            })
+        );
+        expect(next.playlists.entities['shared']).toEqual({
+            ...incoming,
+            playlist: before.playlist,
+        });
+    });
+    it('rehydrates an open shared M3U with the latest parsed channels', () => {
+        const playlist = {
+            _id: 'shared',
+            title: 'Before',
+            count: 1,
+            importDate: '2026-01-01',
+            lastUsage: '',
+            autoRefresh: false,
+            playlist: { items: [{ name: 'Old channel' }] },
+            favorites: ['local-favorite'],
+        } as Playlist;
+        const state = {
+            ...initialState,
+            channels: playlist.playlist.items,
+            playlists: {
+                ...playlistsAdapter.addOne(playlist, initialState.playlists),
+                selectedId: playlist._id,
+            },
+        };
+        const updated = {
+            ...playlist,
+            title: 'After',
+            playlist: { items: [{ name: 'New channel' }] },
+        };
+        const next = reducer(
+            state,
+            PlaylistActions.hydrateSharedPlaylist({
+                playlistId: playlist._id,
+                playlist: updated,
+            })
+        );
+        expect(next.channels).toEqual(updated.playlist.items);
+        expect(
+            (next.playlists.entities[playlist._id] as Playlist)?.playlist
+        ).toEqual(updated.playlist);
+        expect(next.playlists.entities[playlist._id]?.favorites).toEqual([
+            'local-favorite',
+        ]);
+    });
+    it('applies remote renames and deletions while preserving the retained active payload', () => {
+        const kept = {
+            _id: 'keep',
+            title: 'Before',
+            count: 1,
+            importDate: '2026-01-01',
+            autoRefresh: false,
+            playlist: { items: [{ name: 'Channel' }] },
+        } as Playlist;
+        const removed = { ...kept, _id: 'removed' };
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addMany(
+                [kept, removed],
+                initialState.playlists
+            ),
+        };
+        const next = reducer(
+            state,
+            PlaylistActions.loadPlaylistsSuccess({
+                playlists: [{ ...kept, title: 'After' }],
+                authoritative: true,
+            })
+        );
+        expect(next.playlists.entities['keep']?.title).toBe('After');
+        expect((next.playlists.entities['keep'] as Playlist)?.playlist).toEqual(
+            kept.playlist
+        );
+        expect(next.playlists.entities['removed']).toBeUndefined();
+    });
     it('keeps a failed initial inventory unready until a retry succeeds', () => {
         const failed = reducer(
             initialState,
@@ -258,7 +393,7 @@ describe('playlistReducers', () => {
     });
 
     it.each([undefined, '', 'Replacement/2.0'])(
-        'preserves the saved User-Agent unless refresh explicitly replaces it: %s',
+        'retains the saved User-Agent when a refresh carries an absent or superseded agent: %s',
         (userAgent) => {
             const existing = {
                 _id: 'playlist-1',
@@ -282,10 +417,40 @@ describe('playlistReducers', () => {
                 })
             );
             expect(nextState.playlists.entities[existing._id]?.userAgent).toBe(
-                userAgent ?? existing.userAgent
+                existing.userAgent
             );
+            if (userAgent !== undefined) expect(nextState).toBe(state);
         }
     );
+
+    it('accepts a changed User-Agent from authoritative source hydration', () => {
+        const existing = {
+            _id: 'shared',
+            userAgent: 'Old agent',
+        } as PlaylistMeta;
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(
+                existing,
+                initialState.playlists
+            ),
+        };
+        const updated = {
+            ...existing,
+            userAgent: 'New agent',
+            playlist: { items: [] },
+        } as Playlist;
+        const next = reducer(
+            state,
+            PlaylistActions.hydrateSharedPlaylist({
+                playlistId: existing._id,
+                playlist: updated,
+            })
+        );
+        expect(next.playlists.entities[existing._id]?.userAgent).toBe(
+            'New agent'
+        );
+    });
 
     it('keeps hiddenGroupTitles on playlist refresh when the refreshed payload omits them', () => {
         const existingPlaylist: PlaylistMeta = {

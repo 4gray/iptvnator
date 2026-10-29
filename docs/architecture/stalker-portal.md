@@ -299,6 +299,11 @@ The shared playlist UI exposes only
 layer implements the token with Stalker data-access; the UI library must not
 import Stalker discovery directly.
 
+Open Stalker workspace routes also listen for completed source-sync projections.
+They read the persisted row and compare connection fields with the active store.
+A changed connection reinitializes the session and category catalog under the
+route session's existing generation/queue guard; a rename keeps the session.
+
 **Lazy repair (existing playlists).** The flag is frozen in the DB, so
 records persisted by the old guess stay broken without repair — but a large
 share of users are on working reseller panels, and only probing can tell the
@@ -702,6 +707,9 @@ outgrew the `max-lines` budget; never re-add it to the baseline):
 - `stalker-token-cache.ts` — the in-run token and pending-auth state, tagged
   with the identity fingerprint each session was negotiated for.
 - `stalker-session-store.ts` — the session persisted on the playlist row.
+- `@iptvnator/shared/interfaces/stalker-session` — canonical identity/session
+  fingerprints, also used by source-sync reconciliation. The former data-access
+  exports re-export these functions and preserve the persisted format.
 - `stalker-response-classification.ts` + `stalker-portal-error.ts` — failure
   detection and the typed `StalkerPortalError` the UI layers render.
 

@@ -2232,5 +2232,35 @@
             "INSTALL_INSTRUCTIONS": "Installationsanleitung",
             "DONT_SHOW_AGAIN": "Nicht mehr anzeigen"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "Die gespeicherte Serververbindung ist nicht verfügbar. Prüfe den Browser-Speicher oder verbinde dich in den Server-Einstellungen erneut.",
+        "TITLE": "Eigener Server",
+        "DESCRIPTION": "Gemeinsame Quellen auf Ihrem IPTVnator-Server für alle Geräte. Wiedergabedaten bleiben auf diesem Gerät.",
+        "URL": "Serveradresse",
+        "TOKEN": "Zugriffstoken (optional)",
+        "TOKEN_HINT": "Browser-Token gelten für diesen Tab. Desktop-Token nutzen nach Möglichkeit geschützten Speicher.",
+        "RESTART_HINT": "Verbinden und Trennen starten die App neu. Die ursprüngliche lokale Bibliothek bleibt erhalten.",
+        "CONNECT": "Verbinden",
+        "REFRESH": "Aktualisieren",
+        "DISCONNECT": "Trennen",
+        "IMPORT": "Lokale Quellen importieren",
+        "IMPORT_PREVIEW": "{{count}} lokale Quellen auf den Server kopieren? Vorhandene Quellen werden ohne Duplikate zugeordnet. Lokale Daten bleiben erhalten.",
+        "IMPORTED": "Quellen importiert.",
+        "IMPORT_FAILED": "Import fehlgeschlagen. Erneutes Versuchen erzeugt keine Duplikate.",
+        "LAST_SYNC": "Zuletzt synchronisiert",
+        "DELETE_SHARED": "Die gemeinsamen Quellen werden für alle verbundenen Geräte gelöscht.",
+        "INCOMPATIBLE": "Dieser Server unterstützt keine Quellensynchronisierung.",
+        "INSTANCE_CHANGED": "Die Serveridentität hat sich geändert. Bitte erneut verbinden.",
+        "OFFLINE": "Server nicht verfügbar. Änderungen gemeinsamer Quellen können nicht gespeichert werden.",
+        "LOCKED": "Geben Sie ein gültiges Zugriffstoken ein.",
+        "CONFLICT": "Die Quelle wurde auf einem anderen Gerät geändert. Aktualisieren und erneut bearbeiten.",
+        "REQUEST_FAILED": "Serveranfrage fehlgeschlagen. Aktualisieren und erneut versuchen.",
+        "STATE_local": "Lokale Bibliothek",
+        "STATE_connecting": "Verbindung zum Server…",
+        "STATE_connected": "Verbunden",
+        "STATE_offline": "Server nicht verfügbar. Änderungen gemeinsamer Quellen können nicht gespeichert werden.",
+        "STATE_locked": "Geben Sie ein gültiges Zugriffstoken ein.",
+        "STATE_conflict": "Die Quelle wurde auf einem anderen Gerät geändert. Aktualisieren und erneut bearbeiten."
     }
 }

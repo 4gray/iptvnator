@@ -7,6 +7,7 @@ import {
     type ServerStorage,
 } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
+import { legacySourceDocument } from './legacy-source-document';
 
 export function createPlaylistsRouter(
     storage: ServerStorage,
@@ -20,7 +21,7 @@ export function createPlaylistsRouter(
         res.set('Cache-Control', 'no-store').json(
             req.query['view'] === 'meta'
                 ? playlists.listMetas()
-                : playlists.listAll()
+                : playlists.listAll().map(legacySourceDocument)
         );
     });
 
@@ -49,7 +50,7 @@ export function createPlaylistsRouter(
                 'Playlist not found.'
             );
         }
-        res.json(document);
+        res.json(legacySourceDocument(document));
     });
 
     router.put('/playlists/:id', json, (req, res) => {

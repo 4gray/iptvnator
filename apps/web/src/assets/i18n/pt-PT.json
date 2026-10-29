@@ -2232,5 +2232,35 @@
             "INSTALL_INSTRUCTIONS": "Instruções de instalação",
             "DONT_SHOW_AGAIN": "Não mostrar novamente"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "A ligação guardada ao servidor não está disponível. Verifica o armazenamento do navegador ou volta a ligar nas definições do servidor.",
+        "TITLE": "Servidor",
+        "DESCRIPTION": "Partilha fontes entre dispositivos ligados ao teu servidor IPTVnator. A atividade de reprodução fica neste dispositivo.",
+        "URL": "Endereço do servidor",
+        "TOKEN": "Token de acesso (opcional)",
+        "TOKEN_HINT": "O token do navegador é válido apenas neste separador. No computador, utiliza armazenamento protegido quando disponível.",
+        "RESTART_HINT": "Ligar ou desligar recarrega a aplicação. A biblioteca local original é preservada.",
+        "CONNECT": "Ligar",
+        "REFRESH": "Atualizar",
+        "DISCONNECT": "Desligar",
+        "IMPORT": "Importar fontes locais",
+        "IMPORT_PREVIEW": "Copiar {{count}} fontes locais para o servidor? As fontes existentes são reconhecidas sem duplicados. Os dados locais são preservados.",
+        "IMPORTED": "Fontes importadas.",
+        "IMPORT_FAILED": "A importação falhou. Podes tentar novamente sem criar duplicados.",
+        "LAST_SYNC": "Última sincronização",
+        "DELETE_SHARED": "Esta ação elimina as fontes partilhadas de todos os dispositivos ligados.",
+        "INCOMPATIBLE": "Este servidor não suporta a sincronização de fontes.",
+        "INSTANCE_CHANGED": "A identidade do servidor mudou. Volta a ligar antes de utilizares esta biblioteca.",
+        "OFFLINE": "Servidor indisponível. Não é possível guardar alterações nas fontes partilhadas.",
+        "LOCKED": "Introduz um token de acesso válido para este servidor.",
+        "CONFLICT": "A fonte partilhada foi alterada noutro dispositivo. Atualiza e repete a alteração.",
+        "REQUEST_FAILED": "O pedido ao servidor falhou. Atualiza e tenta novamente.",
+        "STATE_local": "Biblioteca local",
+        "STATE_connecting": "A ligar ao servidor…",
+        "STATE_connected": "Ligado",
+        "STATE_offline": "Servidor indisponível. Não é possível guardar alterações nas fontes partilhadas.",
+        "STATE_locked": "Introduz um token de acesso válido para este servidor.",
+        "STATE_conflict": "A fonte partilhada foi alterada noutro dispositivo. Atualiza e repete a alteração."
     }
 }

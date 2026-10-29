@@ -2232,5 +2232,35 @@
             "INSTALL_INSTRUCTIONS": "安装说明",
             "DONT_SHOW_AGAIN": "不再显示"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "无法读取已保存的服务器连接。请检查浏览器存储，或在服务器设置中重新连接。",
+        "TITLE": "服务器",
+        "DESCRIPTION": "通过自托管 IPTVnator 服务器在设备间共享来源。观看活动保留在当前设备上。",
+        "URL": "服务器地址",
+        "TOKEN": "访问令牌（可选）",
+        "TOKEN_HINT": "浏览器令牌仅在当前标签页有效。桌面应用在可用时使用安全存储。",
+        "RESTART_HINT": "连接或断开会重启应用。原有本地媒体库会保留。",
+        "CONNECT": "连接",
+        "REFRESH": "刷新",
+        "DISCONNECT": "断开连接",
+        "IMPORT": "导入本地来源",
+        "IMPORT_PREVIEW": "将 {{count}} 个本地来源复制到服务器？已有来源不会重复。本地数据会保留。",
+        "IMPORTED": "来源已导入。",
+        "IMPORT_FAILED": "导入失败。重试不会创建重复来源。",
+        "LAST_SYNC": "上次同步",
+        "DELETE_SHARED": "这会为所有已连接设备删除共享来源。",
+        "INCOMPATIBLE": "此服务器不支持来源同步。",
+        "INSTANCE_CHANGED": "服务器标识已更改，请重新连接。",
+        "OFFLINE": "服务器不可用，无法保存共享来源的更改。",
+        "LOCKED": "请输入有效的访问令牌。",
+        "CONFLICT": "来源已在其他设备上更改。请刷新后重新编辑。",
+        "REQUEST_FAILED": "服务器请求失败。请刷新后重试。",
+        "STATE_local": "本地媒体库",
+        "STATE_connecting": "正在连接服务器…",
+        "STATE_connected": "已连接",
+        "STATE_offline": "服务器不可用，无法保存共享来源的更改。",
+        "STATE_locked": "请输入有效的访问令牌。",
+        "STATE_conflict": "来源已在其他设备上更改。请刷新后重新编辑。"
     }
 }

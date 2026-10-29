@@ -41,6 +41,11 @@ root is resolved in this order:
    with a mounted volume, for example `/data`)
 3. `~/.iptvnator`
 
+Electron selects a separate database when connected to a source server:
+`<data root>/server-profiles/<sha256(instanceId)>/databases/iptvnator.db`.
+The main process chooses this profile before opening a database or starting
+its worker. Disconnecting returns to the retained standalone database.
+
 ## Upgrade Compatibility And Migrations
 
 Users may skip releases. The application must apply every required migration in

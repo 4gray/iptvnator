@@ -2232,5 +2232,35 @@
             "INSTALL_INSTRUCTIONS": "Instructions d'installation",
             "DONT_SHOW_AGAIN": "Ne plus afficher"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "La connexion enregistrée au serveur est indisponible. Vérifiez le stockage du navigateur ou reconnectez-vous dans les paramètres du serveur.",
+        "TITLE": "Serveur",
+        "DESCRIPTION": "Partagez les sources de votre serveur IPTVnator entre vos appareils. Votre activité de lecture reste sur cet appareil.",
+        "URL": "Adresse du serveur",
+        "TOKEN": "Jeton d’accès (facultatif)",
+        "TOKEN_HINT": "Le jeton du navigateur dure le temps de cet onglet. Sur ordinateur, un stockage protégé est utilisé si disponible.",
+        "RESTART_HINT": "La connexion ou déconnexion redémarre l’application. Votre bibliothèque locale est conservée.",
+        "CONNECT": "Connecter",
+        "REFRESH": "Actualiser",
+        "DISCONNECT": "Déconnecter",
+        "IMPORT": "Importer les sources locales",
+        "IMPORT_PREVIEW": "Copier {{count}} sources locales sur ce serveur ? Les sources existantes sont reconnues sans doublons. Les données locales sont conservées.",
+        "IMPORTED": "Sources importées.",
+        "IMPORT_FAILED": "Échec de l’importation. Réessayer ne crée pas de doublons.",
+        "LAST_SYNC": "Dernière synchronisation",
+        "DELETE_SHARED": "Les sources partagées seront supprimées pour tous les appareils connectés.",
+        "INCOMPATIBLE": "Ce serveur ne prend pas en charge la synchronisation des sources.",
+        "INSTANCE_CHANGED": "L’identité du serveur a changé. Reconnectez-vous.",
+        "OFFLINE": "Serveur indisponible. Impossible d’enregistrer les modifications des sources partagées.",
+        "LOCKED": "Saisissez un jeton d’accès valide.",
+        "CONFLICT": "La source a été modifiée sur un autre appareil. Actualisez puis recommencez.",
+        "REQUEST_FAILED": "Échec de la requête. Actualisez et réessayez.",
+        "STATE_local": "Bibliothèque locale",
+        "STATE_connecting": "Connexion au serveur…",
+        "STATE_connected": "Connecté",
+        "STATE_offline": "Serveur indisponible. Impossible d’enregistrer les modifications des sources partagées.",
+        "STATE_locked": "Saisissez un jeton d’accès valide.",
+        "STATE_conflict": "La source a été modifiée sur un autre appareil. Actualisez puis recommencez."
     }
 }

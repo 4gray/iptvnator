@@ -27,6 +27,7 @@ describe('PlaylistInfoComponent', () => {
     let playlistsService: {
         getPlaylistById: jest.Mock;
         getRawPlaylistById: jest.Mock;
+        updatePlaylistMeta: jest.Mock;
     };
     let databaseService: {
         updateXtreamPlaylistDetails: jest.Mock;
@@ -81,6 +82,7 @@ describe('PlaylistInfoComponent', () => {
         playlistsService = {
             getPlaylistById: jest.fn(),
             getRawPlaylistById: jest.fn(() => of('#EXTM3U\n')),
+            updatePlaylistMeta: jest.fn(),
         };
         databaseService = {
             updateXtreamPlaylistDetails: jest.fn(),

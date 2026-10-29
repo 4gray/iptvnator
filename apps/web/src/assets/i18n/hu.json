@@ -2232,5 +2232,35 @@
             "INSTALL_INSTRUCTIONS": "Telepítési útmutató",
             "DONT_SHOW_AGAIN": "Ne jelenjen meg újra"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "A mentett szerverkapcsolat nem érhető el. Ellenőrizze a böngésző tárhelyét, vagy csatlakozzon újra a szerverbeállításokban.",
+        "TITLE": "Szerver",
+        "DESCRIPTION": "Források megosztása az eszközök között a saját IPTVnator-szerverrel. A lejátszási adatok ezen az eszközön maradnak.",
+        "URL": "Szerver címe",
+        "TOKEN": "Hozzáférési token (nem kötelező)",
+        "TOKEN_HINT": "A böngésző tokenje erre a lapra érvényes. Az asztali alkalmazás lehetőség szerint védett tárolót használ.",
+        "RESTART_HINT": "A kapcsolódás és leválasztás újraindítja az alkalmazást. Az eredeti helyi könyvtár megmarad.",
+        "CONNECT": "Kapcsolódás",
+        "REFRESH": "Frissítés",
+        "DISCONNECT": "Leválasztás",
+        "IMPORT": "Helyi források importálása",
+        "IMPORT_PREVIEW": "Másolja a helyi forrásokat ({{count}}) a szerverre? A meglévő források nem duplikálódnak. A helyi adatok megmaradnak.",
+        "IMPORTED": "Források importálva.",
+        "IMPORT_FAILED": "Az importálás sikertelen. Az újrapróbálkozás nem hoz létre másolatokat.",
+        "LAST_SYNC": "Utolsó szinkronizálás",
+        "DELETE_SHARED": "A megosztott források minden csatlakoztatott eszközről törlődnek.",
+        "INCOMPATIBLE": "Ez a szerver nem támogatja a forrásszinkronizálást.",
+        "INSTANCE_CHANGED": "A szerver azonosítója megváltozott. Csatlakozzon újra.",
+        "OFFLINE": "A szerver nem érhető el. A megosztott források változásai nem menthetők.",
+        "LOCKED": "Adjon meg érvényes hozzáférési tokent.",
+        "CONFLICT": "A forrást másik eszköz módosította. Frissítsen, majd ismételje meg a módosítást.",
+        "REQUEST_FAILED": "A szerverkérés sikertelen. Frissítsen és próbálja újra.",
+        "STATE_local": "Helyi könyvtár",
+        "STATE_connecting": "Kapcsolódás a szerverhez…",
+        "STATE_connected": "Csatlakoztatva",
+        "STATE_offline": "A szerver nem érhető el. A megosztott források változásai nem menthetők.",
+        "STATE_locked": "Adjon meg érvényes hozzáférési tokent.",
+        "STATE_conflict": "A forrást másik eszköz módosította. Frissítsen, majd ismételje meg a módosítást."
     }
 }

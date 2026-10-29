@@ -35,6 +35,11 @@ export async function verifyStalkerOpenInPlaylist(
     await expect(
         channels.first().locator('.favorite-button mat-icon')
     ).toHaveText('star', { timeout: 10_000 });
+    // The star is optimistic; the toast follows the committed local write.
+    // A full reload must not destroy an in-flight favorite mutation.
+    await expect(page.locator('mat-snack-bar-container')).toContainText(
+        'Added to favorites'
+    );
 
     // Global favorites, all playlists: the row offers the jump.
     await page.goto('/workspace/global-favorites');

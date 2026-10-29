@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 export class PlaylistRevisions {
     private readonly revisions = new Map<string, number>();
     private generation = 0;
+    private collectionRevision = 0;
 
     constructor(private readonly bootId = randomUUID().slice(0, 8)) {}
 
@@ -18,6 +19,7 @@ export class PlaylistRevisions {
     }
 
     bump(playlistId: string): string {
+        this.collectionRevision += 1;
         this.revisions.set(
             playlistId,
             (this.revisions.get(playlistId) ?? 0) + 1
@@ -26,7 +28,12 @@ export class PlaylistRevisions {
     }
 
     reset(): void {
+        this.collectionRevision += 1;
         this.revisions.clear();
         this.generation += 1;
+    }
+
+    collectionEtag(): string {
+        return `"${this.bootId}.${this.generation}.collection.${this.collectionRevision}"`;
     }
 }

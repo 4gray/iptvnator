@@ -192,21 +192,36 @@ export class PlaylistBackupService {
                 seenBackupFingerprints.add(fingerprint);
 
                 const existingMatch = fingerprintMap.get(fingerprint);
-                const targetId = this.resolveTargetPlaylistId(
+                let targetId = this.resolveTargetPlaylistId(
                     entry,
                     existingMatch?._id,
                     existingIds
                 );
-                const isMerge = existingMatch != null;
+                let isMerge = existingMatch != null;
                 const nextPlaylist = await this.buildImportedPlaylist(
                     entry,
                     targetId,
                     existingMatch ?? null
                 );
 
-                await firstValueFrom(
+                const saved = await firstValueFrom(
                     this.playlistsService.addPlaylist(nextPlaylist)
                 );
+                if (saved._id !== targetId) {
+                    targetId = saved._id;
+                    isMerge = true;
+                    // A source created since the inventory read can deduplicate
+                    // to another ID. Restore activity and locks only under that ID.
+                    await firstValueFrom(
+                        this.playlistsService.addPlaylist(
+                            await this.buildImportedPlaylist(
+                                entry,
+                                targetId,
+                                saved
+                            )
+                        )
+                    );
+                }
 
                 if (entry.portalType === 'xtream') {
                     await this.restoreXtreamEntry(targetId, entry);
@@ -221,8 +236,8 @@ export class PlaylistBackupService {
                     summary.merged += 1;
                 } else {
                     summary.imported += 1;
-                    existingIds.add(targetId);
                 }
+                existingIds.add(targetId);
             } catch (error) {
                 summary.failed += 1;
                 summary.errors.push(
