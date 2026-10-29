@@ -57,6 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
     trustedPrivateNetworkEpgUrls: [],
     trustedInsecureTlsHosts: [],
     tmdb: DEFAULT_TMDB_SETTINGS,
+    ageRatingCountry: 'auto',
     parentalLockEnabled: false,
     parentalLockRelockMinutes: DEFAULT_PARENTAL_LOCK_RELOCK_MINUTES,
 };

@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Controllo parentale disattivato",
             "PIN_CHANGED_TOAST": "PIN cambiato",
             "LOCKED_TOAST": "Bloccato"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Paese della classificazione per età",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Scegli il paese della classificazione. In assenza di dati locali, possono essere usati quelli statunitensi o del fornitore.",
+        "AGE_RATING_COUNTRY_AUTO": "Automatico — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossibile salvare sul server. Controlla la connessione e riprova.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Disattiva audio del trailer",
             "TRAILER_UNMUTE": "Attiva audio del trailer",
             "PROGRESS_RESET": "Avanzamento azzerato",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Nascosto da «Continua a guardare»"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Nascosto da «Continua a guardare»",
+            "AGE_RATING_UNKNOWN": "Età: dati assenti",
+            "AGE_RATING_PROVIDER": "Fornitore",
+            "AGE_RATING_DESCRIPTION": "Classificazione per età: {{rating}}. Fonte: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Nessuna classificazione per {{country}}; dati mostrati: {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Le classificazioni variano tra le versioni."
         },
         "SCROLL_LEFT": "Scorri a sinistra",
         "SCROLL_RIGHT": "Scorri a destra",
@@ -2232,5 +2240,35 @@
             "INSTALL_INSTRUCTIONS": "Istruzioni di installazione",
             "DONT_SHOW_AGAIN": "Non mostrare più"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "La connessione salvata non è disponibile. Controlla lo spazio del browser o riconnettiti nelle impostazioni del server.",
+        "TITLE": "Server personale",
+        "DESCRIPTION": "Condividi le sorgenti del server IPTVnator tra i dispositivi. I dati di riproduzione restano su questo dispositivo.",
+        "URL": "Indirizzo del server",
+        "TOKEN": "Token di accesso (facoltativo)",
+        "TOKEN_HINT": "Il token del browser dura per questa scheda. Sul desktop si usa un archivio protetto quando disponibile.",
+        "RESTART_HINT": "La connessione o disconnessione riavvia l’app. La libreria locale originale viene conservata.",
+        "CONNECT": "Connetti",
+        "REFRESH": "Aggiorna",
+        "DISCONNECT": "Disconnetti",
+        "IMPORT": "Importa sorgenti locali",
+        "IMPORT_PREVIEW": "Copiare {{count}} sorgenti locali sul server? Le sorgenti esistenti vengono riconosciute senza duplicati. I dati locali restano.",
+        "IMPORTED": "Sorgenti importate.",
+        "IMPORT_FAILED": "Importazione non riuscita. Puoi riprovare senza creare duplicati.",
+        "LAST_SYNC": "Ultima sincronizzazione",
+        "DELETE_SHARED": "Le sorgenti condivise verranno eliminate per tutti i dispositivi connessi.",
+        "INCOMPATIBLE": "Questo server non supporta la sincronizzazione delle sorgenti.",
+        "INSTANCE_CHANGED": "L’identità del server è cambiata. Riconnettiti.",
+        "OFFLINE": "Server non disponibile. Impossibile salvare le modifiche alle sorgenti condivise.",
+        "LOCKED": "Inserisci un token di accesso valido.",
+        "CONFLICT": "La sorgente è cambiata su un altro dispositivo. Aggiorna e ripeti la modifica.",
+        "REQUEST_FAILED": "Richiesta al server non riuscita. Aggiorna e riprova.",
+        "STATE_local": "Libreria locale",
+        "STATE_connecting": "Connessione al server…",
+        "STATE_connected": "Connesso",
+        "STATE_offline": "Server non disponibile. Impossibile salvare le modifiche alle sorgenti condivise.",
+        "STATE_locked": "Inserisci un token di accesso valido.",
+        "STATE_conflict": "La sorgente è cambiata su un altro dispositivo. Aggiorna e ripeti la modifica."
     }
 }

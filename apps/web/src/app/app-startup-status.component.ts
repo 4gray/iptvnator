@@ -352,14 +352,17 @@ export class AppStartupStatusComponent {
         { initialValue: this.router.url }
     );
     /**
-     * Server storage asking for a token: the playlists cannot load, and the
-     * sign-in page must stay up whatever its check reports.
+     * Sign-in and server settings remain reachable while the source inventory
+     * is pending or failed, so recovery never depends on a provider download.
      */
-    private readonly onSignInPage = computed(() =>
-        this.url().startsWith(SERVER_SIGN_IN_PATH)
+    private readonly onRecoveryPage = computed(
+        () =>
+            this.url().startsWith(SERVER_SIGN_IN_PATH) ||
+            this.url().startsWith('/workspace/settings/server')
     );
     readonly complete = computed(
-        () => this.routeReady() && (this.sourcesReady() || this.onSignInPage())
+        () =>
+            this.routeReady() && (this.sourcesReady() || this.onRecoveryPage())
     );
 
     retry(): void {

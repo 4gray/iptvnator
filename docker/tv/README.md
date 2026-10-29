@@ -16,11 +16,16 @@ pnpm nx build web-backend
 mkdir -p dist/tv-nas/build/web-backend
 cp -R dist/apps/web-backend/. dist/tv-nas/build/web-backend/
 cp docker/tv/Dockerfile docker/tv/nginx.conf docker/tv/start.sh dist/tv-nas/build/
-docker build --platform linux/amd64 -t iptvnator-tv:0.1.9 dist/tv-nas/build
+docker build --platform linux/amd64 -f docker/Dockerfile -t iptvnator-runtime:node24.22.1 .
+docker build --platform linux/amd64 --build-arg BASE_IMAGE=iptvnator-runtime:node24.22.1 -t iptvnator-tv:0.1.9 dist/tv-nas/build
 ```
 
-The base is the existing published self-hosted runtime, with its matching native
-SQLite module. The TV backend runs with storage disabled; the original container
+The base is the freshly built self-hosted runtime, with its matching native
+SQLite module. The checked-in published digest still contains Node 24.22.0;
+the Dockerfile rejects it. Pass the patched local image as `BASE_IMAGE` until
+a patched published image is verified and its digest is updated. Rebuilding
+only the backend JavaScript does not replace Node inside an existing image.
+The TV backend runs with storage disabled; the original container
 remains the only owner of its database. Validate a changed base image before use.
 The amd64 build is for an x86 Synology; do not install it on an ARM NAS.
 

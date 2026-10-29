@@ -147,6 +147,18 @@
             "@iptvnator/services/playlist-backup": [
                 "libs/services/src/lib/playlist-backup.service.ts"
             ],
+            "@iptvnator/services/source-sync": [
+                "libs/services/src/lib/source-sync/index.ts"
+            ],
+            "@iptvnator/services/source-sync/authorization": [
+                "libs/services/src/lib/source-sync/source-authorization.ts"
+            ],
+            "@iptvnator/services/source-sync/connection": [
+                "libs/services/src/lib/source-sync/source-connection.ts"
+            ],
+            "@iptvnator/services/source-sync/profile-user-data": [
+                "libs/services/src/lib/source-sync/source-profile-user-data.ts"
+            ],
             "@iptvnator/services/pwa-xtream-backup-storage": [
                 "libs/services/src/lib/pwa-xtream-backup-storage.ts"
             ],
@@ -155,6 +167,15 @@
             ],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
+            ],
+            "@iptvnator/shared/interfaces/stalker-session": [
+                "libs/shared/interfaces/src/lib/stalker-session-fingerprint.util.ts"
+            ],
+            "@iptvnator/shared/interfaces/source-definition": [
+                "libs/shared/interfaces/src/lib/source-definition.util.ts"
+            ],
+            "@iptvnator/shared/interfaces/provider-import": [
+                "libs/shared/interfaces/src/lib/provider-import-detection.util.ts"
             ],
             "@iptvnator/shared/interfaces/xtream-restore-state": [
                 "libs/shared/interfaces/src/lib/xtream-restore-state.util.ts"
@@ -194,23 +215,27 @@
             "@iptvnator/shared/marketing-fixtures": [
                 "./libs/shared/marketing-fixtures/src/index.ts"
             ],
-            "@iptvnator/tv/util": [
-                "libs/tv/util/src/index.ts"
-            ],
-            "@iptvnator/tv/data-access": [
-                "libs/tv/data-access/src/index.ts"
-            ],
-            "@iptvnator/tv/ui": [
-                "libs/tv/ui/src/index.ts"
-            ],
-            "@iptvnator/tv/feature": [
-                "libs/tv/feature/src/index.ts"
-            ],
+            "@iptvnator/tv/util": ["libs/tv/util/src/index.ts"],
+            "@iptvnator/tv/data-access": ["libs/tv/data-access/src/index.ts"],
+            "@iptvnator/tv/ui": ["libs/tv/ui/src/index.ts"],
+            "@iptvnator/tv/feature": ["libs/tv/feature/src/index.ts"],
             "@iptvnator/portal/xtream/client": [
                 "libs/portal/xtream/data-access/src/client.ts"
             ],
             "@iptvnator/portal/stalker/client": [
                 "libs/portal/stalker/data-access/src/client.ts"
+            ],
+            "@iptvnator/services/age-rating": [
+                "libs/services/src/lib/age-rating/age-rating-presentation.service.ts"
+            ],
+            "@iptvnator/services/tmdb-merge": [
+                "libs/services/src/lib/tmdb/tmdb-merge.ts"
+            ],
+            "@iptvnator/shared/interfaces/age-rating": [
+                "libs/shared/interfaces/src/age-rating.ts"
+            ],
+            "@iptvnator/shared/tmdb/certifications": [
+                "libs/shared/tmdb/src/lib/tmdb-certifications.ts"
             ]
         },
         "strict": false,

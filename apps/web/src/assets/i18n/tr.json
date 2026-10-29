@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Ebeveyn kilidi devre dışı bırakıldı",
             "PIN_CHANGED_TOAST": "PIN değiştirildi",
             "LOCKED_TOAST": "Kilitlendi"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Yaş sınıflandırması ülkesi",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Sınıflandırma ülkesini seçin. Yerel veri yoksa ABD veya sağlayıcı verileri kullanılabilir.",
+        "AGE_RATING_COUNTRY_AUTO": "Otomatik — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Sunucuya kaydedilemedi. Bağlantıyı kontrol edip tekrar deneyin.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Fragmanı sessize al",
             "TRAILER_UNMUTE": "Fragman sesini aç",
             "PROGRESS_RESET": "İlerleme sıfırlandı",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "“İzlemeye devam et”ten gizlendi"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "“İzlemeye devam et”ten gizlendi",
+            "AGE_RATING_UNKNOWN": "Yaş: veri yok",
+            "AGE_RATING_PROVIDER": "Sağlayıcı",
+            "AGE_RATING_DESCRIPTION": "Yaş sınıflandırması: {{rating}}. Kaynak: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "{{country}} için sınıflandırma yok; {{fallback}} gösteriliyor.",
+            "AGE_RATING_MULTIPLE": "Sınıflandırmalar sürümlere göre değişir."
         },
         "SCROLL_LEFT": "Sola kaydır",
         "SCROLL_RIGHT": "Sağa kaydır",
@@ -2232,5 +2240,35 @@
             "INSTALL_INSTRUCTIONS": "Kurulum talimatları",
             "DONT_SHOW_AGAIN": "Bir daha gösterme"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "Kayıtlı sunucu bağlantısı kullanılamıyor. Tarayıcı depolamasını kontrol edin veya Sunucu ayarlarından yeniden bağlanın.",
+        "TITLE": "Sunucu",
+        "DESCRIPTION": "Kendi IPTVnator sunucunuzla kaynakları cihazlar arasında paylaşın. İzleme etkinliği bu cihazda kalır.",
+        "URL": "Sunucu adresi",
+        "TOKEN": "Erişim belirteci (isteğe bağlı)",
+        "TOKEN_HINT": "Tarayıcı belirteci bu sekme boyunca geçerlidir. Masaüstü mümkün olduğunda korumalı depolama kullanır.",
+        "RESTART_HINT": "Bağlanma veya bağlantıyı kesme uygulamayı yeniden başlatır. Özgün yerel kitaplık korunur.",
+        "CONNECT": "Bağlan",
+        "REFRESH": "Yenile",
+        "DISCONNECT": "Bağlantıyı kes",
+        "IMPORT": "Yerel kaynakları içe aktar",
+        "IMPORT_PREVIEW": "{{count}} yerel kaynak sunucuya kopyalansın mı? Mevcut kaynaklar yinelenmez. Yerel veriler korunur.",
+        "IMPORTED": "Kaynaklar içe aktarıldı.",
+        "IMPORT_FAILED": "İçe aktarma başarısız. Yeniden denemek yinelenen kaynak oluşturmaz.",
+        "LAST_SYNC": "Son eşitleme",
+        "DELETE_SHARED": "Paylaşılan kaynaklar bağlı tüm cihazlar için silinir.",
+        "INCOMPATIBLE": "Bu sunucu kaynak eşitlemeyi desteklemiyor.",
+        "INSTANCE_CHANGED": "Sunucu kimliği değişti. Yeniden bağlanın.",
+        "OFFLINE": "Sunucu kullanılamıyor. Paylaşılan kaynak değişiklikleri kaydedilemiyor.",
+        "LOCKED": "Geçerli bir erişim belirteci girin.",
+        "CONFLICT": "Kaynak başka bir cihazda değişti. Yenileyip düzenlemeyi yeniden uygulayın.",
+        "REQUEST_FAILED": "Sunucu isteği başarısız. Yenileyip yeniden deneyin.",
+        "STATE_local": "Yerel kitaplık",
+        "STATE_connecting": "Sunucuya bağlanılıyor…",
+        "STATE_connected": "Bağlandı",
+        "STATE_offline": "Sunucu kullanılamıyor. Paylaşılan kaynak değişiklikleri kaydedilemiyor.",
+        "STATE_locked": "Geçerli bir erişim belirteci girin.",
+        "STATE_conflict": "Kaynak başka bir cihazda değişti. Yenileyip düzenlemeyi yeniden uygulayın."
     }
 }

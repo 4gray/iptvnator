@@ -62,6 +62,7 @@ test('shared matching finds a season-suffixed series and TV renders its cast/cre
             },
             backdrop_path: '/wide.jpg',
             overview: 'Show overview',
+            content_ratings: { results: [] },
         });
     });
     const metadata = new TvMetadata(settings);

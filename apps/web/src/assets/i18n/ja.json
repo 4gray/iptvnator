@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "ペアレンタルロックを無効にしました",
             "PIN_CHANGED_TOAST": "PIN を変更しました",
             "LOCKED_TOAST": "ロックしました"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "年齢区分の国",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "年齢区分に使用する国を選択します。現地の情報がない場合は米国またはプロバイダーの情報を使用します。",
+        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "サーバーに保存できませんでした。接続を確認して、もう一度お試しください。",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "予告編をミュート",
             "TRAILER_UNMUTE": "予告編の音を出す",
             "PROGRESS_RESET": "再生位置をリセットしました",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "「続きを見る」から隠しました"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "「続きを見る」から隠しました",
+            "AGE_RATING_UNKNOWN": "年齢区分：データなし",
+            "AGE_RATING_PROVIDER": "プロバイダー",
+            "AGE_RATING_DESCRIPTION": "年齢区分：{{rating}}。情報源：{{source}}。",
+            "AGE_RATING_COUNTRY_FALLBACK": "{{country}}の区分がないため、{{fallback}}の情報を表示しています。",
+            "AGE_RATING_MULTIPLE": "公開版によって区分が異なります。"
         },
         "SCROLL_LEFT": "左にスクロール",
         "SCROLL_RIGHT": "右にスクロール",
@@ -2232,5 +2240,35 @@
             "INSTALL_INSTRUCTIONS": "インストール手順",
             "DONT_SHOW_AGAIN": "今後表示しない"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "保存されたサーバー接続を読み込めません。ブラウザーのストレージを確認するか、サーバー設定で再接続してください。",
+        "TITLE": "サーバー",
+        "DESCRIPTION": "自分のIPTVnatorサーバーを使って端末間でソースを共有します。視聴履歴はこの端末に保存されます。",
+        "URL": "サーバーURL",
+        "TOKEN": "アクセストークン（任意）",
+        "TOKEN_HINT": "ブラウザーのトークンはこのタブでのみ有効です。デスクトップでは利用可能な保護ストレージを使います。",
+        "RESTART_HINT": "接続・切断するとアプリが再起動します。元のローカルライブラリは保持されます。",
+        "CONNECT": "接続",
+        "REFRESH": "更新",
+        "DISCONNECT": "切断",
+        "IMPORT": "ローカルソースをインポート",
+        "IMPORT_PREVIEW": "ローカルソース{{count}}件をサーバーにコピーしますか？既存のソースは重複しません。ローカルデータは保持されます。",
+        "IMPORTED": "ソースをインポートしました。",
+        "IMPORT_FAILED": "インポートに失敗しました。再試行しても重複は作成されません。",
+        "LAST_SYNC": "最終同期",
+        "DELETE_SHARED": "接続中のすべての端末から共有ソースが削除されます。",
+        "INCOMPATIBLE": "このサーバーはソースの同期に対応していません。",
+        "INSTANCE_CHANGED": "サーバーの識別情報が変わりました。再接続してください。",
+        "OFFLINE": "サーバーに接続できません。共有ソースの変更を保存できません。",
+        "LOCKED": "有効なアクセストークンを入力してください。",
+        "CONFLICT": "別の端末でソースが変更されました。更新して編集をやり直してください。",
+        "REQUEST_FAILED": "サーバーへのリクエストに失敗しました。更新して再試行してください。",
+        "STATE_local": "ローカルライブラリ",
+        "STATE_connecting": "サーバーに接続中…",
+        "STATE_connected": "接続済み",
+        "STATE_offline": "サーバーに接続できません。共有ソースの変更を保存できません。",
+        "STATE_locked": "有効なアクセストークンを入力してください。",
+        "STATE_conflict": "別の端末でソースが変更されました。更新して編集をやり直してください。"
     }
 }

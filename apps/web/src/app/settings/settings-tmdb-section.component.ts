@@ -1,3 +1,4 @@
+import { AgeRatingPresentationService } from '@iptvnator/services/age-rating';
 import {
     Component,
     inject,
@@ -10,6 +11,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -29,6 +31,7 @@ type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
+        MatSelectModule,
         MatProgressSpinnerModule,
         MatSlideToggleModule,
         ReactiveFormsModule,
@@ -87,6 +90,12 @@ export class SettingsTmdbSectionComponent {
     private readonly tmdbCache = inject(TmdbCacheService);
 
     readonly form = input.required<FormGroup>();
+    readonly ageRatings = inject(AgeRatingPresentationService);
+
+    get ageRatingCountryControl(): FormControl | null {
+        const control = this.form().get('ageRatingCountry');
+        return control instanceof FormControl ? control : null;
+    }
 
     readonly keyTestState = signal<TmdbKeyTestState>('idle');
     readonly cacheStats = signal<TmdbCacheStats | null>(null);

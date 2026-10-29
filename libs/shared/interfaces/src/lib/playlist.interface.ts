@@ -14,6 +14,13 @@ export enum PlaylistUpdateState {
  * Describes playlist interface
  */
 export interface Playlist {
+    /** Portable uploaded M3U; a file path never crosses devices. */
+    sourceRawM3u?: string;
+    /** Last accepted server definition, retained across local activity writes. */
+    sourceSyncBase?: import('./source-sync.interface').SourceDefinition;
+    sourceSyncRevision?: string;
+    /** Retry an accepted URL definition whose local channel download failed. */
+    sourceSyncPending?: boolean;
     _id: string;
     title: string;
     filename?: string;

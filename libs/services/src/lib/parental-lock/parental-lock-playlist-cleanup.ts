@@ -4,8 +4,8 @@ import { ParentalLockService } from './parental-lock.service';
 
 /**
  * Removes a deleted playlist's locks from the persisted lock store. Every
- * single-playlist deletion runs `PlaylistsService.deletePlaylist`, which
- * calls the `PLAYLIST_DELETE_CLEANUP` hooks after the row is gone; "remove
+ * direct single-playlist deletion runs `PlaylistsService.deletePlaylist`;
+ * remote source projections run the same hooks after the row is gone. "Remove
  * all playlists" clears the store through `ParentalLockService.clearAllLocks`
  * instead.
  */

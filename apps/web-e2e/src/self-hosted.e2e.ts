@@ -15,6 +15,11 @@ const STALKER_PORTAL_URL = `${STALKER_MOCK_SERVER}/portal.php`;
 // worker, so sharing one would let each suite's reset clear the other's state.
 const DEFAULT_MAC = '00:1A:79:5F:00:01';
 
+// Runtime config is injected through page.route on every reload. Service
+// Worker requests bypass that interceptor; PWA worker coverage has its own suite.
+// https://playwright.dev/docs/api/class-page#page-route
+test.use({ serviceWorkers: 'block' });
+
 async function installRuntimeConfig(page: Page): Promise<void> {
     await page.route('**/assets/app-config.js', async (route) => {
         await route.fulfill({
@@ -135,6 +140,112 @@ test('@self-hosted runtime config points PWA calls at the monorepo backend', asy
     const response = await request.get(`${WEB_BACKEND_URL}/health`);
     expect(response.ok()).toBeTruthy();
     await expect(response).toBeOK();
+});
+
+for (const failure of ['invalid-json', 'storage-denied']) {
+    test(`@self-hosted connection recovery remains available after ${failure}`, async ({
+        page,
+    }) => {
+        if (failure === 'invalid-json') {
+            await page.evaluate(() =>
+                localStorage.setItem('iptvnator:source-server', '{broken')
+            );
+        } else {
+            await page.addInitScript(() => {
+                const getItem = Storage.prototype.getItem;
+                Storage.prototype.getItem = function (key: string) {
+                    if (key === 'iptvnator:source-server')
+                        throw new DOMException('Denied', 'SecurityError');
+                    return getItem.call(this, key);
+                };
+            });
+        }
+        await page.reload();
+        const recovery = page.locator(
+            '[data-test-id="source-connection-recovery"]'
+        );
+        await expect(recovery).toBeVisible();
+        await recovery
+            .getByRole('link', { name: 'Server', exact: true })
+            .click();
+        await expect(page).toHaveURL(/\/workspace\/settings\/server/);
+        await expect(
+            page.getByRole('button', { name: 'Connect', exact: true })
+        ).toBeVisible();
+    });
+}
+
+for (const legacy of [false, true]) {
+    test(`@self-hosted restores original library after pending discovery (legacy404=${legacy})`, async ({
+        page,
+    }) => {
+        await addM3uPlaylist(page);
+        let offline = true;
+        await page.route(`${WEB_BACKEND_URL}/v1/instance`, (route) =>
+            offline
+                ? route.abort('connectionfailed')
+                : legacy
+                  ? route.fulfill({
+                        status: 404,
+                        contentType: 'text/html',
+                        body: 'Not found',
+                    })
+                  : route.continue()
+        );
+        await page.reload();
+        const status = page.locator('[data-test-id="source-sync-status"]');
+        await expect(status).toContainText('Server unavailable');
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    () =>
+                        JSON.parse(
+                            localStorage.getItem('iptvnator:source-server') ??
+                                'null'
+                        )?.instanceId
+                )
+            )
+            .toBe(`pending:${WEB_BACKEND_URL}`);
+        offline = false;
+        await status
+            .getByRole('button', { name: 'Refresh', exact: true })
+            .click();
+        await expect(status).toHaveCount(0);
+        await page.goto('/workspace/sources');
+        await expect(sourceRowByTitle(page, 'Self-hosted M3U')).toBeVisible();
+        expect(
+            await page.evaluate(() =>
+                localStorage.getItem('iptvnator:source-server')
+            )
+        ).toBeNull();
+        expect(
+            await page.evaluate(() =>
+                localStorage.getItem('iptvnator:source-server-disabled')
+            )
+        ).toBeNull();
+    });
+}
+
+test('@self-hosted keeps the original library with a legacy proxy lacking discovery', async ({
+    page,
+}) => {
+    await addM3uPlaylist(page);
+    await page.route(`${WEB_BACKEND_URL}/v1/instance`, (route) =>
+        route.fulfill({
+            status: 404,
+            contentType: 'text/html',
+            body: 'Not found',
+        })
+    );
+    await page.reload();
+    await page.goto('/workspace/sources');
+    await expect(sourceRowByTitle(page, 'Self-hosted M3U')).toBeVisible();
+    await expect(page.getByTestId('source-sync-status')).toHaveCount(0);
+    expect(
+        await page.evaluate(() =>
+            localStorage.getItem('iptvnator:source-server')
+        )
+    ).toBeNull();
 });
 
 test('@self-hosted Xtream portal loads through web-backend proxy', async ({

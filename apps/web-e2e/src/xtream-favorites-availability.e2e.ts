@@ -9,8 +9,27 @@ import {
     MOCK_SERVER,
 } from './xtream-series-playback.fixture';
 
+// Provider fixtures must keep intercepting requests after a production reload.
+test.use({ serviceWorkers: 'block' });
+
 test.beforeEach(async ({ page, request }) => {
     await request.post(`${MOCK_SERVER}/reset`);
+    await page.route('**/assets/app-config.js', (route) =>
+        route.fulfill({
+            contentType: 'application/javascript',
+            body: 'window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: "http://localhost:3000" };',
+        })
+    );
+    await page.route('http://localhost:3000/v1/instance', (route) =>
+        route.fulfill({
+            json: {
+                service: 'iptvnator',
+                apiVersion: 1,
+                storage: 'none',
+                capabilities: [],
+            },
+        })
+    );
     await page.goto('/');
     await interceptXtreamRequests(page);
 });
@@ -143,16 +162,22 @@ test('@xtream @collections absent saved items recover on sparse return without l
         });
         const response = await route.fetch({ url: mockUrl.toString() });
         const body = await response.json();
-        body.payload.push({
-            stream_id: 99999,
-            name: 'Sparse returning movie',
-            category_id: body.payload[0].category_id,
-            stream_type: 'movie',
-            container_extension: 'mp4',
-        });
+        body.payload = [
+            {
+                stream_id: 99999,
+                name: 'Sparse returning movie',
+                category_id: body.payload[0].category_id,
+                stream_type: 'movie',
+                container_extension: 'mp4',
+            },
+        ];
         await route.fulfill({ response, json: body });
     });
     await page.goto(`${playlistPath}/vod`);
+    // Leaving before hydration finishes can cancel the response under test.
+    await expect(
+        page.getByText('Sparse returning movie', { exact: true })
+    ).toBeVisible();
     await page
         .getByRole('link', { name: 'Global favorites', exact: true })
         .click();
@@ -1046,15 +1071,20 @@ test('@xtream @collections sparse detail hearts cannot delete a retained conflic
     await page
         .getByRole('button', { name: 'Remove from favorites', exact: true })
         .click();
+    // Removal awaits the identity lookup and lazy write module. Verify the
+    // persisted result after it settles, then confirm that the card is gone.
+    await expect
+        .poll(() =>
+            page.evaluate(
+                (id) =>
+                    JSON.parse(
+                        localStorage.getItem('xtream-favorites') ?? '{}'
+                    )[id],
+                id
+            )
+        )
+        .toEqual([]);
     await expect(
         page.getByRole('button', { name: 'Older saved original', exact: true })
     ).toHaveCount(0);
-    // Removal awaits the identity lookup and lazy write module. A click only
-    // dispatches that work; verify the persisted result after it settles.
-    await expect.poll(() =>
-        page.evaluate(
-            (id) => JSON.parse(localStorage.getItem('xtream-favorites') ?? '{}')[id],
-            id
-        )
-    ).toEqual([]);
 });

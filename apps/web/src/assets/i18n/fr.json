@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "Contrôle parental désactivé",
             "PIN_CHANGED_TOAST": "Code PIN modifié",
             "LOCKED_TOAST": "Verrouillé"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "Pays de classification par âge",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "Choisissez le pays de classification. Sans donnée locale, les données américaines ou du fournisseur peuvent être utilisées.",
+        "AGE_RATING_COUNTRY_AUTO": "Automatique — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossible d’enregistrer sur le serveur. Vérifiez la connexion et réessayez.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "Couper le son de la bande-annonce",
             "TRAILER_UNMUTE": "Activer le son de la bande-annonce",
             "PROGRESS_RESET": "Progression réinitialisée",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "Masqué de « Reprendre »"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "Masqué de « Reprendre »",
+            "AGE_RATING_UNKNOWN": "Âge : aucune donnée",
+            "AGE_RATING_PROVIDER": "Fournisseur",
+            "AGE_RATING_DESCRIPTION": "Classification par âge : {{rating}}. Source : {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "Aucune classification pour {{country}} ; données affichées : {{fallback}}.",
+            "AGE_RATING_MULTIPLE": "Les classifications diffèrent selon les versions."
         },
         "SCROLL_LEFT": "Faire défiler vers la gauche",
         "SCROLL_RIGHT": "Faire défiler vers la droite",
@@ -2232,5 +2240,35 @@
             "INSTALL_INSTRUCTIONS": "Instructions d'installation",
             "DONT_SHOW_AGAIN": "Ne plus afficher"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "La connexion enregistrée au serveur est indisponible. Vérifiez le stockage du navigateur ou reconnectez-vous dans les paramètres du serveur.",
+        "TITLE": "Serveur",
+        "DESCRIPTION": "Partagez les sources de votre serveur IPTVnator entre vos appareils. Votre activité de lecture reste sur cet appareil.",
+        "URL": "Adresse du serveur",
+        "TOKEN": "Jeton d’accès (facultatif)",
+        "TOKEN_HINT": "Le jeton du navigateur dure le temps de cet onglet. Sur ordinateur, un stockage protégé est utilisé si disponible.",
+        "RESTART_HINT": "La connexion ou déconnexion redémarre l’application. Votre bibliothèque locale est conservée.",
+        "CONNECT": "Connecter",
+        "REFRESH": "Actualiser",
+        "DISCONNECT": "Déconnecter",
+        "IMPORT": "Importer les sources locales",
+        "IMPORT_PREVIEW": "Copier {{count}} sources locales sur ce serveur ? Les sources existantes sont reconnues sans doublons. Les données locales sont conservées.",
+        "IMPORTED": "Sources importées.",
+        "IMPORT_FAILED": "Échec de l’importation. Réessayer ne crée pas de doublons.",
+        "LAST_SYNC": "Dernière synchronisation",
+        "DELETE_SHARED": "Les sources partagées seront supprimées pour tous les appareils connectés.",
+        "INCOMPATIBLE": "Ce serveur ne prend pas en charge la synchronisation des sources.",
+        "INSTANCE_CHANGED": "L’identité du serveur a changé. Reconnectez-vous.",
+        "OFFLINE": "Serveur indisponible. Impossible d’enregistrer les modifications des sources partagées.",
+        "LOCKED": "Saisissez un jeton d’accès valide.",
+        "CONFLICT": "La source a été modifiée sur un autre appareil. Actualisez puis recommencez.",
+        "REQUEST_FAILED": "Échec de la requête. Actualisez et réessayez.",
+        "STATE_local": "Bibliothèque locale",
+        "STATE_connecting": "Connexion au serveur…",
+        "STATE_connected": "Connecté",
+        "STATE_offline": "Serveur indisponible. Impossible d’enregistrer les modifications des sources partagées.",
+        "STATE_locked": "Saisissez un jeton d’accès valide.",
+        "STATE_conflict": "La source a été modifiée sur un autre appareil. Actualisez puis recommencez."
     }
 }

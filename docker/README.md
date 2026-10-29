@@ -17,17 +17,10 @@ for the default Docker deployment.
 The Docker image runs the browser PWA, not the Electron desktop application.
 That means:
 
-- Xtream and Stalker sources show their provider's programme guide: the
-  current show under each live channel and the guide beside the player.
-  Settings → EPG offers the guide layout and a time offset. XMLTV guides (M3U
-  EPG sources, the programme guide and EPG channel mapping) are not available
-  in the self-hosted PWA yet.
-- With server storage (the image default) playlists, M3U favorites and
-  history, and Xtream favorites, recently viewed items and playback positions
-  live on the server, and every browser that opens the instance shares them.
-  Settings, parental locks, the global favorites order and UI preferences stay
-  per browser. With `IPTVNATOR_STORAGE=none` each browser keeps its own data
-  in IndexedDB and localStorage.
+- EPG/XMLTV panels and multi-EPG views are not available in the self-hosted PWA.
+- With server storage enabled, source definitions are shared by connected PWA
+  and Electron clients. Each browser retains a local IndexedDB projection and
+  its own Xtream user data. Viewing activity is not synchronized.
 - Docker cannot launch local desktop players or Embedded MPV. If a stream does
   not play inline in the browser, use the in-app copy URL action and open the
   stream manually in an external player such as MPV, VLC, or IINA.
@@ -107,7 +100,7 @@ safe local defaults shown below.
 | `NODE_EXTRA_CA_CERTS`                    | unset                   | Optional Node.js CA bundle path for providers using private certificate authorities. Mount the CA file into the container and set this path. |
 | `IPTVNATOR_STORAGE`                      | `server` in the image   | `server` opens the server storage database under `IPTVNATOR_DATA_DIR` and its `/api/v1` routes; `none` keeps the backend stateless.          |
 | `IPTVNATOR_DATA_DIR`                     | `/data` in the image    | Data root; the database is `<root>/databases/iptvnator.db`. Mount a volume here.                                                             |
-| `IPTVNATOR_ACCESS_TOKEN`                 | unset                   | When set, every route except `/`, `/health`, `/config.js` and `/v1/instance` requires `Authorization: Bearer <token>`, proxy routes included. Each browser asks for the token once and keeps it. Needs `IPTVNATOR_STORAGE=server`; the backend refuses to start otherwise. |
+| `IPTVNATOR_ACCESS_TOKEN`                 | unset                   | Optional shared access token. Enter it in the client connection UI; all non-public API and provider proxy routes require it. |
 | `IPTVNATOR_MAX_DOCUMENT_MB`              | `64`                    | Largest playlist document the backend accepts. Keep the nginx `client_max_body_size` in step.                                                |
 | `IPTVNATOR_BACKEND_START_TIMEOUT`        | `300`                   | Seconds the entrypoint waits for the backend's `/health` before giving up. Database migrations run before the backend listens.              |
 
@@ -143,24 +136,33 @@ the `restart: unless-stopped` policy.
 
 The image opens a server storage database on the `/data` volume
 (`IPTVNATOR_STORAGE=server`, `IPTVNATOR_DATA_DIR=/data`) and serves its API
-under `/api/v1`. The PWA finds it on start and keeps playlists, favorites,
-history and playback positions there, so every phone, TV and computer that
-opens the instance sees the same library. Settings → Server shows the
-connection, the database size and path, and exports a backup.
+under `/api/v1`. Source definitions are shared between devices connected to
+that instance. Open the NAS web address on phones/tablets, or use Settings →
+Data → Server in Electron to enter the same app address. Names, connections
+and uploaded M3U text synchronize; favorites, history, playback positions and
+EPG remain local. Visible clients refresh within a 15-second polling interval.
 
-The first browser that opens an instance with an empty database offers to
-move the playlists it already kept, with their Xtream favorites and
-progress; nothing is deleted from the browser. Later browsers can merge
-theirs from Settings → Server.
+Settings → Server can preview and import the device's original local sources.
+Matching connections are deduplicated; the original library is retained.
+Disconnecting returns to that library without removing sources from NAS.
+Connection changes restart/reload the client. A previously synchronized client
+keeps its cached sources while offline; shared source edits require the server.
 
-Provider credentials are stored unencrypted in that database, as the
-desktop app does. Do not expose an instance with server storage to the
-internet without authentication. Set `IPTVNATOR_ACCESS_TOKEN` to require a
-token: each browser then asks for it once on a sign-in page. Back up the
-volume like any database: stop the container, then copy the `databases`
-folder. Files copied while the backend runs can be out of step with the
-`-wal` journal; Settings → Server → Export backup is the way to take a copy
-without stopping the container.
+For Synology, mount a persistent folder or named volume at `/data`, retain its
+write permissions, and expose the app port through your existing NAS network or
+reverse proxy. Use a container-capable NAS and an image matching its CPU
+architecture. Set `CLIENT_URL` to the actual browser origin. Keep an HTTPS
+reverse proxy and a trusted certificate for browser installation/secure-context
+features; plain HTTP LAN access is not equivalent to an installable PWA.
+Manually entered client addresses accept the app's reverse-proxy subpath;
+`https://nas.example/iptvnator` selects `/iptvnator/api`.
+
+Provider credentials will be stored unencrypted in that database, as the
+desktop app does. Protect externally accessible instances with the shared token
+or reverse-proxy authentication. Browser tokens last for the tab; desktop uses
+OS-protected storage where available and otherwise asks again after restart.
+Back up the volume like any database: stop the container, or copy
+`databases/iptvnator.db` together with its `-wal` file.
 
 ## IPv6, VPNs, And Connection Fallback
 

@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "已停用家長監護",
             "PIN_CHANGED_TOAST": "已變更 PIN 碼",
             "LOCKED_TOAST": "已鎖定"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "年齡分級國家",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "選擇年齡分級使用的國家。缺少當地分級時，可能使用美國或供應商的資料。",
+        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "無法儲存到伺服器。請檢查連線後再試一次。",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "預告片靜音",
             "TRAILER_UNMUTE": "取消預告片靜音",
             "PROGRESS_RESET": "進度已重設",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "已從「繼續觀看」隱藏"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "已從「繼續觀看」隱藏",
+            "AGE_RATING_UNKNOWN": "年齡分級：暫無資料",
+            "AGE_RATING_PROVIDER": "供應商",
+            "AGE_RATING_DESCRIPTION": "年齡分級：{{rating}}。來源：{{source}}。",
+            "AGE_RATING_COUNTRY_FALLBACK": "沒有{{country}}的分級，顯示{{fallback}}的資料。",
+            "AGE_RATING_MULTIPLE": "不同發行版本的分級有所不同。"
         },
         "SCROLL_LEFT": "向左捲動",
         "SCROLL_RIGHT": "向右捲動",
@@ -2232,5 +2240,35 @@
             "INSTALL_INSTRUCTIONS": "安裝說明",
             "DONT_SHOW_AGAIN": "不再顯示"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "無法讀取已儲存的伺服器連線。請檢查瀏覽器儲存空間，或在伺服器設定中重新連線。",
+        "TITLE": "伺服器",
+        "DESCRIPTION": "透過自行架設的 IPTVnator 伺服器在裝置間共用來源。觀看活動保留在此裝置上。",
+        "URL": "伺服器位址",
+        "TOKEN": "存取權杖（選填）",
+        "TOKEN_HINT": "瀏覽器權杖僅在此分頁有效。桌面應用程式會在可用時使用安全儲存空間。",
+        "RESTART_HINT": "連線或中斷會重新啟動應用程式。原有本機媒體庫會保留。",
+        "CONNECT": "連線",
+        "REFRESH": "重新整理",
+        "DISCONNECT": "中斷連線",
+        "IMPORT": "匯入本機來源",
+        "IMPORT_PREVIEW": "將 {{count}} 個本機來源複製到伺服器？已有來源不會重複。本機資料會保留。",
+        "IMPORTED": "來源已匯入。",
+        "IMPORT_FAILED": "匯入失敗。重試不會建立重複來源。",
+        "LAST_SYNC": "上次同步",
+        "DELETE_SHARED": "這將為所有已連線裝置刪除共用來源。",
+        "INCOMPATIBLE": "此伺服器不支援來源同步。",
+        "INSTANCE_CHANGED": "伺服器識別碼已變更，請重新連線。",
+        "OFFLINE": "伺服器無法使用，無法儲存共用來源的變更。",
+        "LOCKED": "請輸入有效的存取權杖。",
+        "CONFLICT": "來源已在其他裝置上變更。請重新整理後再編輯。",
+        "REQUEST_FAILED": "伺服器請求失敗。請重新整理後重試。",
+        "STATE_local": "本機媒體庫",
+        "STATE_connecting": "正在連線伺服器…",
+        "STATE_connected": "已連線",
+        "STATE_offline": "伺服器無法使用，無法儲存共用來源的變更。",
+        "STATE_locked": "請輸入有效的存取權杖。",
+        "STATE_conflict": "來源已在其他裝置上變更。請重新整理後再編輯。"
     }
 }

@@ -661,7 +661,10 @@
             "DISABLED_TOAST": "자녀 보호가 꺼졌습니다",
             "PIN_CHANGED_TOAST": "PIN이 변경되었습니다",
             "LOCKED_TOAST": "잠겼습니다"
-        }
+        },
+        "AGE_RATING_COUNTRY_LABEL": "연령 등급 국가",
+        "AGE_RATING_COUNTRY_DESCRIPTION": "연령 등급에 사용할 국가를 선택하세요. 현지 정보가 없으면 미국 또는 제공업체 정보를 사용할 수 있습니다.",
+        "AGE_RATING_COUNTRY_AUTO": "자동 — {{country}}"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
@@ -1526,7 +1529,12 @@
             "TRAILER_MUTE": "예고편 음소거",
             "TRAILER_UNMUTE": "예고편 소리 켜기",
             "PROGRESS_RESET": "진행 상태를 초기화했습니다",
-            "HIDDEN_FROM_CONTINUE_WATCHING": "‘이어서 보기’에서 숨겼습니다"
+            "HIDDEN_FROM_CONTINUE_WATCHING": "‘이어서 보기’에서 숨겼습니다",
+            "AGE_RATING_UNKNOWN": "연령: 정보 없음",
+            "AGE_RATING_PROVIDER": "제공업체",
+            "AGE_RATING_DESCRIPTION": "연령 등급: {{rating}}. 출처: {{source}}.",
+            "AGE_RATING_COUNTRY_FALLBACK": "{{country}} 등급이 없어 {{fallback}} 정보를 표시합니다.",
+            "AGE_RATING_MULTIPLE": "공개 버전에 따라 등급이 다릅니다."
         },
         "SCROLL_LEFT": "왼쪽으로 스크롤",
         "SCROLL_RIGHT": "오른쪽으로 스크롤",
@@ -2232,5 +2240,35 @@
             "INSTALL_INSTRUCTIONS": "설치 안내",
             "DONT_SHOW_AGAIN": "다시 표시 안 함"
         }
+    },
+    "SOURCE_SYNC": {
+        "CONNECTION_RECOVERY": "저장된 서버 연결을 사용할 수 없습니다. 브라우저 저장소를 확인하거나 서버 설정에서 다시 연결하세요.",
+        "TITLE": "서버",
+        "DESCRIPTION": "자체 호스팅 IPTVnator 서버로 기기 간 소스를 공유합니다. 시청 활동은 이 기기에 저장됩니다.",
+        "URL": "서버 주소",
+        "TOKEN": "액세스 토큰(선택 사항)",
+        "TOKEN_HINT": "브라우저 토큰은 이 탭에서만 유효합니다. 데스크톱은 가능한 경우 보호된 저장소를 사용합니다.",
+        "RESTART_HINT": "연결하거나 해제하면 앱이 다시 시작됩니다. 기존 로컬 라이브러리는 유지됩니다.",
+        "CONNECT": "연결",
+        "REFRESH": "새로 고침",
+        "DISCONNECT": "연결 해제",
+        "IMPORT": "로컬 소스 가져오기",
+        "IMPORT_PREVIEW": "로컬 소스 {{count}}개를 서버에 복사할까요? 기존 소스는 중복되지 않습니다. 로컬 데이터는 유지됩니다.",
+        "IMPORTED": "소스를 가져왔습니다.",
+        "IMPORT_FAILED": "가져오기에 실패했습니다. 다시 시도해도 중복되지 않습니다.",
+        "LAST_SYNC": "마지막 동기화",
+        "DELETE_SHARED": "연결된 모든 기기에서 공유 소스가 삭제됩니다.",
+        "INCOMPATIBLE": "이 서버는 소스 동기화를 지원하지 않습니다.",
+        "INSTANCE_CHANGED": "서버 식별 정보가 변경되었습니다. 다시 연결하세요.",
+        "OFFLINE": "서버에 연결할 수 없습니다. 공유 소스 변경 내용을 저장할 수 없습니다.",
+        "LOCKED": "유효한 액세스 토큰을 입력하세요.",
+        "CONFLICT": "다른 기기에서 소스가 변경되었습니다. 새로 고친 후 다시 수정하세요.",
+        "REQUEST_FAILED": "서버 요청에 실패했습니다. 새로 고친 후 다시 시도하세요.",
+        "STATE_local": "로컬 라이브러리",
+        "STATE_connecting": "서버에 연결 중…",
+        "STATE_connected": "연결됨",
+        "STATE_offline": "서버에 연결할 수 없습니다. 공유 소스 변경 내용을 저장할 수 없습니다.",
+        "STATE_locked": "유효한 액세스 토큰을 입력하세요.",
+        "STATE_conflict": "다른 기기에서 소스가 변경되었습니다. 새로 고친 후 다시 수정하세요."
     }
 }

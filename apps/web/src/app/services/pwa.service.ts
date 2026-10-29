@@ -42,6 +42,7 @@ import {
     createLogger,
 } from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
+import { isSourceBackendRequest } from '@iptvnator/services/source-sync/connection';
 
 /**
  * How long to wait for the backend to forget a host before giving up.
@@ -137,6 +138,13 @@ export class PwaService extends DataService {
         return AppConfig.version;
     }
 
+    override fetchPlaylistDefinition(
+        url: string,
+        userAgent?: string
+    ): Promise<Playlist> {
+        return firstValueFrom(this.getPlaylistFromUrl(url, userAgent));
+    }
+
     /**
      * Handles incoming IPC commands
      * @param type ipc command type
@@ -217,7 +225,9 @@ export class PwaService extends DataService {
                 `${this.corsProxyUrl}/connectivity-guard/reset`,
                 {
                     body: JSON.stringify({ url: payload.url }),
-                    headers: { 'content-type': 'application/json' },
+                    headers: {
+                        'content-type': 'application/json',
+                    },
                     method: 'POST',
                     signal: controller.signal,
                 }
@@ -242,14 +252,15 @@ export class PwaService extends DataService {
         }
 
         const playlistId = payload.id;
-        const { url, userAgent } = payload;
+        const { url } = payload;
+        const userAgent = payload.userAgent?.trim() || undefined;
 
         return new Promise<void>((resolve) => {
             this.getPlaylistFromUrl(url, userAgent).subscribe({
                 next: (playlist: Playlist) => {
                     this.store.dispatch(
                         PlaylistActions.updatePlaylist({
-                            playlist,
+                            playlist: { ...playlist, url, userAgent },
                             playlistId,
                             refreshEpg: true,
                         })
@@ -842,14 +853,21 @@ export class PwaService extends DataService {
         url: string,
         init: RequestInit
     ): Promise<Response> {
+        const proxy = isSourceBackendRequest(url)
+            ? await import('./source-proxy')
+            : undefined;
+        if (proxy) await proxy.ensureSourceProxy(url);
+        const authorization = proxy?.sourceProxyHeaders(url);
         const token = this.serverAccessToken(url);
         let response: Response;
         try {
             response = await fetch(url, {
                 ...init,
+                redirect: 'error',
                 headers: {
                     ...(init.headers as Record<string, string> | undefined),
                     ...bearer(token),
+                    ...authorization,
                 },
             });
         } catch (error) {
@@ -857,6 +875,7 @@ export class PwaService extends DataService {
                 error instanceof DOMException && error.name === 'AbortError'
             )) {
                 this.serverStatus.reportOffline();
+                proxy?.invalidateSourceVerification();
             }
             throw error;
         }
@@ -867,6 +886,7 @@ export class PwaService extends DataService {
             )
         ) {
             this.serverStatus.reportOffline();
+            proxy?.invalidateSourceVerification();
         } else if (
             response.status === 401 &&
             isServerAccessChallenge(

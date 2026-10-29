@@ -1,6 +1,6 @@
 # TV development and validation
 
-Use `.nvmrc` (Node 22.23.2) and the repository pnpm version. Install frozen
+Use `.nvmrc` (Node 24.22.1) and the repository pnpm version. Install frozen
 worktree dependencies before Nx discovery. The [TV architecture](../architecture/tv-application.md)
 is the canonical runtime/provider/persistence contract.
 

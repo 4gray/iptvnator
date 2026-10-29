@@ -13,6 +13,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionsTemplateDirective,
@@ -92,6 +93,7 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        AgeRatingChipComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
         DetailActionsTemplateDirective,

@@ -122,7 +122,7 @@ describe('buildSettingsSectionNavItems', () => {
         expect(groupOf('about')).toBeUndefined();
     });
 
-    it('shows the server section only with server storage', () => {
+    it('offers server connection before a server is selected', () => {
         const build = (supportsServerStorage: boolean) =>
             buildSettingsSectionNavItems({
                 supportsEpg: false,
@@ -135,6 +135,6 @@ describe('buildSettingsSectionNavItems', () => {
             group: 'data',
             icon: 'dns',
         });
-        expect(build(false)?.visible).toBe(false);
+        expect(build(false)?.visible).toBe(true);
     });
 });

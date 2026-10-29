@@ -308,6 +308,8 @@ export interface Settings {
      * Disabled by default because enrichment sends content titles to TMDB.
      */
     tmdb?: TmdbSettings;
+    /** ISO country for age classifications; auto follows the UI language. */
+    ageRatingCountry?: string;
     /**
      * Parental lock: locked categories disappear from the whole app until
      * the PIN is entered. Off by default; may only be on while a PIN exists

@@ -1,3 +1,4 @@
+import type { ContentCertification } from './content-certification';
 import { XtreamVodDetails } from './xtream-vod-details.interface';
 import { StalkerVodDetails } from './stalker-vod-details.interface';
 import {
@@ -60,6 +61,7 @@ export interface StalkerVodItem {
  * Provides a consistent interface regardless of portal type.
  */
 export interface NormalizedVodMeta {
+    certifications?: readonly ContentCertification[];
     /** Movie title */
     title: string;
     /** Plot description */
