@@ -299,11 +299,13 @@ write transaction. An already completed projection of the same revision is
 reused; a different revision or deletion rejects the obsolete download without
 advancing the collection revision. The next refresh retries against the current
 inventory. Activity-only changes still merge into the result.
-Shared "delete all" captures cached IDs/revisions before its server request,
-then uses the same conditional per-source pruning and cleanup. Sources created
+Single-source deletion captures the cached source revision before its server
+request; shared "delete all" captures cached IDs/revisions. Both use the same
+conditional per-source pruning and cleanup. Sources created
 or replaced by a sibling after the server accepts the deletion retain their
 local activity and locks. Settings does not follow this scoped deletion with
-an unconditional lock reset.
+an unconditional lock reset. `PlaylistsService` leaves server-mode cleanup to
+this queue, so it cannot run unconditional hooks against a replacement row.
 Browser reads carry a local metadata snapshot: a stale
 activity write raises `PlaylistWriteConflict`, and the existing playlist mutation
 retry re-reads and reapplies the edit. Source edits retain concurrent activity

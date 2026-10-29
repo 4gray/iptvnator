@@ -8,7 +8,7 @@ import {
 } from './server-storage-pwa.helpers';
 import { readFile } from 'node:fs/promises';
 import { verifyConcurrentSourcePruning } from './source-pruning-pwa.helpers';
-import { verifyConcurrentSourceClearing } from './source-clearing-pwa.helpers';
+import { verifyConcurrentSourceDeletion } from './source-clearing-pwa.helpers';
 import {
     verifyCachedSourcesDuringMaterialization,
     verifyConcurrentSourceProjection,
@@ -122,9 +122,21 @@ test.describe('server storage @self-hosted @persistence', () => {
             browser,
             request,
         }) => {
-            await verifyConcurrentSourceClearing(browser, request, reuseId);
+            await verifyConcurrentSourceDeletion(
+                browser,
+                request,
+                'all',
+                reuseId
+            );
         });
     }
+
+    test('keeps a replacement source and its activity after a delayed single-source DELETE without Web Locks', async ({
+        browser,
+        request,
+    }) => {
+        await verifyConcurrentSourceDeletion(browser, request, 'single', true);
+    });
 
     test('keeps a newer disconnect from another tab when pending discovery recovers', async ({
         browser,

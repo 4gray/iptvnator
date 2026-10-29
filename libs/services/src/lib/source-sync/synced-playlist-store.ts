@@ -228,8 +228,8 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 id,
                 revision: current?.sourceSyncRevision,
             });
-            await this.local.dbDeletePlaylist(id);
-            this.pendingSources.delete(id);
+            if (await this.pruneObserved(id, current?.sourceSyncRevision))
+                this.pendingSources.delete(id);
             return { success: true };
         });
     dbDeleteAllPlaylists = () =>

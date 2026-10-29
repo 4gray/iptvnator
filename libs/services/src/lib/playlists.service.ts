@@ -623,7 +623,8 @@ export class PlaylistsService {
     private async runPlaylistDeleteCleanups(
         playlistId: string
     ): Promise<number> {
-        if (this.playlistDeleteCleanups.length === 0) {
+        // Server-mode pruning owns revision-guarded cleanup, including retries.
+        if (this.storageBackend.kind() === 'server') {
             return 0;
         }
 
