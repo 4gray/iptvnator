@@ -67,7 +67,8 @@ Brotli, TLS, DNS and HTTP fixes. All Docker build/native/runtime stages use
 the same pinned Node 24 patch. Changing local Node does not update Electron's
 bundled Node: Electron 43.8.4 supplies Node 24.22.1 to the desktop application.
 The shared Nx inputs include `.nvmrc` and `node --version`, so changing either
-the pin or the actual supported runtime invalidates cached builds and checks.
+the pin or the actual supported runtime invalidates cached builds and checks
+whose inputs include `sharedGlobals`, directly or through `default`.
 
 The Angular 22 migration explicitly preserved the old default change detection
 with `ChangeDetectionStrategy.Eager`. Plan item C6 since converted every component
