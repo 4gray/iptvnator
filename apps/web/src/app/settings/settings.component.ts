@@ -494,14 +494,17 @@ export class SettingsComponent
     }
 
     async exportData(): Promise<void> {
+        if (this.playlistReset.isRemovingAllPlaylists()) return;
         await this.backup.exportData(() => this.waitForUiFeedbackFrame());
     }
 
     importData(): void {
+        if (this.playlistReset.isRemovingAllPlaylists()) return;
         this.backup.importData(() => this.form.hydrateFromStore());
     }
 
     removeAll(): void {
+        if (this.backup.isBusy()) return;
         this.playlistReset.confirmAndRemoveAll(() =>
             this.waitForUiFeedbackFrame()
         );

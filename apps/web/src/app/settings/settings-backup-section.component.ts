@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule } from '@ngx-translate/core';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
+import type { PlaylistBackupImportSummary } from '@iptvnator/services/playlist-backup';
 import { SettingsPlaylistDeleteSummary } from './settings.models';
 
 /**
@@ -34,6 +35,10 @@ export class SettingsBackupSectionComponent {
     readonly isPwa = input(false);
     readonly isRemovingAllPlaylists = input(false);
     readonly isExportingData = input(false);
+    readonly isImportingData = input(false);
+    readonly isBackupBusy = input(false);
+    readonly importSummary = input<PlaylistBackupImportSummary | null>(null);
+    readonly importFailed = input(false);
     readonly canRemoveAllPlaylists = input(false);
     readonly playlistDeleteSummary =
         input.required<SettingsPlaylistDeleteSummary>();

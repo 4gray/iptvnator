@@ -556,6 +556,17 @@ export class PlaylistsService {
         );
     }
 
+    /** Restore the complete archive document, including explicitly empty user state.
+     * IndexedDB add() rejects an existing id; put() replaces it atomically.
+     */
+    restorePlaylist(playlist: Playlist) {
+        return this.serializePlaylistWrite(playlist._id, () =>
+            runWithPlaylistAuthorityMutation([playlist._id], () =>
+                this.persistPlaylistMutation(playlist)
+            )
+        );
+    }
+
     getPlaylist(id: string) {
         if (id === 'global-favorites') {
             return this.getPlaylistWithGlobalFavorites();

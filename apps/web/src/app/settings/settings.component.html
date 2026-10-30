@@ -130,6 +130,10 @@
                                 playlistReset.isRemovingAllPlaylists()
                             "
                             [isExportingData]="backup.isExportingData()"
+                            [isImportingData]="backup.isImportingData()"
+                            [isBackupBusy]="backup.isBusy()"
+                            [importSummary]="backup.importSummary()"
+                            [importFailed]="backup.importFailed()"
                             [canRemoveAllPlaylists]="
                                 playlistReset.canRemoveAll()
                             "
@@ -201,7 +205,10 @@
                     class="unsaved-bar__message"
                     data-test-id="settings-unsaved-message"
                 >
-                    {{ unsavedMessageKey() | translate: { count: changeCount() } }}
+                    {{
+                        unsavedMessageKey()
+                            | translate: { count: changeCount() }
+                    }}
                 </span>
                 <div class="unsaved-bar__actions">
                     <button
