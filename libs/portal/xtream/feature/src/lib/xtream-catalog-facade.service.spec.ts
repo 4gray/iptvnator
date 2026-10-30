@@ -1,6 +1,9 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { PortalCatalogSortMode } from '@iptvnator/portal/shared/util';
+import {
+    PortalCatalogSortMode,
+    PortalWatchStateFilter,
+} from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
     XtreamStore,
@@ -44,6 +47,11 @@ describe('XtreamCatalogFacadeService', () => {
     const isPaginatedContentLoading = signal(false);
     const contentSortMode = signal<PortalCatalogSortMode>('date-desc');
     const minRating = signal<number | null>(null);
+    const watchStateFilter = signal<PortalWatchStateFilter>(null);
+    const positionsLoadState = signal<'idle' | 'loading' | 'ready' | 'error'>(
+        'idle'
+    );
+    const positionsPlaylistId = signal<string | null>(null);
     const currentPlaylist = signal<XtreamPlaylistData | null>(PLAYLIST_ONE);
 
     const xtreamStore = {
@@ -58,6 +66,12 @@ describe('XtreamCatalogFacadeService', () => {
         contentSortMode,
         minRating,
         currentPlaylist,
+        watchStateFilter,
+        positionsLoadState,
+        positionsPlaylistId,
+        setWatchStateFilter: jest.fn((value: PortalWatchStateFilter) =>
+            watchStateFilter.set(value)
+        ),
         loadAllPositions: jest.fn().mockResolvedValue(undefined),
         setCategorySearchTerm: jest.fn(),
         setSelectedItem: jest.fn((item: Record<string, unknown> | null) => {
@@ -82,6 +96,10 @@ describe('XtreamCatalogFacadeService', () => {
     beforeEach(() => {
         localStorage.removeItem('xtream-category-sort-mode');
         contentType.set('vod');
+        watchStateFilter.set(null);
+        positionsLoadState.set('idle');
+        positionsPlaylistId.set(null);
+        xtreamStore.setWatchStateFilter.mockClear();
         selectedCategory.set({ id: 11, name: 'Movies' });
         selectedCategoryId.set(11);
         paginatedContent.set([{ xtream_id: 1, title: 'A' }]);
@@ -180,7 +198,7 @@ describe('XtreamCatalogFacadeService', () => {
         expect(service.appendError()).toBe(false);
     });
 
-    it('restores saved sort mode, sets the selected category, and loads positions once per playlist', () => {
+    it('restores saved sort mode, sets the selected category, and refreshes positions on each catalog entry', () => {
         localStorage.setItem('xtream-category-sort-mode', 'name-asc');
 
         service.initialize('42');
@@ -188,16 +206,58 @@ describe('XtreamCatalogFacadeService', () => {
 
         expect(xtreamStore.setContentSortMode).toHaveBeenCalledWith('name-asc');
         expect(xtreamStore.setSelectedCategory).toHaveBeenLastCalledWith(77);
-        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(2);
         expect(xtreamStore.loadAllPositions).toHaveBeenCalledWith('playlist-1');
 
         currentPlaylist.set(PLAYLIST_TWO);
         service.initialize('88');
 
-        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(2);
+        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(3);
         expect(xtreamStore.loadAllPositions).toHaveBeenLastCalledWith(
             'playlist-2'
         );
+    });
+
+    it('exposes Movies-only capability and normalizes its filter and readiness by source', () => {
+        expect(service.supportsWatchStateFilter).toBe(true);
+        service.setWatchStateFilter('watched');
+        expect(service.watchStateFilter()).toBe('watched');
+        positionsPlaylistId.set('playlist-1');
+        positionsLoadState.set('ready');
+        expect(service.watchFilterLoadState()).toBe('ready');
+        currentPlaylist.set(PLAYLIST_TWO);
+        expect(service.watchFilterLoadState()).toBe('idle');
+        positionsPlaylistId.set('playlist-2');
+        positionsLoadState.set('error');
+        expect(service.watchFilterLoadState()).toBe('error');
+        contentType.set('series');
+        expect(service.supportsWatchStateFilter).toBe(false);
+        expect(service.watchStateFilter()).toBeNull();
+        expect(service.watchFilterLoadState()).toBe('idle');
+        service.setWatchStateFilter('unwatched');
+        expect(xtreamStore.setWatchStateFilter).toHaveBeenCalledTimes(1);
+        contentType.set('live');
+        expect(service.supportsWatchStateFilter).toBe(false);
+    });
+
+    it('retries only the current source and handles rejected position reads', async () => {
+        xtreamStore.loadAllPositions.mockRejectedValueOnce(
+            new Error('read failed')
+        );
+        service.retryWatchFilterPositions();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(xtreamStore.loadAllPositions).toHaveBeenCalledWith('playlist-1');
+        currentPlaylist.set(PLAYLIST_TWO);
+        service.retryWatchFilterPositions();
+        expect(xtreamStore.loadAllPositions).toHaveBeenLastCalledWith(
+            'playlist-2'
+        );
+        xtreamStore.loadAllPositions.mockClear();
+        service.setWatchStateFilter('watched');
+        service.setContentSortMode('name-asc');
+        service.loadMore();
+        expect(xtreamStore.loadAllPositions).not.toHaveBeenCalled();
     });
 
     it('persists sort mode changes and delegates them to the store', () => {
