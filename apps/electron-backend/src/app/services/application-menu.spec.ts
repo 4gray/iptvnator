@@ -84,6 +84,21 @@ describe('application menu', () => {
         }
     );
 
+    it.each(['win32', 'linux'] as const)(
+        'leaves F11 registration to the guarded renderer on %s',
+        (platform) => {
+            const view = applicationMenuTemplate(
+                platform,
+                jest.fn(),
+                labels
+            ).find((item) => item.role === 'viewMenu');
+            const fullscreen = (
+                view?.submenu as MenuItemConstructorOptions[]
+            ).find((item) => item.role === 'togglefullscreen');
+            expect(fullscreen?.registerAccelerator).toBe(false);
+        }
+    );
+
     it('loads translated labels and safely falls back when assets are missing', () => {
         const directory = resolve('apps/web/src/assets/i18n');
         expect(readMenuLabels(directory, 'de-DE').settings).toBe(

@@ -760,7 +760,9 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    is hidden and the controls hide themselves) and skips the key while
    `document.fullscreenElement` is set, since the player's own `F` / `Esc`
    own HTML fullscreen and F11 must not yank OS fullscreen out from under
-   it. Without a bridge (PWA) F11 is left to the browser.
+   it. The native View menu keeps its fullscreen action, but does not register
+   its F11 accelerator on Windows/Linux; the renderer owns that guarded key.
+   Without a bridge (PWA) F11 is left to the browser.
 
 Startup window mode (`Settings.startupWindowMode`, issue #1455):
 

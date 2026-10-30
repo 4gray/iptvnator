@@ -118,7 +118,7 @@ export function applicationMenuTemplate(
                 { role: 'zoomIn' },
                 { role: 'zoomOut' },
                 { type: 'separator' },
-                { role: 'togglefullscreen' },
+                { role: 'togglefullscreen', registerAccelerator: mac },
             ],
         },
         { role: 'windowMenu' },
