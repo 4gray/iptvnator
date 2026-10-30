@@ -172,6 +172,36 @@ describe('WebPlayerViewComponent live format integration', () => {
         expect(component.vjsOptions()!.reloadToken).toBe(before + 2);
     });
 
+    it.each([
+        { input: 'streamUrl', value: 'https://example.com/new.m3u8' },
+        { input: 'playbackSessionKey', value: 'content-b' },
+        {
+            input: 'playback',
+            value: {
+                streamUrl: 'https://example.com/new.m3u8',
+                title: 'Another stream',
+                isLive: true,
+            },
+        },
+    ])(
+        'ignores waiting retries after $input changes before rendering',
+        async ({ input, value }) => {
+            await render();
+            const oldBinding = currentBinding();
+            const before = component.reloadToken();
+            fixture.componentRef.setInput(input, value);
+
+            component.retryPlayback(oldBinding);
+
+            expect(component.reloadToken()).toBe(before);
+            await render();
+            const replacement = currentBinding();
+            expect(replacement).not.toBe(oldBinding);
+            component.retryPlayback(replacement);
+            expect(component.reloadToken()).toBe(before + 1);
+        }
+    );
+
     it('tries advertised TS once after initial terminal HLS HTTP failure', async () => {
         fixture.componentRef.setInput('playback', {
             streamUrl: 'https://example.com/live.m3u8',

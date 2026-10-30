@@ -118,7 +118,8 @@ offers Retry through the host's current playback binding. VHS keeps its own
 automatic retries; the notice neither emits a terminal diagnostic nor pauses
 the engine. Playback progress, pause, error, end, source replacement and teardown
 clear it. A current binding can request another retry after a later wait;
-callbacks from retired bindings cannot retry a newer source. Both the native
+callbacks from retired bindings cannot retry a newer source, including before
+the replacement renders after playback inputs change. Both the native
 Video.js controls and shared-controls mode keep this action available. The
 `data-vjs-player` intake wrapper contains the notice so native Video.js
 fullscreen includes it as well.
