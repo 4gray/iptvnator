@@ -107,7 +107,20 @@ export function applicationMenuTemplate(
                     : []),
             ],
         },
-        { role: 'viewMenu' },
+        {
+            role: 'viewMenu',
+            // Reload roles install native Cmd/Ctrl+R accelerators, which
+            // conflict with the workspace's Recent shortcut on Windows/Linux.
+            submenu: [
+                { role: 'toggleDevTools' },
+                { type: 'separator' },
+                { role: 'resetZoom' },
+                { role: 'zoomIn' },
+                { role: 'zoomOut' },
+                { type: 'separator' },
+                { role: 'togglefullscreen' },
+            ],
+        },
         { role: 'windowMenu' },
         ...(!mac
             ? [

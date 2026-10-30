@@ -51,7 +51,7 @@ import { AppMaintenanceService } from './services/app-maintenance.service';
             <p class="startup-version" data-test-id="startup-version">
                 IPTVnator {{ current.currentVersion }} ·
                 {{
-                    (current.channel === 'nightly'
+                    (current.installedChannel === 'nightly'
                         ? 'SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY'
                         : 'SETTINGS.APP_UPDATE_CHANNEL_STABLE'
                     ) | translate

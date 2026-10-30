@@ -145,3 +145,34 @@ test('recovers settings and updates from a failed source read @electron @setting
         await closeElectronApp(desktop);
     }
 });
+
+test('keeps the Recent keyboard shortcut without reloading @electron @keyboard', async ({
+    dataDir,
+}) => {
+    const desktop = await launchElectronApp(dataDir);
+    try {
+        const page = desktop.mainWindow;
+        const viewRoles = await desktop.electronApp.evaluate(({ Menu }) => {
+            const view = Menu.getApplicationMenu()!.items.find(
+                (item) => item.role?.toLowerCase() === 'viewmenu'
+            );
+            return view!.submenu!.items.map((item) => item.role);
+        });
+        expect(viewRoles).not.toContain('reload');
+        expect(viewRoles).not.toContain('forcereload');
+        await page.evaluate(() =>
+            Reflect.set(window, 'recentShortcutDocument', true)
+        );
+        await page.keyboard.press(
+            process.platform === 'darwin' ? 'Meta+r' : 'Control+r'
+        );
+        await expect(page).toHaveURL(/\/workspace\/global-recent/);
+        expect(
+            await page.evaluate(() =>
+                Reflect.get(window, 'recentShortcutDocument')
+            )
+        ).toBe(true);
+    } finally {
+        await closeElectronApp(desktop);
+    }
+});

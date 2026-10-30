@@ -5,8 +5,8 @@
 Source inventory readiness gates library views, but never sign-in or any
 `/workspace/settings` section. A failed source read offers Retry, Open settings
 and, when the update bridge is present, Check for updates. The richer recovery
-controls and version/channel information load only on failure; native fallback
-Retry and Open settings buttons remain usable if that chunk cannot load.
+controls and installed version/channel information load only on failure; native
+fallback Retry and Open settings buttons remain usable if that chunk cannot load.
 Recovery actions and their native fallback follow the shared application button kit.
 
 Desktop Settings (`Cmd/Ctrl+,`) and Check for Updates commands use the same
@@ -21,6 +21,8 @@ Open menu button beside the window controls that opens the native menu as a
 popup; installing an application menu alone does not make it visible there.
 Native custom labels use the OS
 locale's bundled translations, falling back to English.
+The View menu omits native reload commands so Cmd/Ctrl+R continues to open
+Recent instead of reloading the renderer and interrupting playback.
 
 Settings remain browsable while sources are pending or unavailable. A notice
 offers a retry; backup, parental-lock and XMLTV source actions that require the

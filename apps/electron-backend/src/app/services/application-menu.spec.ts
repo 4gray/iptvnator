@@ -62,6 +62,28 @@ describe('application menu', () => {
         }
     );
 
+    it.each(['darwin', 'win32', 'linux'] as const)(
+        'keeps native reload accelerators off the Recent shortcut on %s',
+        (platform) => {
+            const view = applicationMenuTemplate(
+                platform,
+                jest.fn(),
+                labels
+            ).find((item) => item.role === 'viewMenu');
+            const items = view?.submenu as MenuItemConstructorOptions[];
+            expect(Array.isArray(items)).toBe(true);
+            expect(
+                items.some(
+                    (item) =>
+                        item.role === 'reload' || item.role === 'forceReload'
+                )
+            ).toBe(false);
+            expect(items.some((item) => item.role === 'toggleDevTools')).toBe(
+                true
+            );
+        }
+    );
+
     it('loads translated labels and safely falls back when assets are missing', () => {
         const directory = resolve('apps/web/src/assets/i18n');
         expect(readMenuLabels(directory, 'de-DE').settings).toBe(

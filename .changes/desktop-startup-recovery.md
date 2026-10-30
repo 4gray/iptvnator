@@ -3,4 +3,4 @@ type: fix
 area: desktop
 ---
 
-Open settings and check for updates even when saved sources cannot load. Desktop menus, including a menu button in the Windows/Linux title bar, include Settings and Check for Updates, and source-dependent settings actions stay unavailable until the library loads. Recovery actions use the shared application button styling.
+Keep settings and updates reachable when saved sources fail to load, with a desktop menu on every platform. Source-dependent actions stay disabled until the library loads. Recovery uses the shared button styling and shows the installed build channel. Desktop menus preserve the Recent shortcut.
