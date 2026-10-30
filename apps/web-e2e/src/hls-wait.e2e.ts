@@ -67,15 +67,36 @@ for (const recovery of ['automatic', 'retry', 'legacy-fullscreen']) {
             animations: 'disabled',
             path: testInfo.outputPath(`hls-wait-${recovery}.png`),
         });
-        available = true;
         if (recovery !== 'automatic') {
-            await notice
-                .getByRole('button', { name: 'Retry', exact: true })
-                .focus();
-            await notice
-                .getByRole('button', { name: 'Retry', exact: true })
-                .press('Enter');
-        }
+            const retry = notice.getByRole('button', {
+                name: 'Retry',
+                exact: true,
+            });
+            await retry.focus();
+            await page.keyboard.press('Tab');
+            await page.keyboard.press('Shift+Tab');
+            await expect(retry).toBeFocused();
+            expect(
+                await retry.evaluate((el) => {
+                    const style = getComputedStyle(el);
+                    return {
+                        color: style.outlineColor,
+                        width: style.outlineWidth,
+                        style: style.outlineStyle,
+                    };
+                })
+            ).toEqual({
+                color: 'rgb(231, 236, 243)',
+                width: '2px',
+                style: 'solid',
+            });
+            await page.screenshot({
+                animations: 'disabled',
+                path: testInfo.outputPath(`hls-wait-keyboard-${recovery}.png`),
+            });
+            available = true;
+            await retry.press('Enter');
+        } else available = true;
         const video = page.locator('app-vjs-player video');
         await expect
             .poll(

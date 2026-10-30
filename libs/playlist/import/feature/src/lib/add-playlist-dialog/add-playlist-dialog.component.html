@@ -43,6 +43,9 @@
             } @else if (urlImport.errorKey(); as key) {
                 <p #urlFeedback class="apd-import-error" role="alert">
                     {{ key | translate }}
+                    @if (urlImport.errorCode(); as code) {
+                        {{ ' (' + code + ')' }}
+                    }
                 </p>
             }
             @switch (playlistType()) {

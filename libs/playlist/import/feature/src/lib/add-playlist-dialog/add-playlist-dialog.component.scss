@@ -91,6 +91,7 @@
 
     .apd-import-error {
         color: var(--app-danger-text);
+        overflow-wrap: anywhere;
     }
 
     form {

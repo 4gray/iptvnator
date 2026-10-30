@@ -20,6 +20,7 @@ export function createUrlPlaylistImport() {
     const destroyRef = inject(DestroyRef);
     const pending = signal(false);
     const errorKey = signal<string | null>(null);
+    const errorCode = signal<string | null>(null);
     let generation = 0;
     const cancel = () => {
         generation++;
@@ -37,6 +38,7 @@ export function createUrlPlaylistImport() {
         const current = () => owned === generation && !destroyRef.destroyed;
         pending.set(true);
         errorKey.set(null);
+        errorCode.set(null);
         try {
             const playlist = await data.fetchPlaylistDefinition(
                 draft.playlistUrl.trim(),
@@ -60,6 +62,7 @@ export function createUrlPlaylistImport() {
         } catch (error) {
             if (!current()) return;
             errorKey.set(importErrorKey(error));
+            errorCode.set(importErrorCode(error));
             // Preserve Electron's explicit TLS-trust flow, but its delayed
             // action must still belong to this dialog and this draft.
             data.recoverPlaylistImportError?.(error, () => {
@@ -73,9 +76,23 @@ export function createUrlPlaylistImport() {
         if (!pending()) {
             generation++;
             errorKey.set(null);
+            errorCode.set(null);
         }
     };
-    return { pending, errorKey, submit, cancel, clearError };
+    return { pending, errorKey, errorCode, submit, cancel, clearError };
+}
+
+/** Only diagnostic identifiers, never provider messages or URLs. */
+function importErrorCode(error: unknown): string | null {
+    const details = error as {
+        code?: unknown;
+        error?: { code?: unknown };
+    } | null;
+    const code = details?.error?.code ?? details?.code;
+    return typeof code === 'string' &&
+        code.match(/^[A-Z][A-Z0-9_]{1,47}$/)?.[0] === code
+        ? code
+        : null;
 }
 
 function importErrorKey(error: unknown): string {

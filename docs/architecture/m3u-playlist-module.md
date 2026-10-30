@@ -21,6 +21,10 @@ Acquisition keeps the form open, disables repeated submission and method changes
 and announces loading. Failure leaves the URL, title and user agent editable with
 a localized inline error; HTTP(S) validation requires a hostname. Electron keeps
 its explicit TLS-host trust flow, whose delayed retry belongs to the same draft.
+Inline failures retain a provider's network error identifier beside the translated
+message (uppercase letters, digits and underscores, at most 48 characters).
+Raw provider messages and URLs are never rendered as diagnostic details; editing
+the form or starting another attempt clears the identifier.
 
 Cancel, Escape, backdrop dismissal, navigation during acquisition and destruction
 retire the dialog's operation. The HTTP/IPC transport may still finish, but a

@@ -25,6 +25,7 @@
 }
 
 .vjs-hls-wait {
+    @include palette.focus-ring-token;
     position: absolute;
     inset: 16px 16px auto;
     z-index: 6;
@@ -62,7 +63,7 @@
         font: inherit;
         cursor: pointer;
         &:focus-visible {
-            outline: 2px solid palette.$text;
+            outline: 2px solid var(--app-focus-ring);
             outline-offset: 3px;
         }
         &:hover {

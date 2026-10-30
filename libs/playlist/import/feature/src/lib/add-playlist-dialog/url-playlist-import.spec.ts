@@ -101,4 +101,53 @@ describe('dialog-owned URL playlist import', () => {
         expect(state.errorKey()).toBeNull();
         expect(dispatch).toHaveBeenCalledTimes(1);
     });
+
+    it.each(['ETIMEDOUT', 'ENETUNREACH', 'EAI_AGAIN'])(
+        'preserves the bounded PWA network code %s without raw error details',
+        async (code) => {
+            fetchPlaylistDefinition.mockRejectedValueOnce({
+                status: 500,
+                error: { code, message: 'https://user:secret@private.example' },
+            });
+            await state.submit(draft, completed);
+            expect(state.errorKey()).toBe('HOME.URL_UPLOAD.ERROR_FETCH_FAILED');
+            expect(state.errorCode()).toBe(code);
+            state.clearError();
+            expect(state.errorKey()).toBeNull();
+            expect(state.errorCode()).toBeNull();
+        }
+    );
+
+    it.each([
+        'E'.repeat(49),
+        'ETIMEDOUT\n',
+        'ETIMEDOUT\r\n',
+        'ETIMEDOUT https://user:secret@private.example',
+        '<script>',
+        504,
+        null,
+    ])(
+        'does not display an unbounded or malformed error code: %s',
+        async (code) => {
+            fetchPlaylistDefinition.mockRejectedValueOnce({
+                status: 500,
+                error: { code },
+            });
+            await state.submit(draft, completed);
+            expect(state.errorCode()).toBeNull();
+        }
+    );
+
+    it('clears a previous network code before a new attempt and after success', async () => {
+        fetchPlaylistDefinition.mockRejectedValueOnce({
+            status: 500,
+            error: { code: 'ETIMEDOUT' },
+        });
+        await state.submit(draft, completed);
+        const pending = state.submit(draft, completed);
+        expect(state.errorCode()).toBeNull();
+        resolve(playlist);
+        await pending;
+        expect(state.errorCode()).toBeNull();
+    });
 });

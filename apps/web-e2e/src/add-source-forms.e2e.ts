@@ -99,6 +99,46 @@ test('@sources @pwa explains an invalid M3U playlist URL', async ({ page }) => {
     ).toBeDisabled();
 });
 
+for (const code of ['ETIMEDOUT', 'ENETUNREACH', 'E' + 'X'.repeat(47)]) {
+    test(`@sources @pwa retains ${code.length === 48 ? 'a bounded long code' : code} in URL setup without raw provider detail`, async ({
+        page,
+    }, testInfo) => {
+        if (code.length === 48)
+            await page.setViewportSize({ width: 320, height: 844 });
+        await page.route('**/localhost:3000/parse**', (route) =>
+            route.fulfill({
+                status: 500,
+                json: {
+                    status: 500,
+                    code,
+                    message: 'https://user:secret@private.example/list.m3u',
+                },
+            })
+        );
+        const dialog = await openMethod(page, /M3U URL/i);
+        const url = dialog.getByRole('textbox', { name: /Playlist URL/ });
+        await url.fill('https://fixture.example/list.m3u');
+        await dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click();
+        const alert = dialog.getByRole('alert');
+        await expect(alert).toContainText(`(${code})`);
+        await expect(alert).not.toContainText('secret');
+        expect(
+            await alert.evaluate((el) => el.scrollWidth <= el.clientWidth)
+        ).toBe(true);
+        await expect(url).toHaveValue('https://fixture.example/list.m3u');
+        await page.screenshot({
+            animations: 'disabled',
+            path: testInfo.outputPath(
+                `network-error-${code.length === 48 ? 'narrow' : code}.png`
+            ),
+        });
+        await url.fill('https://fixture.example/other.m3u');
+        await expect(alert).toBeHidden();
+    });
+}
+
 test('@sources @pwa gives the Stalker form the shared labels and a masked password', async ({
     page,
 }) => {
