@@ -14,6 +14,8 @@
         ],
         "sharedGlobals": [
             "{workspaceRoot}/.github/workflows/ci.yml",
+            "{workspaceRoot}/.nvmrc",
+            { "runtime": "node --version" },
             "{workspaceRoot}/package.json"
         ]
     },

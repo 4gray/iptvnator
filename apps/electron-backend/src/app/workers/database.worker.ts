@@ -5,6 +5,7 @@ import type {
 import { migrateAppPlaylists } from '../database/operations/playlist-migration.operations';
 import { readStandaloneSources } from '../database/operations/standalone-sources.operations';
 import {
+    Database,
     closeWorkerDatabase,
     flushWorkerSqlStatementCount,
     getWorkerDatabase,
@@ -736,7 +737,7 @@ async function executeRequest(
             return getAppPlaylists(db);
 
         case 'DB_GET_STANDALONE_SOURCES':
-            return readStandaloneSources();
+            return readStandaloneSources(Database);
 
         case 'DB_GET_APP_PLAYLIST_METAS':
             return getAppPlaylistMetas(db);

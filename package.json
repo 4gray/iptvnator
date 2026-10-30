@@ -2,7 +2,7 @@
     "name": "iptvnator",
     "version": "0.25.0",
     "engines": {
-        "node": "^22.22.3 || ^24.15.0"
+        "node": "^22.23.4 || ^24.22.1"
     },
     "license": "MIT",
     "description": "IPTV player application.",
@@ -154,7 +154,7 @@
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
         "angularx-qrcode": "22.0.1",
         "artplayer": "5.4.0",
-        "axios": "1.20.0",
+        "axios": "1.21.0",
         "better-sqlite3": "13.0.3",
         "date-fns": "4.4.0",
         "drizzle-orm": "0.45.4",
@@ -253,7 +253,7 @@
         "cookie": "2.0.1",
         "cors": "2.8.6",
         "drizzle-kit": "0.31.11",
-        "electron": "^43.8.3",
+        "electron": "^43.8.4",
         "electron-builder": "^26.15.7",
         "electron-playwright-helpers": "1.8.2",
         "esbuild": "0.28.2",
@@ -293,7 +293,7 @@
         "tsx": "4.23.15",
         "typescript": "6.0.3",
         "typescript-eslint": "^8.71.1",
-        "vite": "8.1.6",
+        "vite": "8.2.4",
         "yaml": "2.9.1",
         "zod": "4.6.6"
     },
@@ -305,6 +305,7 @@
             "@xmldom/xmldom@0.8.11": "0.8.15",
             "ajv@6.12.6": "6.14.0",
             "ajv@8.17.1": "8.20.0",
+            "body-parser@2.3.0": "2.4.0",
             "brace-expansion@1.1.12": "1.1.18",
             "browserslist@4.28.1": "4.28.8",
             "defu@6.1.4": "6.1.6",

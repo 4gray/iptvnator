@@ -1009,9 +1009,10 @@ Toolchain notes for the Electron 43 baseline:
    implicit `node-gyp rebuild` bypasses those binaries and makes installation
    depend on the host compiler toolchain. The old `node-abi` override belonged
    to v12's removed `prebuild-install` path and is no longer required.
-2. Local development supports **Node 22.22.3–22.x or 24.15.0–24.x**, declared in
-   `engines` as `^22.22.3 || ^24.15.0`. Use `.nvmrc` (currently 22.23.2) for
-   development and CI. Angular 22 sets this supported LTS range and requires
+2. Local development supports **Node 22.23.4–22.x or 24.22.1–24.x**, declared in
+   `engines` as `^22.23.4 || ^24.22.1`. Use `.nvmrc` (currently 24.22.1) for
+   development and CI. These floors include the October 2026 Node security
+   fixes. Angular 22 supports both LTS lines and requires
    TypeScript `>=6.0 <6.1`. `electron-builder` 26.15.7 also pulls `@electron/rebuild` 4,
    which requires Node 22.12 or newer, and the root `postinstall` runs
    `install-app-deps` on every `pnpm install`. The 26.15.7 minimum also

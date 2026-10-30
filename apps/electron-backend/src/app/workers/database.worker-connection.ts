@@ -59,7 +59,7 @@ function getDrizzleFactory(): (typeof import('drizzle-orm/better-sqlite3'))['dri
     return drizzleFactory;
 }
 
-const Database = loadBetterSqlite3();
+export const Database = loadBetterSqlite3();
 
 let db: AppDatabase | null = null;
 let sqlite: BetterSqlite3.Database | null = null;

@@ -70,7 +70,7 @@ describe('read-only import from an original SQLite profile', () => {
             );
         sqlite.close();
         const original = readFileSync(filename);
-        const rows = readStandaloneSources();
+        const rows = readStandaloneSources(Database);
         expect(rows[0]).toMatchObject({
             _id: 'xtream',
             title: 'Original portal',
@@ -90,14 +90,14 @@ describe('read-only import from an original SQLite profile', () => {
     });
 
     it('does not create an empty database when there is no original profile', () => {
-        expect(readStandaloneSources()).toEqual([]);
+        expect(readStandaloneSources(Database)).toEqual([]);
         expect(existsSync(filename)).toBe(false);
     });
 
     it('reports an unreadable original instead of importing an apparently empty library', () => {
         mkdirSync(join(directory, 'databases'));
         writeFileSync(filename, 'invalid-sqlite');
-        expect(() => readStandaloneSources()).toThrow();
+        expect(() => readStandaloneSources(Database)).toThrow();
         expect(readFileSync(filename, 'utf8')).toBe('invalid-sqlite');
     });
 });
