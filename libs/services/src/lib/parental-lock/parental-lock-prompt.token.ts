@@ -20,6 +20,11 @@ export interface ParentalLockPromptRequest {
     titleKey?: string;
     /** Optional translation key overriding the mode's default description. */
     descriptionKey?: string;
+    /**
+     * Translation key of the flow's verb on the submit button ("Unlock",
+     * "Save PIN", "Turn off", …); the mode's default when absent.
+     */
+    submitKey?: string;
 }
 
 /**

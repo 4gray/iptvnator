@@ -2,6 +2,7 @@ import {
     HttpClient,
     provideHttpClient,
     withInterceptorsFromDi,
+    withInterceptors,
     withXhr,
 } from '@angular/common/http';
 import {
@@ -12,16 +13,13 @@ import {
     ApplicationConfig,
     inject,
     importProvidersFrom,
-    provideZoneChangeDetection,
+    provideZonelessChangeDetection,
 } from '@angular/core';
-import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { provideEffects } from '@ngrx/effects';
 import { provideRouterStore, routerReducer } from '@ngrx/router-store';
 import { provideStore } from '@ngrx/store';
-import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { PlaylistEffects, playlistReducer } from '@iptvnator/m3u-state';
@@ -38,7 +36,8 @@ import {
     DataService,
 } from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
-import { AppConfig } from '../environments/environment';
+import { getInitialLanguage } from './app-language-preference';
+import { storeDevtoolsProviders } from '../environments/store-devtools.providers';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
 import { ExternalPlaybackService } from './services/external-playback.service';
@@ -49,6 +48,7 @@ import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
 import { LazyStalkerPlaylistConnectionEditor } from './services/lazy-stalker-playlist-connection-editor';
 import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
+import { provideSourceSync, sourceAuthInterceptor } from './services/source-sync.providers';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -60,43 +60,14 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
  * very first render uses the right locale instead of flashing English first
  * and re-rendering once the IDB-backed settings finish loading.
  *
- * The hint is written by AppComponent.initSettings() whenever the saved
- * settings resolve, so first-ever boots fall back to English (no hint
+ * AppDateLocaleService writes the hint when a saved language is applied,
+ * including after saving settings, so first-ever boots use English (no hint
  * present yet) and every subsequent boot uses the saved language.
  */
-const SUPPORTED_LANGS = new Set([
-    'ar',
-    'ary',
-    'by',
-    'de',
-    'el',
-    'en',
-    'es',
-    'fr',
-    'hu',
-    'it',
-    'ja',
-    'ko',
-    'nl',
-    'pl',
-    'pt',
-    'ru',
-    'tr',
-    'zh',
-    'zhtw',
-]);
-export const PREFERRED_LANGUAGE_STORAGE_KEY = 'iptvnator:preferred-language';
-export function getInitialLanguage(): string {
-    try {
-        const saved = localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY);
-        if (saved && SUPPORTED_LANGS.has(saved)) {
-            return saved;
-        }
-    } catch {
-        // localStorage may throw in privacy modes; fall through to default.
-    }
-    return 'en';
-}
+export {
+    getInitialLanguage,
+    PREFERRED_LANGUAGE_STORAGE_KEY,
+} from './app-language-preference';
 
 /**
  * Conditionally provides the necessary service based on the current environment
@@ -110,23 +81,28 @@ export function DataFactory() {
 
 export const appConfig: ApplicationConfig = {
     providers: [
-        provideZoneChangeDetection({ eventCoalescing: true }),
+        provideZonelessChangeDetection(),
         provideRouter(routes, withComponentInputBinding()),
-        provideAnimations(),
+        // No provideAnimations(): nothing declares an Angular animation
+        // trigger, and Material 22 animates with CSS, reading
+        // prefers-reduced-motion itself. The provider only put the 66 KB
+        // animation engine on the initial path, and its renderer deferred
+        // every DOM removal, so a routed page stayed beside the next one
+        // until the following tick (workspace-shell.md, "Route swaps").
         // CDK overlays (menus, tooltips, dialogs) live in a container under
         // <body>, which the browser hides behind an element in DOM fullscreen.
         // This container follows the fullscreen element instead, so the
         // fullscreen channel panel's sort/context menus and the controls'
         // tooltips render while the player is fullscreen.
         { provide: OverlayContainer, useClass: FullscreenOverlayContainer },
-        provideHttpClient(withXhr(), withInterceptorsFromDi()),
+        provideHttpClient(withXhr(), withInterceptorsFromDi(), withInterceptors([sourceAuthInterceptor])),
         provideStore({
             router: routerReducer,
             playlistState: playlistReducer,
         }),
         provideEffects([PlaylistEffects]),
         provideRouterStore(),
-        ...(AppConfig.production ? [] : [provideStoreDevtools({ maxAge: 25 })]),
+        ...storeDevtoolsProviders,
         provideServiceWorker('ngsw-worker.js', {
             enabled: shouldEnableServiceWorker(),
             registrationStrategy: 'registerWhenStable:30000',
@@ -167,9 +143,6 @@ export const appConfig: ApplicationConfig = {
         ...provideParentalLockPrompt(),
         provideParentalLockPlaylistCleanup(),
         ...provideXtreamDataSource(),
-        {
-            provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
-            useValue: { appearance: 'outline', subscriptSizing: 'dynamic' },
-        },
+        ...provideSourceSync(),
     ],
 };

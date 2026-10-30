@@ -73,8 +73,10 @@ describe('PortalChannelsListComponent', () => {
         enqueue: jest.fn().mockResolvedValue(undefined),
         invalidate: jest.fn(),
     };
+    let providerEpgAvailable = true;
 
     beforeEach(async () => {
+        providerEpgAvailable = true;
         Object.defineProperty(window, 'electron', {
             configurable: true,
             writable: true,
@@ -138,8 +140,8 @@ describe('PortalChannelsListComponent', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        get supportsEpg() {
-                            return Boolean(window.electron);
+                        get supportsProviderEpg() {
+                            return providerEpgAvailable;
                         },
                     },
                 },
@@ -772,12 +774,8 @@ describe('PortalChannelsListComponent', () => {
         expect(epgQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    it('does not derive or subscribe to row EPG previews in browser/PWA mode', async () => {
-        Object.defineProperty(window, 'electron', {
-            configurable: true,
-            writable: true,
-            value: undefined,
-        });
+    it('does not derive or subscribe to row EPG previews without a portal transport', async () => {
+        providerEpgAvailable = false;
         selectedTypeContentLoading.set(false);
         selectedChannels.set([
             {
@@ -818,7 +816,7 @@ describe('PortalChannelsListComponent', () => {
         });
 
         const pwaComponent = fixture.componentInstance;
-        expect(pwaComponent.supportsEpg).toBe(false);
+        expect(pwaComponent.supportsProviderEpg).toBe(false);
         expect(pwaComponent.channelItemSize).toBe(52);
         expect(pwaComponent.epgPrograms.size).toBe(0);
         expect(pwaComponent.currentProgramsProgress.size).toBe(0);
@@ -856,6 +854,40 @@ describe('PortalChannelsListComponent', () => {
                 .querySelector('.channel-list-item')
                 .classList.contains('compact')
         ).toBe(true);
+    });
+
+    it('derives row EPG previews in browser/PWA mode through the portal transport', async () => {
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            writable: true,
+            value: undefined,
+        });
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([{ title: 'Cartoon Network', xtream_id: 50 }]);
+
+        fixture.destroy();
+        fixture = TestBed.createComponent(PortalChannelsListComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        epgResults$.next({
+            streamId: 50,
+            items: [
+                buildEpgItem({
+                    id: 'pwa-current',
+                    title: 'PWA Current Show',
+                    start: new Date(Date.now() - 60_000).toISOString(),
+                    stop: new Date(Date.now() + 60_000).toISOString(),
+                    startTimestamp: Math.floor((Date.now() - 60_000) / 1000),
+                    stopTimestamp: Math.floor((Date.now() + 60_000) / 1000),
+                }),
+            ],
+        });
+
+        const component = fixture.componentInstance;
+        expect(component.supportsProviderEpg).toBe(true);
+        expect(component.channelItemSize).toBe(68);
+        expect(component.epgPrograms.get(50)?.title).toBe('PWA Current Show');
     });
 
     it('does not mark a live item as favorite when only a colliding movie ID is favorited', () => {
@@ -898,6 +930,56 @@ describe('PortalChannelsListComponent', () => {
                 xtream_id: 290,
             })
         ).toBe('live:290');
+    });
+
+    // OnPush: favorites resolve asynchronously (IPC or IndexedDB), outside
+    // any template event, so the heart must follow without a zone tick.
+    it('renders favorites that load after the first render', async () => {
+        const favorites$ = new Subject<FavoriteItem[]>();
+        favoritesService.getFavorites.mockReturnValue(favorites$);
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([{ title: 'Cartoon Network', xtream_id: 50 }]);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const viewport = fixture.componentInstance.viewport();
+        Object.defineProperty(
+            viewport?.elementRef.nativeElement,
+            'clientHeight',
+            { configurable: true, value: 520 }
+        );
+        viewport?.checkViewportSize();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const row = () =>
+            fixture.debugElement.query(By.directive(ChannelListItemComponent))
+                .componentInstance as ChannelListItemComponent;
+        expect(row().isFavorite()).toBe(false);
+
+        // From here the fixture renders on its own: a forced detectChanges()
+        // would hide a favorites handler that does not mark the view.
+        fixture.autoDetectChanges();
+        favorites$.next([
+            {
+                content_id: 1,
+                playlist_id: 'playlist-1',
+                type: 'live',
+                title: 'Cartoon Network',
+                category_id: 7,
+                xtream_id: 50,
+            },
+        ] satisfies FavoriteItem[]);
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(row().isFavorite()).toBe(true);
     });
 
     it('scrolls the virtual list to the selected live channel', () => {

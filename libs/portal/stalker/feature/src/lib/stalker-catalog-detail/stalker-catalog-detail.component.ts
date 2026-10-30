@@ -31,34 +31,36 @@ import {
     StalkerSelectedVodItem,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
-import {
-    type PlaybackFallbackRequest,
-    VodDetailsComponent,
-} from '@iptvnator/ui/playback';
+import { VodDetailsComponent } from '@iptvnator/ui/playback';
 import {
     DownloadsService,
     PlaybackPositionRuntimeBridgeService,
     PlaylistsService,
 } from '@iptvnator/services';
 import {
-    createStalkerVodItem,
-    PlaybackPositionData,
     ResolvedPortalPlayback,
     StalkerVodDetails,
     VodDetailsItem,
+    createStalkerVodItem,
 } from '@iptvnator/shared/interfaces';
 import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 
+import { startStalkerCatalogVodPlayback } from './stalker-catalog-vod-playback';
+import { StalkerCatalogVodPosition } from './stalker-catalog-vod-position';
 import { startStalkerVodDownload } from './stalker-vod-download';
 import { createStalkerVodWatchedToggle } from '../stalker-vod-watched-toggle';
+import {
+    createStalkerVodDetailActions,
+    beginTrackedExternalLaunch,
+} from '../stalker-vod-detail-actions';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 @Component({
     selector: 'app-stalker-catalog-detail',
     imports: [StalkerSeriesViewComponent, VodDetailsComponent],
     templateUrl: './stalker-catalog-detail.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {
@@ -85,7 +87,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     private readonly downloadsService = inject(DownloadsService);
     private readonly logger = createLogger('StalkerCatalogDetail');
     private readonly favoritesRefresh = createRefreshTrigger();
-    private playbackRequestId = 0;
+    playbackRequestId = 0;
     private currentPlaybackOwnerKey = '';
 
     readonly contentType = this.catalog.contentType;
@@ -103,22 +105,25 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             ? createPlaybackSessionKey({ kind: 'vod', sourceId, contentId })
             : '';
     });
-    private readonly playbackOwnerKey = computed(() =>
+    readonly playbackOwnerKey = computed(() =>
         JSON.stringify([this.playbackSessionKey(), this.contentType()])
     );
-    private readonly selectedVodPosition = signal<PlaybackPositionData | null>(
-        null
-    );
-    private unsubscribePositionUpdates: (() => void) | null = null;
-    private positionLoadGeneration = 0;
+    private readonly vodPosition = new StalkerCatalogVodPosition({
+        playbackPositions: this.playbackPositions,
+        playbackPositionBridge: this.playbackPositionBridge,
+        playlistId: () => this.catalog.playlist()?.id,
+        selectedItem: this.selectedItem,
+        contentType: this.contentType,
+        isSeriesDetail: () => this.isSeriesDetail(),
+    });
     /** The stored row is in hand (not the placeholder shown while reading). */
-    readonly positionLoaded = signal(false);
+    readonly positionLoaded = this.vodPosition.loaded;
     /**
      * The start still waiting on the portal between the click and playback,
      * keyed by its owner: a stale resolution for the previous movie must not
      * hold the next movie's toggle hostage.
      */
-    private readonly pendingStart = createPendingPlaybackStart<string>();
+    readonly pendingStart = createPendingPlaybackStart<string>();
     readonly playbackStartPending = computed(() =>
         this.pendingStart.isPendingFor(this.playbackOwnerKey())
     );
@@ -144,8 +149,14 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         );
     });
 
+    readonly selectedVodPlaybackDuration = computed<number | null>(
+        () => this.vodPosition.position()?.durationSeconds ?? null
+    );
+    readonly sourceLabel = computed(
+        () => this.catalog.playlist()?.title ?? null
+    );
     readonly selectedVodPlaybackPosition = computed<number | null>(
-        () => this.selectedVodPosition()?.positionSeconds ?? null
+        () => this.vodPosition.position()?.positionSeconds ?? null
     );
 
     /** Manual watched toggle; the child gates it on live playback itself. */
@@ -158,7 +169,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
                 : null;
         },
         playbackPositions: this.playbackPositions,
-        position: this.selectedVodPosition,
+        position: this.vodPosition.position,
         playingNow: computed(
             () => this.inlinePlayback() !== null || this.playbackStartPending()
         ),
@@ -166,8 +177,8 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         applyPosition: (position) => {
             // A read still in flight started from the pre-write row; letting
             // it land would revert the toggle it never saw.
-            this.positionLoadGeneration++;
-            this.selectedVodPosition.set(position);
+            this.vodPosition.discardPendingLoad();
+            this.vodPosition.position.set(position);
         },
         snackBar: this.snackBar,
         translateService: this.translateService,
@@ -189,67 +200,26 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     );
 
     constructor() {
-        effect(() => {
-            const item = this.selectedItem();
-            const playlistId = this.catalog.playlist()?.id;
-
-            if (
-                !item ||
-                !playlistId ||
-                this.contentType() !== 'vod' ||
-                this.isSeriesDetail()
-            ) {
-                this.selectedVodPosition.set(null);
-                return;
-            }
-
-            void this.loadSelectedVodPosition(playlistId, Number(item.id));
-        });
+        this.vodPosition.connect();
 
         effect(() => {
             const ownerKey = this.playbackOwnerKey();
             if (ownerKey === this.currentPlaybackOwnerKey) return;
+            // A start the left movie still resolves no longer applies; a
+            // return to it must not find Play held by a hung request.
+            this.pendingStart.retire(this.currentPlaybackOwnerKey);
             this.currentPlaybackOwnerKey = ownerKey;
             this.closeInlinePlayer();
         });
-
-        this.unsubscribePositionUpdates =
-            this.playbackPositionBridge.onPlaybackPositionUpdate(
-                (data: PlaybackPositionData) => {
-                    const currentItem = this.selectedItem();
-                    if (
-                        data.contentType !== 'vod' ||
-                        data.playlistId !== this.catalog.playlist()?.id ||
-                        data.contentXtreamId !== Number(currentItem?.id)
-                    ) {
-                        return;
-                    }
-
-                    this.selectedVodPosition.set(data);
-                }
-            ) ?? null;
     }
 
-    onVodPlay(item: VodDetailsItem): void {
+    onVodPlay(item: VodDetailsItem, positionSeconds?: number): void {
         if (item.type === 'stalker') {
             void this.startStalkerVodPlayback(
                 item.cmd,
                 item.data.info?.name,
-                item.data.info?.movie_image
-            );
-        }
-    }
-
-    onVodResume(event: {
-        item: VodDetailsItem;
-        positionSeconds: number;
-    }): void {
-        if (event.item.type === 'stalker') {
-            void this.startStalkerVodPlayback(
-                event.item.cmd,
-                event.item.data.info?.name,
-                event.item.data.info?.movie_image,
-                event.positionSeconds
+                item.data.info?.movie_image,
+                positionSeconds
             );
         }
     }
@@ -272,6 +242,46 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     onVodWatchedToggled(event: { item: VodDetailsItem }): void {
         void this.watchedToggle.toggleItem(event.item);
     }
+
+    readonly vodDetailActions = createStalkerVodDetailActions({
+        resolvePlayback: (cmd, title, thumbnail, startTime) =>
+            this.catalog.resolveVodPlayback(cmd, title, thumbnail, startTime),
+        portalPlayer: this.portalPlayer,
+        externalPlayback: this.externalPlayback,
+        playbackPositions: this.playbackPositions,
+        playlistId: () => this.catalog.playlist()?.id,
+        selectedVodId: () =>
+            this.contentType() === 'vod' && !this.isSeriesDetail()
+                ? Number(this.selectedItem()?.id) || null
+                : null,
+        selectedVodPosition: this.vodPosition.position,
+        discardPendingPositionLoad: () => this.vodPosition.discardPendingLoad(),
+        beforeExternalLaunch: () => this.closeInlinePlayer(),
+        beginPendingStart: () => beginTrackedExternalLaunch(this),
+        afterProgressReset: (playlistId) =>
+            void this.catalog.refreshPositions(playlistId),
+        download: (item) =>
+            startStalkerVodDownload(item, {
+                playlist: this.catalog.playlist(),
+                downloadsService: this.downloadsService,
+                fetchMovieFileId: (id) => this.catalog.fetchMovieFileId(id),
+                fetchLinkToPlay: (portalUrl, macAddress, cmd, linkFlags) =>
+                    this.catalog.fetchLinkToPlay(
+                        portalUrl,
+                        macAddress,
+                        cmd,
+                        undefined,
+                        linkFlags
+                    ),
+                language:
+                    this.translateService.currentLang ||
+                    this.translateService.defaultLang ||
+                    'en',
+            }),
+        snackBar: this.snackBar,
+        translate: this.translateService,
+        logError: (message, error) => this.logger.error(message, error),
+    });
 
     onVodBack(): void {
         const back = resolveStalkerBackNavigation(
@@ -301,7 +311,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
                 playlistId,
                 position
             ),
-        onSaved: (position) => this.selectedVodPosition.set(position),
+        onSaved: (position) => this.vodPosition.position.set(position),
     });
 
     handleInlineTimeUpdate(event: {
@@ -317,77 +327,9 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         this.positionWriter.reset();
     }
 
-    showCopyNotification(): void {
-        this.snackBar.open(
-            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            undefined,
-            {
-                duration: 2000,
-            }
-        );
-    }
-
-    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        const launch = this.portalPlayer.openExternalPlayback(
-            request.playback,
-            request.player
-        );
-        request.trackLaunch(launch);
-        void launch;
-    }
-
-    async onVodDownload(item: VodDetailsItem): Promise<void> {
-        await startStalkerVodDownload(item, {
-            playlist: this.catalog.playlist(),
-            downloadsService: this.downloadsService,
-            fetchMovieFileId: (id) => this.catalog.fetchMovieFileId(id),
-            fetchLinkToPlay: (portalUrl, macAddress, cmd, linkFlags) =>
-                this.catalog.fetchLinkToPlay(
-                    portalUrl,
-                    macAddress,
-                    cmd,
-                    undefined,
-                    linkFlags
-                ),
-            language:
-                this.translateService.currentLang ||
-                this.translateService.defaultLang ||
-                'en',
-        });
-    }
-
     ngOnDestroy(): void {
         this.closeInlinePlayer();
-        this.unsubscribePositionUpdates?.();
-    }
-
-    private async loadSelectedVodPosition(
-        playlistId: string,
-        vodId: number
-    ): Promise<void> {
-        const generation = ++this.positionLoadGeneration;
-        this.positionLoaded.set(false);
-        if (Number.isNaN(vodId)) {
-            this.selectedVodPosition.set(null);
-            return;
-        }
-
-        const position = await this.playbackPositions.getPlaybackPosition(
-            playlistId,
-            vodId,
-            'vod'
-        );
-        // Only the newest read for the item still on screen may land: an
-        // older one would revert a watched toggle or a later selection.
-        if (
-            generation !== this.positionLoadGeneration ||
-            this.catalog.playlist()?.id !== playlistId ||
-            Number(this.selectedItem()?.id) !== vodId
-        ) {
-            return;
-        }
-        this.selectedVodPosition.set(position ?? null);
-        this.positionLoaded.set(true);
+        this.vodPosition.disconnect();
     }
 
     private async startStalkerVodPlayback(
@@ -396,54 +338,19 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         thumbnail?: string,
         startTime?: number
     ): Promise<void> {
-        const requestId = ++this.playbackRequestId;
-        const sessionKey = this.playbackSessionKey();
-        const ownerKey = this.playbackOwnerKey();
-        const usesEmbeddedPlayer = this.portalPlayer.isEmbeddedPlayer();
-        if (usesEmbeddedPlayer && !sessionKey) return;
-
-        const startId = this.pendingStart.begin(ownerKey);
-        try {
-            const playback = await this.catalog.resolveVodPlayback(
-                cmd,
-                title,
-                thumbnail,
-                startTime
-            );
-            if (
-                requestId !== this.playbackRequestId ||
-                this.playbackOwnerKey() !== ownerKey
-            ) {
-                return;
-            }
-
-            this.positionWriter.reset();
-            if (usesEmbeddedPlayer) {
-                this.inlinePlayback.set(playback);
-                return;
-            }
-
-            this.closeInlinePlayer();
-            void this.portalPlayer.openResolvedPlayback(playback, true);
-        } catch (error) {
-            if (
-                requestId !== this.playbackRequestId ||
-                this.playbackOwnerKey() !== ownerKey
-            ) {
-                return;
-            }
-            this.logger.error('Failed to start inline VOD playback', error);
-            const errorMessage =
-                error instanceof Error && error.message === 'nothing_to_play'
-                    ? this.translateService.instant(
-                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                      )
-                    : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, undefined, {
-                duration: 3000,
-            });
-        } finally {
-            this.pendingStart.settle(startId);
-        }
+        await startStalkerCatalogVodPlayback(this, {
+            resolvePlayback: () =>
+                this.catalog.resolveVodPlayback(
+                    cmd,
+                    title,
+                    thumbnail,
+                    startTime
+                ),
+            portalPlayer: this.portalPlayer,
+            resetPositionWriter: () => this.positionWriter.reset(),
+            logger: this.logger,
+            translate: this.translateService,
+            snackBar: this.snackBar,
+        });
     }
 }

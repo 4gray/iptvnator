@@ -5,45 +5,72 @@ import {
     ViewEncapsulation,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { FormArray, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import {
+    AbstractControl,
+    FormArray,
+    FormGroup,
+    ReactiveFormsModule,
+} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { EpgViewMode } from '@iptvnator/shared/interfaces';
 import { EpgSourceStatusComponent } from '@iptvnator/ui/epg';
 import { TranslateModule } from '@ngx-translate/core';
 import { EpgViewModeOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import {
+    RadioGroupDirective,
+    RadioOptionDirective,
+} from '@iptvnator/ui/components/radio-group';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-epg-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
+        RadioGroupDirective,
+        RadioOptionDirective,
         EpgSourceStatusComponent,
         MatButtonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         MatProgressSpinnerModule,
+        MatSlideToggleModule,
         MatTooltipModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
     templateUrl: './settings-epg-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
-    styles: [':host { display: contents; }'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrls: ['./settings-epg-section.component.scss'],
 })
 export class SettingsEpgSectionComponent {
     readonly form = input.required<FormGroup>();
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly epgUrl = input.required<FormArray>();
     readonly isClearingEpgData = input(false);
     readonly canBrowseFiles = input(false);
     readonly epgViewModeOptions = input.required<EpgViewModeOption[]>();
+
+    /**
+     * The XMLTV part: source list, its refresh and clear actions, and the
+     * Xtream XMLTV preference. Off where only a portal guide exists (the
+     * browser PWA); the guide display settings above it always render.
+     */
+    readonly showsXmltvSources = input(true);
 
     readonly refreshEpg = output<string>();
     readonly browseEpgSource = output<number>();
@@ -52,4 +79,35 @@ export class SettingsEpgSectionComponent {
     readonly refreshAllEpg = output<void>();
     readonly clearEpgData = output<void>();
     readonly selectEpgViewMode = output<EpgViewMode>();
+
+    /** Minutes one stepper click shifts the displayed times by */
+    readonly offsetStep = 30;
+
+    get offsetControl(): AbstractControl | null {
+        return this.form().get('epgOffsetMinutes');
+    }
+
+    /**
+     * Moves the offset by one step within the accepted range. Typed values
+     * keep going through the control's own validation; only the buttons
+     * clamp, so an out-of-range typed value snaps back into range.
+     */
+    stepOffset(delta: number): void {
+        const control = this.offsetControl;
+        if (!control) return;
+        const current = Number(control.value);
+        const next = Math.max(
+            EPG_OFFSET_MIN,
+            Math.min(
+                EPG_OFFSET_MAX,
+                (Number.isFinite(current) ? current : 0) + delta
+            )
+        );
+        control.setValue(next);
+        control.markAsDirty();
+        this.form().markAsDirty();
+    }
 }
+
+const EPG_OFFSET_MIN = -720;
+const EPG_OFFSET_MAX = 720;

@@ -1,0 +1,79 @@
+.live-overlay {
+    position: fixed;
+    z-index: 40;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+.live-overlay-shade {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(0, 0, 0, 0.22);
+}
+.live-overlay-panel {
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 36px 28px;
+    background: rgba(11, 20, 16, 0.94);
+}
+.channels-overlay .live-overlay-panel {
+    width: 38%;
+    min-width: 430px;
+    max-width: 680px;
+    background: linear-gradient(
+        100deg,
+        rgba(11, 20, 16, 0.97),
+        rgba(11, 20, 16, 0.88)
+    );
+}
+.live-overlay-panel > .channel-pane {
+    flex: 1;
+}
+.drawer-toolbar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 28px;
+}
+.drawer-toolbar button {
+    background: transparent;
+}
+.live-overlay .channel-pane-header button {
+    background: rgba(39, 61, 49, 0.85);
+}
+.live-overlay .channel.is-playing {
+    background: #234334;
+}
+.live-overlay-panel > [role='alert'] {
+    margin: 12px 8px 0;
+    font-size: 18px;
+}
+.live-information .section-title {
+    display: block;
+}
+.live-information .section-title h2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 36px;
+}
+.live-information .section-title .actions {
+    margin-top: 8px;
+}
+.live-information .section-title button {
+    font-size: 18px;
+}
+@media (max-width: 1400px) {
+    .live-overlay-panel {
+        padding: 24px 20px;
+    }
+    .channels-overlay .live-overlay-panel {
+        width: 40%;
+        min-width: 360px;
+    }
+}

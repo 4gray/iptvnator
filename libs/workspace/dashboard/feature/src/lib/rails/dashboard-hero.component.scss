@@ -8,6 +8,10 @@
 // light theme gets a light scrim with dark text and the dark theme the
 // reverse, with the same geometry.
 
+@use '../../../../../../ui/styles/detail-view-actions' as detail-actions;
+@use '../../../../../../ui/styles/focus-ring';
+@use '../../../../../../ui/styles/skeleton-shimmer' as shimmer;
+
 // The host renders nothing when there is no slide and no skeleton; with
 // `display: contents` it then adds no flex gap to the rails page either.
 :host {
@@ -22,43 +26,64 @@
         var(--dashboard-gutter, 28px) +
             max(0px, (100cqw - var(--dashboard-max-width, 1440px)) / 2)
     );
+    // The slide's widest extent, and its right edge measured from the
+    // hero's left edge: the scrim holds its text-safe opacity up to there.
+    --hero-text-width: min(560px, 55%);
+    --hero-text-edge: calc(var(--hero-inset) + var(--hero-text-width));
     --hero-scrim: var(--app-content-bg, #161a22);
     --hero-heading: var(--app-heading-color, #d8dce8);
     --hero-body: color-mix(
         in srgb,
-        var(--app-heading-color, #d8dce8) 72%,
+        var(--app-heading-color, #d8dce8) 85%,
         var(--hero-scrim)
     );
+    // Saturation and lightness of the no-artwork gradient. Light by
+    // default: a near-black gradient under the light theme's page-coloured
+    // scrim turned into a grey slab behind dark text.
+    --hero-fallback-from: 55% 90%;
+    --hero-fallback-to: 60% 78%;
     --hero-pill-bg: color-mix(
         in srgb,
         var(--app-on-surface, #e6e1e5) 12%,
         transparent
     );
-    // Gold in the dark theme, a deeper amber on the light one: mixed with
-    // the theme's heading colour rather than detected per theme.
-    --hero-rating: color-mix(
-        in srgb,
-        #f5b400 60%,
-        var(--app-heading-color, #d8dce8)
-    );
+    // The artwork continues this far below the slide, under the first
+    // rail's heading and the top of its cards, so the fade into the page
+    // ends there instead of at the hero's edge. The rails page pulls the
+    // next rail up by the same amount.
+    --hero-tail: 160px;
 
     position: relative;
-    // A floor, not a fixed height: the slide sits in normal flow at the
-    // bottom, so an unusually full slide (two-line title, programme,
-    // synopsis, wrapped pills) grows the banner instead of losing its top.
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    // A floor, not a fixed height: every slide sits in normal flow in the
+    // same grid cell at the bottom, so an unusually full slide (two-line
+    // title, programme, synopsis, wrapped pills) grows the banner instead of
+    // losing its top. The banner is as tall as its tallest slide whichever
+    // one is shown: with only the shown slide in flow, each rotation between
+    // slides of different heights resized it and moved every rail below.
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: end;
     box-sizing: border-box;
-    min-height: clamp(320px, 42vh, 520px);
+    min-height: calc(clamp(320px, 42vh, 520px) + var(--hero-tail));
+    padding-bottom: var(--hero-tail);
     // Flush with the content area's top and sides; the rails page's own
     // top padding and gutters are cancelled. The negative bottom margin
-    // tucks the first rail into the fade (the gradient does the spacing).
+    // tucks the first rail into the fade (the gradient does the spacing)
+    // and over the tail.
     margin: calc(-1 * var(--dashboard-top-gutter, 24px))
-        calc(-1 * var(--hero-inset)) -12px;
+        calc(-1 * var(--hero-inset)) calc(-12px - var(--hero-tail));
     overflow: hidden;
     isolation: isolate;
     color: var(--hero-heading);
+
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations($offset: -2px);
+    }
+}
+
+:host-context(.dark-theme) .hero {
+    --hero-fallback-from: 50% 15%;
+    --hero-fallback-to: 80% 5%;
 }
 
 // ── Backdrops ──────────────────────────────────────────────────────────────
@@ -88,6 +113,15 @@
     height: 100%;
 }
 
+// No artwork at all: a gradient tinted by the title's hue (`--hero-hue`).
+.hero__backdrop-fallback {
+    background: linear-gradient(
+        135deg,
+        hsl(var(--hero-hue) var(--hero-fallback-from)) 0%,
+        hsl(calc(var(--hero-hue) + 60) var(--hero-fallback-to)) 100%
+    );
+}
+
 .hero__backdrop-image {
     display: block;
     object-fit: cover;
@@ -101,19 +135,18 @@
 }
 
 // No 16:9 backdrop (Xtream/Stalker often lack one): the poster, blurred and
-// scaled, washes its colours across the whole stage…
+// scaled past its edges, is the backdrop. No second, sharp copy of it.
 .hero__backdrop--poster .hero__backdrop-image {
-    filter: blur(48px) saturate(1.4);
-    transform: scale(1.35);
-    opacity: 0.8;
+    filter: blur(24px) saturate(1.2);
+    transform: scale(1.12);
 }
 
 .hero__backdrop--poster.hero__backdrop--active .hero__backdrop-image {
-    transform: scale(1.3);
+    transform: scale(1.1);
 }
 
-// …and the sharp poster fills the right-hand side as key art, faded into
-// that wash, so the slide still shows the actual title artwork.
+// A live channel's logo fills the right-hand side as key art, faded into
+// its own blurred wash, so the slide still shows the channel's artwork.
 .hero__backdrop-keyart {
     position: absolute;
     top: 0;
@@ -174,6 +207,9 @@
     }
 }
 
+// Text never sits on less than 88% of the page colour: the side gradient
+// holds that up to the slide's right edge and only then opens onto the art.
+// Fixed stops at 30% / 60% left the end of a full-width slide on ~45%.
 .hero__scrim {
     position: absolute;
     inset: 0;
@@ -181,21 +217,32 @@
         linear-gradient(
             90deg,
             color-mix(in srgb, var(--hero-scrim) 96%, transparent) 0%,
-            color-mix(in srgb, var(--hero-scrim) 85%, transparent) 30%,
-            color-mix(in srgb, var(--hero-scrim) 35%, transparent) 60%,
+            color-mix(in srgb, var(--hero-scrim) 88%, transparent)
+                var(--hero-text-edge),
+            color-mix(in srgb, var(--hero-scrim) 35%, transparent)
+                calc(var(--hero-text-edge) + 18%),
             transparent 100%
         ),
+        // Clear over the art, then a long fade that is mostly done where
+        // the slide ends, leaves a trace of the art behind the first rail's
+        // heading and reaches the exact page colour before its cards (whose
+        // scroll-edge fades are drawn in that colour).
         linear-gradient(
-            180deg,
-            color-mix(in srgb, var(--hero-scrim) 30%, transparent) 0%,
-            transparent 22%,
-            transparent 55%,
-            var(--hero-scrim) 100%
-        );
+                180deg,
+                color-mix(in srgb, var(--hero-scrim) 30%, transparent) 0%,
+                transparent 20%,
+                transparent calc(100% - var(--hero-tail) - 160px),
+                color-mix(in srgb, var(--hero-scrim) 70%, transparent)
+                    calc(100% - var(--hero-tail)),
+                color-mix(in srgb, var(--hero-scrim) 92%, transparent)
+                    calc(100% - var(--hero-tail) + 50px),
+                var(--hero-scrim) calc(100% - var(--hero-tail) * 0.4)
+            );
 }
 
 // ── Slide content ──────────────────────────────────────────────────────────
 .hero__content {
+    grid-area: 1 / 1;
     position: relative;
     z-index: 1;
     box-sizing: border-box;
@@ -206,8 +253,17 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
-    max-width: min(560px, 55%);
+    max-width: var(--hero-text-width);
     animation: hero-content-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+// The slides not on screen still size the hero but are never shown or
+// reached. Dropping their animation replays the entrance each time a slide
+// becomes the active one. The attribute outranks the narrow layout's
+// entrance rule, which would otherwise keep it applied.
+.hero__content[inert] {
+    visibility: hidden;
+    animation: none;
 }
 
 @keyframes hero-content-in {
@@ -217,6 +273,17 @@
     }
     to {
         opacity: 1;
+        transform: none;
+    }
+}
+
+// The narrow layout's entrance: no fade, because the slide carries its own
+// scrim there and a fading scrim would flash the art on every rotation.
+@keyframes hero-content-rise {
+    from {
+        transform: translateY(8px);
+    }
+    to {
         transform: none;
     }
 }
@@ -278,25 +345,12 @@
 }
 
 .hero__pill {
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--hero-pill-bg);
-    color: var(--hero-heading);
-    white-space: nowrap;
-
-    &--rating {
-        color: var(--hero-rating);
-        font-weight: 600;
-    }
-
     &--time {
         font-variant-numeric: tabular-nums;
     }
 
     &--source {
         max-width: 220px;
-        overflow: hidden;
-        text-overflow: ellipsis;
         color: var(--hero-body);
     }
 }
@@ -342,7 +396,7 @@
         width: 100%;
         height: 100%;
         border-radius: inherit;
-        background: var(--app-selection-color, #78adff);
+        background: var(--app-progress-color);
         // A full-width fill slid into place, neither a width nor animated: a
         // live-EPG tick moves it by under one percent, so an animation was
         // invisible yet cost a layout pass (width) or a burst of compositor
@@ -370,6 +424,10 @@
     padding: 0 18px 0 14px;
     box-sizing: border-box;
     border-radius: 10px;
+    // A long label (or translation) ends in an ellipsis instead of pushing
+    // the button past a narrow slide; the icon keeps its size.
+    max-width: 100%;
+    min-width: 0;
     font-size: 13px;
     font-weight: 600;
     line-height: 1;
@@ -380,7 +438,14 @@
         box-shadow 0.15s ease,
         transform 0.15s ease;
 
+    > span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     mat-icon {
+        flex: 0 0 auto;
         width: 20px;
         height: 20px;
         font-size: 20px;
@@ -388,27 +453,20 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 
     &:active {
         transform: translateY(1px);
     }
 
+    // The same light primary as the details pages' Continue / Play.
     &--primary {
-        background: var(--app-selection-color, #78adff);
-        color: var(--app-selection-on-color, #071225);
-        box-shadow: 0 6px 18px -8px
-            var(--app-selection-glow, rgba(120, 173, 255, 0.6));
+        @include detail-actions.light-primary-button;
 
-        &:hover {
-            background: color-mix(
-                in srgb,
-                var(--app-selection-color, #78adff) 88%,
-                #fff
-            );
-        }
+        height: 38px;
+        padding: 0 18px 0 14px;
+        font-size: 13px;
     }
 
     &--secondary {
@@ -442,7 +500,7 @@
 .hero__controls {
     position: absolute;
     right: var(--hero-inset);
-    bottom: 34px;
+    bottom: calc(34px + var(--hero-tail));
     z-index: 1;
     display: flex;
     align-items: center;
@@ -483,23 +541,26 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 1px;
+        @include focus-ring.focus-ring-declarations($offset: 1px);
     }
 }
 
 .hero__dots {
     display: flex;
     align-items: center;
+    gap: 2px;
 }
 
-// 6px dots inside a 20px hit area; the active one stretches into a pill
-// whose fill runs for one rotation interval.
+// 6px dots in 26 × 24px hit areas (WCAG 2.5.8 target size), 2px apart; the
+// active one opens into an 18px pill whose fill runs for one rotation
+// interval. Every dot keeps its footprint and the pill is the same bar
+// unclipped: a wider active button, and a pill that grew in width, moved
+// the dots on every rotation (layout shifts on an idle dashboard).
 .hero__dot {
     display: grid;
     place-items: center;
-    width: 20px;
-    height: 20px;
+    width: 26px;
+    height: 24px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -508,7 +569,7 @@
     &::before {
         content: '';
         grid-area: 1 / 1;
-        width: 6px;
+        width: 18px;
         height: 6px;
         border-radius: 3px;
         background: color-mix(
@@ -516,8 +577,10 @@
             var(--app-on-surface, #e6e1e5) 32%,
             transparent
         );
+        // The middle 6px of the bar: a round dot.
+        clip-path: inset(0 6px round 3px);
         transition:
-            width 0.25s ease,
+            clip-path 0.25s ease,
             background-color 0.15s ease;
     }
 
@@ -530,50 +593,57 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
         border-radius: 6px;
     }
 
-    &--active {
-        width: 30px;
-
-        &::before {
-            width: 18px;
-        }
+    &--active::before {
+        clip-path: inset(0 round 3px);
     }
 }
 
+// Over the pill, and shown on the active dot only.
 .hero__dot-fill {
     grid-area: 1 / 1;
-    justify-self: start;
-    // Aligns with the 18px pill centred in the 30px button.
-    margin-left: 6px;
-    width: 0;
+    width: 18px;
     height: 6px;
     border-radius: 3px;
-    background: var(--hero-heading);
+    overflow: hidden;
     pointer-events: none;
+    visibility: hidden;
 
-    .hero__dot--active & {
-        width: 18px;
+    // The fill is a full-width bar that slides in from the left under the
+    // pill's rounded clip. Only `transform` animates, so the compositor runs
+    // it: animating `width` meant style, layout and paint on every frame for
+    // as long as an idle dashboard stayed on screen. Its `animationend`
+    // reaches the span (the originating element) and advances the slide.
+    &::before {
+        content: '';
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--hero-heading);
     }
 
-    .hero--rotating .hero__dot--active & {
+    .hero__dot--active & {
+        visibility: visible;
+    }
+
+    .hero--rotating .hero__dot--active &::before {
         animation: hero-dot-fill var(--hero-rotation-ms, 8000ms) linear both;
     }
 
-    .hero--paused .hero__dot--active & {
+    .hero--paused .hero__dot--active &::before {
         animation-play-state: paused;
     }
 }
 
 @keyframes hero-dot-fill {
     from {
-        width: 0;
+        transform: translateX(-100%);
     }
     to {
-        width: 18px;
+        transform: none;
     }
 }
 
@@ -586,17 +656,10 @@
     );
 }
 
+@include shimmer.keyframes;
+
 .hero__skeleton {
-    display: block;
-    border-radius: 6px;
-    background: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 8%, transparent) 0%,
-        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 16%, transparent) 50%,
-        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 8%, transparent) 100%
-    );
-    background-size: 200% 100%;
-    animation: hero-skeleton-shimmer 1.6s linear infinite;
+    @include shimmer.block(6px);
 
     &--eyebrow {
         width: 180px;
@@ -623,22 +686,42 @@
     }
 }
 
-@keyframes hero-skeleton-shimmer {
-    from {
-        background-position: 200% 0;
-    }
-    to {
-        background-position: -200% 0;
-    }
-}
-
 // ── Narrow content area ────────────────────────────────────────────────────
 @container dashboard (max-width: 720px) {
+    // The slide carries its own scrim block here; a tail below it would
+    // show the art again under that block's hard bottom edge.
+    .hero {
+        --hero-tail: 0px;
+    }
+
     .hero__content {
         margin-right: var(--hero-inset);
         // Clears the rotation controls, which move to the top here.
         padding: 64px 0 28px;
         max-width: none;
+        animation-name: hero-content-rise;
+        text-shadow: 0 1px 2px
+            color-mix(in srgb, var(--hero-scrim) 80%, transparent);
+    }
+
+    // The slide spans the whole width here, over the art: the full-bleed
+    // scrim behind the text block keeps it on at least 90% of the page
+    // colour, fading in just above the eyebrow.
+    .hero__content::before {
+        content: '';
+        position: absolute;
+        z-index: -1;
+        inset: 24px calc(-1 * var(--hero-inset)) 0;
+        background: linear-gradient(
+            180deg,
+            transparent,
+            color-mix(in srgb, var(--hero-scrim) 90%, transparent) 40px
+        );
+        pointer-events: none;
+    }
+
+    .hero__button {
+        text-shadow: none;
     }
 
     .hero__controls {
@@ -668,8 +751,7 @@
         transition: none;
     }
 
-    .hero__content,
-    .hero__skeleton {
+    .hero__content {
         animation: none;
     }
 }

@@ -68,7 +68,7 @@ The application is a cross-platform, open-source project built with Electron and
 - Cross-platform desktop (Electron) and installable PWA
 - Desktop auto-updater and mobile remote control _(desktop)_
 - Docker self-hosting for the PWA + web backend
-- 19 languages ([translation files](apps/web/src/assets/i18n/)), light & dark themes, and keyboard shortcuts
+- 21 language options, including Portuguese for Portugal and Brazil ([translation files](apps/web/src/assets/i18n/)), light & dark themes, and keyboard shortcuts
 
 ## Keyboard shortcuts
 
@@ -81,6 +81,7 @@ Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
 | Global            | `Ctrl/Cmd+R`                | Open recently viewed in the desktop app                    |
 | Global            | `Enter` in workspace search | Submit the search; on Settings, open the best match        |
 | Global            | `F11`                       | Toggle app window fullscreen in the desktop app            |
+| Navigation        | `Alt+←` / `Cmd+[` (macOS)   | Go back, like the top bar's Back and the mouse Back button |
 | Navigation        | `Ctrl/Cmd+B`                | Toggle the live sidebar                                    |
 | Navigation        | `0-9`                       | Select an M3U channel by number                            |
 | Playback          | `Space` / `K`               | Play or pause playback                                     |
@@ -135,11 +136,25 @@ The application is available at <http://localhost:4333>. See
 compose file and [`docker/README.md`](./docker/README.md) for environment
 variables, reverse proxy notes, PWA limitations, and build details.
 
+The image keeps playlists, favorites and watch progress on the server, so
+every browser that opens it shares one library. The first browser that opens
+an updated instance offers to move the playlists it already has.
+
 The self-hosted image runs the browser PWA rather than the Electron desktop app:
-EPG/XMLTV panels, Embedded MPV, managed MPV/VLC launching, the download manager,
+M3U XMLTV, Embedded MPV, managed MPV/VLC launching, the download manager,
 and Electron remote-control features are not available there. If browser
 playback fails, copy the stream URL and open it manually in an external player
 such as MPV, VLC, or IINA.
+
+### Experimental webOS TV app
+
+The separate TV client supports remote and pointer navigation, M3U/Xtream/Stalker
+sources, native playback, local favorites/resume, phone setup and optional shared
+server sources. Xtream/Stalker provide the programme guide; M3U XMLTV and archive
+playback are not included. A matching IPTVnator backend is required. Viewing data
+stays on the TV, and native stream compatibility depends on the device/provider.
+See [TV setup and IPK build instructions](docs/development/tv-development.md)
+and the [TV architecture and limitations](docs/architecture/tv-application.md).
 
 ## Download
 
@@ -285,7 +300,7 @@ needed.
 
 Requirements:
 
-- Node.js 22.22.3 or newer within 22.x, or 24.15.0 or newer within 24.x
+- Node.js 24.22.1 (see `.nvmrc`); patched Node 22.23.4 or newer within 22.x is also supported
 - pnpm 10.33.0 (via Corepack)
 
 The repository's `.nvmrc` pins the Node.js version used by CI. With nvm,
@@ -388,8 +403,9 @@ $ pnpm run perf:initial-bytes
 The contract behind that number is in
 [docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
 
-To benchmark the "launch to usable" journey (fresh Electron process on a
-seeded profile, exact renderer counters plus wall-clock), run:
+To benchmark the "launch to usable", "open a source" and "start playback"
+journeys (fresh Electron processes on a seeded profile against the local
+Xtream mock, exact renderer counters plus wall-clock), run:
 
 ```
 $ pnpm run perf:journeys
@@ -398,6 +414,9 @@ $ pnpm run perf:journeys
 The journeys, their counters and the summary written under
 `dist/performance/journeys/` are described in
 [docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
+`pnpm run perf:compositing` measures the renderer's tile memory and composited
+layers on the dashboard, the detail pages, Live TV and settings (the
+"compositing budget" section of the same document).
 
 ## Disclaimer
 
@@ -417,6 +436,7 @@ The name **"IPTVnator"** and the IPTVnator logo are unregistered trademarks of t
 
 Start with the [task context map](docs/maintenance/agent-context-map.md) to find
 the authoritative contract and validation for your area. Common agent rules are
-in [AGENTS.md](AGENTS.md); Claude Code imports that same file. Development and
+in [AGENTS.md](AGENTS.md); Claude Code reads that same file directly (see
+[Claude Code setup](docs/development/agent-workflow.md#claude-code)). Development and
 documentation-maintenance conventions live in the
 [agent workflow](docs/development/agent-workflow.md).

@@ -27,7 +27,12 @@ describe('Playwright web-backend launch', () => {
                 readSource(configPath).includes('web-backend')
             );
 
-        expect(configs.sort()).toEqual(configsStartingBackend);
+        expect(configs.sort()).toEqual(
+            [
+                ...configsStartingBackend,
+                'apps/tv-e2e/playwright.config.ts',
+            ].sort()
+        );
     });
 
     // Nx starts a run-commands child in its own detached process group, and
@@ -41,15 +46,35 @@ describe('Playwright web-backend launch', () => {
 
             expect(source).not.toMatch(/\bnx\b[^'"`\n]*web-backend/);
             expect(start).toBeGreaterThan(-1);
-            expect(
-                source.indexOf(launchCommand, start + launchCommand.length)
-            ).toBe(-1);
+            // One stateless backend, plus at most one storage-enabled one.
+            const second = source.indexOf(
+                `'${launchCommand}'`,
+                start + launchCommand.length
+            );
+            if (second !== -1) {
+                const storageEntry = source.slice(
+                    second,
+                    source.indexOf('url:', second)
+                );
+                expect(storageEntry).toContain(`IPTVNATOR_STORAGE: 'server'`);
+                expect(storageEntry).toContain('PORT: storageBackendPort,');
+                expect(
+                    source.indexOf(
+                        `'${launchCommand}'`,
+                        second + launchCommand.length
+                    )
+                ).toBe(-1);
+            }
 
             // WEB_BACKEND_PORT relocates the run; its default is the target's.
             const { PORT: port, ...fixedEnv } = serveEnv;
             const entry = source.slice(start, source.indexOf('url:', start));
             for (const [name, value] of Object.entries(fixedEnv)) {
-                expect(entry).toContain(`${name}: '${value}'`);
+                expect(entry).toContain(
+                    name === 'CLIENT_URL'
+                        ? 'CLIENT_URL: new URL(baseURL).origin,'
+                        : `${name}: '${value}'`
+                );
             }
             expect(source).toContain(
                 `process.env['WEB_BACKEND_PORT'] ?? '${port}'`
@@ -60,4 +85,39 @@ describe('Playwright web-backend launch', () => {
             );
         }
     );
+    it('keeps TV backend launch isolated and packages the mobile companion', () => {
+        const source = readSource('apps/tv-e2e/playwright.config.ts');
+        expect(source.split(launchCommand)).toHaveLength(3);
+        const ports = readSource('apps/tv-e2e/ports.ts');
+        expect(ports).toContain("process.env['TV_E2E_PORT_OFFSET'] ?? 0");
+        for (const [name, port] of Object.entries({
+            app: 4311,
+            backend: 3433,
+            library: 3434,
+        })) {
+            expect(ports).toContain(`${name}: ${port} + offset`);
+        }
+        expect(source).toContain('PORT: String(tvPorts.library)');
+        expect(source).toContain('url: `${tvOrigins.library}/health`');
+        expect(source).toContain("IPTVNATOR_STORAGE: 'server'");
+        expect(source).toContain("IPTVNATOR_ACCESS_TOKEN: 'tv-library-test'");
+        expect(source).not.toMatch(/\bnx\b[^'"`\n]*web-backend/);
+        expect(source).toContain('PORT: String(tvPorts.backend)');
+        expect(source).toContain('url: `${tvOrigins.backend}/health`');
+        expect(source).toContain('CLIENT_URL: `${tvOrigins.app},null`');
+        expect(source).toContain("TSX_TSCONFIG_PATH: 'tsconfig.base.json'");
+        const project = JSON.parse(readSource('apps/web-backend/project.json'));
+        expect(project.targets.build.dependsOn).toContainEqual({
+            target: 'build',
+            projects: ['tv-setup'],
+        });
+        expect(project.targets.build.options.assets).toContainEqual({
+            input: 'dist/apps/tv-setup',
+            glob: '**/*',
+            output: 'tv-setup',
+        });
+        expect(project.targets.build.options.includeIgnoredAssetFiles).toBe(
+            true
+        );
+    });
 });

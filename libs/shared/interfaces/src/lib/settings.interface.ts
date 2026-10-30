@@ -175,12 +175,22 @@ export interface Settings {
      */
     playerAmbientMode?: boolean;
     /**
+     * Play a title's trailer, muted, behind the movie or series details a
+     * few seconds after the page opens. Off by default.
+     */
+    detailTrailerBackdrop?: boolean;
+    /**
      * Dock the inline series player to the left and show an "Up Next"
      * episode rail in the leftover stage column on wide windows. On by
      * default (the rail only appears when there is genuinely unused space);
      * missing values mean enabled. Only affects the built-in web players.
      */
     playerUpNextRail?: boolean;
+    /**
+     * Show the "Up next" card in the shared player controls shortly before a
+     * series episode ends. On by default; missing values mean enabled.
+     */
+    playerUpNextCard?: boolean;
     /**
      * Slide the live channel list over the video in fullscreen — resting the
      * mouse on the left edge, tapping that edge on touch, or pressing `C` —
@@ -297,8 +307,9 @@ export interface Settings {
      * Display-only correction, in whole minutes, for guides whose provider
      * labels programme times with the wrong timezone. Clamped to ±720 by
      * `normalizeEpgOffsetMinutes`; the two equivalent ways of applying it are
-     * documented in `epg-display-offset.util.ts`. Electron only in practice
-     * (the control is gated behind `supportsEpg`, like `epgViewMode`).
+     * documented in `epg-display-offset.util.ts`. Shown wherever a guide
+     * exists, XMLTV or a portal's own (`SettingsFormFacade.supportsEpgDisplay`),
+     * like `epgViewMode`.
      */
     epgOffsetMinutes?: number;
     /** Per-rail dashboard visibility preferences. Missing keys default on. */
@@ -328,6 +339,8 @@ export interface Settings {
      * Disabled by default because enrichment sends content titles to TMDB.
      */
     tmdb?: TmdbSettings;
+    /** ISO country for age classifications; auto follows the UI language. */
+    ageRatingCountry?: string;
     /**
      * Parental lock: locked categories disappear from the whole app until
      * the PIN is entered. Off by default; may only be on while a PIN exists

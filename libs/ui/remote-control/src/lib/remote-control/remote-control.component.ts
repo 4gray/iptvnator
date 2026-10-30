@@ -6,14 +6,21 @@ import {
     inject,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     RemoteControlService,
     RemoteControlStatus,
 } from './remote-control.service';
 
+const PORTAL_LABEL_KEYS: Readonly<Record<string, string>> = {
+    m3u: 'REMOTE_CONTROL.SOURCE_M3U',
+    xtream: 'REMOTE_CONTROL.SOURCE_XTREAM',
+    stalker: 'REMOTE_CONTROL.SOURCE_STALKER',
+};
+
 @Component({
     selector: 'lib-remote-control',
-    imports: [CommonModule],
+    imports: [CommonModule, TranslatePipe],
     templateUrl: './remote-control.component.html',
     // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
     changeDetection: ChangeDetectionStrategy.Eager,
@@ -25,6 +32,7 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
 
     isLoading = false;
     isStatusLoading = false;
+    /** Translation key of the last failed action. */
     error: string | null = null;
     status: RemoteControlStatus | null = null;
     numericInput = '';
@@ -47,14 +55,14 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
     async changeChannelUp(): Promise<void> {
         await this.executeAction(
             () => this.remoteControlService.channelUp(),
-            'Failed to change channel up'
+            'REMOTE_CONTROL.ERRORS.CHANNEL_UP'
         );
     }
 
     async changeChannelDown(): Promise<void> {
         await this.executeAction(
             () => this.remoteControlService.channelDown(),
-            'Failed to change channel down'
+            'REMOTE_CONTROL.ERRORS.CHANNEL_DOWN'
         );
     }
 
@@ -82,7 +90,7 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
         await this.executeAction(
             () =>
                 this.remoteControlService.selectChannelByNumber(channelNumber),
-            'Failed to switch by channel number'
+            'REMOTE_CONTROL.ERRORS.SELECT_NUMBER'
         );
         this.clearDigits();
     }
@@ -90,30 +98,33 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
     async volumeUp(): Promise<void> {
         await this.executeAction(
             () => this.remoteControlService.volumeUp(),
-            'Failed to increase volume'
+            'REMOTE_CONTROL.ERRORS.VOLUME_UP'
         );
     }
 
     async volumeDown(): Promise<void> {
         await this.executeAction(
             () => this.remoteControlService.volumeDown(),
-            'Failed to decrease volume'
+            'REMOTE_CONTROL.ERRORS.VOLUME_DOWN'
         );
     }
 
     async toggleMute(): Promise<void> {
         await this.executeAction(
             () => this.remoteControlService.toggleMute(),
-            'Failed to toggle mute'
+            'REMOTE_CONTROL.ERRORS.TOGGLE_MUTE'
         );
     }
 
-    get portalLabel(): string {
-        const portal = this.status?.portal ?? 'unknown';
-        if (portal === 'm3u') return 'M3U Live';
-        if (portal === 'xtream') return 'Xtream Live';
-        if (portal === 'stalker') return 'Stalker ITV';
-        return 'Waiting For Playback';
+    get portalLabelKey(): string {
+        return (
+            PORTAL_LABEL_KEYS[this.status?.portal ?? ''] ??
+            'REMOTE_CONTROL.WAITING_FOR_PLAYBACK'
+        );
+    }
+
+    get hasKnownPortal(): boolean {
+        return !!this.status?.portal && this.status.portal !== 'unknown';
     }
 
     get isReady(): boolean {
@@ -136,7 +147,7 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
             this.status = await this.remoteControlService.getStatus();
         } catch (err) {
             if (!silent) {
-                this.error = 'Failed to fetch remote status';
+                this.error = 'REMOTE_CONTROL.ERRORS.STATUS';
                 console.error(err);
             }
         } finally {
@@ -148,7 +159,7 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
 
     private async executeAction(
         action: () => Promise<void>,
-        errorMessage: string
+        errorKey: string
     ): Promise<void> {
         this.isLoading = true;
         this.error = null;
@@ -156,7 +167,7 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
             await action();
             await this.refreshStatus(true);
         } catch (err) {
-            this.error = errorMessage;
+            this.error = errorKey;
             console.error(err);
         } finally {
             this.isLoading = false;

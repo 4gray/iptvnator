@@ -44,6 +44,8 @@ export interface PortalActivityItem {
     /** The year the PROVIDER stated, never one read out of the title */
     release_year?: number;
     original_title?: string;
+    favorite_id?: number;
+    catalogStatus?: import('./xtream-favorite.interface').XtreamFavoriteCatalogStatus;
     source?: 'xtream' | 'stalker' | 'm3u';
     /** Original stalker item for navigation state; undefined for xtream. */
     stalker_item?: StalkerPortalItem;

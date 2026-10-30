@@ -2,8 +2,14 @@ import { inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { EmbeddedMpvSupport } from '@iptvnator/shared/interfaces';
+import {
+    RuntimeCapabilitiesService,
+    ServerStorageStatusService,
+} from '@iptvnator/services';
+import {
+    EmbeddedMpvSupport,
+    watchEmbeddedMpvSupport,
+} from '@iptvnator/shared/interfaces';
 import { SETTINGS_SEARCH_ENTRIES } from './settings-search-entries';
 import { rankSearchMatch, tokenizeSearchQuery } from './settings-search-rank';
 import {
@@ -27,6 +33,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class SettingsSearchService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly serverStorageStatus = inject(ServerStorageStatusService);
     private readonly vodSourceDiscovery = inject(VodSourceDiscoveryService);
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
@@ -45,9 +52,16 @@ export class SettingsSearchService {
 
     capabilities(): SettingsSearchCapabilities {
         const runtime = this.runtime;
+        const epgSources =
+            runtime.supportsEpgImport && runtime.supportsEpgDataManagement;
         return {
             desktop: runtime.isElectron,
-            epg: runtime.supportsEpgImport && runtime.supportsEpgDataManagement,
+            epg: epgSources,
+            // Same rule as SettingsFormFacade.supportsEpgDisplay.
+            'epg-display':
+                epgSources ||
+                runtime.supportsEpg ||
+                runtime.supportsProviderEpg,
             'remote-control': runtime.supportsRemoteControl,
             'startup-window-mode': runtime.supportsStartupWindowMode,
             'portal-connectivity-guard':
@@ -58,17 +72,56 @@ export class SettingsSearchService {
             'embedded-mpv': !!this.embeddedMpvSupport()?.supported,
             'embedded-mpv-frame-copy':
                 !!this.embeddedMpvSupport()?.frameCopyAvailable,
+            'server-storage': this.serverStorageStatus.isActive(),
         };
     }
 
     /**
-     * Probes embedded MPV support once so rows that need it become
-     * searchable. Returns the pending probe, or `undefined` when there is
-     * nothing to wait for. Call it lazily (palette open, settings page),
-     * never from shell bootstrap: supported desktop builds may load the
-     * native addon while answering.
+     * Probes embedded MPV support so rows that need it become searchable.
+     * Returns the pending probe, or `undefined` when there is nothing to
+     * wait for. Call it lazily (palette open), never from shell bootstrap:
+     * supported desktop builds may load the native addon while answering.
+     * Only a final answer is kept; after an inconclusive one, or a failed
+     * request, the next call asks again.
      */
     ensureEmbeddedMpvSupportLoaded(): Promise<void> | undefined {
+        const getSupport = this.embeddedMpvSupportProbe();
+        if (!getSupport) {
+            return undefined;
+        }
+
+        this.embeddedMpvSupportLoad ??= getSupport()
+            .then((support) => this.takeEmbeddedMpvSupport(support))
+            .catch(() => this.takeEmbeddedMpvSupport(null))
+            .finally(() => {
+                this.embeddedMpvSupportLoad = undefined;
+            });
+        return this.embeddedMpvSupportLoad;
+    }
+
+    /**
+     * For a surface that keeps showing these rows (the settings page): probes
+     * like `ensureEmbeddedMpvSupportLoaded()` and follows an inconclusive
+     * answer until it is final, so the rows appear by themselves. Returns
+     * the function that ends it; call it when the surface goes away, so
+     * nothing keeps asking for an answer no one shows.
+     */
+    followEmbeddedMpvSupport(): () => void {
+        const getSupport = this.embeddedMpvSupportProbe();
+        if (!getSupport) {
+            return () => undefined;
+        }
+
+        return watchEmbeddedMpvSupport(
+            getSupport,
+            (support) => this.takeEmbeddedMpvSupport(support),
+            () => this.takeEmbeddedMpvSupport(null)
+        );
+    }
+
+    /** The support request, or `undefined` when there is nothing to ask. */
+    private embeddedMpvSupportProbe():
+        (() => Promise<EmbeddedMpvSupport>) | undefined {
         if (this.embeddedMpvSupportChecked) {
             return undefined;
         }
@@ -83,14 +136,13 @@ export class SettingsSearchService {
             return undefined;
         }
 
-        this.embeddedMpvSupportLoad ??= electron
-            .getEmbeddedMpvSupport()
-            .then((support) => this.embeddedMpvSupport.set(support))
-            .catch(() => this.embeddedMpvSupport.set(null))
-            .finally(() => {
-                this.embeddedMpvSupportChecked = true;
-            });
-        return this.embeddedMpvSupportLoad;
+        return () => electron.getEmbeddedMpvSupport();
+    }
+
+    private takeEmbeddedMpvSupport(support: EmbeddedMpvSupport | null): void {
+        this.embeddedMpvSupport.set(support);
+        this.embeddedMpvSupportChecked =
+            support !== null && !support.inconclusive;
     }
 
     /**

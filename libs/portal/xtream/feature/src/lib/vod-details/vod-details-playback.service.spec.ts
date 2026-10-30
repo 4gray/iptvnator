@@ -17,6 +17,7 @@ import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
+    XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 
@@ -163,6 +164,73 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         });
     });
 
+    it('records the view when the menu opens the movie in MPV or VLC', async () => {
+        const movie = {
+            info: {},
+            movie_data: {
+                stream_id: ROUTE_VOD_ID,
+                name: 'Route movie',
+                container_extension: 'mkv',
+            },
+        } as never;
+        const launch = service.playVod(movie, 'vlc');
+        expect(launch).not.toBeNull();
+        await launch;
+
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/route.mkv',
+            }),
+            'vlc'
+        );
+        expect(addRecentItem).not.toHaveBeenCalled();
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/route.mkv'],
+        });
+        expect(addRecentItem).toHaveBeenCalledWith(
+            expect.objectContaining({
+                xtreamId: ROUTE_VOD_ID,
+                contentType: 'movie',
+            })
+        );
+    });
+
+    it('replaces a running external session when the menu relaunches the movie', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/route.mkv',
+            title: 'Route movie',
+            contentInfo: launched.contentInfo,
+        });
+        activeSession.set(launched);
+        closeSession.mockClear();
+        openExternalPlayback.mockClear();
+
+        await service.playVod(
+            {
+                info: {},
+                movie_data: {
+                    stream_id: ROUTE_VOD_ID,
+                    name: 'Route movie',
+                    container_extension: 'mkv',
+                },
+            } as never,
+            'mpv'
+        );
+
+        // Replaced, never doubled: the running player closes first.
+        expect(closeSession).toHaveBeenCalledWith(launched);
+        expect(closeSession.mock.invocationCallOrder[0]).toBeLessThan(
+            openExternalPlayback.mock.invocationCallOrder[0]
+        );
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/route.mkv',
+            }),
+            'mpv'
+        );
+    });
+
     it('records the movie as recently viewed only once its stream played', async () => {
         await service.startResolvedPlayback({
             streamUrl: 'https://example.com/broken.mkv',
@@ -192,11 +260,24 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     it('saves a confirmation that arrives after a playlist switch without touching the store', async () => {
         // Only a slow MPV/VLC launch can confirm after the page is gone; the
         // store's recent list belongs to the other playlist by then.
+        const detail = {
+            name: 'Played replacement',
+            tmdb_id: 200,
+            releasedate: '2026-01-01',
+        } as XtreamVodInfo;
+        service.bind({
+            vodId: routeVodId,
+            vodInfo: signal(detail),
+            activeSource,
+            supersedePendingSwitch,
+        });
         await service.startResolvedPlayback({
             streamUrl: 'https://example.com/route.mkv',
             title: 'Slow external launch',
         });
         currentPlaylist.set({ id: 'playlist-switched-meanwhile' });
+        detail.name = 'Later detail';
+        detail.tmdb_id = 999;
 
         TestBed.inject(PlaybackHistoryGate).confirm({
             streamUrls: ['https://example.com/route.mkv'],
@@ -210,9 +291,14 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             'movie'
         );
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-            77,
+            { id: 77, type: 'movie' },
             ROUTE_PLAYLIST,
-            undefined
+            undefined,
+            expect.objectContaining({
+                title: 'Played replacement',
+                tmdbId: 200,
+                releaseYear: 2026,
+            })
         );
     });
 
@@ -244,9 +330,10 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             expect(xtreamDataSource.addRecentItem).toHaveBeenCalledTimes(saves);
             if (saves) {
                 expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-                    ROUTE_VOD_ID,
+                    { id: ROUTE_VOD_ID, type: 'movie' },
                     ROUTE_PLAYLIST,
-                    undefined
+                    undefined,
+                    expect.objectContaining({ title: 'Slow external launch' })
                 );
             }
         }

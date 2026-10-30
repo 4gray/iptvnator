@@ -1,11 +1,14 @@
-::ng-deep .mat-mdc-dialog-content {
-    overflow: hidden !important;
-}
+@use '@angular/material' as mat;
 
-.mat-mdc-dialog-content {
+// The list is the only part that scrolls: inside the shell's column body
+// the wrapper flexes to the height left under the cap, and the list flexes
+// inside it, so the search and bulk actions stay put.
+.category-management {
     display: flex;
-    gap: 10px;
     flex-direction: column;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .loading-container {
@@ -36,11 +39,8 @@
 
 .bulk-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
-
-    button {
-        font-size: 12px;
-    }
 }
 
 .search-inline {
@@ -58,9 +58,9 @@
         box-shadow 0.15s ease;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-focus-ring);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-focus-ring) 12%, transparent);
     }
 }
 
@@ -134,7 +134,11 @@
     }
 
     mat-checkbox {
-        --mdc-checkbox-state-layer-size: 28px;
+        @include mat.checkbox-overrides(
+            (
+                state-layer-size: 28px,
+            )
+        );
     }
 }
 
@@ -153,19 +157,9 @@
     font-size: 0.8125rem;
 }
 
-:host ::ng-deep {
-    .mat-mdc-dialog-content {
-        max-width: 600px;
-        max-height: 85vh !important;
-    }
-}
-
-mat-dialog-actions {
-    button {
-        mat-spinner {
-            display: inline-block;
-        }
-    }
+// The saving spinner replaces the label inside the accent button.
+[appDialogFooter] button mat-spinner {
+    display: inline-block;
 }
 
 .selection-info__locks {

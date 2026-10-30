@@ -127,7 +127,7 @@ test('rejects snapshots that were not frozen at the moments they claim', () => {
     );
 });
 
-test('only the launch journey opts into SQL statement counting', () => {
+test('only the launch and search journeys opt into SQL statement counting', () => {
     // The import benchmarks also run with IPTVNATOR_PERF_CAPTURE=1; the SQL
     // hook wraps every row of a bulk insert, so they must not enable it.
     const sourceRoot = resolve(__dirname, '..');
@@ -146,12 +146,34 @@ test('only the launch journey opts into SQL statement counting', () => {
     assert.deepEqual(containing(/IPTVNATOR_PERF_COUNT_SQL/), [
         join('performance', 'journey-launch-environment.ts'),
     ]);
-    // ...and only J1's launch asks for them there. Another journey that
+    // ...and only J1's launch, its large-library variant (which samples
+    // the count at its two sentinels) and J4, which records the count as
+    // renderer.sqlStatementsPerSearch, ask for them. Another journey that
     // passed `mainCounters: true` to runLaunchJourney would be measured
     // under the statement hook without recording its count.
-    assert.deepEqual(containing(/mainCounters:\s*true/), [
+    assert.deepEqual(containing(/mainCounters:\s*true/).sort(), [
         join('journeys', 'launch-journey-app.ts'),
+        join('journeys', 'launch-large-journey-app.ts'),
+        join('journeys', 'search.journey.ts'),
     ]);
+    assert.match(
+        readFileSync(
+            join(sourceRoot, 'performance', 'launch-large-journey-record.ts'),
+            'utf8'
+        ),
+        /SQL_STATEMENTS_TO_FIRST_CARD: 'main\.sqlStatementsToFirstCard'/
+    );
+    assert.match(
+        readFileSync(join(sourceRoot, 'journeys', 'search.journey.ts'), 'utf8'),
+        /\{ idleWindowMs: null, mainCounters: true \}/
+    );
+    assert.match(
+        readFileSync(
+            join(sourceRoot, 'performance', 'search-journey-record.ts'),
+            'utf8'
+        ),
+        /SQL_STATEMENTS: 'renderer\.sqlStatementsPerSearch'/
+    );
     const launchApp = readFileSync(
         join(sourceRoot, 'journeys', 'launch-journey-app.ts'),
         'utf8'
@@ -159,13 +181,13 @@ test('only the launch journey opts into SQL statement counting', () => {
     assert.equal(launchApp.match(/mainCounters:\s*true/g)?.length, 1);
     assert.match(
         launchApp,
-        /export async function measureLaunchJourney\([\s\S]*?\{ mainCounters: true \}[\s\S]*?\n\}/
+        /export async function measureLaunchJourney\([\s\S]*?\{ idleWindowMs: JOURNEY_IDLE_WINDOW_MS, mainCounters: true \}[\s\S]*?\n\}/
     );
     assert.match(
         readFileSync(
             join(sourceRoot, 'journeys', 'open-source.journey.ts'),
             'utf8'
         ),
-        /\{ mainCounters: false \}/
+        /\{ idleWindowMs: null, mainCounters: false \}/
     );
 });

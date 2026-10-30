@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { TIMELINE_SEGMENT_GAP_PX } from './controls-timeline-segments';
 
 // The overlay sits on video in both app themes, so its colours come from the
 // fixed `--pc-*` palette. A theme token read here stays invisible only while
@@ -30,6 +31,9 @@ const STYLE_SOURCES = new Map(
 const HOST_STYLES = STYLE_SOURCES.get('player-controls.component.scss') ?? '';
 const TIMELINE_STYLES =
     STYLE_SOURCES.get('player-timeline.component.scss') ?? '';
+const SETTINGS_STYLES =
+    STYLE_SOURCES.get('player-settings-panel.component.scss') ?? '';
+const PALETTE_STYLES = STYLE_SOURCES.get('_player-palette.scss') ?? '';
 
 type Rgb = [number, number, number];
 
@@ -50,6 +54,24 @@ function paletteColor(token: string): { rgb: Rgb; alpha: number } {
         return { rgb, alpha: Number(rgba[4]) };
     }
     throw new Error(`${token} is not a literal palette colour: "${value}"`);
+}
+
+/** A translucent palette colour composited over an opaque frame. */
+function over(color: { rgb: Rgb; alpha: number }, frame: Rgb): Rgb {
+    return color.rgb.map(
+        (channel, index) =>
+            channel * color.alpha + frame[index] * (1 - color.alpha)
+    ) as Rgb;
+}
+
+/** The declarations of the first rule whose selector list is exactly `selector`. */
+function ruleBody(source: string, selector: string): string {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return (
+        source.match(
+            new RegExp(`(?:^|[}\\s])${escaped}\\s*\\{([^}]*)\\}`)
+        )?.[1] ?? ''
+    );
 }
 
 function contrastRatio(foreground: Rgb, background: Rgb): number {
@@ -128,6 +150,136 @@ describe('player controls overlay palette', () => {
         expect(HOST_STYLES).toMatch(
             /:host :is\(button\[mat-icon-button\]\[disabled\]\) mat-icon\s*\{[^}]*color:\s*var\(--pc-text-tertiary\);/
         );
+    });
+
+    it('keeps the settings headings at 4.5:1 on the panel glass over bright frames', () => {
+        const midGrey: Rgb = [128, 128, 128];
+        const white: Rgb = [255, 255, 255];
+        const glass = paletteColor('--pc-glass-bg-dense');
+        const secondary = paletteColor('--pc-text-secondary').rgb;
+
+        expect(ruleBody(SETTINGS_STYLES, ':host')).toMatch(
+            /background:\s*var\(--pc-glass-bg-dense\b/
+        );
+        expect(
+            ruleBody(
+                SETTINGS_STYLES,
+                '.player-settings__heading,\n.player-settings__subheading'
+            )
+        ).toMatch(/color:\s*var\(--pc-text-secondary\b/);
+        expect(SETTINGS_STYLES).not.toMatch(
+            /__(sub)?heading\s*\{[^}]*--pc-text-tertiary/
+        );
+        for (const frame of [midGrey, white]) {
+            expect(
+                contrastRatio(secondary, over(glass, frame))
+            ).toBeGreaterThanOrEqual(4.5);
+        }
+        // The tertiary step the headings used to read failed on mid-grey.
+        expect(
+            contrastRatio(
+                paletteColor('--pc-text-tertiary').rgb,
+                over(paletteColor('--pc-glass-bg'), midGrey)
+            )
+        ).toBeLessThan(4.5);
+    });
+
+    it('draws keyboard focus on icon buttons in the overlay text colour', () => {
+        const ring = /outline:\s*2px solid var\(--pc-text[,)]/;
+        for (const source of [HOST_STYLES, SETTINGS_STYLES]) {
+            expect(
+                ruleBody(
+                    source,
+                    ':host :is(button[mat-icon-button]:focus-visible)'
+                )
+            ).toMatch(ring);
+            // Material's focus layer takes the app theme's colour.
+            expect(
+                ruleBody(source, ':host :is(button[mat-icon-button])')
+            ).toMatch(/--mat-icon-button-focus-state-layer-opacity:\s*0;/);
+        }
+    });
+
+    it('points the app focus ring over video at the overlay text colour', () => {
+        // Surfaces beside the controls host (the fullscreen panels, the Up
+        // Next rail, vendor chrome) have no `--pc-text`, so the ring token
+        // carries the colour itself.
+        const text = PALETTE_STYLES.match(/\$text:\s*(#[0-9a-f]{6});/i)?.[1];
+        expect(text?.toLowerCase()).toBe(
+            HOST_STYLES.match(
+                /--pc-text:\s*(#[0-9a-f]{6});/i
+            )?.[1].toLowerCase()
+        );
+        expect(PALETTE_STYLES).toMatch(
+            /@mixin focus-ring-token\s*\{\s*--app-focus-ring:\s*#\{\$text\};/
+        );
+        expect(HOST_STYLES).toMatch(/@include palette\.focus-ring-token;/);
+    });
+
+    it('tells a focused selected swatch from one that is only selected', () => {
+        const selected = ruleBody(
+            SETTINGS_STYLES,
+            '.player-settings__swatch--selected'
+        );
+        const focused = ruleBody(
+            SETTINGS_STYLES,
+            '.player-settings__swatch:focus-visible'
+        );
+        expect(selected).not.toMatch(/outline/);
+        expect(focused).toMatch(/outline:\s*2px solid var\(--pc-text[,)]/);
+    });
+
+    it('separates timeline segments at 3:1 over any frame', () => {
+        const track = paletteColor('--pc-timeline-track');
+        const separator = paletteColor('--pc-timeline-separator');
+        const accent = PALETTE_STYLES.match(
+            /\$accent-blue:\s*#([0-9a-f]{6});/i
+        )?.[1];
+        const fill = [0, 2, 4].map((offset) =>
+            Number.parseInt(accent?.slice(offset, offset + 2) ?? '', 16)
+        ) as Rgb;
+
+        // Opaque, so no frame behind the bar can change these ratios.
+        expect(track.alpha).toBe(1);
+        expect(separator.alpha).toBe(1);
+        expect(
+            ruleBody(TIMELINE_STYLES, '.player-controls__timeline-segment')
+        ).toMatch(/background:\s*var\(--pc-timeline-track\);/);
+        expect(
+            ruleBody(TIMELINE_STYLES, '.player-controls__timeline-fill')
+        ).toMatch(/background:\s*var\(--pc-progress\);/);
+        const separatorRule = ruleBody(
+            TIMELINE_STYLES,
+            '.player-controls__timeline-separator'
+        );
+        expect(separatorRule).toMatch(
+            /background:\s*var\(--pc-timeline-separator\);/
+        );
+        // The separator fills exactly the gap the segment widths leave.
+        expect(separatorRule).toMatch(
+            new RegExp(`width:\\s*${TIMELINE_SEGMENT_GAP_PX}px;`)
+        );
+
+        // A boundary in the unplayed and in the played stretch.
+        expect(contrastRatio(separator.rgb, track.rgb)).toBeGreaterThanOrEqual(
+            3
+        );
+        expect(contrastRatio(separator.rgb, fill)).toBeGreaterThanOrEqual(3);
+        // And the played fill still reads against the track.
+        expect(contrastRatio(fill, track.rgb)).toBeGreaterThanOrEqual(3);
+    });
+
+    it('sets the timeline label on the dense glass', () => {
+        const white: Rgb = [255, 255, 255];
+        expect(
+            ruleBody(TIMELINE_STYLES, '.player-controls__timeline-label')
+        ).toMatch(/background:\s*var\(--pc-glass-bg-dense\);/);
+        expect(
+            contrastRatio(
+                paletteColor('--pc-text').rgb,
+                over(paletteColor('--pc-glass-bg-dense'), white)
+            )
+        ).toBeGreaterThanOrEqual(4.5);
     });
 
     it('keeps the palette reds readable on video', () => {

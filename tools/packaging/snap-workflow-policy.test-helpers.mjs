@@ -72,7 +72,7 @@ const BUILD_ACTION_ALLOWLIST = Object.freeze([
     'actions/download-artifact@v8',
     'actions/setup-node@v7',
     'actions/upload-artifact@v7',
-    'pnpm/action-setup@v6.0.10',
+    'pnpm/action-setup@v6.1.0',
     'softprops/action-gh-release@v3',
 ]);
 const VERIFY_JOB_ID = 'verify-snap';

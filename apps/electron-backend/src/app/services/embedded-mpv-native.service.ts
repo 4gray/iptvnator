@@ -14,6 +14,7 @@ import App from '../app';
 import {
     EmbeddedMpvAudioTrack,
     EmbeddedMpvBounds,
+    EmbeddedMpvChapter,
     EmbeddedMpvCapabilities,
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvRecordingState,
@@ -56,6 +57,7 @@ import {
     resolveFrameCopyHelperPath,
 } from './embedded-mpv-frame-copy-platform.util';
 import type { EmbeddedMpvFrameCopyRuntimeMode } from './embedded-mpv-frame-copy-runtime';
+import { normalizeEmbeddedMpvChapters } from './embedded-mpv-chapters.util';
 import {
     EMBEDDED_MPV_EXPERIMENT_ENV,
     isEmbeddedMpvFeatureEnabled,
@@ -71,6 +73,7 @@ export interface NativeEmbeddedMpvSessionSnapshot {
     selectedAudioTrackId?: number | null;
     subtitleTracks?: EmbeddedMpvSubtitleTrack[];
     selectedSubtitleTrackId?: number | null;
+    chapters?: EmbeddedMpvChapter[];
     playbackSpeed?: number;
     aspectOverride?: string;
     videoWidth?: number;
@@ -174,6 +177,12 @@ export class EmbeddedMpvNativeService {
     private powerBlockerId: number | null = null;
     private readonly loadAddonModule = createRequire(__filename);
     private cachedLinuxMpvExecutableReason: string | null | undefined;
+    /**
+     * True while `mpv --version` runs, or was cached, on the inherited PATH
+     * because the login shell had not answered: a missing mpv is then no
+     * verdict yet.
+     */
+    private linuxMpvExecutableProbeIsProvisional = false;
     private frameCopyAdapter: EmbeddedMpvFrameCopyAdapter | null = null;
     private sessionOptionsDirectory: string | null = null;
     /**
@@ -377,6 +386,42 @@ export class EmbeddedMpvNativeService {
         };
     }
 
+    /**
+     * Whether `getSupport()` would now run the uncached Linux bare-name
+     * `mpv --version` probe, i.e. reach the native-engine checks: no
+     * frame-copy engine, a usable display server and the feature enabled.
+     * The IPC layer waits for the login shell PATH only then.
+     */
+    willProbeLinuxMpvExecutable(): boolean {
+        return (
+            process.platform === 'linux' &&
+            this.cachedLinuxMpvExecutableReason === undefined &&
+            !this.isUnsupportedLinuxDisplayServer() &&
+            isEmbeddedMpvFeatureEnabled() &&
+            !this.isFrameCopyEngineActive()
+        );
+    }
+
+    /**
+     * Drops the cached `mpv --version` result, found or missing, so the next
+     * support check probes again. For a probe that ran before the login
+     * shell PATH arrived: that PATH may add mpv or leave out the directory
+     * the inherited one found it in.
+     */
+    forgetLinuxMpvExecutableProbe(): void {
+        this.cachedLinuxMpvExecutableReason = undefined;
+        this.linuxMpvExecutableProbeIsProvisional = false;
+    }
+
+    /**
+     * Declares that the probe sees the inherited PATH, the login shell one
+     * not having arrived. Until `forgetLinuxMpvExecutableProbe()`, a missing
+     * mpv is reported as `inconclusive`, so no caller settles on it.
+     */
+    markLinuxMpvExecutableProbeProvisional(): void {
+        this.linuxMpvExecutableProbeIsProvisional = true;
+    }
+
     getSupport(): EmbeddedMpvSupport {
         if (!SUPPORTED_EMBEDDED_MPV_PLATFORMS.has(process.platform)) {
             return {
@@ -432,6 +477,9 @@ export class EmbeddedMpvNativeService {
                 supported: false,
                 platform: process.platform,
                 reason: missingLinuxMpvExecutableReason,
+                ...(this.linuxMpvExecutableProbeIsProvisional
+                    ? { inconclusive: true }
+                    : {}),
                 ...this.getFrameCopySupportDetails(),
             };
         }
@@ -693,6 +741,7 @@ export class EmbeddedMpvNativeService {
 
     seek(sessionId: string, seconds: number): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
+        this.onUserSeek(sessionId);
         this.getAddon().seek(sessionId, seconds);
         return this.refreshSession(sessionId);
     }
@@ -712,6 +761,7 @@ export class EmbeddedMpvNativeService {
         if (!Number.isFinite(deltaSeconds)) {
             return this.refreshSession(sessionId);
         }
+        this.onUserSeek(sessionId);
         if (typeof addon.seekBy === 'function') {
             addon.seekBy(sessionId, deltaSeconds);
         } else {
@@ -720,6 +770,14 @@ export class EmbeddedMpvNativeService {
             addon.seek(sessionId, Math.max(0, position + deltaSeconds));
         }
         return this.refreshSession(sessionId);
+    }
+
+    /** A seek invalidates the reconnect's resume point (embedded-mpv-reconnect.ts). */
+    private onUserSeek(sessionId: string): void {
+        const session = this.sessions.get(sessionId);
+        if (session) {
+            this.reconnect.onUserSeek(session.reconnect);
+        }
     }
 
     setVolume(sessionId: string, volume: number): EmbeddedMpvSession | null {
@@ -1237,6 +1295,7 @@ export class EmbeddedMpvNativeService {
                 typeof snapshot.selectedSubtitleTrackId === 'number'
                     ? snapshot.selectedSubtitleTrackId
                     : null,
+            chapters: normalizeEmbeddedMpvChapters(snapshot.chapters),
             playbackSpeed:
                 typeof snapshot.playbackSpeed === 'number'
                     ? snapshot.playbackSpeed
@@ -1284,7 +1343,8 @@ export class EmbeddedMpvNativeService {
             payload.status,
             previousStatus,
             payload.positionSeconds,
-            snapshot.errorOrigin
+            snapshot.errorOrigin,
+            payload.durationSeconds
         );
         if (reconnect) {
             payload.reconnect = reconnect;

@@ -1,0 +1,106 @@
+@use '../../../../styles/detail-view-actions' as actions;
+
+:host {
+    display: inline-flex;
+    max-width: 100%;
+}
+
+.play-btn {
+    @include actions.light-primary-button;
+
+    height: 44px;
+    max-width: 100%;
+
+    &--secondary {
+        @include actions.ghost-text-button;
+
+        height: 44px;
+        gap: 8px;
+        padding: 0 18px;
+    }
+
+    &__copy {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        min-width: 0;
+        text-align: left;
+    }
+
+    &__label {
+        display: block;
+        line-height: 1.15;
+    }
+
+    &__meta {
+        display: block;
+        max-width: min(42vw, 320px);
+        overflow: hidden;
+        margin-top: 1px;
+        color: var(--app-cta-meta-fg, #5a6274);
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // External player feedback: a warm tint while the player starts, a red
+    // one while the button stops it. Tints, not glows.
+    &--launching {
+        background: #ffd36f;
+        color: #241103;
+
+        .play-btn__meta {
+            color: rgba(36, 17, 3, 0.7);
+        }
+
+        .play-btn__icon {
+            animation: play-btn-launch 1.15s cubic-bezier(0.55, 0, 0.45, 1)
+                infinite;
+        }
+
+        &:hover:not(:disabled) {
+            background: #ffdd8a;
+        }
+    }
+
+    &--stop {
+        background: #ff9f8d;
+        color: #321012;
+
+        .play-btn__meta {
+            color: rgba(50, 16, 18, 0.7);
+        }
+
+        &:hover:not(:disabled) {
+            background: #ffb3a5;
+        }
+    }
+}
+
+@keyframes play-btn-launch {
+    0%,
+    100% {
+        transform: rotate(0deg) scale(1);
+    }
+
+    50% {
+        transform: rotate(18deg) scale(1.1);
+    }
+}
+
+@media (max-width: 640px) {
+    .play-btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .play-btn,
+    .play-btn__icon {
+        animation: none !important;
+        transition-duration: 1ms !important;
+    }
+}

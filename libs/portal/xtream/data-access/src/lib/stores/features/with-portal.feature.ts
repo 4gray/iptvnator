@@ -54,6 +54,9 @@ export function withPortal() {
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
             const dataSource = inject(XTREAM_DATA_SOURCE);
+            // Explicit selection/metadata writes and newer reads supersede
+            // pending storage reads, even when the playlist id is unchanged.
+            let playlistRequestId = 0;
 
             /**
              * Whether a playlist (the store's current one, or the stored
@@ -67,13 +70,16 @@ export function withPortal() {
                     serverUrl?: string;
                     username?: string;
                     password?: string;
+                    userAgent?: string | null;
                 } | null,
                 credentials: XtreamCredentials
             ): boolean =>
                 !!candidate &&
                 candidate.serverUrl === credentials.serverUrl &&
                 candidate.username === credentials.username &&
-                candidate.password === credentials.password;
+                candidate.password === credentials.password &&
+                (candidate.userAgent?.trim() || undefined) ===
+                    credentials.userAgent;
 
             /**
              * The Favorites / Recent catch-up resolver reads the STORED
@@ -108,6 +114,9 @@ export function withPortal() {
                  * Set the current playlist ID
                  */
                 setPlaylistId(playlistId: string): void {
+                    if (store.playlistId() !== playlistId) {
+                        playlistRequestId++;
+                    }
                     patchState(store, { playlistId });
                 },
 
@@ -119,10 +128,14 @@ export function withPortal() {
                     if (!playlistId) {
                         return;
                     }
+                    const requestId = ++playlistRequestId;
 
                     try {
                         const playlist =
                             await dataSource.getPlaylist(playlistId);
+                        if (requestId !== playlistRequestId) {
+                            return;
+                        }
 
                         if (playlist) {
                             patchState(store, { currentPlaylist: playlist });
@@ -138,6 +151,9 @@ export function withPortal() {
                         }
 
                         await dataSource.createPlaylist(currentPlaylist);
+                        if (requestId !== playlistRequestId) {
+                            return;
+                        }
                         patchState(store, { currentPlaylist });
                     } catch (error) {
                         logger.error('Error fetching playlist', error);
@@ -145,6 +161,7 @@ export function withPortal() {
                 },
 
                 setCurrentPlaylist(playlist: XtreamPlaylistData | null): void {
+                    playlistRequestId++;
                     patchState(store, { currentPlaylist: playlist });
                 },
 
@@ -162,6 +179,7 @@ export function withPortal() {
                         serverUrl: playlist.serverUrl,
                         username: playlist.username,
                         password: playlist.password,
+                        userAgent: playlist.userAgent?.trim() || undefined,
                     };
 
                     try {
@@ -243,6 +261,7 @@ export function withPortal() {
                 updatePlaylist(updates: Partial<XtreamPlaylistData>): void {
                     const current = store.currentPlaylist();
                     if (current) {
+                        playlistRequestId++;
                         patchState(store, {
                             currentPlaylist: { ...current, ...updates },
                         });
@@ -253,6 +272,7 @@ export function withPortal() {
                  * Reset portal state
                  */
                 resetPortal(): void {
+                    playlistRequestId++;
                     patchState(store, initialPortalState);
                 },
             };

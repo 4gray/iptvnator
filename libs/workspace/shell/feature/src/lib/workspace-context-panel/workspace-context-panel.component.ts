@@ -31,12 +31,19 @@ import {
     sortPortalCategoryItems,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import {
     toParentalLockStalkerCategoryType,
     toParentalLockXtreamCategoryType,
 } from '@iptvnator/shared/interfaces';
-import { CategoryLockMenuComponent } from '@iptvnator/ui/components';
+import {
+    CategoryLockMenuComponent,
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
 import {
     WorkspaceCategoryViewItem,
     WorkspaceContextCategoryViewComponent,
@@ -49,6 +56,7 @@ import { WorkspaceContextErrorViewComponent } from './components/workspace-conte
 import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
 
@@ -66,6 +74,7 @@ interface WorkspaceCategoryLike {
     readonly category_id?: string | number;
     readonly category_name?: string;
     readonly id?: string | number;
+    readonly labelKey?: string;
     readonly name?: string;
 }
 
@@ -77,12 +86,14 @@ interface WorkspaceCategoryLike {
         MatIcon,
         MatMenuModule,
         MatTooltip,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         TranslatePipe,
         WorkspaceContextCategoryViewComponent,
         WorkspaceContextErrorViewComponent,
     ],
     templateUrl: './workspace-context-panel.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-context-panel.component.scss',
 })
 export class WorkspaceContextPanelComponent {
@@ -92,6 +103,12 @@ export class WorkspaceContextPanelComponent {
     private readonly dialog = inject(MatDialog);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
+    /**
+     * Computeds below that call `translate.instant` (or filter by a
+     * translated label) read this, so a runtime language switch re-runs them
+     * instead of keeping the text of the language they first ran in.
+     */
+    private readonly languageTick = injectTranslationTick();
     // Root-provided; optional keeps standalone unit tests light. Only relevant
     // when the panel renders as the phone drawer. Some selections here (e.g.
     // Stalker ITV/radio) update the store without navigating, so the drawer's
@@ -244,6 +261,7 @@ export class WorkspaceContextPanelComponent {
             this.parentalLock.withholdsEverything()
     );
     readonly xtreamStatusText = computed(() => {
+        this.languageTick();
         if (
             !this.isXtreamCategories() ||
             this.isXtreamCategoryLoading() ||
@@ -277,6 +295,7 @@ export class WorkspaceContextPanelComponent {
      * refusal gets its own actionable text.
      */
     readonly stalkerCategoryErrorDescription = computed(() => {
+        this.languageTick();
         const portalError = asStalkerPortalError(
             this.isStalkerCategoryFailed()
         );
@@ -366,8 +385,16 @@ export class WorkspaceContextPanelComponent {
             (this.isXtreamCategories() && this.xtreamCategories().length > 0) ||
             (this.isStalkerCategories() && this.stalkerCategories().length > 0)
     );
+    /** Search and sort show while the list loads (disabled) or has items. */
+    readonly showCategoryListActions = computed(
+        () =>
+            this.canSearchCategories() ||
+            this.isXtreamCategoryLoading() ||
+            (this.isStalkerCategories() && this.isStalkerCategoryLoading())
+    );
 
     readonly filteredXtreamCategories = computed(() => {
+        this.languageTick();
         const cats = this.xtreamCategories();
         const term = foldSearchText(this.categorySearchTerm().trim());
         const filtered = term
@@ -385,6 +412,7 @@ export class WorkspaceContextPanelComponent {
     });
 
     readonly filteredStalkerCategories = computed(() => {
+        this.languageTick();
         const cats = this.stalkerCategories();
         const term = foldSearchText(this.categorySearchTerm().trim());
         const filtered = term
@@ -452,15 +480,17 @@ export class WorkspaceContextPanelComponent {
      * The control the shell sidebar hands focus to once this rail has
      * unfolded (the button the user activated to bring it back is gone by
      * then): the hide chevron when it is offered, else the first header
-     * action. `null` while neither is rendered — categories still loading,
-     * or a failed Stalker load — and the sidebar falls back to the rail
-     * itself.
+     * action. `null` while neither is usable — categories still loading
+     * (the action is rendered but disabled), or a failed Stalker load — and
+     * the sidebar falls back to the rail itself.
      */
     focusTarget(): HTMLElement | null {
+        const firstAction = this.firstHeaderAction()?.nativeElement;
         return (
             this.hideCategoriesButton()?.nativeElement ??
-            this.firstHeaderAction()?.nativeElement ??
-            null
+            (firstAction && !firstAction.hasAttribute('disabled')
+                ? firstAction
+                : null)
         );
     }
 
@@ -565,10 +595,8 @@ export class WorkspaceContextPanelComponent {
             return;
         }
         this.dialog.open(dialogComponent, {
+            ...dialogSize('md'),
             data: { playlistId: context.playlistId, contentType, categories },
-            width: '500px',
-            maxWidth: 'calc(100vw - 32px)',
-            maxHeight: '90vh',
         });
     }
 
@@ -620,9 +648,7 @@ export class WorkspaceContextPanelComponent {
                 contentType,
                 itemCounts: this.xtreamStore.getCategoryItemCounts(),
             },
-            width: '500px',
-            maxWidth: 'calc(100vw - 32px)',
-            maxHeight: '90vh',
+            ...dialogSize('md'),
         });
         dialogRef
             .afterClosed()
@@ -778,7 +804,11 @@ export class WorkspaceContextPanelComponent {
         }
     }
 
+    /** The label the rail shows, so the search filters what is on screen. */
     private getCategoryLabel(category: WorkspaceCategoryLike): string {
+        if (category.labelKey) {
+            return this.translate.instant(category.labelKey);
+        }
         return category.category_name ?? category.name ?? '';
     }
 

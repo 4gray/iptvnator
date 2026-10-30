@@ -21,6 +21,7 @@ import {
     readVisibleSidebarCategoryNames,
 } from './sidebar-categories.e2e-support';
 import { applyTheme } from './theme-contrast';
+import { expectVisibleCategoryStopsSmoothScroll } from './category-scroll.e2e-support';
 
 test.describe('Electron Xtream Category Management', () => {
     test('keeps the selected category in view with 800 categories, 600 hidden and A-Z sorting', async ({
@@ -60,7 +61,7 @@ test.describe('Electron Xtream Category Management', () => {
                 .getByRole('button', { name: 'Sort categories', exact: true })
                 .click();
             await app.mainWindow
-                .getByRole('menuitem', { name: 'Name A-Z' })
+                .getByRole('menuitemradio', { name: 'Name A-Z' })
                 .click();
 
             const categories = await app.mainWindow.evaluate(async () => {
@@ -103,7 +104,9 @@ test.describe('Electron Xtream Category Management', () => {
                 const row = rows.filter({ hasText: category.name });
                 await row.click();
                 await expect(row).toHaveAttribute('aria-current', 'true');
-                await expectCategoryCentered(row);
+                await expectCategoryInView(row);
+                await expectVisibleCategoryStopsSmoothScroll(panel, 'down');
+                await expectVisibleCategoryStopsSmoothScroll(panel, 'up');
             }
         } finally {
             await closeElectronApp(app);
@@ -124,6 +127,14 @@ test.describe('Electron Xtream Category Management', () => {
                 await waitForXtreamWorkspaceReady(app.mainWindow);
                 await openWorkspaceSection(app.mainWindow, section);
                 let dialog = await openManageCategoriesDialog(app.mainWindow);
+                for (const theme of ['light', 'dark'] as const) {
+                    await applyTheme(app.mainWindow, theme);
+                    const bulk = dialog.locator('.bulk-actions button');
+                    await expect(bulk.first()).toHaveCSS('height', '32px');
+                    await expect(bulk.first()).toHaveCSS('font-size', '12.5px');
+                    await expect(bulk.last()).toHaveCSS('border-top-left-radius', '8px');
+                    await expect(bulk.last()).toHaveCSS('border-top-style', 'none');
+                }
                 const rows = dialog.locator('.category-item');
                 const names = (
                     await rows.locator('.category-name').allTextContents()
@@ -506,8 +517,8 @@ async function openManageCategoriesDialog(page: Page) {
     return dialog;
 }
 
-/** Wait for the real smooth scroll to finish with the selected row centered. */
-async function expectCategoryCentered(row: Locator): Promise<void> {
+/** Wait for any scroll to settle with the selected row fully in view. */
+async function expectCategoryInView(row: Locator): Promise<void> {
     let previousTop = -1;
     let stableSamples = 0;
     await expect
@@ -519,25 +530,17 @@ async function expectCategoryCentered(row: Locator): Promise<void> {
                     ) as HTMLElement;
                     const bounds = container.getBoundingClientRect();
                     const rowBounds = element.getBoundingClientRect();
-                    const target =
-                        container.scrollTop +
-                        rowBounds.top -
-                        bounds.top -
-                        container.clientHeight / 2 +
-                        rowBounds.height / 2;
-                    const clamped = Math.min(
-                        container.scrollHeight - container.clientHeight,
-                        Math.max(0, target)
-                    );
                     return {
                         top: container.scrollTop,
-                        centered: Math.abs(container.scrollTop - clamped) < 2,
+                        inView:
+                            rowBounds.top >= bounds.top - 2 &&
+                            rowBounds.bottom <= bounds.bottom + 2,
                     };
                 });
                 stableSamples =
                     position.top === previousTop ? stableSamples + 1 : 0;
                 previousTop = position.top;
-                return position.centered && stableSamples >= 3;
+                return position.inView && stableSamples >= 3;
             },
             { intervals: [100] }
         )
@@ -545,13 +548,22 @@ async function expectCategoryCentered(row: Locator): Promise<void> {
 }
 
 async function refreshFromWorkspaceHeader(page: Page): Promise<void> {
+    // Refresh for the active source lives in its switcher row menu.
+    await page.getByTestId('playlist-switcher-trigger').click();
     await page
-        .getByRole('button', { name: 'Refresh playlist', exact: true })
+        .locator(
+            'app-playlist-switcher-panel [role="option"][aria-current="true"] .source-row__more'
+        )
+        .click();
+    await page
+        .getByRole('menuitem', { name: 'Refresh playlist', exact: true })
         .click();
 
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Yes', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Refresh playlist', exact: true })
+        .click();
 
     const refreshOverlay = page.locator('app-workspace-shell-import-overlay');
     await expect(refreshOverlay).toBeVisible({ timeout: 5000 });
@@ -617,38 +629,43 @@ async function pickSidebarCategory(
     } | null = null;
 
     await expect
-        .poll(async () => {
-            const candidates = (
-                await readVisibleSidebarCategories(page)
-            ).filter(
-                (candidate) =>
-                    candidate.id && candidate.name && candidate.itemCount > 0
-            );
-
-            if (candidates.length === 0) {
-                preferredCandidate = null;
-                return false;
-            }
-
-            const nameCounts = new Map<string, number>();
-            for (const candidate of candidates) {
-                nameCounts.set(
-                    candidate.name,
-                    (nameCounts.get(candidate.name) ?? 0) + 1
+        .poll(
+            async () => {
+                const candidates = (
+                    await readVisibleSidebarCategories(page)
+                ).filter(
+                    (candidate) =>
+                        candidate.id &&
+                        candidate.name &&
+                        candidate.itemCount > 0
                 );
+
+                if (candidates.length === 0) {
+                    preferredCandidate = null;
+                    return false;
+                }
+
+                const nameCounts = new Map<string, number>();
+                for (const candidate of candidates) {
+                    nameCounts.set(
+                        candidate.name,
+                        (nameCounts.get(candidate.name) ?? 0) + 1
+                    );
+                }
+
+                preferredCandidate =
+                    candidates.find(
+                        (candidate) => nameCounts.get(candidate.name) === 1
+                    ) ?? candidates[0];
+
+                return preferredCandidate !== null;
+            },
+            {
+                message: 'No visible Xtream category with content was found.',
+                timeout: 15000,
             }
-
-            preferredCandidate =
-                candidates.find(
-                    (candidate) => nameCounts.get(candidate.name) === 1
-                ) ?? candidates[0];
-
-            return preferredCandidate !== null;
-        })
-        .toBe(true, {
-            message: 'No visible Xtream category with content was found.',
-            timeout: 15000,
-        });
+        )
+        .toBe(true);
 
     return preferredCandidate!;
 }

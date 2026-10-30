@@ -1,3 +1,4 @@
+import { AgeRatingPresentationService } from '@iptvnator/services/age-rating';
 import {
     Component,
     inject,
@@ -8,33 +9,37 @@ import {
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
 import { TmdbApiService, TmdbCacheService } from '@iptvnator/services';
 import type { TmdbCacheStats } from '@iptvnator/shared/interfaces';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
 
 @Component({
     selector: 'app-settings-tmdb-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         MatButtonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
+        MatSelectModule,
         MatProgressSpinnerModule,
+        MatSlideToggleModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
     templateUrl: './settings-tmdb-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             app-settings-tmdb-section {
@@ -85,6 +90,12 @@ export class SettingsTmdbSectionComponent {
     private readonly tmdbCache = inject(TmdbCacheService);
 
     readonly form = input.required<FormGroup>();
+    readonly ageRatings = inject(AgeRatingPresentationService);
+
+    get ageRatingCountryControl(): FormControl | null {
+        const control = this.form().get('ageRatingCountry');
+        return control instanceof FormControl ? control : null;
+    }
 
     readonly keyTestState = signal<TmdbKeyTestState>('idle');
     readonly cacheStats = signal<TmdbCacheStats | null>(null);
@@ -92,6 +103,7 @@ export class SettingsTmdbSectionComponent {
     readonly isClearing = signal(false);
 
     constructor() {
+        markSectionForCheckOnFormEvents(this.form);
         // Sizing the cache is a full table scan, but this component only
         // exists while its section page is open, so loading on construction
         // preserves the old "wait until the user is actually looking"

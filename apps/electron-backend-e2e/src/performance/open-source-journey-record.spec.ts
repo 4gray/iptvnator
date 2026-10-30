@@ -22,12 +22,13 @@ function measurement(
 ): OpenSourceJourneyMeasurement {
     const renderer: JourneyRendererProbeState = {
         capabilities: {
-            changeDetectionTicks: 'unavailable-ng-global-not-published',
+            changeDetectionTicks: 'counted',
             layoutShift: true,
             longTask: true,
             observedTarget: 'documentElement',
         },
         counters: {
+            changeDetectionTicks: 9,
             domMutations: 1_596,
             layoutShiftScore: 0.0004,
             layoutShiftScoreSettled: 0,
@@ -36,6 +37,13 @@ function measurement(
         },
         final: true,
         firstCardPaintEpochMs: 10_090,
+        idle: {
+            domMutations: 0,
+            endEpochMs: null,
+            startEpochMs: null,
+            status: 'disabled',
+            ticks: null,
+        },
         installed: {
             bridgePresent: true,
             documentElementPresent: true,
@@ -46,10 +54,29 @@ function measurement(
         invalidReasons: [],
         journey: 'open-source',
         longTaskDurationsMs: [61.26],
+        media: null,
         navigation: null,
+        phases: {},
         preStart: { domMutations: 4, lastMutationEpochMs: 9_100 },
         schemaVersion: 1,
         sentinel: { epochMs: 10_080.5, status: 'sent' },
+        shiftCount: 23,
+        shifts: [
+            {
+                hadRecentInput: true,
+                sinceStartMs: 41.26,
+                sources: [
+                    {
+                        deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
+                        deltaY: 52,
+                        node: 'div.content[data-test-id="category-list"]',
+                    },
+                ],
+                value: 0.22106,
+            },
+        ],
         settle: {
             domMutations: 0,
             epochMs: null,
@@ -76,17 +103,21 @@ function measurement(
         },
     };
     const ipc: JourneyMainIpcCaptureState = {
+        ambiguousTimelineCompletions: 0,
         callsAfterSentinel: 2,
         callsBeforeStart: 0,
         callsBeforeSentinel: 17,
         callsByMethod: { dbGetAppState: 6, dbGetContent: 2, xtreamRequest: 1 },
         inFlightByMethod: {},
         installedEpochMs: 9_500,
+        log: [],
+        logDropped: 0,
         malformedEvents: 0,
         processStartEpochMs: 1_000,
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 10_081 },
         start: { occurrences: 1, receivedEpochMs: 10_002 },
+        timeline: [],
         unmatchedCompletions: 0,
     };
     return {
@@ -124,6 +155,7 @@ test('maps the click-started probe, IPC window and mock ledger to exact counters
     assert.equal(record.pid, 4343);
     assert.deepEqual(record.counters, {
         'main.mockHttpRequestsToSettled': 2,
+        'renderer.cdTicksToFirstPage': 9,
         'renderer.domMutationsToFirstPage': 1_596,
         'renderer.ipcCallsToFirstPage': 17,
         'renderer.layoutShiftScore': 0.221,
@@ -135,6 +167,24 @@ test('maps the click-started probe, IPC window and mock ledger to exact counters
     });
     assert.deepEqual(record.evidence['layoutShift'], {
         recentInput: 0.221,
+        // More shifts were counted than listed.
+        shiftCount: 23,
+        shifts: [
+            {
+                hadRecentInput: true,
+                sinceStartMs: 41.3,
+                sources: [
+                    {
+                        deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
+                        deltaY: 52,
+                        node: 'div.content[data-test-id="category-list"]',
+                    },
+                ],
+                value: 0.2211,
+            },
+        ],
         withoutRecentInput: 0,
     });
     assert.deepEqual(record.evidence['httpRequestsByRoute'], {
@@ -258,11 +308,15 @@ test('rejects measurements that did not start at the click or did not open the s
                     ...renderer,
                     capabilities: {
                         ...renderer.capabilities,
-                        changeDetectionTicks: 'hook-present-not-counted',
+                        changeDetectionTicks: 'unavailable-counter-missing',
+                    },
+                    counters: {
+                        ...renderer.counters,
+                        changeDetectionTicks: null,
                     },
                 },
             }),
-        /cd-hook-hook-present-not-counted/
+        /cd-ticks-unavailable-counter-missing/
     );
 });
 
@@ -319,8 +373,8 @@ test('summarizes under the J2 counters with the unmeasurable ones listed', () =>
     );
     assert.equal(entry.wallClock['clickToFirstPageMs.p50'], 78.3);
     assert.equal(entry.wallClock['clickToFirstPagePaintMs.p90'], 89.8);
+    assert.equal(entry.counters['renderer.cdTicksToFirstPage'], 9);
     assert.deepEqual(Object.keys(entry.unavailable).sort(), [
         'main.sqlStatementsToFirstPage',
-        'renderer.cdTicksToFirstPage',
     ]);
 });

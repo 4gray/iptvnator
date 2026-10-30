@@ -77,7 +77,7 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
     const selectedItvId = signal<string | undefined>(undefined);
 
     const stalkerStore = {
-        getSelectedCategoryName: signal('News'),
+        getSelectedCategoryLabel: signal({ name: 'News', labelKey: null }),
         itvChannels,
         radioChannels,
         searchPhrase: signal(''),
@@ -172,7 +172,7 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        get supportsEpg() {
+                        get supportsProviderEpg() {
                             return Boolean(window.electron);
                         },
                         get isElectron() {

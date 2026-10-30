@@ -6,6 +6,7 @@ import { DatePipe } from '@angular/common';
 import {
     afterNextRender,
     ChangeDetectionStrategy,
+    ChangeDetectorRef,
     Component,
     computed,
     DestroyRef,
@@ -19,15 +20,13 @@ import {
     untracked,
     viewChild,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { normalizeDateLocale } from '@iptvnator/pipes';
-import { SettingsStore } from '@iptvnator/services';
+import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
 import { EpgProgram, epgProviderClockMs } from '@iptvnator/shared/interfaces';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
 import { EpgDateNavigationDirection } from '../epg-date';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
@@ -83,6 +82,7 @@ export class EpgGuideComponent implements OnDestroy {
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly injector = inject(Injector);
+    private readonly changeDetector = inject(ChangeDetectorRef);
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
 
     readonly close = output<void>();
@@ -104,10 +104,7 @@ export class EpgGuideComponent implements OnDestroy {
     readonly filter = this.view.filter;
     readonly rowHeightPx = this.view.rowHeightPx;
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     readonly currentLocale = computed(() => {
         this.languageTick();
         return normalizeDateLocale(
@@ -151,6 +148,7 @@ export class EpgGuideComponent implements OnDestroy {
         play: (row) => this.commitRow(this.rows()[row]),
         details: (row, block) =>
             this.openDetails(this.rows()[row], this.blocksFor(row)[block]),
+        revealFocus: () => this.viewportController.revealFocus(this.focus()),
         jumpNow: () => this.jumpNow(),
         stepDay: (direction) => this.stepDay(direction),
         close: () => this.close.emit(),
@@ -184,6 +182,7 @@ export class EpgGuideComponent implements OnDestroy {
         activeRow: () => this.activeRowIndex(),
         ensureLoaded: (channels) => this.programsService.ensureLoaded(channels),
         setScrollLeft: (left) => this.view.scrollLeft.set(left),
+        afterRender: (callback) => this.afterNextGuideRender(callback),
     });
 
     private readonly dialogs = new EpgGuideDialogController(
@@ -229,11 +228,26 @@ export class EpgGuideComponent implements OnDestroy {
             if (!viewport) {
                 return;
             }
-            untracked(() =>
-                this.viewportController.watch(viewport, this.destroyRef)
-            );
+            untracked(() => {
+                this.viewportController.watch(viewport, this.destroyRef);
+                this.viewportController.whenRowsRendered(
+                    viewport,
+                    this.destroyRef,
+                    () => this.afterNextGuideRender(() => this.jumpNow(false))
+                );
+            });
         });
-        afterNextRender(() => this.jumpNow(false));
+    }
+
+    /**
+     * Run `callback` after the next render. The callers register from CDK
+     * and RxJS callbacks, outside any template event: zone.js used to follow
+     * those with a tick, but without it registering a render hook schedules
+     * no render, so the guide also marks itself for one.
+     */
+    private afterNextGuideRender(callback: () => void): void {
+        afterNextRender(callback, { injector: this.injector });
+        this.changeDetector.markForCheck();
     }
 
     ngOnDestroy(): void {
@@ -246,7 +260,7 @@ export class EpgGuideComponent implements OnDestroy {
      * listener of its own — but it must own the DOM focus, or a screen reader
      * would still announce whatever the user tabbed from. The roving
      * `tabindex="0"` moves with the signal, so the element to focus only exists
-     * after the next render.
+     * after the next render — after N's smooth jump, once its row is rendered.
      */
     @HostListener('document:keydown', ['$event'])
     onKeydown(event: KeyboardEvent): void {
@@ -254,10 +268,7 @@ export class EpgGuideComponent implements OnDestroy {
             return;
         }
         event.preventDefault();
-        this.viewportController.revealFocus(this.focus());
-        afterNextRender(() => this.viewportController.focusRovingTarget(), {
-            injector: this.injector,
-        });
+        this.viewportController.focusRovingTargetOnRow(this.tabbableRow());
     }
 
     trackRow(_index: number, channel: EpgGuideChannel): string {

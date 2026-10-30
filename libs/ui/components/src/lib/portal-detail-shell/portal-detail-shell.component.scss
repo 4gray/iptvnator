@@ -1,3 +1,5 @@
+@use '../../../../styles/focus-ring';
+
 // ============================================================================
 // Portal detail shell — two-state (browse ↔ watch) layout + page scroll owner
 // ============================================================================
@@ -5,13 +7,21 @@
 :host {
     // Shared surface palette (mirrors content-hero) so the area below the
     // natural-height hero and the About block match the page background.
-    --surface-bg: #fffaf5;
-    --text-primary: #1a1a1a;
-    --text-secondary: rgba(26, 26, 26, 0.75);
-    --text-muted: rgba(26, 26, 26, 0.5);
-    --tag-bg: rgba(0, 0, 0, 0.06);
-    --tag-border: rgba(0, 0, 0, 0.12);
-    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+    --surface-bg: var(--app-content-bg, #f5f6f8);
+    --text-primary: var(--app-heading-color, #1a1d23);
+    --text-secondary: var(--app-body-color, #4a5060);
+    --text-muted: var(--app-muted-color, #8891a4);
+    --tag-bg: color-mix(
+        in srgb,
+        var(--app-on-surface, #1d1b1e) 10%,
+        transparent
+    );
+    --tag-border: color-mix(
+        in srgb,
+        var(--app-on-surface, #1d1b1e) 14%,
+        transparent
+    );
+    --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
     --content-max-width: 1400px;
 
     display: block;
@@ -20,66 +30,20 @@
     overflow-x: hidden;
     background: var(--surface-bg);
     color: var(--text-primary);
+    // The hero and the rows size themselves to this pane, not the viewport:
+    // beside the categories panel it is narrower than the window.
+    container: detail / inline-size;
 
     scrollbar-gutter: stable;
     scrollbar-width: auto;
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 }
 
 :host-context(.dark-theme) {
-    --surface-bg: #141414;
-    --text-primary: #fff;
-    --text-secondary: rgba(255, 255, 255, 0.7);
-    --text-muted: rgba(255, 255, 255, 0.5);
-    --tag-bg: rgba(255, 255, 255, 0.1);
-    --tag-border: rgba(255, 255, 255, 0.2);
-    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-}
-
-.shell__navigation {
-    // Direct child of the scroll owner: sticky lasts through the entire page.
-    position: sticky;
-    top: 16px;
-    height: 0;
-    z-index: 10;
-    pointer-events: none;
-}
-
-.shell__back-button {
-    position: absolute;
-    left: 16px;
-    pointer-events: auto;
-    app-region: no-drag;
-    -webkit-app-region: no-drag;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--app-widget-bg, var(--surface-bg));
-    color: var(--app-on-surface, var(--text-primary));
-    border: 1px solid var(--app-separator, var(--tag-border));
-    cursor: pointer;
-
-    &:hover {
-        background: var(--app-card-hover-bg, var(--surface-bg));
-    }
-
-    &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
-    }
-
-    mat-icon {
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
-    }
+    --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
 }
 
 // ============================================================================
@@ -87,14 +51,22 @@
 // ============================================================================
 
 .shell__hero {
+    // The hero's artwork runs on under the first section's heading: the hero
+    // grows by the tail and the sections below are pulled up over it, so the
+    // fade into the page surface ends behind the heading, not at a hard edge.
+    --hero-tail: 140px;
+
     display: grid;
     grid-template-rows: 1fr;
+    margin-bottom: calc(-1 * var(--hero-tail));
     transition:
         grid-template-rows 300ms ease,
-        opacity 250ms ease;
+        opacity 250ms ease,
+        margin-bottom 300ms ease;
 
     &--collapsed {
         grid-template-rows: 0fr;
+        margin-bottom: 0;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
@@ -103,6 +75,7 @@
         transition:
             grid-template-rows 300ms ease,
             opacity 250ms ease,
+            margin-bottom 300ms ease,
             visibility 0s linear 300ms;
     }
 }
@@ -110,6 +83,16 @@
 .shell__hero-inner {
     min-height: 0;
     overflow: hidden;
+    // Keeps the hero's layered scrim and content in their own stacking
+    // context, so the sections pulled up over the tail paint above them.
+    isolation: isolate;
+}
+
+.shell__player,
+.shell__episodes,
+.shell__about,
+.shell__extras {
+    position: relative;
 }
 
 // ============================================================================
@@ -129,7 +112,11 @@
 .shell__episodes {
     max-width: var(--content-max-width);
     margin: 0 auto;
-    padding: 0 40px;
+    padding: 0 32px;
+
+    &:empty {
+        display: none;
+    }
 }
 
 .shell__about {
@@ -139,10 +126,33 @@
     animation: shell-fade-in 250ms ease 100ms both;
 }
 
+// Section rhythm: 56px between sections (Episodes → Cast & crew → Similar)
+// and after the last one, 16px between a section's header and its content
+// (app-detail-section-header).
 .shell__extras {
     max-width: var(--content-max-width);
     margin: 0 auto;
-    padding: 0 40px 40px;
+    padding: 0 32px 56px;
+
+    &:empty {
+        display: none;
+    }
+
+    // The hosts project one wrapper with their rails; a rail without items
+    // renders nothing and must not leave a 56px hole.
+    ::ng-deep > [detail-extras] {
+        display: flex;
+        flex-direction: column;
+        gap: 56px;
+
+        > :empty {
+            display: none;
+        }
+    }
+}
+
+.shell__episodes:not(:empty) ~ .shell__extras {
+    margin-top: 56px;
 }
 
 @keyframes shell-fade-in {
@@ -166,7 +176,7 @@
     }
 
     .shell__extras {
-        padding: 0 20px 32px;
+        padding: 0 20px 40px;
     }
 }
 

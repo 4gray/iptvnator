@@ -7,10 +7,10 @@ import {
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
 import { CoverSize, Language, Theme } from '@iptvnator/shared/interfaces';
 import {
@@ -19,26 +19,41 @@ import {
     StartupWindowModeOption,
     ThemeOption,
 } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import {
+    RadioGroupDirective,
+    RadioOptionDirective,
+} from '@iptvnator/ui/components/radio-group';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-general-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
+        RadioGroupDirective,
+        RadioOptionDirective,
         CommonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatSelectModule,
+        MatSlideToggleModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
     templateUrl: './settings-general-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [':host { display: contents; }'],
 })
 export class SettingsGeneralSectionComponent {
     readonly form = input.required<FormGroup>();
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly languageEnum = input.required<typeof Language>();
     readonly themeOptions = input.required<ThemeOption[]>();
     readonly coverSizeOptions = input.required<CoverSizeOption[]>();

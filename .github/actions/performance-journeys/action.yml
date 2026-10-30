@@ -1,0 +1,119 @@
+name: Run the performance journeys
+description: >-
+    Runs `pnpm run perf:journeys` under xvfb on an Ubuntu runner, writes the
+    measurements to the job summary and returns the path of the summary.json
+    it wrote. Callers check out, set up pnpm and Node, install dependencies
+    and upload what they need. Contract: docs/architecture/performance-journeys.md.
+
+inputs:
+    large-library:
+        description: >-
+            Also run the large-library launch journey (`launch-large`): restores
+            or generates its profile under node_modules/.cache (keyed by the
+            generator's content hash) and sets IPTVNATOR_JOURNEY_LARGE_LIBRARY=1.
+            Off on pull requests for its cost; see the journeys document.
+        required: false
+        default: 'false'
+
+outputs:
+    summary:
+        description: Path of the journey summary.json this run wrote.
+        value: ${{ steps.summary.outputs.path }}
+
+runs:
+    using: composite
+    steps:
+        # The journeys drive Electron through Playwright's _electron API
+        # and never launch a Playwright browser, so no `playwright
+        # install`. The runner image ships Electron's shared libraries and
+        # xvfb; fail fast with a clear message if an image update drops one.
+        # pnpm skips Electron's postinstall, so download the binary first;
+        # otherwise ldd sees no file and the check passes vacuously.
+        - name: Check Electron runtime dependencies
+          shell: bash
+          run: |
+              command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
+              node tools/testing/ensure-electron-binary.mjs || { echo "::error::Electron binary download failed"; exit 1; }
+              missing="$(ldd node_modules/electron/dist/electron | grep 'not found' || true)"
+              if [ -n "$missing" ]; then
+                  echo "::error::Electron is missing shared libraries:"
+                  echo "$missing"
+                  exit 1
+              fi
+
+        # The profile is a pure function of the generator inputs, the
+        # database library's sources and the native versions, so the key
+        # is computed from the checkout and a hit is the same profile a
+        # fresh generation would write. A miss regenerates it in the run
+        # (a few minutes); the cache step saves it afterwards.
+        - name: Resolve the large-library profile cache key
+          if: inputs.large-library == 'true'
+          id: large-library-key
+          shell: bash
+          run: |
+              set -euo pipefail
+              key="$(pnpm --silent nx run electron-backend-e2e:large-library-profile --print-cache-key | grep -E '^[0-9a-f]{32}$' | tail -n 1)"
+              if [ -z "$key" ]; then
+                  echo "::error::Could not resolve the large-library profile cache key"
+                  exit 1
+              fi
+              echo "key=$key" >> "$GITHUB_OUTPUT"
+
+        - name: Restore the large-library profile
+          if: inputs.large-library == 'true'
+          uses: actions/cache@v4
+          with:
+              path: node_modules/.cache/iptvnator/large-library-profile
+              key: large-library-profile-${{ runner.os }}-${{ steps.large-library-key.outputs.key }}
+
+        # The Nx target builds electron-backend:build-performance first
+        # and playwright.journeys.config.ts starts the Xtream mock server.
+        # launch-large.journey.ts skips itself unless the flag is '1'.
+        - name: Run the performance journeys
+          shell: bash
+          run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm run perf:journeys
+          env:
+              CI: 'true'
+              IPTVNATOR_JOURNEY_LARGE_LIBRARY: ${{ inputs.large-library == 'true' && '1' || '0' }}
+              NX_TASKS_RUNNER_DYNAMIC_OUTPUT: 'false'
+
+        # Every run writes a fresh timestamped directory, so a clean
+        # checkout must hold exactly one summary.
+        - name: Locate the journey summary
+          id: summary
+          shell: bash
+          run: |
+              set -euo pipefail
+              mapfile -t summaries < <(find dist/performance/journeys -mindepth 2 -maxdepth 2 -name summary.json)
+              if [ "${#summaries[@]}" -ne 1 ]; then
+                  echo "::error::Expected one journey summary, found ${#summaries[@]}"
+                  exit 1
+              fi
+              echo "path=${summaries[0]}" >> "$GITHUB_OUTPUT"
+
+        - name: Report journey measurements
+          shell: bash
+          env:
+              SUMMARY: ${{ steps.summary.outputs.path }}
+          run: |
+              set -euo pipefail
+              jq -r '
+                  "## Performance journeys (\(.harness.platform), \(.harness.measuredIterations) measured iterations)", "",
+                  (.journeys | to_entries[] | .key as $journey | .value as $j |
+                      "### `\($journey)`", "",
+                      "| Measurement | Value | Iterations |",
+                      "| --- | ---: | --- |",
+                      (($j.counters // {}) | to_entries[] |
+                          ($j.counterStability[.key] // {}) as $s |
+                          "| `\(.key)` | \(.value) | \(($s.values // []) | map(tostring) | join(", "))\(if $s.stable == false then " (unstable)" else "" end) |"),
+                      (($j.wallClock // {}) | to_entries[] | "| `\(.key)` | \(.value) | |"),
+                      "",
+                      ([($j.iterations // [])[] | select(.warmup | not) | .evidence.ipcSerialDepth // empty][0] // empty |
+                          "Serial IPC chain (first measured iteration): \(.chain | map("`\(.)`") | join(" → "))", ""),
+                      ([($j.iterations // [])[] | select(.warmup | not) | .evidence.perKeystroke // empty][0] // empty |
+                          "Per keystroke (first measured iteration):", "",
+                          "| Key | Query calls | Bridge calls | SQL statements | DOM mutations | CD ticks |",
+                          "| --- | ---: | ---: | ---: | ---: | ---: |",
+                          (.[] | "| `\(.key)` | \(.queryCalls) | \(.ipcCalls) | \(.sqlStatements) | \(.domMutations) | \(.cdTicks) |"),
+                          ""))
+              ' "$SUMMARY" | tee -a "$GITHUB_STEP_SUMMARY"

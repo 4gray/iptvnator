@@ -1,0 +1,50 @@
+.server-migration {
+    p {
+        margin: 0 0 12px;
+        color: var(--app-body-color);
+    }
+
+    > :last-child {
+        margin-bottom: 0;
+    }
+}
+
+.server-migration__list {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: var(--app-card-hover-bg);
+        color: var(--app-heading-color);
+
+        mat-icon {
+            flex-shrink: 0;
+        }
+
+        span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+}
+
+.server-migration .server-migration__hint {
+    color: var(--app-muted-color);
+    font-size: 0.8rem;
+}
+
+.server-migration .server-migration__error {
+    color: var(--app-expiry-expired-text);
+}

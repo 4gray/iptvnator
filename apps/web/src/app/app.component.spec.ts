@@ -1,9 +1,14 @@
+import { EventEmitter } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslateService } from '@ngx-translate/core';
+import {
+    DefaultLangChangeEvent,
+    LangChangeEvent,
+    TranslateService,
+} from '@ngx-translate/core';
 import {
     EpgRuntimeBridgeService,
     EpgService,
@@ -80,7 +85,7 @@ describe('AppComponent', () => {
     let epgService: EpgService;
     let router: Router;
     let settingsService: MockSettingsService;
-    let snackBar: MatSnackBar;
+    let snackBar: LazySnackBar;
     let store: MockStore;
     let translateService: TranslateService;
     let runtimeCapabilities: Partial<RuntimeCapabilitiesService>;
@@ -89,7 +94,6 @@ describe('AppComponent', () => {
     beforeEach(waitForAsync(() => {
         runtimeCapabilities = {
             isElectron: true,
-            isMacOS: false,
         };
         epgBridge = {
             checkFreshness: jest.fn().mockResolvedValue({
@@ -144,13 +148,17 @@ describe('AppComponent', () => {
                     provide: WorkspaceShellContextDrawerService,
                     useValue: { isOpen: () => false },
                 },
-                MockProvider(MatSnackBar, {
-                    open: jest.fn(),
+                MockProvider(LazySnackBar, {
+                    open: jest.fn().mockResolvedValue(null),
                 }),
                 MockProvider(TranslateService, {
                     instant: jest.fn((key: string) => key),
                     setDefaultLang: jest.fn(),
+                    getDefaultLang: jest.fn(() => 'en'),
                     use: jest.fn(),
+                    onLangChange: new EventEmitter<LangChangeEvent>(),
+                    onDefaultLangChange:
+                        new EventEmitter<DefaultLangChangeEvent>(),
                 }),
                 // The real service imports locale chunks; the language switch
                 // is gated on it, so it must resolve deterministically here.
@@ -184,7 +192,7 @@ describe('AppComponent', () => {
         settingsService = TestBed.inject(
             SettingsService
         ) as unknown as MockSettingsService;
-        snackBar = TestBed.inject(MatSnackBar);
+        snackBar = TestBed.inject(LazySnackBar);
         store = TestBed.inject(MockStore);
         translateService = TestBed.inject(TranslateService);
         component = fixture.componentInstance;
@@ -259,6 +267,20 @@ describe('AppComponent', () => {
         );
         expect(epgService.fetchEpg).toHaveBeenCalledWith(settings.epgUrl);
         expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('normalizes legacy Portuguese before applying the startup language', () => {
+        const settings: Settings = {
+            ...DEFAULT_SETTINGS,
+            language: 'pt' as Language,
+        };
+        settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
+
+        component.initSettings();
+
+        expect(TestBed.inject(AppDateLocaleService).use).toHaveBeenCalledWith(
+            Language.PORTUGUESE_BRAZIL
+        );
     });
 
     it('does not reimport a deleted source from a late startup freshness response', async () => {

@@ -1,0 +1,17 @@
+{
+    "name": "tv-tests",
+    "projectType": "library",
+    "sourceRoot": "libs/tv/testing",
+    "tags": ["scope:tv", "domain:tv", "type:e2e"],
+    "targets": {
+        "test": {
+            "command": "tsx --tsconfig apps/tv/tsconfig.app.json --test libs/tv/testing/*.test.ts"
+        },
+        "lint": {
+            "command": "eslint \"libs/tv/testing/**/*.ts\""
+        },
+        "typecheck": {
+            "command": "tsc -p libs/tv/testing/tsconfig.spec.json --noEmit"
+        }
+    }
+}

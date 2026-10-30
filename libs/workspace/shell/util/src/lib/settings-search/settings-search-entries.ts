@@ -2,6 +2,7 @@ import { PLAYBACK_SETTINGS_SEARCH_ENTRIES } from './settings-search-entries-play
 import { SettingsSearchEntry } from './settings-search.types';
 
 const DASHBOARD_KEYWORDS = ['dashboard', 'home', 'rail', 'row'];
+const SERVER_KEYWORDS = ['server', 'self-hosted', 'nas', 'sync', 'docker'];
 
 function dashboardRail(
     id: string,
@@ -69,13 +70,6 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         requires: ['startup-window-mode'],
     },
     {
-        id: 'show-captions',
-        section: 'general',
-        labelKey: 'SETTINGS.SHOW_CAPTIONS',
-        descriptionKey: 'SETTINGS.SHOW_CAPTIONS_DESCRIPTION',
-        keywords: ['subtitles', 'captions', 'cc'],
-    },
-    {
         id: 'strip-country-prefix',
         section: 'general',
         labelKey: 'SETTINGS.STRIP_COUNTRY_PREFIX',
@@ -97,7 +91,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.EPG_VIEW_MODE',
         descriptionKey: 'SETTINGS.EPG_VIEW_MODE_DESCRIPTION',
         keywords: ['epg', 'tv guide', 'timeline', 'grid', 'programme'],
-        requires: ['epg'],
+        requires: ['epg-display'],
     },
     {
         id: 'epg-offset',
@@ -105,14 +99,14 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.EPG_OFFSET_TITLE',
         descriptionKey: 'SETTINGS.EPG_OFFSET_HINT',
         keywords: ['epg', 'timezone', 'time shift', 'offset', 'hours'],
-        requires: ['epg'],
+        requires: ['epg-display'],
     },
     {
         id: 'epg-sources',
         section: 'epg',
         labelKey: 'SETTINGS.EPG_SOURCE_LIST_TITLE',
         descriptionKey: 'SETTINGS.EPG_SOURCE_FORMATS_HINT',
-        keywords: ['epg', 'xmltv', 'tv guide', 'url', 'refresh', 'clear'],
+        keywords: ['epg', 'xmltv', 'tv guide', 'url', 'refresh', 'add'],
         requires: ['epg'],
     },
     {
@@ -121,6 +115,14 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.PREFER_UPLOADED_EPG_TITLE',
         descriptionKey: 'SETTINGS.PREFER_UPLOADED_EPG_HINT',
         keywords: ['epg', 'xmltv', 'priority', 'provider'],
+        requires: ['epg'],
+    },
+    {
+        id: 'epg-clear-data',
+        section: 'epg',
+        labelKey: 'SETTINGS.CLEAR_EPG_DATA',
+        descriptionKey: 'SETTINGS.CLEAR_EPG_DATA_DESCRIPTION',
+        keywords: ['epg', 'clear', 'delete', 'programme', 'cache', 'reset'],
         requires: ['epg'],
     },
     {
@@ -199,6 +201,21 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         fallbackId: 'tmdb-enable',
     },
     {
+        id: 'age-rating-country',
+        section: 'tmdb',
+        labelKey: 'SETTINGS.AGE_RATING_COUNTRY_LABEL',
+        descriptionKey: 'SETTINGS.AGE_RATING_COUNTRY_DESCRIPTION',
+        keywords: [
+            'age',
+            'rating',
+            'classification',
+            'country',
+            'parental',
+            'FSK',
+            'MPAA',
+        ],
+    },
+    {
         id: 'tmdb-cache',
         section: 'tmdb',
         labelKey: 'SETTINGS.TMDB_CACHE',
@@ -251,8 +268,12 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         keywords: ['backup', 'restore', 'import', 'export', 'migrate'],
     },
     {
+        id: 'source-server', section: 'server', labelKey: 'SOURCE_SYNC.TITLE',
+        descriptionKey: 'SOURCE_SYNC.DESCRIPTION', keywords: [...SERVER_KEYWORDS, 'NAS', 'sync', 'sources'],
+    },
+    {
         id: 'remove-all-playlists',
-        section: 'reset',
+        section: 'backup',
         labelKey: 'SETTINGS.REMOVE_ALL',
         descriptionKey: 'SETTINGS.REMOVE_ALL_DESCRIPTION',
         keywords: ['reset', 'delete', 'remove', 'wipe', 'playlists'],
@@ -269,7 +290,16 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         section: 'about',
         labelKey: 'SETTINGS.APP_UPDATE_TITLE',
         descriptionKey: 'SETTINGS.APP_UPDATE_DESCRIPTION',
-        keywords: ['update', 'upgrade', 'nightly', 'channel', 'release'],
+        keywords: ['update', 'upgrade', 'release', 'download', 'install'],
+        requires: ['desktop'],
+        fallbackId: 'version',
+    },
+    {
+        id: 'app-update-channel',
+        section: 'about',
+        labelKey: 'SETTINGS.APP_UPDATE_CHANNEL',
+        descriptionKey: 'SETTINGS.APP_UPDATE_CHANNEL_DESCRIPTION',
+        keywords: ['update', 'nightly', 'stable', 'channel', 'prerelease'],
         requires: ['desktop'],
         fallbackId: 'version',
     },

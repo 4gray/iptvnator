@@ -18,7 +18,7 @@
 }
 
 .content-container {
-    background: var(--mat-sys-surface);
+    background: var(--app-content-bg);
 
     &:has(> app-portal-empty-state) {
         align-items: center;
@@ -33,7 +33,7 @@
 
     &--radio {
         position: relative;
-        background: var(--mat-sys-surface);
+        background: var(--app-content-bg);
     }
 
     > app-vjs-player,
@@ -61,8 +61,8 @@
 }
 
 .epg {
-    border-top: 1px solid var(--mat-sys-outline-variant);
-    background: var(--mat-sys-surface);
+    border-top: 1px solid var(--app-separator);
+    background: var(--app-content-bg);
     display: flex;
     flex-direction: column;
 }

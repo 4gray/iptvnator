@@ -8,7 +8,7 @@ import {
     StalkerVodSeriesSeason,
     StalkerVodSource,
 } from './models';
-import { isStalkerSeriesFlag } from './stalker-vod.utils';
+import { isStalkerSeriesFlag } from '@iptvnator/shared/interfaces';
 
 const naturalSeasonCollator = new Intl.Collator(undefined, {
     numeric: true,
@@ -51,6 +51,8 @@ export interface StalkerMappedEpisode extends XtreamSerieEpisode {
     legacyTrackingId?: number;
     /** Allows pre-correction legacy progress to match the same episode. */
     providerSeasonNumber?: number;
+    /** Provider request coordinates, independent of display/progress numbering. */
+    vodEpisode?: { movieId: string; seasonId: string; episodeId: string };
     originalId?: string;
     originalCmd?: string;
 }
@@ -237,7 +239,8 @@ export function mapVodSeriesEpisodes(
                 ...createBaseEpisode(
                     trackingId,
                     episodeNum,
-                    episode.name || `Episode ${episodeNum}`,
+                    // No English stand-in: the view labels unnamed episodes.
+                    episode.name || '',
                     'mpg',
                     'vod-series',
                     seasonNum,
@@ -254,6 +257,12 @@ export function mapVodSeriesEpisodes(
                     ? { providerSeasonNumber: season.providerSeasonNumber }
                     : {}),
                 originalId: providerEpisodeId,
+                originalCmd: episode.cmd,
+                vodEpisode: {
+                    movieId: season.video_id,
+                    seasonId: season.id,
+                    episodeId: providerEpisodeId,
+                },
             } as StalkerMappedEpisode;
         });
     });
@@ -286,7 +295,9 @@ export function mapRegularSeriesEpisodes(
                 ...createBaseEpisode(
                     trackingId,
                     episodeNum,
-                    `Episode ${episodeNum}`,
+                    // Regular series episodes carry no names; the view
+                    // labels them.
+                    '',
                     '',
                     'regular-series',
                     Number(seasonKey),

@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
@@ -69,6 +70,9 @@ describe('PortalDetailShellComponent', () => {
         return element;
     };
 
+    const backTarget = () =>
+        TestBed.inject(WorkspaceBackNavigationService).target();
+
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [HostComponent, TranslateModule.forRoot()],
@@ -130,13 +134,13 @@ describe('PortalDetailShellComponent', () => {
         expect(query('.details__meta .details__meta-item')).toBeTruthy();
         expect(query('.action-buttons .play-btn')).toBeTruthy();
         expect(query('app-content-about')).toBeNull();
-        expect(query('.shell__back-button')?.getAttribute('aria-label')).toBe(
-            'Return to downloads'
-        );
+        // The header renders Back; the page itself keeps no arrow.
+        expect(query('button[aria-label="Return to downloads"]')).toBeNull();
+        expect(backTarget()?.label()).toBe('Return to downloads');
     });
 
     it.each([{ isLoading: true }, { errorMessage: 'Unavailable' }])(
-        'keeps the translated fallback Back available in loading/error states',
+        'keeps the generic Back available in loading/error states',
         (state) => {
             fixture.destroy();
             const shellFixture = TestBed.createComponent(
@@ -145,16 +149,14 @@ describe('PortalDetailShellComponent', () => {
             for (const [key, value] of Object.entries(state))
                 shellFixture.componentRef.setInput(key, value);
             shellFixture.detectChanges();
-            const element = shellFixture.nativeElement as HTMLElement;
-            const button = element.querySelector<HTMLButtonElement>(
-                '.shell__back-button'
-            );
-            expect(button?.type).toBe('button');
-            expect(button?.getAttribute('aria-label')).toBe('Go back');
+            // No host label: the header falls back to the translated "Back".
+            expect(backTarget()?.label()).toBeNull();
             const back = jest.fn();
             shellFixture.componentInstance.backClicked.subscribe(back);
-            button?.click();
+            backTarget()?.run();
             expect(back).toHaveBeenCalledTimes(1);
+            shellFixture.destroy();
+            expect(backTarget()).toBeNull();
         }
     );
 
@@ -277,30 +279,33 @@ describe('PortalDetailShellComponent', () => {
         expect(host.closeRequests).toBe(0);
     });
 
-    it('keeps one route-back control outside the collapsing hero in both states', () => {
-        const back = requiredQuery('.shell__back-button');
-        expect(back.closest('app-content-hero')).toBeNull();
-        expect(back.getAttribute('aria-label')).toBe('Return to downloads');
-        expect(back.getAttribute('aria-keyshortcuts')).toBe('Escape');
-        back.click();
+    it('offers one route-level Back to the header in both states', () => {
+        const target = backTarget();
+        expect(target?.label()).toBe('Return to downloads');
+        expect(target?.escapeShortcut()).toBe(true);
+        target?.run();
         expect(host.backRequests).toBe(1);
         host.playbackActive.set(true);
         fixture.detectChanges();
-        expect(query('.shell__back-button')).toBe(back);
+        expect(backTarget()).toBe(target);
         // Watch keeps the arrow's meaning: it leaves the page, it does not
         // close the player. Escape is the close shortcut, so the hint goes.
-        expect(back.getAttribute('aria-label')).toBe('Return to downloads');
-        expect(back.getAttribute('aria-keyshortcuts')).toBeNull();
-        expect(back.getAttribute('title')).toBe('Return to downloads');
-        back.click();
+        expect(target?.escapeShortcut()).toBe(false);
+        target?.run();
         expect(host.backRequests).toBe(2);
         expect(host.closeRequests).toBe(0);
     });
 
-    it('moves lost focus to the back control after Escape closes the player', async () => {
+    it('releases the header Back when the page goes away', () => {
+        expect(backTarget()).not.toBeNull();
+        fixture.destroy();
+        expect(backTarget()).toBeNull();
+    });
+
+    it('keeps focus on the page after Escape closes the player', async () => {
         host.playbackActive.set(true);
         fixture.detectChanges();
-        const back = requiredQuery('.shell__back-button');
+        const shell = requiredQuery('app-portal-detail-shell');
         const player = requiredQuery('.fake-player');
         player.tabIndex = 0;
         player.focus();
@@ -315,13 +320,13 @@ describe('PortalDetailShellComponent', () => {
         await fixture.whenStable();
         expect(host.closeRequests).toBe(1);
         expect(host.backRequests).toBe(0);
-        expect(document.activeElement).toBe(back);
+        expect(document.activeElement).toBe(shell);
     });
 
     it('has no dead-end browse action for a host without back navigation', () => {
         host.backAvailable.set(false);
         fixture.detectChanges();
-        expect(query('.shell__back-button')).toBeNull();
+        expect(backTarget()).toBeNull();
         requiredQuery('app-portal-detail-shell').dispatchEvent(
             new KeyboardEvent('keydown', {
                 key: 'Escape',
@@ -334,7 +339,7 @@ describe('PortalDetailShellComponent', () => {
         fixture.detectChanges();
         // No route to go back to, so no arrow in watch either; the player's
         // own Close button and Escape remain the exits.
-        expect(query('.shell__back-button')).toBeNull();
+        expect(backTarget()).toBeNull();
         requiredQuery('app-portal-detail-shell').dispatchEvent(
             new KeyboardEvent('keydown', {
                 key: 'Escape',

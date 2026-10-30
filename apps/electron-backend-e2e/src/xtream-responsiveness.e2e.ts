@@ -11,6 +11,8 @@ import {
     waitForXtreamCatalog,
     xtreamMockServer,
 } from './electron-test-fixtures';
+import { pressScrollKey } from './keyboard-scroll';
+import { applyTheme } from './theme-contrast';
 
 const stressPortalName = 'Stress Xtream Portal';
 const stressXtreamUsername = 'stress';
@@ -23,7 +25,7 @@ const dbWorkerBatchDelayMs = '20';
 const dbWorkerRowsPerTransaction = '100';
 
 function playlistRowByName(name: string) {
-    return `app-playlist-item:has-text("${name}")`;
+    return `app-workspace-sources app-source-row:has-text("${name}")`;
 }
 
 async function openSources(page: Parameters<typeof addXtreamPortal>[0]) {
@@ -285,14 +287,13 @@ test.describe('Electron Xtream Responsiveness', () => {
             );
             await expect(playlistRow).toBeVisible({ timeout: 20000 });
 
-            await playlistRow.locator('.delete-btn').click();
-
-            const confirmDialog = app.mainWindow.locator(
-                'mat-dialog-container'
-            );
-            await expect(confirmDialog).toBeVisible();
-            await confirmDialog
-                .getByRole('button', { name: 'Yes', exact: true })
+            // Delete from the row menu; the delete starts when the Undo
+            // toast closes, and the row comes back to show its progress.
+            await playlistRow.hover();
+            await playlistRow.locator('.source-row__more').click();
+            await app.mainWindow
+                .locator('.cdk-overlay-pane [mat-menu-item]')
+                .filter({ hasText: 'Remove playlist' })
                 .click();
 
             await waitForDbOperationEvent(app.mainWindow, {
@@ -301,10 +302,28 @@ test.describe('Electron Xtream Responsiveness', () => {
                 timeoutMs: 20000,
             });
 
-            await expect(
-                playlistRow.locator('.busy-state__message')
-            ).toBeVisible({ timeout: 20000 });
-            await expect(playlistRow.locator('.cancel-btn')).toBeVisible();
+            await expect(playlistRow.locator('.source-row__busy')).toBeVisible({
+                timeout: 20000,
+            });
+            const cancel = playlistRow.locator('.source-row__cancel');
+            await expect(cancel).toBeVisible();
+            // The row's action buttons inherit its color; the cancel action
+            // must still read as destructive on the selected row.
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(app.mainWindow, theme);
+                const error = await app.mainWindow.evaluate(() => {
+                    const probe = document.createElement('div');
+                    probe.style.color = 'var(--mat-sys-error)';
+                    document.body.appendChild(probe);
+                    const color = getComputedStyle(probe).color;
+                    probe.remove();
+                    return color;
+                });
+                expect(
+                    await cancel.evaluate((el) => getComputedStyle(el).color),
+                    `cancel color in ${theme} theme`
+                ).toBe(error);
+            }
 
             await waitForDbOperationEvent(app.mainWindow, {
                 operation: 'delete-playlist',
@@ -358,19 +377,16 @@ test('keeps Live TV scrolling, row actions and resizing independently accessible
         await expect(viewport).toBeFocused();
         await viewport.locator('.channel-name').first().click();
         await expect(viewport).toBeFocused();
-        await page.keyboard.press('PageDown');
-        await expect
-            .poll(() => viewport.evaluate((el) => el.scrollTop))
-            .toBeGreaterThan(100);
+        // Each key's scroll ends before the next input; see pressScrollKey.
+        await pressScrollKey(page, viewport, 'PageDown');
         const position = await viewport.evaluate((el) => el.scrollTop);
-        await page.keyboard.press('PageDown');
-        await expect
-            .poll(() => viewport.evaluate((el) => el.scrollTop))
-            .toBeGreaterThan(position);
-        await page.keyboard.press('Home');
-        await expect
-            .poll(() => viewport.evaluate((el) => el.scrollTop))
-            .toBe(0);
+        expect(position).toBeGreaterThan(100);
+        await pressScrollKey(page, viewport, 'PageDown');
+        expect(await viewport.evaluate((el) => el.scrollTop)).toBeGreaterThan(
+            position
+        );
+        await pressScrollKey(page, viewport, 'Home');
+        expect(await viewport.evaluate((el) => el.scrollTop)).toBe(0);
         const before = (await viewport.boundingBox())!;
         const handle = page.locator(
             'app-live-stream-layout .sidebar > .resize-handle'

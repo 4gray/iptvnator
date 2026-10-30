@@ -11,7 +11,7 @@
     <app-global-favorites-list
         [channels]="channelsForList()"
         [mode]="mode()"
-        [showEpg]="supportsEpg"
+        [showEpg]="supportsAnyEpg"
         [favoriteUids]="favoriteUids()"
         [epgMap]="epgMap()"
         [progressTick]="progressTick()"
@@ -41,7 +41,7 @@
                         mat-icon-button
                         (click)="onClose()"
                         class="radio-close-btn"
-                        aria-label="Close player"
+                        [attr.aria-label]="'PORTALS.CLOSE_PLAYER' | translate"
                     >
                         <mat-icon>close</mat-icon>
                     </button>
@@ -78,7 +78,7 @@
             </div>
         }
 
-        @if (!isRadioSelection() && supportsEpg) {
+        @if (showsEpgPanel()) {
             <div
                 class="epg"
                 [class.epg--inline]="shouldUseInlinePlayer()"
@@ -193,7 +193,7 @@
     <app-global-favorites-list
         [channels]="fullscreenPanelChannels()"
         [mode]="mode()"
-        [showEpg]="supportsEpg"
+        [showEpg]="supportsAnyEpg"
         [favoriteUids]="favoriteUids()"
         [epgMap]="epgMap()"
         [progressTick]="progressTick()"

@@ -118,7 +118,25 @@ describe('buildDashboardPortalLiveEpgEntry', () => {
 });
 
 describe('resolveDashboardPortalLiveEpgProgram', () => {
-    it('reads the resolver map by the entry tvgId and treats a missing key as nothing on air', () => {
+    it('does not use another playlist or source with the same provider ID', () => {
+        const entry = buildDashboardPortalLiveEpgEntry(
+            baseItem({ source: 'xtream', xtream_id: 42 })
+        );
+        if (!entry) throw new Error('expected an entry');
+        const own = { title: 'Own guide' } as EpgProgram;
+        const foreign = { title: 'Foreign guide' } as EpgProgram;
+        const map = new Map([
+            [JSON.stringify(['xtream', 'playlist-1', '42']), own],
+            [JSON.stringify(['xtream', 'playlist-2', '42']), foreign],
+            [JSON.stringify(['stalker', 'playlist-1', '42']), foreign],
+            ['42', foreign],
+        ]);
+        expect(resolveDashboardPortalLiveEpgProgram(map, entry)).toBe(own);
+        map.delete(JSON.stringify(['xtream', 'playlist-1', '42']));
+        expect(resolveDashboardPortalLiveEpgProgram(map, entry)).toBeNull();
+    });
+
+    it('reads the resolver map by source, playlist and channel and treats a missing key as nothing on air', () => {
         const entry = buildDashboardPortalLiveEpgEntry(
             baseItem({ source: 'xtream', xtream_id: 42 })
         );
@@ -127,7 +145,9 @@ describe('resolveDashboardPortalLiveEpgProgram', () => {
 
         expect(
             resolveDashboardPortalLiveEpgProgram(
-                new Map([['42', program]]),
+                new Map([
+                    [JSON.stringify(['xtream', 'playlist-1', '42']), program],
+                ]),
                 entry
             )
         ).toBe(program);

@@ -15,6 +15,11 @@ const STALKER_PORTAL_URL = `${STALKER_MOCK_SERVER}/portal.php`;
 // worker, so sharing one would let each suite's reset clear the other's state.
 const DEFAULT_MAC = '00:1A:79:5F:00:01';
 
+// Runtime config is injected through page.route on every reload. Service
+// Worker requests bypass that interceptor; PWA worker coverage has its own suite.
+// https://playwright.dev/docs/api/class-page#page-route
+test.use({ serviceWorkers: 'block' });
+
 async function installRuntimeConfig(page: Page): Promise<void> {
     await page.route('**/assets/app-config.js', async (route) => {
         await route.fulfill({
@@ -29,16 +34,16 @@ async function addXtreamPortal(page: Page): Promise<void> {
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
-    await dialog
-        .getByRole('radio', { name: /Xtream credentials/i })
-        .click();
+    await dialog.getByRole('radio', { name: /Xtream credentials/i }).click();
 
     await dialog.locator('#title').fill('Self-hosted Xtream');
     await dialog.locator('#serverUrl').fill(XTREAM_MOCK_SERVER);
     await dialog.locator('#username').fill('user1');
     await dialog.locator('#password').fill('pass1');
 
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await expect(dialog).toBeHidden();
     await page.waitForURL(/xtreams.*vod/);
 }
@@ -75,7 +80,10 @@ async function addStalkerPortal(page: Page): Promise<void> {
     await setInputValue(dialog.locator('input#portalUrl'), STALKER_PORTAL_URL);
     await setInputValue(dialog.locator('input#macAddress'), DEFAULT_MAC);
 
-    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+    const addButton = dialog.getByRole('button', {
+        name: 'Add playlist',
+        exact: true,
+    });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
     await expect(dialog).toBeHidden();
@@ -134,6 +142,112 @@ test('@self-hosted runtime config points PWA calls at the monorepo backend', asy
     await expect(response).toBeOK();
 });
 
+for (const failure of ['invalid-json', 'storage-denied']) {
+    test(`@self-hosted connection recovery remains available after ${failure}`, async ({
+        page,
+    }) => {
+        if (failure === 'invalid-json') {
+            await page.evaluate(() =>
+                localStorage.setItem('iptvnator:source-server', '{broken')
+            );
+        } else {
+            await page.addInitScript(() => {
+                const getItem = Storage.prototype.getItem;
+                Storage.prototype.getItem = function (key: string) {
+                    if (key === 'iptvnator:source-server')
+                        throw new DOMException('Denied', 'SecurityError');
+                    return getItem.call(this, key);
+                };
+            });
+        }
+        await page.reload();
+        const recovery = page.locator(
+            '[data-test-id="source-connection-recovery"]'
+        );
+        await expect(recovery).toBeVisible();
+        await recovery
+            .getByRole('link', { name: 'Server', exact: true })
+            .click();
+        await expect(page).toHaveURL(/\/workspace\/settings\/server/);
+        await expect(
+            page.getByRole('button', { name: 'Connect', exact: true })
+        ).toBeVisible();
+    });
+}
+
+for (const legacy of [false, true]) {
+    test(`@self-hosted restores original library after pending discovery (legacy404=${legacy})`, async ({
+        page,
+    }) => {
+        await addM3uPlaylist(page);
+        let offline = true;
+        await page.route(`${WEB_BACKEND_URL}/v1/instance`, (route) =>
+            offline
+                ? route.abort('connectionfailed')
+                : legacy
+                  ? route.fulfill({
+                        status: 404,
+                        contentType: 'text/html',
+                        body: 'Not found',
+                    })
+                  : route.continue()
+        );
+        await page.reload();
+        const status = page.locator('[data-test-id="source-sync-status"]');
+        await expect(status).toContainText('Server unavailable');
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    () =>
+                        JSON.parse(
+                            localStorage.getItem('iptvnator:source-server') ??
+                                'null'
+                        )?.instanceId
+                )
+            )
+            .toBe(`pending:${WEB_BACKEND_URL}`);
+        offline = false;
+        await status
+            .getByRole('button', { name: 'Refresh', exact: true })
+            .click();
+        await expect(status).toHaveCount(0);
+        await page.goto('/workspace/sources');
+        await expect(sourceRowByTitle(page, 'Self-hosted M3U')).toBeVisible();
+        expect(
+            await page.evaluate(() =>
+                localStorage.getItem('iptvnator:source-server')
+            )
+        ).toBeNull();
+        expect(
+            await page.evaluate(() =>
+                localStorage.getItem('iptvnator:source-server-disabled')
+            )
+        ).toBeNull();
+    });
+}
+
+test('@self-hosted keeps the original library with a legacy proxy lacking discovery', async ({
+    page,
+}) => {
+    await addM3uPlaylist(page);
+    await page.route(`${WEB_BACKEND_URL}/v1/instance`, (route) =>
+        route.fulfill({
+            status: 404,
+            contentType: 'text/html',
+            body: 'Not found',
+        })
+    );
+    await page.reload();
+    await page.goto('/workspace/sources');
+    await expect(sourceRowByTitle(page, 'Self-hosted M3U')).toBeVisible();
+    await expect(page.getByTestId('source-sync-status')).toHaveCount(0);
+    expect(
+        await page.evaluate(() =>
+            localStorage.getItem('iptvnator:source-server')
+        )
+    ).toBeNull();
+});
+
 test('@self-hosted Xtream portal loads through web-backend proxy', async ({
     page,
 }) => {
@@ -160,9 +274,9 @@ test('@self-hosted Xtream portal loads through web-backend proxy', async ({
     await expect(vodItem).toBeVisible({ timeout: 30_000 });
     await vodItem.click();
     await expect(page).toHaveURL(/\/workspace\/xtreams\/[^/]+\/vod\/\d+\/\d+/);
-    await expect(
-        page.getByRole('button', { name: 'Play', exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    const primaryAction = page.locator('[data-testid="vod-primary-action"]');
+    await expect(primaryAction).toBeVisible({ timeout: 15_000 });
+    await expect(primaryAction).toContainText('Play');
 
     expect(
         consoleErrors.filter((message) =>
@@ -256,10 +370,10 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
         channel = 'Refreshed UA Channel';
         const row = sourceRowByTitle(page, 'Protected M3U');
         await row.hover();
-        await row.locator('.refresh-btn').click();
-        await expect(page.locator('.mat-mdc-snack-bar-label').last()).toContainText(
-            'updated'
-        );
+        await row.locator('.source-row__refresh').click();
+        await expect(
+            page.locator('.mat-mdc-snack-bar-label').last()
+        ).toContainText('updated');
         await page.goto(catalogUrl);
         await expect(page.getByText('1. Refreshed UA Channel')).toBeVisible();
         expect(received.slice(1)).toEqual([userAgent, userAgent]);

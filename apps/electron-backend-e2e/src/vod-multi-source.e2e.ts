@@ -14,6 +14,7 @@ import {
     getXtreamTitle,
     pickDistinctTitles,
 } from './portal-mock-fixtures';
+import { applyTheme, expectTextContrast } from './theme-contrast';
 
 /**
  * `multisrc1` and `multisrc2` are two distinct credential pairs that share one
@@ -62,14 +63,22 @@ test.describe('VOD multi-source', () => {
                 /\/workspace\/xtreams\/[^/]+\/vod\/[^/]+\/[^/]+$/
             );
 
-            // Discovery is lazy, so the chip appears after the detail view.
-            const chip = app.mainWindow.locator('app-vod-sources-chip button');
-            await expect(chip).toBeVisible({ timeout: 20000 });
-            // The badge counts every copy across all playlists — the route's
-            // own plus the same film in the other portal.
-            await expect(chip).toContainText('2');
+            // Discovery is lazy, so the "Other sources" row of the "…" menu
+            // appears after the detail view.
+            const more = app.mainWindow.locator(
+                '[data-testid="vod-more-menu"]'
+            );
+            await expect(more).toBeVisible({ timeout: 20000 });
+            await more.click();
+            const sourcesRow = app.mainWindow.locator(
+                '[data-test-id="vod-menu-sources"]'
+            );
+            await expect(sourcesRow).toBeVisible({ timeout: 20000 });
+            // The hint counts the alternatives: the same film in the other
+            // portal, not the route's own copy.
+            await expect(sourcesRow).toContainText('1');
 
-            await chip.click();
+            await sourcesRow.click();
 
             // Both the playing source and the alternative are listed.
             const rows = app.mainWindow.locator('app-vod-source-row');
@@ -82,12 +91,36 @@ test.describe('VOD multi-source', () => {
             await expect(
                 rows.filter({ hasText: 'Multi Source B' })
             ).toHaveCount(1);
+
+            await app.mainWindow.keyboard.press('Escape');
+            await app.mainWindow.locator('.play-btn').first().click();
+            const trigger = app.mainWindow.locator(
+                'app-portal-inline-player .sources-chip'
+            );
+            await expect(trigger).toBeVisible();
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(app.mainWindow, theme);
+                await trigger.click();
+                await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+                await expect(trigger).toHaveCSS(
+                    'border-top-left-radius',
+                    '10px'
+                );
+                await expectTextContrast(
+                    trigger.locator('.sources-chip__label')
+                );
+                await expectTextContrast(
+                    trigger.locator('.sources-chip__count')
+                );
+                await app.mainWindow.keyboard.press('Escape');
+                await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+            }
         } finally {
             await closeElectronApp(app);
         }
     });
 
-    test('shows no sources chip when only one playlist has the movie', async ({
+    test('offers no other sources when only one playlist has the movie', async ({
         dataDir,
         request,
     }) => {
@@ -122,8 +155,14 @@ test.describe('VOD multi-source', () => {
             await expect(
                 app.mainWindow.locator('.play-btn').first()
             ).toBeVisible({ timeout: 20000 });
+            await app.mainWindow
+                .locator('[data-testid="vod-more-menu"]')
+                .click();
             await expect(
-                app.mainWindow.locator('app-vod-sources-chip')
+                app.mainWindow.locator('[data-test-id="vod-menu-copy-url"]')
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.locator('[data-test-id="vod-menu-sources"]')
             ).toHaveCount(0);
         } finally {
             await closeElectronApp(app);

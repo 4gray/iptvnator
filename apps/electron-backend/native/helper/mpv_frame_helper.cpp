@@ -55,6 +55,12 @@ struct TrackInfo {
     bool forced = false;
 };
 
+/* One entry of mpv's `chapter-list`: start time and optional title. */
+struct ChapterInfo {
+    double timeSeconds = 0;
+    std::string title;
+};
+
 struct SnapshotState {
     std::string status = "idle";
     double positionSeconds = 0;
@@ -118,6 +124,7 @@ struct SnapshotState {
     int64_t selectedAudioTrackId = -1;
     std::vector<TrackInfo> subtitleTracks;
     int64_t selectedSubtitleTrackId = -1;
+    std::vector<ChapterInfo> chapters;
     double playbackSpeed = 1;
     std::string aspectOverride = "no";
     bool recordingActive = false;
@@ -179,6 +186,21 @@ std::string tracksJson(const std::vector<TrackInfo>& tracks,
         writer.boolean("selected", track.id == selectedId);
         writer.boolean("defaultTrack", track.defaultTrack);
         writer.boolean("forced", track.forced);
+        if (!first) out += ',';
+        first = false;
+        out += writer.finish();
+    }
+    out += ']';
+    return out;
+}
+
+std::string chaptersJson(const std::vector<ChapterInfo>& chapters) {
+    std::string out = "[";
+    bool first = true;
+    for (const ChapterInfo& chapter : chapters) {
+        JsonWriter writer;
+        writer.num("timeSeconds", chapter.timeSeconds);
+        if (!chapter.title.empty()) writer.str("title", chapter.title);
         if (!first) out += ',';
         first = false;
         out += writer.finish();
@@ -262,6 +284,9 @@ std::string composeSnapshotLocked() {
     } else {
         writer.nullValue("selectedSubtitleTrackId");
     }
+    /* Always emitted: the adapter merges snapshot events field by field, so
+     * an omitted key would keep the previous file's chapters. */
+    writer.raw("chapters", chaptersJson(s.chapters));
     writer.num("playbackSpeed", s.playbackSpeed);
     writer.str("aspectOverride", s.aspectOverride);
     writer.raw("stats", composeStatsJsonLocked());
@@ -383,6 +408,63 @@ void updateTracksFromNode(const mpv_node& trackListNode) {
     g_state.snapshot.subtitleTracks = std::move(subs);
 }
 
+/* Snapshots repeat the chapter list on every emit, so a file with thousands
+ * of chapters or a huge title must not inflate every snapshot. Beyond these
+ * bounds a timeline cannot draw anything useful anyway. */
+constexpr size_t kMaxChapters = 256;
+constexpr size_t kMaxChapterTitleBytes = 256;
+
+/* Cut to at most `maxBytes` without splitting a UTF-8 sequence. */
+std::string truncateUtf8(const char* value, size_t maxBytes) {
+    std::string text = value ? value : "";
+    if (text.size() <= maxBytes) return text;
+    size_t end = maxBytes;
+    while (end > 0 &&
+           (static_cast<unsigned char>(text[end]) & 0xC0) == 0x80) {
+        end--;
+    }
+    text.resize(end);
+    return text;
+}
+
+/* mpv `chapter-list`: an array of { time, title? } maps in file order. */
+void updateChaptersFromNode(const mpv_node& chapterListNode) {
+    std::vector<ChapterInfo> chapters;
+    if (chapterListNode.format == MPV_FORMAT_NODE_ARRAY &&
+        chapterListNode.u.list) {
+        for (int i = 0; i < chapterListNode.u.list->num &&
+                        chapters.size() < kMaxChapters;
+             i++) {
+            const mpv_node& entry = chapterListNode.u.list->values[i];
+            if (entry.format != MPV_FORMAT_NODE_MAP || !entry.u.list) continue;
+            ChapterInfo chapter;
+            bool hasTime = false;
+            const mpv_node_list& map = *entry.u.list;
+            for (int k = 0; k < map.num; k++) {
+                const char* key = map.keys[k];
+                const mpv_node& value = map.values[k];
+                if (!key) continue;
+                if (std::strcmp(key, "time") == 0 &&
+                    value.format == MPV_FORMAT_DOUBLE) {
+                    chapter.timeSeconds = value.u.double_;
+                    hasTime = std::isfinite(chapter.timeSeconds);
+                } else if (std::strcmp(key, "time") == 0 &&
+                           value.format == MPV_FORMAT_INT64) {
+                    chapter.timeSeconds = (double)value.u.int64;
+                    hasTime = true;
+                } else if (std::strcmp(key, "title") == 0 &&
+                           value.format == MPV_FORMAT_STRING &&
+                           value.u.string) {
+                    chapter.title =
+                        truncateUtf8(value.u.string, kMaxChapterTitleBytes);
+                }
+            }
+            if (hasTime) chapters.push_back(std::move(chapter));
+        }
+    }
+    g_state.snapshot.chapters = std::move(chapters);
+}
+
 bool parseTrackSelection(const char* value, int64_t& out) {
     if (!value) return false;
     char* end = nullptr;
@@ -436,6 +518,9 @@ void handlePropertyChange(const mpv_event_property& property) {
     } else if (name == "track-list" && property.format == MPV_FORMAT_NODE &&
                property.data) {
         updateTracksFromNode(*static_cast<mpv_node*>(property.data));
+    } else if (name == "chapter-list" &&
+               property.format == MPV_FORMAT_NODE && property.data) {
+        updateChaptersFromNode(*static_cast<mpv_node*>(property.data));
     } else if (name == "aid" && property.format == MPV_FORMAT_STRING &&
                property.data) {
         int64_t selected = -1;
@@ -536,6 +621,7 @@ void runMpvEventLoop() {
                     s.selectedAudioTrackId = -1;
                     s.subtitleTracks.clear();
                     s.selectedSubtitleTrackId = -1;
+                    s.chapters.clear();
                     g_state.loadedPath = false;
                     markDirtyLocked();
                     break;
@@ -1115,6 +1201,8 @@ int main(int argc, char** argv) {
                          MPV_FORMAT_STRING);
     mpv_observe_property(g_state.mpv, 24, "audio-params/samplerate",
                          MPV_FORMAT_INT64);
+    /* File chapters draw the timeline segments and mark closing credits. */
+    mpv_observe_property(g_state.mpv, 25, "chapter-list", MPV_FORMAT_NODE);
 
     g_state.pipeline.onGenerationChanged = [](const std::string& name,
                                               int width, int height,

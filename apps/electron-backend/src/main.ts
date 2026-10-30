@@ -184,12 +184,13 @@ export default class Main {
         traceStartupPhase('bootstrap-events:done');
 
         // Hydrate process.env.PATH from the user's login shell now — after
-        // the window has loaded and IPC handlers are live. Fire-and-forget
-        // (setImmediate) so it doesn't gate any user-visible work. Worst
-        // case: the user clicks an external player within the ~100 ms it
-        // takes to complete; the spawn would still find MPV/VLC at any of
-        // the well-known paths checked by getDefault*Path before falling
-        // back to bare-name PATH lookup.
+        // the window has loaded and IPC handlers are live. The shell runs
+        // asynchronously, so the main thread keeps serving the renderer
+        // while it starts (about 1-2 s with a typical zsh profile). Worst
+        // case: the user clicks an external player before it completes;
+        // the spawn would still find MPV/VLC at any of the well-known paths
+        // checked by getDefault*Path before falling back to bare-name PATH
+        // lookup.
         module.scheduleDeferredFixPath();
     }
 }

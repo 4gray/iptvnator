@@ -151,6 +151,12 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
 
     /** Pointer whose primary press began inside the hot zone, if any. */
     private hotZonePressPointerId: number | null = null;
+    /**
+     * Whether that press began on an open panel. Decided at pointerdown: the
+     * hover dwell can open the panel while the button is still held, and that
+     * release must not read as a dismissal.
+     */
+    private hotZonePressBeganOpen = false;
 
     private readonly onDocumentKeydown = (event: KeyboardEvent) =>
         this.handleKeydown(event);
@@ -230,16 +236,23 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
      * pointerup, not pointerdown: the hot zone must still be the click
      * target when the press completes, so the click that follows dies on it
      * instead of reaching the video's click-to-pause.
+     * While the panel is open the zone is still exposed in the card's left
+     * inset, above the scrim, so a click there dismisses like the scrim does.
      */
     onHotZonePointerDown(event: PointerEvent): void {
         this.hotZonePressPointerId =
             event.button === 0 ? event.pointerId : null;
+        this.hotZonePressBeganOpen = this.state.open();
     }
 
     onHotZonePointerUp(event: PointerEvent): void {
         const pressed = this.hotZonePressPointerId;
         this.hotZonePressPointerId = null;
         if (pressed === null || pressed !== event.pointerId) {
+            return;
+        }
+        if (this.hotZonePressBeganOpen) {
+            this.state.hide();
             return;
         }
         this.state.show('pointer');

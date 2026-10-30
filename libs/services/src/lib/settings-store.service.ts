@@ -31,6 +31,7 @@ import {
     VideoPlayer,
     isWebVideoPlayer,
     normalizeAppUpdateChannel,
+    normalizeAppLanguage,
     normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
     normalizeParentalLockRelockMinutes,
@@ -42,6 +43,7 @@ import {
     DEFAULT_SETTINGS,
     scheduleEmbeddedMpvPrepare,
     SettingsStorageState,
+    verifySavedEmbeddedMpvPlayer,
 } from './settings-store.defaults';
 
 export type { SettingsStorageFailure } from './settings-store.defaults';
@@ -83,6 +85,9 @@ export const SettingsStore = signalStore(
                         patchState(store, {
                             ...DEFAULT_SETTINGS,
                             ...storedSettings,
+                            language: normalizeAppLanguage(
+                                storedSettings.language
+                            ),
                             epgOffsetMinutes: normalizeEpgOffsetMinutes(
                                 storedSettings.epgOffsetMinutes
                             ),
@@ -133,6 +138,9 @@ export const SettingsStore = signalStore(
                 const previousEpgUrls = store.epgUrl();
                 patchState(store, {
                     ...settings,
+                    ...(settings.language !== undefined
+                        ? { language: normalizeAppLanguage(settings.language) }
+                        : {}),
                     ...coerceProvidedDefaultOnSettings(settings),
                     ...(settings.dashboardRails !== undefined
                         ? {
@@ -199,9 +207,15 @@ export const SettingsStore = signalStore(
                     playerAmbientMode:
                         store.playerAmbientMode?.() ??
                         DEFAULT_SETTINGS.playerAmbientMode,
+                    detailTrailerBackdrop:
+                        store.detailTrailerBackdrop?.() ??
+                        DEFAULT_SETTINGS.detailTrailerBackdrop,
                     playerUpNextRail:
                         store.playerUpNextRail?.() ??
                         DEFAULT_SETTINGS.playerUpNextRail,
+                    playerUpNextCard:
+                        store.playerUpNextCard?.() ??
+                        DEFAULT_SETTINGS.playerUpNextCard,
                     fullscreenChannelPanel:
                         store.fullscreenChannelPanel?.() ??
                         DEFAULT_SETTINGS.fullscreenChannelPanel,
@@ -274,6 +288,7 @@ export const SettingsStore = signalStore(
                         store.trustedInsecureTlsHosts?.() ??
                         DEFAULT_SETTINGS.trustedInsecureTlsHosts,
                     tmdb: store.tmdb?.() ?? DEFAULT_SETTINGS.tmdb,
+                    ageRatingCountry: store.ageRatingCountry?.() ?? 'auto',
                     parentalLockEnabled: store.parentalLockEnabled?.() === true,
                     parentalLockRelockMinutes:
                         normalizeParentalLockRelockMinutes(
@@ -318,39 +333,14 @@ export const SettingsStore = signalStore(
             },
 
             async sanitizeEmbeddedMpvSelection() {
-                if (store.player() !== VideoPlayer.EmbeddedMpv) {
-                    return;
-                }
-
-                if (
-                    typeof window === 'undefined' ||
-                    !window.electron?.getEmbeddedMpvSupport
-                ) {
-                    await this.updateSettings({
-                        player: DEFAULT_SETTINGS.player,
-                    });
-                    return;
-                }
-
-                try {
-                    const support =
-                        await window.electron.getEmbeddedMpvSupport();
-                    if (!support.supported) {
-                        await this.updateSettings({
+                const isSaved = () =>
+                    store.player() === VideoPlayer.EmbeddedMpv;
+                if (isSaved()) {
+                    await verifySavedEmbeddedMpvPlayer(isSaved, () =>
+                        this.updateSettings({
                             player: DEFAULT_SETTINGS.player,
-                        });
-                        return;
-                    }
-
-                    scheduleEmbeddedMpvPrepare();
-                } catch (error) {
-                    console.warn(
-                        'Failed to verify embedded MPV support; reverting to the default inline player.',
-                        error
+                        })
                     );
-                    await this.updateSettings({
-                        player: DEFAULT_SETTINGS.player,
-                    });
                 }
             },
         };

@@ -46,6 +46,14 @@ follow in a second PR.
 | Relock timeout     | `Settings.parentalLockRelockMinutes`                                              | same                      |
 | Xtream query index | `categories.locked` column                                                        | none (filtered in memory) |
 
+In a selected source-server profile, the browser prefixes the PIN and lock
+keys with that instance. Before its first read or write, it copies missing
+profile values from the original device keys and then records one migration
+receipt. Existing profile values win, clearing locks does not reimport them,
+and the original keys remain available to the standalone profile. A failed
+read or copy uses the same fail-closed behavior as an unreadable lock store.
+These values never synchronize to the source server.
+
 The PIN is hashed with PBKDF2-SHA256 through WebCrypto
 (`parental-lock-pin.util.ts`, format `v1$<iterations>$<salt>$<hash>`), so
 Electron and PWA share one implementation. The hash is deliberately not part
@@ -416,8 +424,27 @@ so a cancelled or refused PIN leaves it showing the real state.
   so a child cannot switch the idle relock off for the next unlock.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
+- The PIN dialog's submit button names the flow: the service passes a
+  `submitKey` with every prompt — Unlock (`requestUnlock`), Save PIN (a new
+  PIN in `setupPin` and `changePin`), Confirm (the current PIN before a
+  change), Turn off (`disable`). The dismiss button is the shared Cancel.
+  Errors sit on their field as `mat-error` (an `errorStateMatcher` drives
+  it, so the input gets `aria-invalid` and the message lands in the field's
+  live region): a wrong PIN, the cooldown or a too-short PIN on the PIN
+  field; a mismatch on the repeat field, shown while typing once the repeat
+  is as long as the PIN. Submit is disabled only while busy or cooling
+  down, never for incomplete input, because Enter does nothing on a
+  disabled default button; `submit()` refuses instead, shakes the field
+  (no shake under `prefers-reduced-motion: reduce`) and focuses it — except
+  that Enter in the PIN field with the repeat still empty only moves focus
+  to the repeat (a `keydown.enter` handler: focus cannot tell Enter from a
+  click on Save, since WebKit does not focus a clicked button). Set
+  mode marks both inputs `autocomplete="new-password"`. The Electron
+  `parental-lock-pin-dialog.e2e.ts` covers the labels and the
+  mismatch → fix → save flow.
 - Styling uses app tokens only (the theme declares no `--mat-sys-*`); the
-  PIN error and the Stalker adult chip use a local red per theme. Keyboard
+  PIN errors, the fields' error outline and the Stalker adult chip use a
+  local red per theme. Keyboard
   focus on a lock row is a 2px inset `--app-selection-color` ring, and the
   lock dialogs open with `maxWidth: 'calc(100vw - 32px)'` and no content
   min-width, so they fit a 375px phone. `apps/web-e2e/src/parental-lock-ui.e2e.ts`
@@ -510,7 +537,8 @@ see the other's result instead of one shared snapshot; the dialogs pass a
 full list, which is the replacement they mean. A deleted playlist's locks leave
 the store through the `PLAYLIST_DELETE_CLEANUP` hook
 (`provideParentalLockPlaylistCleanup`, run by
-`PlaylistsService.deletePlaylist` for every single-playlist deletion; no
+`PlaylistsService.deletePlaylist` for direct single-playlist deletion and
+`SourceSyncService` for remote source deletions on PWA and Electron; no
 re-stamp, the category rows go with the playlist), and "Remove all
 playlists" empties it through `ParentalLockService.clearAllLocks` once the
 deletion has succeeded — the in-memory store empties at once, and a failed
@@ -520,6 +548,10 @@ that playlist from empty locks, so a reused id can never inherit entries a
 failed cleanup left behind; the restore retries a failed lock-store read
 first (`ensureLocksReadable`) and aborts while it still fails, so that check
 never runs against the empty fail-closed snapshot.
+
+Source synchronization retains a profile-local per-ID cleanup marker before
+deleting cached rows. Failed cleanup stays pending across restart and retries
+before incoming projections or source mutations can reuse that ID.
 
 ## Backup
 

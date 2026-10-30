@@ -14,7 +14,18 @@ import type { Page } from '@playwright/test';
  * layout shifts and long tasks until the journey's terminal condition and
  * then emits one JSON blob under `options.stateKey`. With `options.settle`
  * (J1) it keeps summing layout shifts after the first card until the page
- * has settled, for shifts such as collapsing skeletons that land later.
+ * has settled, for shifts such as collapsing skeletons that land later, and
+ * with `options.idle` it then counts what the untouched page does for a
+ * fixed window. With `options.media` (J3 "Playback") the terminal condition
+ * is a media event (`playing`) on an element matching `cardSelector` instead
+ * of that element becoming visible.
+ *
+ * Change-detection ticks are read from the counter that only the
+ * `electron-performance` build of `apps/web` installs
+ * (`apps/web/src/environments/change-detection-tick-counter.ts`) under
+ * `options.cdTickCounterKey`. The probe takes differences of that running
+ * total at the journey's boundaries; a build without the counter fails the
+ * iteration in the journey record.
  *
  * IPC invocations are not counted here: the bridge object exposed by
  * `contextBridge` is frozen, so the probe cannot wrap it. Instead the probe
@@ -33,9 +44,20 @@ export const JOURNEY_OPEN_SOURCE_START_SENTINEL_ID =
     '__iptvnator-journey-open-source-start__';
 export const JOURNEY_OPEN_SOURCE_END_SENTINEL_ID =
     '__iptvnator-journey-open-source-end__';
+export const JOURNEY_PLAYBACK_PROBE_STATE_KEY =
+    '__iptvnatorJourneyPlaybackProbe';
+export const JOURNEY_PLAYBACK_START_SENTINEL_ID =
+    '__iptvnator-journey-playback-start__';
+export const JOURNEY_PLAYBACK_END_SENTINEL_ID =
+    '__iptvnator-journey-playback-end__';
+/** A live channel row in the Xtream live layout. */
+export const JOURNEY_PLAYBACK_START_SELECTOR =
+    'app-live-stream-layout [data-test-id="channel-item"]';
+/** The HTML5 player's video element inside the web player view. */
+export const JOURNEY_PLAYBACK_VIDEO_SELECTOR = 'app-web-player-view video';
 /** The Xtream portal card on the dashboard or its row on /workspace/sources. */
 export const JOURNEY_OPEN_SOURCE_START_SELECTOR =
-    '[data-test-id="dashboard-recent-sources-rail-card"], app-playlist-item';
+    '[data-test-id="dashboard-recent-sources-rail-card"], app-source-row';
 /**
  * Bridge method used for the sentinels. The preload emits the trace event
  * before it forwards the call, and `SOURCE_HEALTH_CANCEL` only looks the id
@@ -64,17 +86,70 @@ export interface JourneyRendererProbeSettleOptions {
     readonly rootSelector: string;
 }
 
+/**
+ * A journey that ends on a media event rather than on visibility (J3). The
+ * first `endEvent` after the start on an element matching `cardSelector`
+ * is the terminal moment; the first of each `phaseEvents` after the start
+ * is recorded under `media.phases`.
+ */
+export interface JourneyRendererProbeMediaOptions {
+    readonly endEvent: string;
+    readonly phaseEvents: readonly string[];
+}
+
 export const JOURNEY_SETTLE_QUIET_MS = 500;
 export const JOURNEY_SETTLE_CAP_MS = 3_000;
 /** The workspace shell's content pane; the rail and header stay outside. */
 export const JOURNEY_SETTLE_ROOT_SELECTOR = 'main.workspace-content';
 
+/**
+ * Global the electron-performance build's tick counter lives under; the
+ * build-config spec checks it against
+ * `CHANGE_DETECTION_TICK_COUNTER_KEY` in apps/web.
+ */
+export const JOURNEY_CD_TICK_COUNTER_KEY = '__iptvnatorCdTicks';
+
+/**
+ * J1's idle window: it opens at the settle point and counts what the page
+ * does, with no input, for `durationMs`. See performance-journeys.md.
+ */
+export interface JourneyRendererProbeIdleOptions {
+    readonly durationMs: number;
+}
+
+export const JOURNEY_IDLE_WINDOW_MS = 30_000;
+
+/**
+ * A moment after the first card (the `launch-large` journey's
+ * "dashboard rails settled"): the first mutation batch after the terminal
+ * batch in which every `requiredSelectors` entry matches a visible element
+ * and nothing matches `absentSelectors`. The probe sends `sentinelId` when
+ * it is reached, so the main process can sample its counters at that
+ * arrival; a phase not reached `timeoutMs` after the first card is marked
+ * `timeout` with the selectors still unmet, and the record refuses it.
+ */
+export interface JourneyRendererProbePhaseOptions {
+    readonly absentSelectors: readonly string[];
+    readonly name: string;
+    readonly requiredSelectors: readonly string[];
+    readonly sentinelId: string;
+    readonly timeoutMs: number;
+}
+
 export interface JourneyRendererProbeOptions {
     /** Selector for the element whose visibility ends the journey. */
     readonly cardSelector: string;
+    /** Global holding the build's change-detection tick counter. */
+    readonly cdTickCounterKey: string;
     /** Further selectors that must each match a visible element as well. */
     readonly companionSelectors?: readonly string[];
+    /** Absent: no idle window. Needs `settle`, which it follows. */
+    readonly idle?: JourneyRendererProbeIdleOptions;
     readonly journey: string;
+    /** Absent: the journey ends when `cardSelector` becomes visible. */
+    readonly media?: JourneyRendererProbeMediaOptions;
+    /** Moments after the first card to stamp; absent: none. */
+    readonly phases?: readonly JourneyRendererProbePhaseOptions[];
     /** Pathname fragment the terminal route must contain. */
     readonly routeFragment: string;
     readonly sentinelId: string;
@@ -89,6 +164,11 @@ export interface JourneyRendererProbeOptions {
 }
 
 export interface JourneyRendererProbeCounters {
+    /**
+     * `ApplicationRef` ticks from the journey's start until the terminal
+     * batch. Null when the build has no tick counter.
+     */
+    changeDetectionTicks: number | null;
     domMutations: number;
     /** Shifts with `hadRecentInput === false` (the CLS definition). */
     layoutShiftScore: number;
@@ -105,12 +185,24 @@ export interface JourneyRendererProbeCounters {
     recentInputLayoutShiftScore: number;
 }
 
+/** A shift counted in `layoutShiftScore` or `recentInputLayoutShiftScore`. */
+export interface JourneyRendererProbeShift {
+    readonly hadRecentInput: boolean;
+    /** Entry start minus the journey start (navigation start for J1). */
+    readonly sinceStartMs: number;
+    /** `tag.class[data-test-id]` and the move of each source. */
+    readonly sources: JourneyRendererProbeLateShift['sources'];
+    readonly value: number;
+}
+
 export interface JourneyRendererProbeLateShift {
     /** Entry start minus the first-card terminal epoch. */
     readonly afterFirstCardMs: number;
-    /** `tag.class[data-test-id]` and the vertical move of each source. */
+    /** `tag.class[data-test-id]` and the move of each source. */
     readonly sources: readonly {
         readonly deltaHeight: number;
+        readonly deltaWidth: number;
+        readonly deltaX: number;
         readonly deltaY: number;
         readonly node: string;
     }[];
@@ -119,7 +211,8 @@ export interface JourneyRendererProbeLateShift {
 
 export interface JourneyRendererProbeState {
     readonly capabilities: {
-        changeDetectionTicks: string;
+        changeDetectionTicks:
+            'counted' | 'pending' | 'unavailable-counter-missing';
         layoutShift: boolean;
         longTask: boolean;
         observedTarget: 'document' | 'documentElement';
@@ -127,6 +220,16 @@ export interface JourneyRendererProbeState {
     readonly counters: JourneyRendererProbeCounters;
     final: boolean;
     firstCardPaintEpochMs: number | null;
+    /** The idle window after the settle point (J1). */
+    idle: {
+        /** Mutation records in the whole document during the window. */
+        domMutations: number;
+        endEpochMs: number | null;
+        startEpochMs: number | null;
+        status: 'disabled' | 'done' | 'pending';
+        /** Ticks during the window; null without a tick counter. */
+        ticks: number | null;
+    };
     readonly installed: {
         readonly bridgePresent: boolean;
         readonly documentElementPresent: boolean;
@@ -137,10 +240,26 @@ export interface JourneyRendererProbeState {
     readonly invalidReasons: string[];
     readonly journey: string;
     readonly longTaskDurationsMs: number[];
+    /** Media-terminated journeys only; null otherwise. */
+    readonly media: {
+        /** At the terminal event, the element it fired on. */
+        element: {
+            readonly currentSrcScheme: string;
+            readonly currentTime: number;
+            readonly paused: boolean;
+            readonly readyState: number;
+            readonly videoHeight: number;
+            readonly videoWidth: number;
+        } | null;
+        /** Event type → epoch of its first occurrence after the start. */
+        readonly phases: Record<string, number>;
+    } | null;
     navigation: {
         readonly domContentLoadedEpochMs: number;
         readonly loadEventEndEpochMs: number;
     } | null;
+    /** One entry per `options.phases` item, by name; empty without any. */
+    readonly phases: Record<string, JourneyRendererProbePhaseState>;
     /** Click-started journeys: activity before the click, for settling. */
     readonly preStart: {
         domMutations: number;
@@ -151,6 +270,13 @@ export interface JourneyRendererProbeState {
         readonly epochMs: number | null;
         readonly status: 'bridge-missing' | 'failed' | 'not-sent' | 'sent';
     };
+    /** Every shift counted until the cutoff; `shifts` keeps the first 20. */
+    shiftCount: number;
+    /**
+     * The first 20 shifts counted until the cutoff, with the nodes that
+     * moved, so a layout-shift score can be traced to its components.
+     */
+    shifts: JourneyRendererProbeShift[];
     /** `final` freezes the first-card counters; the settle window ends later. */
     settle: {
         /** Mutation records under the settle root after the cutoff. */
@@ -184,6 +310,18 @@ export interface JourneyRendererProbeState {
     } | null;
 }
 
+export interface JourneyRendererProbePhaseState {
+    /** Milliseconds from the terminal epoch; null until reached. */
+    afterFirstCardMs: number | null;
+    /** Mutation records from the terminal batch until the phase. */
+    domMutations: number;
+    epochMs: number | null;
+    /** Selectors still unmet when the phase timed out. */
+    missing: string[];
+    sentinelStatus: 'bridge-missing' | 'failed' | 'not-sent' | 'sent';
+    status: 'pending' | 'reached' | 'timeout';
+}
+
 /**
  * Page-side script. It must stay self-contained: Playwright serializes it
  * with `toString()`, so it may only use its argument and browser globals.
@@ -197,7 +335,10 @@ export function journeyRendererProbeScript(
     }
     const epoch = (): number => performance.timeOrigin + performance.now();
     const startClick = options.startClick ?? null;
+    const mediaOptions = options.media ?? null;
     const settleOptions = options.settle ?? null;
+    const idleOptions = options.idle ?? null;
+    const phaseOptions = options.phases ?? [];
     const companionSelectors = options.companionSelectors ?? [];
     const bridge = target['electron'] as Record<string, unknown> | undefined;
     const state: JourneyRendererProbeState = {
@@ -210,6 +351,7 @@ export function journeyRendererProbeScript(
                 : 'document',
         },
         counters: {
+            changeDetectionTicks: null,
             domMutations: 0,
             layoutShiftScore: 0,
             layoutShiftScoreSettled: 0,
@@ -218,6 +360,13 @@ export function journeyRendererProbeScript(
         },
         final: false,
         firstCardPaintEpochMs: null,
+        idle: {
+            domMutations: 0,
+            endEpochMs: null,
+            startEpochMs: null,
+            status: idleOptions === null ? 'disabled' : 'pending',
+            ticks: null,
+        },
         installed: {
             bridgePresent: typeof bridge === 'object' && bridge !== null,
             documentElementPresent: document.documentElement !== null,
@@ -228,10 +377,26 @@ export function journeyRendererProbeScript(
         invalidReasons: [],
         journey: options.journey,
         longTaskDurationsMs: [],
+        media: mediaOptions === null ? null : { element: null, phases: {} },
         navigation: null,
+        phases: Object.fromEntries(
+            phaseOptions.map((phase) => [
+                phase.name,
+                {
+                    afterFirstCardMs: null,
+                    domMutations: 0,
+                    epochMs: null,
+                    missing: [],
+                    sentinelStatus: 'not-sent',
+                    status: 'pending',
+                },
+            ])
+        ),
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: null, status: 'not-sent' },
+        shiftCount: 0,
+        shifts: [],
         settle: {
             domMutations: 0,
             epochMs: null,
@@ -244,12 +409,24 @@ export function journeyRendererProbeScript(
         terminal: null,
     };
     target[options.stateKey] = state;
+    // The build installs its counter while main.js evaluates, before
+    // Angular bootstraps, so J1 starts from zero; a click start reads the
+    // running total at the click.
+    const readTicks = (): number | null => {
+        const counter = target[options.cdTickCounterKey] as
+            { count?: unknown } | undefined;
+        return typeof counter?.count === 'number' ? counter.count : null;
+    };
+    let ticksAtStart: number | null = startClick === null ? 0 : null;
     if (
         startClick === null &&
         (state.installed.scriptCount > 0 ||
             state.installed.readyState !== 'loading')
     ) {
         state.invalidReasons.push('probe-installed-after-document-start');
+    }
+    if (mediaOptions !== null && startClick === null) {
+        state.invalidReasons.push('media-terminal-needs-start-click');
     }
     // Performance entries before the journey's start belong to an earlier
     // journey (buffered entries included) and are dropped.
@@ -280,6 +457,7 @@ export function journeyRendererProbeScript(
         for (const entry of entries) {
             const shift = entry as PerformanceEntry & {
                 hadRecentInput?: boolean;
+                sources?: readonly LateShiftSource[];
                 value?: number;
             };
             if (
@@ -287,6 +465,18 @@ export function journeyRendererProbeScript(
                 !inWindow(entry, untilEpochMs)
             ) {
                 continue;
+            }
+            state.shiftCount += 1;
+            if (state.shifts.length < 20) {
+                state.shifts.push({
+                    hadRecentInput: shift.hadRecentInput === true,
+                    sinceStartMs:
+                        performance.timeOrigin +
+                        entry.startTime -
+                        (state.start?.epochMs ?? performance.timeOrigin),
+                    sources: (shift.sources ?? []).map(describeSource),
+                    value: shift.value,
+                });
             }
             if (shift.hadRecentInput === true) {
                 state.counters.recentInputLayoutShiftScore += shift.value;
@@ -393,11 +583,39 @@ export function journeyRendererProbeScript(
         state.counters.layoutShiftScoreSettled = score;
         state.settle.epochMs = untilEpochMs;
         state.settle.status = status;
+        if (idleOptions !== null) startIdle(idleOptions);
     };
+    // Opens when the settle window closes, so startup work that is still
+    // landing does not count as idle work. Nothing touches the page.
+    const startIdle = (idle: JourneyRendererProbeIdleOptions): void => {
+        const idleObserver = new MutationObserver((records) => {
+            state.idle.domMutations += records.length;
+        });
+        idleObserver.observe(document.documentElement ?? document, {
+            attributes: true,
+            characterData: true,
+            childList: true,
+            subtree: true,
+        });
+        const startTicks = readTicks();
+        state.idle.startEpochMs = epoch();
+        setTimeout(() => {
+            const endTicks = readTicks();
+            state.idle.domMutations += idleObserver.takeRecords().length;
+            idleObserver.disconnect();
+            state.idle.endEpochMs = epoch();
+            state.idle.ticks =
+                startTicks === null || endTicks === null
+                    ? null
+                    : endTicks - startTicks;
+            state.idle.status = 'done';
+        }, idle.durationMs);
+    };
+    type ShiftRect = { height: number; width?: number; x?: number; y: number };
     type LateShiftSource = {
-        currentRect?: { height: number; y: number };
+        currentRect?: ShiftRect;
         node?: Node | null;
-        previousRect?: { height: number; y: number };
+        previousRect?: ShiftRect;
     };
     const describeSource = (source: LateShiftSource) => {
         const node = source.node;
@@ -414,9 +632,13 @@ export function journeyRendererProbeScript(
         }
         const before = source.previousRect;
         const after = source.currentRect;
+        const delta = (key: keyof ShiftRect) =>
+            before && after ? (after[key] ?? 0) - (before[key] ?? 0) : 0;
         return {
-            deltaHeight: before && after ? after.height - before.height : 0,
-            deltaY: before && after ? after.y - before.y : 0,
+            deltaHeight: delta('height'),
+            deltaWidth: delta('width'),
+            deltaX: delta('x'),
+            deltaY: delta('y'),
             node: label,
         };
     };
@@ -463,20 +685,27 @@ export function journeyRendererProbeScript(
         armQuiet();
     };
 
+    // A media journey's counters stop at the terminal event itself (the
+    // task that dispatched it still overlaps and counts); the others count
+    // until the post-paint cutoff.
     const finalize = (untilEpochMs: number): void => {
+        const countUntilEpochMs =
+            mediaOptions !== null && state.terminal !== null
+                ? state.terminal.epochMs
+                : untilEpochMs;
         if (layoutShiftObserver) {
             const records = layoutShiftObserver.takeRecords();
             collectSettleShifts(records);
             acceptLayoutShift(
                 [...pendingLayoutShifts, ...records],
-                untilEpochMs
+                countUntilEpochMs
             );
             if (settleOptions === null) layoutShiftObserver.disconnect();
         }
         if (longTaskObserver) {
             acceptLongTasks(
                 [...pendingLongTasks, ...longTaskObserver.takeRecords()],
-                untilEpochMs
+                countUntilEpochMs
             );
             longTaskObserver.disconnect();
         }
@@ -535,6 +764,7 @@ export function journeyRendererProbeScript(
         }
         state.counters.domMutations += records.length;
         if (
+            mediaOptions !== null ||
             !location.pathname.includes(options.routeFragment) ||
             document.getElementById(options.splashId) !== null
         ) {
@@ -547,16 +777,91 @@ export function journeyRendererProbeScript(
             if (!isVisible(document.querySelector(selector))) return;
             companionCounts.push(document.querySelectorAll(selector).length);
         }
+        end(card, companionCounts, epoch());
+    });
+    // Phases are checked at the terminal batch itself and then on every
+    // later mutation batch; the observer watches the whole document because
+    // a rail or skeleton can land anywhere in the page.
+    const unmetSelectors = (
+        phase: JourneyRendererProbePhaseOptions
+    ): string[] => [
+        ...phase.requiredSelectors.filter(
+            (selector) => !isVisible(document.querySelector(selector))
+        ),
+        ...phase.absentSelectors.filter(
+            (selector) => document.querySelector(selector) !== null
+        ),
+    ];
+    const watchPhases = (terminalEpochMs: number): void => {
+        if (phaseOptions.length === 0) return;
+        const timers = new Map<string, ReturnType<typeof setTimeout>>();
+        let observer: MutationObserver | null = null;
+        const settle = (): void => {
+            if (
+                phaseOptions.every(
+                    (phase) => state.phases[phase.name]?.status !== 'pending'
+                )
+            ) {
+                observer?.disconnect();
+            }
+        };
+        // A phase met in the terminal batch itself is stamped with the
+        // terminal epoch: nothing after the first card was waited for.
+        const check = (records: number, at: number): void => {
+            for (const phase of phaseOptions) {
+                const entry = state.phases[phase.name];
+                if (entry === undefined || entry.status !== 'pending') continue;
+                entry.domMutations += records;
+                if (unmetSelectors(phase).length > 0) continue;
+                clearTimeout(timers.get(phase.name));
+                entry.sentinelStatus = callSentinel(phase.sentinelId);
+                entry.epochMs = at;
+                entry.afterFirstCardMs = at - terminalEpochMs;
+                entry.status = 'reached';
+            }
+            settle();
+        };
+        for (const phase of phaseOptions) {
+            timers.set(
+                phase.name,
+                setTimeout(() => {
+                    const entry = state.phases[phase.name];
+                    if (entry === undefined || entry.status !== 'pending') {
+                        return;
+                    }
+                    entry.missing = unmetSelectors(phase);
+                    entry.status = 'timeout';
+                    settle();
+                }, phase.timeoutMs)
+            );
+        }
+        observer = new MutationObserver((records) =>
+            check(records.length, epoch())
+        );
+        observer.observe(document.documentElement ?? document, {
+            attributes: true,
+            characterData: true,
+            childList: true,
+            subtree: true,
+        });
+        check(0, terminalEpochMs);
+    };
+    const end = (
+        card: Element,
+        companionCounts: number[],
+        epochMs: number
+    ): void => {
         state.terminal = {
             cardCount: document.querySelectorAll(options.cardSelector).length,
             cardTag: card.tagName.toLowerCase(),
             cardTestId: card.getAttribute('data-test-id'),
             companionCounts,
-            epochMs: epoch(),
+            epochMs,
             pathname: location.pathname,
         };
         mutationObserver.disconnect();
         sendSentinel();
+        watchPhases(epochMs);
         if (startClick === null) {
             state.navigation = readNavigation();
             if (state.navigation === null) {
@@ -565,11 +870,17 @@ export function journeyRendererProbeScript(
                 );
             }
         }
-        const ng = target['ng'] as Record<string, unknown> | undefined;
-        state.capabilities.changeDetectionTicks =
-            typeof ng?.['ɵsetProfiler'] === 'function'
-                ? 'hook-present-not-counted'
-                : 'unavailable-ng-global-not-published';
+        // A tick that rendered the card ran before this microtask (or,
+        // for a media terminal, before the event's task), so it is
+        // included; no other tick can run in between.
+        const ticks = readTicks();
+        if (ticks === null || ticksAtStart === null) {
+            state.capabilities.changeDetectionTicks =
+                'unavailable-counter-missing';
+        } else {
+            state.capabilities.changeDetectionTicks = 'counted';
+            state.counters.changeDetectionTicks = ticks - ticksAtStart;
+        }
         // A rAF callback runs before that frame's style, layout and paint,
         // so the cutoff is sampled in a timer queued from it: by then the
         // frame that paints the card has been committed, and the render
@@ -577,7 +888,7 @@ export function journeyRendererProbeScript(
         requestAnimationFrame(() => {
             setTimeout(() => finalize(epoch()), 0);
         });
-    });
+    };
     mutationObserver.observe(document.documentElement ?? document, {
         attributes: true,
         characterData: true,
@@ -599,6 +910,8 @@ export function journeyRendererProbeScript(
         const listenerEpochMs = epoch();
         const eventEpochMs = performance.timeOrigin + event.timeStamp;
         countPreStart(mutationObserver.takeRecords().length);
+        // Capture phase: no tick for this click has run yet.
+        ticksAtStart = readTicks();
         const sentinelStatus = callSentinel(startClick.sentinelId);
         state.start = {
             epochMs:
@@ -615,12 +928,62 @@ export function journeyRendererProbeScript(
         window.removeEventListener('click', onClick, true);
     };
     window.addEventListener('click', onClick, true);
+    if (mediaOptions === null) return;
+
+    // Media events do not bubble, but a capture listener on window still
+    // sees them before any listener of the app. Mutations up to the event
+    // are taken synchronously, so the count ends exactly at the event.
+    const onMediaEvent = (event: Event): void => {
+        const element = event.target;
+        if (
+            state.start === null ||
+            state.terminal !== null ||
+            state.media === null ||
+            !(element instanceof HTMLMediaElement) ||
+            !element.matches(options.cardSelector)
+        ) {
+            return;
+        }
+        const at = epoch();
+        state.media.phases[event.type] ??= at;
+        if (event.type !== mediaOptions.endEvent) return;
+        state.counters.domMutations += mutationObserver.takeRecords().length;
+        const video = element as HTMLMediaElement & {
+            videoHeight?: number;
+            videoWidth?: number;
+        };
+        state.media.element = {
+            currentSrcScheme: element.currentSrc.split(':')[0] ?? '',
+            currentTime: element.currentTime,
+            paused: element.paused,
+            readyState: element.readyState,
+            videoHeight: video.videoHeight ?? 0,
+            videoWidth: video.videoWidth ?? 0,
+        };
+        end(element, [], at);
+    };
+    for (const type of [mediaOptions.endEvent, ...mediaOptions.phaseEvents]) {
+        window.addEventListener(type, onMediaEvent, true);
+    }
 }
 
-export function createLaunchJourneyProbeOptions(): JourneyRendererProbeOptions {
+/**
+ * Options for J1. `idleWindowMs` adds the idle window after the settle point;
+ * journeys that continue from the launch (J2) pass null so their click does
+ * not wait for it.
+ */
+export function createLaunchJourneyProbeOptions(
+    idleWindowMs: number | null,
+    phases: readonly JourneyRendererProbePhaseOptions[] = []
+): JourneyRendererProbeOptions {
     return {
         cardSelector:
-            '[data-test-id="dashboard-recent-sources-rail-card"], app-playlist-item',
+            '[data-test-id="dashboard-recent-sources-rail-card"], app-source-row',
+        cdTickCounterKey: JOURNEY_CD_TICK_COUNTER_KEY,
+        ...(idleWindowMs === null
+            ? {}
+            : { idle: { durationMs: idleWindowMs } }),
+        ...(phases.length === 0 ? {} : { phases }),
         journey: 'launch',
         routeFragment: '/workspace',
         sentinelId: JOURNEY_IPC_SENTINEL_ID,
@@ -646,6 +1009,7 @@ export function createOpenSourceJourneyProbeOptions(): JourneyRendererProbeOptio
         // cards and live channel rows; skeleton cards are not matched.
         cardSelector:
             'app-grid-list mat-card, .content-card, [data-test-id="channel-item"]',
+        cdTickCounterKey: JOURNEY_CD_TICK_COUNTER_KEY,
         companionSelectors: ['app-workspace-context-panel .category-item'],
         journey: 'open-source',
         routeFragment: '/workspace/xtreams/',
@@ -657,6 +1021,29 @@ export function createOpenSourceJourneyProbeOptions(): JourneyRendererProbeOptio
             sentinelId: JOURNEY_OPEN_SOURCE_START_SENTINEL_ID,
         },
         stateKey: JOURNEY_OPEN_SOURCE_PROBE_STATE_KEY,
+    };
+}
+
+/**
+ * Options for J3 "Playback": the click on a live channel row starts the
+ * journey; it ends at the first `playing` event of the HTML5 player's video
+ * element, with `loadedmetadata` recorded as an intermediate phase.
+ */
+export function createPlaybackJourneyProbeOptions(): JourneyRendererProbeOptions {
+    return {
+        cardSelector: JOURNEY_PLAYBACK_VIDEO_SELECTOR,
+        cdTickCounterKey: JOURNEY_CD_TICK_COUNTER_KEY,
+        journey: 'playback',
+        media: { endEvent: 'playing', phaseEvents: ['loadedmetadata'] },
+        routeFragment: '/workspace/xtreams/',
+        sentinelId: JOURNEY_PLAYBACK_END_SENTINEL_ID,
+        sentinelMethod: JOURNEY_IPC_SENTINEL_METHOD,
+        splashId: 'initial-splash',
+        startClick: {
+            selector: JOURNEY_PLAYBACK_START_SELECTOR,
+            sentinelId: JOURNEY_PLAYBACK_START_SENTINEL_ID,
+        },
+        stateKey: JOURNEY_PLAYBACK_PROBE_STATE_KEY,
     };
 }
 
@@ -690,16 +1077,29 @@ export async function waitForJourneyRendererProbe(
     stateKey: string,
     timeoutMs: number
 ): Promise<JourneyRendererProbeState> {
-    // A settle window, where enabled, ends after `final`.
+    // A settle window, where enabled, ends after `final`, an idle window
+    // after that, and every phase is reached or timed out on its own clock.
     await page.waitForFunction(
         (key) => {
             const state = (
                 globalThis as unknown as Record<
                     string,
-                    { final?: boolean; settle?: { status?: string } }
+                    {
+                        final?: boolean;
+                        idle?: { status?: string };
+                        phases?: Record<string, { status?: string }>;
+                        settle?: { status?: string };
+                    }
                 >
             )[key];
-            return state?.final === true && state.settle?.status !== 'pending';
+            return (
+                state?.final === true &&
+                state.settle?.status !== 'pending' &&
+                state.idle?.status !== 'pending' &&
+                Object.values(state.phases ?? {}).every(
+                    (phase) => phase.status !== 'pending'
+                )
+            );
         },
         stateKey,
         { polling: 50, timeout: timeoutMs }
@@ -730,6 +1130,9 @@ export function assertJourneyRendererProbeState(
     }
     if (state.settle.status === 'pending') {
         throw new Error('journey-renderer-probe-settle-pending');
+    }
+    if (state.idle.status === 'pending') {
+        throw new Error('journey-renderer-probe-idle-pending');
     }
     if (state.invalidReasons.length > 0) {
         throw new Error(

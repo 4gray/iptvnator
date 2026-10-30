@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { SearchLayoutComponent } from './search-layout.component';
 
 describe('SearchLayoutComponent', () => {
@@ -9,7 +10,8 @@ describe('SearchLayoutComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [SearchLayoutComponent],
+            // The search form inside renders the real pipe.
+            imports: [SearchLayoutComponent, TranslateModule.forRoot()],
         })
             .overrideComponent(SearchLayoutComponent, {
                 remove: { imports: [TranslatePipe] },
@@ -36,6 +38,36 @@ describe('SearchLayoutComponent', () => {
             .nativeElement as HTMLElement;
     }
 
+    it('distinguishes a failed search from no matches and offers retry', () => {
+        fixture.componentRef.setInput('searchTerm', 'matrix');
+        fixture.componentRef.setInput('hasError', true);
+        const retry = jest.fn();
+        // Subscribe after rendering so a missing retry control also fails.
+        fixture.detectChanges();
+
+        const alert = fixture.nativeElement.querySelector('[role="alert"]');
+        expect(alert?.textContent).toContain('PORTALS.SEARCH_VIEW.ERROR_TITLE');
+        expect(fixture.nativeElement.textContent).not.toContain(
+            'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
+        );
+        fixture.componentInstance.retryClick.subscribe(retry);
+        alert.querySelector('button').click();
+        expect(retry).toHaveBeenCalledTimes(1);
+
+        fixture.componentRef.setInput('isLoading', true);
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('[role="alert"]')
+        ).toBeNull();
+
+        fixture.componentRef.setInput('isLoading', false);
+        fixture.componentRef.setInput('hasError', false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain(
+            'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
+        );
+    });
+
     function setScrollMetrics(
         element: HTMLElement,
         scrollTop: number,
@@ -58,24 +90,35 @@ describe('SearchLayoutComponent', () => {
         });
     }
 
-    it('shows the back button only when showBackButton is set and emits backClick', () => {
-        fixture.detectChanges();
-        expect(
-            fixture.debugElement.query(By.css('.header-back'))
-        ).toBeNull();
-
-        fixture.componentRef.setInput('showBackButton', true);
-        fixture.detectChanges();
-
-        const backButton = fixture.debugElement.query(By.css('.header-back'));
-        expect(backButton).not.toBeNull();
-
+    it('offers the header Back only while backAvailable is set and the results show', () => {
+        const backNavigation = TestBed.inject(WorkspaceBackNavigationService);
         const emitted: unknown[] = [];
         fixture.componentInstance.backClick.subscribe((value) =>
             emitted.push(value)
         );
-        (backButton.nativeElement as HTMLButtonElement).click();
+        fixture.detectChanges();
+        expect(backNavigation.target()).toBeNull();
+
+        fixture.componentRef.setInput('backAvailable', true);
+        fixture.detectChanges();
+        // The page carries no arrow of its own.
+        expect(
+            fixture.debugElement.query(By.css('button[aria-label="BACK"]'))
+        ).toBeNull();
+        expect(backNavigation.goBack()).toBe(true);
         expect(emitted).toHaveLength(1);
+
+        // An inline detail replaces the results and registers its own Back.
+        fixture.componentRef.setInput('showDetails', true);
+        fixture.detectChanges();
+        expect(backNavigation.target()).toBeNull();
+
+        fixture.componentRef.setInput('showDetails', false);
+        fixture.detectChanges();
+        expect(backNavigation.target()).not.toBeNull();
+
+        fixture.destroy();
+        expect(backNavigation.target()).toBeNull();
     });
 
     it('emits nearEnd when the results container is scrolled near the bottom', () => {
@@ -142,8 +185,9 @@ describe('SearchLayoutComponent', () => {
         });
         const scrollTo = jest.fn(
             (options: { top: number }) =>
-                ((resultsContainer as unknown as { scrollTop: number }).scrollTop =
-                    options.top)
+                ((
+                    resultsContainer as unknown as { scrollTop: number }
+                ).scrollTop = options.top)
         );
         Object.defineProperty(resultsContainer, 'scrollTo', {
             configurable: true,

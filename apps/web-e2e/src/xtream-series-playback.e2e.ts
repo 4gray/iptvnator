@@ -59,6 +59,27 @@ test.describe('@xtream inline series fullscreen', () => {
         await expect(playerView.locator('app-html-video-player')).toBeVisible({
             timeout: 15_000,
         });
+        const actions = page.locator(
+            'app-portal-inline-player .player-shell__actions'
+        );
+        for (const dark of [false, true]) {
+            await page.evaluate(
+                (value) => document.body.classList.toggle('dark-theme', value),
+                dark
+            );
+            const close = actions.getByRole('button', {
+                name: 'Close player',
+                exact: true,
+            });
+            await expect(close).toHaveCSS('border-top-left-radius', '10px');
+            await expect(close).toHaveCSS('border-top-style', 'none');
+            await expect(
+                actions.getByRole('button', {
+                    name: 'Copy Stream URL',
+                    exact: true,
+                })
+            ).toHaveCSS('height', '40px');
+        }
         const waitForMetadata = () =>
             expect
                 .poll(() =>
@@ -143,8 +164,8 @@ test.describe('@xtream inline series fullscreen', () => {
             )
             .toBeGreaterThanOrEqual(1);
 
-        // The 30 s fixture clip is inside the card's threshold from its
-        // first frame, so the card is up as soon as the duration is known.
+        // The 30 s fixture clip is shorter than the card's 40 s minimum
+        // lead, so the card is up as soon as the duration is known.
         const card = playerView.locator(
             '[data-test-id="player-controls-up-next"]'
         );
@@ -169,6 +190,18 @@ test.describe('@xtream inline series fullscreen', () => {
         await expect(card).toHaveAttribute('aria-label', /S01E03/, {
             timeout: 15_000,
         });
+
+        // The corner button hides the card for this episode; bringing the
+        // controls back does not bring it back.
+        await playerView
+            .locator('[data-test-id="player-controls-up-next-close"]')
+            .click();
+        await expect(card).toHaveCount(0);
+        await playerView.hover({ position: { x: 40, y: 40 } });
+        await expect(
+            playerView.locator('[data-test-id="player-controls-next-episode"]')
+        ).toBeVisible();
+        await expect(card).toHaveCount(0);
     });
 
     test('switches episodes from the fullscreen episode panel without leaving fullscreen', async ({
@@ -210,6 +243,24 @@ test.describe('@xtream inline series fullscreen', () => {
         );
         await expect(rows).toHaveCount(8);
         await expect(rows.first()).toHaveAttribute('aria-current', 'true');
+
+        // Keyboard focus in the panel wears the player's ring, not the
+        // theme's: the panel carries `dark-theme` for its tokens, and that
+        // context declares the app's ring colour again.
+        await page.keyboard.press('Tab');
+        expect(
+            await page.evaluate(() => {
+                const focused = document.activeElement as HTMLElement;
+                const style = getComputedStyle(focused);
+                return {
+                    control: focused.dataset['testId'],
+                    ring: `${style.outlineStyle} ${style.outlineColor}`,
+                };
+            })
+        ).toEqual({
+            control: 'fullscreen-channel-panel-close',
+            ring: 'solid rgb(231, 236, 243)',
+        });
 
         // Picking an episode plays it inline through the same path as the Up
         // Next rail: fullscreen survives the engine remount, the panel closes.

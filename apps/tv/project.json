@@ -1,0 +1,36 @@
+{
+    "name": "tv",
+    "projectType": "application",
+    "sourceRoot": "apps/tv/src",
+    "tags": ["scope:tv", "domain:tv", "type:app"],
+    "targets": {
+        "serve": {
+            "continuous": true,
+            "command": "vite --config apps/tv/vite.config.ts --host 0.0.0.0"
+        },
+        "build": {
+            "cache": true,
+            "inputs": ["production", "^production"],
+            "outputs": ["{workspaceRoot}/dist/apps/tv"],
+            "command": "vite build --config apps/tv/vite.config.ts"
+        },
+        "typecheck": {
+            "command": "tsc -p apps/tv/tsconfig.app.json --noEmit"
+        },
+        "lint": {
+            "command": "eslint \"apps/tv/**/*.{ts,tsx,mjs}\""
+        },
+        "test": {
+            "command": "tsx --tsconfig apps/tv/tsconfig.app.json --test libs/tv/testing/*.test.ts"
+        },
+        "package": {
+            "dependsOn": ["verify-build"],
+            "outputs": ["{workspaceRoot}/dist/tv-package"],
+            "command": "ares-package dist/apps/tv -o dist/tv-package"
+        },
+        "verify-build": {
+            "dependsOn": ["build"],
+            "command": "node apps/tv/verify-build.mjs"
+        }
+    }
+}

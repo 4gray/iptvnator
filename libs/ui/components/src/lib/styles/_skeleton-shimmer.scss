@@ -1,0 +1,4 @@
+// The shared shimmer moved to `libs/ui/styles/_skeleton-shimmer.scss` so the
+// dashboard skeletons use the same recipe; the detail skeletons keep their
+// `@use '../styles/skeleton-shimmer'` through this forward.
+@forward '../../../../styles/skeleton-shimmer';

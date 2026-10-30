@@ -58,6 +58,7 @@ export class DownloadManagerActionsService {
                 'DOWNLOADS.CLEAR_FINISHED_DIALOG.MESSAGE'
             ),
             confirmLabel: this.translate.instant('DOWNLOADS.CLEAR_FINISHED'),
+            tone: 'destructive',
             onConfirm: () => this.performClearFinished(scopePlaylistId),
         });
     }
@@ -66,14 +67,12 @@ export class DownloadManagerActionsService {
         const base = this.translate.instant('DOWNLOADS.ACTION_FAILED');
         this.snackBar.open(error ? `${base}: ${error}` : base, undefined, {
             duration: 4000,
-            horizontalPosition: 'start',
         });
     }
 
     showMessage(key: string, duration: number): void {
         this.snackBar.open(this.translate.instant(key), undefined, {
             duration,
-            horizontalPosition: 'start',
         });
     }
 
@@ -88,6 +87,7 @@ export class DownloadManagerActionsService {
             confirmLabel: this.translate.instant(
                 'DOWNLOADS.REMOVE_FROM_MANAGER'
             ),
+            tone: 'destructive',
             onConfirm: () =>
                 this.withPending(item.id, () =>
                     this.downloads.removeDownload(item.id)

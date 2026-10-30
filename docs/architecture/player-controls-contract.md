@@ -308,16 +308,19 @@ It owns only transient presentation behavior:
 - `ControlsShortcuts` — document keyboard routing;
 - `ControlsSurface` — pointer/click/double-click surface interactions;
 - `ControlsTimeline` — scrub state and timeline projections;
-- `ControlsTimelineHover` — the time under the pointer over the timeline;
+- `ControlsTimelineLabel` — where the timeline label points: the time under
+  a hovering pointer, else the slider value while the keyboard or a drag
+  moves it, plus the pure `clampTimelineLabelLeft` placement;
 - `app-player-timeline` — presentation of the timeline row (current time,
-  segment track, knob, hover label, remaining time / LIVE, recording
+  segment track, knob, label, remaining time / LIVE, recording
   status); scrub `input`/`change` events go back to the controls component,
   which owns reveal and seeking;
 - `ControlsLayout` — the compact/wide dock mode from the host's width;
 - `ControlsSettings` — the settings panel's groups, on/modified state and
   open/close transitions (`controls-settings-groups.ts` holds the pure
   group-availability rule);
-- `app-player-settings-panel` — the panel / bottom sheet presentation;
+- `app-player-settings-panel` — the panel / bottom sheet presentation,
+  whose radio groups use `settings-radio-group.directive.ts`;
 - `ControlsUpNext` and `app-player-up-next-card` — the "Up next" card's
   gate and presentation; and
 - `controls-view-model.ts` — derived display state.
@@ -333,22 +336,36 @@ primary action and progress, cyan `#5cd6ff` for "something is on", violet
 `#6b7384` text ramp, and two reds: `--pc-live` `#d32f2f` fills the LIVE
 badge (white label 5.0:1), and `--pc-danger` `#ff5252` colours the active
 record glyph and the recording status (6.2:1 on the glass over a black
-frame). They are literal on purpose: the overlay is
+frame). The seek bar's unplayed track is the opaque `--pc-timeline-track`
+`#313437` and its segment separators are `--pc-timeline-separator` white,
+so their contrast does not depend on the frame (see Timeline segments).
+They are literal on purpose: the overlay is
 theme-independent (see the UI guidelines' player theme boundary), and the
 app's `--app-selection-color` is a different blue that would fight the video.
+Watch progress reads `--pc-progress`, the accent blue declared by the
+`progress-token` mixin of `_player-palette.scss`; the Up Next rail and the
+fullscreen episode panel include the same mixin, so one episode's bar has
+one colour in every player surface (UI guidelines, "Watch progress colour").
 
 - **Timeline row**: current time (`--pc-font-mono`, tabular) · drawn track
   (`.player-controls__timeline-track` with one segment and an accent fill,
   a white knob ringed in translucent blue) · remaining time as `−7:03`
   (`formatRemainingTime`; the LIVE badge replaces it on live streams and
   `--:--` stands in while no duration is known) · the recording status.
+  The badge text is the translated `LIVE_BADGE`, and both it and the
+  `--:--` placeholder (`UNKNOWN_TIME_TEXT`) are `role="img"` elements named
+  `LIVE_STREAM` / `DURATION_UNKNOWN`: a name on a role-less span is never
+  announced, and the dashes are not words.
   The `<input type="range">` stays as the interaction and accessibility
   layer, invisible and full-size over the drawn track: dragging, arrow
   keys, `aria-valuetext` and the focus ring (drawn on the track through
   `:has(:focus-visible)`) all belong to it, so scrubbing semantics are
   unchanged. Hovering the bar with a mouse shows a white marker and a
-  `1:40` label above the pointer (`ControlsTimelineHover`); touch never
-  hovers and a non-seekable timeline never labels.
+  `1:40` label above the pointer. Keyboard focus on the slider
+  (`:focus-visible`, or any seek key) and a drag preview — the only way
+  touch, which never hovers, gets it — show the same label at the slider
+  value instead, without the marker (`ControlsTimelineLabel`; a hovering
+  pointer wins). A non-seekable timeline never labels.
 - **Control row**: `minmax(0,1fr) auto minmax(0,1fr)`. Left: the volume
   button, with the slider **inline** (72px) in the wide mode and behind
   the hover/tap popover in the compact mode — inline, the button is a
@@ -366,17 +383,20 @@ app's `--app-selection-color` is a different blue that would fight the video.
   measured below 3:1 against the lighter fills.
 - **Icon buttons** are 40px with a 12px radius (32px / 9px compact) through
   Material's `--mat-icon-button-*` tokens; their hover is a flat
-  `rgba(255,255,255,.1)` layer.
+  `rgba(255,255,255,.1)` layer. Keyboard focus draws a 2px `--pc-text`
+  outline (`:focus-visible`), and Material's focus state layer is switched
+  off: its colour comes from the app theme, and the light theme's dark layer
+  left no visible focus on video. The settings panel's icon buttons use the
+  same ring, inset by 2px because the panel body clips at its edge.
 
 ### Timeline segments
 
-The track is drawn as a row of segments, one flex item per segment with
-`flex-grow` equal to its share of the duration and its own accent fill, so
+The track is drawn as a row of segments, each with its own accent fill, so
 a film's chapters or a catch-up recording's programmes read directly off
 the bar. Each segment is placed absolutely at its time position (`left` =
-start percent, `width` = share minus the 3px gap every segment but the
+start percent, `width` = share minus the 2px gap every segment but the
 last keeps), so a drawn boundary sits exactly where the linear seek input
-and the hover label change segment; a segment shorter than the gap
+and the label change segment; a segment shorter than the gap
 collapses instead of pushing its neighbours. The optional `timelineSegments` input
 (`PlayerTimelineSegment { startSeconds, endSeconds, title }`) supplies
 them; `normalizeTimelineSegments` (`controls-timeline-segments.ts`) clamps
@@ -385,8 +405,51 @@ the previous end and fills every gap with an untitled segment so the row
 always covers `[0, duration]`. Without segments — live playback, VOD and
 series — the row is one untitled segment, which is the plain bar.
 `ControlsTimeline` owns the normalized list and the per-segment fill for the
-current scrub or playback value; the hover label becomes `Chapter 2 · 12:40`
-over a titled segment. mpv's chapter list is not a producer yet.
+current scrub or playback value; the label becomes `Chapter 2 · 12:40`
+over a titled segment.
+
+Boundaries hold 3:1 over any frame. Segments only round the bar's two
+ends, and every gap (2px, `TIMELINE_SEGMENT_GAP_PX`) is filled by a
+separator (`separatorLeft`, never left of the track's start, where a
+boundary in the bar's first pixels would put it) in
+`--pc-timeline-separator` white: 12.5:1 on
+the opaque `--pc-timeline-track`, 3.2:1 on the `--pc-progress` fill, which
+keeps 4.0:1 on the track. The former translucent track with see-through
+gaps measured 1.3–1.6:1 at its boundaries, and its fill fell to 1.1:1 over
+a bright frame (`player-controls.palette.spec.ts` pins the ratios).
+
+The names reach every user, whichever source drew the segments. The
+slider's `aria-valuetext` is the translated `TIMELINE_SEGMENT_POSITION`
+(`{{title}} · {{time}}`) whenever the scrub or playback value — the
+keyboard's target included — lies in a titled segment
+(`ControlsTimeline.segmentTitle`), and the plain time otherwise. The visible
+label (`aria-hidden`; it mirrors the valuetext) is two parts: the title
+ellipsizes at `min(320px, 60cqw)` and the time never truncates. The
+stylesheet centres it on its anchor; once laid out,
+`PlayerTimelineComponent` moves it by its measured width
+(`clampTimelineLabelLeft`, an `afterRenderEffect`) so it stays 8px inside
+the player (`.player-controls-host`) — past the bar's ends when needed, as
+the bar is narrower than the player. A `ResizeObserver` on the bar and the
+player re-places it when only the size changes (a paused player whose
+slider the keyboard holds, in a narrowed window). `xtream-catchup-timeline-label.e2e.ts`
+tabs to the bar with a 120-character programme title at 1280 and 800px, in
+both themes and in de and ru.
+
+**Chapter producer.** Embedded MPV reports the file's own chapters: the
+addons and the frame-copy helper observe mpv `chapter-list` and publish it
+as `EmbeddedMpvSession.chapters` (`{ timeSeconds, title? }`, validated in
+main by `normalizeEmbeddedMpvChapters`). `buildChapterTimelineSegments`
+(`chapter-timeline-segments.ts`) runs each chapter from its start to the
+next one's, the last to the duration, orders them and drops repeated or
+out-of-range starts; an untitled chapter becomes an untitled segment, and
+no chapters or no finite duration yields `null`.
+`EmbeddedMpvPlayerComponent.controlsTimelineSegments`
+(`embeddedMpvTimelineSegments`) passes the host's segments when it
+supplies any and the chapter segments otherwise, so catch-up programmes
+always win; `sameTimelineSegments` keeps a re-polled, unchanged list from
+counting as a change. The Linux native-view `mpv --wid` backend reads no
+chapters, and the web engines report none (streamed HLS/DASH carries no
+chapter track), so their VOD and series stay one plain bar.
 
 **Catch-up producer.** Archive playback of a live channel passes the EPG
 programmes overlapping its archive window.
@@ -421,14 +484,22 @@ the native-view legacy dock keeps its plain slider.
 Near the end of a series episode the dock shows an **"Up next" card**
 (`app-player-up-next-card`, `data-test-id="player-controls-up-next"`) in the
 bottom-right corner above the controls: the next episode's still (or its
-`S01E03` label as a tile), a 3px accent progress line when it was partly
+`S01E03` label as a tile), a 3px `--pc-progress` line when it was partly
 watched, "Up next · in 7 min" and the title. The host supplies the item
 through the optional `upNext` input (`PlayerUpNextItem { label, title,
 thumbnailUrl, progressPercent }`); `ControlsUpNext` decides when it shows —
-`seriesNavigation` capability, a finite duration with at
-most `UP_NEXT_THRESHOLD_SECONDS` (8 min) left, not live, not `ended` (with
-autoplay off nothing is scheduled, so no countdown), controls shown,
-settings panel closed — and how many minutes remain (never below one). A
+`seriesNavigation` capability, a finite duration, not live, not `ended`
+(with autoplay off nothing is scheduled, so no countdown), controls shown,
+settings panel closed, not dismissed — and when. The lead adapts to the
+episode: `upNextThresholdSeconds` is 4% of the duration clamped to
+40 s … 3 min (about 50 s for a 22-minute episode, 2.4 min for an hour). When
+`timelineSegments` carry a closing-credits chapter in the last third
+(`creditsStartSeconds`: "Credits", "Outro", "Ending", an anime `ED`, and a
+few localized names), the card appears when it starts instead, at most
+5 min before the end. Embedded MPV under the frame-copy engine supplies
+file chapters (see the chapter producer above); every other engine, and a
+file without a credits chapter, uses the adaptive lead. The countdown shows whole minutes, and seconds
+in the last minute. A
 still that fails to load falls back to the label tile. A
 click emits `nextEpisodeRequested` directly — not through the
 transport's `canNextEpisode` guard, which is season-local — so the card
@@ -437,12 +508,21 @@ routes such a request through the Up Next rail selection
 (`upNextEpisodeSelected`) whenever `seriesNavigation.canNext` is false, which
 plays the next season's first episode; either path keeps fullscreen exactly
 like the transport button.
-The card is a glass surface that does not fade with the controls; the
-compact dock uses a smaller variant without the trailing icon.
+The card is a glass surface that stays visible when the controls auto-hide
+(`showControls` is the host's input, not the idle state); the compact dock
+uses a smaller variant without the trailing icon. After
+`UP_NEXT_COLLAPSE_DELAY_MS` (10 s, paused while hovered) the card asks to
+collapse and `ControlsUpNext.collapse()` turns it into a one-line pill
+(label and countdown) for the rest of the episode. A corner close button
+(`player-controls-up-next-close`) or Escape on the focused card calls
+`dismiss()`, which hides it until the item it points to changes; Escape is
+stopped at the card so it does not reach the player's own Escape handling.
+The `playerUpNextCard` setting (default on) turns the card off: the
+producer below then passes `null`.
 
 Plumbing mirrors `mediaTitle`: `PortalInlinePlayerComponent.playerUpNext`
 derives the item after the playing one from its `upNextEpisodes` input
-(episodes only) → `WebPlayerViewComponent.upNext` → the four engine hosts →
+(episodes only, and only while `playerUpNextCard` is not `false`) → `WebPlayerViewComponent.upNext` → the four engine hosts →
 `app-player-controls`. Movie and live hosts pass nothing.
 
 ### Settings panel
@@ -462,7 +542,10 @@ the panel the moment the last group disappears.
 
 - **Roomy wide dock** (≥ 960px): two **value chips** precede `tune` — subtitles
   (`closed_caption` + the selected track's label, or "Off") and speed
-  (`speed` + `1.25×`). Audio and aspect ratio have no chip: they are
+  (`speed` + `1.25×`). A chip's accessible name and tooltip carry its
+  value (`SUBTITLES_TOOLTIP` "Subtitles: English", `SPEED_TOOLTIP`
+  "Speed: 1.25×"); `tune` has `aria-haspopup="dialog"` and
+  `aria-expanded`. Audio and aspect ratio have no chip: they are
   panel-only. A chip click opens the panel **focused on its group**
   (`settingsFocus`; the group scrolls into view and wears a brief ring);
   right-click or long-press on the subtitle chip toggles subtitles without
@@ -480,12 +563,34 @@ the panel the moment the last group disappears.
   picture and recording stay in the compact dock — the mock shows only
   `tune` + fullscreen there, but those two are engine features a viewer
   needs without opening anything.
-- **Inside**: list groups (audio, subtitles, quality) use `menuitemradio`
-  rows with a check mark and a cyan selection; segmented groups (speed,
-  aspect) use `radio` items with a violet selection, and a selected default
-  (`1×`, the first aspect preset) stays neutral. The subtitle group carries
-  the load-file action and the delay / size / color sections that the
-  popover used to hold (same `player-controls-load-subtitle`,
+- **Inside**: every choice is a `radio` in a `radiogroup`
+  (`SettingsRadioGroupDirective` / `SettingsRadioDirective`). List groups
+  (audio, subtitles, quality) are rows with a check mark and a cyan
+  selection; segmented groups (speed, aspect, subtitle size) have a violet
+  selection, and a selected default (`1×`, the first aspect preset) stays
+  neutral. Each group is one Tab stop — the checked option as the engine
+  reports it, else the first — and arrows, Home and End move focus with a
+  CDK `FocusKeyManager` (wrapping; the horizontal arrows follow `direction`)
+  and check the option they reach, as a native radio group does: the
+  directive clicks it, so the template's handler applies the choice, even
+  onto an option the engine still reports as checked: returning to it must
+  cancel a switch that is still pending. Focus
+  changes also write the roving `tabindex` immediately, because a quick
+  Shift+Tab, Tab can arrive before change detection updates the bindings. The dialog is named by its `h2` title (`aria-labelledby`), each
+  radio group by its `h3` group heading or `h4` subheading, and the delay
+  buttons form a labelled `group`. Headings read `--pc-text-secondary` on
+  `--pc-glass-bg-dense` (`rgba(12,16,23,.86)`), 4.5:1 or more even over a
+  white frame. They wrap with `overflow-wrap: anywhere` and `hyphens: auto`,
+  so one long word (German "Wiedergabegeschwindigkeit") breaks inside the
+  sheet's 84px heading column. Hyphenation needs a `lang` on `<html>`.
+  With subtitles on but no track marked selected yet (the engine can report
+  the switch before the track list), the subtitle chip reads "On"
+  (`SUBTITLES_ON`), never "Off".
+  Every focused option shows the `--pc-text` ring; a selected swatch has a
+  white border with a dark inner gap, and focus adds an outer ring. The
+  subtitle group carries the load-file action (a plain button outside the
+  radio group) and the delay / size / color sections that the popover used
+  to hold (same `player-controls-load-subtitle`,
   `player-controls-subtitle-delay`, `player-controls-subtitle-style` test
   ids). The panel is a `role="dialog"` with `tabindex="-1"`: opened from
   the keyboard (the opener is `:focus-visible`) it takes focus, a pointer
@@ -752,7 +857,10 @@ neither opens nor arms the hint: the zone re-arms on the next real
 scrim and below the panel while open, preserving the pointer target until
 the opening animation covers it. A delayed fullscreen paint therefore cannot
 turn a stationary edge hover into a synthetic mouse-leave that closes the
-panel. The zone stops above the controls bar (`bottom: max(25%, 140px)`) so
+panel. The open card is inset from the edge, so the zone's left strip stays
+exposed beside it: hovering there still counts as inside (a hover-opened
+panel leaves the pointer resting in that strip), but a completed primary
+press there closes the panel as the scrim would. The zone stops above the controls bar (`bottom: max(25%, 140px)`) so
 the leftmost transport button never loses a click or tap to it. The `C` key
 opens it too and focuses the search field — or, for a host without one, the
 panel itself (`tabindex="-1"`), so the next Tab reaches its first control
@@ -787,9 +895,16 @@ ends. The panel carries the `dark-theme` context class, so app and Material
 tokens inside it resolve to the dark palette whatever the app theme is — and
 because the app's global `.dark-theme { background: … !important }` rule
 (`apps/web/src/styles.scss`) claims the background of every element wearing
-that class, the panel's translucent gradient is declared on the compound
+that class, the panel's glass fill is declared on the compound
 `.fullscreen-channel-panel.dark-theme` selector with `!important`; without
-that the panel painted no background at all.
+that the panel painted no background at all. The panel wears the same surface
+as the controls' settings panel — a card inset 16px from the player's top,
+bottom and left edges (8px in a player narrower than 560px), 20px corners,
+the `--pc-glass-bg` fill, hairline `--pc-glass-border`, the same blur and
+shadow, and a 32px square close button — with the values written literally,
+because the panel is a sibling of the controls host, outside the scope that
+declares the `--pc-*` palette. Its episode list marks the playing row with the
+settings panel's selected-option cyan tint.
 Keyboard: `C` is ignored while any editable element has focus and while the
 player sits inside an `inert` region; the search field is an ordinary input,
 so the controls' Space/K/F/M shortcuts stay out of it. That is also why `C` is
@@ -838,12 +953,12 @@ be.
   the shared ≥90 % `watched` rule; the playing row is the one whose id equals
   `contentInfo.contentXtreamId`.
 - Body: `app-fullscreen-episode-panel` stamps `SeasonTabsComponent` (the
-  detail page's tabs: pills up to six seasons, a dropdown beyond, watched
+  detail page's tabs: segmented tabs up to four seasons, a menu beyond, watched
   check marks, the "Back to playing episode" chip) over the selected season's
   rows: a 16:9 still or, without one, a large numeral tile so the no-TMDB
   case still looks designed; the `S01E03` label, runtime, watched check or
   "Now playing" marker; the title (label as fallback); a 3-line clamped
-  overview when there is one; a progress bar on the thumbnail. Rows are
+  overview when there is one; a `--pc-progress` bar on the thumbnail. Rows are
   buttons inside `<li>`s of a `<ul>`, so their button role survives for
   assistive technology. A loading season shows a spinner row, a loaded empty
   one the season-empty copy, and an unanswered one a "could not be loaded"
@@ -1616,10 +1731,12 @@ libs/ui/playback/src/lib/player-controls/
 ├── player-controls.component.ts
 ├── player-controls.component.html
 ├── player-controls.component.scss
+├── _player-palette.scss
+├── player-palette.ts
 ├── controls-feedback.ts
 ├── controls-format.utils.ts
 ├── controls-layout.ts
-├── controls-timeline-hover.ts
+├── controls-timeline-label.ts
 ├── controls-timeline-segments.ts
 ├── controls-settings.ts
 ├── controls-settings-groups.ts
@@ -1633,6 +1750,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── player-settings-panel.component.ts
 ├── player-settings-panel.component.html
 ├── player-settings-panel.component.scss
+├── settings-radio-group.directive.ts
 ├── controls-fullscreen.ts
 ├── controls-menu-selection.ts
 ├── controls-menu-state.ts

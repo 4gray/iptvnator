@@ -103,19 +103,23 @@ export class FullscreenEpisodePanelComponent {
     private readonly shownSeasonKey = computed(
         () => this.selectedSeason()?.key ?? null
     );
+    /**
+     * Seasons still loading or not asked for yet: the picker's menu shows no
+     * count for them, since their empty list is not a count.
+     */
+    readonly seasonLoadStates = computed(() => {
+        const states: Record<string, 'loading' | 'unloaded'> = {};
+        for (const season of this.seasons()) {
+            if (season.loadState !== 'loaded') {
+                states[season.key] = season.loadState;
+            }
+        }
+        return states;
+    });
+
     readonly episodeCounts = computed(() =>
         countBySeason(this.seasons(), (season) => season.episodes.length)
     );
-    /** Season poster URLs keyed by season, for the tabs' dropdown thumbnails. */
-    readonly seasonPosters = computed<Record<string, string>>(() => {
-        const posters: Record<string, string> = {};
-        for (const season of this.seasons()) {
-            if (season.posterUrl) {
-                posters[season.key] = season.posterUrl;
-            }
-        }
-        return posters;
-    });
     /** Season poster URLs whose image request failed; the strip then folds. */
     private readonly failedPosters = signal<ReadonlySet<string>>(new Set());
     /**
@@ -209,14 +213,24 @@ export class FullscreenEpisodePanelComponent {
     }
 
     /**
-     * Centers the playing row in the list's own scroll box. Written as
-     * `scrollTop` math rather than `scrollIntoView` so nothing outside the
-     * list — the fullscreen stage, the page — is ever scrolled with it.
+     * Centers the playing row in the list's own scroll box — unless it is
+     * already fully visible, in which case the list stays where the user
+     * put it. Written as `scrollTop` math rather than `scrollIntoView` so
+     * nothing outside the list — the fullscreen stage, the page — is ever
+     * scrolled with it.
      */
     private scrollPlayingRowIntoView(): void {
         const list = this.list()?.nativeElement;
         const row = list?.querySelector<HTMLElement>('[aria-current="true"]');
         if (!list || !row) {
+            return;
+        }
+        const viewTop = list.scrollTop;
+        const viewBottom = viewTop + list.clientHeight;
+        if (
+            row.offsetTop >= viewTop &&
+            row.offsetTop + row.offsetHeight <= viewBottom
+        ) {
             return;
         }
         list.scrollTop = Math.max(

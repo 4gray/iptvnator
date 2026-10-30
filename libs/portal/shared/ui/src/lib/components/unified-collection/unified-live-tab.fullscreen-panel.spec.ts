@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     AudioPlayerComponent,
     WebPlayerViewComponent,
@@ -40,6 +40,7 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
     let component: UnifiedLiveTabComponent;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
+        loadEpgItems: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
         resolveXtreamCatchupUrl: jest.Mock;
         loadM3uProgramsForItem: jest.Mock;
@@ -60,6 +61,14 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
         player = signal(VideoPlayer.VideoJs);
 
         streamResolver = {
+            loadEpgItems: jest.fn(
+                async () =>
+                    (
+                        await streamResolver.resolveLiveDetail.mock.results.at(
+                            -1
+                        )?.value
+                    )?.epgItems ?? []
+            ),
             resolveLiveDetail: jest.fn(),
             resolveM3uPlaybackDetail: jest.fn(),
             resolveXtreamCatchupUrl: jest.fn().mockResolvedValue(null),
@@ -81,6 +90,7 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
+                        supportsProviderEpg: true,
                         get supportsEpg() {
                             return Boolean(window.electron);
                         },
@@ -175,6 +185,24 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
             expect(player()).toBe(configuredPlayer);
         }
     );
+
+    it('re-words the panel title after a runtime language switch', () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            PORTALS: { SIDEBAR: { RECENT: 'Recently viewed' } },
+        });
+        translate.setTranslation('ru', {
+            PORTALS: { SIDEBAR: { RECENT: 'Недавно просмотренные' } },
+        });
+        translate.use('en');
+        fixture.componentRef.setInput('mode', 'recent');
+
+        expect(component.panelTitle()).toBe('Recently viewed');
+
+        translate.use('ru');
+
+        expect(component.panelTitle()).toBe('Недавно просмотренные');
+    });
 
     it('correlates an inline row with its session key, not its stream URL', async () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);

@@ -6,20 +6,34 @@ import {
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { of, Subject } from 'rxjs';
+import { EMPTY, of, Subject } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
     Playlist,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
-import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
+import {
+    PORTAL_PLAYBACK_POSITIONS,
+    getOpenCollectionDetailItemState,
+} from '@iptvnator/portal/shared/util';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DashboardDataService,
     DashboardFavoriteItem,
     GlobalRecentItem,
 } from './dashboard-data.service';
+import {
+    CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT,
+    CONTINUE_WATCHING_VISIBLE_ITEMS,
+    CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS,
+} from './dashboard-series-continuation.util';
+import {
+    DashboardSeriesEpisodesService,
+    dashboardSeriesEpisodesKey,
+    type DashboardSeriesEpisodes,
+    type DashboardSeriesEpisodesRequest,
+} from './dashboard-series-episodes.service';
 
 describe('DashboardDataService', () => {
     let service: DashboardDataService;
@@ -159,6 +173,7 @@ describe('DashboardDataService', () => {
 
     const playbackPositionsMock = {
         savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
+        savePlaybackPositionOrThrow: jest.fn().mockResolvedValue(undefined),
         getPlaybackPosition: jest.fn().mockResolvedValue(null),
         getSeriesPlaybackPositions: jest.fn().mockResolvedValue([]),
         getAllPlaybackPositions: jest
@@ -167,9 +182,72 @@ describe('DashboardDataService', () => {
         clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Episode lists answer from `seriesEpisodeAnswers`; a series with no
+    // answer stays loading, as a slow portal would.
+    const seriesEpisodeEntries = signal<
+        ReadonlyMap<string, DashboardSeriesEpisodes>
+    >(new Map());
+    const seriesEpisodeAnswers = new Map<string, DashboardSeriesEpisodes>();
+    const seriesEpisodesMock = {
+        episodes: seriesEpisodeEntries.asReadonly(),
+        request: jest.fn((requests: DashboardSeriesEpisodesRequest[]) => {
+            seriesEpisodeEntries.update((entries) => {
+                const next = new Map(entries);
+                for (const { playlistId, seriesId } of requests) {
+                    const key = dashboardSeriesEpisodesKey(
+                        playlistId,
+                        seriesId
+                    );
+                    next.set(
+                        key,
+                        seriesEpisodeAnswers.get(key) ?? { status: 'loading' }
+                    );
+                }
+                return next;
+            });
+        }),
+    };
+
+    const createTestingModuleProviders = () => ({
+        providers: [
+            DashboardDataService,
+            { provide: Store, useValue: storeMock },
+            { provide: DatabaseService, useValue: dbServiceMock },
+            {
+                provide: XTREAM_DATA_SOURCE,
+                useValue: xtreamDataSourceMock,
+            },
+            {
+                provide: PlaylistsService,
+                useValue: playlistsServiceMock,
+            },
+            {
+                provide: TranslateService,
+                useValue: {
+                    instant: (key: string) => key,
+                    onLangChange: of(null),
+                    onDefaultLangChange: EMPTY,
+                    onTranslationChange: EMPTY,
+                    currentLang: 'en',
+                    defaultLang: 'en',
+                },
+            },
+            {
+                provide: PORTAL_PLAYBACK_POSITIONS,
+                useValue: playbackPositionsMock,
+            },
+            {
+                provide: DashboardSeriesEpisodesService,
+                useValue: seriesEpisodesMock,
+            },
+        ],
+    });
+
     beforeEach(() => {
         Object.defineProperty(window, 'electron', {
             value: {
+                dbGetPlaylist: jest.fn(),
+                dbRestoreXtreamFavorites: jest.fn(),
                 dbGetRecentlyViewed: jest.fn(),
                 dbClearRecentlyViewed: jest.fn(),
                 dbGetAllGlobalFavorites: jest.fn(),
@@ -224,35 +302,11 @@ describe('DashboardDataService', () => {
 
         playbackPositionsMock.getAllPlaybackPositions.mockClear();
         playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([]);
+        seriesEpisodeEntries.set(new Map());
+        seriesEpisodeAnswers.clear();
+        seriesEpisodesMock.request.mockClear();
 
-        TestBed.configureTestingModule({
-            providers: [
-                DashboardDataService,
-                { provide: Store, useValue: storeMock },
-                { provide: DatabaseService, useValue: dbServiceMock },
-                {
-                    provide: XTREAM_DATA_SOURCE,
-                    useValue: xtreamDataSourceMock,
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: playlistsServiceMock,
-                },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        instant: (key: string) => key,
-                        onLangChange: of(null),
-                        currentLang: 'en',
-                        defaultLang: 'en',
-                    },
-                },
-                {
-                    provide: PORTAL_PLAYBACK_POSITIONS,
-                    useValue: playbackPositionsMock,
-                },
-            ],
-        });
+        TestBed.configureTestingModule(createTestingModuleProviders());
         service = TestBed.inject(DashboardDataService);
     });
 
@@ -301,6 +355,43 @@ describe('DashboardDataService', () => {
 
         await service.reloadGlobalFavorites();
         expect(service.dashboardReady()).toBe(true);
+    });
+
+    it('keeps xtream recently added loading until the playlist inventory has loaded', async () => {
+        // Startup: the dashboard exists before the inventory, which is empty
+        // until it loads, so "no Xtream playlists" is not known yet.
+        TestBed.resetTestingModule();
+        playlistsLoadedSignal.set(false);
+        playlistsSignal.set([]);
+        TestBed.configureTestingModule(createTestingModuleProviders());
+        service = TestBed.inject(DashboardDataService);
+        TestBed.tick();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(true);
+        expect(service.xtreamRecentlyAddedLoaded()).toBe(false);
+
+        playlistsSignal.set(createDefaultPlaylists());
+        playlistsLoadedSignal.set(true);
+        TestBed.tick();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(true);
+
+        await service.reloadXtreamRecentlyAddedItems();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(false);
+        expect(service.xtreamRecentlyAddedLoaded()).toBe(true);
+    });
+
+    it('settles xtream recently added once the loaded inventory has no xtream playlists', () => {
+        TestBed.resetTestingModule();
+        playlistsLoadedSignal.set(false);
+        playlistsSignal.set([]);
+        TestBed.configureTestingModule(createTestingModuleProviders());
+        service = TestBed.inject(DashboardDataService);
+        TestBed.tick();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(true);
+
+        playlistsLoadedSignal.set(true);
+        TestBed.tick();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(false);
+        expect(service.xtreamRecentlyAddedLoaded()).toBe(true);
     });
 
     it('includes M3U favorites in global favorite items', async () => {
@@ -546,6 +637,46 @@ describe('DashboardDataService', () => {
         ).toHaveLength(1);
     });
 
+    it('keeps an unresolved favorite readable and removable without opening its details', async () => {
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: null,
+                category_id: null,
+                favorite_id: 71,
+                catalog_status: 'missing',
+                title: 'Saved ABC',
+                xtream_id: 501,
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+                added_at: '2026-02-02T10:00:00.000Z',
+                poster_url: 'https://example.test/abc.jpg',
+            },
+        ]);
+        await service.reloadGlobalFavorites();
+        const item = service
+            .globalFavoriteItems()
+            .find((row) => row.source === 'xtream');
+        if (!item) throw new Error('Expected the saved Xtream favorite');
+        expect(item).toMatchObject({
+            id: 'favorite:71',
+            title: 'Saved ABC',
+            catalogStatus: 'missing',
+            favorite_id: 71,
+        });
+        expect(service.getGlobalFavoriteLink(item)).toEqual([
+            '/workspace/global-favorites',
+        ]);
+        expect(service.getGlobalFavoriteNavigationState(item)).toEqual({
+            collectionViewState: { scope: 'all', selectedContentType: 'movie' },
+        });
+        await service.removeGlobalFavorite(item);
+        expect(dbServiceMock.removeFromFavorites).toHaveBeenCalledWith(
+            { favoriteId: 71 },
+            'xtream-1'
+        );
+    });
+
     it('includes PWA Xtream favorites from the active data source', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,
@@ -743,6 +874,7 @@ describe('DashboardDataService', () => {
             'global-favorites',
         ]);
         expect(service.getGlobalFavoriteNavigationState(movieItem!)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     uid: 'xtream::xtream-1::movie:5001',
@@ -796,7 +928,7 @@ describe('DashboardDataService', () => {
         await service.removeGlobalFavorite(item);
 
         expect(xtreamDataSourceMock.removeFavorite).toHaveBeenCalledWith(
-            51,
+            { id: 51, type: 'movie' },
             'xtream-1'
         );
         expect(dbServiceMock.removeFromFavorites).not.toHaveBeenCalled();
@@ -1007,6 +1139,7 @@ describe('DashboardDataService', () => {
         expect(seriesPos?.seasonNumber).toBe(2);
         expect(seriesPos?.episodeNumber).toBe(4);
         expect(service.getRecentItemNavigationState(series)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     contentType: 'series',
@@ -1020,6 +1153,76 @@ describe('DashboardDataService', () => {
                 },
             },
         });
+    });
+
+    it('asks every playlist for its playback positions at once, not one after another', async () => {
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 101,
+                category_id: 18,
+                title: 'Atlantic City',
+                rating: '7.3',
+                viewed_at: '2026-04-21T10:00:00.000Z',
+                poster_url: 'https://example.com/atlantic.png',
+                xtream_id: 4242,
+                type: 'movie',
+                playlist_id: 'xtream-A',
+                playlist_name: 'Xtream A',
+            },
+            {
+                id: 102,
+                category_id: 19,
+                title: 'Color Orchard S02E04',
+                rating: '8.1',
+                viewed_at: '2026-04-22T10:00:00.000Z',
+                poster_url: 'https://example.com/orchard.png',
+                xtream_id: 909,
+                type: 'series',
+                playlist_id: 'xtream-B',
+                playlist_name: 'Xtream B',
+            },
+        ]);
+
+        // Hold every answer: asked one after another, the second playlist
+        // would not be asked until the first had answered, and a DB worker
+        // busy with a long request would delay the set once per playlist.
+        const pending = new Map<
+            string,
+            (rows: PlaybackPositionData[]) => void
+        >();
+        playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
+            (playlistId: string) =>
+                new Promise<PlaybackPositionData[]>((resolve) => {
+                    pending.set(playlistId, resolve);
+                })
+        );
+
+        await service.reloadGlobalRecentItems();
+        const reload = service.reloadPlaybackPositions();
+
+        expect(new Set(pending.keys())).toEqual(
+            new Set(['xtream-A', 'xtream-B'])
+        );
+
+        pending.get('xtream-A')?.([
+            {
+                contentXtreamId: 4242,
+                contentType: 'vod',
+                positionSeconds: 3600,
+                durationSeconds: 6000,
+                playlistId: 'xtream-A',
+            } as PlaybackPositionData,
+        ]);
+        pending.get('xtream-B')?.([]);
+        await reload;
+
+        const movie = service
+            .globalRecentVodItems()
+            .find((item) => item.playlist_id === 'xtream-A');
+        expect(movie).toBeDefined();
+        expect(
+            service.getPlaybackPositionForItem(movie as GlobalRecentItem)
+        ).toMatchObject({ contentXtreamId: 4242, positionSeconds: 3600 });
     });
 
     it('resolves episode metadata for a Stalker VOD is_series recent item', async () => {
@@ -1159,6 +1362,7 @@ describe('DashboardDataService', () => {
             expect.objectContaining({
                 link: ['/workspace', 'global-recent'],
                 state: {
+                    collectionViewState: { scope: 'all' },
                     openCollectionDetailItem: expect.objectContaining({
                         item: expect.objectContaining({
                             sourceType: 'stalker',
@@ -1231,6 +1435,7 @@ describe('DashboardDataService', () => {
         // The episode id must not be promoted to a series id: no resume
         // target, and the detail item keeps its original identifier.
         expect(service.getRecentItemNavigationState(series)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     contentType: 'series',
@@ -1332,6 +1537,7 @@ describe('DashboardDataService', () => {
         expect(position?.seasonNumber).toBe(3);
         expect(position?.episodeNumber).toBe(7);
         expect(service.getRecentItemNavigationState(series)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     contentType: 'series',
@@ -1347,6 +1553,898 @@ describe('DashboardDataService', () => {
             },
         });
         expect(failOnLinearScan).not.toHaveBeenCalled();
+    });
+
+    describe('Continue Watching', () => {
+        const PLAYLIST = 'xtream-cw';
+
+        const recentRow = (
+            id: number,
+            title: string,
+            type: 'movie' | 'series',
+            xtreamId: number,
+            viewedAt: string,
+            playlistId = PLAYLIST
+        ) => ({
+            id,
+            category_id: 1,
+            title,
+            rating: '7.0',
+            viewed_at: viewedAt,
+            poster_url: `https://example.com/${xtreamId}.png`,
+            xtream_id: xtreamId,
+            type,
+            playlist_id: playlistId,
+            playlist_name: 'Xtream CW',
+        });
+        const vodPosition = (
+            contentXtreamId: number,
+            positionSeconds: number,
+            durationSeconds: number
+        ): PlaybackPositionData => ({
+            contentXtreamId,
+            contentType: 'vod',
+            positionSeconds,
+            durationSeconds,
+            playlistId: PLAYLIST,
+        });
+        const episodePosition = (
+            contentXtreamId: number,
+            seriesXtreamId: number,
+            positionSeconds: number,
+            durationSeconds: number,
+            updatedAt: string
+        ): PlaybackPositionData => ({
+            contentXtreamId,
+            contentType: 'episode',
+            seriesXtreamId,
+            seasonNumber: 1,
+            episodeNumber: contentXtreamId % 100,
+            positionSeconds,
+            durationSeconds,
+            playlistId: PLAYLIST,
+            updatedAt,
+        });
+        const titles = () =>
+            service.continueWatchingItems().map((item) => item.title);
+        /** The portal's episode list for a series: season 1, these ids. */
+        const answerEpisodes = (seriesId: number, ids: number[]) =>
+            seriesEpisodeAnswers.set(
+                dashboardSeriesEpisodesKey(PLAYLIST, seriesId),
+                {
+                    status: 'loaded',
+                    seasons: {
+                        '1': ids.map((id, index) => ({
+                            id: String(id),
+                            season: 1,
+                            episode_num: index + 1,
+                            title: `Episode ${index + 1}`,
+                        })) as never,
+                    },
+                }
+            );
+        /** History, then positions, then the episode lookups they trigger. */
+        const loadDashboard = async () => {
+            await service.reloadGlobalRecentItems();
+            await service.reloadPlaybackPositions();
+            TestBed.tick();
+        };
+
+        beforeEach(() => {
+            playbackPositionsMock.savePlaybackPositionOrThrow.mockResolvedValue(
+                undefined
+            );
+            playlistsSignal.set([
+                ...playlistsSignal(),
+                {
+                    _id: PLAYLIST,
+                    title: 'Xtream CW',
+                    count: 1,
+                    importDate: '2026-01-01T00:00:00.000Z',
+                    autoRefresh: false,
+                    serverUrl: 'https://cw.example.com',
+                    username: 'cw-user',
+                    password: 'cw-pass',
+                },
+            ]);
+        });
+
+        it('does not request continuation episodes for retained unavailable history', async () => {
+            Object.defineProperty(window, 'electron', {
+                value: undefined,
+                configurable: true,
+            });
+            const rows = [
+                {
+                    ...recentRow(
+                        1,
+                        'Missing series',
+                        'series',
+                        200,
+                        '2026-10-04'
+                    ),
+                    catalog_status: 'missing',
+                },
+                {
+                    ...recentRow(
+                        2,
+                        'Unknown series',
+                        'series',
+                        300,
+                        '2026-10-03'
+                    ),
+                    catalog_status: 'unknown',
+                },
+            ];
+            xtreamDataSourceMock.getRecentItems.mockImplementation(
+                async (playlistId: string) =>
+                    playlistId === PLAYLIST ? rows : []
+            );
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                episodePosition(201, 200, 1887, 1942, '2026-10-04'),
+                episodePosition(301, 300, 1887, 1942, '2026-10-03'),
+            ]);
+            await loadDashboard();
+            expect(service.globalRecentVodItems()).toHaveLength(2);
+            expect(seriesEpisodesMock.request).not.toHaveBeenCalled();
+        });
+
+        it('lists only the titles the user has not finished', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    1,
+                    'Credits Movie',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+                recentRow(
+                    2,
+                    'Halfway Movie',
+                    'movie',
+                    102,
+                    '2026-10-04T09:00:00Z'
+                ),
+                recentRow(
+                    3,
+                    'Next Episode Series',
+                    'series',
+                    200,
+                    '2026-10-04T08:30:00Z'
+                ),
+                recentRow(
+                    4,
+                    'Ongoing Series',
+                    'series',
+                    300,
+                    '2026-10-04T08:00:00Z'
+                ),
+                recentRow(
+                    5,
+                    'Finished Series',
+                    'series',
+                    400,
+                    '2026-10-04T07:30:00Z'
+                ),
+                recentRow(
+                    6,
+                    'Threshold Movie',
+                    'movie',
+                    103,
+                    '2026-10-04T06:00:00Z'
+                ),
+                recentRow(
+                    7,
+                    'Almost Movie',
+                    'movie',
+                    104,
+                    '2026-10-04T05:00:00Z'
+                ),
+            ]);
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                // Stopped while the credits rolled: 61 s of 59 min left.
+                vodPosition(101, 3491, 3552),
+                vodPosition(102, 2700, 5400),
+                // Episodes 1 and 2 watched; episode 3 is next.
+                episodePosition(201, 200, 1887, 1942, '2026-10-03T08:00:00Z'),
+                episodePosition(202, 200, 1887, 1942, '2026-10-04T08:00:00Z'),
+                // Latest episode started after an earlier one was finished.
+                episodePosition(301, 300, 1887, 1942, '2026-10-02T08:00:00Z'),
+                episodePosition(302, 300, 600, 1942, '2026-10-04T07:00:00Z'),
+                // Every episode watched.
+                episodePosition(401, 400, 1887, 1942, '2026-10-03T07:00:00Z'),
+                episodePosition(402, 400, 1887, 1942, '2026-10-04T07:00:00Z'),
+                vodPosition(103, 4860, 5400), // 90%
+                vodPosition(104, 4800, 5400), // 89%
+            ]);
+            answerEpisodes(200, [201, 202, 203]);
+            answerEpisodes(400, [401, 402]);
+
+            await loadDashboard();
+
+            expect(titles()).toEqual([
+                'Halfway Movie',
+                'Next Episode Series',
+                'Ongoing Series',
+                'Almost Movie',
+            ]);
+            // Finished titles stay in the watch history.
+            expect(service.globalRecentVodItems()).toHaveLength(7);
+            // Only series whose newest episode is watched are looked up.
+            expect(seriesEpisodesMock.request).toHaveBeenCalledWith(
+                [
+                    expect.objectContaining({ seriesId: 200 }),
+                    expect.objectContaining({ seriesId: 400 }),
+                ],
+                expect.any(Number)
+            );
+
+            // The series goes on with episode 3, from the beginning.
+            const nextEpisode = service
+                .continueWatchingItems()
+                .find((item) => item.title === 'Next Episode Series');
+            if (!nextEpisode) {
+                throw new Error('expected the series with a next episode');
+            }
+            const position = service.getPlaybackPositionForItem(nextEpisode);
+            expect(position).toMatchObject({
+                contentXtreamId: 203,
+                contentType: 'episode',
+                seriesXtreamId: 200,
+                seasonNumber: 1,
+                episodeNumber: 3,
+                positionSeconds: 0,
+            });
+            expect(position?.durationSeconds).toBeUndefined();
+            expect(
+                service.getRecentItemResumeNavigation(nextEpisode)?.state
+            ).toMatchObject({
+                collectionViewState: { scope: 'all' },
+                openCollectionDetailItem: {
+                    seriesResume: {
+                        seriesXtreamId: 200,
+                        contentXtreamId: 203,
+                        seasonNumber: 1,
+                        episodeNumber: 3,
+                    },
+                },
+            });
+        });
+
+        describe('a series whose newest episode is watched', () => {
+            beforeEach(() => {
+                dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                    recentRow(
+                        3,
+                        'The Penguin',
+                        'series',
+                        200,
+                        '2026-10-04T08:30:00Z'
+                    ),
+                ]);
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    // Episodes 1-4 watched, the newest last night.
+                    [201, 202, 203, 204].map((id) =>
+                        episodePosition(
+                            id,
+                            200,
+                            3491,
+                            3552,
+                            `2026-10-0${id - 200}T08:00:00Z`
+                        )
+                    )
+                );
+            });
+
+            it('uses an edited playlist User-Agent for episode lookups', async () => {
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    { status: 'failed' }
+                );
+                await loadDashboard();
+                playlistsSignal.set(
+                    playlistsSignal().map((playlist) =>
+                        playlist._id === PLAYLIST
+                            ? {
+                                  ...playlist,
+                                  userAgent:
+                                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                              }
+                            : playlist
+                    )
+                );
+                TestBed.tick();
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(2);
+                expect(seriesEpisodesMock.request).toHaveBeenLastCalledWith(
+                    [
+                        expect.objectContaining({
+                            credentials: expect.objectContaining({
+                                userAgent:
+                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            }),
+                        }),
+                    ],
+                    expect.any(Number)
+                );
+            });
+
+            it('asks the portal for its episodes with the playlist credentials', async () => {
+                answerEpisodes(200, [201, 202, 203, 204, 205]);
+
+                await loadDashboard();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledWith(
+                    [
+                        {
+                            playlistId: PLAYLIST,
+                            seriesId: 200,
+                            credentials: {
+                                serverUrl: 'https://cw.example.com',
+                                username: 'cw-user',
+                                password: 'cw-pass',
+                            },
+                        },
+                    ],
+                    expect.any(Number)
+                );
+                expect(titles()).toEqual(['The Penguin']);
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({
+                    contentXtreamId: 205,
+                    seasonNumber: 1,
+                    episodeNumber: 5,
+                });
+            });
+
+            it('asks for the list again when it predates the episode watched last', async () => {
+                // The cached list ends before the newest episode played: it
+                // cannot tell "finale" from "a 5th episode is out now".
+                answerEpisodes(200, [201, 202, 203]);
+
+                await loadDashboard();
+
+                expect(titles()).toEqual(['The Penguin']);
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({ contentXtreamId: 204 });
+                expect(seriesEpisodesMock.request).toHaveBeenLastCalledWith(
+                    [expect.objectContaining({ seriesId: 200, refresh: true })],
+                    expect.any(Number)
+                );
+            });
+
+            it('waits for the episode list on first open, for a bounded time', async () => {
+                jest.useFakeTimers();
+                try {
+                    await loadDashboard();
+
+                    // The answer decides between "next episode" and "gone".
+                    expect(service.continueWatchingSettled()).toBe(false);
+                    expect(titles()).toEqual([]);
+
+                    jest.advanceTimersByTime(
+                        CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS
+                    );
+
+                    // Still unknown: the series keeps its place and its
+                    // newest episode.
+                    expect(service.continueWatchingSettled()).toBe(true);
+                    expect(titles()).toEqual(['The Penguin']);
+                    expect(
+                        service.getPlaybackPositionForItem(
+                            service.continueWatchingItems()[0]
+                        )
+                    ).toMatchObject({ contentXtreamId: 204 });
+                } finally {
+                    jest.useRealTimers();
+                }
+            });
+
+            it('keeps its place when the episode list cannot be loaded', async () => {
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    { status: 'failed' }
+                );
+
+                await loadDashboard();
+
+                expect(service.continueWatchingSettled()).toBe(true);
+                expect(titles()).toEqual(['The Penguin']);
+            });
+
+            it('looks a failed list up again only when positions reload', async () => {
+                const key = dashboardSeriesEpisodesKey(PLAYLIST, 200);
+                seriesEpisodeAnswers.set(key, { status: 'failed' });
+                await loadDashboard();
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(1);
+
+                // Playlist store churn elsewhere in the app: an M3U
+                // playlist added, every playlist object replaced.
+                playlistsSignal.set([
+                    ...playlistsSignal().map((playlist) => ({ ...playlist })),
+                    {
+                        _id: 'm3u-new',
+                        title: 'New M3U',
+                        count: 1,
+                        importDate: '2026-10-04T00:00:00.000Z',
+                        autoRefresh: false,
+                    } as never,
+                ]);
+                TestBed.tick();
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(1);
+
+                // The dashboard is opened again: the portal answers now.
+                answerEpisodes(200, [201, 202, 203, 204, 205]);
+                await service.reloadPlaybackPositions();
+                TestBed.tick();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(2);
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({ contentXtreamId: 205 });
+            });
+
+            it('looks the list up again with the credentials of an edited playlist', async () => {
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    { status: 'failed' }
+                );
+                await loadDashboard();
+
+                playlistsSignal.set(
+                    playlistsSignal().map((playlist) =>
+                        playlist._id === PLAYLIST
+                            ? { ...playlist, password: 'new-pass' }
+                            : playlist
+                    )
+                );
+                TestBed.tick();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(2);
+                expect(seriesEpisodesMock.request).toHaveBeenLastCalledWith(
+                    [
+                        expect.objectContaining({
+                            credentials: expect.objectContaining({
+                                password: 'new-pass',
+                            }),
+                        }),
+                    ],
+                    expect.any(Number)
+                );
+            });
+
+            it('leaves once its last episode is watched', async () => {
+                answerEpisodes(200, [201, 202, 203, 204]);
+
+                await loadDashboard();
+
+                expect(titles()).toEqual([]);
+                expect(service.globalRecentVodItems()).toHaveLength(1);
+            });
+
+            it('keeps to the run when an extra left unfinished is the newest activity', async () => {
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    [
+                        episodePosition(
+                            201,
+                            200,
+                            3491,
+                            3552,
+                            '2026-10-01T08:00:00Z'
+                        ),
+                        {
+                            ...episodePosition(
+                                290,
+                                200,
+                                600,
+                                1800,
+                                '2026-10-02T08:00:00Z'
+                            ),
+                            seasonNumber: 0,
+                            episodeNumber: 1,
+                        },
+                    ]
+                );
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    {
+                        status: 'loaded',
+                        seasons: {
+                            '0': [
+                                {
+                                    id: '290',
+                                    season: 0,
+                                    episode_num: 1,
+                                    title: 'Behind the scenes',
+                                },
+                            ],
+                            '1': [201, 202].map((id, index) => ({
+                                id: String(id),
+                                season: 1,
+                                episode_num: index + 1,
+                                title: `Episode ${index + 1}`,
+                            })),
+                        } as never,
+                    }
+                );
+
+                await loadDashboard();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledWith(
+                    [expect.objectContaining({ seriesId: 200 })],
+                    expect.any(Number)
+                );
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({ contentXtreamId: 202, positionSeconds: 0 });
+            });
+
+            it('takes the later episode as the newest when two were saved in the same second', async () => {
+                // Episode 5 left early, then episode 6 finished within the
+                // same second (the database keeps whole seconds).
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    [
+                        episodePosition(
+                            205,
+                            200,
+                            30,
+                            3552,
+                            '2026-10-05 08:00:00'
+                        ),
+                        episodePosition(
+                            206,
+                            200,
+                            3491,
+                            3552,
+                            '2026-10-05 08:00:00'
+                        ),
+                    ]
+                );
+                answerEpisodes(200, [201, 202, 203, 204, 205, 206, 207]);
+
+                await loadDashboard();
+
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({ contentXtreamId: 207 });
+            });
+        });
+
+        describe('with more series to look up than the rail shows', () => {
+            /** `count` series, newest first, each with episode x1 watched. */
+            const historyOfSeries = (count: number) => {
+                const seriesIds = Array.from(
+                    { length: count },
+                    (_, i) => 500 + i
+                );
+                dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue(
+                    seriesIds.map((seriesId, i) =>
+                        recentRow(
+                            seriesId,
+                            `Series ${i}`,
+                            'series',
+                            seriesId,
+                            new Date(
+                                Date.UTC(2026, 9, 4, 12) - i * 60_000
+                            ).toISOString()
+                        )
+                    )
+                );
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    seriesIds.map((seriesId) =>
+                        episodePosition(
+                            seriesId * 10 + 1,
+                            seriesId,
+                            3491,
+                            3552,
+                            '2026-10-04T08:00:00Z'
+                        )
+                    )
+                );
+                return seriesIds;
+            };
+            /** Lookups answer at once here: let the window grow. */
+            const settleLookups = () => {
+                for (let i = 0; i < 5; i++) {
+                    TestBed.tick();
+                }
+            };
+            const finished = (seriesId: number) =>
+                answerEpisodes(seriesId, [seriesId * 10 + 1]);
+            const continuing = (seriesId: number) =>
+                answerEpisodes(seriesId, [
+                    seriesId * 10 + 1,
+                    seriesId * 10 + 2,
+                ]);
+
+            it('looks up series until the rail is filled, and keeps older ones in place', async () => {
+                const seriesIds = historyOfSeries(
+                    CONTINUE_WATCHING_VISIBLE_ITEMS + 1
+                );
+                seriesIds.forEach(continuing);
+
+                await loadDashboard();
+                settleLookups();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(1);
+                expect(
+                    seriesEpisodesMock.request.mock.calls[0][0]
+                ).toHaveLength(CONTINUE_WATCHING_VISIBLE_ITEMS);
+                // Not looked up: it keeps its place, never hidden on a guess.
+                expect(titles()).toEqual(
+                    seriesIds.map((_, i) => `Series ${i}`)
+                );
+            });
+
+            it('looks past finished series for one that goes on, in the same round', async () => {
+                const seriesIds = historyOfSeries(
+                    CONTINUE_WATCHING_VISIBLE_ITEMS + 1
+                );
+                seriesIds.slice(0, -1).forEach(finished);
+                continuing(seriesIds[seriesIds.length - 1]);
+
+                await loadDashboard();
+                settleLookups();
+
+                expect(titles()).toEqual([
+                    `Series ${CONTINUE_WATCHING_VISIBLE_ITEMS}`,
+                ]);
+                const calls = seriesEpisodesMock.request.mock.calls;
+                expect(calls[calls.length - 1][0]).toHaveLength(
+                    seriesIds.length
+                );
+                // Growing the window is no new round: nothing is retried.
+                const rounds = calls.map((call) => (call as unknown[])[1]);
+                expect(new Set(rounds).size).toBe(1);
+            });
+
+            it(`looks up ${CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT} series at most and keeps the rest in place`, async () => {
+                const seriesIds = historyOfSeries(
+                    CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT + 5
+                );
+                seriesIds.forEach(finished);
+
+                await loadDashboard();
+                settleLookups();
+
+                const calls = seriesEpisodesMock.request.mock.calls;
+                expect(calls[calls.length - 1][0]).toHaveLength(
+                    CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
+                );
+                expect(titles()).toEqual(
+                    seriesIds
+                        .slice(CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT)
+                        .map(
+                            (_, i) =>
+                                `Series ${CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT + i}`
+                        )
+                );
+            });
+        });
+
+        it('lists nothing until the positions of every recent playlist have loaded', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    1,
+                    'Credits Movie',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+                recentRow(
+                    2,
+                    'Halfway Movie',
+                    'movie',
+                    102,
+                    '2026-10-04T09:00:00Z'
+                ),
+            ]);
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                vodPosition(101, 3491, 3552),
+                vodPosition(102, 2700, 5400),
+            ]);
+
+            await service.reloadGlobalRecentItems();
+
+            // Without positions a finished title looks like an unfinished one.
+            expect(service.continueWatchingSettled()).toBe(false);
+            expect(titles()).toEqual([]);
+
+            await service.reloadPlaybackPositions();
+
+            expect(service.continueWatchingSettled()).toBe(true);
+            expect(titles()).toEqual(['Halfway Movie']);
+
+            // Once settled, a title from a not yet loaded playlist shows at
+            // once instead of holding the whole rail back again.
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    3,
+                    'Other Source Movie',
+                    'movie',
+                    501,
+                    '2026-10-04T11:00:00Z',
+                    'xtream-1'
+                ),
+                recentRow(
+                    1,
+                    'Credits Movie',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+                recentRow(
+                    2,
+                    'Halfway Movie',
+                    'movie',
+                    102,
+                    '2026-10-04T09:00:00Z'
+                ),
+            ]);
+            await service.reloadGlobalRecentItems();
+
+            expect(service.continueWatchingSettled()).toBe(true);
+            expect(titles()).toEqual(['Other Source Movie', 'Halfway Movie']);
+        });
+
+        it('settles at once when the history holds no movies or series', async () => {
+            await service.reloadGlobalRecentItems();
+
+            expect(service.continueWatchingSettled()).toBe(true);
+            expect(titles()).toEqual([]);
+        });
+
+        describe('in the PWA', () => {
+            const pwaRow = (id: number, title: string, xtreamId: number) => ({
+                id,
+                category_id: 1,
+                title,
+                viewed_at: '2026-10-04T09:00:00.000Z',
+                poster_url: `https://example.com/${xtreamId}.png`,
+                xtream_id: xtreamId,
+                type: 'movie',
+            });
+
+            beforeEach(() => {
+                // Constructed without the Electron bridge: the history comes
+                // from the Xtream data source, after the playlists are in.
+                Object.defineProperty(window, 'electron', {
+                    value: undefined,
+                    configurable: true,
+                });
+                TestBed.resetTestingModule();
+                TestBed.configureTestingModule(createTestingModuleProviders());
+                service = TestBed.inject(DashboardDataService);
+                TestBed.tick();
+            });
+
+            it('waits for the history read before listing anything', async () => {
+                const pending = createPendingItems<ReturnType<typeof pwaRow>>();
+                xtreamDataSourceMock.getRecentItems.mockImplementation(
+                    (playlistId: string) =>
+                        playlistId === PLAYLIST
+                            ? pending.promise
+                            : Promise.resolve([])
+                );
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    [vodPosition(101, 3491, 3552), vodPosition(102, 2700, 5400)]
+                );
+
+                const reload = service.reloadGlobalRecentItems();
+                TestBed.tick();
+                // The playlists alone used to count as the loaded history:
+                // with no movie known yet the rail settled empty, then listed
+                // the finished one until its position arrived.
+                expect(service.globalRecentLoaded()).toBe(false);
+                expect(service.continueWatchingSettled()).toBe(false);
+
+                pending.resolve([
+                    pwaRow(1, 'Credits Movie', 101),
+                    pwaRow(2, 'Halfway Movie', 102),
+                ]);
+                await reload;
+                expect(service.globalRecentLoaded()).toBe(true);
+                expect(titles()).toEqual([]);
+
+                await service.reloadPlaybackPositions();
+                expect(titles()).toEqual(['Halfway Movie']);
+            });
+
+            it('settles when the history read fails', async () => {
+                xtreamDataSourceMock.getRecentItems.mockRejectedValue(
+                    new Error('IndexedDB unavailable')
+                );
+
+                await expect(
+                    service.reloadGlobalRecentItems()
+                ).resolves.toBeUndefined();
+
+                expect(service.globalRecentLoaded()).toBe(true);
+                expect(service.globalRecentLoading()).toBe(false);
+                expect(service.continueWatchingSettled()).toBe(true);
+            });
+        });
+
+        it('keeps the newest positions when an older reload finishes last', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    1,
+                    'Credits Movie',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+            ]);
+            await service.reloadGlobalRecentItems();
+            let resolveStale: (rows: PlaybackPositionData[]) => void = () =>
+                undefined;
+            playbackPositionsMock.getAllPlaybackPositions
+                .mockImplementationOnce(
+                    () =>
+                        new Promise<PlaybackPositionData[]>((resolve) => {
+                            resolveStale = resolve;
+                        })
+                )
+                .mockResolvedValueOnce([vodPosition(101, 3491, 3552)]);
+
+            const staleReload = service.reloadPlaybackPositions();
+            await service.reloadPlaybackPositions();
+            expect(titles()).toEqual([]);
+
+            // The older read answers last, from before the movie finished.
+            resolveStale([vodPosition(101, 1800, 3552)]);
+            await staleReload;
+
+            const [movie] = service.globalRecentVodItems();
+            expect(
+                service.getPlaybackPositionForItem(movie)?.positionSeconds
+            ).toBe(3491);
+            expect(titles()).toEqual([]);
+        });
+
+        it('drops a title the user marks as watched', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    2,
+                    'Halfway Movie',
+                    'movie',
+                    102,
+                    '2026-10-04T09:00:00Z'
+                ),
+            ]);
+            let stored = vodPosition(102, 2700, 5400);
+            playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
+                () => Promise.resolve([stored])
+            );
+            playbackPositionsMock.savePlaybackPositionOrThrow.mockImplementation(
+                (_playlistId: string, data: PlaybackPositionData) => {
+                    stored = data;
+                    return Promise.resolve();
+                }
+            );
+            await service.reloadGlobalRecentItems();
+            await service.reloadPlaybackPositions();
+            expect(titles()).toEqual(['Halfway Movie']);
+
+            await expect(
+                service.markRecentItemWatched(
+                    service.continueWatchingItems()[0]
+                )
+            ).resolves.toBe(true);
+
+            expect(titles()).toEqual([]);
+        });
     });
 
     it('exposes a live-only slice of global favorites so the dashboard can promote favorited channels into the Live rail', async () => {
@@ -1535,44 +2633,60 @@ describe('DashboardDataService', () => {
         ).toEqual(['xtream-1', 'stalker-1', 'm3u-1']);
     });
 
-    it('includes PWA Xtream recent items from the active data source', async () => {
-        Object.defineProperty(window, 'electron', {
-            value: undefined,
-            configurable: true,
-        });
-        xtreamDataSourceMock.getRecentItems.mockResolvedValue([
-            {
-                id: 91,
-                category_id: 18,
-                title: 'Recent Movie',
-                rating: '7.8',
-                viewed_at: '2026-04-21T10:00:00.000Z',
-                poster_url: 'https://example.com/recent-movie.png',
-                xtream_id: 7001,
-                type: 'movie',
-            },
-        ]);
-
-        await service.reloadGlobalRecentItems();
-
-        expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
-            'xtream-1'
-        );
-        expect(dbServiceMock.getGlobalRecentlyViewed).not.toHaveBeenCalled();
-        expect(service.globalRecentItems()).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
+    it.each(['present', 'missing', 'unknown'] as const)(
+        'carries %s PWA Recent availability through the dashboard handoff',
+        async (catalogStatus) => {
+            Object.defineProperty(window, 'electron', {
+                value: undefined,
+                configurable: true,
+            });
+            xtreamDataSourceMock.getRecentItems.mockResolvedValue([
+                {
                     id: 91,
+                    catalog_status: catalogStatus,
+                    category_id: 18,
                     title: 'Recent Movie',
-                    type: 'movie',
-                    playlist_id: 'xtream-1',
-                    playlist_name: 'Xtream Playlist',
-                    source: 'xtream',
+                    rating: '7.8',
                     viewed_at: '2026-04-21T10:00:00.000Z',
-                }),
-            ])
-        );
-    });
+                    poster_url: 'https://example.com/recent-movie.png',
+                    xtream_id: 7001,
+                    type: 'movie',
+                },
+            ]);
+
+            await service.reloadGlobalRecentItems();
+
+            expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
+                'xtream-1'
+            );
+            expect(
+                dbServiceMock.getGlobalRecentlyViewed
+            ).not.toHaveBeenCalled();
+            expect(service.globalRecentItems()).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        id: 91,
+                        catalogStatus,
+                        title: 'Recent Movie',
+                        type: 'movie',
+                        playlist_id: 'xtream-1',
+                        playlist_name: 'Xtream Playlist',
+                        source: 'xtream',
+                        viewed_at: '2026-04-21T10:00:00.000Z',
+                    }),
+                ])
+            );
+            const item = service
+                .globalRecentItems()
+                .find((row) => row.id === 91);
+            if (!item) throw new Error('Missing recent item');
+            expect(
+                getOpenCollectionDetailItemState(
+                    service.getRecentItemDetailNavigationState(item)
+                )?.item.catalogStatus
+            ).toBe(catalogStatus);
+        }
+    );
 
     it('loads PWA Xtream recent items for multiple playlists in parallel', async () => {
         Object.defineProperty(window, 'electron', {
@@ -1806,6 +2920,7 @@ describe('DashboardDataService', () => {
             'global-recent',
         ]);
         expect(service.getRecentItemNavigationState(movieItem!)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     uid: 'xtream::xtream-1::movie:7001',
@@ -1881,7 +2996,7 @@ describe('DashboardDataService', () => {
         await service.removeGlobalRecentItem(item);
 
         expect(xtreamDataSourceMock.removeRecentItem).toHaveBeenCalledWith(
-            91,
+            { id: 91, type: 'movie' },
             'xtream-1'
         );
         expect(dbServiceMock.removeRecentItem).not.toHaveBeenCalled();

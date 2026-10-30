@@ -1,5 +1,8 @@
 @if (hasPlayback()) {
-    <section class="player-shell" aria-label="Inline player">
+    <section
+        class="player-shell"
+        [attr.aria-label]="'PORTALS.INLINE_PLAYER' | translate"
+    >
         <header class="player-shell__header">
             <div class="player-shell__title-row">
                 <div class="player-shell__heading">
@@ -18,6 +21,7 @@
                 <div class="player-shell__actions">
                     @if (allSources().length > 1) {
                         <app-vod-sources-chip
+                            variant="secondary"
                             class="player-shell__sources"
                             [sources]="allSources()"
                             [count]="alternativeSources().length"
@@ -49,7 +53,7 @@
                         {{ 'PORTALS.COPY_STREAM_URL' | translate }}
                     </button>
                     <button
-                        mat-stroked-button
+                        mat-flat-button
                         type="button"
                         (click)="onClose()"
                     >

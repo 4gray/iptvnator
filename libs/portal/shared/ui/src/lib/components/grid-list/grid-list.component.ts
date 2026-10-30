@@ -14,6 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { readProviderRating } from '@iptvnator/shared/interfaces';
 import {
     PortalWatchState,
     getXtreamCatchupDays,
@@ -49,22 +50,19 @@ interface GridListItem {
     [key: string]: unknown;
 }
 
+/**
+ * Card rating badge text. Provider stand-ins (`"N/A"`, `"-"`) and an unrated
+ * zero read as no rating — see `readProviderRating` — so the badge is hidden
+ * and {@link resolveGridRating} can reach the generic `rating` behind them.
+ */
 export function formatGridRating(value: unknown): string | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value.toFixed(1);
-    }
-
-    if (typeof value !== 'string') {
+    const text = readProviderRating(value);
+    if (text === undefined) {
         return undefined;
     }
 
-    const trimmed = value.trim();
-    if (!trimmed) {
-        return undefined;
-    }
-
-    const numericRating = Number.parseFloat(trimmed);
-    return Number.isFinite(numericRating) ? numericRating.toFixed(1) : trimmed;
+    const numericRating = Number.parseFloat(text);
+    return Number.isFinite(numericRating) ? numericRating.toFixed(1) : text;
 }
 
 export function resolveGridRating(
@@ -108,7 +106,8 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
             } @else {
                 @for (item of items(); track $index) {
                     @let i = $any(item);
-                    @let title = channelTitle(i);
+                    @let title =
+                        channelTitle(i) || ('PORTALS.UNTITLED' | translate);
                     <mat-card
                         [class.grid-card--logo]="variant() === 'logo'"
                         role="button"
@@ -208,7 +207,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                         @if (rating) {
                             <div
                                 class="rating"
-                                [matTooltip]="'XTREAM.IMDB_RATING' | translate"
+                                [matTooltip]="ratingLabelKey(i) | translate"
                             >
                                 <mat-icon>star</mat-icon>{{ rating }}
                             </div>
@@ -262,7 +261,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                 <span>{{ 'PORTALS.GRID.LOAD_MORE_FAILED' | translate }}</span>
                 <button
                     type="button"
-                    mat-stroked-button
+                    mat-flat-button
                     (click)="retryLoadMore.emit()"
                 >
                     {{ 'PORTALS.GRID.RETRY' | translate }}
@@ -302,6 +301,10 @@ export class GridListComponent {
     readonly variant = input<'poster' | 'logo'>('poster');
     readonly type = input<'vod' | 'series' | 'live' | string>('');
     protected readonly resolveRating = resolveGridRating;
+    protected readonly ratingLabelKey = (item: GridListItem): string =>
+        formatGridRating(item.rating_imdb)
+            ? 'XTREAM.IMDB_RATING'
+            : 'XTREAM.RATING';
     protected readonly resolvePoster = (
         item: GridListItem
     ): string | undefined =>
@@ -345,7 +348,8 @@ export class GridListComponent {
             raw,
             this.isLiveGrid() && this.settingsStore.stripCountryPrefix?.()
         );
-        return stripped || 'No name';
+        // Empty: the template shows the translated "Untitled" label.
+        return stripped;
     };
 
     readonly skeletonRows = computed(() =>

@@ -99,12 +99,14 @@ describe('PlayerControlsComponent subtitle settings', () => {
     });
 
     it('renders the subtitle chip with zero tracks when external loading exists', () => {
-        expect(query('[aria-label="Subtitles"]')).toBeNull();
+        const chip = () =>
+            query('[data-test-id="player-controls-subtitle-chip"]');
+        expect(chip()).toBeNull();
 
         setCapabilities({ externalSubtitles: true });
         fixture.detectChanges();
 
-        expect(query('[aria-label="Subtitles"]')).not.toBeNull();
+        expect(chip()).not.toBeNull();
         openSubtitleMenu();
         // No track list entries: no Off row without a selectable track…
         expect(query('.player-settings__option--selected')).toBeNull();

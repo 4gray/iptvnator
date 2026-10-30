@@ -42,6 +42,7 @@ import { PortalChannelsListComponent } from '../portal-channels-list/portal-chan
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { liveHistoryTestCases } from './live-stream-layout-history.spec-data';
 
 import {
     sampleChannel,
@@ -97,6 +98,7 @@ describe('LiveStreamLayoutComponent', () => {
         ]),
         constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
         openPlayer: jest.fn(),
+        addRecentItem: jest.fn(),
         setSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
         loadMoreContent: jest.fn(),
@@ -147,6 +149,7 @@ describe('LiveStreamLayoutComponent', () => {
         router = { events: routerEvents, navigate: jest.fn() };
         xtreamStore.constructStreamUrl.mockClear();
         xtreamStore.openPlayer.mockClear();
+        xtreamStore.addRecentItem.mockClear();
         xtreamStore.setSelectedItem.mockClear();
         xtreamStore.setSelectedCategory.mockClear();
         xtreamStore.loadMoreContent.mockClear();
@@ -203,13 +206,6 @@ describe('LiveStreamLayoutComponent', () => {
                             queryParamMap: convertToParamMap({}),
                         },
                         queryParamMap: routeQueryParamMap.asObservable(),
-                        pathFromRoot: [
-                            {
-                                snapshot: {
-                                    data: { layout: 'workspace' },
-                                },
-                            },
-                        ],
                     },
                 },
                 {
@@ -226,9 +222,9 @@ describe('LiveStreamLayoutComponent', () => {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
                         supportsDownloads: true,
-                        get supportsEpg() {
-                            return Boolean(window.electron);
-                        },
+                        // The portal transport exists in both runtimes.
+                        supportsProviderEpg: true,
+                        supportsProviderCatchUp: true,
                         get isElectron() {
                             return Boolean(window.electron);
                         },
@@ -344,7 +340,9 @@ describe('LiveStreamLayoutComponent', () => {
         settingsStore.resolvedEpgViewMode.set('timeline'); // restore for sibling tests
     });
 
-    it('hides the EPG panel in browser/PWA playback', () => {
+    liveHistoryTestCases(() => ({ component, xtreamStore, portalPlayer }));
+
+    it('renders the provider EPG panel in browser/PWA playback', () => {
         fixture.destroy();
         window.electron = undefined as unknown as typeof window.electron;
 
@@ -354,13 +352,14 @@ describe('LiveStreamLayoutComponent', () => {
         component.playLive(sampleChannel);
         fixture.detectChanges();
 
+        expect(component.isElectron).toBe(false);
         expect(
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
+        expect(fixture.nativeElement.querySelector('.epg')).not.toBeNull();
         expect(
             fixture.nativeElement.querySelector('app-epg-timeline')
-        ).toBeNull();
+        ).not.toBeNull();
     });
 
     it('restores the collapsed live EPG panel state for embedded playback', () => {
@@ -489,11 +488,11 @@ describe('LiveStreamLayoutComponent', () => {
         expect(grid.componentInstance.type()).toBe('live');
         expect(
             fixture.nativeElement.querySelector('.category-title').textContent
-        ).toContain('All Items');
+        ).toContain('PORTALS.ALL_ITEMS');
         expect(
             fixture.nativeElement.querySelector('.category-subtitle')
                 .textContent
-        ).toContain('3 channels');
+        ).toContain('WORKSPACE.CONTEXT.ITEM_COUNT_OTHER');
         expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
         expect(
             fixture.debugElement.query(

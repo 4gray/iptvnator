@@ -26,6 +26,8 @@ import {
 import {
     DbCategoryType,
     IXtreamDataSource,
+    XtreamCollectionRef,
+    xtreamCollectionId,
     mapCategoryTypeToDbType,
     ProgressCallback,
     XtreamOperationOptions,
@@ -466,24 +468,42 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     // Favorites Operations
     // =========================================================================
 
-    async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
+    async getFavorites(
+        playlistId: string
+    ): Promise<import('./xtream-data-source.interface').XtreamFavoriteItem[]> {
         return this.dbService.getFavorites(playlistId);
     }
 
     async addFavorite(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string,
         backdropUrl?: string
     ): Promise<void> {
-        await this.dbService.addToFavorites(contentId, playlistId, backdropUrl);
+        await this.dbService.addToFavoritesOrThrow(
+            xtreamCollectionId(contentId),
+            playlistId,
+            backdropUrl
+        );
     }
 
-    async removeFavorite(contentId: number, playlistId: string): Promise<void> {
-        await this.dbService.removeFromFavorites(contentId, playlistId);
+    async removeFavorite(
+        contentId: XtreamCollectionRef,
+        playlistId: string
+    ): Promise<void> {
+        await this.dbService.removeFromFavorites(
+            xtreamCollectionId(contentId),
+            playlistId
+        );
     }
 
-    async isFavorite(contentId: number, playlistId: string): Promise<boolean> {
-        return this.dbService.isFavorite(contentId, playlistId);
+    async isFavorite(
+        contentId: XtreamCollectionRef,
+        playlistId: string
+    ): Promise<boolean> {
+        return this.dbService.isFavorite(
+            xtreamCollectionId(contentId),
+            playlistId
+        );
     }
 
     // =========================================================================
@@ -495,18 +515,25 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     }
 
     async addRecentItem(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string,
         backdropUrl?: string
     ): Promise<void> {
-        await this.dbService.addRecentItem(contentId, playlistId, backdropUrl);
+        await this.dbService.addRecentItem(
+            xtreamCollectionId(contentId),
+            playlistId,
+            backdropUrl
+        );
     }
 
     async removeRecentItem(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string
     ): Promise<void> {
-        await this.dbService.removeRecentItem(contentId, playlistId);
+        await this.dbService.removeRecentItem(
+            xtreamCollectionId(contentId),
+            playlistId
+        );
     }
 
     async clearRecentItems(playlistId: string): Promise<void> {
@@ -520,22 +547,27 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async getContentByXtreamId(
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch
     ): Promise<XtreamContentItem | null> {
         return this.dbService.getContentByXtreamId(
             xtreamId,
             playlistId,
-            contentType
+            contentType,
+            ...(identity ? [identity] : [])
         );
     }
 
     async setContentMetadataIfMissing(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string,
         patch: ContentMetadataPatch
     ): Promise<void> {
         void playlistId;
-        await this.dbService.setContentMetadataIfMissing(contentId, patch);
+        await this.dbService.setContentMetadataIfMissing(
+            xtreamCollectionId(contentId),
+            patch
+        );
     }
 
     // =========================================================================
@@ -655,11 +687,24 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         };
     }
 
+    async restoreFavoriteSnapshots(
+        playlistId: string,
+        state: XtreamPendingRestoreState
+    ): Promise<void> {
+        this.playbackService.assertSupportsAtomicReplacement();
+        await this.dbService.restoreXtreamFavoriteSnapshots(
+            playlistId,
+            state.favorites,
+            state.favoritesRestoreId
+        );
+    }
+
     async restoreUserData(
         playlistId: string,
         restoreState: XtreamPendingRestoreState,
         options?: XtreamOperationOptions
     ): Promise<void> {
+        this.playbackService.assertSupportsAtomicReplacement();
         const categoriesByType = await Promise.all([
             this.dbService.getAllXtreamCategories(playlistId, 'live'),
             this.dbService.getAllXtreamCategories(playlistId, 'movies'),
@@ -702,21 +747,18 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             }
         }
 
+        await this.restoreFavoriteSnapshots(playlistId, restoreState);
         await this.dbService.restoreXtreamUserData(
             playlistId,
-            restoreState.favorites,
+            [],
             restoreState.recentlyViewed,
             options
         );
 
-        await this.playbackService.clearAllPlaybackPositions(playlistId);
-
-        for (const playbackPosition of restoreState.playbackPositions) {
-            await this.playbackService.savePlaybackPosition(
-                playlistId,
-                playbackPosition
-            );
-        }
+        await this.playbackService.replaceAllPlaybackPositions(
+            playlistId,
+            restoreState.playbackPositions
+        );
 
         // The fresh-import path lands here rather than in the backup service:
         // a new playlist has no content yet when the archive is read, so its

@@ -18,9 +18,9 @@ The Docker image runs the browser PWA, not the Electron desktop application.
 That means:
 
 - EPG/XMLTV panels and multi-EPG views are not available in the self-hosted PWA.
-- Playlist metadata is stored in the browser through IndexedDB, and Xtream user
-  data is stored by the PWA data source in localStorage. The PWA does not use
-  the Electron SQLite database or DB worker.
+- With server storage enabled, source definitions are shared by connected PWA
+  and Electron clients. Each browser retains a local IndexedDB projection and
+  its own Xtream user data. Viewing activity is not synchronized.
 - Docker cannot launch local desktop players or Embedded MPV. If a stream does
   not play inline in the browser, use the in-app copy URL action and open the
   stream manually in an external player such as MPV, VLC, or IINA.
@@ -98,6 +98,11 @@ safe local defaults shown below.
 | `PORT`                                   | `3000`                  | Internal Express backend port. nginx proxy config is rendered from the template to match it at startup.                                      |
 | `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS` | `0`                     | Set to `1` or `true` only for trusted local/LAN deployments that intentionally proxy private network IPTV or mock endpoints.                 |
 | `NODE_EXTRA_CA_CERTS`                    | unset                   | Optional Node.js CA bundle path for providers using private certificate authorities. Mount the CA file into the container and set this path. |
+| `IPTVNATOR_STORAGE`                      | `server` in the image   | `server` opens the server storage database under `IPTVNATOR_DATA_DIR` and its `/api/v1` routes; `none` keeps the backend stateless.          |
+| `IPTVNATOR_DATA_DIR`                     | `/data` in the image    | Data root; the database is `<root>/databases/iptvnator.db`. Mount a volume here.                                                             |
+| `IPTVNATOR_ACCESS_TOKEN`                 | unset                   | Optional shared access token. Enter it in the client connection UI; all non-public API and provider proxy routes require it. |
+| `IPTVNATOR_MAX_DOCUMENT_MB`              | `64`                    | Largest playlist document the backend accepts. Keep the nginx `client_max_body_size` in step.                                                |
+| `IPTVNATOR_BACKEND_START_TIMEOUT`        | `300`                   | Seconds the entrypoint waits for the backend's `/health` before giving up. Database migrations run before the backend listens.              |
 
 The web backend proxy accepts only `http` and `https` provider URLs. The PWA
 first registers provider URLs through `/provider-targets`, then uses the
@@ -126,6 +131,38 @@ proxies `/api/*` to the internal backend. The Dockerfile and compose file both
 define a health check against `/api/health`. If nginx or the backend exits
 after startup, the entrypoint exits the container so Docker Compose can apply
 the `restart: unless-stopped` policy.
+
+## Server Storage
+
+The image opens a server storage database on the `/data` volume
+(`IPTVNATOR_STORAGE=server`, `IPTVNATOR_DATA_DIR=/data`) and serves its API
+under `/api/v1`. Source definitions are shared between devices connected to
+that instance. Open the NAS web address on phones/tablets, or use Settings →
+Data → Server in Electron to enter the same app address. Names, connections
+and uploaded M3U text synchronize; favorites, history, playback positions and
+EPG remain local. Visible clients refresh within a 15-second polling interval.
+
+Settings → Server can preview and import the device's original local sources.
+Matching connections are deduplicated; the original library is retained.
+Disconnecting returns to that library without removing sources from NAS.
+Connection changes restart/reload the client. A previously synchronized client
+keeps its cached sources while offline; shared source edits require the server.
+
+For Synology, mount a persistent folder or named volume at `/data`, retain its
+write permissions, and expose the app port through your existing NAS network or
+reverse proxy. Use a container-capable NAS and an image matching its CPU
+architecture. Set `CLIENT_URL` to the actual browser origin. Keep an HTTPS
+reverse proxy and a trusted certificate for browser installation/secure-context
+features; plain HTTP LAN access is not equivalent to an installable PWA.
+Manually entered client addresses accept the app's reverse-proxy subpath;
+`https://nas.example/iptvnator` selects `/iptvnator/api`.
+
+Provider credentials will be stored unencrypted in that database, as the
+desktop app does. Protect externally accessible instances with the shared token
+or reverse-proxy authentication. Browser tokens last for the tab; desktop uses
+OS-protected storage where available and otherwise asks again after restart.
+Back up the volume like any database: stop the container, or copy
+`databases/iptvnator.db` together with its `-wal` file.
 
 ## IPv6, VPNs, And Connection Fallback
 

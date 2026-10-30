@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures';
-import { pressTab, waitForScrollIdle } from './e2e-helpers';
+import { pressTab, waitForScrollIdle, setSwitch } from './e2e-helpers';
 
 /**
  * The M3U movie-recognition workflow end to end: a playlist entry whose URL
@@ -59,6 +59,16 @@ async function serveTmdb(page: Page): Promise<void> {
                 overview: 'Paul Atreides arrives on Arrakis.',
                 release_date: '2021-09-15',
                 runtime: 155,
+                release_dates: {
+                    results: [
+                        {
+                            iso_3166_1: 'US',
+                            release_dates: [
+                                { certification: 'PG-13', type: 4 },
+                            ],
+                        },
+                    ],
+                },
                 vote_average: 7.8,
                 vote_count: 9000,
                 genres: [{ id: 878, name: 'Science Fiction' }],
@@ -100,12 +110,15 @@ async function selectPlayer(
 
 async function enableTmdb(page: Page): Promise<void> {
     await page.goto('/workspace/settings/tmdb');
-    await page.locator('[data-test-id="tmdb-enabled"] input').check();
+    await setSwitch(
+        page.locator('[data-test-id="tmdb-enabled"] [role="switch"]'),
+        true
+    );
     await page.locator('[data-test-id="tmdb-api-key"]').fill('e2e-key');
     // The M3U recognition toggle only appears once TMDB itself is on, and it
     // ships enabled — assert rather than click, so a changed default fails.
     await expect(
-        page.locator('[data-test-id="tmdb-m3u-vod-details"] input')
+        page.locator('[data-test-id="tmdb-m3u-vod-details"] [role="switch"]')
     ).toBeChecked();
     await saveSettings(page);
 }
@@ -123,7 +136,9 @@ async function importPlaylist(
     await dialog.getByLabel('Insert m3u(8) playlist as text').fill(content);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog.getByRole('button', { name: 'Import', exact: true }).click(),
+        dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click(),
     ]);
     await expect(page.getByText(`${count} channels`)).toBeVisible();
 }
@@ -220,9 +235,12 @@ async function configureMetadata(
     if (mode === 'disabled') return;
     await enableTmdb(page);
     if (mode === 'details-disabled') {
-        await page
-            .locator('[data-test-id="tmdb-m3u-vod-details"] input')
-            .uncheck();
+        await setSwitch(
+            page.locator(
+                '[data-test-id="tmdb-m3u-vod-details"] [role="switch"]'
+            ),
+            false
+        );
         await saveSettings(page);
     }
 }
@@ -346,17 +364,21 @@ test('@web @m3u @tmdb recognized movies open the VOD detail view', async ({
     ).toEqual(['app-html-video-player']);
 
     // Metadata patches the mounted view asynchronously. The shell stamps the
-    // host templates into BOTH the hero and the watch-state About block, so
-    // every metadata string legitimately resolves twice.
+    // host templates into BOTH the hero and the watch-state About block, but
+    // the collapsed hero turns `visibility: hidden` 300ms after mount,
+    // sometimes before TMDB answers. Assert the copy a watching user sees.
+    const about = detail(page).locator('app-content-about');
     await expect(
-        detail(page).getByText('Paul Atreides arrives on Arrakis.').first()
+        about.getByText('Paul Atreides arrives on Arrakis.')
     ).toBeVisible();
-    await expect(
-        detail(page).getByText('Denis Villeneuve').first()
-    ).toBeVisible();
-    await expect(
-        detail(page).getByText('Science Fiction').first()
-    ).toBeVisible();
+    await expect(about.getByText('Denis Villeneuve')).toBeVisible();
+    await expect(about.getByText('Science Fiction')).toBeVisible();
+    await expect(about.locator('[data-test-id="age-rating-chip"]')).toHaveText(
+        'PG-13 · US'
+    );
+    await about.screenshot({
+        path: test.info().outputPath('m3u-age-rating-watch.png'),
+    });
 
     // A live channel keeps the classic layout.
     await sidebarEntry(page, 'Live One').click();
@@ -394,7 +416,7 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
 
     await page.keyboard.press('Escape');
     await expect(inlineVideo(page)).toHaveCount(0);
-    const playButton = page.locator('[data-test-id="m3u-vod-play"]');
+    const playButton = page.locator('[data-testid="m3u-vod-play"]');
     await expect(playButton).toBeVisible();
 
     // Browse → Play remounts the engine without a channel change.
@@ -407,16 +429,28 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
             )
         )
         .toBe(0.25);
-    // M3U has no browse Back target, so the shell shows no arrow in either
-    // state; the now-playing bar's own Close button returns to browse.
+    // M3U registers no Back target in either state: the header's only arrow
+    // is the history fallback to the dashboard the import started from,
+    // which claims no Escape. The now-playing bar's own Close button
+    // returns to browse.
     const shell = detail(page).locator('app-portal-detail-shell');
-    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
+    const headerBack = page.locator('[data-test-id="workspace-header-back"]');
+    await expect(headerBack).toHaveCount(1);
+    await expect(headerBack).not.toHaveAttribute('aria-keyshortcuts');
     await shell
         .locator('app-portal-inline-player')
         .getByRole('button', { name: 'Close player', exact: true })
         .click();
     await expect(inlineVideo(page)).toHaveCount(0);
-    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
+    await expect(headerBack).toHaveCount(1);
+    await expect(headerBack).not.toHaveAttribute('aria-keyshortcuts');
+    // The hero keeps its own inset (32px, or 20px in a pane narrower than
+    // 760px) in both states.
+    expect(
+        await shell
+            .locator('.hero__content')
+            .evaluate((el) => getComputedStyle(el).paddingInlineStart)
+    ).toMatch(/^(20|32)px$/);
     await shell.focus();
     await page.keyboard.press('Escape');
     await expect(playButton).toBeVisible();

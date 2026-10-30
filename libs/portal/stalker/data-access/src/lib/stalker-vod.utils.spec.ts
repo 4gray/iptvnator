@@ -253,44 +253,82 @@ describe('stalker-vod.utils regressions', () => {
     });
 
     it('preserves TMDB enrichment fields through info re-normalization', () => {
-        const tmdbCast = [{ name: 'Karl Urban', profileUrl: null }];
+        // Detail views re-normalize the selected item on every render, so
+        // every field `mergeStalkerInfoWithTmdb` can set has to survive here
+        const tmdbCast = [{ name: 'Rowan Quill', profileUrl: null }];
         const tmdbRecommendations = [
-            { tmdbId: 1, title: 'Invincible', year: 2021, posterUrl: null },
+            { tmdbId: 1, title: 'Harbor Static', year: 2021, posterUrl: null },
+        ];
+        const tmdbGenres = [{ id: 18, name: 'Drama' }];
+        const tmdbCountries = [{ code: 'NO', name: 'Norway' }];
+        const tmdbCertifications = [
+            { value: '12', countryCode: 'NO', source: 'tmdb' as const },
         ];
 
         const info = createStalkerInfo({
             id: '7',
             info: {
-                name: 'The Boys s05',
+                name: 'Lantern Coast s05',
                 movie_image: 'http://portal/poster.jpg',
                 description: 'Plot',
-                actors: 'Karl Urban',
+                actors: 'Rowan Quill',
                 director: '',
-                releasedate: '2026',
-                genre: 'Action',
+                releasedate: '2026-03-01',
+                genre: 'Drama',
                 rating_imdb: '',
                 rating_kinopoisk: '8.1',
+                tmdb_id: 4242,
                 tmdb_cast: tmdbCast,
                 tmdb_directors: [
                     {
-                        name: 'Eric Kripke',
+                        name: 'Mara Tollen',
                         profileUrl: null,
                         tmdbPersonId: 1216630,
                     },
                 ],
-                tmdb_backdrop: 'https://image.tmdb.org/t/p/w1280/boys.jpg',
+                tmdb_status: 'returning',
+                tmdb_backdrop: 'https://image.tmdb.org/t/p/w1280/coast.jpg',
                 tmdb_trailer: 'abc123def',
                 tmdb_recommendations: tmdbRecommendations,
+                tmdb_genres: tmdbGenres,
+                tmdb_countries: tmdbCountries,
+                tmdb_certifications: tmdbCertifications,
+                tmdb_media_type: 'tv',
+                tmdb_supplied_release_date: true,
             },
         });
 
+        expect(info.tmdb_id).toBe(4242);
         expect(info.tmdb_cast).toEqual(tmdbCast);
-        expect(info.tmdb_directors?.[0]?.name).toBe('Eric Kripke');
+        expect(info.tmdb_directors?.[0]?.name).toBe('Mara Tollen');
+        expect(info.tmdb_status).toBe('returning');
         expect(info.tmdb_backdrop).toBe(
-            'https://image.tmdb.org/t/p/w1280/boys.jpg'
+            'https://image.tmdb.org/t/p/w1280/coast.jpg'
         );
         expect(info.tmdb_trailer).toBe('abc123def');
         expect(info.tmdb_recommendations).toEqual(tmdbRecommendations);
+        expect(info.tmdb_genres).toEqual(tmdbGenres);
+        expect(info.tmdb_countries).toEqual(tmdbCountries);
+        expect(info.tmdb_certifications).toEqual(tmdbCertifications);
+        expect(
+            createStalkerInfo({
+                id: '7',
+                info: { ...info, tmdb_certifications: [] },
+            }).tmdb_certifications
+        ).toEqual([]);
+        expect(info.tmdb_media_type).toBe('tv');
+        expect(info.tmdb_supplied_release_date).toBe(true);
+    });
+
+    it('adds no TMDB fields to a row that was never enriched', () => {
+        const info = createStalkerInfo({
+            id: '8',
+            info: { name: 'Unenriched Title', releasedate: '2019' },
+        });
+
+        expect(
+            Object.keys(info).filter((key) => key.startsWith('tmdb_'))
+        ).toEqual([]);
     });
 
     describe('temporary-link flags survive normalization', () => {
@@ -339,6 +377,82 @@ describe('stalker-vod.utils regressions', () => {
             expect(selected.use_http_tmp_link).toBeUndefined();
             expect(selected.use_load_balancing).toBeUndefined();
         });
+    });
+});
+
+describe('provider placeholders in Stalker VOD info', () => {
+    // The series view renders `info` directly and the shared VOD template
+    // renders it through the view-model adapter, so the stand-ins have to
+    // be gone from `info` itself — not just from one template's guards.
+    const PLACEHOLDER_ROW = {
+        id: '31',
+        cmd: '/media/file_31.mpg',
+        name: 'Placeholder Movie',
+        o_name: 'N/A',
+        screenshot_uri: 'N/A',
+        description: 'N/A',
+        actors: 'n/a',
+        director: '-',
+        year: 'N/A',
+        genres_str: ' N/A ',
+        rating_imdb: 'N/A',
+        rating_kinopoisk: '0',
+    };
+
+    it('maps every stand-in to the empty value the info shape uses for absent', () => {
+        const info = createStalkerInfo(PLACEHOLDER_ROW);
+
+        expect(info).toEqual({
+            name: 'Placeholder Movie',
+            o_name: undefined,
+            movie_image: '',
+            description: '',
+            actors: '',
+            director: '',
+            releasedate: '',
+            genre: '',
+            rating_imdb: '',
+            rating_kinopoisk: '',
+        });
+    });
+
+    it('keeps the series view free of stand-ins through re-normalization', () => {
+        const displayed = normalizeStalkerVodDetailsItem(
+            normalizeStalkerVodDetailsItem({
+                ...PLACEHOLDER_ROW,
+                is_series: 1,
+            })
+        );
+
+        expect(displayed.info.releasedate).toBe('');
+        expect(displayed.info.rating_imdb).toBe('');
+        expect(displayed.info.rating_kinopoisk).toBe('');
+        expect(displayed.info.description).toBe('');
+    });
+
+    it('falls through a placeholder to the usable value behind it', () => {
+        const info = createStalkerInfo({
+            id: '32',
+            year: '2011',
+            genres_str: 'Drama',
+            description: 'Plot from the catalog row',
+            rating_imdb: 7.1,
+            info: {
+                name: 'N/A',
+                o_name: 'Original Title',
+                releasedate: 'N/A',
+                genre: '-',
+                description: 'N/A',
+                rating_imdb: '0.0',
+            },
+        });
+
+        expect(info.name).toBe('Original Title');
+        expect(info.o_name).toBe('Original Title');
+        expect(info.releasedate).toBe('2011');
+        expect(info.genre).toBe('Drama');
+        expect(info.description).toBe('Plot from the catalog row');
+        expect(info.rating_imdb).toBe('7.1');
     });
 });
 

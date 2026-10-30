@@ -60,8 +60,12 @@ trap handle_signal INT TERM
 trap cleanup EXIT
 
 backend_ready=0
+# With server storage the backend migrates its database before it listens,
+# which can take a while on a large volume. The loop still exits at once if
+# the backend process dies.
+BACKEND_START_TIMEOUT="${IPTVNATOR_BACKEND_START_TIMEOUT:-300}"
 
-for _ in $(seq 1 30); do
+for _ in $(seq 1 "$BACKEND_START_TIMEOUT"); do
     if wget -qO- "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
         backend_ready=1
         break
@@ -79,7 +83,7 @@ for _ in $(seq 1 30); do
 done
 
 if [ "$backend_ready" -ne 1 ]; then
-    echo "IPTVnator web backend did not become healthy on port ${PORT}."
+    echo "IPTVnator web backend did not become healthy on port ${PORT} within ${BACKEND_START_TIMEOUT} seconds (IPTVNATOR_BACKEND_START_TIMEOUT)."
     exit 1
 fi
 

@@ -5,13 +5,10 @@
 >
     @if (showIllustration()) {
         @if (viewType() === 'ERROR') {
-            <img
-                alt="Something went wrong"
-                src="./assets/images/broken-tv.svg"
-            />
+            <img alt="" src="./assets/images/broken-tv.svg" />
         } @else if (viewType() === 'EMPTY_CATEGORY') {
             <img
-                alt="empty category"
+                alt=""
                 class="error-view__illustration"
                 src="./assets/images/empty-category.svg"
             />
@@ -28,15 +25,19 @@
 
     @if (showActionButtons()) {
         <div class="error-view__actions">
-            <button mat-stroked-button routerLink="/">
+            <button mat-flat-button routerLink="/">
                 <mat-icon>home</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.HOME' | translate }}
             </button>
-            <button mat-stroked-button (click)="openPlaylistDetails()">
+            <button mat-flat-button (click)="openPlaylistDetails()">
                 <mat-icon>settings</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.PLAYLIST_SETTINGS' | translate }}
             </button>
-            <button mat-stroked-button color="warn" (click)="removeClicked()">
+            <button
+                mat-stroked-button
+                class="app-destructive-button"
+                (click)="removeClicked()"
+            >
                 <mat-icon>delete</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.DELETE' | translate }}
             </button>

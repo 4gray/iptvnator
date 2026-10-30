@@ -10,6 +10,7 @@ import {
     ParentalLockService,
     DatabaseService,
     PlaylistsService,
+    PlaylistStorageBackend,
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
@@ -66,6 +67,9 @@ describe('SettingsPlaylistResetFacade', () => {
                 MockProvider(ParentalLockService, {
                     clearAllLocks: jest.fn().mockResolvedValue(true),
                 }),
+                MockProvider(PlaylistStorageBackend, {
+                    kind: jest.fn().mockReturnValue('indexeddb'),
+                }),
                 provideMockStore({
                     selectors: [
                         { selector: selectAllPlaylistsMeta, value: [] },
@@ -94,6 +98,24 @@ describe('SettingsPlaylistResetFacade', () => {
 
     afterEach(() => {
         window.electron = originalElectron;
+    });
+
+    it('rewords the removal progress after a language switch mid-run', () => {
+        (translate.instant as jest.Mock).mockRestore();
+        translate.setTranslation('en', {
+            SETTINGS: { REMOVE_ALL_IN_PROGRESS: 'Removing playlists…' },
+        });
+        translate.setTranslation('ru', {
+            SETTINGS: { REMOVE_ALL_IN_PROGRESS: 'Удаление плейлистов…' },
+        });
+        translate.use('en');
+        facade.isRemovingAllPlaylists.set(true);
+
+        expect(facade.removeAllProgressLabel()).toBe('Removing playlists…');
+
+        translate.use('ru');
+
+        expect(facade.removeAllProgressLabel()).toBe('Удаление плейлистов…');
     });
 
     it('refuses the global wipe when there are no playlists', () => {
@@ -231,6 +253,23 @@ describe('SettingsPlaylistResetFacade', () => {
         expect(dispatchSpy).toHaveBeenCalledWith(
             PlaylistActions.removeAllPlaylists()
         );
+    });
+
+    it('leaves shared-source lock cleanup to the conditional source deletions', async () => {
+        jest.spyOn(
+            TestBed.inject(PlaylistStorageBackend),
+            'kind'
+        ).mockReturnValue('server');
+        setPlaylists([createPlaylistMeta({ _id: 'shared-source' })]);
+        jest.spyOn(matDialog, 'open').mockReturnValue(createDialogRef(true));
+
+        facade.confirmAndRemoveAll(noWait);
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+        expect(databaseService.deleteAllPlaylists).toHaveBeenCalled();
+        expect(
+            TestBed.inject(ParentalLockService).clearAllLocks
+        ).not.toHaveBeenCalled();
     });
 
     it('surfaces a failure snackbar when the wipe reports no success', async () => {

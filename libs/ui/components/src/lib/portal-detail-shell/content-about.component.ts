@@ -56,8 +56,7 @@ import { TranslateModule } from '@ngx-translate/core';
             </div>
         </section>
     `,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./content-about.component.scss'],
 })
 export class ContentAboutComponent {

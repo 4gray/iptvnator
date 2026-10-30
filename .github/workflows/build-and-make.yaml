@@ -31,6 +31,7 @@ on:
             - '**/*.md'
             - 'docs/**'
             - '.plans/**'
+            - '.agents/**'
             - '.codex/**'
             - '.claude/**'
     pull_request:
@@ -40,6 +41,7 @@ on:
             - '**/*.md'
             - 'docs/**'
             - '.plans/**'
+            - '.agents/**'
             - '.codex/**'
             - '.claude/**'
     workflow_dispatch:
@@ -416,7 +418,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7

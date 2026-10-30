@@ -66,18 +66,21 @@ credentials. IPTVnator can read them out of the link for you, as shown below.
     'Open the Add playlist dialog. You will find the button on the dashboard, in the header playlist switcher, and in the command palette under "Add Xtream Codes playlist".',
     'Choose the "Xtream credentials" method.',
     'Fill in a playlist title of your choice, the server URL, the username and the password.',
-    'Click "Test Connection". IPTVnator asks the portal for the account status and shows the result under the form.',
-    'Click "Add". IPTVnator downloads the categories for live TV, movies and series and opens the new source.',
+    'Click "Test HTTPS and HTTP". IPTVnator asks the portal for the account status and shows the result under the server URL. If an `https://` address refuses the connection or does not speak HTTPS, the test retries the same address over plain HTTP once, which is why the dialog warns that your username and password may travel unencrypted.',
+    'Click "Add playlist". IPTVnator downloads the categories for live TV, movies and series and opens the new source.',
   ]}
 />
 
 ![Add playlist dialog with the Xtream credentials method selected and a successful connection test](/iptvnator/blog/guides/screenshots/guide-xtream-add-playlist-dark.png)
 
-The connection test reports one of four states. **Connection successful! Portal is active** is
-the one you want. **Portal subscription has expired** and **Portal is inactive** mean the
-portal answered but refuses the account; check the subscription with your provider. **Could
-not connect to the portal** means no answer at all: a typo in the server URL, a wrong port, a
-missing `http://` or `https://`, or a host that is down.
+**Connected. The portal is active.** is the result you want; **Connected using HTTP** means the
+same over an unencrypted connection, after the HTTPS attempt failed and the server URL was
+switched to `http://`. **The subscription has expired** and **The account is inactive or the
+credentials are incorrect** mean the portal answered but refuses the account: check the
+credentials, then the subscription with your provider. **Could not reach the server** means no
+answer at all: a typo in the server URL, a wrong port, or a host that is down. The remaining
+messages name what went wrong instead: a failed secure connection, an HTTP error status, or a
+server that answered without valid account information.
 
 <Alert type="success" title="Paste the whole link">
   If you paste a complete `get.php` or `player_api.php` link into the Server URL field while the

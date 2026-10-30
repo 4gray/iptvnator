@@ -11,10 +11,11 @@
             "inputs": [
                 "{projectRoot}/*.mjs",
                 "{projectRoot}/*.json",
-                { "externalDependencies": ["parse5"] }
+                "{workspaceRoot}/.github/workflows/ci.yml",
+                { "externalDependencies": ["parse5", "typescript"] }
             ],
             "options": {
-                "command": "node --test tools/performance/measure-initial-bytes.test.mjs tools/performance/check-journey-ratchet.test.mjs tools/performance/check-baseline-direction.test.mjs",
+                "command": "node --test tools/performance/measure-initial-bytes.test.mjs tools/performance/check-journey-ratchet.test.mjs tools/performance/check-baseline-direction.test.mjs tools/performance/tighten-baselines.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },

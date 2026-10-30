@@ -2,7 +2,9 @@
     <div class="player-settings__grip" aria-hidden="true"></div>
 }
 <div class="player-settings__header">
-    <div class="player-settings__title">{{ title() }}</div>
+    <h2 class="player-settings__title" [id]="headingId('title')">
+        {{ title() }}
+    </h2>
     <button
         mat-icon-button
         type="button"
@@ -24,29 +26,26 @@
             data-group="audio"
             data-test-id="player-settings-audio"
         >
-            <div class="player-settings__heading">
+            <h3 class="player-settings__heading" [id]="headingId('audio')">
                 <span
                     class="player-settings__dot player-settings__dot--cyan"
                     aria-hidden="true"
                 ></span>
                 {{ 'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate }}
-            </div>
+            </h3>
             <div
                 class="player-settings__options"
-                role="group"
-                [attr.aria-label]="
-                    'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate
-                "
+                appSettingsRadioGroup
+                [attr.aria-labelledby]="headingId('audio')"
             >
                 @for (track of state().audioTracks; track track.id) {
                     <button
                         type="button"
-                        role="menuitemradio"
                         class="player-settings__option"
+                        [appSettingsRadio]="track.selected"
                         [class.player-settings__option--selected]="
                             track.selected
                         "
-                        [attr.aria-checked]="track.selected"
                         (click)="selection().audioTrack(track.id)"
                     >
                         <span>{{ track.label }}</span>
@@ -66,82 +65,86 @@
             data-group="subtitles"
             data-test-id="player-settings-subtitles"
         >
-            <div class="player-settings__heading">
+            <h3 class="player-settings__heading" [id]="headingId('subtitles')">
                 <span
                     class="player-settings__dot player-settings__dot--cyan"
                     aria-hidden="true"
                 ></span>
                 {{ 'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate }}
-            </div>
-            <div
-                class="player-settings__options"
-                role="group"
-                [attr.aria-label]="'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate"
-            >
-                @if (
-                    capabilities().subtitles &&
-                    state().subtitleTracks.length > 0
-                ) {
-                    <button
-                        type="button"
-                        role="menuitemradio"
-                        class="player-settings__option player-settings__option--default"
-                        [class.player-settings__option--selected]="
-                            !state().subtitlesEnabled
-                        "
-                        [attr.aria-checked]="!state().subtitlesEnabled"
-                        (click)="selection().subtitleTrack(-1)"
-                    >
-                        <span>{{
-                            'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF' | translate
-                        }}</span>
-                        @if (!state().subtitlesEnabled) {
-                            <mat-icon>check</mat-icon>
-                        }
-                    </button>
-                }
-                @for (track of state().subtitleTracks; track track.id) {
-                    <button
-                        type="button"
-                        role="menuitemradio"
-                        class="player-settings__option"
-                        [class.player-settings__option--selected]="
-                            track.selected
-                        "
-                        [attr.aria-checked]="track.selected"
-                        (click)="selection().subtitleTrack(track.id)"
-                    >
-                        <span>{{ track.label }}</span>
-                        @if (track.selected) {
-                            <mat-icon>check</mat-icon>
-                        }
-                    </button>
-                }
-                @if (capabilities().externalSubtitles) {
-                    <button
-                        type="button"
-                        role="menuitem"
-                        class="player-settings__option player-settings__option--action"
-                        data-test-id="player-controls-load-subtitle"
-                        (click)="loadExternalSubtitle()"
-                    >
-                        <span>{{
-                            'EMBEDDED_MPV.PLAYER.LOAD_SUBTITLE_FILE' | translate
-                        }}</span>
-                        <mat-icon>upload_file</mat-icon>
-                    </button>
-                }
-            </div>
+            </h3>
+            @if (state().subtitleTracks.length > 0) {
+                <div
+                    class="player-settings__options"
+                    appSettingsRadioGroup
+                    [attr.aria-labelledby]="headingId('subtitles')"
+                >
+                    @if (capabilities().subtitles) {
+                        <button
+                            type="button"
+                            class="player-settings__option player-settings__option--default"
+                            [appSettingsRadio]="!state().subtitlesEnabled"
+                            [class.player-settings__option--selected]="
+                                !state().subtitlesEnabled
+                            "
+                            (click)="selection().subtitleTrack(-1)"
+                        >
+                            <span>{{
+                                'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF' | translate
+                            }}</span>
+                            @if (!state().subtitlesEnabled) {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                    }
+                    @for (track of state().subtitleTracks; track track.id) {
+                        <button
+                            type="button"
+                            class="player-settings__option"
+                            [appSettingsRadio]="track.selected"
+                            [class.player-settings__option--selected]="
+                                track.selected
+                            "
+                            (click)="selection().subtitleTrack(track.id)"
+                        >
+                            <span>{{ track.label }}</span>
+                            @if (track.selected) {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                    }
+                </div>
+            }
+            @if (capabilities().externalSubtitles) {
+                <!-- An action, not a choice: kept out of the radio group. -->
+                <button
+                    type="button"
+                    class="player-settings__option player-settings__option--action"
+                    data-test-id="player-controls-load-subtitle"
+                    (click)="loadExternalSubtitle()"
+                >
+                    <span>{{
+                        'EMBEDDED_MPV.PLAYER.LOAD_SUBTITLE_FILE' | translate
+                    }}</span>
+                    <mat-icon>upload_file</mat-icon>
+                </button>
+            }
 
             @if (capabilities().subtitleDelay) {
                 <div
                     class="player-settings__subsection"
                     data-test-id="player-controls-subtitle-delay"
                 >
-                    <div class="player-settings__subheading">
+                    <h4
+                        class="player-settings__subheading"
+                        [id]="headingId('subtitle-delay')"
+                    >
                         {{ 'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY' | translate }}
-                    </div>
-                    <div class="player-settings__delay-row">
+                    </h4>
+                    <div
+                        class="player-settings__delay-row"
+                        role="group"
+                        [attr.aria-labelledby]="headingId('subtitle-delay')"
+                    >
                         <button
                             mat-icon-button
                             type="button"
@@ -212,15 +215,16 @@
                     class="player-settings__subsection"
                     data-test-id="player-controls-subtitle-style"
                 >
-                    <div class="player-settings__subheading">
+                    <h4
+                        class="player-settings__subheading"
+                        [id]="headingId('subtitle-size')"
+                    >
                         {{ 'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE' | translate }}
-                    </div>
+                    </h4>
                     <div
                         class="player-settings__seg"
-                        role="radiogroup"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE' | translate
-                        "
+                        appSettingsRadioGroup
+                        [attr.aria-labelledby]="headingId('subtitle-size')"
                     >
                         @for (
                             preset of subtitleSizePresets;
@@ -228,13 +232,12 @@
                         ) {
                             <button
                                 type="button"
-                                role="radio"
                                 class="player-settings__seg-item"
-                                [class.player-settings__seg-item--selected]="
+                                [appSettingsRadio]="
                                     preset.value ===
                                     state().subtitleStyle.sizePercent
                                 "
-                                [attr.aria-checked]="
+                                [class.player-settings__seg-item--selected]="
                                     preset.value ===
                                     state().subtitleStyle.sizePercent
                                 "
@@ -246,15 +249,16 @@
                             </button>
                         }
                     </div>
-                    <div class="player-settings__subheading">
+                    <h4
+                        class="player-settings__subheading"
+                        [id]="headingId('subtitle-color')"
+                    >
                         {{ 'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR' | translate }}
-                    </div>
+                    </h4>
                     <div
                         class="player-settings__swatches"
-                        role="radiogroup"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR' | translate
-                        "
+                        appSettingsRadioGroup
+                        [attr.aria-labelledby]="headingId('subtitle-color')"
                     >
                         @for (
                             preset of subtitleColorPresets;
@@ -262,8 +266,10 @@
                         ) {
                             <button
                                 type="button"
-                                role="radio"
                                 class="player-settings__swatch"
+                                [appSettingsRadio]="
+                                    preset.value === state().subtitleStyle.color
+                                "
                                 [class.player-settings__swatch--default]="
                                     preset.value === null
                                 "
@@ -271,9 +277,6 @@
                                     preset.value === state().subtitleStyle.color
                                 "
                                 [style.--swatch-color]="preset.value"
-                                [attr.aria-checked]="
-                                    preset.value === state().subtitleStyle.color
-                                "
                                 [attr.aria-label]="preset.label | translate"
                                 [matTooltip]="preset.label | translate"
                                 (click)="
@@ -294,26 +297,25 @@
             data-group="quality"
             data-test-id="player-settings-quality"
         >
-            <div class="player-settings__heading">
+            <h3 class="player-settings__heading" [id]="headingId('quality')">
                 <span
                     class="player-settings__dot player-settings__dot--violet"
                     aria-hidden="true"
                 ></span>
                 {{ 'EMBEDDED_MPV.PLAYER.QUALITY' | translate }}
-            </div>
+            </h3>
             <div
                 class="player-settings__options"
-                role="group"
-                [attr.aria-label]="'EMBEDDED_MPV.PLAYER.QUALITY' | translate"
+                appSettingsRadioGroup
+                [attr.aria-labelledby]="headingId('quality')"
             >
                 <button
                     type="button"
-                    role="menuitemradio"
                     class="player-settings__option player-settings__option--default"
+                    [appSettingsRadio]="state().qualityAutoEnabled"
                     [class.player-settings__option--selected]="
                         state().qualityAutoEnabled
                     "
-                    [attr.aria-checked]="state().qualityAutoEnabled"
                     (click)="selection().qualityLevel(-1)"
                 >
                     <span>{{
@@ -326,12 +328,11 @@
                 @for (level of state().qualityLevels; track level.id) {
                     <button
                         type="button"
-                        role="menuitemradio"
                         class="player-settings__option"
+                        [appSettingsRadio]="level.selected"
                         [class.player-settings__option--selected]="
                             level.selected
                         "
-                        [attr.aria-checked]="level.selected"
                         (click)="selection().qualityLevel(level.id)"
                     >
                         <span>{{ level.label }}</span>
@@ -351,32 +352,29 @@
             data-group="speed"
             data-test-id="player-settings-speed"
         >
-            <div class="player-settings__heading">
+            <h3 class="player-settings__heading" [id]="headingId('speed')">
                 <span
                     class="player-settings__dot player-settings__dot--violet"
                     aria-hidden="true"
                 ></span>
                 {{ 'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED' | translate }}
-            </div>
+            </h3>
             <div
                 class="player-settings__seg"
-                role="radiogroup"
-                [attr.aria-label]="
-                    'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED' | translate
-                "
+                appSettingsRadioGroup
+                [attr.aria-labelledby]="headingId('speed')"
             >
                 @for (preset of state().speedPresets; track preset.value) {
                     <button
                         type="button"
-                        role="radio"
                         class="player-settings__seg-item"
+                        [appSettingsRadio]="
+                            preset.value === state().playbackSpeed
+                        "
                         [class.player-settings__seg-item--default]="
                             preset.value === 1
                         "
                         [class.player-settings__seg-item--selected]="
-                            preset.value === state().playbackSpeed
-                        "
-                        [attr.aria-checked]="
                             preset.value === state().playbackSpeed
                         "
                         (click)="selection().speed(preset.value)"
@@ -395,32 +393,29 @@
             data-group="aspect"
             data-test-id="player-settings-aspect"
         >
-            <div class="player-settings__heading">
+            <h3 class="player-settings__heading" [id]="headingId('aspect')">
                 <span
                     class="player-settings__dot player-settings__dot--neutral"
                     aria-hidden="true"
                 ></span>
                 {{ 'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate }}
-            </div>
+            </h3>
             <div
                 class="player-settings__seg"
-                role="radiogroup"
-                [attr.aria-label]="
-                    'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate
-                "
+                appSettingsRadioGroup
+                [attr.aria-labelledby]="headingId('aspect')"
             >
                 @for (preset of state().aspectPresets; track preset.value) {
                     <button
                         type="button"
-                        role="radio"
                         class="player-settings__seg-item"
+                        [appSettingsRadio]="
+                            preset.value === state().aspectRatio
+                        "
                         [class.player-settings__seg-item--default]="
                             preset.value === defaultAspect()
                         "
                         [class.player-settings__seg-item--selected]="
-                            preset.value === state().aspectRatio
-                        "
-                        [attr.aria-checked]="
                             preset.value === state().aspectRatio
                         "
                         (click)="selection().aspect(preset.value)"

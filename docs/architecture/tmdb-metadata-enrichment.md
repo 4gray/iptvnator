@@ -17,6 +17,9 @@ Related:
   cast, director, genres, rating, artwork) via a **field-level merge** — the
   provider stays authoritative for stream-related data and for any field
   TMDB cannot fill.
+- Grid rating badges use the IMDb label only when `rating_imdb` supplies the
+  displayed score. A fallback from the generic `rating` field uses the generic
+  rating label; provider or TMDB scores must not be presented as IMDb scores.
 - The M3U player is a consumer too: an entry recognized as a movie file opens
   in the VOD detail shell fed purely by an `enrichMovie` lookup (there is no
   provider payload to merge into). Gated by the additional
@@ -37,11 +40,29 @@ Related:
 
 ## Module Layout
 
-The service layer lives in `libs/services/src/lib/tmdb/` (scope:shared) so
-both portal libs and — in later phases — the M3U player can consume it
-without creating dependency cycles (`portal/shared/data-access` already
-depends on `portal/xtream/data-access`, so it cannot host code the Xtream
-store imports):
+Framework-free code lives in `libs/shared/tmdb/` (`@iptvnator/shared/tmdb`,
+`scope:shared`, `domain:tmdb`, `type:data-access`). It owns the API client,
+ID resolver, movie/TV metadata orchestration and the pure configuration,
+matching, credits, cache-payload and language-fallback helpers listed below.
+`TmdbSeasonClient` owns lazy per-season requests, language-scoped caching and
+original-language text fallback for both the Angular facade and TV adapter.
+`TmdbPersonClient` and the pure person/filmography projections are shared too;
+Angular retains its default 80-credit limit while TV requests the complete list.
+`TmdbApiClient` accepts optional request cancellation; `TmdbMetadataClient`
+accepts runtime/cache interfaces and a sanitized failure callback. A bounded
+`TmdbMemoryCache` serves the TV runtime. Pure helper tests live with this core.
+
+The Angular service layer remains in `libs/services/src/lib/tmdb/`:
+`TmdbApiService`, `TmdbIdResolverService` and `TmdbEnrichmentService` wrap the
+shared classes with dependency injection; old helper paths explicitly re-export
+the shared public API. Desktop SQLite/PWA cache, runtime settings, provider
+merges and trending/discovery services remain Angular-owned. Person and season
+services are injectable facades for the shared clients.
+The existing portal API and persisted cache keys are unchanged. TV integration
+and its narrower feature scope are specified in [TV architecture](tv-application.md).
+
+The table covers both the shared core and Angular facade (pure helper filenames
+refer to the shared core; `*.service.ts` and provider merges to the facade):
 
 | File                         | Responsibility                                                                                                                               |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -93,6 +114,17 @@ scan, so it only runs once the TMDB section is the active one. Clearing
 costs nothing but the next few requests — enrichment refetches on demand
 — and it is also the escape hatch when a lookup-key version bump orphans
 rows, since a bump makes them unreachable rather than deleting them.
+
+Age classification runtime helpers use the public secondary entries
+`@iptvnator/shared/interfaces/age-rating`, `@iptvnator/shared/tmdb/certifications`
+and `@iptvnator/services/age-rating`, rather than adding their code to eager
+barrels. Pure provider merges are exposed by `@iptvnator/services/tmdb-merge`.
+The eager Xtream/Stalker data layer loads those merges through
+`loadTmdbMergers` only after a details lookup, and repeats its selection guard
+after the asynchronous module load. A module-load failure leaves provider
+metadata intact. Offline detail mapping imports the pure secondary entry
+statically inside its already-lazy feature. These entries preserve the startup
+bundle budget while keeping the existing synchronous merge contracts.
 
 ## Match Confidence
 
@@ -172,8 +204,71 @@ when the provider's year is off by one.
 the _request_ language, so a Cyrillic query issued with `en-US` would come
 back with an English title and fail the exact-match gate.
 `tmdbSearchLanguageForTitle` detects Cyrillic queries and issues the search
-with `ru-RU` (unless the app language is already Cyrillic-based); details
-are still fetched in the app language afterwards.
+with `ru-RU` unless the app language is Russian (`ru-RU`), Belarusian
+(`be-BY`), or Ukrainian (`uk-UA`), in which case it keeps that language.
+Details are still fetched in the app language afterwards.
+For mixed catalogs, a Cyrillic search that has no confident Ukrainian match
+retries in Russian. Each language keeps its own cached verdict; a cached
+Ukrainian miss still permits the Russian lookup. Transient API errors do not
+trigger a retry in another language.
+Latin provider titles also retry a confident miss in `en-US` when the preferred
+language is different. This covers English translations of foreign shows whose
+localized and original names both differ (for example, The Chestnut Man).
+The same strict title/year gate applies, each language caches its own verdict,
+and details still use the user's selected metadata language.
+
+## Age classifications in movie and series details
+
+The primary Angular player shows one informational classification chip in the
+routed Xtream and shared collection/Stalker movie details, Xtream/Stalker
+series details (including embedded-VOD
+series), and recognized M3U movie details. Live channels, catalog cards, TV UI
+and the separate Downloads offline details are outside this scope. Series use
+show-level classifications, never inferred episode or season classifications.
+
+`Settings.ageRatingCountry` is `auto` by default (also for legacy settings),
+or an ISO 3166-1 alpha-2 country. Automatic follows the existing app-language
+mapping, e.g. `de` → `de-DE` → `DE`; it does not detect the viewer's location.
+An explicit country survives language changes. The Metadata settings section
+offers this selector even with TMDB disabled: provider metadata needs no opt-in.
+Normal Save/Cancel, settings search and dirty tracking apply.
+
+Movie details append `release_dates`, TV details append `content_ratings` to
+the existing request. `ContentCertification` retains the source, country and
+original value; movie entries can also retain the release type. All countries
+stay in the cached payload and `info.tmdb_certifications`, so switching the
+classification country is a local projection with no HTTP or playback restart.
+Stalker's normalization whitelist preserves this field, including an empty
+array clearing an older value. Raw provider age fields remain unchanged.
+
+Display priority is selected-country TMDB, selected-country provider, US TMDB,
+other known-country provider, then provider with no known country. The chip
+always labels a known country and identifies unscoped provider data as such.
+It never chooses an arbitrary foreign TMDB country or uses production country.
+Differing classifications in one country remain visible together, deduplicated
+and ordered consistently; the explanation identifies differing releases.
+There is no conversion between systems such as `R`, `PG-13` and numeric ages.
+
+The initial provider adapter recognizes Xtream movie `mpaa_rating` values G,
+PG, PG-13, R and NC-17 as US classifications, and numeric `age` labels in the
+range 0–21 without inventing a country. Bare provider zero is ambiguous and
+omitted; explicit `0+` is retained. Official TMDB `0` remains valid. Blank,
+N/A, NR and Unrated do not mean unrestricted. Missing or failed metadata shows
+“Age: no data”; Play remains available. Tooltip and accessible text explain
+the source and foreign-country fallback. This is descriptive metadata, not
+an age gate or a promise that content is suitable for children.
+
+Fresh legacy details cached under `id:<id>|v2` may lack the appended property.
+On the next lookup of that title only, the shared client refreshes that same
+row in place. If the optional upgrade fails, the readable **fresh** legacy
+payload still supplies existing metadata without extending its timestamp.
+A failed upgrade waits five minutes before another attempt for the same media
+type, id and language. This session-only retry map is bounded to 300 entries
+and never alters the persisted payload or its freshness. Expired rows receive
+no such fallback, even during the retry cooldown. Presence of the appended property,
+including empty results or an appended error object, prevents repeated
+capability upgrades until ordinary TTL expiry. This requires no SQLite schema
+change, mass cache invalidation, new cache key or title-search key change.
 
 ## Details Fetch and Localization
 
@@ -208,7 +303,8 @@ component for detail→detail navigation.
 
 `CrossPortalSimilarService` (`libs/services`) extends the rail across
 portals: recommendations are matched against ALL imported Xtream
-playlists with one batched `DB_MATCH_TITLES` request (Electron only,
+playlists with one batched match (`DB_MATCH_TITLES`, sent in small
+requests, see "Sending a batched match"; Electron only,
 same two-tier + year rule). Stalker detail views — where the local
 catalog is server-paginated and unmatchable — get their "Similar" rail
 purely from these cross-portal matches (shared `VodDetailsComponent` for
@@ -333,6 +429,22 @@ every episode field conditionally.
 
 ## Actor Pages
 
+TV also opens person pages from circular actor/director/creator controls. The
+complete deduplicated acting/directing/creating filmography is virtualized.
+Selecting a credit performs an on-demand search in the active provider only,
+using localized and original titles, existing title normalization and compatible
+release years. A found provider item opens its own details; equally strong
+versions are offered for selection. Only a completed search reports absence.
+Failures, repeated/incomplete pages (20-page limit) and the 15-second deadline
+show a retry, while cancellation or navigation prevents stale results opening.
+Movie and series identities remain separate; TMDB IDs never become stream IDs.
+Back restores the previous person/detail/card focus and scroll position.
+TV episode stills are stored separately from the parent cover. Home resume cards
+retain series artwork, while season cards show available stills and descriptions.
+Home and fullscreen playback can open the exact parent series, including
+historical progress recovered from its current provider identity.
+See the [TV contract](tv-application.md#artwork-and-optional-tmdb-metadata).
+
 Cast chips carry the TMDB person id (`tmdbPersonId` on
 `TmdbEnrichedCastMember`) and navigate to `actor/:personId` inside the
 current portal. The page loads `/person/{id}?append_to_response=
@@ -353,7 +465,8 @@ Filmography has two scopes:
   rest open the portal search prefilled with the title (`?q=`). Stalker
   has no local catalog, so every title goes through the portal search.
 - **All portals** (Electron only, toggle hidden in the PWA): one batched
-  `DB_MATCH_TITLES` worker request runs a trigram-FTS lookup per title
+  match (`DB_MATCH_TITLES` worker requests of five titles, see "Sending a
+  batched match") runs a trigram-FTS lookup per title
   over ALL imported Xtream playlists
   (`operations/title-match.operations.ts`), confirming candidates with
   the same two-tier normalized-title matching the renderer uses
@@ -362,6 +475,24 @@ Filmography has two scopes:
   (shown in the badge) and navigate into that playlist's detail view.
   This also works from Stalker actor pages — the one place the Stalker
   catalog limitation is lifted.
+
+### Sending a batched match
+
+`CatalogTitleMatchService.matchTitles` deduplicates the titles, keeps the
+first `TITLE_MATCH_TITLE_LIMIT` (200, the worker's own cap) and sends them
+in `DB_MATCH_TITLES` requests of `TITLE_MATCH_REQUEST_SIZE` (5), one after
+another, concatenating the answers in order. The DB worker answers one
+request at a time, so a whole rail's batch in one request held every other
+read behind it: on a 3.9M-title library one recommendations batch took
+95 s cold and kept the dashboard's playback positions (and with them the
+Continue Watching rail) waiting; now other reads wait for five titles at
+most. The answer stays all-or-nothing: a failed
+request, or a parental lock that starts withholding everything midway,
+returns no matches, as one failed request did before. One request ran
+under one parental-lock state, so a batch does too: when
+`ParentalLockService.version()` changes between requests (a relock, an
+unlock, a changed lock list) the batch starts over, and after
+`TITLE_MATCH_LOCK_ATTEMPTS` (3) changing attempts it returns no matches.
 
 ### Resolving a batched match
 
@@ -614,7 +745,7 @@ metadata access for everyone using it. TMDB also applies
 [service rate limits](https://developer.themoviedb.org/docs/rate-limiting),
 so a personal key does not remove the need to respect throttling.
 
-`DEFAULT_TMDB_API_KEY` in `libs/services/src/lib/tmdb/tmdb-config.ts` is
+`DEFAULT_TMDB_API_KEY` in `libs/shared/tmdb/src/lib/tmdb-config.ts` is
 empty by default. The build tooling still supports optional injection:
 `tools/tmdb/inject-tmdb-key.mjs` reads `TMDB_API_KEY` during the "Inject
 TMDB API key" step in `.github/workflows/build-and-make.yaml`. With no
@@ -625,6 +756,15 @@ Never commit a real key or reuse keys found in other repositories.
 At runtime, a non-empty user key takes precedence over an injected default.
 With neither available, enrichment stays inactive even when the toggle is
 on. This applies to release, local development, and fork builds alike.
+
+## Portuguese metadata language
+
+`pt-PT` requests Portuguese metadata for Portugal; `pt-BR` requests it for
+Brazil. Legacy saved `pt` preferences normalize to `pt-BR`, matching the
+existing Brazilian UI. Cache keys already include the TMDB language, so the
+two regional payloads remain separate without deleting cached data. The
+regional mapping and legacy normalization live in `@iptvnator/shared/tmdb`,
+shared by the Angular facade and TV runtime.
 
 ## Failure Behavior
 
@@ -645,7 +785,8 @@ since shipped.)
   toggle): `DashboardTrendingService`
   (`libs/workspace/dashboard/data-access`) pulls the weekly TMDB trending
   lists (cached one day per language) and runs ONE batched
-  `CatalogTitleMatchService.matchTitles` request against the imported
+  `CatalogTitleMatchService.matchTitles` call (worker requests of five
+  titles, see "Sending a batched match") against the imported
   Xtream playlists — matched cards navigate straight to their detail view
   and show the playlist name; unmatched cards open the global search
   prefilled. Requires both the TMDB opt-in and the Electron DB worker
@@ -665,7 +806,8 @@ since shipped.)
   interleaved round-robin, deduplicated by TMDB id, stripped of anything
   already watched or favorited, and matched against
   the imported libraries with ONE batched
-  `CatalogTitleMatchService.matchTitles` request. The watched/favorited
+  `CatalogTitleMatchService.matchTitles` call (worker requests of five
+  titles). The watched/favorited
   exclusion index is built through the same lookup-attempt builder the
   seeds use, so an activity row is indexed under more than its display
   title: under the media type the detail view enriched with (a Stalker
@@ -719,7 +861,7 @@ since shipped.)
   on its behalf would drop its recommendations for the session; a seed
   that has no TMDB match never resolves either, so that user's rail
   re-runs each visit, which is bounded work (cached enrichment misses
-  plus one batched worker call). Latched loads are keyed by the TMDB language
+  plus one batched title match). Latched loads are keyed by the TMDB language
   (payloads are localized; the facade exposes `language()` for this), the
   seed set, the watched/favorited exclusion set AND the imported-playlist
   id set — watching something new re-seeds on the next dashboard visit,
@@ -810,8 +952,10 @@ Contracts worth keeping:
   credits and no recommendations carries none of them and reads as
   un-enriched. Since the column is never overwritten, getting this wrong is
   unfixable after the fact — a real provider date arriving later cannot
-  correct it. The same marker is what `trustedReleaseYear` (the
-  recommendations exclusion index) must consult if it ever reads this column.
+  correct it. Stalker entries never reach this column, but the same marker
+  rides in their stored `info`, and `trustedReleaseYear` (the recommendations
+  exclusion index) reads it first: a date TMDB supplied does not gate the
+  exact tier. `createStalkerInfo()` keeps the marker through re-normalization.
 - **The id is stored unvetted.** Every consumer reaches TMDB through
   `TmdbEnrichmentService`, whose `detailsForProviderId` runs
   `assessProviderId` and lets the title search take over when the years
@@ -826,11 +970,13 @@ Contracts worth keeping:
   never been opened, and a provider's `"0"` all collapse to the same thing:
   no identity, and the title-only fallback.
 
-Not covered: rows whose detail page has never been opened, playlists
-refreshed after this landed (the columns are re-learned on the next detail
-open, same as `backdrop_url`), and the PWA — its catalog is a session-scoped
-cache rebuilt from the API on every load, so a stored id would never outlive
-the detail view that resolved it. All of them keep the title-only path.
+Rows whose detail page has never been opened keep the title-only fallback.
+Refreshed catalog rows re-learn missing metadata on the next detail open.
+The PWA also fills normalized identity on its session catalog and compatible
+persisted collection snapshots, including identity-only patches. Favorites retain
+that evidence across reload/refresh to detect reused provider IDs. Independent
+Recent snapshots are enriched separately; a conflicting replacement never supplies
+metadata to the older favorite. See [PWA collection persistence](xtream-portal-compatibility.md#pwa-collection-persistence).
 
 ### Stalker backdrops on activity rows
 

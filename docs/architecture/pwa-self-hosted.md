@@ -14,6 +14,20 @@ The old external `4gray/iptvnator-backend` repository is not required for the
 default self-hosted deployment. Sync behavior from that repository only when a
 change intentionally restores or imports missing backend capabilities.
 
+## Runtime Security Updates
+
+Development and CI use Node 24.22.1 from `.nvmrc`; the three main Docker
+stages pin the same patch through `NODE_VERSION`. This version includes the
+October 2026 Brotli, TLS, DNS and HTTP fixes. Keep `body-parser` at 2.4.0 or
+newer for its separate compressed-request crash fix: updating Node alone does
+not fix that dependency.
+
+Rebuild and recreate deployed containers after runtime updates. Rebuilding
+JavaScript or pulling an image without recreating the container leaves the
+running Node process unchanged. The optional TV container validates its base
+runtime; follow [its build instructions](../../docker/tv/README.md) to supply
+a patched base rather than reusing the older published digest.
+
 ## Runtime Backend Configuration
 
 The PWA reads `window.__IPTVNATOR_CONFIG__.BACKEND_URL` through
@@ -73,6 +87,72 @@ The current self-hosted PWA uses these `apps/web-backend` routes:
 - `GET /xtream?targetId=<id>&username=<u>&password=<p>&action=<action>`
 - `GET /stalker?targetId=<id>&macAddress=<mac>&action=<action>`
 
+Server storage adds versioned routes under `/v1`. Source synchronization uses
+the source-specific routes below; the older whole-document/user-state routes
+remain compatible but do not enable viewing-activity synchronization:
+
+- `GET /v1/instance` (always public): `{ service, apiVersion, instanceId,
+  storage: 'server' | 'none', auth: 'none' | 'token' }`
+- `GET /v1/instance/status`: playlist count, database size and path
+- `GET /v1/playlists[?view=meta]`, `GET|PUT|DELETE /v1/playlists/:id`,
+  `DELETE /v1/playlists`: whole playlist documents; `GET` sends an `ETag`
+  and answers `304` to a matching `If-None-Match`, and
+  `PUT ...?keepPayload=1` keeps the stored `playlist`, `items` and
+  `header` fields (`409 payload_missing` without a stored row); every `PUT`
+  answers with the new `ETag` and `X-Replaced-ETag`, the version it
+  replaced, and one with `If-Match` answers `412 conflict` when another
+  write replaced that version, one with `If-None-Match: *` when the
+  playlist exists already
+- `GET /v1/user-state`, `PUT|DELETE /v1/user-state/:namespace/:playlistId`:
+  Xtream favorites, recently viewed, collection snapshots and playback
+  positions, one JSON value per namespace and playlist; `GET` adds a
+  content tag per entry (`tags`), and a write with `If-Match: "<tag>"` or
+  `If-None-Match: *` answers `412` with the current value and tag when the
+  entry changed since, and a `PUT` for a playlist the server does not have
+  answers `404 playlist_missing` (the client drops that edit), so an edit
+  queued on another device cannot bring a deleted playlist's state back
+- `GET|PUT /v1/app-state/:key`
+
+- `GET /v1/sources`: portable source definitions and revisions, without uploaded
+  M3U bodies; collection `ETag` and conditional `304` reads
+- `GET /v1/sources/:id`: complete definition, including uploaded M3U text
+- `PUT /v1/sources/:id`: create with `If-None-Match: *`; matching source
+  fingerprints return the existing source and its ID
+- `PATCH|DELETE /v1/sources/:id`: require the current `If-Match` revision;
+  stale edits return `412`, missing revisions `428`
+- `DELETE /v1/sources`: requires the collection revision
+
+Instances with server storage advertise the additive `sources-v1` capability.
+Source mutations and legacy document mutations invalidate the same revisions.
+Revision checks and writes run synchronously in one server turn. A source
+update never upserts a deleted record. Source operations project only portable
+connection fields; embedded user/session fields in existing documents survive.
+Clients send `X-IPTVnator-Instance-Id`; a different database identity returns
+`409 instance_changed` and requires reconnecting before source mutations.
+Whole-document reads materialize raw M3U uploads for existing clients such as
+TV; lightweight metadata and source inventories still exclude those bodies.
+Those reads use the canonical channel normalizer and deterministic per-source
+channel IDs, including distinct IDs for duplicate URLs. An established browser
+can therefore adopt an upload without retaining channels that lack lookup IDs.
+
+Server storage lives in `apps/web-backend/src/app/storage/`. With
+`IPTVNATOR_STORAGE=server`, `main.ts` opens the shared database through
+`initDatabase()` (path from `IPTVNATOR_DATA_DIR`), so the server has the same
+schema and migrations as the desktop app and writes playlists with the
+shared row codec. It adds two server-only tables: `server_user_state` for
+Xtream user data, and `server_playlist_meta`, a copy of each document
+without its M3U payload fields that metadata reads use instead of walking
+the payload blobs (filled once on open for rows written without it). ETags
+come from an in-memory revision counter; the server is the only writer of
+its database. Storage errors are logged by error name and code only, because
+Drizzle messages can carry bound values such as portal credentials. With
+`IPTVNATOR_ACCESS_TOKEN`, every route except `/`, `/health`, `/config.js`
+and `/v1/instance` requires `Authorization: Bearer <token>`, the proxy
+routes included. The PWA supplies this token only to the configured backend
+origin and API path. Browser app state written through
+`/v1/app-state` is stored under a `client:` key prefix, apart from
+server-owned keys such as the instance id.
+
 `pnpm nx run web-backend:serve` starts the backend by hand on port 3333 with
 `TSX_TSCONFIG_PATH=tsconfig.base.json`, which `tsx` needs for the
 `@iptvnator/*` path aliases. `apps/web-e2e/playwright.config.ts` does not use
@@ -85,14 +165,233 @@ reached only `pnpm`/`nx`, and the orphaned server kept port 3333 after the run.
 launches the backend through Nx or its `env` drifts from the `serve` target.
 `WEB_BACKEND_PORT` (default 3333) relocates the E2E backend and the
 `self-hosted.e2e.ts` URLs, like `MOCK_PORT` does for the mocks. Use it when
-another worktree holds 3333. The `web:serve` entry can stay on Nx:
+another worktree holds 3333. `server-storage.e2e.ts` talks to a second
+backend from the same config, launched with `IPTVNATOR_STORAGE=server` on
+`STORAGE_BACKEND_PORT` (default 3334) and a data directory named after the
+Playwright process, so every run starts with an empty store; the spec
+accepts at most that one extra launch. The `web:serve` entry can stay on Nx:
 `@angular/build:dev-server` runs inside the Nx process, so the group kill
-stops it. The mock servers follow the same
-rule; see [Xtream mock Playwright integration](xtream-mock-server.md#playwright-integration).
+stops it. Playwright launches that command itself even outside CI: the
+web-e2e targets carry no Nx `serve` dependency, because Nx refuses a
+non-parallel task with a continuous dependency. The mock servers follow the
+same rule; see [Xtream mock Playwright integration](xtream-mock-server.md#playwright-integration).
 
-The PWA continues to use `PwaService`; only the backend base URL is resolved at
-runtime. Electron routes remain owned by the Electron backend and preload
-bridge.
+The PWA continues to use `PwaService`. A selected source server also supplies
+its backend base URL for browser provider proxy calls. Electron provider
+requests remain owned by the Electron backend and preload bridge.
+
+## Shared source library
+
+The self-hosted PWA discovers the runtime `BACKEND_URL` before Angular bootstrap.
+A stateless backend reporting `storage: none` retains standalone behavior.
+An older stateless proxy answering discovery with HTTP 404 also retains the
+original library; pending discovery can recover the same way. Confirmed server
+profiles retain their cache and recovery controls on discovery failure. If
+initial discovery was unavailable, a temporary `pending:` selection resolves
+back to the original local library after a valid stateless response. It reloads
+without disabling future discovery or overwriting a newer selection from another
+tab. Promoting a pending selection to a confirmed instance also checks that the
+saved selection still matches; a newer connect or disconnect wins. The initial
+runtime discovery probe preserves choices made by another tab while it waits.
+Confirmed source-server profiles never use the stateless fallback.
+Once a server is selected, network/authentication/compatibility errors do not
+silently select local storage. The recovery banner remains available even when
+the initial source inventory cannot load. Malformed saved connection data or
+unavailable browser storage does not prevent Angular bootstrap; a recovery
+alert links directly to the Server settings without discarding the saved data.
+An unreadable native `source-server.json` selects a separate recovery database
+and browser-storage namespace. Inventory reads fail closed while Server settings
+allow explicit reconnection or disconnection; the standalone library and prior
+server projections remain intact. Native configuration saves use a flushed
+private temporary file followed by an atomic rename.
+
+Settings → Data → Server connects a desktop or browser client, refreshes the
+library, previews/imports original local sources, and disconnects. Connection
+changes restart/reload the app. Before a forced native restart, the shared
+shutdown handler stops managed MPV/VLC and embedded-player sessions and shuts
+down the database worker; `app.exit()` itself does not emit `will-quit`.
+The original local library is retained. Imports
+send definitions only and match M3U URL/raw-text, Xtream endpoint + username,
+or Stalker endpoint + MAC fingerprints. Repeating a partial import is safe.
+
+`@iptvnator/services/source-sync` owns connection state, HTTP operations,
+conditional source writes and local projections. Startup loads the sync service
+only when a server is selected; the always-mounted status host defers its
+Material view until a connection or recovery notice is present. A native
+settings button remains available if that view chunk fails to load.
+`PlaylistStorageBackend` wraps the selected local store with `SyncedPlaylistStore`; local activity writes stay
+local. Source comparisons use SQLite's trimmed/nonempty representation for
+projected string columns, so normalized empty headers cannot turn offline
+activity into a source PATCH. Raw M3U and payload-only Stalker identity are
+compared verbatim. Nullable optional form fields are omitted from source
+definitions and compared as absent; the source API still rejects null input.
+Remote deletions run the shared cleanup hooks on both runtimes, including
+native parental-lock JSON/in-memory state in addition to SQL-owned sidecars.
+Per-source markers in profile-scoped localStorage are written before cache
+deletion. Failed hooks remain retryable after the row is gone and after restart;
+refreshes and source mutations finish this work before reusing an ID. Each ID
+has its own marker so one tab cannot overwrite another deletion's pending work.
+Bootstrap waits only for local profile readiness, then starts network
+refresh in the background. Slow URL providers cannot hold the app behind its
+splash: cached sources and settings remain accessible. An uninitialized cache
+defers its first inventory read until refresh settles. Before awaiting cleanup
+hooks, an incomplete profile releases the initialization wait so settings/EPG
+reconciliation cannot deadlock parental cleanup. The store's ready flag keeps
+rejecting incomplete inventory after a failed projection, preserving the loading
+error instead of exposing a false empty library. Server
+settings bypass the source-loading screen and remain reachable through the
+connection banner. A successful projection publishes its inventory change to
+refresh mounted views. Its collection revision advances only after the local
+initialization receipt is persisted, so a failed write retries the inventory
+instead of accepting HTTP 304 with an unreadable cache. Electron Xtream metadata
+paths in `DatabaseService` use the same wrapper.
+Accepted connection or uploaded-body edits materialize the writing client's
+projection before storing the new revision. URL fetch failures keep the row
+pending and force a later inventory retry; title-only edits retain concurrent
+channel refreshes and local activity.
+Accepted Stalker edits retain their newly negotiated session only when its
+canonical fingerprint matches the accepted full-portal connection. Remote
+connection edits still clear obsolete session/account/watchdog metadata. The
+shared fingerprint check loads lazily with source-session reconciliation.
+Changed inventories are revalidated after capturing local IDs/revisions and
+before materialization. Pruning considers only that snapshot, so a sibling
+tab's later create or replacement cannot be removed by the older response.
+Browser pruning checks the revision and marks/deletes in one IndexedDB write
+transaction. Profile-local markers block projection writes until cleanup has
+finished; conditional retry markers cannot remove a newer revision. Existing
+unconditional cleanup markers remain compatible. Ordinary HTTP 304 polls do
+not read the cached payloads. Inventory reconciliation loads lazily.
+Browser cleanup operations also claim one profile-wide owner across tabs,
+including without Web Locks. A separate empty IndexedDB database grants
+ownership only to a version upgrader; its open connection blocks the next
+upgrade until every hook settles. Same-version openers retry at a newer version.
+Closing/crashing the owner tab releases the connection, so retries do not need
+an expiring lease and cannot overtake a slow hook. Source/settings databases
+stay accessible while hooks run. Native cleanup retains its exclusive owner.
+This follows IndexedDB's [connection queue and upgrade ordering](https://w3c.github.io/IndexedDB/).
+Manual and batch M3U refreshes cannot mutate shared definitions. They retain
+their captured request URL/User-Agent and discard superseded responses, keeping
+the current name, baseline and revision. State reducers reject stale content;
+effects republish the canonical persisted row and use its current EPG inputs.
+Source IDs are the server's IDs in every local projection. Inventory views reuse
+the native payload-free metadata API. Browser metadata omits parsed/raw M3U
+and source baselines; opening a shared editor loads one complete local row
+before enabling edits and captures its revision. A visible client
+polls every 15 seconds and also refreshes on focus, reconnect, visibility and
+Electron resume. Failures back off to two minutes; rejected tokens wait for
+sign-in. Browser credentials and provider-proxy requests are held until an
+anonymous instance probe verifies the selected identity. A mismatched or failed
+refresh or an instance-change rejection from a source mutation revokes that
+verification before propagating the error; cached sources remain readable, and
+requests resume only after a successful verification or explicit reconnection.
+Network and gateway outages from either browser provider transport also revoke
+verification. The next proxy request waits for a deduplicated anonymous,
+uncached instance probe. An outage generation prevents a late response from an
+older probe from restoring authorization after a newer failure. The proxy guard
+and inventory/view subscriptions load only for a selected server or recovery.
+Browser token entries are bound to both the API address and instance ID; a
+selection changed by another tab cannot reuse the prior instance's token.
+Source API failures, including direct imports, revoke authorization at the
+transport boundary for network/parse errors, server 5xx, rejected tokens and
+instance-change responses. Namespace discovery alone does not grant access;
+the deferred authorization module requires a current successful identity probe.
+Unbound legacy entries are never forwarded automatically.
+Accepted source mutations schedule an immediate inventory refresh.
+Uploaded M3U text is fetched only for changed revisions and parsed locally;
+URL M3U snapshots are fetched through the runtime's provider transport.
+Source conversion retains channels and raw header EPG URLs from both nested
+and legacy top-level parsed M3U documents; stored raw M3U remains authoritative.
+Failed URL materialization is marked in the local row and retried even when
+the server revision has not changed, including after restart. Successful
+projection refreshes an open M3U channel list without publishing it back.
+Detected M3U EPG URLs are projected locally while manual/disabled choices
+remain device-local. Delayed activity writes retain the latest parsed source.
+Authoritative inventory replacement retains only parsed payloads, so removing
+a connection field cannot revive its previous value. Active Stalker routes
+reconcile changed connections against their persisted rows and restart the
+session/catalog only when connection fields differ. A title-only update refreshes
+the active source label while retaining its session and catalog. Xtream title
+updates likewise refresh the active source label without reimporting content. Backup restore follows
+the server's canonical source ID, including local activity and parental locks
+when a source added since the last poll deduplicates during import.
+Browser profile writes coordinate through an instance-scoped Web Lock when
+available. IndexedDB projection and activity commits also read/modify/write
+atomically, preserving activity changed by another tab during a download even
+without Web Locks. A projection captures the row's presence, source revision
+and pending state before materialization, then checks them inside its final
+write transaction. An already completed projection of the same revision is
+reused; a different revision or deletion rejects the obsolete download without
+advancing the collection revision. The next refresh retries against the current
+inventory. Activity-only changes still merge into the result.
+Single-source deletion captures the cached source revision before its server
+request; shared "delete all" captures cached IDs/revisions. Both use the same
+conditional per-source pruning and cleanup. Sources created
+or replaced by a sibling after the server accepts the deletion retain their
+local activity and locks. Settings does not follow this scoped deletion with
+an unconditional lock reset. `PlaylistsService` leaves server-mode cleanup to
+this queue, so it cannot run unconditional hooks against a replacement row.
+Browser reads carry a local metadata snapshot: a stale
+activity write raises `PlaylistWriteConflict`, and the existing playlist mutation
+retry re-reads and reapplies the edit. Source edits retain concurrent activity
+that the caller did not change. Title-only edits also retain a concurrent
+channel/EPG projection refresh unless the caller explicitly replaces its parsed
+payload. Accepted source metadata is reloaded after every
+mutation, so later edits retain their original server revision. Each client
+also notifies its views when its collection revision changes, even if a sibling
+tab has already updated or removed the shared IndexedDB projection.
+
+Browser source caches use IndexedDB `iptvnator-server:<instanceId>` and prefix
+Xtream local user-data keys with that profile. On upgrade, each activity
+namespace adopts this browser's existing `iptvnator-server:cache:<instanceId>`
+value once if the new profile has no value. Per-namespace migration markers
+preserve newer values and prevent cleared activity from being resurrected;
+the old cache remains intact. Parked Xtream restore archives adopt the matching
+legacy browser instance in the same way: strict reads verify both the scoped
+copy and its migration receipt, newer profile values win, and consumption
+cannot resurrect the original unprefixed archive. Unverified browsers and native
+profiles keep their original archives isolated. Native pending-favorites
+conversion enumerates and reads the same selected profile namespace, including
+collection-wide reads; it never falls back to standalone archives.
+This Xtream migration reads no server user-state
+and uploads nothing. An established browser with evidence of having used the
+selected instance also adopts legacy M3U/Stalker favorites, recent items,
+hidden groups, ordering and curated EPG selections once from `/v1/playlists`, before projecting source definitions. It validates
+the instance again before committing, preserves existing local rows and records
+a receipt only after success. New clients skip that adoption, and later activity
+changes remain local. Browser PIN and category locks are similarly adopted from
+the original device keys before the first profile read; migration errors keep
+the lock closed. Desktop databases live at
+`<data-root>/server-profiles/<sha256(instanceId)>/databases/iptvnator.db`;
+the original standalone database is unchanged. Profile selection is cleared
+on disconnect and on startup without a saved connection, including environment
+inherited by an Electron relaunch. Legacy automatic source recovery does not
+run through the server document-store wrapper. Desktop
+EPG ownership reconciliation uses the successful local
+`source-sync-initialized` receipt in a selected server profile, rather than a
+legacy IndexedDB migration receipt. Ordinary standalone profiles still require
+the original migration barrier. Offline clients
+retain a previously synchronized local projection; shared writes require the
+server. There is no offline mutation queue.
+
+Only source definitions synchronize: names, provider endpoints/credentials,
+configured request headers, Stalker connection identity and uploaded M3U text.
+Absolute file paths, catalog caches, Stalker session tokens, favorites,
+recently viewed, viewing progress, EPG data/settings and device preferences
+remain local. Stalker identity is retained; provider restrictions on concurrent
+sessions still apply. Synchronization does not proxy desktop media through NAS.
+Uploaded M3U shares the playlist text, not media files referenced by it. Streams
+and relative paths must remain reachable from the receiving runtime.
+
+Browser access tokens live in sessionStorage for that tab. Electron encrypts
+tokens with OS-protected `safeStorage` when available; Linux `basic_text` is
+not treated as protected storage. Otherwise the token lasts for the process
+and must be entered again after restart. Source-sync IPC accepts named
+operations, never arbitrary request paths or headers, and refuses redirects.
+The main process verifies the configured instance anonymously before sending
+tokens or source bodies. Identity, authentication and transport failures revoke
+that proof, including direct imports from an already-open preview. Recovery
+requires a fresh successful probe; an older in-flight response cannot restore
+authorization after a newer failure or profile change.
 
 Renderer code that needs to branch by runtime should use
 `RuntimeCapabilitiesService` from `@iptvnator/services` instead of adding new
@@ -114,7 +413,14 @@ and partial Electron bridges can degrade without direct preload checks.
 capabilities cover individual EPG surfaces: import/progress, current-program
 lookup, optional current-program batch reads, optional channel metadata,
 freshness checks, clear/force-fetch management, channel browsing, and program
-search. `supportsPlaylistRefresh` requires the native playlist
+search; all of them describe XMLTV. `supportsProviderEpg` is separate: Xtream
+and Stalker provider EPG needs only the portal transport, so it is true in the
+PWA (`PwaService` forwards `XTREAM_REQUEST` and `STALKER_REQUEST` to the
+`/xtream` and `/stalker` proxy routes) and in Electron when both the
+`xtreamRequest` and `stalkerRequest` preload methods exist. Gate portal guides
+on it and keep the XMLTV parts of portal views (the Xtream XMLTV fallback,
+manual EPG mapping) on the XMLTV capabilities. `supportsPlaylistRefresh`
+requires the native playlist
 refresh/cancel/progress bridge, `supportsXtreamSectionNavigation` is available
 in PWA and in Electron when either the SQLite Xtream data source or the Xtream
 API transport is available, `supportsDesktopFileSave` requires both
@@ -124,18 +430,275 @@ MPV and VLC preload launch methods (`openInMpv` and `openInVlc`), and
 (`setMpvPlayerPath` and `setVlcPlayerPath`); a partial Electron bridge must not
 expose desktop-only actions in the PWA/shared UI.
 
+## Server Storage Mode
+
+The sections below describe the legacy whole-document PWA integration and its
+reusable API clients. The current bootstrap does not install these providers:
+PWA and Electron now use the [shared source library](#shared-source-library).
+Viewing activity remains local; the existing user-state API stays compatible
+for explicit consumers. Do not re-enable automatic activity uploads by adding
+`provideServerStorage()` alongside source sync.
+
+
+`main.ts` probes `GET /v1/instance` before bootstrapping, and only when the
+deployment wrote a runtime `BACKEND_URL` into `window.__IPTVNATOR_CONFIG__`
+(the Docker entrypoint does; hosted builds and Electron never probe). On
+`storage: 'server'` it imports `apps/web/src/app/server-storage/` lazily and
+merges `provideServerStorage()` into the app config, and remembers the
+instance under `iptvnator-server:instance`. When the probe gets no answer
+(network error, timeout, a 5xx such as nginx's 502 while the backend
+restarts, or a refusal other than 404, such as a proxy's 429), a browser that remembers this backend still starts in server
+mode, offline, and reloads once the server answers; it never falls back to
+an empty browser library. Until that reload it sends no writes
+(`holdWrites`) and no token anywhere (`ServerStorageStatusService.accessToken()`
+is null for an unverified instance): the address may lead to another
+server or database by then, which the reload's probe finds out. An answer without server storage, or a 404 from
+an older backend, forgets it (`server-storage-start.ts`). Everything else of the
+client lives behind the `@iptvnator/services/server-storage` sub-entry, so
+other builds never load it; `ServerStorageStatusService` and the token
+helpers stay in the main `@iptvnator/services` barrel because the rail,
+settings and guards read them in every build.
+
+- **Playlists.** `ServerStorageSession.start()` (an app initializer) plugs
+  `ServerPlaylistDocumentStore` into `PlaylistStorageBackend` (kinds
+  `electron`, `server`, `indexeddb`). The store caches full documents by
+  ETag and uploads a document whose payload it served unchanged with
+  `keepPayload=1`, so a favorite or a rename does not resend a large M3U.
+  A mutation carries `If-Match` with the version it was read at (of its
+  payload, else of the served copy it was built from, as for portal
+  documents): when
+  another device wrote in between, the server answers `412`, the store
+  throws `PlaylistWriteConflict`, and `PlaylistsService`'s per-playlist
+  write queue runs the mutation again on a fresh read (a retry on the same,
+  unread copy writes unconditionally, as before). Imports and start-up
+  migrations (`dbUpsertAppPlaylists`) write unconditionally, and the store
+  refuses a document without an id. "Remove all" first lets queued
+  playlist writes land, and writes issued meanwhile wait until it is done.
+  An M3U favorite
+  toggle or reorder goes through `transformPlaylistFavorites`: a toggle adds
+  or removes that one channel, a reorder applies its order, on the
+  favorites read at write time. After a write the store
+  keeps its copy only when `X-Replaced-ETag` names the version its payload
+  came from.
+- **Xtream user data.** `USER_DATA_STORAGE` becomes `ServerUserDataStorage`:
+  the four synced namespaces are cached per server instance, under
+  `iptvnator-server:cache:<instanceId>:<namespace>` (the legacy unprefixed
+  keys are never written in server mode; a tab still open on another
+  server never writes over this one's cache) and
+  each change sends only the playlist entries that differ, debounced, with a
+  `keepalive` flush when the page hides. A change is compared with the map
+  the caller read: when the cache changed since (another tab, a re-read),
+  only the entries the caller changed are applied to it. Batches go out one after another
+  (the page-hide flush waits for a batch still travelling, and a flush
+  scheduled before it waits for the page-hide batch it sent at once), a failed write,
+  including a refused `keepalive` one or one the server took and never
+  answered (it ends after the request timeout), stays queued for the next
+  flush (a write saved whose answer was cut off counts as saved on an
+  unknown version: only later edits replay on the next conflict), and
+  every unconfirmed write (queued or travelling) is saved in `localStorage`
+  per page load (`iptvnator-server:unsent-writes:<instanceId>:<page>`). The
+  tab remembers its page load in `sessionStorage`, so a reload takes its
+  writes over and sends them first (the old copy goes only once the new one
+  is saved, at the latest with this page's next saved copy; until then the
+  tab's pointer names the kept page loads too, oldest first also when a
+  duplicate adopted them, so another reload finds them even without their
+  registry records and replays them in order; a duplicate of a tab that
+  still runs leaves them, like that tab's page load, to it). A page marks
+  its record closed on `pagehide`, and it stays closed when a page-hide
+  write failing afterwards rewrites it (not into the back-forward cache, where
+  its record goes stale, as in a background tab the browser suspends;
+  restored or shown again after another tab adopted it, the page reloads
+  rather than send those writes again, and until then it neither sends nor
+  saves them, also when its retry timer runs first), and
+  only a closed, stale or missing record is taken over: a duplicated tab,
+  which copies `sessionStorage`, leaves the running tab its writes. A page
+  load that still looked live (or whose close flag storage refused) is
+  checked again every 30 s and, once it does not, adopted like a closed
+  tab's: its edits go ahead of this page's newer ones, and without a
+  server version this page read they are sent so that they conflict and
+  replay; the writes of a tab closed before it
+  could send them are queued, ahead of its own, by another tab once that
+  tab's record has gone stale (at its next re-read, or its 30 s check when
+  it has nothing to sync and never re-reads); the result replays the
+  closed tab's edits first and this tab's newer ones last. An adopted edit
+  changes only what is still as its page saw it (`EditStep.yields`), also
+  at every later conflict: an item or key changed since, by this tab or
+  another device, keeps its newer value. Tabs never clear each other's.
+  Cache and saved writes belong to one server database
+  (`iptvnator-server:cache-owner`); another one behind the same address
+  starts clean. Startup waits for the first read only a few seconds;
+  `UserDataStorage.ready()` waits for a first read in flight (it starts
+  none, so an offline page is not held up) and tells whether one
+  succeeded. The Xtream data source's favorites, favorite checks, history
+  and position reads wait for it, so a new device does not show empty
+  lists or start playback without its resume position. A backup export or
+  restore (also its replay when the playlist opens) reads the server again
+  first (`ready(true)`: another device may have changed the lists since) and
+  fails when that read does not succeed: unread maps would export as empty lists, and a restore's lists
+  would merge into the server's instead of replacing them (the restore
+  stays parked). A restore also replaces nothing while this page's own
+  writes for the playlist are unsent (they would join the replacement) and
+  counts only once the server took its lists (`UserDataStorage.flushed`)
+  as they are: a conflict that merged another device's edit in leaves it
+  parked to run again on a fresh read. Replayed edits keep recently viewed lists newest first,
+  as the app cuts them at their limit from the end. Also,
+  re-reads run one at a time and keep entries edited while they were in
+  flight or not yet saved, and entries another tab saved meanwhile or had
+  unconfirmed when the read went out (the answer predates them; their next
+  write here conflicts and replays). A response body cut off after its headers counts
+  as offline. Each write is sent on the tag of the entry it was made
+  against (`UserDataWriteQueue`); after a `412` the edit (before → after) is
+  replayed on the server's current value, so another device's change to the
+  same playlist's entry is kept. A queued write keeps its edits as steps
+  (before → after, also in the saved writes): an edit continuing the last
+  one joins it; one made behind a travelling write, after a write whose
+  answer was lost, or on another tab's change is kept apart; and a
+  conflict replays them in order. So a lost
+  write is not dropped, and adding and then removing an item still removes
+  it when the addition landed. When two tabs edit one entry before either
+  write lands, a removal of the other tab's unsent item holds if that tab's
+  write lands first, as it does when a tab is left (its writes go out on
+  hide); otherwise the item can come back. An edit made on another tab's unsent change, and an entry a
+  re-read keeps from the cache, are sent on a version no entry has
+  (`UNKNOWN_TAG`), so they conflict and are replayed too. Page-hide writes report their
+  new tag or conflict like any other, and one behind a travelling write is
+  taken from the queue only when that one is answered. While a playlist is
+  being deleted its edits wait; the delete drops them only when it
+  succeeds, and a re-read sent before it skips the deleted playlist. Edits made before the first successful read
+  are held as before → after and applied to the server's value once it
+  arrives (`applyEdit`): a new device or a stale cache adds its favorite
+  instead of replacing the server's list. On this tab's recovered unsent
+  write they are kept as their own steps after it. They are saved per page load too
+  (`iptvnator-server:deferred-edits:<instanceId>:<page>`). Records in
+  `localStorage` (`iptvnator-server:unconfirmed:<instanceId>:<page>`, one
+  key per page load so tabs never overwrite each other's, renewed every
+  30 s while it has unsent writes, stale after ten minutes) let a re-read
+  in one tab keep the cache values another tab is still sending, and a
+  stale record marks a closed tab whose writes another tab adopts (the
+  storage adapter lists its keys for this). Saved writes without any record
+  are left to the tab's own reload: that tab may still run. A value too big for `localStorage`, or any
+  value when the browser refuses storage access, stays readable from
+  memory, so callers and the diff baseline agree. A re-read
+  updates the cache; views already open show another device's changes on
+  their next load (no live push). Start-up waits
+  up to 3 s for the first read.
+- **Connection state.** `ServerStorageStatusService` is `online`, `offline`
+  (a request did not reach the server, or a proxy answered 502, 503 or 504
+  for it; retried every 30 s and when the tab returns, as are writes the
+  server refused and a first read that failed while it is `online`) or
+  `unauthorized` (a 401 clears the stored token; only a reload after a new
+  token leaves it, so a late answer cannot undo sign-out). The rail shows a status
+  shortcut, an offline banner sits above the workspace content, and failed
+  writes raise a snackbar (`SERVER_STORAGE.WRITE_FAILED`, or `TOO_LARGE` for
+  a 413), the same one at most every five minutes.
+- **Access token.** With `IPTVNATOR_ACCESS_TOKEN` the instance reports
+  `auth: 'token'` (the backend refuses a token without server storage: the
+  PWA has no sign-in flow for a stateless backend); without a stored token, or after a 401, the guards route to
+  `/server-sign-in` (the start-up screen lets it through although the
+  playlists could not load), which checks the token against `/v1/instance/status`
+  before it stores it under `iptvnator-server:access-token` and reloads (a
+  browser that refuses to store it is told so instead). The token is stored
+  with the instance id it was given for, and a page sends it only to that
+  instance: a tab still open on the old backend after `BACKEND_URL` changed
+  does not send the new server's token there, and goes to sign-in instead.
+  `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
+  backend, and `PwaService` adds it to its two raw `fetch` calls only while
+  server mode runs on a verified instance and only when the URL resolves
+  to the backend (`isBackendUrl`); it joins paths to the backend URL
+  without its trailing slashes, so `BACKEND_URL=/` never yields a
+  protocol-relative `//…` URL that names another host. The browser forgets the token
+  when the backend answers without server storage, or as another server or
+  database (backend URL or instance id) than the one it remembers; sign-in
+  therefore remembers the server along with the token, or reports storage
+  trouble. A page started from memory first checks that the instance at the
+  address is the remembered one (`ensureVerified`), and reloads if not
+  (a reload after a server answered late gives the next start probe as
+  long as requests take, once, so a slow server does not reload forever),
+  before sign-in sends the token. So does a page that went offline (any
+  backend call can tell: the storage API with its page-hide `keepalive`
+  writes, `HttpClient` calls through the interceptor and `PwaService`'s raw
+  fetches report no answer, or a
+  gateway's 502/503/504 that is not the backend's own JSON, as offline)
+  before its next read: until then it sends neither the token nor writes (a
+  replaced volume at the same address is another database), and it checks
+  the instance as soon as it goes offline, so a blip costs no retry
+  interval (only the instance, and once per retry interval: a read or a
+  check that keeps failing waits for the retry; the retry also runs while a
+  late answer set an unchecked page online). Sign-out always navigates to sign-in, also when a guard kept the
+  page the first time. Both turn
+  the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
+  as the storage API client does with any 401, so a token changed on the
+  server sends an open page back to sign-in; a late 401 for a token
+  replaced since (a new sign-in) changes nothing, nor does one for a page
+  that holds its token back until the instance is checked.
+- **Moving browser data.** `ServerMigrationService` offers, once per server
+  instance (marker `iptvnator-server:migration:<instanceId>`), to move the
+  playlists this browser kept in IndexedDB (`planServerMigration`), Stalker
+  rows from before the portal-mode flag normalized first (server rows get
+  the same Stalker metadata migration once per server, as a desktop
+  database copied there can predate it: each row read again and written as
+  a conditional mutation, a conflict retried at the next start). A
+  playlist the server already has, by id or by source (Xtream server and
+  user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
+  others upload with their ids, create-only (`If-None-Match: *`): one that
+  another tab or device moved first is merged into instead of overwritten. A merged playlist gains the browser
+  document's favorites and history (M3U favorites name channels by stream
+  URL, as the app looks them up; older ones by a channel id that is random
+  per import, which becomes its URL on both sides; history entries keep
+  their URL id and get the server's channel id as `channel_id`; recently viewed newest first by `added_at`,
+  one per item with its newest view; Stalker items by id, category and series
+  flag, since one provider category can hold a movie and a series of one
+  id; nothing is dropped), and the legacy Xtream maps follow under
+  the server id; each copy's bare legacy Xtream ids are typed from its own
+  snapshots first (`typeLegacyXtreamRefs`; snapshots keep their bare key as
+  an alias), then `combineUserData` unions
+  lists (playback positions by content type and Xtream id, renamed to the
+  server playlist; recently viewed items newest first and one per item,
+  its newest view, since the app cuts history from the end) and merges
+  maps, the server's value winning on a
+  conflict. Parental locks stay in the browser but move to the server
+  playlist id with it; while the lock store or a browser user-data map
+  cannot be read the move counts as failed. A parked Xtream restore (a
+  browser backup import that could not finish) is copied to the server
+  playlist id it merged into, unless that one has its own. Browser data is never
+  deleted, the move does not start while user-data writes are unsent, and
+  the marker is written only when nothing failed, so Settings → Server
+  keeps offering a partial move.
+
+What stays per device: settings, parental lock PINs and locked groups,
+the global favorites order and other UI preferences in browser storage.
+
 ## Runtime Limitations
 
 The self-hosted build is the browser PWA, not the Electron desktop app. Keep
 these limitations explicit in UI, troubleshooting, and release notes:
 
-- EPG/XMLTV is not supported in the PWA yet. Do not render live EPG panels,
-  programme-guide entry points, or EPG-fetching flows in browser/PWA mode, and
-  do not use EPG as the readiness signal for Docker.
+- XMLTV is not supported in the PWA yet. That rules out M3U guides, the
+  XMLTV part of Settings → EPG (sources, refresh and clear, the Xtream XMLTV
+  preference), the programme guide and its search, the Xtream XMLTV fallback
+  and manual EPG mapping. Gate those flows on the XMLTV capabilities
+  (`supportsEpg` and its narrower flags), which are false in browser/PWA mode,
+  and do not use EPG as the readiness signal for Docker. Xtream and Stalker
+  provider EPG (channel-row programme lines, the live EPG panel, favorites,
+  recent and dashboard previews) works through the `/xtream` and `/stalker`
+  proxy routes and is gated on `supportsProviderEpg`. The display settings of
+  Settings → EPG (view mode, time offset) render wherever a guide exists
+  (`SettingsFormFacade.supportsEpgDisplay`), so the PWA shows them; they are
+  stored per browser like other settings. Live favorites/recent playback does
+  not wait for provider EPG; the guide hydrates afterwards under the current
+  selection's ownership. Collection and dashboard guides use source- and
+  playlist-scoped channel keys, and failed background Stalker EPG requests
+  remain silent in both runtimes. Xtream catch-up from the EPG panel
+  is desktop-only for now (`supportsProviderCatchUp`); the PWA timeline shows
+  past programmes without archive actions until a manual check shows that the
+  browser players play the provider's archive URL.
 - The PWA does not use the Electron SQLite database or DB worker. Playlist
-  metadata uses `PlaylistsService` with IndexedDB; Xtream favorites, recently
-  viewed items, playback positions, and cached collection snapshots use
-  `PwaXtreamDataSource` browser storage.
+  metadata uses `PlaylistsService` with IndexedDB (a profile-specific local
+  projection when connected to a source server); Xtream
+  favorites, recently viewed items, playback positions, and cached collection
+  snapshots use `PwaXtreamDataSource` browser storage. In
+  [server storage mode](#server-storage-mode) both live on the server
+  instead.
 - Browser playlist deletion must go through `PlaylistsService`, not
   `DatabaseService`. `PlaylistsService.deletePlaylist()` runs registered
   cleanup hooks such as the PWA Xtream cleanup so localStorage sidecar data does
@@ -232,6 +795,15 @@ and sidecar state in localStorage:
 - `xtream-playlists`
 - `xtream-playback-positions`
 
+`PwaXtreamDataSource` and `PwaCollectionStorage` reach these keys through the
+`USER_DATA_STORAGE` token from `@iptvnator/services` (default:
+`localStorage`), never through `localStorage` directly, so server storage
+mode can substitute `ServerUserDataStorage`. The key names are shared as
+`XTREAM_USER_DATA_KEYS` with the playlist backup, which exports and restores
+the favorites, recent items, positions and snapshots through the same token
+(`PwaXtreamBackupStateService`; see
+[backup/restore](./playlist-backup-restore.md#browser-runtime)).
+
 Entries should include a content snapshot when the item is added. Global
 collection routes and the dashboard can then restore titles, posters, content
 type, and category IDs after navigation or a page reload without relying on the
@@ -266,6 +838,15 @@ Default runtime values:
 - `PORT=3000`
 - `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=0`
 - `NODE_EXTRA_CA_CERTS` unset
+- `IPTVNATOR_STORAGE=server`, `IPTVNATOR_DATA_DIR=/data` (a `VOLUME`)
+- `IPTVNATOR_ACCESS_TOKEN` unset (optional shared token), `IPTVNATOR_MAX_DOCUMENT_MB=64`
+- `IPTVNATOR_BACKEND_START_TIMEOUT=300`: seconds the entrypoint waits for
+  `/health`; the backend migrates its database before it listens
+
+better-sqlite3 is a native addon, so the Dockerfile builds it in a separate
+`native` stage that is not pinned to `$BUILDPLATFORM`; multi-arch builds
+produce it for each target platform. nginx raises `client_max_body_size` to
+64 MB for `/api/` and gzips JSON responses.
 
 When hosting behind another domain, set `CLIENT_URL` to the browser origin and
 keep `BACKEND_URL=/api` unless the reverse proxy exposes the backend elsewhere.
@@ -274,26 +855,52 @@ instance is restricted to trusted users and intentionally needs private network
 IPTV targets. For providers using private certificate authorities, mount the CA
 bundle into the container and set `NODE_EXTRA_CA_CERTS` to that mounted path.
 
+## TV phone setup routes
+
+The backend ships the `tv-setup` Nx application's assets beside `main.cjs`.
+`/tv/setup` serves a phone form; a reverse proxy prefix such as `/api` is retained
+by relative asset and API URLs. `/tv/connection` is a public, credential-free
+protocol discovery response. `/tv/connection/check` and session creation require
+the configured server access token and permitted TV Origin.
+
+The TV session router precedes the storage access guard because phone/TV polling
+uses separate short-lived capabilities, not the global server token. Every
+session operation checks the correct role capability. It does not expose storage
+or provider routes. Drafts live only in bounded backend memory until TV
+confirmation, cancellation or five-minute expiry. The
+[TV architecture](tv-application.md#backend-discovery-and-phone-setup) owns the
+session, receipt, discovery and local persistence contract.
+
 ## Validation
 
 Use the narrow validation ladder for self-hosted changes:
 
 ```bash
 pnpm nx test web-backend
+pnpm nx test web-backend --testPathPatterns=storage
 pnpm nx test web --runTestsByPath apps/web/src/app/services/runtime-config.spec.ts
 pnpm nx build web --configuration=pwa --skip-nx-cache
 pnpm nx build web-backend
 pnpm nx run web-e2e:e2e -- --project=chromium --grep @self-hosted
+pnpm nx run electron-backend-e2e:source-sync
 docker compose -f docker/docker-compose.yml config
 ```
 
 Run `docker build -t iptvnator:self-hosted-test -f docker/Dockerfile .` when a
 Docker daemon is available.
 
+Provider fixtures that use `page.route` must block Service Workers and select
+their mocked backend before navigation. An explicit runtime `BACKEND_URL`
+starts server discovery, so a stateless mock must answer `/v1/instance` with
+`storage: 'none'`. Wait for a prefilled editor to finish hydration before
+typing, and for the write acknowledgement before a hard reload. Keep the
+real-Service-Worker stylesheet test separate from these routed fixtures.
+
 For manual Docker smoke testing, run the Xtream and Stalker mock servers plus a
 small M3U fixture, then verify in the browser that M3U, Xtream, and Stalker can
 add sources, play an item, toggle favorites, populate global favorites,
-populate recently viewed, and appear on the dashboard rails.
+populate recently viewed, and appear on the dashboard rails, and that Xtream
+and Stalker live channels show their provider's programme guide.
 
 ## Service factory and build bases
 

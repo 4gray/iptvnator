@@ -7,6 +7,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { ServerStorageStatusService } from '@iptvnator/services';
 import { WorkspaceShellRailComponent } from './workspace-shell-rail.component';
 
 @Component({
@@ -61,11 +62,6 @@ describe('WorkspaceShellRailComponent', () => {
     });
 
     it('renders provider context region and active settings shortcut state', () => {
-        fixture.componentRef.setInput('brandLink', '/workspace/sources');
-        fixture.componentRef.setInput(
-            'brandAriaLabelKey',
-            'WORKSPACE.SHELL.OPEN_SOURCES'
-        );
         fixture.componentRef.setInput('primaryContextLinks', [
             {
                 icon: 'movie',
@@ -87,13 +83,55 @@ describe('WorkspaceShellRailComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.rail-shortcut.is-active')
         ).not.toBeNull();
+    });
+
+    it('has no brand mark duplicating the first workspace link', () => {
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('img')).toBeNull();
         expect(
-            fixture.nativeElement.querySelector('.brand')?.getAttribute('href')
-        ).toContain('/workspace/sources');
-        expect(
-            fixture.nativeElement
-                .querySelector('.brand')
-                ?.getAttribute('aria-label')
-        ).toBe('WORKSPACE.SHELL.OPEN_SOURCES');
+            fixture.nativeElement.querySelector('.app-rail')?.firstElementChild
+                ?.tagName
+        ).toBe('APP-WORKSPACE-SHELL-RAIL-LINKS');
+    });
+
+    describe('server status', () => {
+        const instance = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            instanceId: 'i',
+            storage: 'server',
+            auth: 'none',
+        } as const;
+        const indicator = (): HTMLElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="rail-server-status"]'
+            );
+
+        it('hides the indicator without server storage', () => {
+            fixture.detectChanges();
+
+            expect(indicator()).toBeNull();
+        });
+
+        it('shows the connection state and links to Settings → Server', () => {
+            const status = TestBed.inject(ServerStorageStatusService);
+            status.activate(instance, () => undefined);
+            fixture.detectChanges();
+
+            expect(indicator()?.dataset['state']).toBe('online');
+            expect(indicator()?.getAttribute('href')).toBe(
+                '/workspace/settings/server'
+            );
+
+            status.reportOffline();
+            fixture.detectChanges();
+
+            expect(indicator()?.dataset['state']).toBe('offline');
+            expect(indicator()?.textContent).toContain('cloud_off');
+            expect(indicator()?.getAttribute('aria-label')).toBe(
+                'SERVER_STORAGE.STATUS_OFFLINE'
+            );
+        });
     });
 });

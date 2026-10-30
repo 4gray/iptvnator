@@ -361,10 +361,10 @@ const largeXtreamCredentials = {
 
 async function setLiveSortMode(
     page: Page,
-    label: 'Server Order' | 'Name A-Z' | 'Name Z-A'
+    label: 'Server order' | 'Name A-Z' | 'Name Z-A'
 ): Promise<void> {
     await page.getByRole('button', { name: 'Sort channels' }).click();
-    await page.getByRole('menuitem', { name: label, exact: true }).click();
+    await page.getByRole('menuitemradio', { name: label, exact: true }).click();
 }
 
 async function setContentSortMode(
@@ -376,7 +376,7 @@ async function setContentSortMode(
         | 'Name Z-A'
 ): Promise<void> {
     await page.getByRole('button', { name: 'Refine', exact: true }).click();
-    await page.getByRole('menuitem', { name: label, exact: true }).click();
+    await page.getByRole('menuitemradio', { name: label, exact: true }).click();
 }
 
 async function expectVisibleChannelTitles(
@@ -579,23 +579,19 @@ async function expectCatalogSearchQuery(
 }
 
 async function firstVisibleGridTitle(page: Page): Promise<string> {
-    const titles = await visibleGridTitles(page);
-    const title = titles[0];
-
-    if (!title) {
-        throw new Error('Expected at least one visible catalog grid title.');
-    }
-
-    return title;
+    // Category selection updates before its response replaces the old grid.
+    // Unlike allInnerTexts(), this waits through that empty transition.
+    const title = page
+        .locator('.category-content-layout mat-card .title')
+        .first();
+    await expect(title).toBeVisible({ timeout: 20000 });
+    return (await title.innerText()).trim();
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: the shell's sticky Back is route-level in browse
-    // and watch alike (closing the player is the bar's own Close button).
-    const backButton = page
-        .locator('app-portal-detail-shell')
-        .first()
-        .getByRole('button', { name: 'Back', exact: true });
+    // Return to the list: the header's Back is route-level in browse and
+    // watch alike (closing the player is the bar's own Close button).
+    const backButton = page.getByTestId('workspace-header-back');
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     try {

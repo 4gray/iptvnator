@@ -332,6 +332,9 @@ test.describe('Parental lock UI', () => {
             page,
             'app-stalker-category-lock-dialog'
         );
+        await expect(dialog.locator('.bulk-actions button').last()).toHaveCSS(
+            'border-top-left-radius', '8px'
+        );
         const rows = dialog.locator('.category-item');
         await expect(rows.first()).toBeVisible();
 

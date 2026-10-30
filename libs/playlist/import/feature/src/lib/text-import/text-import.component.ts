@@ -12,12 +12,14 @@ import {
 } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-text-import',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './text-import.component.html',
     styleUrls: ['./text-import.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatInputModule, ReactiveFormsModule, TranslatePipe],
 })
 export class TextImportComponent {

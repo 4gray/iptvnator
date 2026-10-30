@@ -6,9 +6,8 @@ import {
     inject,
     untracked,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { interval, map, startWith } from 'rxjs';
 import {
+    getPlaylistSourceIcon,
     isStalkerAccountPlaylist,
     isXtreamAccountPlaylist,
     normalizeDashboardRailsSettings,
@@ -35,6 +34,7 @@ import {
     PlaylistDeleteActionService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     DashboardDataService,
@@ -48,10 +48,11 @@ import {
     DashboardTrendingService,
     GlobalRecentItem,
     resolveSourceExpiryBadge,
-    SOURCE_EXPIRY_TICK_MS,
 } from '@iptvnator/workspace/dashboard/data-access';
 import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
+import { connectDashboardTmdbRails } from './dashboard-tmdb-rails';
 import { DashboardRailComponent } from './dashboard-rail.component';
+import { DashboardRailSkeletonComponent } from './dashboard-rail-skeleton.component';
 import type {
     DashboardRailCard,
     DashboardRailActionSelection,
@@ -61,6 +62,8 @@ import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.pre
 import { DashboardHeroComponent } from './dashboard-hero.component';
 import { buildLiveEpgCardsForEnabledRails } from './dashboard-live-epg.utils';
 import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
+import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
+import { createSourceExpiryClock } from './dashboard-source-expiry-clock';
 import {
     buildDashboardEpisodeBadge,
     buildPlaybackPositionReloadKey,
@@ -75,9 +78,9 @@ import {
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
     RAIL_ITEM_LIMIT,
+    recentContentSkeletonLayout,
     shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
-    SKELETON_CARDS_PER_RAIL,
     SKELETON_RAILS,
 } from './dashboard-rail.utils';
 import type {
@@ -90,6 +93,7 @@ import type {
     imports: [
         DashboardHeroComponent,
         DashboardRailComponent,
+        DashboardRailSkeletonComponent,
         EmptyStateComponent,
         TranslatePipe,
     ],
@@ -99,7 +103,11 @@ import type {
     host: {
         '[class.rails-page-host--empty]': 'ready() && !hasPlaylists()',
     },
-    providers: [DashboardLiveEpgPresenter, DashboardPortalLiveEpgPresenter],
+    providers: [
+        DashboardLiveEpgClock,
+        DashboardLiveEpgPresenter,
+        DashboardPortalLiveEpgPresenter,
+    ],
 })
 export class WorkspaceDashboardRailsComponent {
     readonly data = inject(DashboardDataService);
@@ -115,10 +123,7 @@ export class WorkspaceDashboardRailsComponent {
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
@@ -131,7 +136,6 @@ export class WorkspaceDashboardRailsComponent {
     readonly xtreamPlaylistCount = this.data.xtreamPlaylistCount;
     readonly isElectron = this.runtime.isElectron;
 
-    readonly skeletonSlots = SKELETON_CARDS_PER_RAIL;
     readonly skeletonRails = SKELETON_RAILS;
     readonly liveRailTitleKeyForSource = liveRailTitleKeyForSource;
     readonly dashboardRails = computed(() =>
@@ -141,7 +145,7 @@ export class WorkspaceDashboardRailsComponent {
     readonly continueWatchingBaseCards = computed<DashboardRailCard[]>(() => {
         this.languageTick();
         return this.data
-            .globalRecentVodItems()
+            .continueWatchingItems()
             .filter(isContinueWatchingRecentItem)
             .slice(0, RAIL_ITEM_LIMIT)
             .map((item) => this.toRecentCard(item));
@@ -151,12 +155,13 @@ export class WorkspaceDashboardRailsComponent {
         this.continueWatchingBaseCards()
     );
 
-    readonly liveFavoriteCards = computed<DashboardRailCard[]>(() =>
-        this.data
+    readonly liveFavoriteCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.data
             .globalFavoriteLiveItems()
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toFavoriteCard(item))
-    );
+            .map((item) => this.toFavoriteCard(item));
+    });
 
     readonly recentLiveCards = computed<DashboardRailCard[]>(() =>
         this.data
@@ -171,12 +176,25 @@ export class WorkspaceDashboardRailsComponent {
         })
     );
 
+    private readonly recentContentLoading = computed(() => ({
+        continueWatchingCount: this.continueWatchingCards().length,
+        continueWatchingLoading: !this.data.continueWatchingSettled(),
+        globalRecentLoading: this.data.globalRecentLoading(),
+        recentLiveCount: this.recentLiveCards().length,
+    }));
+
     readonly showRecentContentSkeleton = computed(() =>
-        shouldShowRecentContentSkeleton(this.dashboardRails(), {
-            continueWatchingCount: this.continueWatchingCards().length,
-            globalRecentLoading: this.data.globalRecentLoading(),
-            recentLiveCount: this.recentLiveCards().length,
-        })
+        shouldShowRecentContentSkeleton(
+            this.dashboardRails(),
+            this.recentContentLoading()
+        )
+    );
+
+    readonly recentContentSkeletonLayout = computed(() =>
+        recentContentSkeletonLayout(
+            this.dashboardRails(),
+            this.recentContentLoading()
+        )
     );
 
     // The live cards whose rails are enabled; the presenter adds the hero's
@@ -201,13 +219,14 @@ export class WorkspaceDashboardRailsComponent {
         this.liveEpg.enrich(this.recentLiveCards())
     );
 
-    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() =>
-        this.data
+    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.data
             .globalFavoriteItems()
             .filter((item) => item.type === 'movie' || item.type === 'series')
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toFavoriteCard(item))
-    );
+            .map((item) => this.toFavoriteCard(item));
+    });
 
     readonly continueWatchingSeeAllState = computed(() =>
         buildDashboardRailSeeAllState(this.continueWatchingBaseCards())
@@ -260,14 +279,12 @@ export class WorkspaceDashboardRailsComponent {
             : this.t('WORKSPACE.DASHBOARD.TMDB_RECOMMENDED');
     });
 
-    // Minute heartbeat for the expiry badges: resolveSourceExpiryBadge reads
-    // the wall clock, so without a reactive tick a dashboard left open would
-    // never cross a day-countdown or expiration boundary. interval() emits
-    // 0 first — shifted by one so it differs from initialValue, otherwise
-    // the signal's equality check would swallow the first tick.
-    private readonly sourceExpiryTick = toSignal(
-        interval(SOURCE_EXPIRY_TICK_MS).pipe(map((tick) => tick + 1)),
-        { initialValue: 0 }
+    // resolveSourceExpiryBadge reads the wall clock, so a dashboard left
+    // open needs a reactive clock to cross a day-countdown or expiration
+    // boundary. It moves only at those boundaries, not on a polling tick.
+    private readonly sourceExpiryNow = createSourceExpiryClock(
+        this.sourceExpiry.facts,
+        computed(() => this.dashboardRails().recentSources)
     );
 
     readonly sourceCards = computed<DashboardRailCard[]>(() => {
@@ -283,11 +300,7 @@ export class WorkspaceDashboardRailsComponent {
                 playlist.filename ||
                 this.t('WORKSPACE.DASHBOARD.UNTITLED_SOURCE'),
             subtitle: this.data.getPlaylistProvider(playlist),
-            icon: playlist.serverUrl
-                ? 'cloud'
-                : playlist.macAddress
-                  ? 'cast'
-                  : 'folder_open',
+            icon: getPlaylistSourceIcon(playlist),
             link: this.data.getPlaylistLink(playlist),
             actions: buildDashboardSourceActions(
                 playlist,
@@ -344,38 +357,15 @@ export class WorkspaceDashboardRailsComponent {
             untracked(() => void this.sourceExpiry.refresh(playlists));
         });
 
-        // Trending rail: needs the TMDB opt-in and the Electron DB worker.
-        // Deferred until the dashboard's own recent/favorites data is in so
-        // the batched title match never competes for the worker at startup.
-        effect(() => {
-            if (
-                !this.dashboardRails().tmdbTrending ||
-                !this.data.globalFavoritesLoaded()
-            ) {
-                return;
-            }
-            untracked(() => void this.trendingService.load());
-        });
-
-        // Recommendations rail: same gating as trending, plus tracked
-        // reads of the seed source, the favorites (both feed the
-        // exclusion set) and the playlist set (feeds the catalog key) so
-        // a newly watched/favorited title or an imported/deleted playlist
-        // re-runs the load — the service keys loads by seed + exclusion +
-        // catalog set and skips no-ops.
-        effect(() => {
-            if (
-                !this.dashboardRails().tmdbRecommendations ||
-                !this.data.globalFavoritesLoaded()
-            ) {
-                return;
-            }
-            this.data.globalRecentVodItems();
-            this.data.globalFavoriteItems();
-            this.data.playlists();
-            // Language feeds the service's load key (localized payloads)
-            this.languageTick();
-            untracked(() => void this.recommendationsService.load());
+        // Trending and recommendations: after the favorites and Continue
+        // Watching, so their title match never holds the DB worker while
+        // the playback positions wait (see connectDashboardTmdbRails).
+        connectDashboardTmdbRails({
+            dashboardRails: this.dashboardRails,
+            languageTick: this.languageTick,
+            data: this.data,
+            trendingService: this.trendingService,
+            recommendationsService: this.recommendationsService,
         });
     }
 
@@ -485,6 +475,7 @@ export class WorkspaceDashboardRailsComponent {
         );
         return {
             id: this.recentCardId(item),
+            catalogStatus: item.catalogStatus,
             title: item.title,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
@@ -525,6 +516,15 @@ export class WorkspaceDashboardRailsComponent {
     private toFavoriteCard(item: DashboardFavoriteItem): DashboardRailCard {
         return {
             id: `fav-${item.id}-${item.playlist_id}-${item.added_at}`,
+            catalogStatus: item.catalogStatus,
+            subtitle:
+                item.catalogStatus && item.catalogStatus !== 'present'
+                    ? this.translate.instant(
+                          item.catalogStatus === 'missing'
+                              ? 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
+                              : 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_UNKNOWN'
+                      )
+                    : undefined,
             title: item.title,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
@@ -611,12 +611,12 @@ export class WorkspaceDashboardRailsComponent {
     private buildSourceExpiryBadge(
         playlistId: string
     ): DashboardRailCard['expiryBadge'] {
-        // Reactive read: ties the wall-clock evaluation below to the minute
-        // tick (this method only runs inside the sourceCards computed).
-        this.sourceExpiryTick();
+        // Reactive read: ties the evaluation below to the expiry clock (this
+        // method only runs inside the sourceCards computed). Date.now() keeps
+        // a recompute for any other reason on the real time.
         const badge = resolveSourceExpiryBadge(
             this.sourceExpiry.facts().get(playlistId),
-            Date.now()
+            Math.max(this.sourceExpiryNow(), Date.now())
         );
         if (!badge) {
             return null;
@@ -656,6 +656,7 @@ export class WorkspaceDashboardRailsComponent {
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 },
             });
             return;
@@ -672,6 +673,8 @@ export class WorkspaceDashboardRailsComponent {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
+            confirmLabel: this.translate.instant('HOME.PLAYLISTS.REMOVE'),
+            tone: 'destructive',
             onConfirm: () => {
                 void this.removePlaylist(playlist);
             },

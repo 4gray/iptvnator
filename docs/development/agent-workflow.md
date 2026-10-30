@@ -16,7 +16,8 @@ claims in the final summary. Repo docs remain canonical regardless of authorship
 
 Keep AGENTS.md limited to repository-wide constraints and task routing. Do not
 add feature histories, method lists, schema inventories or troubleshooting
-procedures to it. CLAUDE.md imports AGENTS.md; do not mirror common prose by hand.
+procedures to it. All coding agents, including Claude Code, read AGENTS.md;
+do not create a second copy of the common instructions.
 Use [the context map](../maintenance/agent-context-map.md) for the owning document
 and relevant skill. Read multiple contracts for cross-domain work. Add a new
 canonical document only when no existing owner fits; link it from the map.
@@ -27,8 +28,30 @@ The [2026-09 migration ledger](../maintenance/agent-guidance-migration.md) recor
 the initial move; it is an audit artifact, not required reading for feature work.
 Later normal edits maintain the canonical docs, not duplicate historical prose.
 
+## Claude Code
+
+Use Claude Code **2.1.281 or newer** with its built-in AGENTS.md plugin enabled.
+Native support arrived in 2.1.277; 2.1.281 fixed availability for sessions with
+telemetry disabled and some cloud providers. See the
+[official instruction-loading documentation](https://code.claude.com/docs/en/memory#agentsmd).
+
+The repository uses AGENTS.md directly and does not need a CLAUDE.md wrapper.
+By default, CLAUDE.md, .claude/CLAUDE.md or CLAUDE.local.md in the working
+directory or an ancestor prevents AGENTS.md loading. If you keep one locally,
+set **Project instructions** to **claude-md-and-agents-md** in `/config`.
+Personal ~/.claude/CLAUDE.md and .claude/rules/ can remain alongside AGENTS.md.
+Start a new session after upgrading and check the AGENTS.md loading notice.
+
+Repository skills are shared with Codex from `.agents/skills/`. Each skill has
+a relative directory symlink in `.claude/skills/`, so both agents load the same
+source. See [Repository skills](#repository-skills) for maintenance and checkout setup.
+
+## Guidance validation
+
 Run `pnpm run agents:validate` after guidance changes. It checks line/byte budgets,
 root imports and local navigation links/anchors, including migration destinations.
+CLAUDE.md is optional; if present, it still has a 30-line / 2 KiB budget and
+must contain exactly one standalone AGENTS.md import.
 Line budgets count LF, CRLF and standalone CR endings consistently.
 Markdown navigation is parsed with the already-declared `marked` dependency;
 undefined explicit references (including shortcut images) are errors, and code examples are excluded.
@@ -117,7 +140,7 @@ It cannot prove semantic equivalence; review changed contracts as well.
 
 ## Protected Markdown edits
 
-Never run whole-file `prettier --write` on AGENTS.md, CLAUDE.md or docs/**.
+Never run whole-file `prettier --write` on AGENTS.md or docs/**.
 Upstream formatting is not uniformly Prettier-clean: whole-file writes can
 corrupt nested list indentation or change a literal continuation into a bullet.
 Format only intended new lines. If accidental formatting occurred, reconstruct
@@ -134,13 +157,74 @@ Completion reports list changed docs, tests added/updated, commands and results,
 skipped validation with reasons, and release-note status. A docs-only task needs
 Markdown/link validation, not app unit/E2E tests. Tooling changes need their own tests.
 
+## Local review before a pull request
+
+Every push to a pull-request branch starts the whole CI matrix and both review
+bots, and runs from several open pull requests queue behind one another. Fix
+rounds therefore happen locally: push only a commit that both reviewers have
+already accepted.
+
+Greptile reviews committed work only, so commit first and fetch the base; both
+reviewers then judge the same change. Run them from the branch's worktree and
+keep their output outside the repository:
+
+- Codex: `codex review --base origin/master -c model_reasoning_effort=high`.
+  The verdict is the final message on stdout; stderr carries the session log.
+  The flag pins the review effort whatever the caller's default is. Codex
+  otherwise runs with the caller's own configuration and may install
+  dependencies or run tests in the worktree, so do not start other installs or
+  builds there while it reviews.
+- Greptile: `greptile review --json`. Clean means `confidence` is 5 and
+  `comments` is empty. A non-zero exit means the review did not run, not that
+  it found problems.
+
+1. Finish the change and its targeted checks, then commit.
+2. Run both reviewers on the same commit; they are independent and can run in
+   parallel.
+3. Check every finding against the code. Fix the real ones and note a one-line
+   reason for each one declined. Never clear a finding by suppressing a rule or
+   weakening a test.
+4. Commit the fixes and review again. Stop when both reviewers are clean on the
+   same commit. Also stop after five rounds, or when a round repeats the
+   previous findings, and report what remains instead of pushing.
+5. Push, open the pull request, and name the reviewed commit and any declined
+   findings in the completion report.
+
+The GitHub bots still review the opened pull request. Treat their findings and
+CI failures the same way: collect the whole round, fix it locally, pass both
+local reviewers again and push once. Do not push one fix per finding.
+
+A reviewer whose CLI is missing, signed out, outside a Greptile organization or
+left without reviewable files (Greptile ignores Markdown-only changes) does not
+block the other one. Say which reviewer did not run; do not install a CLI, sign
+in or onboard an account on the maintainer's behalf.
+
 ## Repository skills
 
-Repository skills live under `.codex/skills/`. Descriptions are trigger-only,
+Repository skills live under `.agents/skills/`. Descriptions are trigger-only,
 begin with `Use when`, and each skill is at most 500 words. Frontmatter owns
 trigger descriptions; avoid copying them into navigation prose. Skills provide
 workflow and links to authoritative contracts, not a second contract copy.
-`release-cut` and `release-notes` have byte-identical `.claude/skills/` mirrors.
+Codex discovers this directory directly. Claude Code discovers the relative
+symlinks in `.claude/skills/`; do not keep separate skill copies or restore the
+old Codex skills directory. Edit only the canonical sources. When adding a skill,
+add its directory symlink and opt that link into `.gitignore` alongside the
+existing shared skills. Personal Claude skills remain ignored.
+
+For example, from the repository root:
+
+```bash
+ln -s ../../.agents/skills/my-skill .claude/skills/my-skill
+```
+
+Git must check out directory symlinks as symlinks. On Windows, enable Developer
+Mode or run with symlink privileges and clone with `git -c core.symlinks=true clone`;
+for an existing checkout, enable `core.symlinks` and re-check out the tracked links
+after preserving local changes. Plain text link placeholders do not load as skills.
+The validator checks every shared skill's relative Claude link and retains the
+required release skills. Historical plans and migration ledgers keep their original
+paths as an audit record; use the context map for current locations.
+
 Run `pnpm run skills:validate` after changing a committed skill or a literal
 path it documents. New guidance tooling belongs to the existing
 `repository-skills` Nx project; no new project is needed for another validator.

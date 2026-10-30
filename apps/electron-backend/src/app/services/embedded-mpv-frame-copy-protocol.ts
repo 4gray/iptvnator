@@ -53,6 +53,7 @@ export function createInitialSnapshot(): NativeEmbeddedMpvSessionSnapshot {
         selectedAudioTrackId: null,
         subtitleTracks: [],
         selectedSubtitleTrackId: null,
+        chapters: [],
         playbackSpeed: 1,
         aspectOverride: 'no',
         recording: { active: false },

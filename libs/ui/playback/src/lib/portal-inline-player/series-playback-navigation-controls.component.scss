@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 :host {
     position: absolute;
     right: 50%;
@@ -26,7 +27,7 @@
 }
 
 .series-playback-navigation-controls__button {
-    --mdc-icon-button-state-layer-size: 40px;
+    @include mat.icon-button-overrides((state-layer-size: 40px));
 
     width: 40px;
     height: 40px;

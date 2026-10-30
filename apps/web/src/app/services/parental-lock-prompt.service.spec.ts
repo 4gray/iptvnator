@@ -24,10 +24,18 @@ describe('AppParentalLockPromptService', () => {
             ParentalLockPinDialogComponent: { open },
         })) as never;
 
-        await expect(service.requestPin({ mode: 'set' })).resolves.toBe('1234');
+        await expect(
+            service.requestPin({
+                mode: 'set',
+                submitKey: 'PARENTAL_LOCK.PIN_DIALOG.SAVE',
+            })
+        ).resolves.toBe('1234');
         expect(open).toHaveBeenCalledWith(
             dialog,
-            expect.objectContaining({ mode: 'set' })
+            expect.objectContaining({
+                mode: 'set',
+                submitKey: 'PARENTAL_LOCK.PIN_DIALOG.SAVE',
+            })
         );
     });
 

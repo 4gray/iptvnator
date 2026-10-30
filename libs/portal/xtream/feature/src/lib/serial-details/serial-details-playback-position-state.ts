@@ -1,5 +1,8 @@
 import { signal } from '@angular/core';
-import type { SeriesResumeTarget } from '@iptvnator/portal/shared/util';
+import {
+    stampPlaybackPositionNow,
+    type SeriesResumeTarget,
+} from '@iptvnator/portal/shared/util';
 import type {
     ExternalPlayerSession,
     PlaybackPositionData,
@@ -113,7 +116,10 @@ export class SerialDetailsPlaybackPositionState {
 
     update(position: PlaybackPositionData): void {
         const updated = new Map(this.positions());
-        updated.set(position.contentXtreamId, position);
+        updated.set(
+            position.contentXtreamId,
+            stampPlaybackPositionNow(position)
+        );
         this.positions.set(updated);
     }
 
@@ -123,7 +129,10 @@ export class SerialDetailsPlaybackPositionState {
         }
         const updated = new Map(this.positions());
         for (const position of positions) {
-            updated.set(position.contentXtreamId, position);
+            updated.set(
+                position.contentXtreamId,
+                stampPlaybackPositionNow(position)
+            );
         }
         this.positions.set(updated);
     }
@@ -151,7 +160,9 @@ export class SerialDetailsPlaybackPositionState {
         save: (
             playlistId: string,
             position: PlaybackPositionData
-        ) => Promise<void>
+        ) => Promise<void>,
+        /** The page still shows the series; checked again after the save. */
+        stillShown: () => boolean = () => true
     ): Promise<void> {
         const session = await launch;
         if (!session) {
@@ -178,6 +189,9 @@ export class SerialDetailsPlaybackPositionState {
         };
 
         await save(contentInfo.playlistId, position);
+        if (!stillShown()) {
+            return;
+        }
         this.update(position);
     }
 

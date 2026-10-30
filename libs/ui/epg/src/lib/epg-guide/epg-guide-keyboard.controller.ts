@@ -22,6 +22,11 @@ export interface EpgGuideKeyboardHost {
     isOwnedTarget(target: EventTarget | null): boolean;
     play(row: number): void;
     details(row: number, block: number): void;
+    /**
+     * Scroll the focus moved by an arrow key into view. N and the day keys
+     * scroll on their own; a reveal after them would cancel their scroll.
+     */
+    revealFocus(): void;
     jumpNow(): void;
     stepDay(direction: EpgDateNavigationDirection): void;
     close(): void;
@@ -112,8 +117,7 @@ export class EpgGuideKeyboardController {
                 return this.details();
             case 'n':
             case 'N':
-                this.host.jumpNow();
-                return true;
+                return this.jumpNow();
             case 'PageUp':
                 this.host.stepDay('prev');
                 return true;
@@ -146,6 +150,7 @@ export class EpgGuideKeyboardController {
                     : count - 1
                 : clamp(current + delta, 0, count - 1);
         this.focus.set({ row: next, block: null });
+        this.host.revealFocus();
         return true;
     }
 
@@ -156,14 +161,28 @@ export class EpgGuideKeyboardController {
         }
         const row = clamp(Math.max(0, this.currentRow()), 0, count - 1);
         const blocks = this.host.blockCount(row);
-        if (blocks === 0) {
-            this.focus.set({ row, block: null });
-            return true;
-        }
         const current =
             this.focus()?.row === row ? (this.focus()?.block ?? null) : null;
         const start = current ?? (delta > 0 ? -1 : blocks);
-        this.focus.set({ row, block: clamp(start + delta, 0, blocks - 1) });
+        this.focus.set({
+            row,
+            block: blocks === 0 ? null : clamp(start + delta, 0, blocks - 1),
+        });
+        this.host.revealFocus();
+        return true;
+    }
+
+    /**
+     * The jump scrolls to the playing row, so the focus follows it there. Left
+     * on a far row it would be recycled during the scroll, dropping the DOM
+     * focus to the page, and the next arrow key would scroll all the way back.
+     */
+    private jumpNow(): boolean {
+        const row = this.host.activeRow();
+        if (row >= 0 && row < this.host.rowCount()) {
+            this.focus.set({ row, block: null });
+        }
+        this.host.jumpNow();
         return true;
     }
 

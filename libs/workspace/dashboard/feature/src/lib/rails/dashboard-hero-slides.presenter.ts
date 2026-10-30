@@ -1,15 +1,17 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     computed,
+    DestroyRef,
     effect,
     inject,
     Injectable,
+    linkedSignal,
     signal,
     untracked,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
-import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
+import { injectTranslationTick } from '@iptvnator/services';
+import { splitSeasonSuffix } from '@iptvnator/portal/shared/util';
 import {
     playlistDisplayLabel,
     resolvePortalActivityWatchKind,
@@ -46,6 +48,13 @@ const TYPE_LABEL_KEYS = {
     series: 'WORKSPACE.DASHBOARD.TYPE_SERIES',
 } as const;
 
+/**
+ * How long, from the hero's creation, its skeleton may wait for the first
+ * programme of a live candidate. Portal answers usually take a few hundred
+ * milliseconds; an unreachable portal must not hold the skeleton forever.
+ */
+export const DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS = 2000;
+
 const PROVIDER_LABEL_KEYS = {
     xtream: 'WORKSPACE.DASHBOARD.XTREAM',
     stalker: 'WORKSPACE.DASHBOARD.STALKER',
@@ -69,10 +78,7 @@ export class DashboardHeroSlidesPresenter {
     private readonly liveEpg = inject(DashboardLiveEpgPresenter);
     private readonly heroTmdb = inject(DashboardHeroTmdbService);
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     private readonly failedImages = signal<Record<string, true>>({});
     private readonly tmdbExtras = signal<
@@ -80,14 +86,34 @@ export class DashboardHeroSlidesPresenter {
     >(new Map());
     private readonly requestedTmdbKeys = new Set<string>();
 
-    /** First history load still running and nothing to feature yet. */
-    readonly loading = computed(
-        () => this.data.globalRecentLoading() && this.slides().length === 0
-    );
+    private readonly liveAnswerWaitOver = signal(false);
+
+    /**
+     * Nothing to feature yet and a source that can feature a title is still
+     * on its first load. Every such source counts, not only the history:
+     * the Xtream recently-added query waits for the favorites, and a live
+     * slide waits for its programme, so dropping the skeleton when the
+     * history resolved empty removed the hero and inserted it again moments
+     * later, moving every rail below twice. Once the skeleton has gone it
+     * does not come back: a later reload must not shift the page either.
+     */
+    readonly loading = linkedSignal<boolean, boolean>({
+        source: () =>
+            this.slides().length === 0 &&
+            (this.data.globalRecentLoading() ||
+                !this.data.continueWatchingSettled() ||
+                this.data.globalFavoritesLoading() ||
+                this.data.xtreamRecentlyAddedLoading() ||
+                (!this.liveAnswerWaitOver() &&
+                    this.liveEpg.heroLiveAwaitingFirstAnswer())),
+        computation: (loading, previous) =>
+            previous?.value === false ? false : loading,
+    }).asReadonly();
 
     /** The first candidate channel with a programme on air right now. */
     private readonly liveSlide = computed(() => {
         for (const candidate of this.liveEpg.heroLiveCandidates()) {
+            if (isCatalogUnavailable(candidate.item)) continue;
             const details = this.liveEpg.heroDetailsFor(candidate.item);
             if (details?.nowPlayingTitle) {
                 return { candidate, details };
@@ -99,22 +125,27 @@ export class DashboardHeroSlidesPresenter {
     private readonly sources = computed(() =>
         pickDashboardHeroSources({
             continueItems: this.data
-                .globalRecentVodItems()
-                .filter(
-                    (item) =>
-                        !isPortalPlaybackWatched(
-                            this.data.getPlaybackPositionForItem(item)
-                        )
-                ),
+                .continueWatchingItems()
+                .filter((item) => !isCatalogUnavailable(item)),
             live: this.liveSlide()?.candidate ?? null,
-            reserveLive: this.liveEpg.heroLiveCandidates().length > 0,
+            reserveLive: this.liveEpg
+                .heroLiveCandidates()
+                .some(({ item }) => !isCatalogUnavailable(item)),
             favorites: this.data
                 .globalFavoriteItems()
                 .filter(
-                    (item) => item.type === 'movie' || item.type === 'series'
+                    (item) =>
+                        !isCatalogUnavailable(item) &&
+                        (item.type === 'movie' || item.type === 'series')
                 ),
             recentlyAdded: this.data.xtreamRecentlyAddedItems(),
-            mostRecent: this.data.globalRecentItems()[0] ?? null,
+            // Until the resume candidates are known the newest row may be one
+            // of them; featuring it as the fallback would swap the slide.
+            mostRecent: this.data.continueWatchingSettled()
+                ? (this.data
+                      .globalRecentItems()
+                      .find((item) => !isCatalogUnavailable(item)) ?? null)
+                : null,
         })
     );
 
@@ -127,6 +158,12 @@ export class DashboardHeroSlidesPresenter {
     });
 
     constructor() {
+        const liveAnswerWait = setTimeout(
+            () => this.liveAnswerWaitOver.set(true),
+            DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS
+        );
+        inject(DestroyRef).onDestroy(() => clearTimeout(liveAnswerWait));
+
         effect(() => {
             if (!this.heroTmdb.isEnabled()) {
                 return;
@@ -185,30 +222,35 @@ export class DashboardHeroSlidesPresenter {
             {
                 backdropUrl: item.backdrop_url || extras?.backdropUrl || null,
                 posterUrl: item.poster_url,
-                title: item.title,
             },
             this.failedImages()
         );
 
+        // Watch kind: a Stalker embedded-VOD show routes as a movie
+        const watchKind = isLive
+            ? 'live'
+            : (resolvePortalActivityWatchKind(item) ?? item.type);
+        const episodeBadge = buildDashboardEpisodeBadge(
+            item,
+            position,
+            (key, params) => this.translate.instant(key, params)
+        );
         return {
             ...artwork,
             id: `${source.kind}:${dashboardHeroItemKey(item)}`,
             kind: source.kind,
             contentType: item.type,
-            title: item.title,
-            // Watch kind: a Stalker embedded-VOD show routes as a movie
-            typeLabelKey:
-                TYPE_LABEL_KEYS[
-                    isLive
-                        ? 'live'
-                        : (resolvePortalActivityWatchKind(item) ?? item.type)
-                ],
+            // "Большая фарма (1 сезон)" → "Большая фарма" only while the
+            // episode badge names the season; without a badge the marker is
+            // the sole season identity of a per-season catalog entry. A movie
+            // keeps its name as is.
+            title:
+                watchKind === 'series' && episodeBadge
+                    ? splitSeasonSuffix(item.title).title
+                    : item.title,
+            typeLabelKey: TYPE_LABEL_KEYS[watchKind],
             reasonLabelKey: this.reasonLabelKey(source),
-            episodeBadge: buildDashboardEpisodeBadge(
-                item,
-                position,
-                (key, params) => this.translate.instant(key, params)
-            ),
+            episodeBadge,
             rating: extras?.rating ?? null,
             genres: extras?.genres ?? [],
             year: extras?.year ?? item.release_year ?? null,

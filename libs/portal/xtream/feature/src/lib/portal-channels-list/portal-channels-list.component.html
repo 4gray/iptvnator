@@ -10,7 +10,7 @@
             <div class="channels-loading-state__list">
                 <app-channel-list-skeleton
                     [count]="9"
-                    [showEpg]="supportsEpg"
+                    [showEpg]="supportsProviderEpg"
                     [actionCount]="1"
                 />
             </div>
@@ -35,16 +35,16 @@
                     xtreamStore.selectedItem()?.xtream_id === item.xtream_id
                 "
                 [epgProgram]="
-                    supportsEpg
+                    supportsProviderEpg
                         ? (epgPrograms.get(item.xtream_id) ?? null)
                         : null
                 "
                 [progressPercentage]="
-                    supportsEpg
+                    supportsProviderEpg
                         ? (currentProgramsProgress.get(item.xtream_id) ?? 0)
                         : 0
                 "
-                [showEpg]="supportsEpg"
+                [showEpg]="supportsProviderEpg"
                 [catchupAvailable]="isCatchupAvailable(item)"
                 [catchupDays]="catchupDays(item)"
                 [showFavoriteButton]="true"
@@ -59,21 +59,10 @@
             />
         </cdk-virtual-scroll-viewport>
 
-        <div
-            aria-hidden="true"
-            class="channel-context-menu-anchor"
-            [style.left]="contextMenuPosition().x"
-            [style.top]="contextMenuPosition().y"
-            [matMenuTriggerFor]="channelContextMenu"
-            #contextMenuTrigger="matMenuTrigger"
-        ></div>
-
-        <mat-menu #channelContextMenu="matMenu">
-            <button mat-menu-item (click)="openEpgMapping()">
-                <mat-icon>settings_remote</mat-icon>
-                <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
-            </button>
-        </mat-menu>
+        <app-channel-context-menu
+            [showMapEpg]="true"
+            (mapEpg)="openEpgMapping()"
+        />
     } @else {
         <div class="empty-search-state">
             <mat-icon class="empty-state-icon">search_off</mat-icon>

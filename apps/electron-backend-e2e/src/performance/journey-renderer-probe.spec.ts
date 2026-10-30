@@ -7,6 +7,8 @@ import {
     assertJourneyRendererProbeState,
     createLaunchJourneyProbeOptions,
     createOpenSourceJourneyProbeOptions,
+    JOURNEY_CD_TICK_COUNTER_KEY,
+    JOURNEY_IDLE_WINDOW_MS,
     JOURNEY_IPC_SENTINEL_ID,
     JOURNEY_IPC_SENTINEL_METHOD,
     JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
@@ -18,38 +20,14 @@ import {
     JOURNEY_SETTLE_ROOT_SELECTOR,
     journeyRendererProbeScript,
     type JourneyRendererProbeOptions,
-    type JourneyRendererProbeState,
 } from './journey-renderer-probe';
-
-interface FakeEntry {
-    duration?: number;
-    entryType: string;
-    hadRecentInput?: boolean;
-    sources?: {
-        currentRect: { height: number; y: number };
-        node: unknown;
-        previousRect: { height: number; y: number };
-    }[];
-    startTime: number;
-    value?: number;
-}
-
-interface FakeObserver {
-    disconnected: boolean;
-    emit(entries: FakeEntry[]): void;
-    queue: FakeEntry[];
-    type: string | null;
-}
-
-interface Fixture {
-    readonly bridgeCalls: unknown[];
-    readonly observers: FakeObserver[];
-    /** The live state object inside the jsdom realm. */
-    readonly rawState: () => JourneyRendererProbeState;
-    /** A JSON clone, so assertions compare values across realms. */
-    readonly state: () => JourneyRendererProbeState;
-    readonly window: JSDOM['window'];
-}
+import {
+    createFixtureFromDom,
+    settle,
+    type FakeEntry,
+    type FakeObserver,
+    type Fixture,
+} from './journey-renderer-probe.test-helpers';
 
 const PAGE = `<!doctype html><html><head></head><body class="mat-app-background">
 <div id="initial-splash" role="status"><span>IPTVnator</span></div>
@@ -61,55 +39,6 @@ const FAST_SETTLE = {
     quietMs: 30,
     rootSelector: JOURNEY_SETTLE_ROOT_SELECTOR,
 } as const;
-
-function installFakePerformance(
-    window: JSDOM['window'],
-    observers: FakeObserver[]
-): void {
-    class FakePerformanceObserver implements FakeObserver {
-        disconnected = false;
-        queue: FakeEntry[] = [];
-        type: string | null = null;
-        constructor(
-            private readonly callback: (list: {
-                getEntries(): FakeEntry[];
-            }) => void
-        ) {
-            observers.push(this);
-        }
-        observe(options: { type: string }): void {
-            this.type = options.type;
-        }
-        takeRecords(): FakeEntry[] {
-            const queued = this.queue;
-            this.queue = [];
-            return queued;
-        }
-        disconnect(): void {
-            this.disconnected = true;
-        }
-        emit(entries: FakeEntry[]): void {
-            this.callback({ getEntries: () => entries });
-        }
-    }
-    Object.defineProperty(window, 'PerformanceObserver', {
-        configurable: true,
-        value: FakePerformanceObserver,
-    });
-    Object.defineProperty(window.performance, 'getEntriesByType', {
-        configurable: true,
-        value: (type: string) =>
-            type === 'navigation'
-                ? [{ domContentLoadedEventEnd: 100, loadEventEnd: 120 }]
-                : [],
-    });
-    // jsdom never lays out, so visibility is "connected to the document".
-    window.HTMLElement.prototype.getClientRects = function getClientRects(
-        this: HTMLElement
-    ) {
-        return (this.isConnected ? [{}] : []) as unknown as DOMRectList;
-    };
-}
 
 function createFixture(
     overrides: Partial<JourneyRendererProbeOptions> & {
@@ -130,7 +59,7 @@ function createFixture(
     return createFixtureFromDom(
         dom,
         {
-            ...createLaunchJourneyProbeOptions(),
+            ...createLaunchJourneyProbeOptions(null),
             settle: FAST_SETTLE,
             ...optionOverrides,
         },
@@ -138,77 +67,17 @@ function createFixture(
     );
 }
 
-function createFixtureFromDom(
-    dom: JSDOM,
-    options: JourneyRendererProbeOptions,
-    bridge: boolean
-): Fixture {
-    const { window } = dom;
-    const observers: FakeObserver[] = [];
-    const bridgeCalls: unknown[] = [];
-    installFakePerformance(window, observers);
-    // tsx (esbuild keepNames) rewrites named inner functions as
-    // `__name(fn, 'name')` when it transpiles the probe for this test runner.
-    // Playwright's Babel transform, which serializes the probe for the real
-    // browser, does not, so the shim is a test-runner concern only.
-    Object.defineProperty(window, '__name', {
-        configurable: true,
-        value: (target: unknown) => target,
-    });
-    if (bridge) {
-        Object.defineProperty(window, 'electron', {
-            configurable: true,
-            value: Object.freeze({
-                [JOURNEY_IPC_SENTINEL_METHOD]: (id: unknown) => {
-                    bridgeCalls.push(id);
-                    return Promise.resolve(null);
-                },
-                onSomething: () => undefined,
-            }),
-        });
-    }
-    window.eval(
-        `(${journeyRendererProbeScript.toString()})(${JSON.stringify(options)})`
-    );
-    const rawState = (): JourneyRendererProbeState =>
-        (window as unknown as Record<string, JourneyRendererProbeState>)[
-            options.stateKey
-        ] as JourneyRendererProbeState;
-    liveStates.push(rawState);
-    return {
-        bridgeCalls,
-        observers,
-        rawState,
-        state: () =>
-            JSON.parse(JSON.stringify(rawState())) as JourneyRendererProbeState,
-        window,
-    };
-}
-
-/** Probes created by this file, so `settle` can wait for their cutoff. */
-const liveStates: (() => JourneyRendererProbeState)[] = [];
-
 /**
- * Waits `ms`, then until every probe that reached its terminal batch has also
- * passed the post-paint cutoff (a rAF plus a timer) and closed its settle
- * window. A fixed delay alone flakes when the harness runs all spec files in
- * parallel.
+ * The electron-performance build's tick counter, installed in the fixture's
+ * window the way `environment.performance.ts` installs it before bootstrap.
  */
-async function settle(ms = 40): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, ms));
-    const deadline = Date.now() + 3_000;
-    while (
-        liveStates.some((read) => {
-            const state = read();
-            return (
-                state.terminal !== null &&
-                (!state.final || state.settle.status === 'pending')
-            );
-        }) &&
-        Date.now() < deadline
-    ) {
-        await new Promise((resolve) => setTimeout(resolve, 10));
-    }
+function installTickCounter(fixture: Fixture): { count: number } {
+    const counter = { count: 0 };
+    Object.defineProperty(fixture.window, JOURNEY_CD_TICK_COUNTER_KEY, {
+        configurable: true,
+        value: counter,
+    });
+    return counter;
 }
 
 function renderFirstCard(fixture: Fixture): void {
@@ -245,7 +114,7 @@ test('installs once per document', () => {
     const fixture = createFixture();
     const first = fixture.rawState();
     fixture.window.eval(
-        `(${journeyRendererProbeScript.toString()})(${JSON.stringify(createLaunchJourneyProbeOptions())})`
+        `(${journeyRendererProbeScript.toString()})(${JSON.stringify(createLaunchJourneyProbeOptions(null))})`
     );
     assert.equal(fixture.rawState(), first);
 });
@@ -280,10 +149,12 @@ test('counts mutation records until the first card is visible after the splash i
         state.navigation?.loadEventEndEpochMs,
         fixture.window.performance.timeOrigin + 120
     );
+    // No tick counter in this build: reported, never zero.
     assert.equal(
         state.capabilities.changeDetectionTicks,
-        'unavailable-ng-global-not-published'
+        'unavailable-counter-missing'
     );
+    assert.equal(state.counters.changeDetectionTicks, null);
     assert.ok(fixture.observers.every((observer) => observer.disconnected));
 
     appRoot.append(document.createElement('div'));
@@ -470,6 +341,8 @@ test('keeps summing shifts without recent input after the first-card cutoff unti
                 [
                     {
                         deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
                         deltaY: -240,
                         node: 'lib-dashboard-rail[data-test-id="dashboard-favorites-rail"]',
                     },
@@ -652,14 +525,181 @@ test('rejects a probe whose performance observers were unavailable instead of re
     );
 });
 
+test('counts change-detection ticks from document start until the terminal batch', async () => {
+    const fixture = createFixture();
+    const counter = installTickCounter(fixture);
+    counter.count += 3;
+    renderFirstCard(fixture);
+    // The tick that rendered the card ran before the observer's microtask.
+    counter.count += 1;
+    await settle();
+    counter.count += 5;
+    const state = fixture.state();
+    assert.equal(state.capabilities.changeDetectionTicks, 'counted');
+    assert.equal(state.counters.changeDetectionTicks, 4);
+    assert.equal(state.idle.status, 'disabled');
+    assert.equal(state.idle.ticks, null);
+});
+
+test('counts ticks and mutations in the idle window that opens at the settle point', async () => {
+    const fixture = createFixture({ idle: { durationMs: 80 } });
+    const counter = installTickCounter(fixture);
+    renderFirstCard(fixture);
+    counter.count += 2;
+    await waitFor(() => fixture.rawState().idle.startEpochMs !== null);
+    const opened = fixture.state();
+    assert.equal(opened.idle.status, 'pending');
+    assert.ok(opened.settle.epochMs !== null);
+    assert.ok((opened.idle.startEpochMs ?? 0) >= opened.settle.epochMs);
+    assert.throws(
+        () => assertJourneyRendererProbeState(opened),
+        /idle-pending/
+    );
+    counter.count += 7;
+    fixture.window.document.body.append(
+        fixture.window.document.createElement('div')
+    );
+    await waitFor(() => fixture.rawState().idle.status === 'done');
+    counter.count += 100;
+    const state = fixture.state();
+    assert.equal(state.counters.changeDetectionTicks, 2);
+    assert.equal(state.idle.ticks, 7);
+    assert.equal(state.idle.domMutations, 1);
+    assert.ok(
+        (state.idle.endEpochMs ?? 0) - (state.idle.startEpochMs ?? 0) >= 79
+    );
+    assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
+});
+
+const RAILS_PHASE = {
+    absentSelectors: ['[data-test-id$="-rail-skeleton"]'],
+    name: 'railsSettled',
+    requiredSelectors: [
+        '[data-test-id="dashboard-continue-watching-rail-card"]',
+    ],
+    sentinelId: '__rails-settled__',
+    timeoutMs: 150,
+} as const;
+
+function renderRail(fixture: Fixture, testId: string): HTMLElement {
+    const { document } = fixture.window;
+    const rail = document.createElement('section');
+    rail.setAttribute('data-test-id', testId);
+    const card = document.createElement('div');
+    card.setAttribute('data-test-id', `${testId}-card`);
+    rail.append(card);
+    document.querySelector('main.workspace-content')?.append(rail);
+    return rail;
+}
+
+test('a phase is stamped at the first batch after the card that meets it, with its sentinel', async () => {
+    const fixture = createFixture({ phases: [RAILS_PHASE] });
+    const { document } = fixture.window;
+    assert.deepEqual(fixture.state().phases, {
+        railsSettled: {
+            afterFirstCardMs: null,
+            domMutations: 0,
+            epochMs: null,
+            missing: [],
+            sentinelStatus: 'not-sent',
+            status: 'pending',
+        },
+    });
+    const skeleton = document.createElement('section');
+    skeleton.setAttribute(
+        'data-test-id',
+        'dashboard-continue-watching-rail-skeleton'
+    );
+    document.querySelector('main.workspace-content')?.append(skeleton);
+    renderFirstCard(fixture);
+    await settle();
+    assert.ok(fixture.state().terminal);
+    assert.equal(fixture.state().phases['railsSettled']?.status, 'pending');
+    assert.deepEqual(fixture.bridgeCalls, [JOURNEY_IPC_SENTINEL_ID]);
+
+    // The rail arrives while its skeleton is still up: not settled.
+    renderRail(fixture, 'dashboard-continue-watching-rail');
+    await settle();
+    assert.equal(fixture.state().phases['railsSettled']?.status, 'pending');
+    skeleton.remove();
+    await settle();
+    const state = fixture.state();
+    const phase = state.phases['railsSettled'];
+    assert.equal(phase?.status, 'reached');
+    assert.equal(phase?.sentinelStatus, 'sent');
+    assert.ok((phase?.epochMs ?? 0) >= (state.terminal?.epochMs ?? Infinity));
+    assert.equal(
+        phase?.afterFirstCardMs,
+        (phase?.epochMs ?? 0) - (state.terminal?.epochMs ?? 0)
+    );
+    // The rail's insertion and the skeleton removal, after the card.
+    assert.equal(phase?.domMutations, 2);
+    assert.deepEqual(fixture.bridgeCalls, [
+        JOURNEY_IPC_SENTINEL_ID,
+        '__rails-settled__',
+    ]);
+    // First-card counters are untouched by the later activity: the
+    // skeleton, the splash removal, the rail and its card.
+    assert.equal(state.counters.domMutations, 4);
+    assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
+});
+
+test('a phase already met at the first card is stamped at the terminal batch', async () => {
+    const fixture = createFixture({ phases: [RAILS_PHASE] });
+    renderRail(fixture, 'dashboard-continue-watching-rail');
+    renderFirstCard(fixture);
+    await settle();
+    const state = fixture.state();
+    const phase = state.phases['railsSettled'];
+    assert.equal(phase?.status, 'reached');
+    assert.equal(phase?.afterFirstCardMs, 0);
+    assert.equal(phase?.domMutations, 0);
+});
+
+test('a phase not met in time reports the selectors still unmet', async () => {
+    const fixture = createFixture({ phases: [RAILS_PHASE] });
+    renderFirstCard(fixture);
+    await settle();
+    assert.equal(fixture.state().phases['railsSettled']?.status, 'pending');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const phase = fixture.state().phases['railsSettled'];
+    assert.equal(phase?.status, 'timeout');
+    assert.deepEqual(phase?.missing, [
+        '[data-test-id="dashboard-continue-watching-rail-card"]',
+    ]);
+    assert.equal(phase?.sentinelStatus, 'not-sent');
+    assert.deepEqual(fixture.bridgeCalls, [JOURNEY_IPC_SENTINEL_ID]);
+});
+
+test('launch options carry phases only when given', () => {
+    assert.equal(createLaunchJourneyProbeOptions(null).phases, undefined);
+    assert.deepEqual(
+        createLaunchJourneyProbeOptions(null, [RAILS_PHASE]).phases,
+        [RAILS_PHASE]
+    );
+    assert.deepEqual(createFixture().state().phases, {});
+});
+
+test('launch options add the idle window only when asked', () => {
+    assert.equal(createLaunchJourneyProbeOptions(null).idle, undefined);
+    assert.deepEqual(
+        createLaunchJourneyProbeOptions(JOURNEY_IDLE_WINDOW_MS).idle,
+        { durationMs: 30_000 }
+    );
+    assert.equal(
+        createLaunchJourneyProbeOptions(null).cdTickCounterKey,
+        '__iptvnatorCdTicks'
+    );
+});
+
 test('launch options target the workspace source cards and the shared sentinel', () => {
-    const options = createLaunchJourneyProbeOptions();
+    const options = createLaunchJourneyProbeOptions(null);
     assert.equal(options.stateKey, JOURNEY_PROBE_STATE_KEY);
     assert.equal(options.sentinelMethod, 'cancelSourceProbe');
     assert.equal(options.splashId, 'initial-splash');
     assert.equal(options.routeFragment, '/workspace');
     assert.match(options.cardSelector, /dashboard-recent-sources-rail-card/);
-    assert.match(options.cardSelector, /app-playlist-item/);
+    assert.match(options.cardSelector, /app-source-row/);
     assert.deepEqual(options.settle, {
         capMs: JOURNEY_SETTLE_CAP_MS,
         quietMs: JOURNEY_SETTLE_QUIET_MS,
@@ -777,6 +817,10 @@ test('the click sends the start sentinel before the app sees it and the end sent
     assert.equal(state.navigation, null);
     assert.equal(state.final, true);
     assert.ok(state.terminal.epochMs >= state.start.epochMs);
+    assert.equal(
+        state.capabilities.changeDetectionTicks,
+        'unavailable-counter-missing'
+    );
     assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
 
     // One start per armed probe.
@@ -784,6 +828,23 @@ test('the click sends the start sentinel before the app sees it and the end sent
     fixture.card.click();
     await settle();
     assert.equal(fixture.bridgeCalls.length, 2);
+});
+
+test('counts ticks from the click, not from document start', async () => {
+    const fixture = createOpenSourceFixture();
+    const counter = installTickCounter(fixture);
+    counter.count = 40;
+    fixture.card.addEventListener('click', () => {
+        counter.count += 1;
+        openSource(fixture);
+        counter.count += 1;
+    });
+    fixture.card.click();
+    await settle();
+    counter.count += 10;
+    const state = fixture.state();
+    assert.equal(state.capabilities.changeDetectionTicks, 'counted');
+    assert.equal(state.counters.changeDetectionTicks, 2);
 });
 
 test('the first page needs the category list as well as the items', async () => {
@@ -848,6 +909,13 @@ test('drops performance entries from before the click and keeps recent-input shi
         {
             entryType: 'layout-shift',
             hadRecentInput: true,
+            sources: [
+                {
+                    currentRect: { height: 40, width: 300, x: 48, y: 152 },
+                    node: fixture.card,
+                    previousRect: { height: 40, width: 320, x: 0, y: 100 },
+                },
+            ],
             startTime: now(),
             value: 0.25,
         },
@@ -873,6 +941,25 @@ test('drops performance entries from before the click and keeps recent-input shi
     assert.equal(state.final, true);
     assert.equal(state.counters.layoutShiftScore, 0.125);
     assert.equal(state.counters.recentInputLayoutShiftScore, 0.25);
+    // Each counted shift keeps its nodes; the pre-click ones are not listed.
+    assert.deepEqual(
+        state.shifts.map((shift) => [
+            shift.hadRecentInput,
+            shift.value,
+            shift.sources.map((source) => [
+                source.deltaX,
+                source.deltaY,
+                source.deltaWidth,
+            ]),
+        ]),
+        [
+            [true, 0.25, [[48, 52, -20]]],
+            [false, 0.125, []],
+        ]
+    );
+    assert.equal(state.shiftCount, 2);
+    assert.ok(state.shifts.every((shift) => shift.sinceStartMs >= 0));
+    assert.match(state.shifts[0]?.sources[0]?.node ?? '', /^[a-z-]+/);
     // J2 has no settle window: the observers close at the cutoff.
     assert.equal(state.settle.status, 'disabled');
     assert.equal(state.counters.layoutShiftScoreSettled, 0);
@@ -919,6 +1006,8 @@ test('rejects a click start whose sentinel could not be sent', async () => {
     const started = {
         ...state,
         sentinel: { epochMs: 1, status: 'sent' as const },
+        shiftCount: 0,
+        shifts: [],
     };
     assert.throws(
         () => assertJourneyRendererProbeState(started),
@@ -941,7 +1030,7 @@ test('open-source options start at the portal card and end on the source route',
         options.startClick?.selector ?? '',
         /dashboard-recent-sources-rail-card/
     );
-    assert.match(options.startClick?.selector ?? '', /app-playlist-item/);
+    assert.match(options.startClick?.selector ?? '', /app-source-row/);
     assert.equal(options.routeFragment, '/workspace/xtreams/');
     assert.match(options.cardSelector, /app-grid-list mat-card/);
     assert.match(options.cardSelector, /channel-item/);

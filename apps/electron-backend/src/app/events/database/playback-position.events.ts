@@ -84,3 +84,8 @@ handleWorkerRequest(
         items,
     })
 );
+
+handleWorkerRequest(
+    'DB_REPLACE_ALL_PLAYBACK_POSITIONS',
+    (playlistId: string, items: unknown[]) => ({ playlistId, items })
+);

@@ -24,7 +24,7 @@ IPTVNATOR_TRACE_STARTUP=1 pnpm nx serve electron-backend
 ```
 
 - Narrower trace flags:
-    - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls
+    - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls and reports cancelled Stalker/Xtream portal requests, which are otherwise not logged (an HTTP 401/403 is always one `Refused` warning; other failures stay errors)
     - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and request-scoped DB events
     - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in the main process and DB worker
     - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
@@ -96,7 +96,16 @@ count. A window launched through `launchElectronApp` therefore always reports
 even when hidden or minimized. Tests of hidden-window behavior launch through
 `apps/electron-backend-e2e/src/electron-unautomated-launch.ts`, which spawns
 the app without Playwright and evaluates over raw CDP sockets
-(`window-visibility.e2e.ts` is the example).
+(`window-visibility.e2e.ts` is the example). The helper matches the packaged
+renderer directory, including routed URLs: Angular may replace `index.html`
+with `/workspace/dashboard` before CDP discovers the page. On macOS the
+visibility tests wait for native window focus and the first native `show`
+notification before hiding or minimizing. The unautomated launcher observes
+`show`/`hide` from window creation, before CDP connects: `isVisible()`, focus,
+and the renderer's initial `visible` state can precede Cocoa's first visible
+occlusion notification. Hiding in that gap can coalesce away the transition.
+Run these tests with an unlocked desktop session so
+native focus and visibility transitions can complete.
 
 The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
 even when the smoke fails. Check the paused-frame screenshot and trace before
@@ -143,3 +152,22 @@ from `app.asar`. The preload is
 [workspace shell](../architecture/workspace-shell.md) for window behavior,
 [DB worker](../architecture/sqlite-db-worker.md) for worker ownership and
 [Electron security](../architecture/electron-security.md) for bridge boundaries.
+
+`apps/electron-backend/tsconfig.app.json` sets `"target": "ES2022"` for the
+main-process bundles (`main.js`, `main.app.js`, `deferred-events.js`) and the
+preloads; `tsconfig.base.json` stays at `es2015` because other projects
+inherit it. The Jest specs (`tsconfig.spec.json`) keep the base target on
+purpose: Istanbul counts the statements of the emitted code, so an ES2022 spec
+build drops the downleveled helpers from the counts (for example
+`downloads.events.ts` from 126 to 111 statements) and would trip the absolute
+`minimumCovered` ratchets in `tools/coverage/coverage-policy.json` without any
+coverage being lost. Electron 43 (Node 24 and Chromium's V8) runs
+ES2022 natively in the main process and in the sandboxed preload, so
+async/await, optional chaining and `??` are no longer downleveled.
+`"useDefineForClassFields": false` keeps the class-field semantics of the old
+target (constructor assignment, not `[[Define]]`), so only syntax changed. The
+workers built by `build-worker.js` (esbuild, `node18`) were already native. On
+2026-09-29 the four bundles shrank from 2,008,115 to 1,853,599 bytes (every
+inlined `__awaiter` gone); neither main-process CPU time to `did-finish-load`
+nor the J1 launch journey's wall-clock changed measurably in an interleaved
+A/B, and J1's counters were identical.

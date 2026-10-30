@@ -2,7 +2,11 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { signalStore } from '@ngrx/signals';
 import { of } from 'rxjs';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { withRecentItems } from './with-recent-items';
 
@@ -19,6 +23,7 @@ const TestRecentItemsStore = signalStore(withRecentItems());
 
 describe('withRecentItems', () => {
     const originalElectron = window.electron;
+    const runtime = { supportsXtreamSqliteDataSource: false };
     let store: InstanceType<typeof TestRecentItemsStore>;
     let databaseService: {
         clearGlobalRecentlyViewed: jest.Mock;
@@ -42,6 +47,7 @@ describe('withRecentItems', () => {
     };
 
     beforeEach(() => {
+        runtime.supportsXtreamSqliteDataSource = false;
         Object.defineProperty(window, 'electron', {
             value: {} as Window['electron'],
             configurable: true,
@@ -95,6 +101,7 @@ describe('withRecentItems', () => {
         TestBed.configureTestingModule({
             providers: [
                 TestRecentItemsStore,
+                { provide: RuntimeCapabilitiesService, useValue: runtime },
                 {
                     provide: DatabaseService,
                     useValue: databaseService,
@@ -121,6 +128,39 @@ describe('withRecentItems', () => {
         });
     });
 
+    it('records the played SQLite duplicate using its displayed identity', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (_id, _playlist, _type, identity) => ({
+                id: identity?.tmdbId === 100 ? 2 : 1,
+            })
+        );
+        const playedContent = {
+            title: 'Displayed original',
+            tmdbId: 100,
+            releaseYear: 1995,
+        };
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'movie',
+            playlist: signal({ id: 'p' }),
+            playedContent,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            42,
+            'p',
+            'movie',
+            { tmdbId: 100, releaseYear: 1995 }
+        );
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 2, type: 'movie' },
+            'p',
+            undefined,
+            playedContent
+        );
+    });
+
     it('looks recent items up with the requested content type before saving one', async () => {
         dataSource.getContentByXtreamId.mockResolvedValue({
             id: 3941697,
@@ -142,7 +182,7 @@ describe('withRecentItems', () => {
             'series'
         );
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            3941697,
+            { id: 3941697, type: 'series' },
             'playlist-1',
             undefined
         );
@@ -172,7 +212,7 @@ describe('withRecentItems', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            1767451,
+            { id: 1767451, type: 'movie' },
             'playlist-1',
             undefined
         );
@@ -199,7 +239,7 @@ describe('withRecentItems', () => {
             'movie'
         );
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            1767451,
+            { id: 1767451, type: 'movie' },
             'playlist-1',
             undefined
         );
@@ -222,9 +262,44 @@ describe('withRecentItems', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            3941697,
+            { id: 3941697, type: 'series' },
             'playlist-1',
             'https://example.com/krypton-backdrop.png'
+        );
+    });
+
+    it('backfills a cold PWA Recent item by typed provider identity', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        await store.backfillContentMetadata({
+            xtreamId: 290,
+            contentType: 'series',
+            playlist: signal({ id: 'playlist-1' }),
+            patch: { tmdbId: 200 },
+        });
+        expect(dataSource.setContentMetadataIfMissing).toHaveBeenCalledWith(
+            { id: 290, type: 'series' },
+            'playlist-1',
+            { tmdbId: 200 }
+        );
+    });
+
+    it('backfills the displayed native duplicate rather than the first provider-ID row', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (_id, _playlist, _type, identity) => ({
+                id: identity?.tmdbId === 100 ? 2 : 1,
+            })
+        );
+        await store.backfillContentMetadata({
+            xtreamId: 42,
+            contentType: 'movie',
+            playlist: signal({ id: 'p1' }),
+            patch: { tmdbId: 100, releaseYear: 1995 },
+        });
+        expect(dataSource.setContentMetadataIfMissing).toHaveBeenCalledWith(
+            { id: 2, type: 'movie' },
+            'p1',
+            { tmdbId: 100, releaseYear: 1995 }
         );
     });
 
@@ -251,7 +326,7 @@ describe('withRecentItems', () => {
             'series'
         );
         expect(dataSource.setContentMetadataIfMissing).toHaveBeenCalledWith(
-            3941697,
+            { id: 3941697, type: 'series' },
             'playlist-1',
             { backdropUrl: 'https://example.com/krypton-backdrop.png' }
         );
@@ -322,11 +397,15 @@ describe('withRecentItems', () => {
             configurable: true,
         });
 
-        store.removeRecentItem({ itemId: 3941697, playlistId: 'playlist-1' });
+        store.removeRecentItem({
+            itemId: 3941697,
+            contentType: 'series',
+            playlistId: 'playlist-1',
+        });
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(dataSource.removeRecentItem).toHaveBeenCalledWith(
-            3941697,
+            { id: 3941697, type: 'series' },
             'playlist-1'
         );
         expect(databaseService.removeRecentItem).not.toHaveBeenCalled();
@@ -353,5 +432,26 @@ describe('withRecentItems', () => {
                 title: 'Krypton',
             }),
         ]);
+    });
+    it('forwards played metadata even when a cold PWA lookup has no row', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        const playedContent = {
+            title: 'Replacement',
+            tmdbId: 200,
+            posterUrl: 'replacement.jpg',
+        };
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'movie',
+            playlist: signal({ id: 'playlist-1' }),
+            playedContent,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 42, type: 'movie' },
+            'playlist-1',
+            undefined,
+            playedContent
+        );
     });
 });

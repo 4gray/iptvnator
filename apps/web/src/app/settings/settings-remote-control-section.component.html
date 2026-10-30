@@ -1,134 +1,153 @@
 <section class="settings-group" id="remote-control" [formGroup]="form()">
     <header class="settings-group__header">
-        <div class="settings-group__header-icon">
-            <mat-icon>settings_remote</mat-icon>
-        </div>
-        <div class="settings-group__header-text">
-            <h3>{{ 'SETTINGS.REMOTE_CONTROL' | translate }}</h3>
-            <p>{{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}</p>
-        </div>
+        <h2>{{ 'SETTINGS.REMOTE_CONTROL' | translate }}</h2>
+        <p>{{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}</p>
     </header>
 
-    <div class="setting-item" data-setting-id="remote-control">
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.REMOTE_CONTROL' | translate }}</h4>
-            <p>{{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}</p>
-        </div>
-        <div class="setting-item__control setting-item__toggle">
-            <mat-checkbox
-                formControlName="remoteControl"
-                data-test-id="remote-control-enabled"
-            ></mat-checkbox>
-        </div>
-    </div>
-
-    @if (form().value.remoteControl === true) {
-        <div class="setting-item" data-setting-id="remote-control-port">
-            <div class="setting-item__meta">
-                <h4>{{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}</h4>
-                <p>
-                    {{ 'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION' | translate }}
-                </p>
-            </div>
-            <div class="setting-item__control">
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                    <mat-label>{{
-                        'SETTINGS.PORT_RANGE_LABEL' | translate
-                    }}</mat-label>
-                    <input
-                        matInput
-                        type="number"
-                        id="remoteControlPort"
-                        data-test-id="remote-control-port"
-                        formControlName="remoteControlPort"
-                        min="1"
-                        max="65535"
-                        step="1"
-                    />
-                    @if (
-                        form().get('remoteControlPort')?.hasError('required')
-                    ) {
-                        <mat-error>{{
-                            'SETTINGS.PORT_REQUIRED' | translate
-                        }}</mat-error>
-                    }
-                    @if (form().get('remoteControlPort')?.hasError('min')) {
-                        <mat-error>{{
-                            'SETTINGS.PORT_MIN' | translate
-                        }}</mat-error>
-                    }
-                    @if (form().get('remoteControlPort')?.hasError('max')) {
-                        <mat-error>{{
-                            'SETTINGS.PORT_MAX' | translate
-                        }}</mat-error>
-                    }
-                    @if (form().get('remoteControlPort')?.hasError('pattern')) {
-                        <mat-error>{{
-                            'SETTINGS.PORT_PATTERN' | translate
-                        }}</mat-error>
-                    }
-                </mat-form-field>
-            </div>
-        </div>
-
-        @if (localIpAddresses().length > 0) {
-            <div class="setting-item" data-setting-id="remote-control-url">
+    <section class="settings-section">
+        <div class="settings-card">
+            <div class="setting-item" data-setting-id="remote-control">
                 <div class="setting-item__meta">
-                    <h4>{{ 'SETTINGS.REMOTE_CONTROL_URL' | translate }}</h4>
-                    <p>
-                        {{
-                            'SETTINGS.REMOTE_CONTROL_URL_DESCRIPTION'
-                                | translate
-                        }}
-                    </p>
+                    <h4 id="remote-control-label">
+                        {{ 'SETTINGS.REMOTE_CONTROL' | translate }}
+                    </h4>
+                    <p>{{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}</p>
                 </div>
-                <div class="setting-item__control remote-control-urls">
-                    @for (ip of localIpAddresses(); track ip) {
-                        <div class="remote-control-url-item">
-                            <div class="url-row">
-                                <a
-                                    [href]="
-                                        'http://' +
-                                        ip +
-                                        ':' +
-                                        form().value.remoteControlPort
-                                    "
-                                    target="_blank"
-                                    class="remote-control-url"
-                                >
-                                    http://{{ ip }}:{{
-                                        form().value.remoteControlPort
-                                    }}
-                                </a>
-                                <button
-                                    mat-icon-button
-                                    type="button"
-                                    (click)="toggleQrCode.emit(ip)"
-                                    [matTooltip]="
-                                        'SETTINGS.SHOW_QR_CODE' | translate
-                                    "
-                                >
-                                    <mat-icon>qr_code_2</mat-icon>
-                                </button>
-                            </div>
-                            @if (visibleQrCodeIp() === ip) {
-                                <div class="qr-code-container">
-                                    <qrcode
-                                        [qrdata]="
-                                            'http://' +
-                                            ip +
-                                            ':' +
-                                            form().value.remoteControlPort
-                                        "
-                                        [width]="150"
-                                        errorCorrectionLevel="M"
-                                    ></qrcode>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-slide-toggle
+                        formControlName="remoteControl"
+                        aria-labelledby="remote-control-label"
+                        data-test-id="remote-control-enabled"
+                    ></mat-slide-toggle>
+                </div>
+            </div>
+
+            @if (form().value.remoteControl === true) {
+                <div class="setting-item" data-setting-id="remote-control-port">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}</h4>
+                        <p>
+                            {{
+                                'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field
+                            class="settings-select"
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-label>{{
+                                'SETTINGS.PORT_RANGE_LABEL' | translate
+                            }}</mat-label>
+                            <input
+                                matInput
+                                type="number"
+                                id="remoteControlPort"
+                                data-test-id="remote-control-port"
+                                formControlName="remoteControlPort"
+                                min="1"
+                                max="65535"
+                                step="1"
+                            />
+                            @if (
+                                form()
+                                    .get('remoteControlPort')
+                                    ?.hasError('required')
+                            ) {
+                                <mat-error>{{
+                                    'SETTINGS.PORT_REQUIRED' | translate
+                                }}</mat-error>
+                            }
+                            @if (form().get('remoteControlPort')?.hasError('min')) {
+                                <mat-error>{{
+                                    'SETTINGS.PORT_MIN' | translate
+                                }}</mat-error>
+                            }
+                            @if (form().get('remoteControlPort')?.hasError('max')) {
+                                <mat-error>{{
+                                    'SETTINGS.PORT_MAX' | translate
+                                }}</mat-error>
+                            }
+                            @if (
+                                form()
+                                    .get('remoteControlPort')
+                                    ?.hasError('pattern')
+                            ) {
+                                <mat-error>{{
+                                    'SETTINGS.PORT_PATTERN' | translate
+                                }}</mat-error>
+                            }
+                        </mat-form-field>
+                    </div>
+                </div>
+
+                @if (localIpAddresses().length > 0) {
+                    <div class="setting-item" data-setting-id="remote-control-url">
+                        <div class="setting-item__meta">
+                            <h4>{{ 'SETTINGS.REMOTE_CONTROL_URL' | translate }}</h4>
+                            <p>
+                                {{
+                                    'SETTINGS.REMOTE_CONTROL_URL_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control remote-control-urls">
+                            @for (ip of localIpAddresses(); track ip) {
+                                <div class="remote-control-url-item">
+                                    <div class="url-row">
+                                        <a
+                                            [href]="
+                                                'http://' +
+                                                ip +
+                                                ':' +
+                                                form().value.remoteControlPort
+                                            "
+                                            target="_blank"
+                                            class="remote-control-url"
+                                        >
+                                            http://{{ ip }}:{{
+                                                form().value.remoteControlPort
+                                            }}
+                                        </a>
+                                        <button
+                                            mat-icon-button
+                                            type="button"
+                                            (click)="toggleQrCode.emit(ip)"
+                                            [matTooltip]="
+                                                'SETTINGS.SHOW_QR_CODE' | translate
+                                            "
+                                            [attr.aria-label]="
+                                                'SETTINGS.SHOW_QR_CODE' | translate
+                                            "
+                                        >
+                                            <mat-icon>qr_code_2</mat-icon>
+                                        </button>
+                                    </div>
+                                    @if (visibleQrCodeIp() === ip) {
+                                        <div class="qr-code-container">
+                                            <qrcode
+                                                [qrdata]="
+                                                    'http://' +
+                                                    ip +
+                                                    ':' +
+                                                    form().value
+                                                        .remoteControlPort
+                                                "
+                                                [width]="150"
+                                                errorCorrectionLevel="M"
+                                            ></qrcode>
+                                        </div>
+                                    }
                                 </div>
                             }
                         </div>
-                    }
-                </div>
-            </div>
-        }
-    }
+                    </div>
+                }
+            }
+        </div>
+    </section>
 </section>

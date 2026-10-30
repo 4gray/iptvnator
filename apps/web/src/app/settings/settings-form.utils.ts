@@ -1,3 +1,4 @@
+import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
 import {
     AbstractControl,
     FormArray,
@@ -58,16 +59,20 @@ export function createEpgUrlControl(value = ''): FormControl<string | null> {
 
 export function createSettingsForm(
     formBuilder: FormBuilder,
-    supportsEpg: boolean
+    supportsEpg: boolean,
+    supportsEpgDisplay = supportsEpg
 ) {
     const form = formBuilder.group({
         player: [VideoPlayer.VideoJs],
         webPlayerSharedControls: true,
         playerAmbientMode: false,
+        detailTrailerBackdrop: false,
         playerUpNextRail: true,
+        playerUpNextCard: true,
         fullscreenChannelPanel: true,
         vodAutoFailover: false,
         m3uVodDetails: true,
+        ageRatingCountry: 'auto',
         ...(supportsEpg
             ? { epgUrl: new FormArray<FormControl<string | null>>([]) }
             : {}),
@@ -120,9 +125,10 @@ export function createSettingsForm(
         portalConnectivityGuard: true,
         coverSize: 'medium' as CoverSize,
         showCoverTitles: true,
-        ...(supportsEpg
+        ...(supportsEpg ? { preferUploadedEpgOverXtream: false } : {}),
+        // View mode and offset shape every guide, a portal's own included.
+        ...(supportsEpgDisplay
             ? {
-                  preferUploadedEpgOverXtream: false,
                   epgViewMode: 'timeline' as EpgViewMode,
                   epgOffsetMinutes: new FormControl<number>(0, [
                       Validators.required,
@@ -175,10 +181,13 @@ export function createSettingsFromFormValue(
         player: value.player ?? VideoPlayer.VideoJs,
         webPlayerSharedControls: value.webPlayerSharedControls ?? true,
         playerAmbientMode: value.playerAmbientMode ?? false,
+        detailTrailerBackdrop: value.detailTrailerBackdrop ?? false,
         playerUpNextRail: value.playerUpNextRail ?? true,
+        playerUpNextCard: value.playerUpNextCard ?? true,
         fullscreenChannelPanel: value.fullscreenChannelPanel ?? true,
         vodAutoFailover: value.vodAutoFailover ?? false,
         m3uVodDetails: value.m3uVodDetails ?? true,
+        ageRatingCountry: normalizeAgeRatingCountry(value.ageRatingCountry),
         streamFormat: value.streamFormat ?? StreamFormat.AutoStreamFormat,
         openStreamOnDoubleClick: value.openStreamOnDoubleClick ?? false,
         language: value.language ?? Language.ENGLISH,

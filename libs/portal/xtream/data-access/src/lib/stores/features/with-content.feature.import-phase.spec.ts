@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { SourceActivityService } from '@iptvnator/services';
 import { PortalStatusType } from '../../xtream-state';
 import {
     createAbortError,
@@ -201,6 +202,19 @@ describe('withContent loading-cached phase', () => {
             expect.any(String),
             'live'
         );
+    });
+
+    it('holds the source busy for removal and refresh until the import settles', async () => {
+        const gate = createDeferred<unknown[]>();
+        dataSource.getContent.mockImplementation(() => gate.promise);
+        const activity = TestBed.inject(SourceActivityService);
+
+        const initialization = store.initializeContent();
+        expect(activity.isBusy('playlist-1')).toBe(true);
+
+        gate.resolve([]);
+        await initialization;
+        expect(activity.isBusy('playlist-1')).toBe(false);
     });
 
     it('still marks the import as running once a remote phase is reported', async () => {

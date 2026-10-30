@@ -1,0 +1,126 @@
+<section class="settings-group" id="server">
+    <header class="settings-group__header">
+        <h2>{{ 'SOURCE_SYNC.TITLE' | translate }}</h2>
+        <p>{{ 'SOURCE_SYNC.DESCRIPTION' | translate }}</p>
+    </header>
+    <div class="settings-card server-fields" data-setting-id="source-server">
+        @if (sync.connection) {
+            <p role="status" data-test-id="source-server-state">
+                {{ sync.stateKey() | translate }}
+            </p>
+            @if (sync.lastSync(); as time) {
+                <p>
+                    {{ 'SOURCE_SYNC.LAST_SYNC' | translate }}:
+                    {{ time | date: 'short' }}
+                </p>
+            }
+        }
+        <mat-form-field appearance="outline">
+            <mat-label>{{ 'SOURCE_SYNC.URL' | translate }}</mat-label>
+            <input
+                matInput
+                name="sourceServerUrl"
+                type="url"
+                [(ngModel)]="url"
+                [ngModelOptions]="{ standalone: true }"
+                autocomplete="url"
+                data-test-id="source-server-url"
+            />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+            <mat-label>{{ 'SOURCE_SYNC.TOKEN' | translate }}</mat-label>
+            <input
+                matInput
+                name="sourceServerToken"
+                type="password"
+                [(ngModel)]="token"
+                [ngModelOptions]="{ standalone: true }"
+                autocomplete="off"
+                data-test-id="source-server-token"
+            />
+            <mat-hint>{{ 'SOURCE_SYNC.TOKEN_HINT' | translate }}</mat-hint>
+        </mat-form-field>
+        <p class="server-message">
+            {{ 'SOURCE_SYNC.RESTART_HINT' | translate }}
+        </p>
+        <div class="server-actions">
+            <button
+                type="button"
+                mat-flat-button
+                [disabled]="busy() || !url.trim()"
+                (click)="connect()"
+                class="settings-primary-button"
+                data-test-id="source-server-connect"
+            >
+                {{ 'SOURCE_SYNC.CONNECT' | translate }}
+            </button>
+            @if (sync.connection) {
+                <button
+                    type="button"
+                    mat-flat-button
+                    [disabled]="busy()"
+                    (click)="sync.refresh()"
+                >
+                    {{ 'SOURCE_SYNC.REFRESH' | translate }}
+                </button>
+                <button
+                    type="button"
+                    mat-flat-button
+                    [disabled]="busy() || sync.state() !== 'connected'"
+                    (click)="previewImport()"
+                    data-test-id="source-server-import"
+                >
+                    {{ 'SOURCE_SYNC.IMPORT' | translate }}
+                </button>
+            }
+            @if (sync.connection || sync.connectionReadFailed) {
+                <button
+                    type="button"
+                    mat-flat-button
+                    [disabled]="busy()"
+                    (click)="disconnect()"
+                >
+                    {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
+                </button>
+            }
+        </div>
+        @if (preview(); as sources) {
+            <p>
+                {{
+                    'SOURCE_SYNC.IMPORT_PREVIEW'
+                        | translate: { count: sources.length }
+                }}
+            </p>
+            <ul>
+                @for (source of sources; track source._id) {
+                    <li>{{ source.title }}</li>
+                }
+            </ul>
+            <div class="server-actions">
+                <button
+                    type="button"
+                    mat-button
+                    [disabled]="busy()"
+                    (click)="preview.set(null)"
+                >
+                    {{ 'CANCEL' | translate }}
+                </button>
+                <button
+                    type="button"
+                    mat-flat-button
+                    [disabled]="busy() || !sources.length"
+                    (click)="importSources()"
+                    class="settings-primary-button"
+                    data-test-id="source-server-import-confirm"
+                >
+                    {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                </button>
+            </div>
+        }
+        @if (message()) {
+            <p role="status" class="server-message">
+                {{ message() | translate }}
+            </p>
+        }
+    </div>
+</section>

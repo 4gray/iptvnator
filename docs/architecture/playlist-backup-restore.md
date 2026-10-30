@@ -3,15 +3,24 @@
 This document describes the versioned playlist backup/restore flow used by the
 settings screen.
 
+Server source import is a separate, definition-only operation in Settings →
+Data → Server. It reads the retained standalone profile, previews its sources,
+then creates or fingerprint-matches them on the server without restoring user
+state or changing the original profile. Full backup import/export retains the
+scope below; it is not the source-sync wire format. See
+[shared source library](pwa-self-hosted.md#shared-source-library).
+
 ## Entry Points
 
-- UI: `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup-section.component.ts`
+- UI: `apps/web/src/app/settings/settings-backup-section.component.ts`
   (embedded in `settings.component.html`), with the file read/handoff in
-  `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup.facade.ts`
-- Backup service: `/Users/4gray/Code/iptvnator/libs/services/src/lib/playlist-backup.service.ts`
-- Manifest types: `/Users/4gray/Code/iptvnator/libs/shared/interfaces/src/lib/playlist-backup.interface.ts`
+  `apps/web/src/app/settings/settings-backup.facade.ts`
+- Backup service: `libs/services/src/lib/playlist-backup.service.ts`
+- Manifest types: `libs/shared/interfaces/src/lib/playlist-backup.interface.ts`
 - Xtream pending restore storage:
-  `/Users/4gray/Code/iptvnator/libs/services/src/lib/xtream-pending-restore.service.ts`
+  `libs/services/src/lib/xtream-pending-restore.service.ts`
+- Browser (PWA) Xtream user state:
+  `libs/services/src/lib/pwa-xtream-backup-state.service.ts`
 
 ## Manifest Contract
 
@@ -45,7 +54,7 @@ M3U backups are self-contained.
 - Export playlist-scoped user state:
     - favorites by channel URL
     - recently viewed M3U items
-    - hidden group titles
+    - hidden group titles (exact strings, including surrounding whitespace)
 
 The embedded raw text is the canonical restore artifact. The internal parsed
 playlist object graph is not the backup format.
@@ -61,8 +70,24 @@ Xtream backups export only connection metadata plus portable user state.
 - User state:
     - hidden categories by `{ categoryType, xtreamId }`
     - favorites by `{ contentType, xtreamId, addedAt?, position? }`
-    - recently viewed by `{ contentType, xtreamId, viewedAt }`
+    - recently viewed by `{ contentType, xtreamId, viewedAt, backdropUrl? }`
+      (`backdropUrl` is written and read by the browser build only)
     - playback positions as `PlaybackPositionData[]`
+    - optional VOD source pins by `{ matchKey, contentId, updatedAt? }`
+    - optional title snapshots `collectionItems` (browser build only; see
+      [Browser runtime](#browser-runtime))
+
+An imported Xtream archive can wait for its catalog to download. Export reads
+that pending snapshot before consulting the catalog: its hidden categories,
+favorites, history, and positions are authoritative, including empty lists.
+Pending pins are authoritative when present; an absent `sourcePins` field keeps
+the existing store's pins when that store is available, or stays absent when it
+is unavailable. Re-export neither applies nor consumes the pending snapshot,
+so it also works before the portal has been opened and in browser runtimes.
+Parental category locks still come from the current lock store.
+
+A failed pending-storage, recent-history or playback-position read fails export.
+An unreadable collection must never be serialized as a successful empty collection.
 
 Explicitly excluded:
 
@@ -101,6 +126,11 @@ Explicitly excluded — session state, as opposed to the connection definition:
 
 Only EPG source URLs are backed up at the app-settings level.
 
+Language preferences are local settings and are neither exported nor restored
+by a playlist backup. Restoring EPG URLs preserves the current language and
+other settings. Legacy local `pt` preferences normalize to `pt-BR` when loaded
+or updated; the next settings write persists that canonical code.
+
 - Exported: `settings.epgUrls`
 - Excluded: cached EPG database content
 
@@ -112,10 +142,19 @@ hands its contents to `PlaylistBackupService.importBackup()`.
 
 The service:
 
-1. Validates the manifest kind/version before any writes.
+1. Validates the manifest kind/version and every entry before any writes.
+   M3U favorites, history and hidden groups and Stalker favorites/history must
+   be complete arrays of the expected element types. Source/connection fields,
+   playlist identity/title and EPG URL settings are checked before processing
+   even an earlier valid entry. Optional v1 extensions remain optional; Xtream
+   ID-less historical entries still use the compatibility normalizer below.
 2. Rejects legacy raw `Playlist[]` JSON blobs.
 3. Builds stable source fingerprints for merge-vs-create decisions.
-4. Upserts playlists into app playlist storage.
+4. Upserts complete playlist documents through
+   `PlaylistsService.restorePlaylist()`, under the normal playlist write queue
+   and authority lock. Browser IndexedDB uses `put`, since `add` rejects an
+   existing id; refresh's merge API is unsuitable because it preserves the
+   current favorites instead of restoring the archive's explicit lists.
 5. Restores provider-specific user state.
 
 Fingerprint rules:
@@ -146,7 +185,11 @@ Xtream restore is type-aware end to end. The app no longer stores plain
 Runtime contract:
 
 - shared shape: `XtreamPendingRestoreState`
-- persisted in local storage by playlist ID
+- persisted in local storage by playlist ID; selected source-server profiles
+  prefix the key with their instance. A verified legacy browser instance adopts
+  its unprefixed archive once before strict reads or mutations. Migration verifies
+  the copy and receipt, preserves newer profile values and original archives,
+  and prevents consumed snapshots from being reimported.
 - consumed by:
     - Xtream refresh actions
     - settings backup import
@@ -164,11 +207,10 @@ worker IPC boundary in the snake_case wire shape declared by
 `XCategoryFromDb`/`XtreamCategoryFromDb`; the category operations project
 their Drizzle rows explicitly to keep that contract true.
 
-Clearing the playlist's existing pins goes through a dedicated
-delete-by-playlist operation, not the keyed clear: that one caps its key list
-to bound an IN clause, so a playlist with more pinned movies than the cap kept
-the surplus while still reporting success. A failure now fails the entry
-rather than leaving the union of old and archived pins.
+Replacing the playlist's pins deletes by playlist and writes the replacements
+in one transaction. It does not use the capped keyed-clear operation, which
+could leave surplus pins behind. Any replacement failure fails the entry and
+retains the pending snapshot for retry.
 
 `sourcePins` (VOD multi-source) is the one **optional** collection, and the
 normalizer preserves that: an absent field stays absent rather than becoming
@@ -190,12 +232,79 @@ Electron restore behavior:
 1. Category import reads pending hidden-category state while saving categories.
 2. After content import, favorites/recent state is restored by typed
    `{ contentType, xtreamId }` matching.
-3. Playback positions are cleared and re-applied from backup state.
+3. Playback positions are replaced for the destination playlist in one SQLite
+   transaction through `DB_REPLACE_ALL_PLAYBACK_POSITIONS`. Empty means clear;
+   a failed insert rolls back the deletion and all earlier inserts.
 4. VOD source pins are re-applied against the IMPORTED playlist id.
+
+A rejected category visibility write fails the entry and retains its pending
+snapshot. Both the visibility reset and the subsequent hide must succeed;
+returning `false` is a storage failure, never a successful restore.
 
 For existing Xtream playlists with a fully populated offline cache, backup
 import applies the restore immediately. Otherwise the typed restore payload is
-left pending until the next Xtream initialization/import.
+left pending until the next Xtream initialization/import. Both paths use strict
+playback-position replacement: unavailable storage, rejected IPC, or an
+unsuccessful response fail the restore and leave the pending snapshot intact.
+Atomic restore support is checked separately from the ordinary Xtream SQLite
+capability gate. An older preload missing the replacement method keeps using
+SQLite for playback and backup export. Import parks the snapshot first, then
+rejects unsupported atomic restore before checking catalog completeness or
+writing category visibility, collections, positions, or pins. Deferred restore
+performs the same preflight before applying user state. The retained snapshot
+can be retried once atomic replacement becomes available. Ordinary playback
+keeps its existing capability checks and best-effort persistence API.
+The whole restore is not one database transaction; already applied
+categories/favorites/history can
+remain after a later failure, but the snapshot remains available to retry the
+complete restore. It is consumed only after every restore step succeeds.
+
+### Browser Runtime
+
+Whenever `XTREAM_DATA_SOURCE` resolves to `PwaXtreamDataSource` — the
+browser, or a desktop bridge without the Xtream SQLite API
+(`RuntimeCapabilitiesService.supportsXtreamSqliteDataSource`) — Xtream
+favorites, recently viewed items, playback positions and title snapshots live
+in the `USER_DATA_STORAGE` maps owned by `PwaXtreamDataSource`
+(`XTREAM_USER_DATA_KEYS`; see
+[PWA portal user data](./pwa-self-hosted.md#pwa-portal-user-data)).
+`PwaXtreamBackupStateService` reads and writes them through that token, so the
+self-hosted server storage is covered too.
+
+- Export converts each playlist's entries to the archive shape. Typed keys
+  (`movie:42`) carry their identity; a legacy bare id resolves only through
+  the snapshot stored under it, and is left out when none identifies it.
+  Recently viewed keeps the newest view per title, with the artwork saved
+  for that view as `backdropUrl`. `collectionItems` carries
+  the snapshots of exported favorites and history, and is omitted when there
+  are none. Hidden categories stay `[]` and `sourcePins` stays absent: the
+  browser tracks neither.
+- An unreadable map (storage error, malformed JSON, a playlist entry that is
+  not a list) fails the export instead of being written as an empty list.
+  So does server mode when it cannot read the server's user data: the
+  export reads it again (`UserDataStorage.ready(true)`, as another device
+  may have changed it since this page's first read) and fails when that
+  read does not succeed. A restore does the same and stays parked, since its
+  replacement lists would otherwise merge into the server's; it also stays
+  parked until the server took that playlist's lists.
+- A pending restore snapshot still wins over the stored maps, as on desktop.
+- Import parks the restore state like the desktop does, then applies it at
+  once through `XtreamPendingRestoreService.applyAndConsume`: the browser has
+  no catalog cache to wait for. Favorites, history and positions of the
+  imported playlist id are replaced (positions get that id); other playlists'
+  entries are untouched. `collectionItems` merge into the playlist's
+  snapshots, keyed by typed identity; an archive without them leaves the
+  snapshots alone, malformed items are skipped, a damaged cache is replaced,
+  and a quota error on this cache does not fail the restore.
+- The lists are written before the optional title snapshots, so the cache
+  never takes storage space they need (as for additions; see the
+  [snapshot-storage contract](./xtream-portal-compatibility.md)). A failed
+  write fails the entry and keeps the snapshot parked, so the Xtream store
+  replays the complete state when the playlist next opens. That replay
+  carries no title snapshots, so they are still merged after a failed list
+  write, unless storage is full and they would take room the replay needs.
+
+Older builds ignore `collectionItems`; the manifest version stays `1`.
 
 ## Current UX
 
@@ -209,3 +318,29 @@ raw JSON application dump.
     - merged
     - skipped
     - failed
+
+The settings facade guards import, file selection and export with one busy
+state. Reset is disabled while backup work is active; backup actions are
+blocked during reset. Cancelling the chooser or native save is a no-op, and
+file-read/import failures release the busy state. Keyboard focus returns to
+the import trigger after the playlist inventory finishes loading and the
+router outlet is visible again, if the browser lost focus while that trigger
+was disabled. Focus the user moved elsewhere is retained.
+
+Import progress and the final counts live in a persistent, localized status
+region on the backup page. A partial result explains that already applied
+changes are retained and the archive can be retried. Raw archive, parser and
+storage errors are not shown or logged by this facade, since their text can
+contain credentials. Export errors use the settings dismissible error toast.
+
+Validation is a preflight, not a cross-store transaction. Invalid structure
+causes no writes; an operational storage failure after a valid archive starts
+can leave completed entries or steps in place. The pending Xtream snapshot
+supports retry. SQLite positions and pins retain their own transactional
+replacement guarantees described above.
+
+Regression coverage: `playlist-backup.service.validation.spec.ts`,
+`playlist-backup.service.xtream-restore.spec.ts`,
+`settings-backup.facade.spec.ts`, browser `backup-restore.e2e.ts`, and Electron
+`backup-roundtrip.e2e.ts`. Browser tests use isolated contexts and fictional
+archives; Electron tests use their own temporary data root.

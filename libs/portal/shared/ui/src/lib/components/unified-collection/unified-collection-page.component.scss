@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+@use '../../../../../../../ui/styles/app-controls' as controls;
 @use '../../styles/skeleton';
 
 :host {
@@ -5,6 +7,8 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    // Shared with unified-live-tab, which renders inside this page.
+    --collection-reload-dim-opacity: 0.6;
 }
 
 .skeleton-list {
@@ -42,9 +46,13 @@
     left: 0;
     right: 0;
     bottom: -1px;
-    --mdc-linear-progress-track-height: 2px;
-    --mdc-linear-progress-active-indicator-height: 2px;
-    --mdc-linear-progress-active-indicator-color: var(--app-selection-color);
+    @include mat.progress-bar-overrides(
+        (
+            track-height: 2px,
+            active-indicator-height: 2px,
+            active-indicator-color: var(--app-selection-color),
+        )
+    );
 }
 
 .collection-content {
@@ -84,29 +92,25 @@
     margin-left: auto;
 }
 
+// The loading header holds the toggles' place: a segmented control's 32px
+// frame and 10px radius, as wide as the English controls (three content
+// types; This playlist / All playlists).
 .toggle-placeholder {
-    height: 43px;
-    width: 120px;
-    border-radius: 18px;
+    height: 32px;
+    width: 184px;
+    border-radius: 10px;
     background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
 
     &--scope {
-        width: 200px;
+        width: 222px;
     }
 }
 
+// The kit's segmented control at the small-button height, the content types
+// beside the scope (This playlist / All playlists).
 .content-toggle,
 .scope-toggle {
-    .toggle-label {
-        margin-left: 4px;
-        font-size: 0.75rem;
-    }
-
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-    }
+    @include controls.segmented-control(26px);
 }
 
 app-unified-live-tab,
@@ -145,7 +149,7 @@ app-unified-live-tab {
 
     .empty-title {
         font-size: 1.05rem;
-        font-weight: 520;
+        font-weight: 500;
         letter-spacing: -0.01em;
         margin: 0;
     }

@@ -6,8 +6,10 @@ export * from './lib/content-metadata.interface';
 export * from './lib/dev-logger.util';
 export * from './lib/download-metadata.interface';
 export * from './lib/embedded-mpv-session.interface';
+export * from './lib/embedded-mpv-support-watch.util';
 export * from './lib/subtitle-style.util';
 export * from './lib/zoom-level.util';
+export * from './lib/macos-traffic-lights';
 export * from './lib/electron-api.interface';
 export * from './lib/epg-channel-metadata.model';
 export * from './lib/epg-channel-with-programs.interface';
@@ -46,7 +48,12 @@ export * from './lib/portal-activity-item.interface';
 export * from './lib/portal-debug.interface';
 export * from './lib/playlist-display-label.util';
 export * from './lib/portal-playback.interface';
-export * from './lib/provider-import-detection.util';
+export type {
+    ProviderImportCandidate,
+    ProviderImportConfidence,
+    ProviderImportKind,
+} from './lib/provider-import-detection.util';
+export * from './lib/source-type-icons.util';
 export * from './lib/provider-overview.util';
 export * from './lib/random-id.util';
 export * from './lib/recording-metadata.interface';
@@ -78,6 +85,7 @@ export * from './lib/xtream-live-stream.interface';
 export * from './lib/xtream-response.interface';
 export * from './lib/xtream-portal.utils';
 export * from './lib/xtream-restore-state.util';
+export * from './lib/xtream-favorite.interface';
 export * from './lib/xtream-server-timezone.util';
 export * from './lib/xtream-recently-added.utils';
 export * from './lib/xtream-performance-marker.interface';
@@ -100,11 +108,23 @@ export * from './lib/stalker-serial-details.interface';
 export * from './lib/stalker-vod-details.interface';
 
 // Unified VOD details (discriminated union + adapters)
+export * from './lib/provider-metadata.util';
 export * from './lib/vod-details-adapters';
 export * from './lib/vod-details-item.interface';
 
 export * from './lib/catchup-download.interface';
 
 export * from './lib/xtream-connection-test';
+export * from './lib/portal-request-failure.util';
 
 export * from './lib/source-health';
+export * from './lib/source-reachability';
+export * from './lib/server-storage.contract';
+export * from './lib/source-sync.interface';
+
+export { sourceIdentity } from './lib/playlist-source-identity.util';
+
+export type {
+    ContentCertification,
+    AgeRatingDisplay,
+} from './lib/content-certification';

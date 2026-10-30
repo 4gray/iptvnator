@@ -3,6 +3,16 @@ import {
     DOWNLOADS_INDEX_STATEMENTS,
     ensureDownloadsCatchupSchema,
 } from './download-schema';
+import {
+    ensurePlaylistsPayloadLast,
+    playlistsTableSql,
+} from './playlists-table';
+import {
+    ensureDurableFavorites,
+    favoritesTableSql,
+    FAVORITES_RECEIPT_CLEANUP_TRIGGER,
+} from './favorites-table';
+import { xtreamCacheUniqueIndexesExist } from './xtream-cache-unique-indexes';
 /**
  * Database connection and initialization for IPTVnator
  * Uses Drizzle ORM with better-sqlite3
@@ -133,36 +143,7 @@ const RECORDINGS_INDEX_STATEMENTS = [
 ];
 
 const CREATE_TABLE_STATEMENTS = [
-    `CREATE TABLE IF NOT EXISTS playlists (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      serverUrl TEXT,
-      username TEXT,
-      password TEXT,
-      date_created TEXT DEFAULT (datetime('now')),
-      last_updated TEXT,
-      type TEXT NOT NULL CHECK (type IN ('xtream', 'stalker', 'm3u-file', 'm3u-text', 'm3u-url')),
-      userAgent TEXT,
-      origin TEXT,
-      referrer TEXT,
-      filePath TEXT,
-      epg_urls TEXT,
-      detected_epg_urls TEXT,
-      manual_epg_urls TEXT,
-      disabled_epg_urls TEXT,
-      autoRefresh INTEGER DEFAULT 0,
-      macAddress TEXT,
-      url TEXT,
-      portal_url TEXT,
-      count INTEGER,
-      import_date TEXT,
-      update_date INTEGER,
-      position INTEGER,
-      favorites TEXT,
-      recently_viewed TEXT,
-      payload TEXT,
-      last_usage TEXT
-  )`,
+    playlistsTableSql('playlists'),
     `CREATE TABLE IF NOT EXISTS app_state (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
@@ -207,15 +188,8 @@ const CREATE_TABLE_STATEMENTS = [
       FOREIGN KEY (content_id) REFERENCES content (id) ON DELETE CASCADE,
       FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
   )`,
-    `CREATE TABLE IF NOT EXISTS favorites (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      content_id INTEGER NOT NULL,
-      playlist_id TEXT NOT NULL,
-      added_at TEXT DEFAULT (datetime('now')),
-      position INTEGER DEFAULT 0,
-      FOREIGN KEY (content_id) REFERENCES content(id) ON DELETE CASCADE,
-      FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
-  )`,
+    favoritesTableSql(),
+    FAVORITES_RECEIPT_CLEANUP_TRIGGER,
     `CREATE INDEX IF NOT EXISTS idx_content_type ON content(type)`,
     `CREATE INDEX IF NOT EXISTS idx_content_category ON content(category_id)`,
     `CREATE INDEX IF NOT EXISTS idx_categories_playlist ON categories(playlist_id)`,
@@ -401,6 +375,7 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE playlists ADD COLUMN disabled_epg_urls TEXT`,
     // v1.2.0 -> v1.3.0: Add position column to favorites for global favorites ordering
     `ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0`,
+    `ALTER TABLE favorites ADD COLUMN identity_conflict INTEGER NOT NULL DEFAULT 0`,
     // v1.4.0 -> v1.5.0: Preserve Xtream live metadata required for EPG/catch-up
     `ALTER TABLE content ADD COLUMN epg_channel_id TEXT`,
     `ALTER TABLE content ADD COLUMN tv_archive INTEGER`,
@@ -431,6 +406,7 @@ const INDEX_MIGRATION_STATEMENTS = [
     // v1.3.0 -> v1.4.0: Prevent duplicate Xtream categories/content rows
     `CREATE UNIQUE INDEX IF NOT EXISTS categories_playlist_type_xtream_unique ON categories(playlist_id, type, xtream_id)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS content_category_type_xtream_unique ON content(category_id, type, xtream_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS favorites_playlist_type_xtream_unique ON favorites(playlist_id, type, xtream_id)`,
     // v1.6.0 -> v1.7.0: Query global favorites in stable display order
     `CREATE INDEX IF NOT EXISTS favorites_playlist_position_idx ON favorites(playlist_id, position, added_at DESC)`,
     // v1.7.1 -> v1.7.2: Query playlist-scoped EPG by source URL and channel/time
@@ -444,6 +420,7 @@ export const __databaseConnectionTestHooks = {
     columnMigrationStatements: COLUMN_MIGRATION_STATEMENTS,
     indexMigrationStatements: INDEX_MIGRATION_STATEMENTS,
     ensureDownloadsPauseResumeSchema,
+    deduplicateXtreamCache,
     normalizeXtreamContentAddedEpochs,
     ensureContentTitleFts,
     upgradeContentTitleFtsTokenizer,
@@ -495,6 +472,12 @@ type XtreamContentCandidate = {
 };
 
 function deduplicateXtreamCache(sqliteDb: Database.Database): void {
+    // With both unique indexes in place the cache cannot hold duplicates,
+    // and the two GROUP BY scans below would only cost a full pass over the
+    // content table on every launch (7.8 s on a 3.9M-title library).
+    if (xtreamCacheUniqueIndexesExist(sqliteDb)) {
+        return;
+    }
     const executeCleanup = sqliteDb.transaction(() => {
         const duplicateCategoryGroups = sqliteDb
             .prepare(
@@ -567,11 +550,7 @@ function deduplicateXtreamCache(sqliteDb: Database.Database): void {
              ORDER BY id ASC`
         );
         const moveFavorites = sqliteDb.prepare(
-            `INSERT INTO favorites (content_id, playlist_id, added_at, position)
-             SELECT ?, playlist_id, added_at, COALESCE(position, 0)
-             FROM favorites
-             WHERE content_id = ?
-             ON CONFLICT(content_id, playlist_id) DO NOTHING`
+            `UPDATE OR IGNORE favorites SET content_id = ? WHERE content_id = ?`
         );
         const deleteFavorites = sqliteDb.prepare(
             `DELETE FROM favorites WHERE content_id = ?`
@@ -772,15 +751,19 @@ function upgradeContentTitleFtsTokenizer(sqliteDb: Database.Database): boolean {
                 )
                 .run();
 
-            sqliteDb
-                .prepare(
-                    `INSERT INTO app_state (key, value, updated_at)
-                     VALUES (?, 'done', datetime('now'))
-                     ON CONFLICT(key) DO UPDATE SET
-                        value = excluded.value,
-                        updated_at = excluded.updated_at`
-                )
-                .run(CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY);
+            // The rebuild is also all that `ensureContentTitleFts` does, so
+            // its record is written too. Without it the next launch rebuilds
+            // the whole index again, on the main thread, on the first launch
+            // after a fresh install has imported its catalog.
+            const markDone = sqliteDb.prepare(
+                `INSERT INTO app_state (key, value, updated_at)
+                 VALUES (?, 'done', datetime('now'))
+                 ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = excluded.updated_at`
+            );
+            markDone.run(CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY);
+            markDone.run(CONTENT_TITLE_FTS_MIGRATION_KEY);
         });
 
         executeMigration();
@@ -1189,12 +1172,15 @@ function runMigrations(sqliteDb: Database.Database): void {
     cleanupLegacyTmdbSearchCache(sqliteDb);
     ensureDownloadsPauseResumeSchema(sqliteDb);
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
+    ensurePlaylistsPayloadLast(sqliteDb);
     ensureDownloadsCatchupSchema(sqliteDb);
     // The tokenizer upgrade recreates and rebuilds the index itself, so the
     // plain rebuild below would only repeat work it just did.
     if (!upgradeContentTitleFtsTokenizer(sqliteDb)) {
         ensureContentTitleFts(sqliteDb);
     }
+    // Capture the favorited row's metadata before duplicate cache rows disappear.
+    ensureDurableFavorites(sqliteDb);
     deduplicateXtreamCache(sqliteDb);
     normalizeXtreamContentAddedEpochs(sqliteDb);
     runMigrationStatements(sqliteDb, INDEX_MIGRATION_STATEMENTS);

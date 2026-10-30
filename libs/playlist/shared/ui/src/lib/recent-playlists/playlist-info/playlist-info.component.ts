@@ -1,9 +1,11 @@
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import {
     Component,
     DestroyRef,
     inject,
+    Injector,
+    runInInjectionContext,
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -35,6 +37,7 @@ import {
     createXtreamConnectionTestState,
     DatabaseService,
     PlaylistsService,
+    PlaylistStorageBackend,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -52,6 +55,7 @@ import {
     normalizeEpgUrls,
     resolvePlaylistEpgSourceState,
 } from '@iptvnator/shared/m3u-utils';
+import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 import {
     hasStalkerConnectionChanged,
     omitStalkerConnection,
@@ -61,6 +65,13 @@ import {
     STALKER_PLAYLIST_CONNECTION_EDITOR,
     STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
 } from './stalker-playlist-connection-editor.token';
+import { RevealDetailsDirective } from '@iptvnator/ui/components/reveal-details';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import {
+    DialogFooterDirective,
+    DialogFooterStartDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 type DesktopFileSaveBridge = Pick<
     typeof window.electron,
@@ -72,10 +83,6 @@ type DesktopFileSaveBridge = Pick<
     templateUrl: './playlist-info.component.html',
     styles: [
         `
-            .spacer {
-                flex: 1 1 auto;
-            }
-
             .playlist-info-fields {
                 min-width: 0;
                 margin: 0;
@@ -83,32 +90,30 @@ type DesktopFileSaveBridge = Pick<
                 border: 0;
             }
 
-            mat-dialog-content {
+            // The shell renders the body; this wrapper lays the fields out.
+            .playlist-info-body {
                 display: flex;
                 flex-direction: column;
                 gap: 14px;
             }
 
-            // Material's '.mat-mdc-dialog-title + .mat-mdc-dialog-content' rule
-            // zeroes padding-top with higher specificity than a scoped override,
-            // which clips the first field's floating label. Pushing the first
-            // field down with margin-top side-steps that entirely.
-            mat-dialog-content > mat-form-field:first-child {
-                margin-top: 10px;
+            // Room for the first field's floating label under the header.
+            .playlist-info-body > mat-form-field:first-child {
+                margin-top: 6px;
             }
 
-            mat-dialog-content mat-checkbox {
+            .playlist-info-body mat-checkbox {
                 margin-top: 4px;
             }
 
-            mat-dialog-content p {
+            .playlist-info-body p {
                 margin: 0;
                 color: var(--mat-sys-on-surface-variant);
                 font-size: 12.5px;
                 line-height: 1.45;
             }
 
-            mat-dialog-content p.stalker-device-id-warning {
+            .playlist-info-body p.stalker-device-id-warning {
                 color: var(--mat-sys-error);
             }
 
@@ -164,9 +169,14 @@ type DesktopFileSaveBridge = Pick<
             }
         `,
     ],
-    providers: [DatePipe],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    providers: [provideFormFieldDefaults(), DatePipe],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        RevealDetailsDirective,
+        NgTemplateOutlet,
+        DialogFooterDirective,
+        DialogFooterStartDirective,
+        DialogShellComponent,
         ClipboardModule,
         MatButton,
         MatCheckboxModule,
@@ -175,6 +185,7 @@ type DesktopFileSaveBridge = Pick<
         MatIconButton,
         MatInputModule,
         MatTooltip,
+        PasswordVisibilityToggleDirective,
         ReactiveFormsModule,
         TranslatePipe,
     ],
@@ -184,6 +195,7 @@ export class PlaylistInfoComponent {
     private datePipe = inject(DatePipe);
     private formBuilder = inject(UntypedFormBuilder);
     private playlistsService = inject(PlaylistsService);
+    private readonly playlistStorage = inject(PlaylistStorageBackend);
     private store = inject(Store);
     private databaseService = inject(DatabaseService);
     private snackBar = inject(MatSnackBar);
@@ -298,23 +310,35 @@ export class PlaylistInfoComponent {
         ) as UntypedFormArray;
     }
 
-    /** Playlist object */
-    playlist: Playlist & { id: string };
+    /**
+     * Playlist object. Signal-backed because it is replaced after awaited
+     * hydration and EPG source edits, which no template event marks for an
+     * OnPush check.
+     */
+    private readonly playlistState = signal<Playlist & { id: string }>(
+        this.playlistData
+    );
+    get playlist(): Playlist & { id: string } {
+        return this.playlistState();
+    }
+    set playlist(value: Playlist & { id: string }) {
+        this.playlistState.set(value);
+    }
 
     /** Form group with playlist details */
     playlistDetails!: UntypedFormGroup;
-    readonly connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
+    private readonly injector = inject(Injector);
+    connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
 
     constructor() {
         this.dialogRef?.beforeClosed().subscribe(() => {
             this.dialogClosing = true;
         });
-        this.playlist = this.playlistData;
         this.createForm();
         this.connectionTest = createXtreamConnectionTestState(
             this.playlistDetails
         );
-        if (this.playlist.portalUrl) {
+        if (this.playlist.portalUrl || this.playlistStorage.kind() === 'server') {
             this.isHydratingStalkerPlaylist.set(true);
             this.stalkerPlaylistHydration =
                 this.hydrateCompleteStalkerPlaylist();
@@ -385,6 +409,22 @@ export class PlaylistInfoComponent {
         });
     }
 
+    get hasAdvancedStalkerOptions(): boolean {
+        return [
+            'stalkerSerialNumber',
+            'stalkerDeviceId1',
+            'stalkerDeviceId2',
+            'stalkerSignature1',
+            'stalkerSignature2',
+            'username',
+            'password',
+        ].some(
+            (key) =>
+                Boolean(this.playlistDetails.get(key)?.value) ||
+                this.playlistDetails.get(key)?.invalid
+        );
+    }
+
     async saveChanges(playlist: PlaylistMeta): Promise<void> {
         if (this.isSaving() || this.connectionTest.testing()) {
             return;
@@ -415,6 +455,10 @@ export class PlaylistInfoComponent {
                 this.normalizeStalkerPlaylistMeta(
                     this.normalizeXtreamPlaylistMeta(submittedPlaylist)
                 );
+            const sharedSource = this.playlistStorage.kind() === 'server';
+            if (sharedSource) normalizedPlaylist = { ...normalizedPlaylist,
+                sourceSyncBase: this.playlist.sourceSyncBase,
+                sourceSyncRevision: this.playlist.sourceSyncRevision };
             if (this.playlist.portalUrl) {
                 if (
                     hasStalkerConnectionChanged(
@@ -455,7 +499,7 @@ export class PlaylistInfoComponent {
                 this.playlist.password &&
                 this.playlist.serverUrl;
 
-            if (isXtream && this.runtime.supportsXtreamSqliteDataSource) {
+            if (isXtream && this.runtime.supportsXtreamSqliteDataSource && !sharedSource) {
                 await this.updateXtreamPlaylist(normalizedPlaylist);
             }
 
@@ -474,13 +518,19 @@ export class PlaylistInfoComponent {
                 };
             }
 
+            if (sharedSource) {
+                normalizedPlaylist = await firstValueFrom(resolvedStalkerConnection
+                    ? this.playlistsService.getPlaylistById(this.playlist._id)
+                    : this.playlistsService.updatePlaylistMeta(normalizedPlaylist));
+            }
+
             // Resolved Stalker edits cross an awaited, atomic persistence
             // boundary above. Their action updates NgRx only; every other
             // metadata edit keeps the effect-owned persistence path.
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
                     playlist: normalizedPlaylist,
-                    ...(resolvedStalkerConnection ? { persist: false } : {}),
+                    ...(resolvedStalkerConnection || sharedSource ? { persist: false } : {}),
                 })
             );
 
@@ -504,8 +554,9 @@ export class PlaylistInfoComponent {
             this.dialogRef?.close();
         } catch (error) {
             console.error('Error updating playlist:', error);
+            const sourceError = error instanceof Error ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0] : undefined;
             this.snackBar.open(
-                this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'),
+                this.translate.instant(sourceError ?? 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'),
                 this.translate.instant('CLOSE'),
                 {
                     duration: 3000,
@@ -521,11 +572,13 @@ export class PlaylistInfoComponent {
 
     /**
      * Electron's startup metadata projection deliberately excludes the
-     * payload-only Stalker identity and session fields. Editing that summary
+     * payload-only Stalker identity and source revision fields. Editing that summary
      * directly would render the identity controls empty and could clear a
      * portal-pinned serial/device identity on the next discovery. Hydrate the
      * authoritative row before enabling the form in every runtime so Edit
      * always starts from the same persisted connection that playback uses.
+     * Shared editors also capture the complete source baseline and revision here,
+     * while inventory reads remain payload-free.
      */
     private async hydrateCompleteStalkerPlaylist(): Promise<void> {
         try {
@@ -542,6 +595,9 @@ export class PlaylistInfoComponent {
                 id: this.playlistData.id ?? persistedPlaylist._id,
             };
             this.createForm();
+            this.connectionTest = runInInjectionContext(this.injector, () =>
+                createXtreamConnectionTestState(this.playlistDetails)
+            );
         } catch (error) {
             console.error('Failed to load complete Stalker playlist:', error);
             this.stalkerPlaylistHydrationFailed.set(true);
@@ -807,7 +863,9 @@ export class PlaylistInfoComponent {
                     `${this.playlist.title || 'exported'}.m3u8`,
                     [
                         {
-                            name: 'Playlist',
+                            name: this.translate.instant(
+                                'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE'
+                            ),
                             extensions: ['m3u8', 'm3u'],
                         },
                     ]

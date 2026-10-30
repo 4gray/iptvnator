@@ -19,7 +19,22 @@ addresses.
 
 ## 0. The one decision that gates everything
 
-`buildDetailsLookupKey` (`libs/services/src/lib/tmdb/tmdb-matcher.ts:79-83`) is `id:{tmdbId}|v2`. Six separate ideas below each "need a v3 bump", and a bump invalidates **every cached details row for every user**. Make this decision **once**:
+### Update: age classifications (2026-10-27)
+
+The certification plate from B4 is implemented in the primary Angular movie
+and series detail views, with an independent classification-country setting.
+`release_dates` / `content_ratings` are appended to existing detail calls.
+Legacy fresh `id:…|v2` payloads are upgraded lazily in place; an unsuccessful
+upgrade preserves the fresh legacy metadata. Empty classification results do
+not trigger repeat upgrades. This focused path supersedes the consolidated
+v3-bump prerequisite **for certifications only**: it avoids invalidating every
+cached title or pulling unrelated artwork/title work into this feature.
+See [the age-classification contract](tmdb-metadata-enrichment.md#age-classifications-in-movie-and-series-details).
+The broader append proposal below remains historical planning for the other
+capabilities; recheck it against the current shared client before implementing.
+
+
+`buildDetailsLookupKey` (`libs/shared/tmdb/src/lib/tmdb-matcher.ts`) is `id:{tmdbId}|v2`. Six separate ideas below each "need a v3 bump", and a bump invalidates **every cached details row for every user**. Make this decision **once**:
 
 **One consolidated append PR** — add `images,release_dates,content_ratings,alternative_titles,aggregate_credits` to the two detail calls (`tmdb-api.service.ts:62,74`), trim `images` down to the chosen logo + top posters _before_ `TmdbCacheService.set`, and bump the key to `v3` — scoped by `mediaType` so movie rows aren't invalidated by the TV-only `aggregate_credits` addition. Everything downstream then ships as pure presentation PRs with no further refetch events.
 
@@ -74,7 +89,7 @@ These add **no surface area**. They make what already ships correct. High levera
 | B1  | **Title logos (clearlogo) on detail + dashboard heroes** | M/H    | Plex, Emby, Kodi and Jellyfin all independently converged on the same `clearlogo` asset. Biggest perceived-quality delta available. **Zero new i18n keys.**                                                                 |
 | B2  | **Localized poster / textless backdrop selection**       | M      | Same `images` append. Pure merge-output change, both environments.                                                                                                                                                          |
 | B3  | **Extras shelf**                                         | L/M    | See §1.                                                                                                                                                                                                                     |
-| B4  | **Editorial meta rail** (tagline + certification plate)  | M      | Tagline is free today; certification joins the v3 append.                                                                                                                                                                   |
+| B4  | **Editorial meta rail** (tagline + certification plate)  | M      | Tagline is free today; the certification plate ships via the focused lazy-upgrade path above.                                                                                                                                                                   |
 | B5  | Poster-derived ambient palette                           | M/H    | `image.tmdb.org` returns `access-control-allow-origin: *`, so the canvas is untainted. But it must **not** animate over the Embedded MPV transparency hole, and needs an owning service with teardown-on-navigation. Defer. |
 
 ⚠️ B1 gotcha: `include_image_language` takes **ISO 639-1** codes, but `TmdbRuntimeService.language()` returns region-suffixed (`ru-RU`). A `.split('-')[0]` helper doesn't exist yet. And the param is **mandatory** — without it, appended images inherit `language=ru-RU` and return near-empty logos for all 17 non-English locales.
@@ -162,7 +177,7 @@ F1 is a **live compliance gap in shipped code**, not a feature. `tmdb.operations
 
 | Idea                                                   | Why not                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Family mode / certification gate + PIN**             | Enrichment is lazy and per-open, so a gate **fails open on every unmatched title** (passes everything) or **fails closed** (empty app on day one). Structurally impossible for PWA (no catalog DB), Stalker (server-paginated) and M3U (no enrichment at all) — and TMDB covers **no live channels**, which is where IPTV family risk actually concentrates. An age gate that silently passes unmatched titles is worse than none, because parents will trust it. **Ship instead:** adult-category keyword blocklist + Stalker's existing `censored` flag + PIN, with TMDB certification as a per-title **badge only**. Never describe the badge as a safety feature, in UI copy or release notes. |
+| **Family mode / certification gate + PIN**             | Enrichment is lazy and per-open, so a gate **fails open on every unmatched title** (passes everything) or **fails closed** (empty app on day one). Structurally impossible for PWA (no catalog DB), Stalker (server-paginated) and M3U (no complete-catalog enrichment) — and TMDB covers **no live channels**, which is where IPTV family risk actually concentrates. An age gate that silently passes unmatched titles is worse than none, because parents will trust it. **Ship instead:** adult-category keyword blocklist + Stalker's existing `censored` flag + PIN, with TMDB certification as a per-title **badge only**. Never describe the badge as a safety feature, in UI copy or release notes. |
 | **`/find/{external_id}`**                              | Verified: no provider interface in this repo exposes an IMDb or TVDB **id** — only `rating_imdb` (a score). M3U `tvg-id` is an XMLTV _channel_ id, and M3U has no TMDB path. The only `imdb_id` obtainable comes from TMDB itself, which is circular. No inbound caller exists.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **`watch/providers`**                                  | Tells the user a title is on Netflix. In a player whose premise is the user's _own_ streams, this reads as an ad for a competitor and drags in a mandatory JustWatch attribution obligation on top of ours. Direct conflict with the product stance.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | **TMDB / Trakt account sync (v3 session or v4 OAuth)** | Requires every user to hold a TMDB account and complete a browser OAuth flow, to sync data we already store _better_ — our favorites are playlist-scoped and playlist-aware; TMDB's are not. High friction, new credential surface, low payoff. Guest sessions expire in 60 min with no reattachment — a dead end.                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -179,6 +194,11 @@ F1 is a **live compliance gap in shipped code**, not a feature. `tmdb.operations
 ## 5. Implementation sketches — top 3
 
 ### #1 — Distrust broken provider `tmdb_id`
+
+Implementation note (2026-10-22): the recovery and resolver described below now
+live in `libs/shared/tmdb/src/lib/tmdb-metadata-client.ts` and
+`libs/shared/tmdb/src/lib/tmdb-id-resolver.ts`, shared by Angular and TV. The
+following sketch preserves the original defect and proposed design rationale.
 
 **The bug**, in `libs/services/src/lib/tmdb/tmdb-enrichment.service.ts` `enrich()`:
 
@@ -257,7 +277,7 @@ Zero i18n keys. Zero UI change.
 - populated in all three of `mergeVodInfoWithTmdb` (`:168`), `mergeSerieInfoWithTmdb` (`:215`), `mergeStalkerInfoWithTmdb` (`:257`)
 - through `NormalizedVodMeta` (`libs/shared/interfaces/src/lib/vod-details-item.interface.ts`) + **both** normalizers in `vod-details-adapters.ts` — the single convergence point where Xtream and Stalker meet
 
-**Component.** New standalone `app-tmdb-extras-shelf` in `libs/ui/shared-portals`. It must **not** go inline: `libs/ui/playback/src/lib/vod-details/vod-details.component.ts` is **388 lines and is NOT in `tools/eslint/max-lines-baseline.mjs`** — roughly 12 lines of headroom against the hard 400 lint cap.
+**Component.** New standalone `app-tmdb-extras-shelf` in `libs/ui/shared-portals`. It must **not** go inline: `libs/ui/playback/src/lib/vod-details/vod-details.component.ts` is **NOT in `tools/eslint/max-lines-baseline.mjs`** and stays under the hard 400 lint cap only because its state lives in sibling helpers (about 340 counted lines today).
 
 **Render** into the `detail-extras` projection slot at **four** sites (`vod-details.component.html:225`, `serial-details.component.html:201`, `vod-details-route.component.html:247`, `stalker-series-view.component.html:202`) — note Xtream `serial-details` has no trailer block today, so it either gains one or the shelf lands inconsistently. Reuse the existing nocookie iframe + `| safe` pipe so the Electron Referer shim keeps working; clicking swaps the embed `src` rather than opening a new player. Cards use `https://img.youtube.com/vi/{key}/hqdefault.jpg` (CSP verified: `img-src` covers it, `frame-src https://www.youtube-nocookie.com` covers the embed). `@if (extras().length > 1)` … `@else` the existing single-trailer markup **verbatim**.
 
@@ -272,6 +292,6 @@ Zero i18n keys. Zero UI change.
 1. **A1** (broken `tmdb_id`) + **F1** (retention sweep) — correctness and compliance, no new surface, no cache bump
 2. **Extras shelf** + **series structure** — pure zero-call presentation wins off already-cached payloads
 3. **Consolidated v3 append PR** — `images` + `release_dates`/`content_ratings` + `alternative_titles` + `aggregate_credits`, with payload trimming, mediaType-scoped key
-4. **Title logos**, **certification plate**, **aggregate-credits cast fix** — all ride the bump landed in step 3
+4. **Title logos** and remaining cast/artwork work — certification already ships through the focused path above; recheck the cast implementation before planning another bump
 5. **"Because you watched X"** + **"Wrong movie?" override** — the two strategic bets
 6. **Theme E** (library index) — only after A5 (backoff), batched cache ops, and a personal-key gate exist

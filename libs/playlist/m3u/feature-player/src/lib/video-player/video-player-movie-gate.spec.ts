@@ -153,7 +153,6 @@ describe('VideoPlayerComponent — M3U movie recognition gate', () => {
                         params: of({ id: playlistId(), view: 'all' }),
                         queryParams: of({}),
                         snapshot: {
-                            data: { layout: 'workspace' },
                             queryParams: {},
                         },
                     },

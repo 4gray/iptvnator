@@ -9,6 +9,7 @@ import {
     DashboardPortalLiveEpgService,
     type DashboardPortalLiveEpgEntry,
 } from '@iptvnator/workspace/dashboard/data-access';
+import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 
 const xtreamLive = (id: number, playlist = 'p'): PortalActivityItem =>
@@ -30,6 +31,7 @@ describe('DashboardPortalLiveEpgPresenter', () => {
     >;
     let pending: ReturnType<typeof signal<ReadonlySet<string>>>;
     let offsetMinutes: ReturnType<typeof signal<number>>;
+    let service: { answersPortals: boolean };
 
     /** Keys of every sync call, sorted: the wanted set has no order. */
     const wantedKeys = (): string[][] =>
@@ -42,12 +44,18 @@ describe('DashboardPortalLiveEpgPresenter', () => {
         programs = signal<ReadonlyMap<string, EpgProgram | null>>(new Map());
         pending = signal<ReadonlySet<string>>(new Set());
         offsetMinutes = signal(0);
+        service = { answersPortals: true };
         TestBed.configureTestingModule({
             providers: [
+                DashboardLiveEpgClock,
                 DashboardPortalLiveEpgPresenter,
                 {
                     provide: DashboardPortalLiveEpgService,
-                    useValue: { sync, programs, pending },
+                    useValue: Object.assign(service, {
+                        sync,
+                        programs,
+                        pending,
+                    }),
                 },
                 {
                     provide: SettingsStore,
@@ -99,6 +107,23 @@ describe('DashboardPortalLiveEpgPresenter', () => {
         presenter.setVisibleCards('recent', []);
         TestBed.tick();
         expect(wantedKeys().at(-1)).toEqual(['xtream::p::1', 'xtream::p::3']);
+    });
+
+    it('keeps the live-EPG clock stopped while no portal card is wanted', () => {
+        jest.useFakeTimers();
+        try {
+            presenter.connect(signal([xtreamLive(1)]));
+            TestBed.tick();
+            expect(jest.getTimerCount()).toBe(0);
+
+            presenter.setVisibleCards('recent', [
+                { id: 'r1', liveEpgSourceKey: 'xtream::p::1' },
+            ] as never);
+            TestBed.tick();
+            expect(jest.getTimerCount()).toBe(1);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('ignores visible keys whose item is no longer on the dashboard', () => {
@@ -162,5 +187,20 @@ describe('DashboardPortalLiveEpgPresenter', () => {
         );
         expect(presenter.programFor('xtream::p::1')).toBe(program);
         expect(presenter.programFor('xtream::p::2')).toBeNull();
+    });
+
+    it('awaits a first answer until the card has one, also before it is queued', () => {
+        expect(presenter.awaitsFirstAnswer(null)).toBe(false);
+        // Not queued yet (the pin reaches the queue through an effect).
+        expect(presenter.awaitsFirstAnswer('xtream::p::1')).toBe(true);
+
+        programs.set(new Map([['xtream::p::1', null]]));
+        expect(presenter.awaitsFirstAnswer('xtream::p::1')).toBe(false);
+    });
+
+    it('never awaits an answer where portals are not asked', () => {
+        service.answersPortals = false;
+
+        expect(presenter.awaitsFirstAnswer('xtream::p::1')).toBe(false);
     });
 });

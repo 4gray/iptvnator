@@ -16,6 +16,23 @@ describe('createPendingPlaybackStart', () => {
         expect(pendingForA()).toBe(false);
     });
 
+    it('forgets a start whose owner the page left, so a return is not held by it', () => {
+        const tracker = createPendingPlaybackStart<string>();
+        const first = tracker.begin('a');
+
+        // Back out of the movie while its request still resolves: whatever
+        // it settles with no longer applies, so reopening it starts afresh.
+        tracker.retire('a');
+        expect(tracker.isPendingFor('a')).toBe(false);
+
+        // The retired start settling late must not disturb a newer one.
+        const newer = tracker.begin('a');
+        tracker.settle(first);
+        expect(tracker.isPendingFor('a')).toBe(true);
+        tracker.settle(newer);
+        expect(tracker.isPendingFor('a')).toBe(false);
+    });
+
     it('lets only the latest start clear the flag', () => {
         const tracker = createPendingPlaybackStart<string>();
         const older = tracker.begin('a');

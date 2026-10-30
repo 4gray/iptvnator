@@ -10,6 +10,7 @@ import {
     OnDestroy,
     OnInit,
     signal,
+    untracked,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
@@ -18,12 +19,16 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     GridListComponent,
     InfiniteScrollDirective,
     PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
 import {
     clearNavigationStateKeys,
     consumeStalkerReturnMarker,
@@ -38,6 +43,12 @@ import {
     PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
     PortalCatalogSortMode,
 } from '@iptvnator/portal/shared/util';
+import {
+    CATALOG_SORT_OPTIONS,
+    catalogSortLabels,
+} from './catalog-sort-options';
+
+import { createCatalogWatchFilter } from './catalog-watch-filter';
 
 interface CategoryContentItem {
     id?: number | string;
@@ -62,6 +73,8 @@ interface CategoryContentItem {
         MatIcon,
         MatMenuModule,
         MatTooltip,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         NgComponentOutlet,
         PlaylistErrorViewComponent,
         TranslatePipe,
@@ -72,7 +85,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly router = inject(Router);
-    private readonly translate = inject(TranslateService);
     private readonly providerOnlyStalkerItemId = signal<string | null>(null);
     private readonly catalog = inject(
         PORTAL_CATALOG_FACADE
@@ -82,6 +94,10 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         CategoryContentItem
     >;
 
+    readonly watchFilter = createCatalogWatchFilter(
+        this.catalog,
+        this.hostElement.nativeElement
+    );
     readonly detailComponent = inject(PORTAL_CATALOG_DETAIL_COMPONENT);
     readonly contentType = this.catalog.contentType;
     readonly selectedCategory = this.catalog.selectedCategory;
@@ -99,15 +115,28 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.catalog.provider === 'xtream' &&
             this.isPaginatedContentLoading()
     );
+    /** Key and params; the template pipe re-renders once translations load. */
     readonly categoryItemSubtitle = computed(() => {
+        if (this.watchFilter.blocked()) {
+            return {
+                key: this.watchFilter.error()
+                    ? 'WORKSPACE.REFINE_WATCH_ERROR_TITLE'
+                    : 'WORKSPACE.REFINE_WATCH_LOADING',
+                params: {},
+            };
+        }
         if (this.isXtreamLoadingSubtitle()) {
-            return this.translate.instant(
-                'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
-            );
+            return { key: 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING', params: {} };
         }
 
-        const itemCount = this.categoryItemCount();
-        return `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
+        const count = this.categoryItemCount();
+        return {
+            key:
+                count === 1
+                    ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
+                    : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER',
+            params: { count },
+        };
     });
     readonly canSortContent = computed(() => this.contentSortMode() !== null);
     readonly supportsRatingSort = computed(
@@ -123,29 +152,24 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     );
     readonly ratingThresholds = [9, 8, 7, 6, 5] as const;
     readonly hasRefineControls = computed(
-        () => this.canSortContent() || this.canFilterByRating()
+        () =>
+            this.canSortContent() ||
+            this.canFilterByRating() ||
+            this.watchFilter.canFilter()
     );
-    readonly activeRefinementCount = computed(() =>
-        this.minRating() !== null ? 1 : 0
+    readonly activeRefinementCount = computed(
+        () =>
+            Number(this.minRating() !== null) +
+            Number(this.watchFilter.active())
     );
-    readonly activeSortLabelKey = computed(() => {
-        switch (this.contentSortMode()) {
-            case 'date-desc':
-                return 'WORKSPACE.SORT_DATE_DESC';
-            case 'date-asc':
-                return 'WORKSPACE.SORT_DATE_ASC';
-            case 'name-asc':
-                return 'WORKSPACE.SORT_NAME_ASC';
-            case 'name-desc':
-                return 'WORKSPACE.SORT_NAME_DESC';
-            case 'rating-desc':
-                return 'WORKSPACE.SORT_TOP_RATED';
-            case 'rating-asc':
-                return 'WORKSPACE.SORT_LOWEST_RATED';
-            default:
-                return 'WORKSPACE.SORT_CUSTOM';
-        }
-    });
+    readonly sortOptions = computed(() =>
+        CATALOG_SORT_OPTIONS.filter(
+            (option) => !option.byRating || this.supportsRatingSort()
+        )
+    );
+    readonly activeSortLabels = computed(() =>
+        catalogSortLabels(this.contentSortMode())
+    );
     readonly searchTerm = toSignal(
         this.activatedRoute.queryParamMap.pipe(map((p) => p.get('q') ?? '')),
         { initialValue: '' }
@@ -189,12 +213,63 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.searchTerm(),
             this.contentSortMode() ?? '',
             String(this.minRating() ?? ''),
+            this.watchFilter.value() ?? '',
         ].join('|');
     });
     private previousGridResetKey: string | null = null;
     private hasAttemptedScrollRestore = false;
+    /**
+     * The grid's last reported offset. On destroy the view is already
+     * detached from the document, where `scrollTop` reads 0, so the hook
+     * saves this instead. Scroll events do not bubble but can be captured.
+     */
+    private lastGridScrollTop = 0;
+    private readonly trackGridScroll = (event: Event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.matches('app-grid-list')) {
+            this.lastGridScrollTop = target.scrollTop;
+        }
+    };
+    private readonly routeCategory = signal<{ id: string | null } | null>(null);
+    private initializedRoute: {
+        category: { id: string | null };
+        playlistId: string | null;
+    } | null = null;
 
     constructor() {
+        const host = this.hostElement.nativeElement;
+        host.addEventListener('scroll', this.trackGridScroll, {
+            capture: true,
+            passive: true,
+        });
+        this.destroyRef.onDestroy(() =>
+            host.removeEventListener('scroll', this.trackGridScroll, {
+                capture: true,
+            })
+        );
+        effect(() => {
+            const category = this.routeCategory();
+            if (!category || this.catalog.routeReady?.() === false) {
+                return;
+            }
+            const playlistId = this.catalog.playlist()?.id ?? null;
+            // Query-only navigation toggles readiness too; only a new
+            // category arrival or playlist should reset the open detail.
+            if (
+                this.initializedRoute?.category === category &&
+                this.initializedRoute.playlistId === playlistId
+            ) {
+                return;
+            }
+            this.initializedRoute = { category, playlistId };
+            untracked(() => {
+                this.providerOnlyStalkerItemId.set(null);
+                this.catalog.initialize(category.id);
+                this.catalog.setSearchQuery?.(this.searchTerm());
+                this.openStalkerItemFromNavigationState();
+            });
+        });
+
         effect(() => {
             const resetKey = this.gridResetKey();
             if (
@@ -219,7 +294,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
             if (
                 this.hasAttemptedScrollRestore ||
-                this.isPaginatedContentLoading()
+                this.isPaginatedContentLoading() ||
+                this.watchFilter.blocked()
             ) {
                 return;
             }
@@ -253,9 +329,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         this.activatedRoute.paramMap
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((params) => {
-                this.providerOnlyStalkerItemId.set(null);
-                this.catalog.initialize(params.get('categoryId'));
-                this.openStalkerItemFromNavigationState();
+                this.routeCategory.set({ id: params.get('categoryId') });
             });
 
         this.activatedRoute.queryParamMap
@@ -274,21 +348,25 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     ngOnDestroy(): void {
         // Leaving the list without opening a detail (e.g. switching portal
         // tabs) still snapshots the spot; the facade validates the selection
-        // before ever restoring it.
+        // before ever restoring it. Angular detaches the view's DOM before
+        // this hook runs, and a detached grid reports a scrollTop of 0, so
+        // the tracked offset stands in for it.
         if (!this.selectedItem()) {
             const grid = this.gridElement();
             if (grid) {
-                this.catalog.saveScrollPosition?.(grid.scrollTop);
+                this.catalog.saveScrollPosition?.(
+                    grid.isConnected ? grid.scrollTop : this.lastGridScrollTop
+                );
             }
         }
     }
 
     onLoadMore(): void {
-        this.catalog.loadMore();
+        if (!this.watchFilter.blocked()) this.catalog.loadMore();
     }
 
     onRetryAppend(): void {
-        this.catalog.retryAppend();
+        if (!this.watchFilter.blocked()) this.catalog.retryAppend();
     }
 
     onItemClick(item: CategoryContentItem): void {
@@ -315,6 +393,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     }
 
     private scrollGridToTop(): void {
+        // A grid already at the top fires no scroll event for this call.
+        this.lastGridScrollTop = 0;
         this.gridElement()?.scrollTo?.({ top: 0 });
     }
 

@@ -98,7 +98,7 @@ jobs:
                   fetch-depth: 0
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -140,7 +140,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -278,7 +278,7 @@ jobs:
                       exit 0
                   fi
                   relevant="$(git diff --name-only HEAD^1 HEAD |
-                      grep -vE '\.md$|^docs/|^\.plans/|^\.codex/|^\.claude/|^\.changes/|^apps/website/' || true)"
+                      grep -vE '\.md$|^docs/|^\.plans/|^\.agents/|^\.codex/|^\.claude/|^\.changes/|^apps/website/' || true)"
                   if [ -n "$relevant" ]; then
                       echo "Journey-relevant changes:"
                       echo "$relevant"
@@ -296,12 +296,15 @@ jobs:
         if: needs.performance-journeys-scope.outputs.run == 'true'
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
-        # (launch, open-source) is six fresh Electron processes plus one
-        # seeding run.
+        # (launch, open-source, playback, search) is six fresh Electron
+        # processes plus one seeding run. The large-library launch journey
+        # (launch-large) is left to the weekly performance-ratchet.yml.
         timeout-minutes: 30
-        # Warn-only for the first two weeks of plan item B3: a failure is
-        # visible on the run but does not fail the workflow.
-        continue-on-error: true
+        # Counter regressions fail this workflow (plan item B3, #1926).
+        # This policy takes effect on master when #1926 is merged.
+        # Evidence: all 71 master runs from 2026-10-06 to 2026-10-12 passed,
+        # with no enforced counter varying between iterations (see Ratchet
+        # in docs/architecture/performance-journeys.md).
         env:
             NX_SKIP_NX_CACHE: true
 
@@ -310,7 +313,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -321,61 +324,44 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
-            # The journeys drive Electron through Playwright's _electron API
-            # and never launch a Playwright browser, so no `playwright
-            # install`. The runner image ships Electron's shared libraries and
-            # xvfb; fail fast with a clear message if an image update drops one.
-            # pnpm skips Electron's postinstall, so download the binary first;
-            # otherwise ldd sees no file and the check passes vacuously.
-            - name: Check Electron runtime dependencies
-              run: |
-                  command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
-                  node tools/testing/ensure-electron-binary.mjs || { echo "::error::Electron binary download failed"; exit 1; }
-                  missing="$(ldd node_modules/electron/dist/electron | grep 'not found' || true)"
-                  if [ -n "$missing" ]; then
-                      echo "::error::Electron is missing shared libraries:"
-                      echo "$missing"
-                      exit 1
-                  fi
-
-            # The Nx target builds electron-backend:build-performance first
-            # and playwright.journeys.config.ts starts the Xtream mock server.
+            # Electron dependency check, the xvfb run, the summary lookup and
+            # the job-summary report; shared with performance-ratchet.yml.
             - name: Run the performance journeys
-              run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm run perf:journeys
-              env:
-                  CI: true
-                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+              id: journeys
+              uses: ./.github/actions/performance-journeys
 
-            # Every run writes a fresh timestamped directory, so a clean
-            # checkout must hold exactly one summary.
-            - name: Locate the journey summary
-              id: summary
-              run: |
-                  set -euo pipefail
-                  mapfile -t summaries < <(find dist/performance/journeys -mindepth 2 -maxdepth 2 -name summary.json)
-                  if [ "${#summaries[@]}" -ne 1 ]; then
-                      echo "::error::Expected one journey summary, found ${#summaries[@]}"
-                      exit 1
-                  fi
-                  echo "path=${summaries[0]}" >> "$GITHUB_OUTPUT"
-
-            - name: Report journey measurements
+            # Only the counters identical in every measured iteration of
+            # recent master runs; their entries say whether a counter is
+            # validated against wall-clock or a guard only (see Ratchet in
+            # docs/architecture/performance-journeys.md). Here and not in the
+            # composite action, so the weekly tightening still measures a run
+            # that would fail it. tools/performance tests keep this list equal
+            # to the journey entries of journey-baselines.json. It also runs
+            # when a later step of the action (the job-summary report) failed
+            # after the summary was written, so the counters are still checked.
+            - name: Check the journey counters against the baselines
+              if: ${{ !cancelled() && steps.journeys.outputs.summary != '' }}
               env:
-                  SUMMARY: ${{ steps.summary.outputs.path }}
-              run: |
-                  set -euo pipefail
-                  jq -r '
-                      "## Performance journeys (\(.harness.platform), \(.harness.measuredIterations) measured iterations)", "",
-                      (.journeys | to_entries[] | .key as $journey | .value as $j |
-                          "### `\($journey)`", "",
-                          "| Measurement | Value | Iterations |",
-                          "| --- | ---: | --- |",
-                          (($j.counters // {}) | to_entries[] |
-                              ($j.counterStability[.key] // {}) as $s |
-                              "| `\(.key)` | \(.value) | \(($s.values // []) | map(tostring) | join(", "))\(if $s.stable == false then " (unstable)" else "" end) |"),
-                          (($j.wallClock // {}) | to_entries[] | "| `\(.key)` | \(.value) | |"),
-                          "")
-                  ' "$SUMMARY" | tee -a "$GITHUB_STEP_SUMMARY"
+                  SUMMARY: ${{ steps.journeys.outputs.summary }}
+              run: >-
+                  node tools/performance/check-journey-ratchet.mjs
+                  --summary "$SUMMARY"
+                  --only launch/renderer.ipcCallsToFirstCard
+                  --only launch/renderer.domMutationsToFirstCard
+                  --only launch/main.modulesRegisteredBeforeWindow
+                  --only launch/renderer.layoutShiftScore
+                  --only launch/renderer.layoutShiftScoreSettled
+                  --only launch/renderer.cdTicksToFirstCard
+                  --only launch/renderer.cdTicksIdle30s
+                  --only open-source/main.mockHttpRequestsToSettled
+                  --only open-source/renderer.ipcCallsToFirstPage
+                  --only open-source/renderer.layoutShiftScore
+                  --only open-source/renderer.cdTicksToFirstPage
+                  --only playback/renderer.domMutationsToPlaying
+                  --only playback/renderer.httpRequestsToPlaying
+                  --only playback/renderer.layoutShiftScore
+                  --only search/renderer.ipcCallsPerSearch
+                  --only search/renderer.sqlStatementsPerSearch
 
             - name: Upload journey summaries
               if: always()
@@ -400,7 +386,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -423,8 +409,53 @@ jobs:
             - name: Validate electron-builder keychain password patch
               run: pnpm run deps:electron-builder:test
 
+            - name: Validate mpegts.js loader abort patch
+              run: pnpm run deps:mpegts:test
+
+            - name: Validate the font weight scale
+              run: pnpm run styles:font-weights:validate
+
             - name: Validate stylesheet Nx inputs
               run: pnpm run styles:inputs:validate
+
+            - name: Validate Angular Material token overrides
+              run: pnpm run styles:material-tokens:validate
+
+            # The global :focus-visible fallback, and one ring colour for
+            # every component (tools/nx/check-focus-ring-colour.mjs).
+            - name: Validate the keyboard focus ring
+              run: pnpm run styles:focus-visible:validate
+
+            # The icon font renders an unknown ligature name as plain text.
+            - name: Validate Material icon names
+              run: pnpm run styles:icon-ligatures:validate
+
+            # A var() read nothing declares always falls back, and a
+            # prefers-color-scheme query follows the OS, not the app theme.
+            - name: Validate theme references
+              run: pnpm run styles:theme-references:validate
+
+            # A tooltip is not an accessible name: an icon-only <button> needs
+            # aria-label, an aria-label binding or aria-labelledby.
+            - name: Validate icon-only button names
+              run: pnpm run a11y:icon-buttons:validate
+
+            # Form-field defaults are provided per lazy component: the root
+            # token import would load Material form-field and @angular/forms
+            # on startup (tools/nx/check-form-field-defaults.mjs).
+            - name: Validate form-field defaults
+              run: pnpm run ui:form-field-defaults:validate
+
+            # m3-theme.scss themes only the Material components the app
+            # imports; a new import without a theme entry renders unthemed.
+            - name: Validate the Material theme scope
+              run: pnpm run styles:material-theme-scope:validate
+
+            # Nx rejects a non-parallel task with continuous dependencies, and
+            # the Playwright plugin infers serve dependencies only when CI is
+            # unset, so this checks both the local and the CI inference.
+            - name: Validate Playwright task graphs
+              run: pnpm run e2e:task-graphs:validate
 
             - name: Typecheck web and Electron entry points
               run: pnpm run typecheck:ci
@@ -432,8 +463,13 @@ jobs:
             - name: Typecheck Jest spec programs
               run: pnpm run typecheck:spec:test && pnpm run typecheck:spec
 
-            - name: Check i18n drift
-              run: pnpm run i18n:check
+            # Fails on missing or extra keys, on values identical to English
+            # that tools/i18n/identical-en-baseline.json does not list, and on
+            # keys the renderer uses but en.json lacks. The baseline only
+            # changes through a reviewed `pnpm run i18n:baseline:update`; CI
+            # never rewrites it.
+            - name: Check i18n drift and untranslated values
+              run: pnpm run i18n:validate
 
             # Node specs for the benchmark and journey harness (about ten
             # seconds). They live in the E2E app, which the unit coverage scope

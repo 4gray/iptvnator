@@ -103,6 +103,10 @@ async function buildWorker() {
                         __dirname,
                         '../../libs/shared/database/src/lib/path-utils.ts'
                     ),
+                    '@iptvnator/shared/database/app-playlist': path.join(
+                        __dirname,
+                        '../../libs/shared/database/src/lib/app-playlist.ts'
+                    ),
                 },
             });
         }

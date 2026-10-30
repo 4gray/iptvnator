@@ -6,22 +6,21 @@ import {
     output,
     viewChild,
 } from '@angular/core';
-import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatButton } from '@angular/material/button';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
+import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
 import { InfiniteScrollDirective } from '../../directives/infinite-scroll.directive';
-import { SearchFormComponent } from '../search-form/search-form.component';
 
 @Component({
     selector: 'app-search-layout',
     standalone: true,
     imports: [
         InfiniteScrollDirective,
+        MatButton,
         MatIcon,
-        MatIconButton,
         MatProgressSpinner,
-        SearchFormComponent,
         TranslatePipe,
     ],
     templateUrl: './search-layout.component.html',
@@ -29,7 +28,6 @@ import { SearchFormComponent } from '../search-form/search-form.component';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SearchLayoutComponent {
-    private readonly searchFormComponent = viewChild(SearchFormComponent);
     private readonly resultsContainer =
         viewChild<ElementRef<HTMLElement>>('resultsContainer');
 
@@ -44,18 +42,18 @@ export class SearchLayoutComponent {
 
     /** Whether search is in progress */
     readonly isLoading = input<boolean>(false);
+    readonly hasError = input<boolean>(false);
+    readonly retryClick = output<void>();
 
-    /** Whether to show the close button (for dialog mode) */
-    readonly showCloseButton = input<boolean>(false);
-
-    /** Whether to show the back button (nested search reached via navigation) */
-    readonly showBackButton = input<boolean>(false);
+    /**
+     * Whether the page offers Back (a nested search reached via navigation).
+     * It is the workspace header's Back, registered while the results show;
+     * an inline detail above them brings its own.
+     */
+    readonly backAvailable = input<boolean>(false);
 
     /** Whether to show results count */
     readonly showResultsCount = input<boolean>(true);
-
-    /** Whether to show the inline search input */
-    readonly showSearchInput = input<boolean>(true);
 
     /** Whether inline details are active and should replace the search body */
     readonly showDetails = input<boolean>(false);
@@ -100,13 +98,7 @@ export class SearchLayoutComponent {
         'PORTALS.SEARCH_VIEW.INITIAL_DESCRIPTION'
     );
 
-    /** Emitted when search term changes */
-    readonly searchTermChange = output<string>();
-
-    /** Emitted when close button is clicked */
-    readonly closeClick = output<void>();
-
-    /** Emitted when the back button is clicked */
+    /** Emitted by the header's Back while `backAvailable` is set */
     readonly backClick = output<void>();
 
     /**
@@ -116,9 +108,11 @@ export class SearchLayoutComponent {
      */
     readonly nearEnd = output<void>();
 
-    /** Focus the search input */
-    focusSearchInput(): void {
-        this.searchFormComponent()?.focusSearchInput();
+    constructor() {
+        registerWorkspaceBack({
+            available: () => this.backAvailable() && !this.showDetails(),
+            run: () => this.backClick.emit(),
+        });
     }
 
     /**
@@ -132,18 +126,6 @@ export class SearchLayoutComponent {
 
     restoreResultsScrollTop(scrollTop: number): void {
         this.resultsContainer()?.nativeElement.scrollTo?.({ top: scrollTop });
-    }
-
-    onSearchTermChange(term: string): void {
-        this.searchTermChange.emit(term);
-    }
-
-    onCloseClick(): void {
-        this.closeClick.emit();
-    }
-
-    onBackClick(): void {
-        this.backClick.emit();
     }
 
     /** Check if we should show the "no results" state */

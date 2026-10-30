@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -48,7 +49,11 @@ import {
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SettingsStore,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { RecordingStoppedEvent } from '@iptvnator/shared/interfaces';
 import {
     createUnifiedLiveCatchup,
@@ -116,10 +121,15 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     private readonly settingsStore = inject(SettingsStore);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = injectTranslationTick();
     private readonly router = inject(Router);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
 
     readonly supportsEpg = this.runtime.supportsEpg;
+    private readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
+    /** Some row can carry a programme: XMLTV for M3U, the portal guide otherwise. */
+    protected readonly supportsAnyEpg =
+        this.supportsEpg || this.supportsProviderEpg;
 
     private readonly fullscreenChannelPanelTemplate = viewChild<
         TemplateRef<FullscreenChannelPanelContext>
@@ -130,13 +140,15 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             ? null
             : (this.fullscreenChannelPanelTemplate() ?? null)
     );
-    readonly panelTitle = computed(() =>
-        this.translate.instant(
+    /** Worded per language: the tick re-runs this after a switch. */
+    readonly panelTitle = computed(() => {
+        this.languageTick();
+        return this.translate.instant(
             this.mode() === 'favorites'
                 ? 'HOME.PLAYLISTS.GLOBAL_FAVORITES'
                 : 'PORTALS.SIDEBAR.RECENT'
-        )
-    );
+        );
+    });
 
     readonly activeDetail = signal<ResolvedLiveCollectionDetail | null>(null);
     readonly activeUid = signal<string | null>(null);
@@ -165,6 +177,14 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly openInPlaylistTarget = this.view.openInPlaylistTarget;
     readonly openInPlaylistName = this.view.openInPlaylistName;
     readonly playbackSessionKey = this.view.playbackSessionKey;
+    /** M3U selections need XMLTV; Xtream and Stalker ones read the portal guide. */
+    readonly showsEpgPanel = computed(
+        () =>
+            !this.isRadioSelection() &&
+            (this.view.isM3uSelection()
+                ? this.supportsEpg
+                : this.supportsProviderEpg)
+    );
 
     private readonly catchup = createUnifiedLiveCatchup({
         activeTimeshift: this.activeTimeshift,
@@ -210,7 +230,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly recordingMetadata = this.recording.metadata;
 
     private readonly epgPrograms = createUnifiedLiveEpgMap({
-        supportsEpg: this.supportsEpg,
+        supportsEpg: this.supportsAnyEpg,
         items: this.items,
         offsetMinutes: this.epgView.offsetMinutes,
     });
@@ -224,6 +244,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         isSelecting: this.isSelecting,
         generation: this.generation,
         supportsEpg: this.supportsEpg,
+        supportsProviderEpg: this.supportsProviderEpg,
         isRadioDetail: (detail) => this.view.isRadioDetail(detail),
         shouldOpenExternalPlayback: (detail, startPlayback) =>
             this.view.shouldOpenExternalPlayback(detail, startPlayback),
@@ -244,14 +265,22 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     constructor() {
         effect(() => {
             const items = this.items();
-            if (this.supportsEpg) {
+            if (this.supportsAnyEpg) {
                 this.epgPrograms.load(items);
             } else {
                 this.epgPrograms.clear();
             }
 
             const activeUid = this.activeUid();
-            if (activeUid && !items.some((item) => item.uid === activeUid)) {
+            const selected = items.find((item) => item.uid === activeUid);
+            // During a switch the highlight belongs to the pending selection,
+            // while the mounted detail still belongs to the previous item.
+            const retainedUid = this.activeItem()?.uid;
+            const retained = items.find((item) => item.uid === retainedUid);
+            if (
+                (activeUid && (!selected || isCatalogUnavailable(selected))) ||
+                (retainedUid && (!retained || isCatalogUnavailable(retained)))
+            ) {
                 this.onClose();
             }
         });
@@ -312,7 +341,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
 
     async onChannelSelected(channel: UnifiedFavoriteChannel): Promise<void> {
         const item = this.itemFor(channel);
-        if (item) {
+        if (item && !isCatalogUnavailable(item)) {
             await this.selection.activate(item);
         }
     }
@@ -321,7 +350,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         channel: UnifiedFavoriteChannel
     ): Promise<void> {
         const item = this.itemFor(channel);
-        if (item) {
+        if (item && !isCatalogUnavailable(item)) {
             await this.selection.activate(item, false, true);
         }
     }
@@ -412,7 +441,9 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     }
 
     private openInPlaylist(item: UnifiedCollectionItem): void {
-        const target = getLiveCollectionPlaylistNavigation(item);
+        const current = this.items().find((row) => row.uid === item.uid);
+        if (!current || isCatalogUnavailable(current)) return;
+        const target = getLiveCollectionPlaylistNavigation(current);
         if (target) {
             void this.router.navigate(target.link, { state: target.state });
         }

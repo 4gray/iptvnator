@@ -2,7 +2,7 @@
 
 ## Overview
 
-Xtream API playlists often contain many categories, some of which may be empty, in another language, or simply not relevant to the user. The category management feature allows users to hide unwanted categories from the sidebar while keeping them in the database for potential future use.
+Xtream API playlists often contain many categories, some of which may be empty, in another language, or simply not relevant to the user. On the SQLite-backed desktop source, category management hides unwanted categories from the sidebar and their content from section lists, section searches, and Recently Added while keeping the data available for future use.
 
 ## User Flow
 
@@ -15,7 +15,7 @@ Xtream API playlists often contain many categories, some of which may be empty, 
     - Use "Select All" / "Deselect All" for the whole list, or "Select Filtered" / "Deselect Filtered" for search results
     - Search/filter categories by name
 6. On save, visibility preferences are persisted to the database
-7. Hidden categories no longer appear in the sidebar
+7. Hidden categories disappear from the sidebar, and their content disappears from section lists, section searches, and Recently Added
 
 ## Technical Implementation
 
@@ -84,11 +84,18 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 - **New categories**: When a playlist is refreshed, new categories from the remote API are added with `hidden = false` (visible by default)
 - **Persistence**: Visibility settings survive playlist refresh (see below)
 - **Per-playlist, per-type**: Categories are managed per playlist and per content type (live/movies/series)
-- **No content deletion**: Hiding a category only affects sidebar visibility; the category and its content remain in the database
+- **No content deletion**: The category and its content remain in the database. Hiding filters section browsing/search and Recently Added; global advanced search retains its separate "visible categories only" option and its existing default.
+- **Runtime scope**: Section visibility filtering uses `supportsXtreamSqliteDataSource`, matching data-source selection. API-backed sources, including a partial Electron bridge using the PWA source, retain uncategorized and unknown-category items.
+- **Reactive updates**: Section lists and the Xtream Recently Added rails share the visible-content selector in `withSelection()`. Reloading categories after Save updates both, including hiding every category and subsequently restoring one. SQLite content references local category IDs, not provider `xtream_id` values.
 - **Display order**: The sidebar defaults to server order. Users can switch the
   category panel to `A-Z` or `Z-A` from the sort menu next to category search.
-- **Selection scrolling**: The panel centers the rendered selected row after
-  selection changes. Electron selects by local SQLite category ID; the row's
+- **Selection scrolling**: After a selection change the panel reads the
+  rendered selected row (post-render) and centers it only when it is not
+  already fully visible, so clicking a visible category never moves the
+  rail. Visible selections stop an earlier smooth reveal and reassert the
+  position on the next animation frame to discard Chromium's final compositor
+  update. A newer selection or component destruction cancels that restoration.
+  Electron selects by local SQLite category ID; the row's
   `data-category-id` can contain its provider ID. Those IDs are not
   interchangeable when locating the scroll target, including after filtering
   hidden categories or sorting.

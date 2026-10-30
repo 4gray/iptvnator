@@ -7,19 +7,7 @@
             <div class="header sticky-header">
                 <div class="header-top">
                     <div class="header-left">
-                        <div class="header-title-group">
-                            @if (showBackButton()) {
-                                <button
-                                    mat-icon-button
-                                    class="header-back"
-                                    [attr.aria-label]="'BACK' | translate"
-                                    (click)="onBackClick()"
-                                >
-                                    <mat-icon>arrow_back</mat-icon>
-                                </button>
-                            }
-                            <h2>{{ title() | translate }}</h2>
-                        </div>
+                        <h2>{{ title() | translate }}</h2>
 
                         <!-- Filters slot -->
                         <div class="type-filters">
@@ -36,24 +24,10 @@
                                 }}
                             </div>
                         }
-                        @if (showCloseButton()) {
-                            <button mat-icon-button (click)="onCloseClick()">
-                                <mat-icon>close</mat-icon>
-                            </button>
-                        }
                         <!-- Extra header actions slot -->
                         <ng-content select="[header-actions]" />
                     </div>
                 </div>
-
-                @if (showSearchInput()) {
-                    <div class="search-input-container">
-                        <app-search-form
-                            [searchTerm]="searchTerm()"
-                            (searchTermChange)="onSearchTermChange($event)"
-                        />
-                    </div>
-                }
 
                 <!-- Subheader slot (info notes, secondary controls) -->
                 <ng-content select="[subheader]" />
@@ -72,6 +46,31 @@
                 @if (isLoading()) {
                     <div class="loading-state">
                         <mat-spinner diameter="48" />
+                    </div>
+                } @else if (hasError()) {
+                    <div class="no-items search-error" role="alert">
+                        <mat-icon aria-hidden="true">cloud_off</mat-icon>
+                        <div class="no-items-content">
+                            <h3>
+                                {{
+                                    'PORTALS.SEARCH_VIEW.ERROR_TITLE'
+                                        | translate
+                                }}
+                            </h3>
+                            <p>
+                                {{
+                                    'PORTALS.SEARCH_VIEW.ERROR_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            mat-flat-button
+                            (click)="retryClick.emit()"
+                        >
+                            {{ 'PORTALS.GRID.RETRY' | translate }}
+                        </button>
                     </div>
                 } @else if (showResults) {
                     <!-- Results slot -->

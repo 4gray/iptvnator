@@ -256,3 +256,59 @@ describe('settings form utils — EPG source control', () => {
         }
     );
 });
+
+describe('settings form utils — EPG display without XMLTV sources', () => {
+    const formBuilder = new FormBuilder();
+
+    it('builds only the display controls where a portal guide is the only guide (browser PWA)', () => {
+        const form = createSettingsForm(formBuilder, false, true);
+
+        expect(form.get('epgViewMode')?.value).toBe('timeline');
+        expect(form.get('epgOffsetMinutes')?.value).toBe(0);
+        expect(form.get('epgUrl')).toBeNull();
+        expect(form.get('preferUploadedEpgOverXtream')).toBeNull();
+    });
+
+    it('saves the display settings and keeps the stored XMLTV ones', () => {
+        const form = createSettingsForm(formBuilder, false, true);
+        form.patchValue({ epgViewMode: 'list', epgOffsetMinutes: 60 });
+
+        const settings = createSettingsFromFormValue(form, {
+            epgUrl: ['https://example.org/guide.xml'],
+            preferUploadedEpgOverXtream: true,
+        } as Settings);
+
+        expect(settings.epgViewMode).toBe('list');
+        expect(settings.epgOffsetMinutes).toBe(60);
+        expect(settings.epgUrl).toEqual(['https://example.org/guide.xml']);
+        expect(settings.preferUploadedEpgOverXtream).toBe(true);
+    });
+
+    it('keeps every EPG control where XMLTV sources exist (desktop)', () => {
+        const form = createSettingsForm(formBuilder, true);
+
+        expect(form.get('epgUrl')).not.toBeNull();
+        expect(form.get('preferUploadedEpgOverXtream')).not.toBeNull();
+        expect(form.get('epgViewMode')).not.toBeNull();
+        expect(form.get('epgOffsetMinutes')).not.toBeNull();
+    });
+});
+
+describe('settings form utils — age rating country', () => {
+    it('defaults to automatic and saves the selected country without enabling TMDB', () => {
+        const form = createSettingsForm(new FormBuilder(), true);
+        expect(form.get('ageRatingCountry')?.value).toBe('auto');
+        form.patchValue({ ageRatingCountry: 'de' });
+        const saved = createSettingsFromFormValue(form, {} as Settings);
+        expect(saved.ageRatingCountry).toBe('DE');
+        expect(saved.tmdb?.enabled).toBe(false);
+    });
+
+    it('normalizes invalid imported countries to automatic', () => {
+        const form = createSettingsForm(new FormBuilder(), true);
+        form.patchValue({ ageRatingCountry: 'ZZ' });
+        expect(
+            createSettingsFromFormValue(form, {} as Settings).ageRatingCountry
+        ).toBe('auto');
+    });
+});

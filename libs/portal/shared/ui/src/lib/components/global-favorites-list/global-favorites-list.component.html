@@ -34,8 +34,22 @@
             [isDraggable]="canDragDrop()"
             [logo]="ch.logo"
             [name]="ch.name"
+            [disabled]="isUnavailable(ch)"
+            [statusLabel]="
+                isUnavailable(ch)
+                    ? ((ch.catalogStatus === 'missing'
+                          ? 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
+                          : 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_UNKNOWN'
+                      ) | translate)
+                    : ''
+            "
             [selected]="activeUid() === ch.uid"
-            [showEpg]="showEpg() && ch.radio !== 'true'"
+            [showEpg]="
+                !isUnavailable(ch) &&
+                showEpg() &&
+                ch.radio !== 'true' &&
+                guideBySource[ch.sourceType]
+            "
             [isRadio]="ch.radio === 'true'"
             [epgProgram]="ch.currentEpgProgram"
             [progressPercentage]="ch.progressPercentage"
@@ -47,54 +61,26 @@
             [showDetailsContextMenu]="hasChannelContextMenu(ch)"
             (clicked)="onChannelClick(ch)"
             (activated)="onChannelActivate(ch)"
-            (keyboardActivated)="playbackRequested.emit(ch)"
+            (keyboardActivated)="onPlaybackRequested(ch)"
             (favoriteToggled)="onFavoriteToggled(ch)"
             (contextMenuRequested)="onChannelContextMenu(ch, $event)"
         />
     }
 </div>
 
-<div
-    aria-hidden="true"
-    class="channel-context-menu-anchor"
-    [style.left]="contextMenuPosition().x"
-    [style.top]="contextMenuPosition().y"
-    [matMenuTriggerFor]="channelContextMenu"
-    #contextMenuTrigger="matMenuTrigger"
-></div>
-
-<mat-menu #channelContextMenu="matMenu">
-    @if (supportsEpgMapping) {
-        <button mat-menu-item (click)="openEpgMapping()">
-            <mat-icon>settings_remote</mat-icon>
-            <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
-        </button>
-    }
-    @if (contextMenuChannel()?.m3uChannel) {
-        <button mat-menu-item (click)="openChannelDetails()">
-            <mat-icon>info</mat-icon>
-            <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
-        </button>
-    }
-    @if (contextMenuCanOpenInPlaylist()) {
-        <button
-            mat-menu-item
-            data-testid="channel-open-in-playlist"
-            (click)="openContextMenuChannelInPlaylist()"
-        >
-            <mat-icon>open_in_new</mat-icon>
-            <span>{{
-                'PORTALS.VIEW_IN_PORTAL_TOOLTIP'
-                    | translate: { name: contextMenuPlaylistName() }
-            }}</span>
-        </button>
-    }
-    @if (mode() === 'recent') {
-        <button mat-menu-item (click)="removeContextMenuChannel()">
-            <mat-icon>delete</mat-icon>
-            <span>
-                {{ 'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate }}
-            </span>
-        </button>
-    }
-</mat-menu>
+<!-- A favorite whose catalog entry is missing keeps only the actions that
+     need no catalog: open in its playlist is gated by canOpenInPlaylist. -->
+<app-channel-context-menu
+    [showMapEpg]="supportsEpgMapping && !contextMenuUnavailable()"
+    [showDetails]="
+        !!contextMenuChannel()?.m3uChannel && !contextMenuUnavailable()
+    "
+    [openInPlaylistName]="
+        contextMenuCanOpenInPlaylist() ? contextMenuPlaylistName() : null
+    "
+    [showRemoveFromHistory]="mode() === 'recent'"
+    (mapEpg)="openEpgMapping()"
+    (details)="openChannelDetails()"
+    (openInPlaylist)="openContextMenuChannelInPlaylist()"
+    (removeFromHistory)="removeContextMenuChannel()"
+/>

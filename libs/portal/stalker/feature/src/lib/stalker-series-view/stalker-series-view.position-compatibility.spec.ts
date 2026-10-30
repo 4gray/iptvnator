@@ -10,6 +10,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     StalkerStore,
+    StalkerEpisodeResolver,
     type StalkerVodSource,
     type VodSeriesSeasonVm,
 } from '@iptvnator/portal/stalker/data-access';
@@ -239,6 +240,17 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             imports: [StalkerSeriesViewComponent],
             providers: [
                 {
+                    provide: StalkerEpisodeResolver,
+                    useValue: {
+                        resolveCommand: async (
+                            _playlist: unknown,
+                            episode: { originalId?: string }
+                        ) => `/media/file_${episode.originalId}.mpg`,
+                        resolveDownload: async () =>
+                            'https://cdn.example.test/episode.mpg',
+                    },
+                },
+                {
                     provide: StalkerStore,
                     useValue: {
                         selectedItem,
@@ -429,7 +441,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(watchedPosition);
+        ).toEqual({ ...watchedPosition, updatedAt: expect.any(String) });
 
         const seasons = fixture.componentInstance.vodSeriesSeasons();
         fixture.componentInstance.vodSeriesSeasons.set(
@@ -477,7 +489,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(newerPosition);
+        ).toEqual({ ...newerPosition, updatedAt: expect.any(String) });
 
         const latestPosition = createPosition({ positionSeconds: 80 });
         await fixture.componentInstance.handlePlaybackToggleRequested({
@@ -889,7 +901,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(savedPosition);
+        ).toEqual({ ...savedPosition, updatedAt: expect.any(String) });
     });
 
     it('does not let a load started before a save overwrite the saved position', async () => {
@@ -1085,7 +1097,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(runtimePosition);
+        ).toEqual({ ...runtimePosition, updatedAt: expect.any(String) });
     });
 
     it('clears confirmed legacy before scoped watched state without resurrection after refetch', async () => {

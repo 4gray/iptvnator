@@ -2,7 +2,7 @@ import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 
 type ElectronBridgeMethodName = Extract<
     {
-        [K in keyof ElectronBridgeApi]: ElectronBridgeApi[K] extends (
+        [K in keyof ElectronBridgeApi]: NonNullable<ElectronBridgeApi[K]> extends (
             ...args: never[]
         ) => unknown
             ? K
@@ -64,6 +64,7 @@ const vodSourcePin = {
 };
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
+    { method: 'sourceSyncLocalSources', args: [], channel: 'DB_GET_STANDALONE_SOURCES', forwardedArgs: [] },
     {
         method: 'dbCreatePlaylist',
         args: [playlist],
@@ -155,6 +156,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [playlistId, operationId],
         channel: 'DB_DELETE_XTREAM_CONTENT',
         forwardedArgs: [playlistId, operationId],
+    },
+    {
+        method: 'dbRestoreXtreamFavorites',
+        args: [playlistId, favorites, 'restore-1'],
+        channel: 'DB_RESTORE_XTREAM_FAVORITES',
+        forwardedArgs: [playlistId, favorites, 'restore-1'],
     },
     {
         method: 'dbRestoreXtreamUserData',
@@ -275,6 +282,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [12, playlistId],
         channel: 'DB_IS_FAVORITE',
         forwardedArgs: [12, playlistId],
+    },
+    {
+        method: 'dbGetFavoritesForBackup',
+        args: [playlistId],
+        channel: 'DB_GET_FAVORITES_FOR_BACKUP',
+        forwardedArgs: [playlistId],
     },
     {
         method: 'dbGetFavorites',
@@ -413,6 +426,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [playlistId, 42, 'vod'],
         channel: 'DB_CLEAR_PLAYBACK_POSITION',
         forwardedArgs: [playlistId, 42, 'vod'],
+    },
+    {
+        method: 'dbReplaceAllPlaybackPositions',
+        args: [playlistId, [playbackData]],
+        channel: 'DB_REPLACE_ALL_PLAYBACK_POSITIONS',
+        forwardedArgs: [playlistId, [playbackData]],
     },
     {
         method: 'dbSavePlaybackPositionsBatch',

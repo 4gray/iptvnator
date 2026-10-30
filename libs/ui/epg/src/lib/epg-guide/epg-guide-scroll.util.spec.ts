@@ -2,7 +2,7 @@ import {
     guideBlockRevealScrollLeft,
     guideNowScrollLeft,
     guideRowNeedsReveal,
-    scrollElementLeft,
+    scrollElementTo,
 } from './epg-guide-scroll.util';
 
 function block(leftPx: number, widthPx: number) {
@@ -73,25 +73,44 @@ describe('guideBlockRevealScrollLeft', () => {
     });
 });
 
-describe('scrollElementLeft', () => {
+describe('scrollElementTo', () => {
     it('uses scrollTo when the element implements it', () => {
         const scrollTo = jest.fn();
         const element = { scrollTo, scrollLeft: 0 } as unknown as HTMLElement;
-        scrollElementLeft(element, 120, true);
+        scrollElementTo(element, { left: 120 }, true);
         expect(scrollTo).toHaveBeenCalledWith({
             left: 120,
             behavior: 'smooth',
         });
-        scrollElementLeft(element, 10, false);
+        scrollElementTo(element, { left: 10 }, false);
         expect(scrollTo).toHaveBeenLastCalledWith({
             left: 10,
             behavior: 'auto',
         });
     });
 
-    it('falls back to assigning scrollLeft (jsdom has no scrollTo)', () => {
-        const element = { scrollLeft: 0 } as unknown as HTMLElement;
-        scrollElementLeft(element, 42, true);
+    it('scrolls both axes in a single call so neither animation cancels the other', () => {
+        const scrollTo = jest.fn();
+        const element = { scrollTo } as unknown as HTMLElement;
+        scrollElementTo(element, { left: 640, top: 180 }, true);
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+        expect(scrollTo).toHaveBeenCalledWith({
+            left: 640,
+            top: 180,
+            behavior: 'smooth',
+        });
+    });
+
+    it('falls back to assigning the offsets (jsdom has no scrollTo)', () => {
+        const element = {
+            scrollLeft: 0,
+            scrollTop: 5,
+        } as unknown as HTMLElement;
+        scrollElementTo(element, { left: 42 }, true);
         expect(element.scrollLeft).toBe(42);
+        expect(element.scrollTop).toBe(5);
+        scrollElementTo(element, { left: 7, top: 90 }, false);
+        expect(element.scrollLeft).toBe(7);
+        expect(element.scrollTop).toBe(90);
     });
 });

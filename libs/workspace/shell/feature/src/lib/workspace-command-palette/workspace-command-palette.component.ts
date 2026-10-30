@@ -45,7 +45,7 @@ interface WorkspaceCommandGroupSection {
     selector: 'app-workspace-command-palette',
     imports: [MatDialogModule, MatIconModule, TranslatePipe],
     templateUrl: './workspace-command-palette.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-command-palette.component.scss',
 })
 export class WorkspaceCommandPaletteComponent implements AfterViewInit {

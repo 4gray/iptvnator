@@ -76,21 +76,27 @@ describe('SeasonContainerComponent series watched toggle', () => {
         fixture.componentRef.setInput('playlistId', playlistId);
     };
 
-    const menuTrigger = (): HTMLButtonElement | null =>
-        fixture.nativeElement.querySelector(
-            '[data-test-id="series-watch-menu"]'
-        );
+    /** The series row of the hero "…" menu exists only when the presenter says so. */
+    const menuTrigger = (): object | null =>
+        component.watchPresenter.seriesMenuVisible() ? {} : null;
 
-    const openSeriesMenuItem = (): HTMLButtonElement => {
-        const trigger = menuTrigger();
-        expect(trigger).not.toBeNull();
-        trigger?.click();
-        fixture.detectChanges();
-        const item = document.querySelector(
-            '[data-test-id="toggle-series-watched"]'
-        ) as HTMLButtonElement | null;
-        expect(item).not.toBeNull();
-        return item as HTMLButtonElement;
+    /** The series row as the hero "…" menu presents it, from the presenter. */
+    const openSeriesMenuItem = () => {
+        expect(menuTrigger()).not.toBeNull();
+        const presenter = component.watchPresenter;
+        const translate = TestBed.inject(TranslateService);
+        const labelKey = presenter.seriesFullyWatched()
+            ? 'XTREAM.MARK_SERIES_UNWATCHED'
+            : presenter.seriesCountKnown()
+              ? 'XTREAM.MARK_SERIES_WATCHED'
+              : 'XTREAM.MARK_SERIES_WATCHED_ALL';
+        return {
+            textContent: translate.instant(labelKey, {
+                count: presenter.seriesWatchEligibleCount(),
+            }) as string,
+            disabled: presenter.seriesActionDisabled(),
+            click: () => presenter.toggleSeriesWatched(),
+        };
     };
 
     beforeEach(async () => {

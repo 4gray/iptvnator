@@ -1,3 +1,4 @@
+import { mountTvSetup } from './tv-setup/pairing-router';
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
 import { createHash } from 'node:crypto';
@@ -43,6 +44,11 @@ import {
     resolveHostname,
     validateProviderUrl,
 } from './provider-url-policy';
+import {
+    DEFAULT_MAX_DOCUMENT_BYTES,
+    mountServerStorage,
+} from './storage/mount-server-storage';
+import type { ServerStorage } from './storage/server-storage';
 export type {
     WebBackendHttpClient,
     WebBackendHttpGetOptions,
@@ -67,6 +73,12 @@ export interface WebBackendAppOptions {
     readonly now?: () => Date;
     readonly resolveHostname?: (hostname: string) => Promise<readonly string[]>;
     readonly runtimeBackendUrl?: string;
+    /** Optional bearer token for every non-public route. */
+    readonly accessToken?: string | null;
+    /** Largest accepted playlist document in bytes. */
+    readonly maxDocumentBytes?: number;
+    /** Server storage; `null` or absent keeps the backend stateless. */
+    readonly storage?: ServerStorage | null;
 }
 
 type ProviderTargetRegistry = Map<string, URL>;
@@ -127,6 +139,16 @@ export function createWebBackendApp(
         res.type('application/javascript').send(
             `window.__IPTVNATOR_CONFIG__ = Object.assign({}, window.__IPTVNATOR_CONFIG__, ${config});\n`
         );
+    });
+
+    mountTvSetup(app, corsMiddleware, options.accessToken ?? null);
+
+    mountServerStorage(app, {
+        corsMiddleware,
+        storage: options.storage ?? null,
+        accessToken: options.accessToken ?? null,
+        maxDocumentBytes:
+            options.maxDocumentBytes ?? DEFAULT_MAX_DOCUMENT_BYTES,
     });
 
     app.options('/provider-targets', corsMiddleware);
@@ -286,7 +308,16 @@ export function createWebBackendApp(
             requestUrl = appendPathSegment(url, 'player_api.php');
 
             const response = await httpClient.get(requestUrl, {
-                params: getProxyParams(req, ['targetId', 'connectionTest']),
+                params: getProxyParams(req, [
+                    'targetId',
+                    'connectionTest',
+                    'userAgent',
+                ]),
+                headers:
+                    typeof req.query.userAgent === 'string' &&
+                    req.query.userAgent.trim()
+                        ? { 'User-Agent': req.query.userAgent.trim() }
+                        : undefined,
                 timeout: PROVIDER_REQUEST_TIMEOUT_MS.xtream,
                 onConnect: () => {
                     connected = true;

@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     LiveLayoutSidebarStateService,
@@ -62,7 +62,7 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
     const fetchChannelEpg = jest.fn();
     const hasItvEpgMappingOverride = jest.fn(() => false);
     const store = {
-        getSelectedCategoryName: signal('All'),
+        getSelectedCategoryLabel: signal({ name: 'All', labelKey: null }),
         currentPlaylist: playlist,
         selectedContentType,
         selectedCategoryId: signal<string | null>('all'),
@@ -129,6 +129,7 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
         );
         hasItvEpgMappingOverride.mockReset();
         hasItvEpgMappingOverride.mockReturnValue(false);
+        store.ensureBulkItvEpg.mockClear();
         await TestBed.configureTestingModule({
             imports: [StalkerLiveStreamLayoutComponent],
             providers: [
@@ -136,7 +137,8 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        supportsEpg: true,
+                        // Provider EPG only, no XMLTV flag — as in the PWA.
+                        supportsProviderEpg: true,
                         isElectron: true,
                         supportsEpgMapping: false,
                     },
@@ -177,7 +179,12 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
                 { provide: MatSnackBar, useValue: { open: jest.fn() } },
                 {
                     provide: TranslateService,
-                    useValue: { instant: (key: string) => key },
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: EMPTY,
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
+                    },
                 },
             ],
         })
@@ -191,6 +198,15 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
     });
 
     afterEach(() => fixture.destroy());
+
+    it('loads the bulk guide from provider EPG alone, as in the browser PWA', async () => {
+        for (let i = 0; i < 3; i += 1) {
+            fixture.detectChanges();
+            await fixture.whenStable();
+        }
+
+        expect(store.ensureBulkItvEpg).toHaveBeenCalledWith(168);
+    });
 
     it('drops the previous channel fallback from the panel as soon as the selection moves', async () => {
         await component.playChannel(channels[0]);

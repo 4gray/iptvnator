@@ -22,6 +22,65 @@ Use it when changing existing views or introducing new list-based UI in the work
 5. Scroll ownership must be explicit.
    Headers stay visible. Lists scroll. Do not let nested panes compete for scroll.
 
+6. Normal text, including metadata and selected labels, keeps at least 4.5:1
+   contrast. Use `--app-muted-color` for secondary text and
+   `--app-selection-text-color` on tinted selections; the selection accent
+   remains the fill/progress role. Empty and source-drop states inherit the
+   application font stack, including its multilingual fallback.
+
+7. Workspace navigation stays compact and icon-only, with localized tooltips
+   and accessible names. Selection uses surface tint and a full outline,
+   without vertical accent strips or side-border imitations, including in
+   EPG rows.
+
+## Angular Material's Role
+
+Decision of 2026-10-12. The repository has no ADR folder; decisions live in
+the subsystem's document.
+
+**Decision.**
+
+- Angular Material stays as the behaviour and accessibility layer: dialog,
+  menu, select (inside forms only), form field and input, snack-bar, tooltip,
+  slide-toggle, checkbox, progress and icon.
+- The look comes from the IPTVnator design kit, applied through
+  `mat.*-overrides()` on the `--app-*` tokens in one place: the shared
+  partials under `libs/ui/styles/` (the control mixins live in
+  `_app-controls.scss`), not per-component `::ng-deep`.
+- A kit component that Material lacks is built on CDK primitives (overlay,
+  a11y key managers), as the playlist switcher popover is.
+- A plain action button may become a native `<button>` with the kit mixins.
+- No wholesale replacement of Material. Re-evaluate Angular's headless
+  `@angular/aria` (developer preview as of v21; not installed) for menu,
+  listbox and combobox once it is stable.
+
+**Why** (production build, `renderer.initialBytes` 1,597,763 bytes):
+
+- Material's JavaScript is about 203 KB (12.7% of the initial bytes) and the
+  CDK's about 126 KB (7.9%). Any replacement keeps the CDK, and the CDK is
+  where the behaviour lives.
+- In the global CSS the `--mat-*` tokens are 96 KB raw but about 11 KB
+  gzipped, and Material's own rules are 9 KB. 23.6 KB of the tokens belong to
+  17 components the app never imports, because `mat.all-component-themes`
+  emits every component.
+- The startup cost came from a few eager imports (the form-field defaults
+  token in `app.config.ts`, the startup, update and EPG-progress components,
+  the confirm-dialog service), not from Material itself. Those are gone (see
+  Material off the startup path below): `renderer.initialBytes` went from
+  1,597,763 to 1,345,807 with Material still in place.
+- Rewriting dialog focus trapping, menu keyboard handling, select listboxes
+  and snack-bar live regions would cost months and accessibility risk for no
+  visible gain.
+
+**Consequences.**
+
+- Material upgrades can change behaviour. Seen in v22: the menu panel has no
+  max-height (the kit panel adds one); a submenu is offset by the parent's
+  first direct `mat-menu-item`, so a trigger that follows `role="group"` rows
+  is wrapped in `<div role="none">`; overlay panes are `position: static`
+  inside the bounding box.
+- Keep E2E coverage on menus and dialogs.
+
 ## Canonical References
 
 - Channel row:
@@ -38,6 +97,14 @@ Use it when changing existing views or introducing new list-based UI in the work
   `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.scss`
 - Shared list selection style:
   `libs/ui/styles/_nav-list.scss`
+- Dialog shell and size presets:
+  `libs/ui/components/src/lib/dialog-shell/`
+- Source row (Sources page and playlist switcher):
+  `libs/playlist/shared/ui/src/lib/source-row/source-row.component.html`
+- UI-kit buttons, menus, segmented control and floating panels:
+  `libs/ui/styles/_app-controls.scss`
+- Side lists (title, group labels, single-choice rows):
+  `libs/ui/styles/_side-list.scss`
 - Theme tokens:
   `apps/web/src/m3-theme.scss`
 - Settings surfaces:
@@ -62,24 +129,143 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-shell-bg` / `--app-rail-bg` / `--app-header-bg` / `--app-content-bg`
 - `--app-widget-bg` / `--app-widget-header-bg` — panels and popovers
 - `--app-card-hover-bg` — raised or hovered rows
+- `--app-focus-ring` — the keyboard focus ring (see Keyboard Focus)
 - `--app-widget-border` / `--app-rail-border` — hairlines
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
+- `--app-success-color` — done/watched status (episode watched toggle)
+- `--app-list-selected-bg` / `--app-list-selected-fg` /
+  `--app-list-selected-outline` — the chosen row of a side list and the
+  active source's row on Sources and in the switcher (see Selection Pattern)
+- `--app-line-strong` — popover and menu borders, a step above
+  `--app-widget-header-border`
+- `--app-danger-text` / `--app-danger-surface` — a failing source's tag,
+  destructive menu items and `.app-destructive-button`;
+  `--app-neutral-tag-surface` for a neutral tag
+- `--app-font-mono` — URLs and keyboard hints (JetBrains Mono, 400/500)
+- `--app-popover-shadow` / `--app-popover-backdrop` — the switcher popover
 
 Angular Material mixins and Material-component overrides may use the tokens
 owned by that component. Outside a Material-owned component, prefer the
-app-owned tokens above. A `--mat-sys-*` reference is acceptable there only
-after the built light and dark theme contexts both prove that it is emitted,
-and it must still have a real app-token or literal fallback, for example:
-`var(--mat-sys-surface-container, var(--app-widget-bg))`.
+app-owned tokens above.
 
-Several existing app surfaces still reference Material system tokens without
-that proof or use hard-coded layout/selection colors. Treat those references
-as migration debt, not patterns to copy.
+Both themes are built with the legacy `mat.define-theme` config, whose
+component mixins never declare the `--mat-sys-*` system variables. The theme
+therefore adds the `mat.system-level-*` mixins for the light (`html`) and dark
+(`.dark-theme`) contexts, and `apps/electron-backend-e2e/src/theme-tokens.e2e.ts`
+asserts they resolve in both. Use a `--mat-sys-*` token for Material-derived
+roles that have no app token (error, outline, surface containers); keep app
+chrome on `--app-*`.
+
+Set Material component tokens through the component's `mat.*-overrides()`
+mixin: it rejects unknown names at build time, where a hand-written `--mat-*`
+declaration with a typo fails silently. Material 22 reads only `--mat-*`
+tokens, so the retired `--mdc-*` names compile but do nothing;
+`pnpm run styles:material-tokens:validate` (CI) rejects them. A stylesheet that
+a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
+token directly and says why.
+
+Change what a Material button draws (label colour, padding) through its
+tokens, not plain properties on its host. Material's own rules, such as
+`.mat-mdc-button:not(:disabled)` for the colour, match a component's
+`.class[_ngcontent-…]` selector in specificity, so the stylesheet added last
+wins. Angular removes a component's stylesheet with its last instance and
+appends it again with the next one, so that order changes with navigation.
+`catalog-sort-menus.e2e.ts` moves each sheet last and checks that the Refine
+picker and the rating chip keep their look.
+
+### Material off the startup path
+
+`renderer.initialBytes` ([performance journeys](performance-journeys.md#rendererinitialbytes))
+counts every module an eager file imports, and the bundler keeps a module in
+one chunk, so one import of one export carries the whole module. No Material
+module is in the initial bundle; of the CDK only the overlay stays, because
+`app.config.ts` provides `FullscreenOverlayContainer` and that token lives
+in the overlay chunk. Everything else is lazy by these rules:
+
+- **Form-field defaults.** A component that renders `<mat-form-field>`
+  adds `providers: [provideFormFieldDefaults()]`
+  (`@iptvnator/ui/components/form-field-defaults`); the token is never
+  provided at the root, where its import alone put the 54 KB form-field
+  chunk on the initial path. `pnpm run ui:form-field-defaults:validate` (CI)
+  requires the provider on every such component and allows the token
+  nowhere else; see the Dialogs and forms notes below.
+- **Dialogs from services created with the app.** A root service that opens a
+  dialog resolves `MatDialog` through `LazyMatDialog`
+  (`@iptvnator/ui/components/lazy-dialog`) and imports the dialog component
+  on demand, as `DialogService`, the player service, the parental lock prompt
+  and the workspace shell actions do; `openConfirmDialog` returns a promise
+  that settles once the dialog is open. A component in a lazy chunk injects
+  `MatDialog` directly.
+- **Toasts from services created with the app.** A root service or the app
+  shell opens its snack-bars through `LazySnackBar`
+  (`@iptvnator/services/lazy-snack-bar`), whose `open` takes
+  `MatSnackBar.open`'s arguments and returns a promise of the ref, or of
+  `null` after a failed chunk load, which it logs without the message (a
+  toast can carry a playlist URL). `snack-bar.mjs` statically imports
+  Material's button, the icon button chunk, ripple and the CDK a11y module,
+  so one eager `MatSnackBar` injection put about 110 KB on the initial
+  path. A component in a lazy chunk injects `MatSnackBar` directly; the
+  initial-bytes ratchet fails on a new eager importer.
+- **Panels the shell mounts on every launch.** The EPG progress panel and the
+  update notification are an eager host with `@defer (when visible)` around
+  the view that imports Material; the startup status draws its spinner as
+  static markup copied from `mat-spinner` and renders its Retry button in
+  `@defer (on immediate)` inside the failure branch, with a native button
+  as the placeholder and the error view so a retry never waits for the
+  chunk. A new always-mounted component follows the same split.
+- **Theme scope.** `m3-theme.scss` themes only the components in its
+  `$material-components` list, through `meta.apply` for both the light theme
+  and the dark colours. Add an entry with a new `@angular/material/<entry>`
+  import and remove it with the last one;
+  `pnpm run styles:material-theme-scope:validate` (CI) checks both directions
+  (`core` always stays, `button` brings `icon-button`; `fab` is listed only
+  while a runtime template renders `mat-fab` or `mat-mini-fab`, since the
+  button import carries the directives either way and the fab tokens alone
+  are about 6 KB).
+- **No animations module.** Nothing declares an Angular animation trigger and
+  Material 22 animates with CSS, deciding from `prefers-reduced-motion` itself,
+  so `app.config.ts` does not call `provideAnimations()`; the Electron
+  `material-motion.e2e.ts` checks that dialogs, selects, menus, snack-bars and
+  tooltips still animate in and out and stop under reduced motion. One side
+  effect of the module is gone with it: its renderer deferred every DOM
+  removal to the end of the change-detection tick, so a destroy hook still
+  saw its view attached. Without it Angular detaches the view first, where
+  `scrollTop` reads 0 and Chromium has already fired a `focusout` with no
+  related target for the focused control. A destroy hook therefore never
+  reads geometry or focus from its own view: the catalog list tracks the
+  grid offset from scroll events, and the player settings panel decides
+  "focus was inside" in a microtask after such a `focusout`, which the close
+  destroys the panel before. Both have specs that detach the view first.
+
+The app theme is the exclusive `.dark-theme` or `.light-theme` class that
+`SettingsService` puts on `<body>`; a "System" choice resolves the OS
+preference there and nowhere else. Component styles never use a
+`prefers-color-scheme` query, which follows the OS: with the app set to dark
+on a light OS it paints light colours
+into the dark theme. Read `--app-*` tokens, which switch with the class, or
+use `:host-context(.dark-theme)` for a rule that only one theme needs. The
+class is on `<body>`, not the root, so `:root:not(.dark-theme)` always
+matches. On a surface, a hairline or thin fill written as white `rgba()`
+vanishes on light backgrounds: mix `--app-on-surface` at the same alpha, and
+use `--app-widget-bg` for a card. Every `var(--name)` read needs a
+declaration somewhere, or it silently falls back;
+`pnpm run styles:theme-references:validate` (CI) rejects both undeclared
+reads and colour-scheme queries.
+
+Existing hard-coded layout and selection colors are migration debt, not
+patterns to copy.
 
 Do not hardcode unrelated accent colors for selected state when these tokens already exist.
 
 ## Player And EPG Theme Boundaries
+
+The inline player's app-chrome header uses ghost Copy and secondary Close
+roles; its Sources popover trigger requests `variant="secondary"` from the
+shared chip. Recovery actions on app surfaces use kit roles: secondary for
+ordinary actions, accent for a standalone empty-state primary.
+Diagnostic utility actions keep an opaque, readable foreground on the fixed
+dark video scrim, independent of the app theme.
 
 The native-view Embedded MPV dock is app chrome: its solid widget background,
 text, separators, sliders and interaction states resolve app tokens together.
@@ -91,7 +277,9 @@ themes and fullscreen; frame-copy and built-in shared controls keep their
 light-on-dark overlay palette — the fixed `--pc-*` token set of the shared
 dock (accent blue, cyan, violet, the `--pc-live` / `--pc-danger` reds and a
 light text ramp), never the app theme. The overlay styles in
-`player-controls/` never read a `--mat-sys-*` token.
+`player-controls/` never read a `--mat-sys-*` token, and their keyboard focus
+is a 2px `--pc-text` outline rather than Material's theme-coloured focus layer
+(`player-controls-keyboard.e2e.ts` checks it in both themes).
 
 EPG timeline, list, empty states and programme details use the library-local
 `libs/ui/epg/src/lib/_epg-theme.scss` palette, based on app surfaces, separators,
@@ -137,16 +325,142 @@ Use this pattern for:
 
 Do not add extra badges, left rails, or second selection systems unless there is a strong reason.
 
+Side lists styled with `_side-list.scss` (the Sources filters) and the
+active source's row (Sources page and playlist switcher) use the Settings
+navigation's variant
+instead, through `--app-list-selected-*`: a soft tint with no lift or glow,
+outlined in light theme. Its text is the heading colour in light theme (the
+selection blue on its own tint is 3.3:1) and the selection colour in dark.
+
+## Single-Choice Menus And Status Chips
+
+Catalog headers keep the category title/count on the left and the active
+refinement chips plus Refine on the right in one row when their content pane
+is wider than 640 px. At 640 px and below, the controls take a second row.
+Use the pane's container width, not the application window width; long category
+titles shrink with ellipsis instead of moving controls into an otherwise empty
+second row. Sort chips retain their short localized labels.
+
+Every `mat-menu` gets the kit panel from one global rule in `styles.scss`
+(`menu-panel` in `libs/ui/styles/_app-controls.scss`): a bordered 10px panel
+with 6px padding, 240–360px wide, 36px rows at 13px with 16px icons, the
+checked row on the list-selection tokens, and at most 480px tall (less in a
+short window), so a long list scrolls inside the panel. A destructive row
+carries `app-menu-item--danger` and sits after a `<mat-divider>`; a shortcut
+hint is a trailing `kbd.app-menu-item__kbd`. The panel renders in the overlay
+container, outside every component view, so a component neither copies the
+mixin nor styles its own panel; a section caption inside a menu uses the
+kit's 11px uppercase label, as the catalog refine menu does.
+
+A `mat-menu` that picks one value, such as a sort order, a rating threshold,
+a season or a guide scope, uses `appMenuItemRadio` and
+`appMenuItemRadioCheck` from `@iptvnator/ui/components`:
+
+```html
+<button mat-menu-item [appMenuItemRadio]="mode() === option.mode">
+    <mat-icon appMenuItemRadioCheck>check</mat-icon>
+    <mat-icon>{{ option.icon }}</mat-icon>
+    <span>{{ option.labelKey | translate }}</span>
+</button>
+```
+
+- The row becomes a `menuitemradio` whose `aria-checked` follows the bound
+  state, so E2E tests select it with `getByRole('menuitemradio')`.
+- Every row renders the check slot as its first icon. Only the checked row
+  shows it. Material projects every `<mat-icon>` of a menu item, and of a
+  `mat-button`, ahead of the label. A check rendered only on the chosen row
+  therefore shifted that row's label. In a button, put a trailing icon after
+  the label with `iconPositionEnd`.
+- A semantic icon, if any, comes after the check slot.
+- `@iptvnator/ui/epg` sits below `@iptvnator/ui/components` in the
+  dependency graph, so the guide toolbar's scope menu spells the same markup
+  out: `role="menuitemradio"` on the item, `aria-checked`, and an
+  `app-menu-item-radio-check` icon hidden while unchecked.
+- A menu with several groups, such as the catalog refine menu, wraps each
+  group in `role="group"`. The group is named by its section title, and
+  `role="separator"` sits between groups.
+- Keep a menu of actions or groups short enough to open whole below its
+  trigger in a 600px-tall window. The kit panel caps every menu at 480px
+  (less in a short window) and scrolls past that, which suits a long list
+  of peers such as seasons or guide scopes, but a scrolled-off action is
+  easy to miss. Move a secondary group into a submenu whose row shows the
+  active value, as the refine menu does with its rating thresholds.
+- Material offsets a submenu by the `offsetTop` of the parent menu's first
+  direct `mat-menu-item`. When the earlier rows sit inside a `role="group"`,
+  that first direct item is the submenu trigger itself, and the submenu
+  opens off screen. Wrap such a trigger in `<div role="none">`.
+
+A chip that shows the active state next to its menu trigger, such as the
+catalog sort chip, shows its icon and a short value at every width, for
+example "Newest" or "9.0+". Do not swap between a full and a compact label
+with container queries: long translations still cut off the full label.
+
+Screen readers must still get the full text, such as "Sort: Date Added
+(Latest First)":
+
+- A chip that is a button carries it in `aria-label`.
+- A plain `div` chip cannot be named, and screen readers may ignore its
+  `aria-label`. Put the full text in a `.visually-hidden` span and mark the
+  short label `aria-hidden="true"`.
+
 ## Detail Views
 
-VOD and series detail screens share the detail-view Sass mixin (`@mixin base`)
-from `libs/ui/styles/_detail-view.scss`. Feature-local `styles/detail-view.scss`
-files should only `@use` that module and `@include detail-view.base(...)` with
-small typography overrides when a provider needs them.
+VOD and series detail screens share `app-portal-detail-shell` and
+`app-content-hero` (`libs/ui/components`). The hero orders its column as
+kind label ("Movie · playlist") → title → chips → description (three lines,
+"More") → resume bar → action row → credits, with the poster bottom-aligned
+on the left and the backdrop filling the hero behind a two-layer scrim built
+from `--app-content-bg`. The hero keeps `min(520px, 60vh)` of stage for a
+16:9 backdrop. The shell gives it a 140px `--hero-tail` and pulls the first
+section up over it, so the artwork continues under that section's heading and
+the vertical scrim ends on the exact page surface there, never as a band at
+the hero's edge. Without one, or when the provider sends the poster as the
+backdrop, the hero is compact (`hero--compact`, sized by its content) over
+the blurred poster. The layout is decided once per title, so a backdrop that
+TMDB enrichment adds a moment later fills the compact hero instead of
+growing it. The pane is a size container (`detail`); the poster hides below
+760px of pane width.
 
-Do not copy the full detail-view stylesheet into feature libraries. Add shared
-layout changes to the mixin, and keep provider-specific differences explicit in
-the wrapper file that includes it.
+The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
+`app-meta-chip` (pill; `rating` and `status` variants; facets as projected
+`.meta-chip__facet` buttons), `app-detail-action-button` (the light primary
+with a two-line label, or the ghost `secondary` text button),
+`app-detail-icon-button` (44px ghost with tooltip and `aria-label`),
+`app-vod-more-menu` (the "…" dropdown: right-aligned, flips upward, arrow
+keys, Escape, hosts the alternative-sources panel), `app-detail-credits`
+("Starring" + three names + "and more", "Director"), `app-cast-crew-row`,
+`app-detail-rail`/`app-similar-rail` (hidden scrollbar, prev/next arrows,
+title + year) and `TrailerDialogService`. The dashboard hero reuses the same
+light primary (`light-primary-button` in `libs/ui/styles/_detail-view-actions.scss`)
+and chip, and the same kind of tail: its artwork runs 160px under the first
+rail, whose heading keeps a trace of it, and reaches the page colour before
+that rail's cards (their scroll-edge fades are drawn in the page colour), with
+no tail in the narrow layout. Series titles drop their season marker (`splitSeasonSuffix`) into a
+"Season N" chip. Rows a provider cannot serve are left out of the menu, never
+disabled. The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
+only carries the page shell, meta items and the episodes section.
+
+With `detailTrailerBackdrop` on (Settings → Playback → "Play trailers in
+details background", default off) the hosts hand the trailer embed URL to the
+shell and `app-hero-trailer-backdrop` plays it muted and looping under the
+scrim after three idle seconds, with a 32px mute toggle in the corner. It
+never starts under `prefers-reduced-motion` or with `saveData`, and stops
+while the hero is off screen or the window is unfocused.
+
+## Back Navigation
+
+Page-level Back lives only in the workspace header's leading slot (see
+[Header Back](./workspace-shell.md#header-back)). A routed page, or the shell
+it renders in, registers it with `registerWorkspaceBack()` instead of drawing
+an arrow, so Back keeps one position and one look on every page and never
+floats over a scroll owner. A page whose Back is history Back calls
+`WorkspaceBackNavigationService.back()` with its parent route rather than
+`Location.back()`, so Back still leads somewhere when the page opened the
+session. Without a registration the header falls back to
+browser history while an in-app previous page exists, and shows nothing
+otherwise. An arrow that returns within a menu, dialog or player panel is not
+page navigation and stays in that surface; an error state may repeat the
+header's Back as a labelled recovery button beside its other actions.
 
 ## Electron Drag Regions
 
@@ -155,6 +469,69 @@ inputs, overlays, and resize handles—requires `app-region: no-drag`. The share
 directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
 The shared live-layout sidebar reserves 8 px at its right edge so the inward
 half of the 12 px resize handle cannot cover the channel scrollbar.
+
+## Resizable Sidebar Widths
+
+Workspace context panels and Favorites share one `sidebar-width` key (its
+legacy aliases map onto it) but have different limits. `ResizableDirective`
+renders the stored width clamped to the host's own limits and never writes
+that clamped value back: only a drag that changes the width persists, so a
+narrow sidebar such as Settings cannot shrink the width a wider one saved.
+
+A drag starts from the host's computed CSS `width`, the box that `style.width`
+sizes, not from `offsetWidth`. Hosts may be `content-box` (the workspace
+context panels and the Favorites sidebar) or `border-box` (live-layout and
+groups rails); starting from the border box widened a padded `content-box`
+host by its padding and border on the first move.
+
+## Keyboard Focus
+
+- **Always a ring for the keyboard, none for the pointer.**
+  `apps/web/src/styles.scss` removes the outline only under
+  `:focus:not(:focus-visible)` and draws a fallback ring on every other
+  `:focus-visible` element: 2px of `--app-focus-ring` at a 2px offset, from
+  `focus-ring-declarations` in `libs/ui/styles/_focus-ring.scss`. Both rules
+  sit in `:where()`, so any component rule that styles focus wins. Never
+  bring back a global `outline: none`: `pnpm run styles:focus-visible:validate`
+  (CI) rejects one on an unscoped selector, and a missing fallback.
+- **Token.** `--app-focus-ring` is declared per theme in `m3-theme.scss`,
+  deeper than the selection blue in light, so it keeps 3:1 on every app
+  surface and selection tint; `apps/web/src/m3-theme.spec.ts` measures it.
+- **A ring of your own.** A component that needs the ring elsewhere or at
+  another offset includes the mixin (`$offset`); a stylesheet a spec loads
+  as raw CSS uses `var(--app-focus-ring)`. The colour is always the token,
+  for every focus indicator: `tools/nx/check-focus-ring-colour.mjs`, part of
+  the same validate script, reads a focus rule's outline, its unblurred ring
+  or line shadows and its border colours, and rejects any colour other than
+  the token (also inside `color-mix()`), the player's `--pc-*` palette or a
+  neutral boundary, except the few exceptions it lists with their reasons. Draw it on
+  the element that owns `overflow: hidden` (the cards' `card-focus-ring`),
+  or inside the element (a negative offset) when a clipping parent would cut
+  it. When an ancestor or a box shadow draws the ring, set `outline: none` on
+  the focused element so it never shows two. Never use `outline` as a
+  decorative border on something focusable: any outline outranks the
+  fallback, so the element loses its ring (use `border` or a spread
+  `box-shadow`, as the selected season tab does).
+- **Removing the outline.** A component rule that sets `outline: none` also
+  outranks the fallback, so it must show focus another way: a search field's
+  wrapper takes a token border on `:focus-within`, optionally with a soft
+  token halo (the command palette underlines its row instead), a ring drawn
+  on another element, or a highlight on an item inside an arrow-key
+  composite.
+- **Material.** Buttons, switches, button toggles and checkboxes take the
+  ring over their 12% focus state layer (global rules in `styles.scss`).
+  Menu items and select options keep Material's highlight, since arrow keys,
+  not Tab, move within them.
+- **Over video** the ring is the player's text colour, not the theme's:
+  the player controls, vendor chrome, the fullscreen channel and episode
+  panels and the Up Next rail include `focus-ring-token` from
+  `_player-palette.scss`.
+- **Check.** `keyboard-focus-ring.e2e.ts` (Electron) tabs through the detail
+  actions and season tabs, a catalog grid with its refinement chips, the
+  Sources list, the live EPG list, Settings and the command palette in both
+  themes. Each stop must draw exactly one ring in the token's colour, uncut
+  by an ancestor's `overflow: hidden`, at 3:1 where it sits on a flat
+  colour, and a click must draw none.
 
 ## Keyboard Scrolling and Channel Focus
 
@@ -184,6 +561,14 @@ dialogs, player controls and hidden/inert panes keep their own behavior.
 ## Channel List Item
 
 The shared row should be reused instead of rebuilding channel markup per view.
+
+Its right-click menu is `app-channel-context-menu` (`@iptvnator/ui/components`),
+shared by the M3U views, the Xtream and Stalker live lists and the unified
+favorites and recents. A host sets which rows apply (`showMapEpg`,
+`showDetails`, `openInPlaylistName`, `showRemoveFromHistory`), handles their
+outputs, and calls `open(event)` from the row's `contextMenuRequested`; the
+rows keep one order and Remove from history is the danger row after a
+divider.
 
 ### Current Reference Values
 
@@ -247,10 +632,7 @@ Movie and series covers render in three surfaces: the catalog grid
 recent card (`app-content-card`, same lib) and the dashboard rails. All of
 them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 `--cover-gap` tokens that `Settings.coverSize` writes onto `<html>` as
-`data-cover-size` (`apps/web/src/_cover-size.scss`). The same file carries
-`--season-cover-width` (96 / 120 / 144px) for the season cover beside the
-season tabs on series detail pages; medium equals the About block's 120px
-poster so browse and watch share one secondary-poster size.
+`data-cover-size` (`apps/web/src/_cover-size.scss`).
 
 ### Posters-only wall
 
@@ -329,6 +711,18 @@ remain local when the meaning is explicit.
   layouts keep the full EPG-only panel.
 - Keep the EPG content mounted while collapsed so current-program state can
   continue updating.
+- The ribbon renders only the blocks, ticks and day dividers within half a
+  viewport of the visible range (`TimelineWindowController` in
+  `epg-timeline-window.controller.ts`); the track keeps the full schedule's
+  width, so positions, the scrollbar and scroll-to-now are unchanged. A
+  channel's full schedule is often a few hundred programmes, and rendering
+  them all competed with the stream's first frame (J3 in
+  [performance journeys](performance-journeys.md#j3-playback-start-playback-to-the-first-frame)).
+  Tests and features must not assume an off-screen programme is in the DOM:
+  scroll the ribbon to it first. Keyboard access must keep working: focusing
+  a block scrolls it into view, which renders its neighbours before the next
+  Tab (`epg-timeline-interaction.e2e.ts` walks past the rendered range both
+  ways).
 
 ### Collapsible Live Sidebar
 
@@ -511,6 +905,39 @@ a cache read open and checks text contrast across live theme changes.
 
 Channel preview progress and EPG current-program progress should stay visually aligned.
 
+### Watch progress colour
+
+A title's watch progress (its resume share, `progressPercent`) has exactly one
+colour per context, and never a literal of its own:
+
+- **App chrome** — dashboard rail cards and the hero, catalog grids and season
+  episodes (`app-progress-capsule`, and the episode items' own 3px bar):
+  `--app-progress-color`, declared per theme in `apps/web/src/m3-theme.scss`
+  as that theme's `--app-selection-color`, and declared again inside
+  `.dark-theme` because a derived custom property resolves where it is
+  declared. The capsule's green from 90 % marks a finished title; it is a
+  status, not progress.
+- **Over video** — the dock timeline, the Up next card, the Up Next rail and
+  the fullscreen episode panel: the player's fixed `--pc-progress` (accent
+  blue `#4f8eff`), never an app token, because the player palette is
+  theme-independent (see Player And EPG Theme Boundaries). An episode
+  therefore reads the same in every player surface. The rail and the episode
+  panel render beside the controls host, outside its `--pc-*` scope, so they
+  declare the token on their own `:host` with the `progress-token` mixin of
+  `libs/ui/playback/src/lib/player-controls/_player-palette.scss`.
+- ArtPlayer's legacy skin takes a colour string, not a custom property, so it
+  gets `PLAYER_PROGRESS_COLOR` (`player-palette.ts`), which a spec pins to the
+  Sass value.
+- Live programme progress next to a LIVE marker (the dashboard's live rail and
+  live hero slides) keeps `--app-live-color`; EPG programme progress keeps the
+  fill described below.
+
+Specs hold the rule in each owning project: `m3-theme.spec.ts` (web: the token
+in both theme contexts), `player-progress.palette.spec.ts` (ui-playback),
+`progress-capsule.component.spec.ts` and
+`season-container.progress-colour.spec.ts` (components) and
+`dashboard-progress-colour.spec.ts` (workspace-dashboard-feature).
+
 ### Track
 
 - Height:
@@ -545,6 +972,30 @@ mirrors the row/card geometry it precedes (see Channel List Item and Cover
 Grids). The unified Favorites/Recent page gates this on `isLoading`, set only
 while its item list is empty.
 
+A skeleton takes its boxes from the code that draws the content, not from
+copied values: the same Sass mixins for every box that sets a height (header
+padding and minimum height, row and card size, track bleed, gaps), and for
+text a line box of the real font size and line height with a shorter shimmer
+bar inside it. Copied values drift: the M3U channel list moved down by 19 px
+when its playlist loaded, and the dashboard rail skeletons were 2:3 posters
+in front of 84 px channel cards.
+
+- The channel list views and `app-channel-list-loading-state` share
+  `libs/ui/components/src/lib/styles/_channel-list-layout.scss`. The loading
+  state takes the view and hides its headers where the loaded view does
+  (`showHeader`, compact lists).
+- The dashboard rails and `lib-dashboard-rail-skeleton` share
+  `libs/workspace/dashboard/feature/src/lib/rails/_dashboard-rail-geometry.scss`.
+  A skeleton takes the `layout` and `aspectRatio` of the rail it precedes:
+  channel cards for live favorites, 16:9 cards for sources, posters with a
+  title and a meta line otherwise.
+- `apps/electron-backend-e2e/src/skeleton-geometry.e2e.ts` holds the IPC
+  channel that answers each loading state, compares the skeleton's header,
+  first-row and rail boxes with the content's to 0.5 px at 1280×700, and keeps
+  the dashboard's layout-shift score from skeleton to content at or under
+  0.01. A whole subtree swapped for new nodes does not count as a layout
+  shift, so the positions are compared directly.
+
 ### Pages of independently loading blocks: delayed skeletons
 
 The dashboard renders each rail as soon as its own data arrives, and several
@@ -566,8 +1017,21 @@ launch with sources). Rail skeletons are gated per rail
 
 The top block (the dashboard hero) keeps its immediate skeleton: it reserves
 the space above everything else, where a late insertion would push the whole
-page down. Use the same rules for any page that stacks independently loading
-blocks.
+page down. For the same reason it stays until every source that can fill it
+has loaded, not only the first one. Use the same rules for any page that
+stacks independently loading blocks.
+
+Skeleton blocks use one shimmer, `libs/ui/styles/_skeleton-shimmer.scss`: a
+fill mixed from `--app-on-surface` (8%, with a 16% highlight), so it reads on
+both themes. The dashboard rails used to sweep between `--app-widget-bg` and
+`--app-widget-header-bg`, 1.04:1 apart on the light theme.
+
+The movie and series detail hero has an immediate skeleton too, built from
+the shared shimmer at the loaded hero's geometry: stage height, bottom-aligned eyebrow, title,
+one row of chips, two description lines, the action row and two credit lines.
+The Xtream series page adds an episodes section skeleton under it, and the
+Stalker series hero holds the Play button's place
+(`app-detail-action-skeleton`) while its seasons load.
 
 ### Reload with content on screen: non-destructive indicator
 
@@ -616,16 +1080,60 @@ If the label is too long for the rail, shorten the label key instead of shrinkin
 
 ## Detail Actions And Episode Surfaces
 
-Secondary detail buttons, episode cards and list rows, and the season view
-toggle must keep visible edges in both themes before hover. Use app-owned
-surface colors and neutral borders derived from `--app-on-surface`; fixed
-white-alpha fills and borders disappear over the light detail background.
-Grid cards keep the thumbnail and title on one continuous widget surface.
-List rows use a subtle neutral fill, with the number on a slightly stronger
-inset surface. The checked grid/list toggle uses `--app-selection-surface`
-and `--app-selection-color`; hover uses the app's neutral surface treatment.
-Keep these treatments in the shared season components and detail-action
-partial so Xtream and Stalker share the same behavior.
+The action row never wraps on a desktop window: the primary, the Trailer
+button, then the 44px icon buttons and the "…" menu. Season and series
+actions (mark watched, download season, reset progress) live in that menu
+and drive the season container's presenters. Collection details also keep
+“View in portal” in that menu, in a navigation group before the provider
+actions, regardless of how many hero buttons are visible.
+
+Every section below the hero (Episodes, Cast & crew, Similar) uses
+`app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular
+counter, a lead slot (up to four seasons the season tabs, a segmented
+control; past four the season dropdown, a small secondary button with a
+chevron) and an end slot (the list/grid toggle, rail arrows). Sections sit 56px apart, with 16px
+between a header and its content and 56px after the last one. The Episodes
+counter reads "N episodes · M watched". The list/grid switch is the same
+segmented control with 30×26 icon segments; the list is the default view.
+
+Episodes render through `app-episode-item` as a flat list row or grid card,
+never a bordered box. A row is a number column, a 168px 16:9 thumbnail (with
+a light hairline border so its edge survives the light theme), the title with
+a "46 min · 12 Jan" meta line (time left once started, "Resume at 12:34" when
+no runtime is known) and the plot clamped to
+two lines at 74ch, and a 112px action slot. Rows are separated by a hairline
+that gives way around a hovered, focused or highlighted row. Watched episodes
+carry a check badge on the thumbnail and muted text, and never a bar; a
+started one gets a 3px bar and the time left. Mark watched, download and "…"
+(Episode details, Play from beginning) are always laid out and only fade in on
+`:hover`/`:focus-within`, so nothing shifts. The whole item is one stretched
+button: Tab focuses it and Enter plays. The playing episode, else the most
+recently watched unfinished one, is highlighted. Without distinct stills the
+thumbnails show a dimmed fallback, not a column of bright posters. The season
+picker never shows a season poster: chips up to four seasons, a menu button
+from five whose rows read "Season N" and "N episodes · M watched" (the second
+part left out at zero, and no count at all for a lazy Stalker VOD season the
+portal has not answered yet — `seasonLoadStates`). The selected season's
+synopsis sits under the header,
+offset 52px to the number column and 24px above the list, only when present;
+one that repeats the series description (or is cut short from it) is dropped,
+and without one no row renders.
+
+A season whose final episode data has no plot and no usable still (a still
+equal to the series poster or the season cover counts as none) renders bare:
+44px rows of number, title, meta and an inline check or 72px bar, the same
+action slot, and no grid toggle. Only some stills or plots missing keeps full
+rows (dimmed tile, line left out). While the provider list is outstanding,
+and while a TMDB lookup that could still fill a season that would otherwise
+render bare is outstanding, the episodes are skeleton rows at the full row's
+geometry (`app-episode-skeleton`); a season the provider already describes
+renders at once and the metadata lands in place. The state is decided from
+data (`episode-meta-state.util.ts`); the metadata wait is only capped
+(`EPISODE_METADATA_WAIT_MS`, 4s) because TMDB requests carry no timeout, and
+it never applies to a season without episodes, which no host enriches. At a
+pane width of 480px or less the thumbnail shrinks to 96px and the actions
+take their own row under the text. Keep these treatments in the shared season
+components so Xtream and Stalker share the same behavior.
 
 Browser regression coverage measures the composited neutral edges and selected
 toggle fill, in addition to capturing light/dark grid and list screenshots.
@@ -636,6 +1144,41 @@ flat ancestor-color compositing is only appropriate outside that layered hero.
 ## Settings Surfaces
 
 Settings use the same system but are flatter than content-heavy views.
+Reference: `apps/web/src/app/settings/settings.component.scss` and the
+per-theme tokens in `apps/web/src/_settings-theme.scss`.
+
+### Structure
+
+- The sidebar is a 20px "Settings" title over four groups (App, Library,
+  Devices, Data), with About pinned to the footer beside the installed
+  version and an update badge. The active item is a soft selection fill with
+  tinted text and no border, so the list never shifts. Back lives in the
+  workspace header and Esc runs it. Section pages are defined once in
+  `SETTINGS_SECTION_DEFINITIONS` (`libs/workspace/shell/util`).
+- Each page is a title (26px) and one-line subtitle, then sections: a 14px
+  heading, an optional description and action buttons, and a card.
+- Rows (`.setting-item`) are a label column (13.5px title, description
+  capped at 56ch) and one right-aligned control column. Put every control in
+  that column, including segmented controls; the page is a size container
+  and rows stack under 600px of pane width. Keep `data-setting-id` on every row: settings search and the
+  command palette reveal rows by it, and the registry spec checks the index
+  against the templates.
+- Controls: `.settings-select` is a 220px outlined select without a floating
+  label (the row title names it; pass `aria-labelledby`); boolean settings
+  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`
+  as a pill; `.settings-chip` marks rows that apply after a restart or are
+  experimental; `.settings-callout` (`--info`, `--warn`) sits under the row
+  it explains inside `.setting-item__sub` and only while that choice is made.
+- Destructive actions keep the confirm dialog from the Dialogs section; the
+  row itself uses `.app-destructive-button` on a stroked button.
+- Ordinary settings actions use `mat-flat-button` with the shared secondary
+  role from the lazy settings stylesheet; `.settings-primary-button` marks the accent
+  action (install/download, browser import, or the empty EPG prompt). Text and
+  icon actions use the kit ghost roles. Save keeps its dedicated CTA pair.
+- The save bar floats over the content column while the form is dirty with
+  the change count, Discard and Save (Cmd/Ctrl+S); the sidebar marks pages
+  with staged edits. A saved change that waits for a restart shows a sticky
+  notice at the top of the page.
 
 ### Light Theme
 
@@ -651,6 +1194,263 @@ Settings use the same system but are flatter than content-heavy views.
 - Denser tinted surfaces are acceptable
 - Neutral rows can use low-opacity dark overlays
 - Keep strong blue tint reserved for active sections and selected items
+
+## Dialogs
+
+- **Name.** Every dialog has a `mat-dialog-title`; Material points the
+  container's `aria-labelledby` at it. A custom-styled title keeps the
+  directive and overrides Material's headline padding and 40px `::before`
+  strut, as the programme dialog does.
+- **Order.** Dismiss first, primary last. With end alignment the primary sits
+  on the inline end: the right in LTR, the left in RTL.
+- Body actions opt into the shell's `mat-flat-button.app-dialog__secondary`
+  role (add `app-dialog__secondary--sm` for dense bulk tools), or
+  `mat-button.app-dialog__ghost` for a text action. The footer remains the
+  decision row. A separate EPG save explicitly says “Save EPG sources”.
+- **Shell.** A dialog's markup is `app-dialog-shell`
+  (`@iptvnator/ui/components`): the heading (its `mat-dialog-title`, so
+  the container is named by it), an optional subtitle and 40px icon tile
+  (`iconTone="warn"` for a destructive question), the body as default
+  content, and a footer rendered only when an element with
+  `appDialogFooter` wraps the actions (`appDialogFooterStart` wraps a Clear
+  action or a notice at the footer's start, `appDialogHeaderEnd` a chip
+  before the close button); a conditional action sits inside the wrapper,
+  since a control-flow block at the top level is projected into the body.
+  Every dialog uses it, apart from three that draw their own surface by
+  design: the command palette, the programme dialog and the EPG import
+  panel (a floating panel, not a dialog). A dialog with a hero band (the
+  account info and channel details dialogs) keeps the band as the body's
+  first block, edge to edge through negative margins, with its title and
+  subtitle in the shell's header and its status pills in
+  `appDialogHeaderEnd`; a media dialog (trailer, episode info) does the
+  same with its frame or still. Widths come from `dialogSize()`; the two
+  account dialogs keep their wider explicit width for their stats grid, and
+  the trailer its 880px for a 16:9 frame. A picker whose list should scroll
+  under fixed search and bulk actions sets `bodyLayout="column"`: the body
+  becomes a flex column, its wrapper `flex: 1 1 auto; min-height: 0` and
+  the list `flex: 1; overflow-y: auto`. A child cannot size itself from the
+  body's height (`height: 100%` never resolves on a flex item), so without
+  it the whole body scrolls and the controls scroll away.
+  Footer
+  buttons take the kit look from the shell: `mat-button` ghost,
+  `mat-flat-button` accent, `mat-flat-button.app-dialog__secondary`
+  secondary; `.app-destructive-button` keeps its tint. The frame itself
+  (16px panel on the widget surface, hairline border, popover shadow,
+  tinted blurred backdrop) is global in `m3-theme.scss` and reaches every
+  dialog; a dialog that draws its own surface strips it through its panel
+  class, as the command palette and the programme dialog do.
+  The shell sizes from the surface, so an opener's tighter `maxHeight`
+  holds, caps itself at the viewport minus the preset's margins otherwise, and
+  lets only the body scroll; under 600px of height the cap comes off and the
+  surface scrolls the whole dialog, so a stacked footer never squeezes the
+  body to a sliver. A dialog without a footer keeps its body scrolling
+  there: its header × is its only in-dialog dismissal and stays in place.
+- **Dismiss.** The shell's header × (named "Close dialog", so a footer
+  "Close" stays the only button of that name) and the footer
+  "Cancel"/"Close" both dismiss; a dialog never adds a second footer
+  dismiss. The × is the last
+  element in the DOM, so `first-tabbable` autofocus lands in the body and
+  Tab reaches it after the footer. Escape and the backdrop still close.
+- **One row.** Action labels are short verbs ("Cancel", "Discard", "Save"),
+  not phrases, so the row fits one line in every locale at the dialog width.
+  Secondary actions tied to one part of the content stay with that content
+  (the programme dialog's archive tools sit under their notice), so the
+  footer is only the dismiss and the primary.
+- **Phone.** At the phone breakpoint an action row may stack: one full-width
+  button per row, in DOM order (dismiss on top, primary at the bottom). The
+  settings unsaved-changes dialog is the reference;
+  `settings-unsaved-dialog-layout.e2e.ts` in `web-e2e` measures it in six
+  locales. The programme dialog stacks its archive tools and footer the same
+  way, letting a long label wrap inside its button; the Electron
+  `epg-timeline-interaction.e2e.ts` measures it in French at 360px.
+- **Width.** An opener spreads a size preset first, `...dialogSize('sm' |
+  'md' | 'lg')` (440, 560 and 760px with the viewport limits), then its own
+  options. `sm` is a confirmation or a PIN prompt, `md` a form or a list,
+  `lg` a picker with a grid, a table or long text. The helper imports
+  `MatDialogConfig` as a type only, so a root service may use it without
+  putting Material's dialog on the startup path; `MAT_DIALOG_DEFAULT_OPTIONS`
+  is never provided at the root for that reason. A dialog with several
+  openers is opened through one helper that owns its config, so its width
+  never depends on the entry point: `EpgProgrammeDialogService` opens the
+  programme dialog at 540px from the timeline, list, guide and channel rows,
+  with a panel class that scopes its surface overrides.
+- **Destructive actions.** Material only emits `warn` button colors for M2
+  themes, so the `color` input is a no-op here. A button that removes or
+  discards user data uses the global `.app-destructive-button` class from
+  `m3-theme.scss`, as the unsaved-changes dialog's Discard does. It is the
+  kit's red tint on the `--app-danger-*` tokens per theme (tinted fill and
+  red text for filled and outlined buttons, red text for text and icon
+  buttons), never a solid error fill; hover changes the fill only, and a
+  disabled button is the same button at 40% opacity.
+  Confirmations go through `DialogService.openConfirmDialog` with a
+  translated verb as the required `confirmLabel` ("Remove playlist",
+  "Clear") and `tone: 'destructive'` when the action loses data; the dismiss
+  defaults to "Cancel". Never confirm with "Yes"/"No". When the verb itself
+  is "Cancel …", pass `cancelLabel` "Close" so the two buttons do not read
+  alike. `theme-tokens.e2e.ts` checks the label and the danger tint in both
+  themes.
+- **One control per action.** A page offers one control for a destructive
+  action. Clearing a favorites or recently viewed tab goes through
+  `createClearCollectionAction` (`unified-collection-clear-action.ts` in
+  `portal/shared/ui`), from the collection page's button and from the command
+  palette alike; the shell
+  header does not repeat it. `recent.e2e.ts` checks the single control and
+  the single confirmation on M3U, Xtream and Stalker recently viewed pages.
+
+## Floating Panels And Toasts
+
+- **Frame.** A floating, non-modal card anchored to a viewport corner (the
+  EPG import panel at the bottom left, the update notification at the bottom
+  right) takes `controls.floating-panel` from `_app-controls.scss`: the
+  dialog's widget surface and popover shadow, the menu's `--app-line-strong`
+  hairline, a 12px radius between the dialog's 16 and the menu's 10. The
+  panel keeps its own anchor, width, z-index and entrance; the notice that
+  replaces a panel whose deferred chunk failed to load shares the frame.
+- **Header.** `floating-panel-header` is the row (hairline under it) and
+  `floating-panel-title` the title: the kit's 12.5px uppercase label with an
+  18px accent icon. Header actions are `ghost-icon-button(28px, 18px)`, row
+  actions 24px; neither keeps Material's 48px touch target, which used to
+  push a horizontal scrollbar into the list.
+- **Actions.** Buttons inside a panel follow the dialog footer: one accent
+  action (`accent-button(sm)`), a secondary beside it (`secondary-button(sm)`
+  on a `mat-flat-button`), never an outlined button. The update card's
+  release notes and download/install buttons are the reference.
+- **Toasts.** Every `mat-snack-bar` takes the same look from one global rule
+  in `styles.scss`: the widget surface with the hairline and shadow on a
+  10px panel, 13px text in the heading colour, the action as accent text
+  without a ripple. Toasts sit at Material's default bottom centre; a caller
+  may add a panel class for spacing (`settings-snackbar` clears the save
+  bar) or the error tint (`settings-snackbar--error`), never a position of
+  its own. A failure the import panel already reports (a source's error row
+  with Retry) gets no toast; `EpgService` toasts only when the bridge call
+  itself fails, a programme lookup errors, or the runtime imports without
+  reporting progress (`supportsProgress` false: no row can carry the
+  failure), always with the translated generic message, never the
+  backend's text.
+
+## Forms
+
+Every `<mat-form-field>` is outlined with a dynamic subscript. A component
+that renders one adds `providers: [provideFormFieldDefaults()]`
+(`@iptvnator/ui/components/form-field-defaults`); the root injector does not
+provide the defaults, because the token import there would load Material's
+form field and `@angular/forms` on startup. `pnpm run
+ui:form-field-defaults:validate` (in CI) reports a missing provider.
+
+A `mat-select` belongs inside a form. Its option panel is styled once in
+`m3-theme.scss` to match the kit menu (a bordered 10px panel, 36px rows at
+13px, the chosen row on the list-selection tokens). A picker in a toolbar is
+not a select: it is a `mat-flat-button` with the `secondary-button` mixin and
+a trailing `expand_more` chevron (`iconPositionEnd`, `trigger-chevron`) that
+opens a `mat-menu`, as the Sources sort, the catalog Refine button, the
+programme guide's scope and the season dropdown do. Its label shows the
+current value where there is one; when the visible label is only the value,
+the accessible name adds what it picks ("Channels shown: Favorites"). An
+active picker (refinements applied) takes the selected-row tint. A panel
+header's icon actions use `ghost-icon-button`, as the category panel's
+search and sort do. In a row of filter chips (the VOD sources popover) the
+picker is a chip with the same chevron, so the row keeps one height; the
+language filter there opens a radio menu instead of a native `<select>`.
+
+A single choice among a few options shown side by side is the kit's
+segmented control: a 1px-bordered track with 2px padding and a 10px radius,
+8px segments, no dividers, the chosen segment filled and in the heading
+colour. `segmented-control($height, $icon-size, $segment-width)` dresses a
+`mat-button-toggle-group` (the favorites and recent content and scope
+toggles, the list/grid switch, the playlist switcher's type filter);
+`segmented-track` and `segment` build it from plain buttons that are tabs
+(the season tabs). In a header row use 26px segments, so the control is
+32px tall like a small button. Unchosen labels use the body colour; the
+muted colour reads about 2.9:1 on the track. The settings theme switcher is
+still a pill switcher of its own.
+
+Custom button-based radio choices use `appRadioGroup` and
+`[appRadioOption]="selected"` from the narrow
+`@iptvnator/ui/components/radio-group` entry point. The behaviour
+keeps one tab stop on the current enabled choice, selects with wrapping arrow
+keys (horizontal order follows RTL), and supports Home/End. External changes,
+including settings Discard, update that tab stop. Keep labels on the group
+and let the directives own radio roles, checked state and tab indices.
+
+The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
+vocabulary, so a field reads the same wherever it appears:
+
+- **Name.** The source name is labelled "Playlist title"
+  (`HOME.XTREAM_PLAYLIST.TITLE`) in every add form. Every add form submits
+  with "Add playlist" (`HOME.URL_UPLOAD.ADD_PLAYLIST`).
+- **Passwords.** A password input is masked and has a `mat-icon-button`
+  suffix with `PasswordVisibilityToggleDirective`
+  (`@iptvnator/ui/components/password-visibility-toggle`). The input binds
+  `[type]="toggle.inputType()"`; the button keeps one translated label
+  ("Show password", `HOME.SHOW_PASSWORD`) and exposes its state through
+  `aria-pressed`, as an ARIA toggle button does.
+- **URLs.** A URL field has a neutral `mat-hint` where the format is not
+  obvious, and its own `mat-error`. Never borrow another field's message.
+- **Feedback.** While the dialog stays open, a check or refusal is shown
+  inline under the URL field in a `role="status"` paragraph. The message is
+  translated in the template and cleared by any edit. Use a snackbar only for
+  outcomes that close the dialog. `add-source-forms.e2e.ts` in `web-e2e`
+  covers the shared labels, the toggle and the URL errors.
+
+## Translated Text
+
+The UI language can change while views stay mounted: Settings → Language
+switches it at runtime, and on a cold start the translation file can arrive
+after the first render. Text on screen must follow the current language:
+
+- Keep translation keys, not translated strings, in stores, services and
+  data models. When the app adds an entry to provider data, give it a
+  `labelKey` that the view renders with `| translate` and leave its provider
+  name empty. The Stalker every-item genre is an example.
+- Prefer `| translate` in the template. A `computed` that calls
+  `TranslateService.instant` must also read `injectTranslationTick()` from
+  `@iptvnator/services`. It ticks on the three events the translate pipe
+  listens to: `onLangChange`, `onDefaultLangChange` and
+  `onTranslationChange`. `onLangChange` alone is not enough. A start-up
+  without a saved language never calls `use()`, so only
+  `onDefaultLangChange` fires when the dictionary lands, and the computed
+  would keep showing raw keys. Without any tick, the computed keeps the
+  language it first ran in. State factories such as `createSeriesHeroState`
+  and `createVodDetailsHeroState` take the tick as `language`.
+- `instant` is fine at event time, for snackbar, dialog and confirm text.
+
+## Source Type Icons
+
+`SOURCE_TYPE_ICONS` in `@iptvnator/shared/interfaces` is the only source of
+provider icons: Xtream `cloud`, Stalker `cast`, the M3U family
+`playlist_play`, and per playlist `link` (URL), `description` (local file or
+text) and `subject` (pasted text in the add flow). Use
+`getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
+providers, and the Dashboard rail icon is never a provider icon.
+
+## Icon Names
+
+`<mat-icon>` draws its text through the ligatures of the Material Icons font
+from `material-design-icons-iconfont`, imported in `apps/web/src/styles.scss`.
+The font renders a name it does not know as plain text, so pick names from its
+`dist/fonts/MaterialIcons-Regular.json` codepoints file: newer Material Symbols
+names such as `file_off` or `arrow_outward` are not in it.
+`pnpm run styles:icon-ligatures:validate` (CI) checks static `<mat-icon>` text,
+the string results of its bindings, `icon` / `*Icon` inputs, and TypeScript
+values named `icon`, `*Icon`, `*_ICON`, `*Icons` or `*_ICONS`. Name a member
+that feeds an icon that way, so the check can see its values.
+
+## Icon-Only Buttons
+
+A `<button>` whose only content is a `<mat-icon>` needs an accessible name:
+the ligature text is hidden from assistive technology, and a `matTooltip`
+only adds a description that appears on hover or focus. Give it a translated
+`aria-label`, usually `[attr.aria-label]` bound to the same key as its
+tooltip, or `aria-labelledby`. A toggle keeps one label and reports its state
+with `aria-pressed` (the channel row's star is "Favorite", pressed or not),
+as the password visibility toggle does; its tooltip may still name the next
+action. `pnpm run a11y:icon-buttons:validate` (CI) checks `.html` and inline
+templates, looking through control flow, `ng-container` and spinners; content
+it cannot see into (`ng-content`, another component, an image) counts as
+named, and text under `aria-hidden="true"` never does.
+`icon-button-names.e2e.ts` in `web-e2e` runs axe's `button-name` rule
+on a channel list, the channel details dialog, Sources, the playlist info
+dialog and an Xtream search.
 
 ## Phone Layout
 
@@ -693,8 +1493,9 @@ but the component has not.
   `defaultPrevented`, so one keypress cannot close both the drawer and the
   obscured player) and suppresses workspace-level shortcuts (Ctrl/Cmd+F
   global search, Ctrl/Cmd+K command palette, Ctrl/Cmd+R global recent, the
-  `?` shortcuts dialog — dialogs must not stack a second focus trap on the
-  modal drawer, and navigation must not act behind it), and document-level
+  `?` shortcuts dialog, the Back chord and the other Back gestures — dialogs
+  must not stack a second focus trap on the modal drawer, and navigation must
+  not act behind it), and document-level
   shortcuts owned by routed content (shared controls, Embedded MPV legacy
   dock, radio audio player, the live layouts' Ctrl/Cmd+B sidebar toggle,
   the M3U player's digit-key channel switching and sidebar toggle) opt out
@@ -740,7 +1541,38 @@ Prefer removing a control over shrinking everything around it:
 - Counts and subtitles that a neighbouring control already states.
 
 Never drop the only way back to a hidden surface. A collapse toggle that is
-reachable by touch needs its restore affordance to be reachable too.
+reachable by touch needs its restore affordance to be reachable too. For the
+same reason the header's history Back yields to the context drawer toggle,
+and Settings keeps the toggle beside its Back; only a detail page's Back,
+whose list shows the toggle again, takes the toggle's slot.
+
+## Typography
+
+The app stack is DM Sans with Roboto behind it (`$app-font-stack` in
+`apps/web/src/m3-theme.scss`). DM Sans covers Latin only, so Cyrillic and Greek
+UI text (ru, by, el) renders in Roboto. `apps/web/src/styles.scss` bundles both
+families in 400, 500, 600 and 700, and JetBrains Mono in 400 and 500 (its
+heavier faces would exceed the initial-bytes ratchet).
+
+- Use only those four weights: in `font-weight`, in the `font` shorthand, and in
+  any custom property, Sass variable or token map that feeds one. A weight
+  between faces snaps to a neighbour (650 renders as 700), and 600 or more with
+  no face of at least 600 gets Chromium's synthetic bold. CI runs
+  `pnpm run styles:font-weights:validate`, which rejects any other value.
+- JetBrains Mono text stays at 500 or lighter, also where it is a fallback
+  behind `ui-monospace` (only macOS resolves that). The check enforces this in
+  any rule that sets the family, directly or through a variable, or inherits
+  it from an enclosing rule. A mixin's family and weights count where it is
+  included, from its own stylesheet module or another one. It cannot see what
+  a mono modifier class inherits from its base rule; set `font-weight: 500`
+  there.
+- Import whole `@fontsource/<family>/<weight>.css` files. The single-script
+  files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
+  face wins the weight match for Latin text in `Roboto, …` stacks and sends it
+  to the next family.
+- `<html lang>` follows the UI language (`syncDocumentLanguage()` maps `by` to
+  `be` and `zhtw` to `zh-TW`), so `hyphens`, `text-transform` (Turkish İ) and
+  Han glyph fallback use the right locale.
 
 ## Theme Guidance
 
@@ -795,6 +1627,10 @@ Avoid these:
 - making entire panes scroll when only the list should scroll
 - using dark translucent fills unchanged in light theme
 - solving cramped sidebars with smaller fonts instead of shorter labels
+- rounding a scroller's corners (`border-radius` with `overflow`) when it holds
+  composited effects such as `backdrop-filter`: each effect gets a clip mask
+  the size of the scroller; paint the corner instead (see the content surface
+  corner in the [workspace shell contract](workspace-shell.md#content-surface-corner))
 
 ## Definition Of Done For UI Changes
 
@@ -806,13 +1642,99 @@ A visual change is not done until:
 4. Scroll behavior is correct.
 5. The result was checked in the running app for layout-sensitive work.
 
+### Source row keyboard access
+
+A Sources row (`app-source-row`, regular size) opens on a click anywhere on
+it, and it also holds a drag handle and its actions. Like `app-content-card`,
+it opens from the keyboard through a dedicated element that is a sibling of
+those controls: the title and meta block `.source-row__body`
+(`role="button"`, `tabindex="0"`, named by the source's display name,
+`aria-current` on the active source, `aria-disabled` while busy). Enter and
+Space open the source (Space prevents the page scroll), and Tab reaches each
+row before its actions. Never put `role="button"` or key handlers on the whole
+row: the actions would sit inside a button, and their Enter and Space would
+bubble into it. The row draws the ring for that element, inset
+(`$offset: -2px`), because the list's scroller would cut a ring drawn outside
+the full-width row. `R` on a focused row refreshes it, as its menu item shows.
+`sources-keyboard.e2e.ts` (Electron) tabs to a row, checks its ring, opens
+the source with Enter, and deletes and undoes a source keyboard-only.
+
+### Sources page and playlist switcher
+
+One `app-source-row` serves both lists: `size="regular"` on the Sources page
+(56px, 36px tile, hover actions Refresh, Edit and ⋯; a failing row keeps
+Retry in view; touch screens always show the actions) and `size="compact"`
+in the switcher (52px, 32px tile, ⋯ only). In both the active source's row
+is tinted with the selected-row token; the switcher adds a check. The page
+header (title, Clean up, Sort) stays; only the list below it scrolls. The meta line is always type · channels · added · updated · URL, with
+empty parts left out; only M3U playlists store a channel count. The helpers
+in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
+`source-list`) own that text, the filters and the counts.
+
+- **No credentials on screen.** Names come from `sourceDisplayName`: a URL, a
+  URL-derived name such as `get.php?username=…&password=…` or any name holding
+  the source's password, MAC or URL secrets becomes the host. URLs come from
+  `sourceDisplayUrl`, built on `stripUrlCredentials` (beside it in
+  `source-display`, out of the eager logging barrel): no
+  userinfo, sensitive query or fragment parameters, or Xtream path
+  credentials; Xtream shows `scheme://host:port · username`. Copy URL copies
+  the full address on request.
+- **Delete with Undo.** A single delete has no confirmation: the row leaves
+  every list at once (`SourceRemovalService.pendingIds`) and the delete runs
+  when the four-second Undo window ends. The window is the service's own
+  timer, not the toast's: another message replacing the toast (a refresh
+  finishing elsewhere) does not shorten it. The toast's close button commits
+  at once, and quitting within the four seconds keeps the source. Deleting the active source
+  switches to the next row; Undo switches back only if no other source was
+  chosen since. A desktop Xtream delete brings its row back as "Removing…"
+  with progress and Cancel on the Sources page; the switcher leaves the
+  source out until the delete ends. When the delete took the row and with
+  it the focus, the toast's Undo takes the focus. A delete from the
+  switcher closes the popover first, since its focus trap would keep the
+  keyboard from Undo: Undo takes the focus and returns it to the trigger
+  (`SourceRemovalOptions.returnFocusTo`). A source cannot be removed while
+  a refresh clears and refills it: every refresh (a Sources row, the
+  switcher, the Xtream flow, the startup auto-refresh), every Xtream import
+  and every delete holds the source in the root `SourceActivityService`,
+  which both lists, the removal service and a second refresh consult. The
+  Xtream route session takes its hold on the refresh's `NavigationEnd`, so
+  the catalog is never idle between the delete and the re-import. The Sources page shows
+  a switcher refresh as busy. Bulk cleanup keeps its confirmation dialog.
+- **Side list.** Type and, on desktop, Status (Any / Responding / Not
+  responding) combine and persist (`SourcesViewStateService`); each group
+  counts within the other's choice. The page checks every source, not only
+  the rows a filter shows (`keepSourcesChecked`): a saved status filter
+  would otherwise hide the unchecked sources it is waiting for.
+- **Switcher.** The trigger is a 40px secondary button; ⌘P / Ctrl+P opens it
+  (⌘K stays the command palette). The popover is a CDK connected overlay, so
+  row menus open above it, not inside its scrolling list. Focus stays in the
+  search field, which drives a `role="listbox"` through
+  `aria-activedescendant`: ↑/↓ move and wrap, Enter opens, Shift+F10 opens
+  the highlighted row's menu, Escape closes and returns focus to the
+  trigger. The compact row's ⋯ is pointer-only (`aria-hidden`, not
+  focusable), since an option may not contain a control. "Recent" lists the
+  three most recently opened sources once there are six or more. The search
+  field is the shared 36px search field (`--app-search-*`). The popover is a
+  height-capped column in which only the list shrinks and scrolls: every
+  other part is `flex: none`. Otherwise a long list (hundreds of sources)
+  squeezes them in proportion to its size, and the type filter collapses.
+
 ### Network source indicators (Electron)
 
-The switcher and source rows use `SourceHealthIndicatorComponent`: green means
-available, orange expired, red disabled/access refused, and neutral means
-checking or unverified. Accessible tooltip text distinguishes refusal from a
-confirmed disabled account and includes the check time. M3U indicators describe
-the source URL only. Check again is a separate action, not a playlist refresh.
+The status dot on a source tile reads `SourceStatusService`: green answers,
+red does not, orange is an expired account, grey is not checked yet; local
+files have no dot. On desktop the live `SourceHealthService` result wins; the
+last conclusive result per source is kept across restarts
+(`SourceHealthHistoryService`, no URL or credential stored, only a 32-bit
+fingerprint of the connection), so a source that failed yesterday shows as
+failing before it is checked again, with "Not responding · 3 days". An
+edited address or account is a new connection: its kept result no longer
+counts, and its history starts over. The dot's tooltip and accessible name give the
+check's cause (`SourceStatus.reason`: access denied, account disabled,
+timeout…, kept with the history) and check time; M3U checks say they
+cover the playlist URL, not its channels. Retry and Check
+again rerun the check; they are not a playlist refresh. The browser build
+keeps the Xtream portal status only.
 
 ### Inactive-source cleanup dialog
 

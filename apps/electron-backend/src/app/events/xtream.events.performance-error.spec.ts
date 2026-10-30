@@ -155,6 +155,7 @@ describe('XtreamEvents failed-response performance phases', () => {
             ).rejects.toEqual({
                 message: 'HTTP Error: Not Found',
                 status: 404,
+                statusText: 'Not Found',
             });
             expectFailedResponsePhases(events);
         } finally {

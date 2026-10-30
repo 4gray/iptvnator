@@ -67,6 +67,8 @@ export function createClearCollectionAction(options: {
             dialogService.openConfirmDialog({
                 title: translate.instant(titleKey, { type }),
                 message: translate.instant(messageKey, { type }),
+                confirmLabel: translate.instant('CLEAR'),
+                tone: 'destructive',
                 onConfirm: async () => {
                     if (isFavorites) {
                         await clearFavorites(itemsToRemove);
@@ -82,8 +84,6 @@ export function createClearCollectionAction(options: {
 }
 
 export interface ClearCollectionViewCommandHost {
-    /** Only the workspace shell renders a command palette to register into. */
-    isWorkspaceLayout: boolean;
     mode: Signal<CollectionMode>;
     selectedContentType: Signal<CollectionContentType>;
     /** Rows the command would clear; with none there is nothing to offer. */
@@ -108,7 +108,7 @@ export function setupClearCollectionViewCommand(
     });
 
     effect((onCleanup) => {
-        if (!host.isWorkspaceLayout || host.currentTypeItems().length === 0) {
+        if (host.currentTypeItems().length === 0) {
             return;
         }
 

@@ -1,3 +1,4 @@
+import { installTvFixtures } from './tv-fixtures.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import cors from 'cors';
@@ -9,6 +10,10 @@ import express, {
 import { installLiveFormatFixture } from './live-format-fixture.js';
 import { resolveXtreamMockPortString } from './mock-port.js';
 import { resetAll } from './data-store.js';
+import {
+    resetDroppingEpisodes,
+    streamDroppingEpisode,
+} from './dropping-episode.js';
 import { renderMarketingAssetSvg } from './generators/marketing.generator.js';
 import { installPerformanceControlRoutes } from './performance-control-routes.js';
 import {
@@ -51,6 +56,8 @@ https://example.channels/path-to-file/3.m3u8
 https://example.channels/path-to-file/4.m3u8
 `;
 const HLS_STUB = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+/** EPG-fixture users whose timeshift URLs play the local MPEG-TS clip. */
+const TIMESHIFT_CLIP_USERS = new Set(['epg', 'epglong']);
 // Loopback by default: the fixtures serve fabricated but unauthenticated
 // content, so they should not be reachable from other hosts unless a dev
 // explicitly opts in with HOST=0.0.0.0 (e.g. to point a phone or STB at them).
@@ -78,6 +85,7 @@ export function createXtreamMockApp(
         installPerformanceControlRoutes(app, controller, options.control.token);
     }
     app.use(cors());
+    if (!controlEnabled) installTvFixtures(app);
     app.use(express.json());
 
     app.get('/health', (_request, response) => {
@@ -95,6 +103,7 @@ export function createXtreamMockApp(
             return;
         }
         resetAll();
+        resetDroppingEpisodes();
         response.json({ status: 'reset' });
     });
     app.get('/playlist.m3u', (_request, response) => {
@@ -314,6 +323,10 @@ function installStreamRoutes(
             );
             return;
         }
+        if (fixture === 'dropping-episode') {
+            streamDroppingEpisode(request, response);
+            return;
+        }
         response.redirect(HLS_STUB);
     };
     app.get('/live/:username/:password/:streamId.m3u8', streamResponse);
@@ -323,7 +336,7 @@ function installStreamRoutes(
     app.all(
         '/timeshift/:username/:password/:duration/:start/:streamId.ts',
         (request, response) => {
-            if (request.params['username'] === 'epg') {
+            if (TIMESHIFT_CLIP_USERS.has(request.params['username'])) {
                 response
                     .type('video/mp2t')
                     .send(

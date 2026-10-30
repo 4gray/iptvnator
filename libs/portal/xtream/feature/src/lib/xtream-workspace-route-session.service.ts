@@ -13,51 +13,13 @@ import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
     XtreamCachedContentScope,
     PortalStatusType,
-    XtreamPlaylistData,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-
-function normalizeOptionalConnectionValue(
-    value: string | null | undefined
-): string | null {
-    const normalized = value?.trim();
-    return normalized ? normalized : null;
-}
-
-function toXtreamPlaylistData(
-    playlist: PlaylistMeta | null
-): XtreamPlaylistData | null {
-    if (
-        !playlist?._id ||
-        !playlist.serverUrl ||
-        !playlist.username ||
-        !playlist.password
-    ) {
-        return null;
-    }
-
-    const userAgent = normalizeOptionalConnectionValue(playlist.userAgent);
-    const referrer = normalizeOptionalConnectionValue(playlist.referrer);
-    const origin = normalizeOptionalConnectionValue(playlist.origin);
-
-    return {
-        id: playlist._id,
-        name: playlist.title || playlist.filename || 'Untitled playlist',
-        title: playlist.title,
-        updateDate: playlist.updateDate,
-        serverUrl: playlist.serverUrl,
-        username: playlist.username,
-        password: playlist.password,
-        type: 'xtream',
-        ...(userAgent ? { userAgent } : {}),
-        ...(referrer ? { referrer } : {}),
-        ...(origin ? { origin } : {}),
-        ...(playlist.serverTimezone
-            ? { serverTimezone: playlist.serverTimezone }
-            : {}),
-    };
-}
+import { SourceActivityService } from '@iptvnator/services';
+import {
+    toXtreamPlaylistData,
+    shouldBootstrapXtreamPlaylist,
+} from './xtream-route-playlist';
 
 /**
  * Sections whose content comes from the imported catalog, so a cold load
@@ -128,60 +90,6 @@ function getXtreamRouteTarget(url: string): {
     };
 }
 
-function hasPlaylistConnectionChanges(
-    currentPlaylist: XtreamPlaylistData | null,
-    nextPlaylist: XtreamPlaylistData | null
-): boolean {
-    if (!currentPlaylist || !nextPlaylist) {
-        return false;
-    }
-
-    const currentUserAgent = normalizeOptionalConnectionValue(
-        currentPlaylist.userAgent
-    );
-    const nextUserAgent = normalizeOptionalConnectionValue(
-        nextPlaylist.userAgent
-    );
-    const currentReferrer = normalizeOptionalConnectionValue(
-        currentPlaylist.referrer
-    );
-    const nextReferrer = normalizeOptionalConnectionValue(
-        nextPlaylist.referrer
-    );
-    const currentOrigin = normalizeOptionalConnectionValue(
-        currentPlaylist.origin
-    );
-    const nextOrigin = normalizeOptionalConnectionValue(nextPlaylist.origin);
-
-    return (
-        currentPlaylist.serverUrl !== nextPlaylist.serverUrl ||
-        currentPlaylist.username !== nextPlaylist.username ||
-        currentPlaylist.password !== nextPlaylist.password ||
-        currentUserAgent !== nextUserAgent ||
-        currentReferrer !== nextReferrer ||
-        currentOrigin !== nextOrigin
-    );
-}
-
-function shouldBootstrapXtreamPlaylist(
-    playlistId: string | null,
-    routePlaylist: XtreamPlaylistData | null,
-    storePlaylistId: string | null,
-    currentPlaylist: XtreamPlaylistData | null
-): boolean {
-    const currentPlaylistUpdateDate = currentPlaylist?.updateDate ?? null;
-    const routePlaylistUpdateDate = routePlaylist?.updateDate ?? null;
-
-    return Boolean(
-        playlistId &&
-        routePlaylist &&
-        (storePlaylistId !== playlistId ||
-            currentPlaylist?.id !== playlistId ||
-            currentPlaylistUpdateDate !== routePlaylistUpdateDate ||
-            hasPlaylistConnectionChanges(currentPlaylist, routePlaylist))
-    );
-}
-
 function getXtreamRouteCategoryId(
     url: string,
     section: PortalRailSection | null
@@ -212,6 +120,9 @@ export class XtreamWorkspaceRouteSession {
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly activity = inject(SourceActivityService);
+    /** Sources this sync loop holds busy, released when the loop settles. */
+    private readonly heldSources = new Map<string, () => void>();
 
     private syncInFlight = false;
     private syncPending = false;
@@ -266,6 +177,7 @@ export class XtreamWorkspaceRouteSession {
     }
 
     private scheduleSyncRouteContext(): void {
+        this.holdRoutedSource();
         if (this.syncInFlight) {
             this.syncPending = true;
             return;
@@ -281,8 +193,24 @@ export class XtreamWorkspaceRouteSession {
                 } while (this.syncPending);
             } finally {
                 this.syncInFlight = false;
+                this.heldSources.forEach((release) => release());
+                this.heldSources.clear();
             }
         })();
+    }
+
+    /**
+     * Holds the routed source busy from the moment its route is reached
+     * until the sync, and the import it awaits, settle. An Xtream refresh
+     * releases its own hold when its navigation ends, and this one is taken
+     * on that NavigationEnd, so removal never sees the source idle between
+     * the catalog delete and the re-import.
+     */
+    private holdRoutedSource(): void {
+        const playlistId = getXtreamRouteTarget(this.router.url).playlistId;
+        if (playlistId && !this.heldSources.has(playlistId)) {
+            this.heldSources.set(playlistId, this.activity.begin([playlistId]));
+        }
     }
 
     private async syncRouteContext(): Promise<void> {
@@ -305,6 +233,19 @@ export class XtreamWorkspaceRouteSession {
             storePlaylistId,
             currentPlaylist
         );
+        if (
+            !shouldBootstrapPlaylist &&
+            currentPlaylist &&
+            routePlaylist &&
+            (currentPlaylist.name !== routePlaylist.name ||
+                currentPlaylist.title !== routePlaylist.title)
+        ) {
+            this.xtreamStore.setCurrentPlaylist({
+                ...currentPlaylist,
+                name: routePlaylist.name,
+                title: routePlaylist.title,
+            });
+        }
         const cacheScope = toCachedContentScope(routeSection);
         let portalStatus = this.xtreamStore.portalStatus();
         let didBootstrapPlaylist = false;

@@ -149,6 +149,7 @@ export class XtreamUrlService {
         if (!source) {
             return '';
         }
+        if (source.directSource) return source.directSource;
         const normalizedCredentials = this.normalizeCredentials(credentials);
         if (!normalizedCredentials) {
             return '';

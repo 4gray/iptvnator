@@ -1,7 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
-import { Subject } from 'rxjs';
+import { EMPTY, Subject } from 'rxjs';
+import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import type {
     PlaybackPositionData,
     PortalActivityItem,
@@ -14,7 +15,10 @@ import {
     DashboardHeroTmdbService,
     type DashboardHeroTmdbExtras,
 } from './dashboard-hero-tmdb.service';
-import { DashboardHeroSlidesPresenter } from './dashboard-hero-slides.presenter';
+import {
+    DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS,
+    DashboardHeroSlidesPresenter,
+} from './dashboard-hero-slides.presenter';
 import type { DashboardHeroLiveCandidate } from './dashboard-hero-slides.utils';
 import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
 import type { DashboardLiveEpgDetails } from './dashboard-live-epg.utils';
@@ -92,6 +96,11 @@ describe('DashboardHeroSlidesPresenter', () => {
     let tmdbEnabled: ReturnType<typeof signal<boolean>>;
     let tmdbLanguage: ReturnType<typeof signal<string>>;
     let getExtras: jest.Mock;
+    let recentLoading: ReturnType<typeof signal<boolean>>;
+    let favoritesLoading: ReturnType<typeof signal<boolean>>;
+    let addedLoading: ReturnType<typeof signal<boolean>>;
+    let liveAwaiting: ReturnType<typeof signal<boolean>>;
+    let positionsSettled: ReturnType<typeof signal<boolean>>;
     const positions = new Map<string | number, PlaybackPositionData>([
         [
             1,
@@ -123,10 +132,23 @@ describe('DashboardHeroSlidesPresenter', () => {
                 {
                     provide: DashboardDataService,
                     useValue: {
-                        globalRecentLoading: signal(false),
+                        globalRecentLoading: () => recentLoading(),
+                        globalFavoritesLoading: () => favoritesLoading(),
+                        xtreamRecentlyAddedLoading: () => addedLoading(),
                         globalRecentItems: recentItems,
                         globalRecentVodItems: () =>
                             recentItems().filter((i) => i.type !== 'live'),
+                        continueWatchingSettled: () => positionsSettled(),
+                        continueWatchingItems: () =>
+                            positionsSettled()
+                                ? recentItems().filter(
+                                      (i) =>
+                                          i.type !== 'live' &&
+                                          !isPortalPlaybackWatched(
+                                              positions.get(i.id) ?? null
+                                          )
+                                  )
+                                : [],
                         globalFavoriteItems: favorites,
                         xtreamRecentlyAddedItems: addedItems,
                         getPlaybackPositionForItem: (
@@ -162,6 +184,7 @@ describe('DashboardHeroSlidesPresenter', () => {
                     useValue: {
                         heroLiveCandidates: candidates,
                         heroDetailsFor: liveDetails,
+                        heroLiveAwaitingFirstAnswer: () => liveAwaiting(),
                     },
                 },
                 {
@@ -177,6 +200,8 @@ describe('DashboardHeroSlidesPresenter', () => {
                     provide: TranslateService,
                     useValue: {
                         onLangChange: new Subject(),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                         instant: (key: string, params?: object) =>
                             params ? `${key} ${JSON.stringify(params)}` : key,
                     },
@@ -195,6 +220,64 @@ describe('DashboardHeroSlidesPresenter', () => {
         tmdbEnabled = signal(false);
         tmdbLanguage = signal('en-US');
         getExtras = jest.fn().mockResolvedValue(null);
+        recentLoading = signal(false);
+        favoritesLoading = signal(false);
+        addedLoading = signal(false);
+        liveAwaiting = signal(false);
+        positionsSettled = signal(true);
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('leaves unavailable saved films in the collection rather than promoting them to a playable hero', () => {
+        favorites.set([{ ...favoriteFilm, catalogStatus: 'missing' }]);
+        expect(
+            create()
+                .slides()
+                .some((slide) => slide.kind === 'favorite')
+        ).toBe(false);
+    });
+
+    it.each([false, true])(
+        'excludes unavailable history from resume and fallback hero inputs (watched: %s)',
+        (watched) => {
+            recentItems.set([
+                {
+                    ...(watched ? watchedMovie : series),
+                    source: 'xtream',
+                    catalogStatus: 'missing',
+                },
+            ]);
+            favorites.set([]);
+            addedItems.set([]);
+            candidates.set([]);
+            tmdbEnabled.set(true);
+            const presenter = create();
+            TestBed.tick();
+            expect(presenter.slides()).toEqual([]);
+            expect(getExtras).not.toHaveBeenCalled();
+        }
+    );
+
+    it('does not look up or reserve a hero slot for an unavailable live candidate', () => {
+        candidates.set([
+            {
+                origin: 'favorite',
+                item: { ...channel, catalogStatus: 'missing' },
+            },
+        ]);
+        favorites.set([
+            favoriteFilm,
+            { ...favoriteFilm, id: 40, xtream_id: 400, title: 'Another film' },
+        ]);
+        const presenter = create();
+        expect(presenter.slides()).toHaveLength(4);
+        expect(presenter.slides().some((slide) => slide.kind === 'live')).toBe(
+            false
+        );
+        expect(liveDetails).not.toHaveBeenCalled();
     });
 
     it('builds the rotation from resume, live, favourite and import slides', () => {
@@ -210,6 +293,38 @@ describe('DashboardHeroSlidesPresenter', () => {
         expect(slides.some((slide) => slide.title === 'Finished Film')).toBe(
             false
         );
+    });
+
+    it('drops a season marker from a series title and leaves movies and live titles alone', () => {
+        // The rotation holds four slides: only the series, the live channel
+        // and a favorite movie compete here (the finished film never does).
+        recentItems.set([{ ...series, title: 'Big Pharma (1 сезон)' }]);
+        favorites.set([
+            { ...favoriteFilm, id: 9, type: 'movie', title: 'Film Season 2' },
+        ]);
+        addedItems.set([]);
+        candidates.set([
+            { origin: 'favorite', item: { ...channel, title: 'Sport S01' } },
+        ]);
+        const presenter = create();
+        const titles = presenter.slides().map((slide) => slide.title);
+        expect(titles).toContain('Big Pharma');
+        expect(titles).not.toContain('Big Pharma (1 сезон)');
+        expect(titles).toContain('Film Season 2');
+        expect(titles).toContain('Sport S01');
+    });
+
+    it('keeps the season marker of a series that no episode badge describes', () => {
+        // A favorite with no playback row: the marker is the only thing
+        // telling two per-season catalog entries of the show apart.
+        recentItems.set([]);
+        favorites.set([{ ...favoriteFilm, title: 'Burnley (2 сезон)' }]);
+        addedItems.set([]);
+        candidates.set([]);
+        const [slide] = create().slides();
+
+        expect(slide.episodeBadge).toBeNull();
+        expect(slide.title).toBe('Burnley (2 сезон)');
     });
 
     it('resumes an unfinished series and offers a detail-only way in', () => {
@@ -379,5 +494,132 @@ describe('DashboardHeroSlidesPresenter', () => {
             backdropUrl: undefined,
             backdropSource: 'fallback',
         });
+    });
+
+    it('keeps the skeleton until every source that can feature a title has loaded', () => {
+        // J1 profile: no history, no favourites; the Xtream recently-added
+        // query runs after the favourites and features the only slide.
+        recentItems.set([]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        recentLoading.set(true);
+        favoritesLoading.set(true);
+        addedLoading.set(true);
+        const presenter = create();
+        expect(presenter.loading()).toBe(true);
+
+        recentLoading.set(false);
+        expect(presenter.loading()).toBe(true);
+
+        favoritesLoading.set(false);
+        expect(presenter.loading()).toBe(true);
+
+        addedItems.set([import1]);
+        addedLoading.set(false);
+        expect(presenter.slides().map((slide) => slide.kind)).toEqual([
+            'added',
+        ]);
+        expect(presenter.loading()).toBe(false);
+    });
+
+    it('drops the skeleton once every source has loaded with nothing to feature', () => {
+        recentItems.set([]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        addedLoading.set(true);
+        const presenter = create();
+        expect(presenter.loading()).toBe(true);
+
+        addedLoading.set(false);
+        expect(presenter.loading()).toBe(false);
+        expect(presenter.slides()).toEqual([]);
+    });
+
+    it('shows a slide without waiting for the slower sources', () => {
+        favoritesLoading.set(true);
+        addedLoading.set(true);
+
+        expect(create().loading()).toBe(false);
+    });
+
+    it('keeps the skeleton until playback positions tell finished titles apart', () => {
+        // History only: until the positions arrive the newest row could be a
+        // finished title, so neither a resume slide nor the history fallback
+        // may stand in for the slide that follows.
+        recentItems.set([watchedMovie, series]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        positionsSettled.set(false);
+        const presenter = create();
+        expect(presenter.slides()).toEqual([]);
+        expect(presenter.loading()).toBe(true);
+
+        positionsSettled.set(true);
+        expect(
+            presenter.slides().map((slide) => [slide.kind, slide.title])
+        ).toEqual([['continue', 'Big Pharma']]);
+        expect(presenter.loading()).toBe(false);
+    });
+
+    describe('with a live channel as the only candidate', () => {
+        let onAirNow: ReturnType<typeof signal<boolean>>;
+
+        beforeEach(() => {
+            recentItems.set([]);
+            favorites.set([]);
+            addedItems.set([]);
+            onAirNow = signal(false);
+            liveDetails = jest.fn(() => (onAirNow() ? onAir : null));
+            liveAwaiting.set(true);
+        });
+
+        it('keeps the skeleton until the channel has its first programme', () => {
+            const presenter = create();
+            expect(presenter.slides()).toEqual([]);
+            expect(presenter.loading()).toBe(true);
+
+            onAirNow.set(true);
+            liveAwaiting.set(false);
+            expect(presenter.slides().map((slide) => slide.kind)).toEqual([
+                'live',
+            ]);
+            expect(presenter.loading()).toBe(false);
+        });
+
+        it('drops the skeleton once the channel answered with nothing on air', () => {
+            const presenter = create();
+            expect(presenter.loading()).toBe(true);
+
+            liveAwaiting.set(false);
+            expect(presenter.loading()).toBe(false);
+        });
+
+        it('stops waiting for a programme that does not come', () => {
+            jest.useFakeTimers();
+            const presenter = create();
+            expect(presenter.loading()).toBe(true);
+
+            jest.advanceTimersByTime(DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS - 1);
+            expect(presenter.loading()).toBe(true);
+            jest.advanceTimersByTime(1);
+            expect(presenter.loading()).toBe(false);
+        });
+    });
+
+    it('does not bring the skeleton back once it has gone', () => {
+        recentItems.set([]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        const presenter = create();
+        expect(presenter.loading()).toBe(false);
+
+        // A later live lookup (a rail card changed the XMLTV batch) must
+        // not insert the skeleton above content that is already placed.
+        liveAwaiting.set(true);
+        expect(presenter.loading()).toBe(false);
     });
 });

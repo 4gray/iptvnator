@@ -1,4 +1,8 @@
-import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
+import {
+    ChannelContextMenuComponent,
+    ChannelScrollFocusDirective,
+} from '@iptvnator/ui/components';
 import {
     CdkDragDrop,
     DragDropModule,
@@ -16,7 +20,6 @@ import {
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import {
     ChannelDetailsDialogComponent,
     ChannelListItemComponent,
@@ -40,6 +43,7 @@ import {
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
     UnifiedFavoriteChannel,
+    collectionEpgKey,
 } from '@iptvnator/portal/shared/util';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -56,11 +60,11 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     styleUrl: './global-favorites-list.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
         DragDropModule,
         MatIconModule,
-        MatMenuModule,
         TranslateModule,
     ],
 })
@@ -71,15 +75,26 @@ export class GlobalFavoritesListComponent {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
 
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );
 
     readonly channels = input.required<UnifiedFavoriteChannel[]>();
     readonly mode = input<GlobalFavoritesListMode>('favorites');
-    readonly showEpg = input(this.runtime.supportsEpg);
+    /** Host switch for programme lines; each row also needs its guide. */
+    readonly showEpg = input(true);
+    /**
+     * Which rows can carry a programme line: M3U rows need XMLTV, Xtream
+     * and Stalker rows read their provider's guide (also in the PWA).
+     */
+    protected readonly guideBySource = {
+        m3u: this.runtime.supportsEpg,
+        xtream: this.runtime.supportsProviderEpg,
+        stalker: this.runtime.supportsProviderEpg,
+    };
     readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
     readonly epgMap = input<Map<string, EpgProgram | null>>(new Map());
     readonly progressTick = input<number>(0);
@@ -101,6 +116,10 @@ export class GlobalFavoritesListComponent {
     readonly epgMappingChanged = output<void>();
 
     readonly contextMenuChannel = signal<EnrichedUnifiedFavorite | null>(null);
+    readonly contextMenuUnavailable = computed(() => {
+        const channel = this.contextMenuChannel();
+        return !!channel && isCatalogUnavailable(channel);
+    });
     readonly contextMenuCanOpenInPlaylist = computed(() => {
         const channel = this.contextMenuChannel();
         return !!channel && this.canOpenInPlaylist(channel);
@@ -108,10 +127,6 @@ export class GlobalFavoritesListComponent {
     readonly contextMenuPlaylistName = computed(() =>
         playlistDisplayLabel(this.contextMenuChannel()?.playlistName)
     );
-    readonly contextMenuPosition = signal({
-        x: '0px',
-        y: '0px',
-    });
 
     readonly isCustomSort = computed(() => this.sortMode() === 'custom');
     readonly canDragDrop = computed(
@@ -138,7 +153,7 @@ export class GlobalFavoritesListComponent {
         });
 
         return sorted.map((ch) => {
-            const epgKey = ch.tvgId?.trim() || ch.name?.trim();
+            const epgKey = collectionEpgKey(ch);
             const currentEpgProgram = epgKey
                 ? (epgMap.get(epgKey) ?? null)
                 : null;
@@ -165,12 +180,20 @@ export class GlobalFavoritesListComponent {
         });
     }
 
+    readonly isUnavailable = isCatalogUnavailable;
+
+    onPlaybackRequested(channel: UnifiedFavoriteChannel): void {
+        if (!isCatalogUnavailable(channel))
+            this.playbackRequested.emit(channel);
+    }
+
     onChannelClick(channel: UnifiedFavoriteChannel): void {
+        if (isCatalogUnavailable(channel)) return;
         this.channelSelected.emit(channel);
     }
 
     onChannelActivate(channel: UnifiedFavoriteChannel): void {
-        if (this.openStreamOnDoubleClick()) {
+        if (this.openStreamOnDoubleClick() && !isCatalogUnavailable(channel)) {
             this.playbackRequested.emit(channel);
         }
     }
@@ -184,22 +207,11 @@ export class GlobalFavoritesListComponent {
         event: MouseEvent
     ): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     hasChannelContextMenu(channel: UnifiedFavoriteChannel): boolean {
+        if (isCatalogUnavailable(channel)) return this.mode() === 'recent';
         return (
             Boolean(channel.m3uChannel) ||
             this.mode() === 'recent' ||
@@ -211,6 +223,7 @@ export class GlobalFavoritesListComponent {
     }
 
     canOpenInPlaylist(channel: UnifiedFavoriteChannel): boolean {
+        if (isCatalogUnavailable(channel)) return false;
         return getLiveCollectionPlaylistNavigation(channel) !== null;
     }
 
@@ -220,17 +233,17 @@ export class GlobalFavoritesListComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         this.openInPlaylistRequested.emit(channel);
     }
 
     openEpgMapping(): void {
         const item = this.contextMenuChannel();
-        if (!item) {
+        if (!item || isCatalogUnavailable(item)) {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const stalkerId = this.stalkerItemId(item);
         const channelKey = item.m3uChannel
             ? resolveChannelEpgLookupKey(item.m3uChannel)
@@ -287,17 +300,14 @@ export class GlobalFavoritesListComponent {
     }
 
     openChannelDetails(): void {
-        const channel = this.contextMenuChannel()?.m3uChannel;
-        if (!channel) {
+        const item = this.contextMenuChannel();
+        const channel = item?.m3uChannel;
+        if (!channel || (item && isCatalogUnavailable(item))) {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
-        });
+        this.channelContextMenu().close();
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     removeContextMenuChannel(): void {
@@ -306,7 +316,7 @@ export class GlobalFavoritesListComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         this.removeRequested.emit(channel);
     }
 
