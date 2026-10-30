@@ -25,6 +25,7 @@ import {
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
     PortalCatalogSortMode,
+    PortalWatchStateFilter,
 } from '@iptvnator/portal/shared/util';
 import { CategoryContentViewComponent } from './category-content-view.component';
 
@@ -76,6 +77,10 @@ describe('CategoryContentViewComponent', () => {
     const categoryItemCount = signal(0);
     const contentSortMode = signal<PortalCatalogSortMode | null>(null);
     const minRating = signal<number | null>(null);
+    const watchStateFilter = signal<PortalWatchStateFilter>(null);
+    const watchFilterLoadState = signal<'idle' | 'loading' | 'ready' | 'error'>(
+        'ready'
+    );
     const selectedItem = signal<Record<string, unknown> | null>(null);
     const hasMore = signal(false);
     const isAppending = signal(false);
@@ -96,6 +101,11 @@ describe('CategoryContentViewComponent', () => {
         appendError,
         contentSortMode,
         supportsRatingSort: true,
+        supportsWatchStateFilter: false,
+        watchStateFilter,
+        watchFilterLoadState,
+        setWatchStateFilter: jest.fn(),
+        retryWatchFilterPositions: jest.fn(),
         minRating,
         playlist,
         isPaginatedContentLoading,
@@ -125,6 +135,12 @@ describe('CategoryContentViewComponent', () => {
 
     beforeEach(async () => {
         routeReady.set(true);
+        catalog.contentType.set('vod');
+        catalog.supportsWatchStateFilter = false;
+        watchStateFilter.set(null);
+        watchFilterLoadState.set('ready');
+        catalog.setWatchStateFilter.mockReset();
+        catalog.retryWatchFilterPositions.mockReset();
         playlist.set(null);
         catalog.selectedCategoryTitle.set('Movies');
         window.history.replaceState({}, '', window.location.href);
@@ -566,6 +582,12 @@ describe('CategoryContentViewComponent', () => {
         expect(window.history.state.openStalkerItem).toEqual(item);
 
         routeReady.set(true);
+        catalog.contentType.set('vod');
+        catalog.supportsWatchStateFilter = false;
+        watchStateFilter.set(null);
+        watchFilterLoadState.set('ready');
+        catalog.setWatchStateFilter.mockReset();
+        catalog.retryWatchFilterPositions.mockReset();
         fixture.detectChanges();
         expect(catalog.initialize).toHaveBeenCalledWith('5');
         expect(catalog.selectItem).toHaveBeenCalledWith(item);
@@ -574,6 +596,12 @@ describe('CategoryContentViewComponent', () => {
         routeReady.set(false);
         fixture.detectChanges();
         routeReady.set(true);
+        catalog.contentType.set('vod');
+        catalog.supportsWatchStateFilter = false;
+        watchStateFilter.set(null);
+        watchFilterLoadState.set('ready');
+        catalog.setWatchStateFilter.mockReset();
+        catalog.retryWatchFilterPositions.mockReset();
         fixture.detectChanges();
         expect(catalog.initialize).toHaveBeenCalledTimes(1);
     });
@@ -595,6 +623,12 @@ describe('CategoryContentViewComponent', () => {
         fixture.detectChanges();
         expect(catalog.initialize).toHaveBeenCalledTimes(1);
         routeReady.set(true);
+        catalog.contentType.set('vod');
+        catalog.supportsWatchStateFilter = false;
+        watchStateFilter.set(null);
+        watchFilterLoadState.set('ready');
+        catalog.setWatchStateFilter.mockReset();
+        catalog.retryWatchFilterPositions.mockReset();
         fixture.detectChanges();
         expect(catalog.initialize).toHaveBeenCalledTimes(2);
         expect(catalog.selectItem).toHaveBeenCalledWith(item);
@@ -733,6 +767,293 @@ describe('CategoryContentViewComponent', () => {
         detail = fixture.debugElement.query(By.directive(MockDetailComponent))
             .componentInstance as MockDetailComponent;
         expect(detail.providerOnly()).toBe(false);
+    });
+
+    describe('movie watch refinements', () => {
+        const enableWatchFilter = () => {
+            catalog.supportsWatchStateFilter = true;
+            isPaginatedContentLoading.set(false);
+            catalog.setWatchStateFilter.mockImplementation((value) =>
+                watchStateFilter.set(value)
+            );
+        };
+        const openWatchMenu = () => {
+            fixture.nativeElement.querySelector('.refine-action').click();
+            fixture.detectChanges();
+            (
+                document.querySelector(
+                    '.refine-watch-trigger'
+                ) as HTMLButtonElement
+            )?.click();
+            fixture.detectChanges();
+        };
+
+        it.each(['series', 'live'])(
+            'hides watch choices and chips for %s even with a capability',
+            (type) => {
+                enableWatchFilter();
+                catalog.contentType.set(type);
+                contentSortMode.set('date-desc');
+                watchStateFilter.set('watched');
+                fixture.detectChanges();
+                expect(
+                    fixture.nativeElement.querySelector(
+                        '.watch-refinement-chip'
+                    )
+                ).toBeNull();
+                fixture.nativeElement.querySelector('.refine-action').click();
+                fixture.detectChanges();
+                expect(
+                    document.querySelector('.refine-watch-trigger')
+                ).toBeNull();
+            }
+        );
+
+        it('requires the optional capability and setter, without leaking watch UI to Stalker', () => {
+            catalog.provider = 'stalker';
+            contentSortMode.set('date-desc');
+            watchStateFilter.set('watched');
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector('.watch-refinement-chip')
+            ).toBeNull();
+            fixture.nativeElement.querySelector('.refine-action').click();
+            fixture.detectChanges();
+            expect(document.querySelector('.refine-watch-trigger')).toBeNull();
+        });
+
+        it('hides watch choices when a capability has no setter', () => {
+            enableWatchFilter();
+            const setter = catalog.setWatchStateFilter;
+            Reflect.set(catalog, 'setWatchStateFilter', undefined);
+            try {
+                watchStateFilter.set('watched');
+                fixture.detectChanges();
+                expect(
+                    fixture.nativeElement.querySelector(
+                        '.watch-refinement-chip'
+                    )
+                ).toBeNull();
+                expect(fixture.componentInstance.watchFilter.canFilter()).toBe(
+                    false
+                );
+            } finally {
+                catalog.setWatchStateFilter = setter;
+            }
+        });
+
+        it('offers four named radio choices with the selected watch status checked', () => {
+            enableWatchFilter();
+            watchStateFilter.set('in-progress');
+            fixture.detectChanges();
+            openWatchMenu();
+            const group = document.querySelector(
+                '.refine-watch-menu [role="group"]'
+            );
+            expect(group?.getAttribute('aria-label')).toBe(
+                'WORKSPACE.REFINE_WATCH_SECTION'
+            );
+            const rows = [
+                ...document.querySelectorAll(
+                    '.refine-watch-menu [role="menuitemradio"]'
+                ),
+            ];
+            expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual(
+                ['false', 'false', 'true', 'false']
+            );
+            expect(
+                rows.map((row) =>
+                    row
+                        .querySelector('.mat-mdc-menu-item-text')
+                        ?.textContent?.trim()
+                )
+            ).toEqual([
+                'WORKSPACE.REFINE_WATCH_ALL',
+                'WORKSPACE.REFINE_WATCH_UNWATCHED',
+                'WORKSPACE.REFINE_WATCH_IN_PROGRESS',
+                'WORKSPACE.REFINE_WATCH_WATCHED',
+            ]);
+            (rows[3] as HTMLButtonElement).click();
+            expect(catalog.setWatchStateFilter).toHaveBeenCalledWith('watched');
+        });
+
+        it.each([
+            [null, null, 0],
+            [8, null, 1],
+            [null, 'watched', 1],
+            [8, 'unwatched', 2],
+        ] as const)(
+            'counts rating %s and watch %s as %s refinements, excluding sort',
+            (rating, status, count) => {
+                enableWatchFilter();
+                contentSortMode.set('name-asc');
+                minRating.set(rating);
+                watchStateFilter.set(status);
+                fixture.detectChanges();
+                expect(fixture.componentInstance.activeRefinementCount()).toBe(
+                    count
+                );
+                expect(
+                    !!fixture.nativeElement.querySelector(
+                        '.watch-refinement-chip'
+                    )
+                ).toBe(status !== null);
+            }
+        );
+
+        it('clears only watch status and returns focus from a removed chip to Refine', async () => {
+            enableWatchFilter();
+            watchStateFilter.set('watched');
+            minRating.set(8);
+            fixture.detectChanges();
+            const chip = fixture.nativeElement.querySelector(
+                '.watch-refinement-chip'
+            ) as HTMLButtonElement;
+            expect(chip).not.toBeNull();
+            expect(chip?.getAttribute('aria-label')).toBe(
+                'WORKSPACE.REFINE_WATCH_CLEAR'
+            );
+            chip?.focus();
+            chip?.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(catalog.setWatchStateFilter).toHaveBeenCalledWith(null);
+            expect(catalog.setMinRating).not.toHaveBeenCalled();
+            expect(minRating()).toBe(8);
+            expect(document.activeElement).toBe(
+                fixture.nativeElement.querySelector('.refine-action')
+            );
+        });
+
+        it.each(['idle', 'loading', 'error'] as const)(
+            'keeps header/refine and suppresses false counts, empty grids and appends while history is %s',
+            (state) => {
+                enableWatchFilter();
+                watchStateFilter.set('unwatched');
+                watchFilterLoadState.set(state);
+                hasMore.set(true);
+                fixture.detectChanges();
+                expect(
+                    fixture.nativeElement.querySelector('.category-title')
+                ).not.toBeNull();
+                expect(
+                    fixture.nativeElement.querySelector('.refine-action')
+                ).not.toBeNull();
+                expect(
+                    fixture.nativeElement.querySelector('app-grid-list')
+                ).toBeNull();
+                expect(fixture.nativeElement.textContent).not.toContain(
+                    'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER'
+                );
+                expect(fixture.nativeElement.textContent).not.toContain(
+                    'WORKSPACE.REFINE_WATCH_EMPTY_TITLE'
+                );
+                expect(fixture.nativeElement.textContent).toContain(
+                    state === 'error'
+                        ? 'WORKSPACE.REFINE_WATCH_ERROR_TITLE'
+                        : 'WORKSPACE.REFINE_WATCH_LOADING'
+                );
+                fixture.componentInstance.onLoadMore();
+                fixture.componentInstance.onRetryAppend();
+                expect(catalog.loadMore).not.toHaveBeenCalled();
+                expect(catalog.retryAppend).not.toHaveBeenCalled();
+            }
+        );
+
+        it('offers history retry and clear recovery without clearing rating', () => {
+            enableWatchFilter();
+            watchStateFilter.set('watched');
+            watchFilterLoadState.set('error');
+            fixture.detectChanges();
+            const buttons = [
+                ...fixture.nativeElement.querySelectorAll(
+                    '.watch-filter-state button'
+                ),
+            ] as HTMLButtonElement[];
+            expect(buttons).toHaveLength(2);
+            buttons[0]?.click();
+            expect(catalog.retryWatchFilterPositions).toHaveBeenCalledTimes(1);
+            buttons[1]?.click();
+            expect(catalog.setWatchStateFilter).toHaveBeenCalledWith(null);
+            expect(catalog.setMinRating).not.toHaveBeenCalled();
+        });
+
+        it('shows the watch-specific empty result only when history and catalog are ready', () => {
+            enableWatchFilter();
+            watchStateFilter.set('watched');
+            isPaginatedContentLoading.set(true);
+            fixture.detectChanges();
+            expect(fixture.nativeElement.textContent).not.toContain(
+                'WORKSPACE.REFINE_WATCH_EMPTY_TITLE'
+            );
+            isPaginatedContentLoading.set(false);
+            fixture.detectChanges();
+            expect(fixture.nativeElement.textContent).toContain(
+                'WORKSPACE.REFINE_WATCH_EMPTY_TITLE'
+            );
+            expect(fixture.nativeElement.textContent).toContain(
+                'WORKSPACE.REFINE_WATCH_EMPTY_DESCRIPTION'
+            );
+            expect(
+                fixture.nativeElement.querySelector('app-grid-list')
+            ).toBeNull();
+            categoryItemCount.set(7);
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector('app-grid-list')
+            ).not.toBeNull();
+            expect(
+                fixture.componentInstance.categoryItemSubtitle().params
+            ).toEqual({ count: 7 });
+        });
+
+        it('keeps normal catalog states when no status is active even if history failed', () => {
+            enableWatchFilter();
+            watchFilterLoadState.set('error');
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector('app-grid-list')
+            ).not.toBeNull();
+            expect(
+                fixture.nativeElement.querySelector('.watch-filter-state')
+            ).toBeNull();
+        });
+
+        it('changes the reset identity for a new status but not a repeated selection', () => {
+            enableWatchFilter();
+            fixture.detectChanges();
+            const initial = fixture.componentInstance.gridResetKey();
+            categoryItemCount.set(2);
+            fixture.detectChanges();
+            const grid = fixture.nativeElement.querySelector('app-grid-list');
+            const scrollTo = jest.fn();
+            Object.defineProperty(grid, 'scrollTo', { value: scrollTo });
+            watchStateFilter.set('in-progress');
+            fixture.detectChanges();
+            const filtered = fixture.componentInstance.gridResetKey();
+            expect(filtered).not.toBe(initial);
+            expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+            scrollTo.mockClear();
+            watchStateFilter.set('in-progress');
+            fixture.detectChanges();
+            expect(fixture.componentInstance.gridResetKey()).toBe(filtered);
+            expect(scrollTo).not.toHaveBeenCalled();
+        });
+
+        it('does not consume a saved scroll position until active-filter history becomes ready', () => {
+            enableWatchFilter();
+            watchStateFilter.set('unwatched');
+            watchFilterLoadState.set('loading');
+            fixture.detectChanges();
+            expect(catalog.consumeSavedScrollPosition).not.toHaveBeenCalled();
+            watchFilterLoadState.set('error');
+            fixture.detectChanges();
+            expect(catalog.consumeSavedScrollPosition).not.toHaveBeenCalled();
+            watchFilterLoadState.set('ready');
+            categoryItemCount.set(2);
+            fixture.detectChanges();
+            expect(catalog.consumeSavedScrollPosition).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('infinite scroll mode', () => {

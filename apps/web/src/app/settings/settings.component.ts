@@ -78,6 +78,7 @@ import {
 } from './settings-unsaved-changes-dialog.component';
 import { SettingsLeaveConfirmation } from './settings-unsaved-changes.guard';
 import { SettingsUnloadGuardService } from './settings-unload-guard.service';
+import { waitForSettingsUiFeedbackFrame } from './settings-ui-feedback';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
@@ -507,35 +508,21 @@ export class SettingsComponent
     }
 
     async exportData(): Promise<void> {
-        await this.backup.exportData(() => this.waitForUiFeedbackFrame());
+        if (this.playlistReset.isRemovingAllPlaylists()) return;
+        await this.backup.exportData(waitForSettingsUiFeedbackFrame);
     }
 
     importData(): void {
+        if (this.playlistReset.isRemovingAllPlaylists()) return;
         this.backup.importData(() => this.form.hydrateFromStore());
     }
 
     removeAll(): void {
-        this.playlistReset.confirmAndRemoveAll(() =>
-            this.waitForUiFeedbackFrame()
-        );
+        if (this.backup.isBusy()) return;
+        this.playlistReset.confirmAndRemoveAll(waitForSettingsUiFeedbackFrame);
     }
 
     private isNavigableSection(sectionId: string): boolean {
         return this.sectionNav.some((section) => section.id === sectionId);
-    }
-
-    /**
-     * Lets the browser paint the pending busy state before a long running
-     * task blocks the main thread.
-     */
-    private async waitForUiFeedbackFrame(): Promise<void> {
-        if (typeof window.requestAnimationFrame !== 'function') {
-            await Promise.resolve();
-            return;
-        }
-
-        await new Promise<void>((resolve) => {
-            window.requestAnimationFrame(() => resolve());
-        });
     }
 }

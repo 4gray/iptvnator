@@ -579,14 +579,13 @@ async function expectCatalogSearchQuery(
 }
 
 async function firstVisibleGridTitle(page: Page): Promise<string> {
-    const titles = await visibleGridTitles(page);
-    const title = titles[0];
-
-    if (!title) {
-        throw new Error('Expected at least one visible catalog grid title.');
-    }
-
-    return title;
+    // Category selection updates before its response replaces the old grid.
+    // Unlike allInnerTexts(), this waits through that empty transition.
+    const title = page
+        .locator('.category-content-layout mat-card .title')
+        .first();
+    await expect(title).toBeVisible({ timeout: 20000 });
+    return (await title.innerText()).trim();
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {

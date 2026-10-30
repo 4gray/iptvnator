@@ -221,7 +221,7 @@ export class VodDetailsMenuService {
             // badges; another playlist's store must not be replaced by the
             // old playlist's positions.
             if (this.xtreamStore.currentPlaylist()?.id === playlistId) {
-                void this.xtreamStore.loadAllPositions(playlistId);
+                this.refreshPositions(playlistId);
             }
             return;
         }
@@ -235,9 +235,15 @@ export class VodDetailsMenuService {
         }
         this.playback.vodPlaybackPosition.set(null);
         if (this.xtreamStore.currentPlaylist()?.id === playlistId) {
-            void this.xtreamStore.loadAllPositions(playlistId);
+            this.refreshPositions(playlistId);
         }
         this.notify('PORTALS.DETAIL.PROGRESS_RESET');
+    }
+
+    private refreshPositions(playlistId: string): void {
+        void this.xtreamStore.loadAllPositions(playlistId).catch((error) => {
+            this.logger.warn('Failed to refresh playback positions', error);
+        });
     }
 
     private showInCategory(): void {

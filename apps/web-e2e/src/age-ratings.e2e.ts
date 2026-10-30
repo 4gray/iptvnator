@@ -22,6 +22,7 @@ import {
 test.use({ serviceWorkers: 'block' });
 test.describe.configure({ mode: 'serial' });
 
+// Keep the provider proxy URL but disable source-server storage discovery.
 test.beforeEach(async ({ page }) => {
     await configureMockProviderBackend(page);
 });

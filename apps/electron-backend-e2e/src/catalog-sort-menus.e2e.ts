@@ -92,7 +92,7 @@ function openMenuPanel(page: Page): Locator {
 /** The refine menu's own panel, also while its rating submenu is open. */
 function refineMenuPanel(page: Page): Locator {
     return page.locator(
-        '.cdk-overlay-pane .mat-mdc-menu-panel.refine-menu:not(.refine-rating-menu)'
+        '.cdk-overlay-pane .mat-mdc-menu-panel.refine-menu:not(.refine-rating-menu):not(.refine-watch-menu)'
     );
 }
 
@@ -465,7 +465,26 @@ test.describe('Electron catalog sort menus', () => {
             // Below the button, not pushed up over it.
             expect(menuBox.top).toBeGreaterThanOrEqual(triggerBottom);
 
-            // The last row opens the thresholds with the arrow key.
+            // The last row opens the four watch states without growing the
+            // parent menu by four rows. Escape returns focus to its trigger.
+            await page.keyboard.press('ArrowUp');
+            await expect(menu.locator('.refine-watch-trigger')).toBeFocused();
+            await page.keyboard.press('ArrowRight');
+            const watchStates = page.locator(
+                '.cdk-overlay-pane .refine-watch-menu'
+            );
+            await expect(watchStates).toBeVisible();
+            await settleAnimations(watchStates);
+            await expect(watchStates.getByRole('menuitemradio')).toHaveCount(4);
+            await expect(
+                watchStates.getByRole('menuitemradio').first()
+            ).toBeFocused();
+            await expectWholeOnScreen(watchStates, 'watch status submenu');
+            await page.keyboard.press('Escape');
+            await expect(watchStates).toBeHidden();
+            await expect(menu.locator('.refine-watch-trigger')).toBeFocused();
+
+            // The preceding row still opens the rating thresholds.
             await page.keyboard.press('ArrowUp');
             await expect(menu.locator('.refine-rating-trigger')).toBeFocused();
             await page.keyboard.press('ArrowRight');

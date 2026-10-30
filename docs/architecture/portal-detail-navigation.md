@@ -23,6 +23,14 @@ do not reach global player shortcuts. Descendant controls retain their native
 keys and Tab order. Entering watch still scrolls to the top; Back and saved
 catalog scroll positions retain the existing navigation contract below.
 
+Xtream Movies catalog snapshots include the watch-status filter alongside
+category, query, sort and minimum rating. Changing the status resets the render
+window and scroll; a detail round trip restores only the matching snapshot,
+after the current source's positions have loaded. The status survives technical
+category changes when opening an item from All movies, and the Back action
+continues to use browser history. Updated viewing history can remove a title
+from the filtered list; restoration stays within the remaining scroll range.
+
 The shell owns the page's Back action, but the workspace header renders it
 (the general contract, other pages and the history fallback are in
 [Header Back](./workspace-shell.md#header-back)). While `backAvailable()` is

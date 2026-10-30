@@ -93,7 +93,7 @@ export function createPlaylistBackupService(
 
     Object.assign(service as object, {
         playlistsService: {
-            addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
+            restorePlaylist: jest.fn((playlist: Playlist) => of(playlist)),
             getAllData: jest.fn(() => of([])),
             getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
             handlePlaylistParsing: jest.fn(
@@ -120,7 +120,7 @@ export function createPlaylistBackupService(
         databaseService: {
             getAllXtreamCategories: jest.fn().mockResolvedValue([]),
             getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
-            getRecentItems: jest.fn().mockResolvedValue([]),
+            getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
             getXtreamImportStatus: jest.fn().mockResolvedValue('idle'),
             hasXtreamCategories: jest.fn().mockResolvedValue(false),
             hasXtreamContent: jest.fn().mockResolvedValue(false),
@@ -216,7 +216,7 @@ export function createStatefulBackupCollaborators(
     return {
         playlistsService: {
             getAllData: () => of(state.playlists.map((item) => ({ ...item }))),
-            addPlaylist: (playlist: Playlist) => {
+            restorePlaylist: (playlist: Playlist) => {
                 const index = state.playlists.findIndex(
                     (item) => item._id === playlist._id
                 );
@@ -278,7 +278,7 @@ export function createStatefulBackupCollaborators(
                     .map((row) => ({ ...row })),
             getFavoritesOrThrow: async () =>
                 state.xtreamFavorites.map((row) => ({ ...row })),
-            getRecentItems: async () =>
+            getRecentItemsOrThrow: async () =>
                 state.xtreamRecent.map((row) => ({ ...row })),
             getXtreamImportStatus: async () => 'completed',
             hasXtreamCategories: async () => true,

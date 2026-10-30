@@ -1,3 +1,4 @@
+import type { PlaybackPositionsState } from './with-playback-positions.feature';
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -160,6 +161,15 @@ const TestSelectionStore = signalStore(
             },
         ],
     }),
+    withState<
+        PlaybackPositionsState & { currentPlaylist: { id: string } | null }
+    >({
+        playbackPositions: new Map(),
+        seriesPositions: new Map(),
+        positionsPlaylistId: 'a',
+        positionsLoadState: 'ready',
+        currentPlaylist: { id: 'a' },
+    }),
     withSelection()
 );
 
@@ -187,9 +197,7 @@ describe('withSelection', () => {
         store.setSelectedContentType('vod');
         store.setSelectedCategory(90);
 
-        expect(store.getPaginatedContent().length).toBe(
-            CATALOG_INITIAL_WINDOW
-        );
+        expect(store.getPaginatedContent().length).toBe(CATALOG_INITIAL_WINDOW);
         expect(store.hasMoreContent()).toBe(true);
 
         store.loadMoreContent();
@@ -242,9 +250,7 @@ describe('withSelection', () => {
         store.setCategorySearchTerm('bulk');
 
         expect(store.visibleCount()).toBe(CATALOG_INITIAL_WINDOW);
-        expect(store.getPaginatedContent().length).toBe(
-            CATALOG_INITIAL_WINDOW
-        );
+        expect(store.getPaginatedContent().length).toBe(CATALOG_INITIAL_WINDOW);
     });
 
     it('resets the render window when the category changes', () => {

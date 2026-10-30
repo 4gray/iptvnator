@@ -146,6 +146,10 @@
                                 playlistReset.isRemovingAllPlaylists()
                             "
                             [isExportingData]="backup.isExportingData()"
+                            [isImportingData]="backup.isImportingData()"
+                            [isBackupBusy]="backup.isBusy()"
+                            [importSummary]="backup.importSummary()"
+                            [importFailed]="backup.importFailed()"
                             [canRemoveAllPlaylists]="
                                 libraryReady() && playlistReset.canRemoveAll()
                             "
