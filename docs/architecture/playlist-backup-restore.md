@@ -54,7 +54,7 @@ M3U backups are self-contained.
 - Export playlist-scoped user state:
     - favorites by channel URL
     - recently viewed M3U items
-    - hidden group titles
+    - hidden group titles (exact strings, including surrounding whitespace)
 
 The embedded raw text is the canonical restore artifact. The internal parsed
 playlist object graph is not the backup format.
@@ -86,8 +86,8 @@ is unavailable. Re-export neither applies nor consumes the pending snapshot,
 so it also works before the portal has been opened and in browser runtimes.
 Parental category locks still come from the current lock store.
 
-A failed pending-storage or playback-position read fails export. An unreadable
-collection must never be serialized as a successful empty collection.
+A failed pending-storage, recent-history or playback-position read fails export.
+An unreadable collection must never be serialized as a successful empty collection.
 
 Explicitly excluded:
 
@@ -142,10 +142,19 @@ hands its contents to `PlaylistBackupService.importBackup()`.
 
 The service:
 
-1. Validates the manifest kind/version before any writes.
+1. Validates the manifest kind/version and every entry before any writes.
+   M3U favorites, history and hidden groups and Stalker favorites/history must
+   be complete arrays of the expected element types. Source/connection fields,
+   playlist identity/title and EPG URL settings are checked before processing
+   even an earlier valid entry. Optional v1 extensions remain optional; Xtream
+   ID-less historical entries still use the compatibility normalizer below.
 2. Rejects legacy raw `Playlist[]` JSON blobs.
 3. Builds stable source fingerprints for merge-vs-create decisions.
-4. Upserts playlists into app playlist storage.
+4. Upserts complete playlist documents through
+   `PlaylistsService.restorePlaylist()`, under the normal playlist write queue
+   and authority lock. Browser IndexedDB uses `put`, since `add` rejects an
+   existing id; refresh's merge API is unsuitable because it preserves the
+   current favorites instead of restoring the archive's explicit lists.
 5. Restores provider-specific user state.
 
 Fingerprint rules:
@@ -228,6 +237,10 @@ Electron restore behavior:
    a failed insert rolls back the deletion and all earlier inserts.
 4. VOD source pins are re-applied against the IMPORTED playlist id.
 
+A rejected category visibility write fails the entry and retains its pending
+snapshot. Both the visibility reset and the subsequent hide must succeed;
+returning `false` is a storage failure, never a successful restore.
+
 For existing Xtream playlists with a fully populated offline cache, backup
 import applies the restore immediately. Otherwise the typed restore payload is
 left pending until the next Xtream initialization/import. Both paths use strict
@@ -305,3 +318,29 @@ raw JSON application dump.
     - merged
     - skipped
     - failed
+
+The settings facade guards import, file selection and export with one busy
+state. Reset is disabled while backup work is active; backup actions are
+blocked during reset. Cancelling the chooser or native save is a no-op, and
+file-read/import failures release the busy state. Keyboard focus returns to
+the import trigger after the playlist inventory finishes loading and the
+router outlet is visible again, if the browser lost focus while that trigger
+was disabled. Focus the user moved elsewhere is retained.
+
+Import progress and the final counts live in a persistent, localized status
+region on the backup page. A partial result explains that already applied
+changes are retained and the archive can be retried. Raw archive, parser and
+storage errors are not shown or logged by this facade, since their text can
+contain credentials. Export errors use the settings dismissible error toast.
+
+Validation is a preflight, not a cross-store transaction. Invalid structure
+causes no writes; an operational storage failure after a valid archive starts
+can leave completed entries or steps in place. The pending Xtream snapshot
+supports retry. SQLite positions and pins retain their own transactional
+replacement guarantees described above.
+
+Regression coverage: `playlist-backup.service.validation.spec.ts`,
+`playlist-backup.service.xtream-restore.spec.ts`,
+`settings-backup.facade.spec.ts`, browser `backup-restore.e2e.ts`, and Electron
+`backup-roundtrip.e2e.ts`. Browser tests use isolated contexts and fictional
+archives; Electron tests use their own temporary data root.

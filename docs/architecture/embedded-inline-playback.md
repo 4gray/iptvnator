@@ -200,6 +200,12 @@ centered, so the leftover is always the stage's own black background — never
 a stray strip of app surface. This is the YouTube-style letterbox and is the
 default behavior for every inline engine.
 
+The surrounding panel uses the app's widget surface and text tokens in both
+themes. Its header keeps a single-line, ellipsized title and a labelled copy
+icon beside the secondary Close player action; below 600 px of panel width,
+actions move below the title. The detail shell aligns the player with the
+episode section and separates them by 24 px (16 px below 800 px of pane width).
+
 The optional `playerAmbientMode` setting (Settings → Playback, default off,
 shown only for the built-in web players) renders a blurred, dimmed copy of the
 poster (`ResolvedPortalPlayback.thumbnail`) behind the player via the

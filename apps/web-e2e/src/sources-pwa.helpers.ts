@@ -2,6 +2,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect } from './fixtures';
 import { postWithRetry, setInputValue } from './e2e-helpers';
 import {
+    configureMockProviderBackend,
     getRegisteredProviderUrl,
     interceptProviderTargetRegistration,
 } from './provider-target-route';
@@ -52,9 +53,8 @@ export async function resetPwaMockServers(
     }
 }
 
-export async function interceptPwaProviderRequests(
-    page: Page
-): Promise<void> {
+export async function interceptPwaProviderRequests(page: Page): Promise<void> {
+    await configureMockProviderBackend(page);
     const providerTargets = await interceptProviderTargetRegistration(page);
 
     await page.route(`${BACKEND_ORIGIN}/parse**`, async (route) => {
@@ -259,7 +259,9 @@ export async function expectSourceDialogValues(
 export async function expectElectronBridgeUnavailable(
     page: Page
 ): Promise<void> {
-    await expect.poll(() => page.evaluate(() => window.electron)).toBeUndefined();
+    await expect
+        .poll(() => page.evaluate(() => window.electron))
+        .toBeUndefined();
 }
 
 export function collectRuntimeErrors(page: Page): RuntimeErrors {
@@ -280,14 +282,13 @@ export function collectRuntimeErrors(page: Page): RuntimeErrors {
     return errors;
 }
 
-export function expectNoElectronDbRuntimeErrors(
-    errors: RuntimeErrors
-): void {
+export function expectNoElectronDbRuntimeErrors(errors: RuntimeErrors): void {
     const electronDbErrorPattern =
         /window\.electron|Cannot read properties of undefined.*db|db(UpdatePlaylist|SetAppState|GetContentByXtreamId|GetAllCategories|UpdateCategoryVisibility|GlobalSearch)|DB_(UPDATE_PLAYLIST|SET_APP_STATE|GET_CONTENT_BY_XTREAM_ID|GET_ALL_CATEGORIES|UPDATE_CATEGORY_VISIBILITY|GLOBAL_SEARCH)|updateXtreamPlaylistDetails|globalSearchContent/i;
-    const matchingErrors = [...errors.consoleErrors, ...errors.pageErrors].filter(
-        (message) => electronDbErrorPattern.test(message)
-    );
+    const matchingErrors = [
+        ...errors.consoleErrors,
+        ...errors.pageErrors,
+    ].filter((message) => electronDbErrorPattern.test(message));
 
     expect(matchingErrors).toEqual([]);
 }

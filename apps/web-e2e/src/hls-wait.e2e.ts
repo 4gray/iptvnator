@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures';
+import { configureMockProviderBackend } from './provider-target-route';
 import { selectWebPlayer } from './xtream-series-playback.fixture';
 
 const origin = 'https://hls-wait.fixture.invalid';
@@ -17,6 +18,7 @@ for (const recovery of ['automatic', 'retry', 'legacy-fullscreen']) {
         page,
     }, testInfo) => {
         test.setTimeout(70000);
+        await configureMockProviderBackend(page);
         let available = false;
         let requests = 0;
         await page.route(`${origin}/**`, async (route) => {

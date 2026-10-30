@@ -43,20 +43,18 @@
                         />
                     }
                     <button
-                        mat-button
+                        mat-icon-button
                         type="button"
                         [cdkCopyToClipboard]="streamUrl()"
-                        [matTooltip]="streamUrl()"
+                        [attr.aria-label]="
+                            'PORTALS.COPY_STREAM_URL' | translate
+                        "
+                        [matTooltip]="'PORTALS.COPY_STREAM_URL' | translate"
                         (click)="onCopied()"
                     >
                         <mat-icon>content_copy</mat-icon>
-                        {{ 'PORTALS.COPY_STREAM_URL' | translate }}
                     </button>
-                    <button
-                        mat-flat-button
-                        type="button"
-                        (click)="onClose()"
-                    >
+                    <button mat-flat-button type="button" (click)="onClose()">
                         <mat-icon>close</mat-icon>
                         {{ 'PORTALS.CLOSE_PLAYER' | translate }}
                     </button>

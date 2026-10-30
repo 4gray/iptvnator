@@ -1,6 +1,9 @@
 import { InjectionToken, Signal } from '@angular/core';
 import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
-import type { PortalWatchState } from './portal-watch-state';
+import type {
+    PortalWatchState,
+    PortalWatchStateFilter,
+} from './portal-watch-state';
 
 export type PortalCatalogProvider = 'xtream' | 'stalker';
 
@@ -82,6 +85,14 @@ export interface PortalCatalogFacade<
      */
     readonly supportsRatingSort?: boolean;
     readonly minRating?: Signal<number | null>;
+    /** Optional Movies-only watch status filter. Null selects every movie. */
+    readonly supportsWatchStateFilter?: boolean;
+    readonly watchStateFilter?: Signal<PortalWatchStateFilter>;
+    readonly watchFilterLoadState?: Signal<
+        'idle' | 'loading' | 'ready' | 'error'
+    >;
+    setWatchStateFilter?(value: PortalWatchStateFilter): void;
+    retryWatchFilterPositions?(): void;
 
     initialize(categoryId?: string | null): void;
     setSearchQuery?(query: string): void;

@@ -48,6 +48,8 @@ import {
     catalogSortLabels,
 } from './catalog-sort-options';
 
+import { createCatalogWatchFilter } from './catalog-watch-filter';
+
 interface CategoryContentItem {
     id?: number | string;
     is_series?: number | string | boolean;
@@ -92,6 +94,10 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         CategoryContentItem
     >;
 
+    readonly watchFilter = createCatalogWatchFilter(
+        this.catalog,
+        this.hostElement.nativeElement
+    );
     readonly detailComponent = inject(PORTAL_CATALOG_DETAIL_COMPONENT);
     readonly contentType = this.catalog.contentType;
     readonly selectedCategory = this.catalog.selectedCategory;
@@ -117,6 +123,14 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly categoryItemSubtitle = computed(() => {
         if (this.contentError()) {
             return { key: 'PORTALS.CATALOG_LOAD_ERROR.TITLE', params: {} };
+        }
+        if (this.watchFilter.blocked()) {
+            return {
+                key: this.watchFilter.error()
+                    ? 'WORKSPACE.REFINE_WATCH_ERROR_TITLE'
+                    : 'WORKSPACE.REFINE_WATCH_LOADING',
+                params: {},
+            };
         }
         if (this.isCatalogLoadingSubtitle()) {
             return { key: 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING', params: {} };
@@ -145,10 +159,15 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     );
     readonly ratingThresholds = [9, 8, 7, 6, 5] as const;
     readonly hasRefineControls = computed(
-        () => this.canSortContent() || this.canFilterByRating()
+        () =>
+            this.canSortContent() ||
+            this.canFilterByRating() ||
+            this.watchFilter.canFilter()
     );
-    readonly activeRefinementCount = computed(() =>
-        this.minRating() !== null ? 1 : 0
+    readonly activeRefinementCount = computed(
+        () =>
+            Number(this.minRating() !== null) +
+            Number(this.watchFilter.active())
     );
     readonly sortOptions = computed(() =>
         CATALOG_SORT_OPTIONS.filter(
@@ -201,6 +220,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.searchTerm(),
             this.contentSortMode() ?? '',
             String(this.minRating() ?? ''),
+            this.watchFilter.value() ?? '',
         ].join('|');
     });
     private previousGridResetKey: string | null = null;
@@ -281,7 +301,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
             if (
                 this.hasAttemptedScrollRestore ||
-                this.isPaginatedContentLoading()
+                this.isPaginatedContentLoading() ||
+                this.watchFilter.blocked()
             ) {
                 return;
             }
@@ -348,11 +369,11 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     }
 
     onLoadMore(): void {
-        this.catalog.loadMore();
+        if (!this.watchFilter.blocked()) this.catalog.loadMore();
     }
 
     onRetryAppend(): void {
-        this.catalog.retryAppend();
+        if (!this.watchFilter.blocked()) this.catalog.retryAppend();
     }
 
     onItemClick(item: CategoryContentItem): void {

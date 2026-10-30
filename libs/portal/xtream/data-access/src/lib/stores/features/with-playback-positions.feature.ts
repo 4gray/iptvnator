@@ -7,237 +7,250 @@ import {
     withState,
 } from '@ngrx/signals';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
-import { PORTAL_WATCHED_PROGRESS_PERCENT } from '@iptvnator/portal/shared/util/tokens';
+import {
+    getPortalPlaybackProgressPercent,
+    isPortalPlaybackInProgress,
+    PORTAL_WATCHED_PROGRESS_PERCENT,
+} from '@iptvnator/portal/shared/util/tokens';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     PlaybackPositionData,
     XTREAM_DATA_SOURCE,
 } from '../../data-sources/xtream-data-source.interface';
 
+export type PositionsLoadState = 'idle' | 'loading' | 'ready' | 'error';
 export interface PlaybackPositionsState {
-    playbackPositions: Map<string, PlaybackPositionData>; // key: `${contentType}_${xtreamId}`
-    seriesPositions: Map<number, PlaybackPositionData[]>; // key: seriesXtreamId
+    playbackPositions: Map<string, PlaybackPositionData>;
+    seriesPositions: Map<number, PlaybackPositionData[]>;
+    positionsPlaylistId: string | null;
+    positionsLoadState: PositionsLoadState;
 }
-
 const initialState: PlaybackPositionsState = {
     playbackPositions: new Map(),
     seriesPositions: new Map(),
+    positionsPlaylistId: null,
+    positionsLoadState: 'idle',
 };
+const positionKey = (data: PlaybackPositionData) =>
+    `${data.contentType}_${data.contentXtreamId}`;
 
 export function withPlaybackPositions() {
     return signalStoreFeature(
         withState(initialState),
-
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
-
-            const getPositionKey = (type: string, id: number) =>
-                `${type}_${id}`;
-
-            // Latest-load-wins: a load that was superseded while its fetch
-            // was in flight must not patch the store — after a playlist
-            // switch the late result would overwrite the new playlist's
-            // position maps with the old playlist's rows.
-            let positionsLoadGeneration = 0;
-
-            return {
-                /**
-                 * Get progress percentage for display (0-100)
-                 */
-                getProgressPercent(
-                    contentXtreamId: number,
-                    contentType: 'vod' | 'episode'
-                ): number {
-                    const key = getPositionKey(contentType, contentXtreamId);
-                    const position = store.playbackPositions().get(key);
-
-                    if (!position || !position.durationSeconds) return 0;
-
-                    const percent =
-                        (position.positionSeconds / position.durationSeconds) *
-                        100;
-
-                    // If watched > 10s but percent < 1, return 1 to show visual progress
-                    if (position.positionSeconds > 10 && percent < 1) {
-                        return 1;
+            let ownerGeneration = 0;
+            let loadGeneration = 0;
+            // Full snapshots supersede narrower reads on entry and publication,
+            // including successfully empty snapshots.
+            let individualReadGeneration = 0;
+            const revisions = new Map<string, number>();
+            let pendingWrites: Map<string, PlaybackPositionData> | null = null;
+            const owns = (id: string, generation: number) =>
+                store.positionsPlaylistId() === id &&
+                ownerGeneration === generation;
+            const adoptOwner = (id: string) => {
+                if (store.positionsPlaylistId() === id) return;
+                ownerGeneration++;
+                loadGeneration++;
+                revisions.clear();
+                pendingWrites = null;
+                patchState(store, {
+                    ...initialState,
+                    playbackPositions: new Map(),
+                    seriesPositions: new Map(),
+                    positionsPlaylistId: id,
+                });
+            };
+            // Standalone consumers may load/save one item before a grid batch.
+            const captureOwner = (id: string) => {
+                if (store.positionsPlaylistId() === null) adoptOwner(id);
+                return ownerGeneration;
+            };
+            const publish = (positions: Map<string, PlaybackPositionData>) => {
+                const series = new Map<number, PlaybackPositionData[]>();
+                for (const row of positions.values()) {
+                    if (row.contentType === 'episode' && row.seriesXtreamId) {
+                        const rows = series.get(row.seriesXtreamId) ?? [];
+                        rows.push(row);
+                        series.set(row.seriesXtreamId, rows);
                     }
-
-                    return Math.min(100, Math.round(percent));
+                }
+                patchState(store, {
+                    playbackPositions: positions,
+                    seriesPositions: series,
+                });
+            };
+            const publishPosition = (data: PlaybackPositionData) => {
+                const key = positionKey(data);
+                revisions.set(key, (revisions.get(key) ?? 0) + 1);
+                const positions = new Map(store.playbackPositions());
+                positions.set(key, data);
+                publish(positions);
+            };
+            return {
+                resetPlaybackPositions(): void {
+                    ownerGeneration++;
+                    loadGeneration++;
+                    revisions.clear();
+                    pendingWrites = null;
+                    patchState(store, {
+                        ...initialState,
+                        playbackPositions: new Map(),
+                        seriesPositions: new Map(),
+                    });
                 },
-
-                /**
-                 * Check if content is considered "watched" (see
-                 * PORTAL_WATCHED_PROGRESS_PERCENT)
-                 */
-                isWatched(
-                    contentXtreamId: number,
-                    contentType: 'vod' | 'episode'
-                ): boolean {
+                getProgressPercent(
+                    id: number,
+                    type: 'vod' | 'episode'
+                ): number {
+                    return getPortalPlaybackProgressPercent(
+                        store.playbackPositions().get(`${type}_${id}`)
+                    );
+                },
+                isWatched(id: number, type: 'vod' | 'episode'): boolean {
                     return (
-                        this.getProgressPercent(contentXtreamId, contentType) >=
+                        this.getProgressPercent(id, type) >=
                         PORTAL_WATCHED_PROGRESS_PERCENT
                     );
                 },
-
-                /**
-                 * Check if content is "in progress" (started but not finished)
-                 */
-                isInProgress(
-                    contentXtreamId: number,
-                    contentType: 'vod' | 'episode'
-                ): boolean {
-                    const key = getPositionKey(contentType, contentXtreamId);
-                    const position = store.playbackPositions().get(key);
-                    if (!position) return false;
-
-                    const percent = this.getProgressPercent(
-                        contentXtreamId,
-                        contentType
+                isInProgress(id: number, type: 'vod' | 'episode'): boolean {
+                    return isPortalPlaybackInProgress(
+                        store.playbackPositions().get(`${type}_${id}`)
                     );
-                    const inProgress =
-                        position.positionSeconds > 10 &&
-                        percent < PORTAL_WATCHED_PROGRESS_PERCENT;
-                    return inProgress;
                 },
-
-                /**
-                 * Load all playback positions for the playlist (for grid view)
-                 */
                 async loadAllPositions(playlistId: string): Promise<void> {
-                    const generation = ++positionsLoadGeneration;
-                    const positions =
-                        await dataSource.getAllPlaybackPositions(playlistId);
-                    if (generation !== positionsLoadGeneration) {
-                        return;
-                    }
-
-                    const positionsMap = new Map<
-                        string,
-                        PlaybackPositionData
-                    >();
-                    const seriesMap = new Map<number, PlaybackPositionData[]>();
-
-                    positions.forEach((pos) => {
-                        const key = getPositionKey(
-                            pos.contentType,
-                            pos.contentXtreamId
-                        );
-                        positionsMap.set(key, pos);
-
+                    adoptOwner(playlistId);
+                    const owner = ownerGeneration;
+                    const generation = ++loadGeneration;
+                    individualReadGeneration++;
+                    const writes = new Map<string, PlaybackPositionData>();
+                    pendingWrites = writes;
+                    patchState(store, { positionsLoadState: 'loading' });
+                    try {
+                        const rows =
+                            await dataSource.getAllPlaybackPositions(
+                                playlistId
+                            );
                         if (
-                            pos.contentType === 'episode' &&
-                            pos.seriesXtreamId
-                        ) {
-                            const existing =
-                                seriesMap.get(pos.seriesXtreamId) || [];
-                            existing.push(pos);
-                            seriesMap.set(pos.seriesXtreamId, existing);
-                        }
-                    });
-
-                    patchState(store, {
-                        playbackPositions: positionsMap,
-                        seriesPositions: seriesMap,
-                    });
+                            !owns(playlistId, owner) ||
+                            generation !== loadGeneration
+                        )
+                            return;
+                        const positions = new Map(
+                            rows.map((row) => [positionKey(row), row])
+                        );
+                        for (const [key, row] of writes)
+                            positions.set(key, row);
+                        individualReadGeneration++;
+                        publish(positions);
+                        patchState(store, { positionsLoadState: 'ready' });
+                    } catch (error) {
+                        if (
+                            owns(playlistId, owner) &&
+                            generation === loadGeneration
+                        )
+                            patchState(store, { positionsLoadState: 'error' });
+                        throw error;
+                    } finally {
+                        if (pendingWrites === writes) pendingWrites = null;
+                    }
                 },
-
-                /**
-                 * Check if a series has any started or watched episodes
-                 */
-                hasSeriesProgress(seriesXtreamId: number): boolean {
-                    const positions = store
-                        .seriesPositions()
-                        .get(seriesXtreamId);
-                    return positions !== undefined && positions.length > 0;
+                hasSeriesProgress(id: number): boolean {
+                    return (store.seriesPositions().get(id)?.length ?? 0) > 0;
                 },
-
-                /**
-                 * Load positions for a VOD item
-                 */
                 async loadVodPosition(
                     playlistId: string,
-                    vodXtreamId: number
+                    id: number
                 ): Promise<void> {
+                    const owner = captureOwner(playlistId);
+                    const readGeneration = individualReadGeneration;
+                    const key = `vod_${id}`;
+                    const revision = revisions.get(key) ?? 0;
                     const position = await dataSource.getPlaybackPosition(
                         playlistId,
-                        vodXtreamId,
+                        id,
                         'vod'
                     );
-
-                    if (position) {
-                        const key = getPositionKey('vod', vodXtreamId);
-                        const updated = new Map(store.playbackPositions());
-                        updated.set(key, position);
-                        patchState(store, { playbackPositions: updated });
-                    }
+                    if (
+                        !owns(playlistId, owner) ||
+                        readGeneration !== individualReadGeneration ||
+                        revision !== (revisions.get(key) ?? 0)
+                    )
+                        return;
+                    if (position) publishPosition(position);
                 },
-
-                /**
-                 * Load all episode positions for a series
-                 */
                 async loadSeriesPositions(
                     playlistId: string,
-                    seriesXtreamId: number
+                    id: number
                 ): Promise<void> {
-                    const positions =
-                        await dataSource.getSeriesPlaybackPositions(
-                            playlistId,
-                            seriesXtreamId
-                        );
-
-                    const updated = new Map(store.seriesPositions());
-                    updated.set(seriesXtreamId, positions);
-                    patchState(store, { seriesPositions: updated });
-
-                    // Also populate individual positions map
-                    const positionsMap = new Map(store.playbackPositions());
-                    positions.forEach((pos) => {
-                        const key = getPositionKey(
-                            'episode',
-                            pos.contentXtreamId
-                        );
-                        positionsMap.set(key, pos);
-                    });
-                    patchState(store, { playbackPositions: positionsMap });
+                    const owner = captureOwner(playlistId);
+                    const readGeneration = individualReadGeneration;
+                    const before = new Map(revisions);
+                    const rows = await dataSource.getSeriesPlaybackPositions(
+                        playlistId,
+                        id
+                    );
+                    if (
+                        !owns(playlistId, owner) ||
+                        readGeneration !== individualReadGeneration
+                    )
+                        return;
+                    const positions = new Map(store.playbackPositions());
+                    // Empty reads replace this series, preserving newer writes.
+                    for (const [key, row] of positions) {
+                        if (
+                            row.contentType === 'episode' &&
+                            row.seriesXtreamId === id &&
+                            (before.get(key) ?? 0) === (revisions.get(key) ?? 0)
+                        )
+                            positions.delete(key);
+                    }
+                    for (const row of rows) {
+                        const key = positionKey(row);
+                        if (
+                            (before.get(key) ?? 0) === (revisions.get(key) ?? 0)
+                        ) {
+                            positions.set(key, row);
+                            revisions.set(key, (revisions.get(key) ?? 0) + 1);
+                        }
+                    }
+                    publish(positions);
                 },
-
-                /**
-                 * Save playback position (called from MPV updates)
-                 */
                 async savePosition(
                     playlistId: string,
                     data: PlaybackPositionData
                 ): Promise<void> {
+                    const owner = captureOwner(playlistId);
                     await dataSource.savePlaybackPosition(playlistId, data);
-
-                    const key = getPositionKey(
-                        data.contentType,
-                        data.contentXtreamId
-                    );
-                    const updated = new Map(store.playbackPositions());
-                    updated.set(key, data);
-                    patchState(store, { playbackPositions: updated });
+                    if (owns(playlistId, owner)) {
+                        // Only confirmed storage writes may overlay a batch read.
+                        pendingWrites?.set(positionKey(data), data);
+                        publishPosition(data);
+                    }
                 },
             };
         }),
-
         withHooks((store) => {
-            const playbackPositionBridge = inject(
-                PlaybackPositionRuntimeBridgeService
-            );
+            const bridge = inject(PlaybackPositionRuntimeBridgeService);
+            const logger = createLogger('XtreamPlaybackPositions');
             let unsubscribe: (() => void) | undefined;
-
             return {
                 onInit() {
-                    unsubscribe =
-                        playbackPositionBridge.onPlaybackPositionUpdate(
-                            (data: PlaybackPositionData) => {
-                                if (!data.playlistId) {
-                                    return;
-                                }
-
-                                store.savePosition(data.playlistId, data);
-                            }
-                        );
+                    unsubscribe = bridge.onPlaybackPositionUpdate((data) => {
+                        // The bridge event has not been persisted yet. Save
+                        // its source even when a different catalog is open;
+                        // savePosition guards in-memory publication separately.
+                        if (!data.playlistId) return;
+                        void store
+                            .savePosition(data.playlistId, data)
+                            .catch((error) => {
+                                logger.warn(
+                                    'Failed to save playback position',
+                                    error
+                                );
+                            });
+                    });
                 },
                 onDestroy() {
                     unsubscribe?.();

@@ -62,6 +62,29 @@
                                 <mat-icon iconPositionEnd>close</mat-icon>
                             </button>
                         }
+                        @if (watchFilter.active()) {
+                            <button
+                                type="button"
+                                mat-button
+                                class="refinement-chip watch-refinement-chip"
+                                (click)="watchFilter.set(null)"
+                                [attr.aria-label]="
+                                    'WORKSPACE.REFINE_WATCH_CLEAR'
+                                        | translate
+                                            : {
+                                                  status:
+                                                      (watchFilter.labelKey()
+                                                      | translate),
+                                              }
+                                "
+                            >
+                                <mat-icon>visibility</mat-icon>
+                                <span class="refinement-chip-label">{{
+                                    watchFilter.labelKey() | translate
+                                }}</span>
+                                <mat-icon iconPositionEnd>close</mat-icon>
+                            </button>
+                        }
                     </div>
                     <button
                         type="button"
@@ -90,7 +113,10 @@
                             expand_more
                         </mat-icon>
                     </button>
-                    <mat-menu #refineMenu="matMenu" class="refine-menu">
+                    <mat-menu
+                        #refineMenu="matMenu"
+                        class="refine-menu refine-root-menu"
+                    >
                         @if (canSortContent()) {
                             <div
                                 role="group"
@@ -163,6 +189,58 @@
                                 </button>
                             </div>
                         }
+                        @if (watchFilter.canFilter()) {
+                            @if (canSortContent() && !canFilterByRating()) {
+                                <div
+                                    class="refine-menu-divider"
+                                    role="separator"
+                                ></div>
+                            }
+                            <div role="none">
+                                <button
+                                    mat-menu-item
+                                    class="refine-watch-trigger"
+                                    [matMenuTriggerFor]="watchMenu"
+                                >
+                                    <mat-icon>visibility</mat-icon>
+                                    <span>{{
+                                        'WORKSPACE.REFINE_WATCH_SECTION'
+                                            | translate
+                                    }}</span>
+                                </button>
+                            </div>
+                        }
+                    </mat-menu>
+                    <mat-menu
+                        #watchMenu="matMenu"
+                        class="refine-menu refine-watch-menu"
+                    >
+                        <div
+                            role="group"
+                            [attr.aria-label]="
+                                'WORKSPACE.REFINE_WATCH_SECTION' | translate
+                            "
+                        >
+                            @for (
+                                option of watchFilter.options;
+                                track option.value
+                            ) {
+                                <button
+                                    mat-menu-item
+                                    [appMenuItemRadio]="
+                                        watchFilter.value() === option.value
+                                    "
+                                    (click)="watchFilter.set(option.value)"
+                                >
+                                    <mat-icon appMenuItemRadioCheck
+                                        >check</mat-icon
+                                    >
+                                    <span>{{
+                                        option.labelKey | translate
+                                    }}</span>
+                                </button>
+                            }
+                        </div>
                     </mat-menu>
                     <mat-menu
                         #ratingMenu="matMenu"
@@ -226,6 +304,57 @@
                         {{ 'RETRY' | translate }}
                     </button>
                 </section>
+            } @else if (watchFilter.pending()) {
+                <div
+                    class="watch-filter-state"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                >
+                    <p>{{ 'WORKSPACE.REFINE_WATCH_LOADING' | translate }}</p>
+                </div>
+            } @else if (watchFilter.error() || watchFilter.empty()) {
+                <div
+                    class="watch-filter-state"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <h3>
+                        {{
+                            (watchFilter.error()
+                                ? 'WORKSPACE.REFINE_WATCH_ERROR_TITLE'
+                                : 'WORKSPACE.REFINE_WATCH_EMPTY_TITLE'
+                            ) | translate
+                        }}
+                    </h3>
+                    <p>
+                        {{
+                            (watchFilter.error()
+                                ? 'WORKSPACE.REFINE_WATCH_ERROR_DESCRIPTION'
+                                : 'WORKSPACE.REFINE_WATCH_EMPTY_DESCRIPTION'
+                            ) | translate
+                        }}
+                    </p>
+                    <div class="watch-filter-state-actions">
+                        @if (watchFilter.error()) {
+                            <button
+                                type="button"
+                                mat-flat-button
+                                (click)="watchFilter.retry()"
+                            >
+                                {{ 'WORKSPACE.REFINE_WATCH_RETRY' | translate }}
+                            </button>
+                        }
+                        <button
+                            type="button"
+                            mat-button
+                            class="watch-filter-clear"
+                            (click)="watchFilter.set(null)"
+                        >
+                            {{ 'WORKSPACE.REFINE_WATCH_RESET' | translate }}
+                        </button>
+                    </div>
+                </div>
             } @else {
                 <app-grid-list
                     appInfiniteScroll
