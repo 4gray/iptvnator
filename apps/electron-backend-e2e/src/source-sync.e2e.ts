@@ -2,6 +2,7 @@ import { setSourceStateWriteFailure } from './source-sync-sqlite-fault';
 import { verifySharedStalkerSessionEditing } from './source-sync-stalker-session';
 import { verifyDelayedSharedM3uRefresh } from './source-sync-m3u-refresh';
 import { verifySourceRestartStopsPlayer } from './source-sync-player-restart';
+import { verifySourceSettingsRecovery } from './source-sync-settings';
 import { test, expect, type Page } from '@playwright/test';
 import {
     mkdtempSync,
@@ -45,6 +46,10 @@ for (const operation of ['connect', 'disconnect'] as const) {
         await verifySourceRestartStopsPlayer(operation);
     });
 }
+
+test('validates source settings and retains credentials after a native connection failure @electron @settings', async () => {
+    await verifySourceSettingsRecovery();
+});
 
 test('discards a delayed native M3U refresh after the NAS URL changes @electron @m3u @persistence', async ({
     request,

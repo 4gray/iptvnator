@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "Zapisane połączenie z serwerem jest niedostępne. Sprawdź pamięć przeglądarki lub połącz się ponownie w ustawieniach serwera.",
         "TITLE": "Serwer",
-        "DESCRIPTION": "Udostępniaj źródła z własnego serwera IPTVnator między urządzeniami. Aktywność oglądania pozostaje na tym urządzeniu.",
-        "URL": "Adres serwera",
+        "DESCRIPTION": "Połącz się z IPTVnator uruchomionym przez Docker na domowym serwerze lub NAS, aby współdzielić źródła między urządzeniami. Aktywność oglądania pozostaje na tym urządzeniu.",
+        "URL": "Adres serwera IPTVnator",
         "TOKEN": "Token dostępu (opcjonalny)",
-        "TOKEN_HINT": "Token przeglądarki działa w tej karcie. Aplikacja komputerowa używa chronionego magazynu, jeśli jest dostępny.",
+        "TOKEN_HINT": "Użyj wartości IPTVNATOR_ACCESS_TOKEN ustawionej na serwerze lub poproś o nią właściciela. Pozostaw puste, jeśli token nie jest skonfigurowany.",
         "RESTART_HINT": "Połączenie i rozłączenie uruchamia aplikację ponownie. Oryginalna biblioteka lokalna pozostaje zachowana.",
         "CONNECT": "Połącz",
         "REFRESH": "Odśwież",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "Połączono",
         "STATE_offline": "Serwer niedostępny. Nie można zapisać zmian wspólnych źródeł.",
         "STATE_locked": "Wprowadź prawidłowy token dostępu.",
-        "STATE_conflict": "Źródło zmieniono na innym urządzeniu. Odśwież i ponów zmianę."
+        "STATE_conflict": "Źródło zmieniono na innym urządzeniu. Odśwież i ponów zmianę.",
+        "SETUP_GUIDE": "Jak skonfigurować serwer",
+        "URL_HINT": "Użyj adresu, pod którym otwierasz IPTVnator w przeglądarce ({{example}}). Ścieżka /api jest dodawana automatycznie.",
+        "URL_INVALID": "Wpisz pełny adres http:// lub https:// bez danych logowania, parametrów zapytania i fragmentu #.",
+        "CONNECTION_FAILED": "Nie udało się połączyć. Sprawdź adres serwera, czy IPTVnator działa i jest dostępny z tego urządzenia, a następnie spróbuj ponownie."
     }
 }

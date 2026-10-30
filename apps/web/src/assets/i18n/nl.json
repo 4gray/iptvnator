@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "De opgeslagen serververbinding is niet beschikbaar. Controleer de browseropslag of maak opnieuw verbinding via de serverinstellingen.",
         "TITLE": "Eigen server",
-        "DESCRIPTION": "Deel bronnen op uw IPTVnator-server tussen apparaten. Kijkactiviteit blijft op dit apparaat.",
-        "URL": "Serveradres",
+        "DESCRIPTION": "Verbind met IPTVnator dat via Docker op uw thuisserver of NAS draait om bronnen tussen apparaten te delen. Kijkactiviteit blijft op dit apparaat.",
+        "URL": "Adres van de IPTVnator-server",
         "TOKEN": "Toegangstoken (optioneel)",
-        "TOKEN_HINT": "Browsertokens gelden voor dit tabblad. Desktop gebruikt indien mogelijk beveiligde opslag.",
+        "TOKEN_HINT": "Gebruik de IPTVNATOR_ACCESS_TOKEN die op de server is ingesteld, of vraag deze aan de eigenaar. Laat leeg als er geen token is ingesteld.",
         "RESTART_HINT": "Verbinden en loskoppelen herstarten de app. De oorspronkelijke lokale bibliotheek blijft behouden.",
         "CONNECT": "Verbinden",
         "REFRESH": "Vernieuwen",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "Verbonden",
         "STATE_offline": "Server niet beschikbaar. Wijzigingen aan gedeelde bronnen kunnen niet worden opgeslagen.",
         "STATE_locked": "Voer een geldig toegangstoken in.",
-        "STATE_conflict": "De bron is gewijzigd op een ander apparaat. Vernieuw en pas uw wijziging opnieuw toe."
+        "STATE_conflict": "De bron is gewijzigd op een ander apparaat. Vernieuw en pas uw wijziging opnieuw toe.",
+        "SETUP_GUIDE": "Uw server instellen",
+        "URL_HINT": "Gebruik het adres waarmee u IPTVnator in uw browser opent ({{example}}). Het pad /api wordt automatisch toegevoegd.",
+        "URL_INVALID": "Voer een volledig http://- of https://-adres in zonder inloggegevens, queryparameters of #-fragmenten.",
+        "CONNECTION_FAILED": "Verbinding mislukt. Controleer het serveradres, of IPTVnator draait en bereikbaar is vanaf dit apparaat, en probeer het opnieuw."
     }
 }

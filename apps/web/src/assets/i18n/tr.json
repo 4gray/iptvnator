@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "Kayıtlı sunucu bağlantısı kullanılamıyor. Tarayıcı depolamasını kontrol edin veya Sunucu ayarlarından yeniden bağlanın.",
         "TITLE": "Sunucu",
-        "DESCRIPTION": "Kendi IPTVnator sunucunuzla kaynakları cihazlar arasında paylaşın. İzleme etkinliği bu cihazda kalır.",
-        "URL": "Sunucu adresi",
+        "DESCRIPTION": "Kaynakları cihazlar arasında paylaşmak için ev sunucunuzda veya NAS üzerinde Docker ile çalışan IPTVnator’a bağlanın. İzleme etkinliği bu cihazda kalır.",
+        "URL": "IPTVnator sunucu adresi",
         "TOKEN": "Erişim belirteci (isteğe bağlı)",
-        "TOKEN_HINT": "Tarayıcı belirteci bu sekme boyunca geçerlidir. Masaüstü mümkün olduğunda korumalı depolama kullanır.",
+        "TOKEN_HINT": "Sunucuda ayarlanan IPTVNATOR_ACCESS_TOKEN değerini kullanın veya sunucunun sahibinden isteyin. Belirteç ayarlanmadıysa boş bırakın.",
         "RESTART_HINT": "Bağlanma veya bağlantıyı kesme uygulamayı yeniden başlatır. Özgün yerel kitaplık korunur.",
         "CONNECT": "Bağlan",
         "REFRESH": "Yenile",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "Bağlandı",
         "STATE_offline": "Sunucu kullanılamıyor. Paylaşılan kaynak değişiklikleri kaydedilemiyor.",
         "STATE_locked": "Geçerli bir erişim belirteci girin.",
-        "STATE_conflict": "Kaynak başka bir cihazda değişti. Yenileyip düzenlemeyi yeniden uygulayın."
+        "STATE_conflict": "Kaynak başka bir cihazda değişti. Yenileyip düzenlemeyi yeniden uygulayın.",
+        "SETUP_GUIDE": "Sunucunuzu nasıl kurarsınız",
+        "URL_HINT": "IPTVnator’ı tarayıcınızda açtığınız adresi kullanın ({{example}}). /api yolu otomatik eklenir.",
+        "URL_INVALID": "Giriş bilgileri, sorgu parametreleri veya # parçası içermeyen tam bir http:// ya da https:// adresi girin.",
+        "CONNECTION_FAILED": "Bağlanılamadı. Sunucu adresini, IPTVnator’ın çalıştığını ve bu cihazdan erişilebildiğini kontrol edip yeniden deneyin."
     }
 }

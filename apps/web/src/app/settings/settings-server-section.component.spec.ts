@@ -63,7 +63,9 @@ describe('source server settings', () => {
                 '[data-test-id="source-server-state"]'
             ).textContent
         ).toContain('SOURCE_SYNC.STATE_connected');
-        expect(fixture.componentInstance.url).toBe('https://nas.test/api');
+        expect(fixture.componentInstance.urlControl.value).toBe(
+            'https://nas.test/api'
+        );
         expect(
             fixture.nativeElement.querySelector(
                 '[data-test-id="source-server-connect"]'
@@ -155,7 +157,7 @@ describe('source server settings', () => {
             sourceSyncConfigure: configure,
         } as unknown as typeof window.electron;
         const component = fixture.componentInstance;
-        component.url = 'https://nas.test/iptvnator';
+        component.urlControl.setValue('https://nas.test/iptvnator');
         component.token = 'new-token';
         await component.connect();
         expect(configure).toHaveBeenCalledWith(
@@ -178,7 +180,121 @@ describe('source server settings', () => {
         component.token = 'bad-token';
         await component.connect();
         expect(component.message()).toBe('SOURCE_SYNC.LOCKED');
-        expect(component.token).toBe('');
+        expect(component.token).toBe('bad-token');
+    });
+
+    it.each([
+        'nas',
+        'ftp://nas.test',
+        'https://user:secret@nas.test',
+        'https://nas.test?token=secret',
+        'https://nas.test/#settings',
+    ])(
+        'rejects invalid address %s before contacting either runtime',
+        async (url) => {
+            const configure = jest.fn();
+            window.electron = {
+                sourceSyncConfigure: configure,
+            } as unknown as typeof window.electron;
+            globalThis.fetch = jest.fn();
+            const component = fixture.componentInstance;
+            component.urlControl.setValue(url);
+            component.token = 'keep-token';
+            await component.connect();
+            fixture.detectChanges();
+            expect(configure).not.toHaveBeenCalled();
+            expect(globalThis.fetch).not.toHaveBeenCalled();
+            expect(component.urlControl.touched).toBe(true);
+            expect(component.urlControl.invalid).toBe(true);
+            expect(component.token).toBe('keep-token');
+            expect(
+                fixture.nativeElement.querySelector('mat-error').textContent
+            ).toContain('SOURCE_SYNC.URL_INVALID');
+        }
+    );
+
+    it('announces a pending connection, prevents duplicate attempts and keeps input after network failure', async () => {
+        let reject!: (error: Error) => void;
+        const configure = jest.fn().mockImplementation(
+            () =>
+                new Promise((_resolve, fail) => {
+                    reject = fail;
+                })
+        );
+        window.electron = {
+            sourceSyncConfigure: configure,
+        } as unknown as typeof window.electron;
+        const component = fixture.componentInstance;
+        component.token = 'keep-token';
+        const pending = component.connect();
+        await component.connect();
+        fixture.detectChanges();
+        expect(configure).toHaveBeenCalledTimes(1);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="source-server-connect"]'
+            ).textContent
+        ).toContain('SOURCE_SYNC.STATE_connecting');
+        expect(
+            fixture.nativeElement.querySelector(
+                '[role="status"][data-test-id="source-server-message"]'
+            ).textContent
+        ).toContain('SOURCE_SYNC.STATE_connecting');
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="source-server-url"]'
+            ).readOnly
+        ).toBe(true);
+        reject(new Error('SOURCE_SYNC.OFFLINE'));
+        await pending;
+        fixture.detectChanges();
+        expect(component.message()).toBe('SOURCE_SYNC.CONNECTION_FAILED');
+        expect(component.token).toBe('keep-token');
+        expect(component.busy()).toBe(false);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="source-server-url"]'
+            ).readOnly
+        ).toBe(false);
+    });
+
+    it('links directly to client setup instructions', () => {
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="source-server-help"]'
+            ).href
+        ).toBe(
+            'https://github.com/4gray/iptvnator/blob/master/docker/README.md#connect-your-clients'
+        );
+    });
+
+    it.each([401, 403])(
+        'identifies an access challenge during discovery (%s)',
+        async (status) => {
+            window.electron = {} as typeof window.electron;
+            globalThis.fetch = jest
+                .fn()
+                .mockResolvedValue({ ok: false, status });
+            fixture.componentInstance.token = 'keep-token';
+            await fixture.componentInstance.connect();
+            expect(fixture.componentInstance.message()).toBe(
+                'SOURCE_SYNC.LOCKED'
+            );
+            expect(fixture.componentInstance.token).toBe('keep-token');
+        }
+    );
+
+    it('identifies an incompatible response without exposing its body', async () => {
+        window.electron = {} as typeof window.electron;
+        globalThis.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: () =>
+                Promise.reject(new SyntaxError('private server response')),
+        });
+        await fixture.componentInstance.connect();
+        expect(fixture.componentInstance.message()).toBe(
+            'SOURCE_SYNC.INCOMPATIBLE'
+        );
     });
 
     it.each(['https://nas.test/backend', 'http://127.0.0.1:3347'])(
@@ -191,7 +307,7 @@ describe('source server settings', () => {
             const original = sync.connection.apiUrl;
             try {
                 sync.connection.apiUrl = apiUrl;
-                fixture.componentInstance.url = apiUrl;
+                fixture.componentInstance.urlControl.setValue(apiUrl);
                 await fixture.componentInstance.connect();
                 expect(configure).toHaveBeenCalledWith(apiUrl, '', true);
             } finally {

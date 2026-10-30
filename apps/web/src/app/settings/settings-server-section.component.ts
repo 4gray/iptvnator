@@ -5,7 +5,12 @@ import {
     signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import {
+    FormControl,
+    FormsModule,
+    ReactiveFormsModule,
+    Validators,
+} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -32,6 +37,7 @@ import {
     imports: [
         DatePipe,
         FormsModule,
+        ReactiveFormsModule,
         MatButtonModule,
         MatFormFieldModule,
         MatInputModule,
@@ -54,12 +60,19 @@ import {
                 flex-wrap: wrap;
             }
             .server-message {
+                margin: 0;
                 color: var(--app-eyebrow-color);
                 overflow-wrap: anywhere;
             }
+            .server-help {
+                display: inline-block;
+                margin-top: 8px;
+                color: var(--app-selection-text-color);
+                text-underline-offset: 3px;
+            }
             button,
             input,
-            mat-checkbox {
+            a {
                 app-region: no-drag;
             }
         `,
@@ -68,16 +81,34 @@ import {
 export class SettingsServerSectionComponent {
     readonly sync = inject(SourceSyncService);
     readonly busy = signal(false);
+    readonly connecting = signal(false);
     readonly message = signal('');
     readonly preview = signal<Playlist[] | null>(null);
-    url = this.sync.connection?.apiUrl ?? '';
+    readonly urlControl = new FormControl(this.sync.connection?.apiUrl ?? '', {
+        nonNullable: true,
+        validators: [
+            Validators.required,
+            (control) => {
+                try {
+                    normalizeSourceServerUrl(control.value.trim());
+                    return null;
+                } catch {
+                    return { serverUrl: true };
+                }
+            },
+        ],
+    });
     token = '';
 
     async connect(): Promise<void> {
-        this.busy.set(true);
+        if (this.busy()) return;
         this.message.set('');
+        this.urlControl.markAsTouched();
+        if (this.urlControl.invalid) return;
+        this.busy.set(true);
+        this.connecting.set(true);
         try {
-            const input = this.url.trim().replace(/\/+$/, '');
+            const input = this.urlControl.value.trim().replace(/\/+$/, '');
             const apiUrl =
                 input === this.sync.connection?.apiUrl
                     ? input
@@ -88,12 +119,21 @@ export class SettingsServerSectionComponent {
                     this.token,
                     true
                 );
+                this.token = '';
             } else {
                 const response = await fetch(`${apiUrl}/v1/instance`, {
                     redirect: 'error',
                     signal: AbortSignal.timeout(10000),
                 });
-                const instance: unknown = await response.json();
+                if (!response.ok)
+                    throw new Error(
+                        [401, 403].includes(response.status)
+                            ? 'SOURCE_SYNC.LOCKED'
+                            : 'SOURCE_SYNC.CONNECTION_FAILED'
+                    );
+                const instance: unknown = await response.json().catch(() => {
+                    throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+                });
                 assertSourceInstance(instance);
                 const check = await fetch(`${apiUrl}/v1/sources`, {
                     headers: this.token
@@ -104,21 +144,22 @@ export class SettingsServerSectionComponent {
                 });
                 if (!check.ok)
                     throw new Error(
-                        check.status === 401
+                        [401, 403].includes(check.status)
                             ? 'SOURCE_SYNC.LOCKED'
-                            : 'SOURCE_SYNC.REQUEST_FAILED'
+                            : 'SOURCE_SYNC.CONNECTION_FAILED'
                     );
                 saveBrowserSourceConnection(
                     { apiUrl, instanceId: instance.instanceId! },
                     this.token
                 );
+                this.token = '';
                 location.reload();
             }
         } catch (error) {
-            this.showError(error);
+            this.showError(error, 'SOURCE_SYNC.CONNECTION_FAILED');
         } finally {
             this.busy.set(false);
-            this.token = '';
+            this.connecting.set(false);
         }
     }
 
@@ -177,11 +218,21 @@ export class SettingsServerSectionComponent {
         }
     }
 
-    private showError(error: unknown): void {
+    private showError(
+        error: unknown,
+        fallback = 'SOURCE_SYNC.REQUEST_FAILED'
+    ): void {
         const key =
             error instanceof Error
                 ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0]
                 : undefined;
-        this.message.set(key ?? 'SOURCE_SYNC.REQUEST_FAILED');
+        this.message.set(
+            fallback === 'SOURCE_SYNC.CONNECTION_FAILED' &&
+                (!key ||
+                    key === 'SOURCE_SYNC.OFFLINE' ||
+                    key === 'SOURCE_SYNC.REQUEST_FAILED')
+                ? fallback
+                : (key ?? fallback)
+        );
     }
 }

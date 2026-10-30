@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "Die gespeicherte Serververbindung ist nicht verfügbar. Prüfe den Browser-Speicher oder verbinde dich in den Server-Einstellungen erneut.",
         "TITLE": "Eigener Server",
-        "DESCRIPTION": "Gemeinsame Quellen auf Ihrem IPTVnator-Server für alle Geräte. Wiedergabedaten bleiben auf diesem Gerät.",
-        "URL": "Serveradresse",
+        "DESCRIPTION": "Verbinden Sie sich mit IPTVnator, das über Docker auf Ihrem Heimserver oder NAS läuft, um Quellen zwischen Geräten zu teilen. Wiedergabedaten bleiben auf diesem Gerät.",
+        "URL": "Adresse des IPTVnator-Servers",
         "TOKEN": "Zugriffstoken (optional)",
-        "TOKEN_HINT": "Browser-Token gelten für diesen Tab. Desktop-Token nutzen nach Möglichkeit geschützten Speicher.",
+        "TOKEN_HINT": "Verwenden Sie den auf dem Server gesetzten IPTVNATOR_ACCESS_TOKEN oder fragen Sie dessen Besitzer. Ohne konfiguriertes Token bleibt das Feld leer.",
         "RESTART_HINT": "Verbinden und Trennen starten die App neu. Die ursprüngliche lokale Bibliothek bleibt erhalten.",
         "CONNECT": "Verbinden",
         "REFRESH": "Aktualisieren",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "Verbunden",
         "STATE_offline": "Server nicht verfügbar. Änderungen gemeinsamer Quellen können nicht gespeichert werden.",
         "STATE_locked": "Geben Sie ein gültiges Zugriffstoken ein.",
-        "STATE_conflict": "Die Quelle wurde auf einem anderen Gerät geändert. Aktualisieren und erneut bearbeiten."
+        "STATE_conflict": "Die Quelle wurde auf einem anderen Gerät geändert. Aktualisieren und erneut bearbeiten.",
+        "SETUP_GUIDE": "Server einrichten",
+        "URL_HINT": "Verwenden Sie die Adresse, unter der Sie IPTVnator im Browser öffnen ({{example}}). Der Pfad /api wird automatisch ergänzt.",
+        "URL_INVALID": "Geben Sie eine vollständige http://- oder https://-Adresse ohne Anmeldedaten, Abfrageparameter oder #-Fragment ein.",
+        "CONNECTION_FAILED": "Verbindung fehlgeschlagen. Prüfen Sie die Serveradresse, ob IPTVnator läuft und von diesem Gerät erreichbar ist, und versuchen Sie es erneut."
     }
 }
