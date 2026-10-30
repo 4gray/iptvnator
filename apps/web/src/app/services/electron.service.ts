@@ -6,6 +6,7 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DialogService } from '@iptvnator/ui/components/confirm-dialog';
 import {
     DataService,
+    type PlaylistImportRecovery,
     SettingsStore,
     SourceActivityService,
 } from '@iptvnator/services';
@@ -164,11 +165,22 @@ export class ElectronService extends DataService {
         });
     }
 
-    override recoverPlaylistImportError(
+    override playlistImportRecovery(
         error: unknown,
         retry: () => void
-    ): boolean {
-        return this.handlePlaylistSecurityError(error, retry);
+    ): PlaylistImportRecovery | null {
+        const securityError = parseSecurityPolicyError(error);
+        if (
+            securityError?.code !==
+                ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate ||
+            !securityError.host
+        )
+            return null;
+        return {
+            messageKey: 'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+            actionKey: 'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+            run: () => this.confirmTrustPlaylistHost(securityError.host, retry),
+        };
     }
 
     async sendIpcEvent<T = unknown>(

@@ -20,7 +20,9 @@ The Add playlist dialog acquires a definition through
 Acquisition keeps the form open, disables repeated submission and method changes,
 and announces loading. Failure leaves the URL, title and user agent editable with
 a localized inline error; HTTP(S) validation requires a hostname. Electron keeps
-its explicit TLS-host trust flow, whose delayed retry belongs to the same draft.
+its explicit TLS-host trust flow: the inline action stays inside the dialog's
+keyboard focus scope, opens the existing confirmation, and retries only the same
+owned draft after approval.
 Inline failures retain a provider's network error identifier beside the translated
 message (uppercase letters, digits and underscores, at most 48 characters).
 Raw provider messages and URLs are never rendered as diagnostic details; editing

@@ -1,7 +1,7 @@
 import { DestroyRef, inject, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { DataService } from '@iptvnator/services';
+import { DataService, type PlaylistImportRecovery } from '@iptvnator/services';
 import {
     measureRendererPerformancePhase,
     RENDERER_PERFORMANCE_PHASE,
@@ -21,10 +21,12 @@ export function createUrlPlaylistImport() {
     const pending = signal(false);
     const errorKey = signal<string | null>(null);
     const errorCode = signal<string | null>(null);
+    const recovery = signal<PlaylistImportRecovery | null>(null);
     let generation = 0;
     const cancel = () => {
         generation++;
         pending.set(false);
+        recovery.set(null);
     };
     destroyRef.onDestroy(cancel);
 
@@ -39,6 +41,7 @@ export function createUrlPlaylistImport() {
         pending.set(true);
         errorKey.set(null);
         errorCode.set(null);
+        recovery.set(null);
         try {
             const playlist = await data.fetchPlaylistDefinition(
                 draft.playlistUrl.trim(),
@@ -63,11 +66,18 @@ export function createUrlPlaylistImport() {
             if (!current()) return;
             errorKey.set(importErrorKey(error));
             errorCode.set(importErrorCode(error));
-            // Preserve Electron's explicit TLS-trust flow, but its delayed
-            // action must still belong to this dialog and this draft.
-            data.recoverPlaylistImportError?.(error, () => {
+            const action = data.playlistImportRecovery?.(error, () => {
                 if (current()) retry?.();
             });
+            if (action) {
+                errorKey.set(action.messageKey);
+                recovery.set({
+                    ...action,
+                    run: () => {
+                        if (current()) action.run();
+                    },
+                });
+            }
         } finally {
             if (current()) pending.set(false);
         }
@@ -77,9 +87,18 @@ export function createUrlPlaylistImport() {
             generation++;
             errorKey.set(null);
             errorCode.set(null);
+            recovery.set(null);
         }
     };
-    return { pending, errorKey, errorCode, submit, cancel, clearError };
+    return {
+        pending,
+        errorKey,
+        errorCode,
+        recovery,
+        submit,
+        cancel,
+        clearError,
+    };
 }
 
 /** Only diagnostic identifiers, never provider messages or URLs. */

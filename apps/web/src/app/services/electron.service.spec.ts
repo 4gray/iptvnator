@@ -514,6 +514,58 @@ describe('ElectronService', () => {
         );
     });
 
+    it('returns an inline TLS action without a toast and confirms before trusting or retrying', async () => {
+        const retry = jest.fn();
+        const error = new Error(
+            `${SECURITY_ERROR_PREFIX}${JSON.stringify({
+                code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+                host: 'playlist.local',
+                message: 'Synthetic certificate failure',
+            })}`
+        );
+        const action = service.playlistImportRecovery(error, retry);
+        const dialog = TestBed.inject(DialogService) as unknown as {
+            openConfirmDialog: jest.Mock;
+        };
+        const settings = TestBed.inject(SettingsStore) as unknown as {
+            updateSettings: jest.Mock;
+        };
+        expect(action).toMatchObject({
+            messageKey: 'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+            actionKey: 'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+        });
+        expect(snackBar.open).not.toHaveBeenCalled();
+        expect(dialog.openConfirmDialog).not.toHaveBeenCalled();
+        action!.run();
+        expect(dialog.openConfirmDialog).toHaveBeenCalledTimes(1);
+        expect(settings.updateSettings).not.toHaveBeenCalled();
+        expect(retry).not.toHaveBeenCalled();
+        dialog.openConfirmDialog.mock.calls[0][0].onConfirm();
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(settings.updateSettings).toHaveBeenCalledWith({
+            trustedInsecureTlsHosts: ['playlist.local'],
+        });
+        expect(retry).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        {},
+        {
+            code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+            message: 'Synthetic certificate failure',
+        },
+    ])(
+        'does not offer inline trust without a certificate error and a host: %j',
+        (payload) => {
+            expect(
+                service.playlistImportRecovery(
+                    new Error(SECURITY_ERROR_PREFIX + JSON.stringify(payload)),
+                    jest.fn()
+                )
+            ).toBeNull();
+        }
+    );
+
     it('shows the trust-host action for Electron-wrapped security errors', async () => {
         const securityPayload = {
             code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,

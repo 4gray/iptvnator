@@ -47,6 +47,16 @@
                         {{ ' (' + code + ')' }}
                     }
                 </p>
+                @if (urlImport.recovery(); as recovery) {
+                    <button
+                        mat-button
+                        type="button"
+                        class="apd-import-recovery"
+                        (click)="recovery.run()"
+                    >
+                        {{ recovery.actionKey | translate }}
+                    </button>
+                }
             }
             @switch (playlistType()) {
                 @case ('file') {

@@ -28,12 +28,21 @@ export interface ElectronRemote {
     process: ElectronRemoteProcess;
 }
 
+export interface PlaylistImportRecovery {
+    messageKey: string;
+    actionKey: string;
+    run: () => void;
+}
+
 export abstract class DataService {
-    /** Optional, explicit user recovery (for example trusting a TLS host). */
-    recoverPlaylistImportError(_error: unknown, _retry: () => void): boolean {
+    /** The caller presents explicit recovery inside its own focus scope. */
+    playlistImportRecovery(
+        _error: unknown,
+        _retry: () => void
+    ): PlaylistImportRecovery | null {
         void _error;
         void _retry;
-        return false;
+        return null;
     }
     /** Fetches a source snapshot without dispatching an import/navigation action. */
     fetchPlaylistDefinition(
