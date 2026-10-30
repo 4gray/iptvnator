@@ -2,6 +2,7 @@ import {
     getXtreamPendingRestoreStorageKey,
     normalizeXtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces/xtream-restore-state';
+import { sourceProfileStorageKey } from './source-sync/source-profile-storage';
 import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 
 type FavoriteRestoreSupport = Partial<
@@ -27,7 +28,9 @@ export async function materializePendingXtreamFavorites(
     playlistId?: string,
     failureMode: 'throw' | 'continue' = 'throw'
 ): Promise<void> {
-    const prefix = getXtreamPendingRestoreStorageKey('');
+    const prefix = sourceProfileStorageKey(
+        getXtreamPendingRestoreStorageKey('')
+    );
     let ids: string[];
     try {
         ids = playlistId
@@ -47,9 +50,7 @@ export async function materializePendingXtreamFavorites(
     }
     for (const id of ids) {
         try {
-            const raw = localStorage.getItem(
-                getXtreamPendingRestoreStorageKey(id)
-            );
+            const raw = localStorage.getItem(`${prefix}${id}`);
             if (!raw) continue;
             let parsed: unknown;
             try {

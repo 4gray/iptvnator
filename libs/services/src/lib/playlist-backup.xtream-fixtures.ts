@@ -144,7 +144,7 @@ export function createRestoreCollaborators() {
 
     return {
         playlistsService: {
-            addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
+            restorePlaylist: jest.fn((playlist: Playlist) => of(playlist)),
             getAllData: jest.fn(() => of([existingXtreamPlaylist])),
             getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
             handlePlaylistParsing: jest.fn(),
@@ -155,7 +155,7 @@ export function createRestoreCollaborators() {
                     Promise.resolve(categoryRowsByType[type] ?? [])
             ),
             getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
-            getRecentItems: jest.fn().mockResolvedValue([]),
+            getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
             getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
             hasXtreamCategories: jest.fn().mockResolvedValue(true),
             hasXtreamContent: jest.fn().mockResolvedValue(true),

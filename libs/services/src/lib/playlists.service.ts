@@ -392,16 +392,19 @@ export class PlaylistsService {
             }
 
             this.startupMetas = null;
+            let saved: Awaited<
+                ReturnType<PlaylistDocumentStore['dbUpsertAppPlaylist']>
+            >;
             if (operationId === undefined) {
-                await store.dbUpsertAppPlaylist(playlist);
+                saved = await store.dbUpsertAppPlaylist(playlist);
             } else {
-                await store.dbUpsertAppPlaylist(playlist, operationId);
+                saved = await store.dbUpsertAppPlaylist(playlist, operationId);
             }
             this.healthEvidence?.connections.next({
                 id: playlist._id,
                 playlist,
             });
-            return playlist;
+            return saved?.playlist ?? playlist;
         });
     }
 
@@ -553,6 +556,17 @@ export class PlaylistsService {
         );
     }
 
+    /** Restore the complete archive document, including explicitly empty user state.
+     * IndexedDB add() rejects an existing id; put() replaces it atomically.
+     */
+    restorePlaylist(playlist: Playlist) {
+        return this.serializePlaylistWrite(playlist._id, () =>
+            runWithPlaylistAuthorityMutation([playlist._id], () =>
+                this.persistPlaylistMutation(playlist)
+            )
+        );
+    }
+
     getPlaylist(id: string) {
         if (id === 'global-favorites') {
             return this.getPlaylistWithGlobalFavorites();
@@ -620,7 +634,8 @@ export class PlaylistsService {
     private async runPlaylistDeleteCleanups(
         playlistId: string
     ): Promise<number> {
-        if (this.playlistDeleteCleanups.length === 0) {
+        // Server-mode pruning owns revision-guarded cleanup, including retries.
+        if (this.storageBackend.kind() === 'server') {
             return 0;
         }
 
@@ -646,54 +661,18 @@ export class PlaylistsService {
         return failures.length;
     }
 
-    /**
-     * Canonical refresh merge shared by the single-playlist update flow and
-     * the auto-refresh batch. The refreshed payload only contributes
-     * refresh-owned data (parsed content, count, EPG detection); user-owned
-     * state on the freshly read row — favorites, recently viewed, ordering,
-     * hidden groups, curated EPG sources — must survive the refresh write.
-     */
-    private mergeRefreshedPlaylist(
+    private async mergeRefreshedPlaylist(
         currentPlaylist: Playlist | undefined,
         updatedPlaylist: Playlist,
         playlistId: string
-    ): Playlist {
-        const epgSourceState = resolvePlaylistEpgSourceState({
-            detectedEpgUrls:
-                updatedPlaylist.detectedEpgUrls ??
-                currentPlaylist?.detectedEpgUrls,
-            enabledEpgUrls: updatedPlaylist.epgUrls ?? currentPlaylist?.epgUrls,
-            manualEpgUrls:
-                updatedPlaylist.manualEpgUrls ?? currentPlaylist?.manualEpgUrls,
-            disabledEpgUrls:
-                updatedPlaylist.disabledEpgUrls ??
-                currentPlaylist?.disabledEpgUrls,
-        });
-
-        return {
-            ...currentPlaylist,
-            ...updatedPlaylist,
-            _id: playlistId,
-            count:
-                updatedPlaylist.playlist?.items?.length ??
-                currentPlaylist?.count ??
-                updatedPlaylist.count,
-            updateDate: Date.now(),
-            updateState: PlaylistUpdateState.UPDATED,
-            ...(currentPlaylist
-                ? {
-                      favorites: currentPlaylist.favorites,
-                      recentlyViewed: currentPlaylist.recentlyViewed,
-                      position: currentPlaylist.position,
-                  }
-                : {}),
-            epgUrls: epgSourceState.epgUrls,
-            detectedEpgUrls: epgSourceState.detectedEpgUrls,
-            manualEpgUrls: epgSourceState.manualEpgUrls,
-            disabledEpgUrls: epgSourceState.disabledEpgUrls,
-            autoRefresh:
-                currentPlaylist?.autoRefresh ?? updatedPlaylist.autoRefresh,
-        };
+    ): Promise<Playlist> {
+        const { mergeRefreshedPlaylist } =
+            await import('./playlist-refresh-merge');
+        return mergeRefreshedPlaylist(
+            currentPlaylist,
+            updatedPlaylist,
+            playlistId
+        );
     }
 
     updatePlaylist(
@@ -706,13 +685,19 @@ export class PlaylistsService {
                 this.getPlaylistById(playlistId, operationId)
             );
             if (!currentPlaylist) throw new Error('Playlist no longer exists');
-            const mergedPlaylist = this.mergeRefreshedPlaylist(
+            const mergedPlaylist = await this.mergeRefreshedPlaylist(
                 currentPlaylist,
                 updatedPlaylist,
                 playlistId
             );
 
-            return this.persistPlaylistMutation(mergedPlaylist, operationId);
+            const saved = await this.persistPlaylistMutation(
+                mergedPlaylist,
+                operationId
+            );
+            return (
+                this.usesDocumentStore ? saved : mergedPlaylist
+            ) as Playlist;
         });
     }
 
@@ -802,6 +787,12 @@ export class PlaylistsService {
         });
         return {
             ...playlist,
+            ...(updatedPlaylist.sourceSyncBase
+                ? { sourceSyncBase: updatedPlaylist.sourceSyncBase }
+                : {}),
+            ...(updatedPlaylist.sourceSyncRevision
+                ? { sourceSyncRevision: updatedPlaylist.sourceSyncRevision }
+                : {}),
             ...(updatedPlaylist.title != null
                 ? { title: updatedPlaylist.title }
                 : {}),
@@ -1064,14 +1055,17 @@ export class PlaylistsService {
                     // The merge takes autoRefresh from the current row first,
                     // so disabling auto-refresh while a refresh is in flight
                     // is not reverted by the completing batch write.
-                    const nextPlaylist = this.mergeRefreshedPlaylist(
+                    const nextPlaylist = await this.mergeRefreshedPlaylist(
                         current,
                         playlist,
                         playlist._id
                     );
 
-                    await this.persistPlaylistMutation(nextPlaylist);
-                    return nextPlaylist;
+                    const saved =
+                        await this.persistPlaylistMutation(nextPlaylist);
+                    return (
+                        this.usesDocumentStore ? saved : nextPlaylist
+                    ) as Playlist;
                 })
             )
         ).pipe(
@@ -1233,8 +1227,11 @@ export class PlaylistsService {
                         position: item.changes.position,
                     };
 
-                    await this.persistPlaylistMutation(nextPlaylist);
-                    return nextPlaylist;
+                    const saved =
+                        await this.persistPlaylistMutation(nextPlaylist);
+                    return (
+                        this.usesDocumentStore ? saved : nextPlaylist
+                    ) as Playlist;
                 })
             )
         );

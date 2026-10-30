@@ -293,3 +293,22 @@ describe('settings form utils — EPG display without XMLTV sources', () => {
         expect(form.get('epgOffsetMinutes')).not.toBeNull();
     });
 });
+
+describe('settings form utils — age rating country', () => {
+    it('defaults to automatic and saves the selected country without enabling TMDB', () => {
+        const form = createSettingsForm(new FormBuilder(), true);
+        expect(form.get('ageRatingCountry')?.value).toBe('auto');
+        form.patchValue({ ageRatingCountry: 'de' });
+        const saved = createSettingsFromFormValue(form, {} as Settings);
+        expect(saved.ageRatingCountry).toBe('DE');
+        expect(saved.tmdb?.enabled).toBe(false);
+    });
+
+    it('normalizes invalid imported countries to automatic', () => {
+        const form = createSettingsForm(new FormBuilder(), true);
+        form.patchValue({ ageRatingCountry: 'ZZ' });
+        expect(
+            createSettingsFromFormValue(form, {} as Settings).ageRatingCountry
+        ).toBe('auto');
+    });
+});

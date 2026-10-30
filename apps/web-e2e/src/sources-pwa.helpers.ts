@@ -31,7 +31,8 @@ type SourceDialogField =
     | 'portalUrl'
     | 'serverUrl'
     | 'title'
-    | 'username';
+    | 'username'
+    | 'userAgent';
 
 /**
  * Reset the fixtures this suite uses. The Stalker reset is scoped to the MACs

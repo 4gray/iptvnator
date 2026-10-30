@@ -1,4 +1,5 @@
 import { type APIRequestContext } from '@playwright/test';
+import { configureMockProviderBackend } from './provider-target-route';
 import {
     closeSeriesMenu,
     expectSeriesSurfacesInBothThemes,
@@ -77,6 +78,8 @@ import { expect, test } from './fixtures';
  */
 
 test.describe.configure({ mode: 'serial' });
+// These provider fixtures own page.route mocks, including after hard reload.
+test.use({ serviceWorkers: 'block' });
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -139,6 +142,8 @@ async function resetMockServer(
 test.beforeEach(async ({ page, request }, testInfo) => {
     // Reset mock server state (clears in-memory favorites and cache)
     await resetMockServer(request, getStatefulAuthMacs(testInfo));
+
+    await configureMockProviderBackend(page);
 
     // Playwright creates a fresh browser context per test, so extra
     // IndexedDB cleanup here only risks racing with app-managed DB handles.

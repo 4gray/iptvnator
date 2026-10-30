@@ -15,11 +15,11 @@ import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     detectProviderImportCandidates,
-    ProviderImportCandidate,
-    ProviderImportConfidence,
-    ProviderImportKind,
-    SOURCE_TYPE_ICONS,
-} from '@iptvnator/shared/interfaces';
+    type ProviderImportCandidate,
+    type ProviderImportConfidence,
+    type ProviderImportKind,
+} from '@iptvnator/shared/interfaces/provider-import';
+import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 interface CandidateSummaryRow {

@@ -1,4 +1,8 @@
-import { XtreamVodDetails, getXtreamVodInfo } from './xtream-vod-details.interface';
+import { providerCertifications } from './provider-metadata.util';
+import {
+    XtreamVodDetails,
+    getXtreamVodInfo,
+} from './xtream-vod-details.interface';
 import { StalkerVodDetails } from './stalker-vod-details.interface';
 import {
     firstProviderText,
@@ -25,6 +29,12 @@ export function normalizeXtreamVod(item: XtreamVodDetails): NormalizedVodMeta {
 
     return {
         title: firstProviderText(info?.name, movieData?.name) ?? 'Unknown',
+        certifications: [
+            ...(Array.isArray(info?.tmdb_certifications)
+                ? info.tmdb_certifications
+                : []),
+            ...providerCertifications(info?.age, info?.mpaa_rating),
+        ],
         description: firstProviderText(info?.description, info?.plot),
         posterUrl: firstProviderText(info?.movie_image, info?.cover_big),
         backdropUrl: readProviderText(info?.backdrop_path?.[0]),
@@ -54,11 +64,14 @@ export function normalizeXtreamVod(item: XtreamVodDetails): NormalizedVodMeta {
  * Provider stand-ins ("N/A", "-", an unrated "0") read as absent — see
  * `provider-metadata.util.ts`.
  */
-export function normalizeStalkerVod(item: StalkerVodDetails): NormalizedVodMeta {
+export function normalizeStalkerVod(
+    item: StalkerVodDetails
+): NormalizedVodMeta {
     const info = item?.info;
 
     return {
         title: firstProviderText(info?.o_name, info?.name) ?? 'Unknown',
+        certifications: info?.tmdb_certifications,
         description: readProviderText(info?.description),
         posterUrl: readProviderText(info?.movie_image),
         // Stalker portals never provide a backdrop; TMDB enrichment can

@@ -320,6 +320,8 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                     provide: SettingsStore,
                     useValue: {
                         theme: signal('dark'),
+                        language: signal('en'),
+                        ageRatingCountry: signal('auto'),
                         player: signal(VideoPlayer.Html5Player),
                     },
                 },

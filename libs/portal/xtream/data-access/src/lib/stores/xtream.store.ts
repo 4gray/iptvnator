@@ -25,11 +25,7 @@ import {
     tmdbShowMetadataKey,
     withTmdbEpisodeMetadata,
 } from './features';
-import {
-    enrichSerialSeasonWithTmdb,
-    enrichSerialSelectionWithTmdb,
-    enrichVodSelectionWithTmdb,
-} from './xtream-tmdb-enrichment';
+
 import {
     applyRecoveredXtreamVodCatalogItem,
     createXtreamDetailsRequestGuard,
@@ -44,13 +40,13 @@ export const XtreamStore = signalStore(
     // Compose all features
     withPortal(),
     withContent(),
+    withPlaybackPositions(),
     withSelection(),
     withSearch(),
     withEpg(),
     withPlayer(),
     withFavorites(),
     withRecentItems(),
-    withPlaybackPositions(),
     withTmdbEpisodeMetadata(),
 
     withComputed((store) => ({
@@ -71,6 +67,15 @@ export const XtreamStore = signalStore(
         const detailsRequestGuard = createXtreamDetailsRequestGuard(
             () => store.currentPlaylist()?.id
         );
+        const enrichDetails = (
+            isCurrent: () => boolean,
+            enrich: (
+                helpers: typeof import('./xtream-tmdb-enrichment')
+            ) => Promise<void>
+        ): Promise<void> =>
+            import('./xtream-tmdb-enrichment')
+                .then((helpers) => (isCurrent() ? enrich(helpers) : undefined))
+                .catch((error) => logger.warn('TMDB unavailable', error));
         return {
             cancelDetailsRequest(): void {
                 detailsRequestGuard.invalidate();
@@ -96,6 +101,7 @@ export const XtreamStore = signalStore(
                 store.resetPortal();
                 store.resetContent();
                 store.resetSelection();
+                store.resetPlaybackPositions();
                 store.resetSearchResults();
                 store.clearEpg();
                 store.resetPlayer();
@@ -118,7 +124,9 @@ export const XtreamStore = signalStore(
                 await store.initializeContent();
                 const playlist = store.currentPlaylist();
                 if (playlist) {
-                    store.loadAllPositions(playlist.id);
+                    void store.loadAllPositions(playlist.id).catch((error) => {
+                        logger.warn('Failed to load playback positions', error);
+                    });
                 }
             },
 
@@ -175,11 +183,13 @@ export const XtreamStore = signalStore(
                         if (!isCurrentRequest()) return;
                         store.setSelectedCategory(params.categoryId);
                         store.setSelectedItem(selection);
-                        void enrichVodSelectionWithTmdb(
-                            store,
-                            tmdbEnrichment,
-                            params.vodId,
-                            isCurrentRequest
+                        void enrichDetails(isCurrentRequest, (helpers) =>
+                            helpers.enrichVodSelectionWithTmdb(
+                                store,
+                                tmdbEnrichment,
+                                params.vodId,
+                                isCurrentRequest
+                            )
                         );
 
                         if (!recovery) {
@@ -266,11 +276,13 @@ export const XtreamStore = signalStore(
                         store.resetTmdbSeasonMetadata(params.serialId);
                         void store.trackTmdbEpisodeMetadata(
                             tmdbShowMetadataKey(params.serialId),
-                            enrichSerialSelectionWithTmdb(
-                                store,
-                                tmdbEnrichment,
-                                params.serialId,
-                                isCurrentRequest
+                            enrichDetails(isCurrentRequest, (helpers) =>
+                                helpers.enrichSerialSelectionWithTmdb(
+                                    store,
+                                    tmdbEnrichment,
+                                    params.serialId,
+                                    isCurrentRequest
+                                )
                             )
                         );
                     })
@@ -303,11 +315,17 @@ export const XtreamStore = signalStore(
                 const seriesId = (
                     store.selectedItem() as { series_id?: string | number }
                 )?.series_id;
-                const work = enrichSerialSeasonWithTmdb(
-                    store,
-                    tmdbEnrichment,
-                    seasonKey,
-                    () => store.currentPlaylist()?.id === playlistId
+                const isCurrent = () =>
+                    store.currentPlaylist()?.id === playlistId &&
+                    String(store.selectedItem()?.series_id) ===
+                        String(seriesId);
+                const work = enrichDetails(isCurrent, (helpers) =>
+                    helpers.enrichSerialSeasonWithTmdb(
+                        store,
+                        tmdbEnrichment,
+                        seasonKey,
+                        isCurrent
+                    )
                 );
                 void (seriesId === undefined
                     ? work

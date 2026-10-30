@@ -12,10 +12,11 @@ const baseURL =
     (isStaticPwaE2E
         ? `http://localhost:${staticPwaPort}`
         : 'http://localhost:4200');
-const webServerCommand =
-    isStaticPwaE2E
-        ? `pnpm nx run web:serve-static --port=${staticPwaPort}`
-        : 'pnpm nx run web:serve';
+const webServerCommand = isStaticPwaE2E
+    ? `pnpm nx run web:serve-static --port=${staticPwaPort}`
+    : process.env['BASE_URL']
+      ? `pnpm nx run web:serve --port=${new URL(baseURL).port || '4200'}`
+      : 'pnpm nx run web:serve';
 const reuseExistingWebServer = isStaticPwaE2E ? false : !process.env['CI'];
 const webBackendPort = process.env['WEB_BACKEND_PORT'] ?? '3333';
 const storageBackendPort = process.env['STORAGE_BACKEND_PORT'] ?? '3334';
@@ -75,6 +76,7 @@ export default defineConfig({
             url: baseURL,
             reuseExistingServer: reuseExistingWebServer,
             cwd: workspaceRoot,
+            timeout: 120000,
         },
         /* The mocks run as one node process, not through `nx run …:serve`:
          * Nx starts its command in a detached process group, so Playwright's
@@ -105,7 +107,7 @@ export default defineConfig({
             command: 'node --import tsx apps/web-backend/src/main.ts',
             env: {
                 PORT: webBackendPort,
-                CLIENT_URL: 'http://localhost:4200',
+                CLIENT_URL: new URL(baseURL).origin,
                 BACKEND_URL: '/api',
                 IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: '1',
                 TSX_TSCONFIG_PATH: 'tsconfig.base.json',
@@ -121,7 +123,7 @@ export default defineConfig({
             command: 'node --import tsx apps/web-backend/src/main.ts',
             env: {
                 PORT: storageBackendPort,
-                CLIENT_URL: `http://localhost:4200,http://localhost:${staticPwaPort}`,
+                CLIENT_URL: new URL(baseURL).origin,
                 BACKEND_URL: '/api',
                 IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: '1',
                 TSX_TSCONFIG_PATH: 'tsconfig.base.json',

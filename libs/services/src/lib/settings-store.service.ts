@@ -287,6 +287,7 @@ export const SettingsStore = signalStore(
                         store.trustedInsecureTlsHosts?.() ??
                         DEFAULT_SETTINGS.trustedInsecureTlsHosts,
                     tmdb: store.tmdb?.() ?? DEFAULT_SETTINGS.tmdb,
+                    ageRatingCountry: store.ageRatingCountry?.() ?? 'auto',
                     parentalLockEnabled: store.parentalLockEnabled?.() === true,
                     parentalLockRelockMinutes:
                         normalizeParentalLockRelockMinutes(

@@ -10,6 +10,9 @@
             "inputs": [
                 "default",
                 "{workspaceRoot}/package.json",
+                "{workspaceRoot}/.nvmrc",
+                "{workspaceRoot}/docker/Dockerfile",
+                "{workspaceRoot}/.github/workflows/*",
                 "{workspaceRoot}/electron-builder.json",
                 "{workspaceRoot}/.github/workflows/build-and-make.yaml",
                 "{workspaceRoot}/.github/workflows/publish-snap.yaml",
@@ -63,7 +66,7 @@
                 "{workspaceRoot}/tools/embedded-mpv/windows-runtime-pin.test.mjs"
             ],
             "options": {
-                "command": "node --test tools/packaging/electron-package-identity.test.mjs tools/packaging/asar-dependency-closure.test.mjs tools/packaging/embedded-mpv-arch.test.mjs tools/packaging/flatpak-launcher-validation.test.mjs tools/packaging/configure-linux-frame-copy-build.test.mjs tools/packaging/linux-after-pack.test.mjs tools/packaging/linux-frame-copy-profile.test.mjs tools/packaging/prepare-linux-runtime-source-snapshot.test.mjs tools/packaging/publish-snap-workflow.test.mjs tools/packaging/release-snap-assets.test.mjs tools/packaging/verify-linux-frame-copy-runtime.test.mjs tools/embedded-mpv/build-linux-runtime.test.mjs tools/embedded-mpv/download-pinned-source.test.mjs tools/embedded-mpv/generate-linux-runtime-notices.test.mjs tools/embedded-mpv/linux-runtime-manifest.test.mjs tools/embedded-mpv/windows-runtime-pin.test.mjs tools/embedded-mpv/macos-source-patches.test.mjs",
+                "command": "node --test tools/packaging/runtime-security.test.mjs tools/packaging/electron-package-identity.test.mjs tools/packaging/asar-dependency-closure.test.mjs tools/packaging/embedded-mpv-arch.test.mjs tools/packaging/flatpak-launcher-validation.test.mjs tools/packaging/configure-linux-frame-copy-build.test.mjs tools/packaging/linux-after-pack.test.mjs tools/packaging/linux-frame-copy-profile.test.mjs tools/packaging/prepare-linux-runtime-source-snapshot.test.mjs tools/packaging/publish-snap-workflow.test.mjs tools/packaging/release-snap-assets.test.mjs tools/packaging/verify-linux-frame-copy-runtime.test.mjs tools/embedded-mpv/build-linux-runtime.test.mjs tools/embedded-mpv/download-pinned-source.test.mjs tools/embedded-mpv/generate-linux-runtime-notices.test.mjs tools/embedded-mpv/linux-runtime-manifest.test.mjs tools/embedded-mpv/windows-runtime-pin.test.mjs tools/embedded-mpv/macos-source-patches.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },

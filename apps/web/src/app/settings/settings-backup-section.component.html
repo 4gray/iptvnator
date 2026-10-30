@@ -13,27 +13,44 @@
                 <div class="setting-item__meta">
                     <h4>{{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}</h4>
                     <p>
-                        {{ 'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION' | translate }}
+                        {{
+                            'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION'
+                                | translate
+                        }}
                     </p>
                 </div>
                 <div class="setting-item__control inline-actions">
                     <button
                         mat-flat-button
                         class="inline-actions__button"
-                        [disabled]="isRemovingAllPlaylists() || isExportingData()"
+                        [attr.aria-busy]="isImportingData()"
+                        [disabled]="isRemovingAllPlaylists() || isBackupBusy()"
                         (click)="
                             $event.preventDefault();
                             $event.stopPropagation();
                             importData.emit()
                         "
                     >
-                        {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                        @if (isImportingData()) {
+                            <mat-progress-spinner
+                                class="button-spinner"
+                                diameter="16"
+                                mode="indeterminate"
+                                aria-hidden="true"
+                            />
+                        }
+                        <span class="inline-actions__label">{{
+                            (isImportingData()
+                                ? 'SETTINGS.IMPORTING_DATA'
+                                : 'SETTINGS.IMPORT_DATA'
+                            ) | translate
+                        }}</span>
                     </button>
                     <button
                         mat-flat-button
                         class="inline-actions__button"
                         [class.inline-actions__button--busy]="isExportingData()"
-                        [disabled]="isRemovingAllPlaylists() || isExportingData()"
+                        [disabled]="isRemovingAllPlaylists() || isBackupBusy()"
                         [attr.aria-busy]="isExportingData()"
                         (click)="
                             $event.preventDefault();
@@ -59,6 +76,29 @@
                 </div>
             </div>
 
+            <div
+                class="backup-result"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+            >
+                @if (isImportingData()) {
+                    <p>{{ 'SETTINGS.IMPORTING_DATA' | translate }}</p>
+                } @else if (importFailed()) {
+                    <p>{{ 'SETTINGS.BACKUP_IMPORT_FAILED' | translate }}</p>
+                } @else if (importSummary(); as summary) {
+                    <p>
+                        {{
+                            'SETTINGS.BACKUP_IMPORT_SUMMARY'
+                                | translate: summary
+                        }}
+                    </p>
+                    @if (summary.failed > 0) {
+                        <p>{{ 'SETTINGS.BACKUP_IMPORT_ISSUES' | translate }}</p>
+                    }
+                }
+            </div>
+
             @if (isPwa()) {
                 <div class="setting-item__sub">
                     <div class="settings-callout settings-callout--info">
@@ -69,7 +109,9 @@
                                 href="https://github.com/4gray/iptvnator/releases"
                                 target="_blank"
                                 rel="noreferrer"
-                                >{{ 'SETTINGS.EPG_NOTE_URL_TEXT' | translate }}</a
+                                >{{
+                                    'SETTINGS.EPG_NOTE_URL_TEXT' | translate
+                                }}</a
                             >
                         </div>
                     </div>
@@ -143,7 +185,7 @@
                         [class.danger-zone__button--busy]="
                             isRemovingAllPlaylists()
                         "
-                        [disabled]="!canRemoveAllPlaylists()"
+                        [disabled]="!canRemoveAllPlaylists() || isBackupBusy()"
                         [attr.aria-busy]="isRemovingAllPlaylists()"
                         (click)="
                             $event.preventDefault();

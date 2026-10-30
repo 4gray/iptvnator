@@ -10,6 +10,7 @@ import {
     DatabaseService,
     DbOperationEvent,
     PlaylistsService,
+    PlaylistStorageBackend,
     RuntimeCapabilitiesService,
     injectTranslationTick,
 } from '@iptvnator/services';
@@ -30,6 +31,7 @@ export class SettingsPlaylistResetFacade {
     private readonly parentalLock = inject(ParentalLockService);
     private readonly matDialog = inject(MatDialog);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly playlistBackend = inject(PlaylistStorageBackend);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly store = inject(Store);
@@ -113,10 +115,12 @@ export class SettingsPlaylistResetFacade {
             if (!deleted) {
                 throw new Error('Delete all playlists returned success=false');
             }
-            // The playlists are gone; their locks must not linger in the
-            // lock store (the deletion itself already succeeded, so a failed
-            // clear is only logged).
-            if (!(await this.parentalLock.clearAllLocks())) {
+            // Shared sources use per-ID cleanup. Another tab may already have
+            // created new sources/locks outside this deletion's snapshot.
+            if (
+                this.playlistBackend.kind() !== 'server' &&
+                !(await this.parentalLock.clearAllLocks())
+            ) {
                 console.warn('Clearing the parental locks failed.');
             }
 

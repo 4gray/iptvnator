@@ -1,3 +1,5 @@
+import { extractTmdbCertifications } from '@iptvnator/shared/tmdb/certifications';
+
 import {
     normalizeSeriesStatus,
     StalkerVodInfo,
@@ -21,11 +23,7 @@ import {
     unifiedTvCast,
 } from './tmdb-credits';
 import { extractYear } from './tmdb-matcher';
-import {
-    TmdbDetails,
-    TmdbMovieDetails,
-    TmdbTvDetails,
-} from './tmdb.types';
+import { TmdbDetails, TmdbMovieDetails, TmdbTvDetails } from './tmdb.types';
 
 /**
  * Field-level merge of TMDB metadata into provider detail objects.
@@ -147,6 +145,7 @@ export function mergeVodInfoWithTmdb(
 
     return {
         ...info,
+        tmdb_certifications: extractTmdbCertifications(details, 'movie'),
         tmdb_id: details.id,
         plot: prefer(details.overview, info.plot),
         description: prefer(details.overview, info.description),
@@ -173,9 +172,7 @@ export function mergeVodInfoWithTmdb(
             ? { tmdb_recommendations: recommendations }
             : {}),
         ...(tmdbGenres.length > 0 ? { tmdb_genres: tmdbGenres } : {}),
-        ...(tmdbCountries.length > 0
-            ? { tmdb_countries: tmdbCountries }
-            : {}),
+        ...(tmdbCountries.length > 0 ? { tmdb_countries: tmdbCountries } : {}),
     };
 }
 
@@ -199,6 +196,7 @@ export function mergeSerieInfoWithTmdb(
 
     return {
         ...info,
+        tmdb_certifications: extractTmdbCertifications(details, 'tv'),
         plot: prefer(details.overview, info.plot),
         cast: prefer(cast, info.cast),
         director: prefer(creators, info.director),
@@ -219,9 +217,7 @@ export function mergeSerieInfoWithTmdb(
             ? { tmdb_recommendations: recommendations }
             : {}),
         ...(tmdbGenres.length > 0 ? { tmdb_genres: tmdbGenres } : {}),
-        ...(tmdbCountries.length > 0
-            ? { tmdb_countries: tmdbCountries }
-            : {}),
+        ...(tmdbCountries.length > 0 ? { tmdb_countries: tmdbCountries } : {}),
     };
 }
 
@@ -269,6 +265,7 @@ export function mergeStalkerInfoWithTmdb(
 
     return {
         ...info,
+        tmdb_certifications: extractTmdbCertifications(details, mediaType),
         description: prefer(details.overview, info.description),
         actors: prefer(cast, info.actors),
         director: prefer(director, info.director),
@@ -288,9 +285,7 @@ export function mergeStalkerInfoWithTmdb(
             ? { tmdb_recommendations: recommendations }
             : {}),
         ...(tmdbGenres.length > 0 ? { tmdb_genres: tmdbGenres } : {}),
-        ...(tmdbCountries.length > 0
-            ? { tmdb_countries: tmdbCountries }
-            : {}),
+        ...(tmdbCountries.length > 0 ? { tmdb_countries: tmdbCountries } : {}),
         // Lets the shared detail view route Discover clicks to the media
         // type this item actually matched as (embedded-VOD series → tv)
         tmdb_media_type: mediaType,

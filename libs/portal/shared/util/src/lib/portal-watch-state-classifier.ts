@@ -1,0 +1,48 @@
+import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import {
+    getPortalPlaybackProgressPercent,
+    PORTAL_WATCHED_PROGRESS_PERCENT,
+} from './portal-playback-positions';
+
+/**
+ * One watch state for every catalog card, movie or series, on every portal.
+ *
+ * - `watched`: the position row reached the completion threshold, whether
+ *   playback got there or the user marked it by hand.
+ * - `in-progress`: something was started but not finished. For a series it
+ *   means at least one episode has a row — the catalog list cannot know how
+ *   many episodes a series has, so a series never reaches `watched` here.
+ * - `unwatched`: no row at all.
+ */
+export type PortalWatchState = 'unwatched' | 'in-progress' | 'watched';
+
+/** Null selects every movie, regardless of playback progress. */
+export type PortalWatchStateFilter = PortalWatchState | null;
+
+export function watchStateFromProgressPercent(
+    percent: number
+): PortalWatchState {
+    if (percent >= PORTAL_WATCHED_PROGRESS_PERCENT) {
+        return 'watched';
+    }
+    return percent > 0 ? 'in-progress' : 'unwatched';
+}
+
+export function resolvePortalWatchState(
+    position: PlaybackPositionData | null | undefined
+): PortalWatchState {
+    return watchStateFromProgressPercent(
+        getPortalPlaybackProgressPercent(position)
+    );
+}
+
+/**
+ * Series catalog cards only know whether ANY episode carries a row; the
+ * total episode count is not part of the list payload on either portal, so
+ * the strongest truthful answer is "started".
+ */
+export function resolvePortalSeriesWatchState(
+    hasAnyEpisodeProgress: boolean
+): PortalWatchState {
+    return hasAnyEpisodeProgress ? 'in-progress' : 'unwatched';
+}

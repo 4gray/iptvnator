@@ -14,6 +14,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionsTemplateDirective,
@@ -40,6 +41,7 @@ import {
 } from '@iptvnator/ui/playback';
 import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import {
+    normalizeXtreamVod,
     TmdbEnrichedCastMember,
     XtreamVodDetails,
     XtreamVodInfo,
@@ -84,6 +86,7 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
         SlicePipe,
         TranslateModule,
         PortalInlinePlayerComponent,
+        AgeRatingChipComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
         DetailCreditsComponent,
@@ -131,6 +134,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly playbackSessionKey = this.selection.playbackSessionKey;
     readonly providerOnly = this.selection.providerOnly;
     readonly selectedItem = this.selection.selectedItem;
+    readonly certifications = computed(
+        () => normalizeXtreamVod(this.selectedItem() ?? {}).certifications
+    );
     readonly selectedCategory = this.selection.selectedCategory;
     readonly selectedCatalogItem = this.selection.selectedCatalogItem;
     private readonly multiSourceMovie = this.selection.multiSourceMovie;

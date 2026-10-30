@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
     SERVER_STORAGE_API_VERSION,
+    SOURCE_SYNC_CAPABILITY,
     type ServerInstanceInfo,
     type ServerStorageStatusResponse,
 } from '@iptvnator/shared/interfaces';
@@ -15,6 +16,7 @@ export function createInstanceRouter(deps: {
 
     router.get('/instance', (_req, res) => {
         const body: ServerInstanceInfo = {
+            ...(deps.storage ? { capabilities: [SOURCE_SYNC_CAPABILITY] } : {}),
             service: 'iptvnator',
             apiVersion: SERVER_STORAGE_API_VERSION,
             instanceId: deps.storage?.database.instanceId ?? null,

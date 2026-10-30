@@ -79,7 +79,11 @@ export class TmdbApiClient {
     ): Promise<TmdbMovieDetails> {
         return this.request<TmdbMovieDetails>(
             `/movie/${tmdbId}`,
-            { language, append_to_response: 'credits,videos,recommendations' },
+            {
+                language,
+                append_to_response:
+                    'credits,videos,recommendations,release_dates',
+            },
             apiKey
         );
     }
@@ -97,7 +101,7 @@ export class TmdbApiClient {
                 // a TV id is documented as the LATEST SEASON only, so both
                 // are needed to reconstruct the real cast (see tmdb-merge)
                 append_to_response:
-                    'credits,aggregate_credits,videos,recommendations',
+                    'credits,aggregate_credits,videos,recommendations,content_ratings',
             },
             apiKey
         );

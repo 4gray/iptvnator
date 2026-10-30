@@ -9,6 +9,7 @@ import {
     TranslateService,
 } from '@ngx-translate/core';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionsTemplateDirective,
@@ -307,7 +308,11 @@ describe('VodDetailsComponent offline playback', () => {
                 },
                 {
                     provide: SettingsStore,
-                    useValue: { player: signal(VideoPlayer.Html5Player) },
+                    useValue: {
+                        player: signal(VideoPlayer.Html5Player),
+                        language: signal('en'),
+                        ageRatingCountry: signal('auto'),
+                    },
                 },
                 {
                     provide: Router,
@@ -322,6 +327,7 @@ describe('VodDetailsComponent offline playback', () => {
                 // player swapped for the stub above.
                 set: {
                     imports: [
+                        AgeRatingChipComponent,
                         CastCrewRowComponent,
                         DetailActionButtonComponent,
                         DetailActionsTemplateDirective,

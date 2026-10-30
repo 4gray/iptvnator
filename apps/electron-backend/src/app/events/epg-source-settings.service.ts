@@ -30,7 +30,11 @@ export function reconcileEpgSources(globalUrls: string[]): Promise<void> {
                     eq(appState.key, 'm3u-playlists-indexeddb-to-sqlite-v1')
                 );
             // A failed/incomplete migration cannot establish all playlist owners.
-            if (migration[0]?.value !== '1') {
+            const sourceProfile = process.env.IPTVNATOR_SOURCE_PROFILE;
+            const synchronized = migration[0]?.value !== '1' && sourceProfile && /^[a-f0-9]{64}$/.test(sourceProfile)
+                ? await db.select().from(appState).where(eq(appState.key, 'source-sync-initialized'))
+                : [];
+            if (migration[0]?.value !== '1' && synchronized[0]?.value !== '1') {
                 throw new Error(
                     'EPG source reconciliation requires migrated playlists'
                 );

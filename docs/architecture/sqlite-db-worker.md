@@ -51,6 +51,20 @@ These files own worker lifecycle and IPC bridging:
 
 ### Worker runtime
 
+Native SQLite imports in worker operation modules must stay type-only. The
+worker connection resolves the constructor after registering unpacked module
+paths and passes it to standalone-profile reads. An eager import prevents the
+entire packaged worker from starting, even when no server is connected.
+`database-worker-packaged.spec.ts` covers startup, source metadata and read-only
+standalone import with SQLite available only under `app.asar.unpacked`.
+
+`DB_GET_STANDALONE_SOURCES` reads the retained standalone database read-only
+for explicit server import. The worker opens that separate file without
+changing/migrating it, maps historical column names through the shared playlist
+codec, and closes it after the read. The active server-profile connection is
+unaffected. Source projection writes/deletes use the existing worker playlist
+operations and retain server source IDs.
+
 These files own the worker protocol and the SQLite work itself:
 
 1. `apps/electron-backend/src/app/workers/database-worker.types.ts`

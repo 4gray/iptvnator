@@ -33,7 +33,7 @@ describe('PlaylistBackupService', () => {
 
     it('exports self-contained M3U data and strips Stalker session fields', async () => {
         const playlistsService = {
-            addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
+            restorePlaylist: jest.fn((playlist: Playlist) => of(playlist)),
             getAllData: jest.fn(() =>
                 of([
                     {
@@ -140,7 +140,7 @@ describe('PlaylistBackupService', () => {
             hiddenGroupTitles: ['News'],
         } as Playlist;
         const playlistsService = {
-            addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
+            restorePlaylist: jest.fn((playlist: Playlist) => of(playlist)),
             getAllData: jest.fn(() => of([existingPlaylist])),
             getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
             handlePlaylistParsing: jest.fn(
@@ -219,7 +219,7 @@ describe('PlaylistBackupService', () => {
                 'https://existing.example.com/epg.xml',
             ],
         });
-        expect(playlistsService.addPlaylist).toHaveBeenCalledWith(
+        expect(playlistsService.restorePlaylist).toHaveBeenCalledWith(
             expect.objectContaining({
                 _id: 'existing-playlist-id',
                 title: 'Imported Title',

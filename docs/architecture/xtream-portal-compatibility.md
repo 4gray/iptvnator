@@ -1,5 +1,35 @@
 # Xtream Portal Compatibility
 
+## Movie catalog watch-status filter
+
+The Movies catalog's Refine menu can select All, Unwatched, In progress or
+Watched. This is a catalog-only Xtream VOD capability; series, live channels,
+Stalker, collections and the separate search pages do not expose it. The
+catalog's own query, category, minimum rating and sort combine with the status.
+The Refine panel opens at its final geometry: entrance scaling must not move
+submenu triggers beneath a stationary pointer and activate a neighbouring menu.
+
+Classification reuses `resolvePortalWatchState`, including its rounded
+percentage and 90% completion threshold. A manual watched mark uses the same
+persisted full-progress position. A position without a known duration remains
+Unwatched under the existing classification; the filter does not infer viewing
+outside the application. Positions belong to a playlist, content type and
+provider ID, never the local SQLite row ID or a matching title in another source.
+
+The selection store filters the full catalog before taking the render-window
+slice. Result count, window growth and `hasMore` use that same selection. It
+uses the existing batch position reader in both Electron and PWA, without
+per-card position reads or a new persistence format. Loading, failed reads,
+successful empty history and an empty filtered result are distinct states.
+Active filtering waits for positions owned by the current source; Retry reloads
+them, while clearing the status leaves the other refinements intact.
+
+The status survives category changes and detail round trips within Movies,
+and clears on source/content-type changes or an application reload. Detail
+return refreshes the position map so manual marks, progress resets and browser
+playback affect the next catalog view. Scroll snapshots include the status;
+see [Portal Detail Navigation](portal-detail-navigation.md).
+
 This document captures the Xtream Codes compatibility rules shared by the
 Electron and PWA paths.
 
@@ -36,6 +66,11 @@ See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
 [SQLite DB Worker](./sqlite-db-worker.md),
 [Portal Detail Navigation](./portal-detail-navigation.md), and
 [VOD Multi-Source](./vod-multi-source.md).
+
+Catalog category titles accept the desktop `name`/`title` fields and the raw
+PWA `category_name` field in `XtreamCatalogFacadeService`. The all-items title
+remains a view-owned localized fallback when no category is selected; the
+shared catalog header does not normalize provider payloads itself.
 
 ## Cached Catalog Status And Scroll Ownership
 

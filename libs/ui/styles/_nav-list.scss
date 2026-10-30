@@ -27,8 +27,10 @@
     text-align: left;
     text-decoration: none;
     cursor: pointer;
+    font-family: inherit;
     font-size: 0.875rem;
     font-weight: 500;
+    line-height: 1.2;
     box-sizing: border-box;
     transition:
         background 0.15s ease,

@@ -112,7 +112,29 @@ interface TmdbDetailsBase {
     origin_country?: string[];
 }
 
+export interface TmdbClassificationResponse<T> {
+    results?: T[];
+    /** A failed appended endpoint must not discard the other metadata. */
+    status_code?: number;
+}
+
+export interface TmdbMovieRelease {
+    certification?: string;
+    type?: number;
+}
+
+export interface TmdbCountryReleases {
+    iso_3166_1?: string;
+    release_dates?: TmdbMovieRelease[];
+}
+
+export interface TmdbTvClassification {
+    iso_3166_1?: string;
+    rating?: string;
+}
+
 export interface TmdbMovieDetails extends TmdbDetailsBase {
+    release_dates?: TmdbClassificationResponse<TmdbCountryReleases>;
     title?: string;
     original_title?: string;
     release_date?: string;
@@ -120,6 +142,7 @@ export interface TmdbMovieDetails extends TmdbDetailsBase {
 }
 
 export interface TmdbTvDetails extends TmdbDetailsBase {
+    content_ratings?: TmdbClassificationResponse<TmdbTvClassification>;
     name?: string;
     original_name?: string;
     first_air_date?: string;

@@ -33,6 +33,17 @@ for (const mode of ['catalog', 'missing', 'direct'] as const) {
                 body: 'window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: "http://localhost:3000" };',
             })
         );
+        // This fixture provides a standalone proxy, not a shared source server.
+        await page.route('http://localhost:3000/v1/instance', (route) =>
+            route.fulfill({
+                json: {
+                    service: 'iptvnator',
+                    apiVersion: 1,
+                    storage: 'none',
+                    capabilities: [],
+                },
+            })
+        );
         await page.goto('/');
         await interceptXtreamRequests(page);
         await routeMovieClip(page);
