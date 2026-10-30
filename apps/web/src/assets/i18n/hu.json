@@ -179,7 +179,7 @@
             "OPEN_FAILED": "Nem sikerült megnyitni a következő fájlt: „{{filename}}”."
         },
         "URL_UPLOAD": {
-            "FETCHING": "Lejátszási lista betöltése… Betöltés közben megszakítható.",
+            "FETCHING": "Lejátszási lista lekérése… A műveletet bármikor megszakíthatja.",
             "PLAYLIST_URL": "Lejátszási lista URL-címe (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Adjon meg egy http:// vagy https:// kezdetű érvényes URL-címet.",
             "ADD_PLAYLIST": "Lejátszási lista hozzáadása",
@@ -807,7 +807,7 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
-        "HLS_WAIT": "Még nem érkeztek meg az adatfolyam adatai. Várhat tovább, vagy újrapróbálhatja.",
+        "HLS_WAIT": "Az adatfolyamból még nem érkeztek adatok. Várhat tovább, vagy újrapróbálkozhat.",
         "STAGE_LOADER": "Adatfolyam betöltése",
         "STAGE_DEMUX": "Konténer elemzése",
         "DETAIL_STAGE": "A hiba fellépésének szakasza",
@@ -1319,8 +1319,8 @@
     },
     "PORTALS": {
         "CATALOG_LOAD_ERROR": {
-            "TITLE": "A kategória nem tölthető be",
-            "DESCRIPTION": "A kategória és a szűrők megmaradtak. Ellenőrizze a kapcsolatot, és próbálja újra."
+            "TITLE": "Nem sikerült betölteni a kategóriát",
+            "DESCRIPTION": "A kategóriaválasztás és a szűrési beállítások megmaradtak. Ellenőrizze a kapcsolatot, majd próbálja újra."
         },
         "REQUESTS_PAUSED": {
             "TITLE": "Kérések átmenetileg szüneteltetve",
@@ -1762,18 +1762,18 @@
         "REFINE_ACTION": "Finomítás",
         "REFINE_SORT_SECTION": "Rendezés alapja",
         "REFINE_WATCH_SECTION": "Megtekintési állapot",
-        "REFINE_WATCH_ALL": "Mind",
-        "REFINE_WATCH_UNWATCHED": "Nem látott",
-        "REFINE_WATCH_IN_PROGRESS": "Folyamatban",
+        "REFINE_WATCH_ALL": "Összes",
+        "REFINE_WATCH_UNWATCHED": "Még nem nézett",
+        "REFINE_WATCH_IN_PROGRESS": "Megkezdett",
         "REFINE_WATCH_WATCHED": "Megtekintett",
         "REFINE_WATCH_CLEAR": "Megtekintési szűrő törlése: {{status}}",
         "REFINE_WATCH_LOADING": "Megtekintési előzmények betöltése…",
-        "REFINE_WATCH_EMPTY_TITLE": "Nincs ilyen megtekintési állapotú film",
+        "REFINE_WATCH_EMPTY_TITLE": "Nincs a kiválasztott állapotnak megfelelő film",
         "REFINE_WATCH_EMPTY_DESCRIPTION": "Válasszon másik állapotot, vagy törölje ezt a szűrőt.",
-        "REFINE_WATCH_RESET": "Megtekintési állapot törlése",
+        "REFINE_WATCH_RESET": "Megtekintési szűrő törlése",
         "REFINE_WATCH_ERROR_TITLE": "Nem sikerült betölteni a megtekintési előzményeket",
         "REFINE_WATCH_ERROR_DESCRIPTION": "Próbálja újra, vagy törölje a megtekintési szűrőt.",
-        "REFINE_WATCH_RETRY": "Újrapróbálás",
+        "REFINE_WATCH_RETRY": "Újrapróbálkozás",
         "REFINE_RATING_SECTION": "Minimális értékelés",
         "REFINE_CLEAR_RATING": "A {{value}},0 vagy magasabb értékelési szűrő törlése",
         "FILTER_RATING_ANY": "Bármely értékelés",
