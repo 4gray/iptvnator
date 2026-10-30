@@ -23,6 +23,7 @@ const CANONICAL_TARGETS: readonly PlaybackRecommendationTarget[] = [
     InlinePlaybackPlayer.VideoJs,
     InlinePlaybackPlayer.Html5,
     InlinePlaybackPlayer.ArtPlayer,
+    InlinePlaybackPlayer.Vidstack,
     'mpv',
     'vlc',
 ];

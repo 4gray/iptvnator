@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 export const liveFormatMock = `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}`;
-export type LiveFormatPlayer = 'html5' | 'videojs' | 'artplayer';
+export type LiveFormatPlayer = 'html5' | 'videojs' | 'artplayer' | 'vidstack';
 
 export async function configureLiveFormat(
     page: Page,
@@ -17,6 +17,7 @@ export async function configureLiveFormat(
                 html5: 'HTML5 video player',
                 videojs: 'Video.js player',
                 artplayer: 'ArtPlayer',
+                vidstack: 'Vidstack',
             }[player],
             exact: true,
         })
@@ -66,11 +67,13 @@ export async function expectLiveFormatPlaying(
     page: Page,
     player: LiveFormatPlayer
 ) {
-    await expect(
-        page.locator(
-            `app-${player === 'html5' ? 'html-video' : player === 'videojs' ? 'vjs' : 'art'}-player`
-        )
-    ).toBeVisible();
+    const host = {
+        html5: 'app-html-video-player',
+        videojs: 'app-vjs-player',
+        artplayer: 'app-art-player',
+        vidstack: 'app-vidstack-player',
+    }[player];
+    await expect(page.locator(host)).toBeVisible();
     const video = page.locator('app-web-player-view video').first();
     await expect
         .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), {

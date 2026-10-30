@@ -189,6 +189,8 @@ export function toVideoPlayer(target: InlinePlaybackPlayer): VideoPlayer {
             return VideoPlayer.Html5Player;
         case InlinePlaybackPlayer.ArtPlayer:
             return VideoPlayer.ArtPlayer;
+        case InlinePlaybackPlayer.Vidstack:
+            return VideoPlayer.Vidstack;
     }
 }
 
@@ -202,6 +204,8 @@ export function toInlinePlaybackPlayer(
             return InlinePlaybackPlayer.Html5;
         case VideoPlayer.ArtPlayer:
             return InlinePlaybackPlayer.ArtPlayer;
+        case VideoPlayer.Vidstack:
+            return InlinePlaybackPlayer.Vidstack;
         case VideoPlayer.EmbeddedMpv:
         case VideoPlayer.MPV:
         case VideoPlayer.VLC:

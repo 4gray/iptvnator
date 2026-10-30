@@ -265,6 +265,29 @@ describe('recommendPlaybackRecovery', () => {
                 ),
             ],
         },
+        {
+            name: 'HLS hls.js decode error on Vidstack',
+            input: context({
+                code: PlaybackDiagnosticCode.MediaDecodeError,
+                sourceKind: PlaybackSourceKind.Hls,
+                activeTarget: InlinePlaybackPlayer.Vidstack,
+            }),
+            expected: [
+                player(
+                    InlinePlaybackPlayer.VideoJs,
+                    PlaybackRecommendationReason.DifferentEngineFamily,
+                    'primary'
+                ),
+                player(
+                    'mpv',
+                    PlaybackRecommendationReason.ExternalCodecOrContainerSupport
+                ),
+                player(
+                    'vlc',
+                    PlaybackRecommendationReason.ExternalCodecOrContainerSupport
+                ),
+            ],
+        },
         ...[PlaybackSourceKind.MpegTs, PlaybackSourceKind.Native].map(
             (sourceKind) => ({
                 name: `${sourceKind} decode error`,

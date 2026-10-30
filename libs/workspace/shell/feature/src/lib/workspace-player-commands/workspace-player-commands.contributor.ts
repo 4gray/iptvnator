@@ -49,13 +49,22 @@ const PLAYER_COMMAND_DEFS: readonly PlayerCommandDefinition[] = [
         priority: 92,
     },
     {
+        id: 'switch-player-vidstack',
+        player: VideoPlayer.Vidstack,
+        icon: 'play_circle',
+        nameKey: 'SETTINGS.PLAYER_VIDSTACK',
+        keywords: ['player', 'vidstack'],
+        requires: 'none',
+        priority: 93,
+    },
+    {
         id: 'switch-player-embedded-mpv',
         player: VideoPlayer.EmbeddedMpv,
         icon: 'play_circle',
         nameKey: 'SETTINGS.PLAYER_EMBEDDED_MPV',
         keywords: ['player', 'embedded', 'mpv', 'native'],
         requires: 'embedded-mpv',
-        priority: 93,
+        priority: 94,
     },
     {
         id: 'switch-player-mpv',
@@ -64,7 +73,7 @@ const PLAYER_COMMAND_DEFS: readonly PlayerCommandDefinition[] = [
         nameKey: 'SETTINGS.PLAYER_MPV',
         keywords: ['player', 'mpv', 'external'],
         requires: 'managed-external',
-        priority: 94,
+        priority: 95,
     },
     {
         id: 'switch-player-vlc',
@@ -73,7 +82,7 @@ const PLAYER_COMMAND_DEFS: readonly PlayerCommandDefinition[] = [
         nameKey: 'SETTINGS.PLAYER_VLC',
         keywords: ['player', 'vlc', 'external'],
         requires: 'managed-external',
-        priority: 95,
+        priority: 96,
     },
 ];
 

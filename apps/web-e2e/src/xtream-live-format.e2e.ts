@@ -28,7 +28,7 @@ test.beforeEach(async ({ page }) => {
     await page.goto('/');
 });
 
-for (const player of ['html5', 'artplayer'] as const) {
+for (const player of ['html5', 'artplayer', 'vidstack'] as const) {
     for (const channel of [0, 1]) {
         test(`@web @xtream Auto live format ${player}: ${channel ? 'manifest' : 'segment'} 403 then playable TS`, async ({
             page,

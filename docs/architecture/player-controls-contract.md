@@ -7,10 +7,10 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
-The shared-controls preference checkbox is visible only when HTML5, Video.js
-or ArtPlayer is selected in Settings → Playback.
+The shared-controls preference checkbox is visible only when HTML5, Video.js,
+ArtPlayer or Vidstack is selected in Settings → Playback.
 
-The shared-controls foundation supports four runtime consumers and includes:
+The shared-controls foundation supports five runtime consumers and includes:
 
 - the `PlayerController` contract, default state, and capability presets;
 - the standalone `app-player-controls` presentation component and its
@@ -28,7 +28,10 @@ The shared-controls foundation supports four runtime consumers and includes:
   component-scoped `WebVideoControlsAdapter` and Video.js bridge;
 - a preference-guarded `ArtPlayerComponent` integration backed by a
   component-scoped `WebVideoControlsAdapter`, neutral web-video source bridge,
-  and player-local source/video sessions; and
+  and player-local source/video sessions;
+- a preference-guarded `VidstackPlayerComponent` integration backed by a
+  component-scoped `WebVideoControlsAdapter` and player-local source/video
+  sessions; and
 - focused unit/component tests.
 
 When Embedded MPV reports `engine: 'frame-copy'`, the component mounts
@@ -65,7 +68,24 @@ remove exact listeners and engines, and destroyed sessions ignore stale delayed
 `customType` callbacks. When the host token resolves to false, the existing
 ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
 
-With shared controls enabled, HTML5, Video.js, and ArtPlayer expose standard
+Vidstack is the fifth consumer. It builds `<media-player>` programmatically
+and configures each provider from `provider-change`, which Vidstack dispatches
+before provider setup. HLS stays on Vidstack's HLS provider, fed the bundled
+hls.js constructor (never the jsDelivr default, which `script-src 'self'`
+blocks); the source session only observes that instance for diagnostics and the
+controls bridge. MPEG-TS (mpegts.js), DASH (the shared Shaka session) and other
+containers replace the video provider's `loadSource` and run on its `<video>`.
+Every source carries an explicit type so Vidstack never sends its `HEAD`
+content-type probe. A read-only `MediaStorage` adapter feeds Vidstack the app
+volume, resume position and caption preference; Vidstack keyboard handling is
+always disabled. Shared mode renders no Vidstack layout. With the preference
+off, the default video layout mounts its menus inside the player shell and its
+theme loads on demand as the non-injected `vidstack-theme` stylesheet bundle
+(apps/web/project.json), scoped under `.vidstack-player-shell` because the
+vendor CSS carries document-wide `video` rules. The Vidstack runtime itself is
+imported dynamically on first mount.
+
+With shared controls enabled, HTML5, Video.js, ArtPlayer, and Vidstack expose standard
 element picture-in-picture through the adapter's attached `<video>`. Shared
 ArtPlayer keeps its vendor `pip` option disabled so the shared button is the
 only PiP button. Preference-off native/vendor controls keep their own UI;

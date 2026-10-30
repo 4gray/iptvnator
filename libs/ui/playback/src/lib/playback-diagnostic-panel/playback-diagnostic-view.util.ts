@@ -215,6 +215,8 @@ function formatPlayer(player: PlaybackDiagnostic['player']): string {
             return 'HTML5';
         case 'artplayer':
             return 'ArtPlayer';
+        case 'vidstack':
+            return 'Vidstack';
         default:
             return '';
     }

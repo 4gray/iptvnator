@@ -1,0 +1,25 @@
+@use 'sass:meta';
+
+// Vidstack default video layout theme, built as the non-injected
+// `vidstack-theme` stylesheet bundle (apps/web/project.json) and loaded by
+// `loadVidstackLayoutTheme()` the first time the layout is shown.
+//
+// The vendor CSS ships document-wide selectors (every bare `<video>` gets a
+// 16:9 aspect ratio). Loading it under the player shell keeps it off the other
+// players; the layout mounts its menus inside the shell as well.
+.vidstack-player-shell {
+    @include meta.load-css('vidstack/player/styles/default/theme.css');
+    @include meta.load-css('vidstack/player/styles/default/layouts/video.css');
+
+    // A live stream without DVR cannot seek, so Vidstack's time slider is
+    // only a permanently full red bar. Live DVR streams keep it.
+    [data-live]:not([data-can-seek]) .vds-time-slider {
+        display: none;
+    }
+
+    // Casting needs Google's Cast SDK, which the renderer CSP
+    // (`script-src 'self'`) blocks, so the button could never connect.
+    .vds-google-cast-button {
+        display: none;
+    }
+}

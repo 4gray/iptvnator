@@ -130,6 +130,10 @@ export const SETTINGS_EMBEDDED_PLAYER_OPTIONS: SettingsPlayerOption[] = [
         id: VideoPlayer.ArtPlayer,
         labelKey: 'SETTINGS.PLAYER_ARTPLAYER',
     },
+    {
+        id: VideoPlayer.Vidstack,
+        labelKey: 'SETTINGS.PLAYER_VIDSTACK',
+    },
 ];
 
 export interface SettingsPlayerAvailability {

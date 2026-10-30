@@ -19,6 +19,7 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
                 'videojs',
                 'html5',
                 'artplayer',
+                'vidstack',
             ],
         },
         {

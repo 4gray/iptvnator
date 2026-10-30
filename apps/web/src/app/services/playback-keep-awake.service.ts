@@ -18,7 +18,7 @@ const RELEASE_EVENTS = ['pause', 'ended', 'emptied', 'error'] as const;
 
 /**
  * Keeps the display awake while any built-in web player (HTML5/hls.js,
- * Video.js, ArtPlayer) is playing video (issue #1095).
+ * Video.js, ArtPlayer, Vidstack) is playing video (issue #1095).
  *
  * Detection is a document-level capture listener for `playing`: media events
  * don't bubble, but capture still sees them from every `<video>` in the page,

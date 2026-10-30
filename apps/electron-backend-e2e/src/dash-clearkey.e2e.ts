@@ -522,7 +522,7 @@ for (const player of ['mpv', 'vlc']) {
     });
 }
 
-for (const configuredPlayer of ['videojs', 'mpv', 'artplayer']) {
+for (const configuredPlayer of ['videojs', 'mpv', 'artplayer', 'vidstack']) {
     test(`@electron @dash ClearKey reopens from recent and favorites collections with ${configuredPlayer}`, async ({
         dataDir,
     }) => {
