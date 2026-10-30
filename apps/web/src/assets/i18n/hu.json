@@ -179,6 +179,7 @@
             "OPEN_FAILED": "Nem sikerült megnyitni a következő fájlt: „{{filename}}”."
         },
         "URL_UPLOAD": {
+            "FETCHING": "Lejátszási lista betöltése… Betöltés közben megszakítható.",
             "PLAYLIST_URL": "Lejátszási lista URL-címe (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Adjon meg egy http:// vagy https:// kezdetű érvényes URL-címet.",
             "ADD_PLAYLIST": "Lejátszási lista hozzáadása",
@@ -806,6 +807,7 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "HLS_WAIT": "Még nem érkeztek meg az adatfolyam adatai. Várhat tovább, vagy újrapróbálhatja.",
         "STAGE_LOADER": "Adatfolyam betöltése",
         "STAGE_DEMUX": "Konténer elemzése",
         "DETAIL_STAGE": "A hiba fellépésének szakasza",
@@ -1316,6 +1318,10 @@
         "GLOBAL_SEARCH_SUMMARY": "{{count}} találat {{playlists}} lejátszási listában"
     },
     "PORTALS": {
+        "CATALOG_LOAD_ERROR": {
+            "TITLE": "A kategória nem tölthető be",
+            "DESCRIPTION": "A kategória és a szűrők megmaradtak. Ellenőrizze a kapcsolatot, és próbálja újra."
+        },
         "REQUESTS_PAUSED": {
             "TITLE": "Kérések átmenetileg szüneteltetve",
             "DESCRIPTION": "Az ismétlődő kapcsolódási hibák miatt az alkalmazás átmenetileg szünetelteti a kéréseket. Az azonnali újrapróbálkozáshoz válassza az Újrapróbálkozás most lehetőséget.",

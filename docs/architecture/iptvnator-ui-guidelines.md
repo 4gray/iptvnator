@@ -1390,6 +1390,14 @@ keys (horizontal order follows RTL), and supports Home/End. External changes,
 including settings Discard, update that tab stop. Keep labels on the group
 and let the directives own radio roles, checked state and tab indices.
 
+The Add playlist method picker uses compact icon-and-label radio buttons:
+three columns on desktop and two below 600px, with at least 44px targets.
+Below 360px, omit the decorative icons to give translated names more room.
+Only the selected method's explanation appears below the group and describes
+that radio option. Keep every method visible without an expand/collapse step;
+the input form owns the dialog's space. Per-method drafts survive switching
+within the open dialog; closing it clears them, including credentials and files.
+
 The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
 vocabulary, so a field reads the same wherever it appears:
 

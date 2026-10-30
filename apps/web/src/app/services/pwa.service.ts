@@ -405,7 +405,9 @@ export class PwaService extends DataService {
         }
 
         const msg = String((error as { message?: string })?.message ?? error);
-        const match = msg.match(/status code (\d{3})/);
+        const match = msg.match(
+            /(?:status code|HTTP Error|Status:)\s*(\d{3})/i
+        );
         return match ? parseInt(match[1], 10) : null;
     }
 
@@ -747,7 +749,10 @@ export class PwaService extends DataService {
                                 this.translateService.instant(
                                     'PORTALS.REQUEST_ERRORS.NOT_FOUND'
                                 ),
-                            status: errorInfo?.status ?? 404,
+                            status:
+                                errorInfo?.status ??
+                                this.extractHttpStatusCode(err) ??
+                                '—',
                         }
                     ),
                     this.translateService.instant('CLOSE'),

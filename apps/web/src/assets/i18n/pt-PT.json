@@ -179,6 +179,7 @@
             "OPEN_FAILED": "Não foi possível abrir «{{filename}}»."
         },
         "URL_UPLOAD": {
+            "FETCHING": "A carregar a lista de reprodução… Pode cancelar durante o carregamento.",
             "PLAYLIST_URL": "URL da playlist (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Introduz um URL válido que comece por http:// ou https://.",
             "ADD_PLAYLIST": "Adicionar playlist",
@@ -806,6 +807,7 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "HLS_WAIT": "Ainda à espera dos dados da transmissão. Pode continuar à espera ou tentar novamente.",
         "STAGE_LOADER": "Carregamento da transmissão",
         "STAGE_DEMUX": "Análise do contentor",
         "DETAIL_STAGE": "Etapa da falha",
@@ -1316,6 +1318,10 @@
         "GLOBAL_SEARCH_SUMMARY": "Itens encontrados: {{count}} · Playlists: {{playlists}}"
     },
     "PORTALS": {
+        "CATALOG_LOAD_ERROR": {
+            "TITLE": "Não foi possível carregar esta categoria",
+            "DESCRIPTION": "A categoria e os filtros foram mantidos. Verifique a ligação e tente novamente."
+        },
         "REQUESTS_PAUSED": {
             "TITLE": "Pedidos temporariamente pausados",
             "DESCRIPTION": "Os pedidos foram pausados após falhas repetidas de ligação. Tenta novamente para contactar o portal imediatamente.",

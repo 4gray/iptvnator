@@ -154,6 +154,23 @@ describe('ElectronService', () => {
             expect(post).not.toHaveBeenCalled();
         }
     );
+    it('preserves the HTTP status serialized by a rejected Stalker IPC request', async () => {
+        const message =
+            "Error invoking remote method 'STALKER_REQUEST': Error: HTTP Error 503: Service Unavailable";
+        electronBridge.stalkerRequest.mockRejectedValue(new Error(message));
+        await expect(
+            service.sendIpcEvent(STALKER_REQUEST, {
+                url: 'https://fixture.example',
+                macAddress: '00:1A:79:AA:BB:CC',
+                params: { action: 'get_ordered_list' },
+            })
+        ).rejects.toThrow('503');
+        expect(translateService.instant).toHaveBeenCalledWith(
+            'PORTALS.REQUEST_ERRORS.STALKER',
+            { message, status: 503 }
+        );
+    });
+
     describe('resolved portal request failures', () => {
         // The main process resolves a cancellation or an HTTP 401/403 as this
         // envelope instead of rejecting (Electron logs every rejected handler
@@ -401,6 +418,22 @@ describe('ElectronService', () => {
         );
     });
 
+    it('requests the automatic URL title when acquiring a definition without a title', async () => {
+        electronBridge.fetchPlaylistByUrl.mockImplementation(
+            (_url: string, title?: string) =>
+                Promise.resolve({ title: title ?? 'list.m3u' })
+        );
+        const result = await service.fetchPlaylistDefinition(
+            'https://example.test/list.m3u'
+        );
+        expect(result.title).toBe('list.m3u');
+        expect(electronBridge.fetchPlaylistByUrl).toHaveBeenCalledWith(
+            'https://example.test/list.m3u',
+            undefined,
+            expect.any(Object)
+        );
+    });
+
     it('redacts credentials from backend player errors before logging', () => {
         const secret = 'player-error-token-secret';
         const listener = electronBridge.onPlayerError.mock.calls[0][0];
@@ -480,6 +513,58 @@ describe('ElectronService', () => {
             { player: 'MPV' }
         );
     });
+
+    it('returns an inline TLS action without a toast and confirms before trusting or retrying', async () => {
+        const retry = jest.fn();
+        const error = new Error(
+            `${SECURITY_ERROR_PREFIX}${JSON.stringify({
+                code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+                host: 'playlist.local',
+                message: 'Synthetic certificate failure',
+            })}`
+        );
+        const action = service.playlistImportRecovery(error, retry);
+        const dialog = TestBed.inject(DialogService) as unknown as {
+            openConfirmDialog: jest.Mock;
+        };
+        const settings = TestBed.inject(SettingsStore) as unknown as {
+            updateSettings: jest.Mock;
+        };
+        expect(action).toMatchObject({
+            messageKey: 'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+            actionKey: 'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+        });
+        expect(snackBar.open).not.toHaveBeenCalled();
+        expect(dialog.openConfirmDialog).not.toHaveBeenCalled();
+        action!.run();
+        expect(dialog.openConfirmDialog).toHaveBeenCalledTimes(1);
+        expect(settings.updateSettings).not.toHaveBeenCalled();
+        expect(retry).not.toHaveBeenCalled();
+        dialog.openConfirmDialog.mock.calls[0][0].onConfirm();
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(settings.updateSettings).toHaveBeenCalledWith({
+            trustedInsecureTlsHosts: ['playlist.local'],
+        });
+        expect(retry).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        {},
+        {
+            code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+            message: 'Synthetic certificate failure',
+        },
+    ])(
+        'does not offer inline trust without a certificate error and a host: %j',
+        (payload) => {
+            expect(
+                service.playlistImportRecovery(
+                    new Error(SECURITY_ERROR_PREFIX + JSON.stringify(payload)),
+                    jest.fn()
+                )
+            ).toBeNull();
+        }
+    );
 
     it('shows the trust-host action for Electron-wrapped security errors', async () => {
         const securityPayload = {

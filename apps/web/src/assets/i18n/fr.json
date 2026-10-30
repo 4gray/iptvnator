@@ -179,6 +179,7 @@
             "OPEN_FAILED": "Impossible d’ouvrir \"{{filename}}\"."
         },
         "URL_UPLOAD": {
+            "FETCHING": "Récupération de la liste de lecture… Vous pouvez annuler pendant le chargement.",
             "PLAYLIST_URL": "URL de la playlist (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Saisissez une URL valide commençant par http:// ou https://.",
             "ADD_PLAYLIST": "Ajouter la liste de lecture",
@@ -806,6 +807,7 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "HLS_WAIT": "En attente des données du flux. Vous pouvez patienter ou réessayer.",
         "STAGE_LOADER": "Chargement du flux",
         "STAGE_DEMUX": "Analyse du conteneur",
         "DETAIL_STAGE": "Étape de l’échec",
@@ -1316,6 +1318,10 @@
         "GLOBAL_SEARCH_SUMMARY": "{{count}} élément(s) trouvé(s) dans {{playlists}} liste(s) de lecture"
     },
     "PORTALS": {
+        "CATALOG_LOAD_ERROR": {
+            "TITLE": "Impossible de charger cette catégorie",
+            "DESCRIPTION": "Votre catégorie et vos filtres sont conservés. Vérifiez la connexion et réessayez."
+        },
         "REQUESTS_PAUSED": {
             "TITLE": "Requêtes temporairement suspendues",
             "DESCRIPTION": "Les requêtes ont été suspendues après plusieurs échecs de connexion. Réessayez pour contacter le portail immédiatement.",

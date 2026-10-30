@@ -179,6 +179,7 @@
             "OPEN_FAILED": "Kan \"{{filename}}\" niet openen."
         },
         "URL_UPLOAD": {
+            "FETCHING": "Afspeellijst ophalen… Je kunt annuleren terwijl deze wordt geladen.",
             "PLAYLIST_URL": "Afspeellijst-URL (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Voer een geldige URL in die begint met http:// of https://.",
             "ADD_PLAYLIST": "Afspeellijst toevoegen",
@@ -806,6 +807,7 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "HLS_WAIT": "Er wordt nog op streamgegevens gewacht. Je kunt blijven wachten of het opnieuw proberen.",
         "STAGE_LOADER": "Stream laden",
         "STAGE_DEMUX": "Container verwerken",
         "DETAIL_STAGE": "Foutfase",
@@ -1316,6 +1318,10 @@
         "GLOBAL_SEARCH_SUMMARY": "{{count}} item(s) gevonden in {{playlists}} afspeellijst(en)"
     },
     "PORTALS": {
+        "CATALOG_LOAD_ERROR": {
+            "TITLE": "Deze categorie kon niet worden geladen",
+            "DESCRIPTION": "Je categorie en filters blijven behouden. Controleer de verbinding en probeer het opnieuw."
+        },
         "REQUESTS_PAUSED": {
             "TITLE": "Verzoeken tijdelijk gepauzeerd",
             "DESCRIPTION": "Verzoeken zijn gepauzeerd na herhaalde verbindingsfouten. Probeer opnieuw om de portal direct te bereiken.",

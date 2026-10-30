@@ -28,10 +28,29 @@ export interface ElectronRemote {
     process: ElectronRemoteProcess;
 }
 
+export interface PlaylistImportRecovery {
+    messageKey: string;
+    actionKey: string;
+    run: () => void;
+}
+
 export abstract class DataService {
+    /** The caller presents explicit recovery inside its own focus scope. */
+    playlistImportRecovery(
+        _error: unknown,
+        _retry: () => void
+    ): PlaylistImportRecovery | null {
+        void _error;
+        void _retry;
+        return null;
+    }
     /** Fetches a source snapshot without dispatching an import/navigation action. */
-    fetchPlaylistDefinition(_url: string, _userAgent?: string): Promise<import('@iptvnator/shared/interfaces').Playlist> {
-        void _url; void _userAgent;
+    fetchPlaylistDefinition(
+        _url: string,
+        _userAgent?: string
+    ): Promise<import('@iptvnator/shared/interfaces').Playlist> {
+        void _url;
+        void _userAgent;
         return Promise.reject(new Error('Playlist fetching is unavailable'));
     }
     get isElectron(): boolean {

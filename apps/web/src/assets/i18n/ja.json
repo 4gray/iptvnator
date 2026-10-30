@@ -179,6 +179,7 @@
             "OPEN_FAILED": "\"{{filename}}\" を開けませんでした。"
         },
         "URL_UPLOAD": {
+            "FETCHING": "プレイリストを取得しています… 読み込み中もキャンセルできます。",
             "PLAYLIST_URL": "プレイリスト URL（m3u、m3u8）",
             "URL_VALIDATION_ERROR": "http:// または https:// で始まる有効なURLを入力してください。",
             "ADD_PLAYLIST": "プレイリストを追加",
@@ -806,6 +807,7 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "HLS_WAIT": "ストリームデータを待機しています。このまま待つか、再試行できます。",
         "STAGE_LOADER": "ストリームの読み込み",
         "STAGE_DEMUX": "コンテナの解析",
         "DETAIL_STAGE": "失敗した段階",
@@ -1316,6 +1318,10 @@
         "GLOBAL_SEARCH_SUMMARY": "{{playlists}}件のプレイリストで{{count}}件の項目が見つかりました"
     },
     "PORTALS": {
+        "CATALOG_LOAD_ERROR": {
+            "TITLE": "このカテゴリを読み込めませんでした",
+            "DESCRIPTION": "カテゴリとフィルターの選択は保持されています。接続を確認して、もう一度お試しください。"
+        },
         "REQUESTS_PAUSED": {
             "TITLE": "リクエストを一時停止中",
             "DESCRIPTION": "接続エラーが繰り返されたため、リクエストを停止しました。今すぐ再試行すると、ポータルに直ちに接続します。",

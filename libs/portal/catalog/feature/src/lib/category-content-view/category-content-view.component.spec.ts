@@ -85,6 +85,7 @@ describe('CategoryContentViewComponent', () => {
     const hasMore = signal(false);
     const isAppending = signal(false);
     const appendError = signal(false);
+    const contentError = signal(false);
     const routeReady = signal(true);
     const playlist = signal<{ id: string } | null>(null);
     const catalog = {
@@ -99,6 +100,8 @@ describe('CategoryContentViewComponent', () => {
         hasMore,
         isAppending,
         appendError,
+        contentError,
+        retryContent: jest.fn(),
         contentSortMode,
         supportsRatingSort: true,
         supportsWatchStateFilter: false,
@@ -154,6 +157,8 @@ describe('CategoryContentViewComponent', () => {
         hasMore.set(false);
         isAppending.set(false);
         appendError.set(false);
+        contentError.set(false);
+        catalog.retryContent.mockClear();
         catalog.initialize.mockClear();
         catalog.setSearchQuery.mockClear();
         catalog.loadMore.mockClear();
@@ -249,6 +254,32 @@ describe('CategoryContentViewComponent', () => {
 
     afterEach(() => {
         window.history.replaceState({}, '', window.location.href);
+    });
+
+    it('renders a first-page failure and retries the same catalog without showing zero items', () => {
+        catalog.provider = 'stalker';
+        isPaginatedContentLoading.set(false);
+        contentError.set(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('app-grid-list')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('[role="alert"]')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.category-subtitle')
+                ?.textContent
+        ).toContain('PORTALS.CATALOG_LOAD_ERROR.TITLE');
+        (
+            fixture.nativeElement.querySelector(
+                '.catalog-load-error button'
+            ) as HTMLButtonElement
+        ).click();
+        expect(catalog.retryContent).toHaveBeenCalledTimes(1);
+        contentError.set(false);
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('app-grid-list')
+        ).not.toBeNull();
     });
 
     it('shows loading copy in the subtitle instead of 0 items while xtream content is still warming up', () => {
@@ -924,6 +955,54 @@ describe('CategoryContentViewComponent', () => {
                 fixture.nativeElement.querySelector('.refine-action')
             );
         });
+
+        it.each(['loading', 'error'] as const)(
+            'keeps category Retry ahead of a %s watch filter and restores filter feedback after recovery',
+            (state) => {
+                enableWatchFilter();
+                watchStateFilter.set('unwatched');
+                watchFilterLoadState.set(state);
+                minRating.set(8);
+                contentError.set(true);
+                fixture.detectChanges();
+                expect(
+                    fixture.componentInstance.categoryItemSubtitle().key
+                ).toBe('PORTALS.CATALOG_LOAD_ERROR.TITLE');
+                expect(
+                    fixture.nativeElement.querySelector('.watch-filter-state')
+                ).toBeNull();
+                expect(
+                    fixture.nativeElement.querySelector('app-grid-list')
+                ).toBeNull();
+                (
+                    fixture.nativeElement.querySelector(
+                        '.catalog-load-error button'
+                    ) as HTMLButtonElement
+                ).click();
+                expect(catalog.retryContent).toHaveBeenCalledTimes(1);
+                expect(
+                    catalog.retryWatchFilterPositions
+                ).not.toHaveBeenCalled();
+
+                contentError.set(false);
+                fixture.detectChanges();
+                expect(
+                    fixture.nativeElement.querySelector('.catalog-load-error')
+                ).toBeNull();
+                expect(
+                    fixture.nativeElement.querySelector('.watch-filter-state')
+                ).not.toBeNull();
+                expect(
+                    fixture.componentInstance.categoryItemSubtitle().key
+                ).toBe(
+                    state === 'error'
+                        ? 'WORKSPACE.REFINE_WATCH_ERROR_TITLE'
+                        : 'WORKSPACE.REFINE_WATCH_LOADING'
+                );
+                expect(watchStateFilter()).toBe('unwatched');
+                expect(minRating()).toBe(8);
+            }
+        );
 
         it.each(['idle', 'loading', 'error'] as const)(
             'keeps header/refine and suppresses false counts, empty grids and appends while history is %s',

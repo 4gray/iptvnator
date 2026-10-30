@@ -286,7 +286,25 @@
                     </mat-menu>
                 }
             </div>
-            @if (watchFilter.pending()) {
+            @if (contentError()) {
+                <section class="catalog-load-error" role="alert">
+                    <app-playlist-error-view
+                        [title]="'PORTALS.CATALOG_LOAD_ERROR.TITLE' | translate"
+                        [description]="
+                            'PORTALS.CATALOG_LOAD_ERROR.DESCRIPTION' | translate
+                        "
+                        [showActionButtons]="false"
+                    />
+                    <button
+                        mat-flat-button
+                        type="button"
+                        (click)="retryContent()"
+                    >
+                        <mat-icon>refresh</mat-icon>
+                        {{ 'RETRY' | translate }}
+                    </button>
+                </section>
+            } @else if (watchFilter.pending()) {
                 <div
                     class="watch-filter-state"
                     role="status"

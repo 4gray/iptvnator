@@ -13,6 +13,37 @@ The M3U playlist module provides:
 - Per-playlist group visibility management in the groups view
 - Video playback with multiple player backends
 
+## Adding a URL source
+
+The Add playlist dialog acquires a definition through
+`DataService.fetchPlaylistDefinition()` before dispatching the import action.
+Acquisition keeps the form open, disables repeated submission and method changes,
+and announces loading. Failure leaves the URL, title and user agent editable with
+a localized inline error; HTTP(S) validation requires a hostname. Electron keeps
+its explicit TLS-host trust flow: the inline action stays inside the dialog's
+keyboard focus scope, opens the existing confirmation, and retries only the same
+owned draft after approval.
+Inline failures retain a provider's network error identifier beside the translated
+message (uppercase letters, digits and underscores, at most 48 characters).
+Raw provider messages and URLs are never rendered as diagnostic details; editing
+the form or starting another attempt clears the identifier.
+
+Cancel, Escape, backdrop dismissal, navigation during acquisition and destruction
+retire the dialog's operation. The HTTP/IPC transport may still finish, but a
+retired result cannot save a source or navigate. Only an owned success dispatches
+the existing add-by-URL action and closes the dialog. OS/file import admission
+and serial persistence remain on their existing paths.
+An omitted title retains the Electron URL-derived fallback. The owned dispatch
+keeps the `M3U_IMPORT_DISPATCH` performance-phase boundary; cancelled results
+emit neither a dispatch nor a benchmark phase.
+
+Switching connection methods captures each form's raw values in dialog-local
+memory and restores them after its child form mounts. This includes a selected
+file, provider identity fields and Stalker device-ID derivation. Restored password
+inputs start masked. Clear resets only the current form; choosing an auto-detected
+candidate replaces that method's earlier draft. Closing or destroying the dialog
+discards all drafts; they are never written to browser storage.
+
 ## Desktop upgrades from legacy profiles
 
 v0.19.0 stores the complete source list in IndexedDB database `iptvnator`,

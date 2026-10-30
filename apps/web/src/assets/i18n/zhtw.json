@@ -179,6 +179,7 @@
             "OPEN_FAILED": "無法開啟 \"{{filename}}\"。"
         },
         "URL_UPLOAD": {
+            "FETCHING": "正在取得播放清單…載入期間可以取消。",
             "PLAYLIST_URL": "播放清單 URL（m3u、m3u8）",
             "URL_VALIDATION_ERROR": "請輸入以 http:// 或 https:// 開頭的有效網址。",
             "ADD_PLAYLIST": "新增播放清單",
@@ -806,6 +807,7 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "HLS_WAIT": "仍在等待串流資料。您可以繼續等待或重試。",
         "STAGE_LOADER": "載入串流",
         "STAGE_DEMUX": "解析容器",
         "DETAIL_STAGE": "失敗階段",
@@ -1316,6 +1318,10 @@
         "GLOBAL_SEARCH_SUMMARY": "在 {{playlists}} 個播放清單中找到 {{count}} 個項目"
     },
     "PORTALS": {
+        "CATALOG_LOAD_ERROR": {
+            "TITLE": "無法載入此分類",
+            "DESCRIPTION": "已保留所選分類和篩選條件。請檢查連線後重試。"
+        },
         "REQUESTS_PAUSED": {
             "TITLE": "請求已暫時暫停",
             "DESCRIPTION": "連線連續失敗後，請求已暫停。立即重試以重新連線至入口網站。",

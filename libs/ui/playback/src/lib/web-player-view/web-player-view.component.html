@@ -17,6 +17,7 @@
                         (timeUpdate)="handleTimeUpdate($event, application)"
                         (playbackIssue)="handlePlaybackIssue($event, binding)"
                         (playbackStarted)="handlePlaybackStarted(binding)"
+                        (retryRequested)="retryPlayback(binding)"
                         (playbackEnded)="playbackEnded.emit()"
                         (previousEpisodeRequested)="
                             previousEpisodeRequested.emit()

@@ -65,6 +65,9 @@ export interface PortalCatalogFacade<
     readonly isAppending: Signal<boolean>;
     /** True when the latest append failed; the tail shows a retry action. */
     readonly appendError: Signal<boolean>;
+    /** First-page failure, distinct from a successfully empty category. */
+    readonly contentError?: Signal<boolean>;
+    retryContent?(): void;
     loadMore(): void;
     retryAppend(): void;
     /**

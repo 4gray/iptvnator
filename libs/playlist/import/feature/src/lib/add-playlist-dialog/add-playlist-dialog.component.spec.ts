@@ -1,3 +1,4 @@
+import { EMPTY } from 'rxjs';
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -6,10 +7,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { StalkerPortalDiscoveryService } from '@iptvnator/portal/stalker/data-access';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
-import {
-    PLAYLIST_PARSE_BY_URL,
-    ProviderImportCandidate,
-} from '@iptvnator/shared/interfaces';
+import { ProviderImportCandidate } from '@iptvnator/shared/interfaces';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { AddPlaylistDialogComponent } from './add-playlist-dialog.component';
 
@@ -22,17 +20,32 @@ type ChildSignalKey =
     | 'autoImport';
 
 describe('AddPlaylistDialogComponent', () => {
+    const fetchedPlaylist = {
+        _id: 'fetched',
+        title: 'Fetched title',
+        importDate: '',
+        lastUsage: '',
+        count: 0,
+        autoRefresh: false,
+    };
     let component: AddPlaylistDialogComponent;
-    let dataService: { sendIpcEvent: jest.Mock };
-    let dialogRef: { close: jest.Mock };
+    let dataService: {
+        sendIpcEvent: jest.Mock;
+        fetchPlaylistDefinition: jest.Mock;
+    };
+    let dialogRef: { close: jest.Mock; beforeClosed: () => typeof EMPTY };
     let store: { dispatch: jest.Mock };
 
     beforeEach(() => {
         dataService = {
             sendIpcEvent: jest.fn(),
+            fetchPlaylistDefinition: jest
+                .fn()
+                .mockResolvedValue(fetchedPlaylist),
         };
         dialogRef = {
             close: jest.fn(),
+            beforeClosed: () => EMPTY,
         };
         store = {
             dispatch: jest.fn(),
@@ -88,9 +101,12 @@ describe('AddPlaylistDialogComponent', () => {
         });
     }
 
-    it('sends a trimmed custom title for URL playlists', () => {
+    it('adds a fetched playlist with a trimmed custom title', async () => {
         stubChild('urlUpload', {
             form: {
+                valid: true,
+                disable: jest.fn(),
+                enable: jest.fn(),
                 getRawValue: () => ({
                     playlistName: '  My Playlist  ',
                     userAgent: '  IPTVnator-Test/1.0  ',
@@ -99,22 +115,31 @@ describe('AddPlaylistDialogComponent', () => {
             },
         });
 
-        component.submitUrlPlaylist();
+        await component.submitUrlPlaylist();
 
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
-            PLAYLIST_PARSE_BY_URL,
-            {
-                title: 'My Playlist',
-                userAgent: 'IPTVnator-Test/1.0',
-                url: 'https://example.com/list.m3u',
-            }
+        expect(dataService.fetchPlaylistDefinition).toHaveBeenCalledWith(
+            'https://example.com/list.m3u',
+            'IPTVnator-Test/1.0'
+        );
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.handleAddingPlaylistByUrl({
+                isTemporary: false,
+                playlist: {
+                    ...fetchedPlaylist,
+                    title: 'My Playlist',
+                    filename: 'My Playlist',
+                },
+            })
         );
         expect(dialogRef.close).toHaveBeenCalled();
     });
 
-    it('omits the title when the optional name is blank', () => {
+    it('retains the fetched title when the optional name is blank', async () => {
         stubChild('urlUpload', {
             form: {
+                valid: true,
+                disable: jest.fn(),
+                enable: jest.fn(),
                 getRawValue: () => ({
                     playlistName: '   ',
                     userAgent: '   ',
@@ -123,13 +148,17 @@ describe('AddPlaylistDialogComponent', () => {
             },
         });
 
-        component.submitUrlPlaylist();
+        await component.submitUrlPlaylist();
 
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
-            PLAYLIST_PARSE_BY_URL,
-            {
-                url: 'https://example.com/list.m3u',
-            }
+        expect(dataService.fetchPlaylistDefinition).toHaveBeenCalledWith(
+            'https://example.com/list.m3u',
+            undefined
+        );
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.handleAddingPlaylistByUrl({
+                isTemporary: false,
+                playlist: fetchedPlaylist,
+            })
         );
         expect(dialogRef.close).toHaveBeenCalled();
     });
@@ -426,7 +455,10 @@ describe('AddPlaylistDialogComponent actions', () => {
             imports: [AddPlaylistDialogComponent, TranslateModule.forRoot()],
             providers: [
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
-                { provide: MatDialogRef, useValue: { close: jest.fn() } },
+                {
+                    provide: MatDialogRef,
+                    useValue: { close: jest.fn(), beforeClosed: () => EMPTY },
+                },
                 { provide: Store, useValue: { dispatch: jest.fn() } },
                 { provide: MatSnackBar, useValue: { open: jest.fn() } },
                 { provide: MAT_DIALOG_DATA, useValue: { type } },

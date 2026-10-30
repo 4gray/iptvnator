@@ -18,6 +18,7 @@ import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
     template: '<div data-test-id="stub-vjs-player"></div>',
 })
 export class StubVjsPlayerComponent {
+    readonly retryRequested = output<void>();
     readonly options = input<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);

@@ -24,6 +24,62 @@
     overflow: hidden;
 }
 
+.vjs-hls-wait {
+    @include palette.focus-ring-token;
+    position: absolute;
+    inset: 16px 16px auto;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(12, 17, 25, 0.96);
+    color: palette.$text;
+    border: 1px solid rgba(palette.$text, 0.2);
+    border-radius: 8px;
+    font:
+        14px/1.45 Roboto,
+        sans-serif;
+    p {
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+    }
+    > mat-icon {
+        flex-shrink: 0;
+    }
+    button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        flex-shrink: 0;
+        min-height: 44px;
+        padding: 8px 12px;
+        border: 0;
+        border-radius: 6px;
+        background: palette.$text;
+        color: #0c1119;
+        font: inherit;
+        cursor: pointer;
+        &:focus-visible {
+            outline: 2px solid var(--app-focus-ring);
+            outline-offset: 3px;
+        }
+        &:hover {
+            background: white;
+        }
+    }
+}
+
+@media (max-width: 600px) {
+    .vjs-hls-wait {
+        inset: 8px 8px auto;
+        padding: 10px;
+        flex-wrap: wrap;
+    }
+}
+
 /* Hide the captions settings item from the captions menu. */
 .hide-captions {
     .vjs-texttrack-settings,

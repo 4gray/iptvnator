@@ -77,6 +77,8 @@ describe('StalkerCatalogFacadeService', () => {
             ),
         };
         stalkerStoreMock = {
+            isContentRetrying: signal(false),
+            isPaginatedContentFailed: signal(null),
             selectedContentType: signal<'vod' | 'series' | 'itv'>('vod'),
             page: signal(0),
             selectedCategoryId: signal<string | null>('5'),

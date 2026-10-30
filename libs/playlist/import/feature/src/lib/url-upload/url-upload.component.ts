@@ -41,11 +41,24 @@ export class UrlUploadComponent implements OnInit {
     readonly isDesktop = this.runtime.isElectron;
 
     ngOnInit(): void {
-        const urlRegex = '(https?://.*?)';
         this.form = this.fb.nonNullable.group({
             playlistUrl: [
                 '',
-                [Validators.required, Validators.pattern(urlRegex)],
+                [
+                    Validators.required,
+                    (control) => {
+                        try {
+                            const url = new URL(control.value.trim());
+                            return /^https?:\/\//i.test(control.value.trim()) &&
+                                /^https?:$/.test(url.protocol) &&
+                                url.hostname
+                                ? null
+                                : { url: true };
+                        } catch {
+                            return { url: true };
+                        }
+                    },
+                ],
             ],
             playlistName: [''],
             userAgent: [''],
