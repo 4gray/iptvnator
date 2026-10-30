@@ -4,6 +4,7 @@ import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { downloadPinnedSource } from './download-pinned-source.mjs';
+import { applySourcePatches } from './macos-source-patches.mjs';
 
 const rawArgs = process.argv.slice(2);
 const args = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
@@ -98,6 +99,7 @@ const buildRoot = path.resolve(
 const archiveRoot = path.join(buildRoot, 'archives');
 const sourceRoot = path.join(buildRoot, 'sources');
 const packageById = new Map(sourcePackages.map((source) => [source.id, source]));
+let appliedMpvPatches = [];
 const parallelism =
     process.env.MAKEFLAGS?.match(/-j\s*(\d+)/)?.[1] ??
     String(os.cpus().length);
@@ -582,6 +584,7 @@ function writeManifest() {
             licensePolicy:
                 'LGPL-compatible libmpv, built with -Dlibmpv=true -Dgpl=false',
             mesonFlags: mpvMesonFlags,
+            localPatches: appliedMpvPatches,
         },
         sourceDistribution:
             'Attach the downloaded source archives, the libplacebo git checkout metadata, this manifest, and any local patches with the macOS binary release.',
@@ -597,6 +600,14 @@ try {
     ensureTools();
     fs.mkdirSync(buildRoot, { recursive: true });
     downloadSources();
+    appliedMpvPatches = applySourcePatches({
+        packageId: 'mpv',
+        sourcePath: sourcePathFor('mpv'),
+        workspaceRoot,
+    });
+    for (const patch of appliedMpvPatches) {
+        log(`Applied mpv source patch ${patch.name}`);
+    }
     buildRuntime();
     validateRuntimeLinks();
     writeManifest();

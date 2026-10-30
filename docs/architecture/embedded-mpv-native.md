@@ -1137,6 +1137,27 @@ Release runtime policy:
 - mpv must be built with `-Dlibmpv=true` and `-Dgpl=false`.
 - The runtime must be dynamically linked and shipped with license/source-distribution notices.
 
+### Local source patches
+
+The macOS builder applies upstream fixes that a pinned release does not yet
+contain. `tools/embedded-mpv/macos-source-patches.mjs` lists them, and the
+files live in `tools/embedded-mpv/patches/<package>/`.
+
+- Only commits merged upstream qualify, stored byte for byte as upstream
+  publishes them (`<commit>.patch?full_index=1`). Each entry pins the file's
+  SHA-256, the upstream commit and the upstream pull request.
+- The build fails closed. It stops when a patch file changed, is already in
+  the source, does not apply, or does not verify after applying.
+- The runtime manifest lists every applied patch in `mpv.localPatches`.
+- The registry and every patch file feed the macOS runtime cache key.
+- Remove an entry when the pin moves to a release that contains its commit.
+  The builder reports such a patch as already applied and stops.
+
+Current entries: mpv `af067b5ea8` and `c5d391adba` from mpv#18383. On macOS
+27 the CoreAudio output fails to start for planar and mono formats, and mpv
+0.41.0 then leaves its device-change listener registered on a freed object.
+The next audio device change, such as AirPods connecting, crashes the app.
+
 After building an LGPL-compatible prefix for a platform/architecture:
 
 ```bash

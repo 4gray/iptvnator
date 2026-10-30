@@ -1,0 +1,57 @@
+From af067b5ea8e5fe396ebd9d3f895e51a7e75b3c09 Mon Sep 17 00:00:00 2001
+From: Dudemanguy <random342@airmail.cc>
+Date: Tue, 18 Aug 2026 10:06:15 -0500
+Subject: [PATCH] ao_coreaudio: cleanup ao on init failure
+
+This matches what other AOs and VOs do and properly releases allocated
+resources on failure.
+---
+ audio/out/ao_coreaudio.c | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/audio/out/ao_coreaudio.c b/audio/out/ao_coreaudio.c
+index 4b4bf1d48c0d634e112eb6fca5b8860d587d432a..4a582bbc210d872818837422cc2b1012b2bdfab9 100644
+--- a/audio/out/ao_coreaudio.c
++++ b/audio/out/ao_coreaudio.c
+@@ -141,6 +141,7 @@ static void init_physical_format(struct ao *ao);
+ static void reinit_latency(struct ao *ao);
+ static bool register_hotplug_cb(struct ao *ao);
+ static void unregister_hotplug_cb(struct ao *ao);
++static void uninit(struct ao *ao);
+ 
+ static bool reinit_device(struct ao *ao) {
+     struct priv *p = ao->priv;
+@@ -196,6 +197,7 @@ static int init(struct ao *ao)
+     return CONTROL_OK;
+ 
+ coreaudio_error:
++    uninit(ao);
+     return CONTROL_ERROR;
+ }
+ 
+@@ -436,14 +438,18 @@ static void uninit(struct ao *ao)
+ {
+     struct priv *p = ao->priv;
+ 
+-    dispatch_sync(p->queue, ^{
+-        cancel_and_release_idle_work(p);
+-    });
+-    dispatch_release(p->queue);
++    if (p->queue) {
++        dispatch_sync(p->queue, ^{
++            cancel_and_release_idle_work(p);
++        });
++        dispatch_release(p->queue);
++    }
+ 
+-    AudioOutputUnitStop(p->audio_unit);
+-    AudioUnitUninitialize(p->audio_unit);
+-    AudioComponentInstanceDispose(p->audio_unit);
++    if (p->audio_unit) {
++        AudioOutputUnitStop(p->audio_unit);
++        AudioUnitUninitialize(p->audio_unit);
++        AudioComponentInstanceDispose(p->audio_unit);
++    }
+ 
+     if (p->original_asbd.mFormatID) {
+         OSStatus err = CA_SET(p->original_asbd_stream,

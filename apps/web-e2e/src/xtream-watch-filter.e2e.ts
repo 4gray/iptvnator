@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
+import { configureMockProviderBackend } from './provider-target-route';
 import {
     addXtreamPortal,
     interceptXtreamRequests,
@@ -27,12 +28,7 @@ test('@web @pwa @xtream @persistence filters movies after manual marks and detai
 }) => {
     test.setTimeout(120_000);
     await request.post(`${MOCK_SERVER}/reset`);
-    await page.route('**/assets/app-config.js', (route) =>
-        route.fulfill({
-            contentType: 'application/javascript',
-            body: 'window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: "http://localhost:3000" };',
-        })
-    );
+    await configureMockProviderBackend(page);
     await interceptXtreamRequests(page);
     await page.goto('/');
     await addXtreamPortal(page, { username: 'minimal', password: 'minimal' });
