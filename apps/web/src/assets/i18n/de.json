@@ -1867,6 +1867,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Filterbereich ein- oder ausblenden",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filter",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Einstellungsbereiche ein- oder ausblenden",
+            "CLEAR_CATEGORY_FILTER": "Kategoriefilter zurücksetzen",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Einstellungsbereiche",
             "ADD_PLAYLIST_ALL": "Playlist hinzufügen (alle Playlists)",
             "ADD_PLAYLIST": "Playlist hinzufügen",

@@ -1867,6 +1867,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Показать или скрыть панель фильтров",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Фильтры",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Показать или скрыть панель разделов настроек",
+            "CLEAR_CATEGORY_FILTER": "Очистить фильтр категорий",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Разделы настроек",
             "ADD_PLAYLIST_ALL": "Добавить плейлист (все плейлисты)",
             "ADD_PLAYLIST": "Добавить плейлист",

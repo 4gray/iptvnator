@@ -63,6 +63,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly searchPlaceholder = input('');
     readonly searchScopeLabel = input('');
     readonly searchStatusLabel = input('');
+    readonly canClearCategoryScope = input(false);
     readonly headerShortcut = input<unknown>(null);
     readonly isElectron = input(false);
     readonly hasNoPlaylists = input(false);
@@ -86,6 +87,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
+    readonly clearCategoryScopeRequested = output<void>();
 
     focusSearchInput = jest.fn();
     containsSearchInput = jest.fn(() => false);
@@ -168,6 +170,8 @@ class MockWorkspaceShellFacade {
     );
     readonly searchScopeLabel = signal('Movies / All Items');
     readonly searchStatusLabel = signal('');
+    readonly canClearCategoryScope = signal(false);
+    clearCategoryScope = jest.fn();
     readonly headerShortcut = signal(null);
     readonly canRefreshPlaylist = signal(false);
     readonly hasNoPlaylists = signal(false);

@@ -1867,6 +1867,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Mostrar u ocultar el panel de filtros",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filtros",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Mostrar u ocultar el panel de secciones de ajustes",
+            "CLEAR_CATEGORY_FILTER": "Limpiar filtro de categoría",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Secciones de ajustes",
             "ADD_PLAYLIST_ALL": "Agregar lista de reproducción",
             "ADD_PLAYLIST": "Agregar lista de reproducción",

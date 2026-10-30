@@ -1867,6 +1867,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Εναλλαγή του πίνακα φίλτρων",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Φίλτρα",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Εναλλαγή του πίνακα ενοτήτων ρυθμίσεων",
+            "CLEAR_CATEGORY_FILTER": "Εκκαθάριση φίλτρου κατηγορίας",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Ενότητες ρυθμίσεων",
             "ADD_PLAYLIST_ALL": "Προσθήκη λίστας αναπαραγωγής",
             "ADD_PLAYLIST": "Προσθήκη λίστας αναπαραγωγής",
