@@ -981,9 +981,9 @@ Layout integration:
 1. `document.body` gets a `frameless-platform` class (set in
    `AppComponent`, same mechanism as `dark-theme`) — body-level so rules
    also reach cdk-overlay content rendered outside `app-root`.
-2. `apps/web/src/styles.scss` reserves `padding-right: 150px` in
-   the top-aligned drag region (`.workspace-header`) for the 3 × 46px
-   button strip.
+2. `apps/web/src/styles.scss` reserves `padding-right: 196px` in
+   the top-aligned drag region (`.workspace-header`) for the 4 × 46px
+   menu and window-control button strip.
 3. Button colors follow the theme via CSS variables (`--app-on-surface`,
    `--app-hover-overlay`); the close button uses the Windows-style red
    hover (`#e81123`). No theme IPC is involved.
