@@ -1,4 +1,3 @@
-import { AppMaintenanceService } from './services/app-maintenance.service';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -125,7 +124,7 @@ import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
                             type="button"
                             class="startup-button startup-secondary"
                             data-test-id="startup-open-settings"
-                            (click)="maintenance.openSettings()"
+                            (click)="openSettings()"
                         >
                             {{ 'WORKSPACE.SHELL.OPEN_SETTINGS' | translate }}
                         </button>
@@ -137,7 +136,6 @@ import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
     styleUrl: './app-startup-status.component.scss',
 })
 export class AppStartupStatusComponent {
-    readonly maintenance = inject(AppMaintenanceService);
     private readonly store = inject(Store);
     readonly routeReady = input(false);
     private readonly sourcesReady = this.store.selectSignal(
@@ -145,6 +143,9 @@ export class AppStartupStatusComponent {
     );
     readonly failed = this.store.selectSignal(selectPlaylistsLoadFailed);
     private readonly router = inject(Router);
+    openSettings(): void {
+        void this.router.navigateByUrl('/workspace/settings');
+    }
     private readonly url = toSignal(
         this.router.events.pipe(
             filter((event) => event instanceof NavigationEnd),

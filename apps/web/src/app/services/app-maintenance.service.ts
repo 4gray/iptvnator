@@ -1,19 +1,10 @@
-import { DestroyRef, inject, Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 
 /** Maintenance stays reachable even when loading the source inventory fails. */
 @Injectable({ providedIn: 'root' })
 export class AppMaintenanceService {
     private readonly router = inject(Router);
-    private readonly destroyRef = inject(DestroyRef);
-
-    start(): void {
-        const unsubscribe = window.electron?.onAppMenuAction?.((action) => {
-            if (action === 'settings') void this.openSettings();
-            if (action === 'check-for-updates') void this.checkForUpdates();
-        });
-        if (unsubscribe) this.destroyRef.onDestroy(unsubscribe);
-    }
 
     get canCheckForUpdates(): boolean {
         return (

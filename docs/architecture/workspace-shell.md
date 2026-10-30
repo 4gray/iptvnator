@@ -9,8 +9,10 @@ controls and installed version/channel information load only on failure; native
 fallback Retry and Open settings buttons remain usable if that chunk cannot load.
 Recovery actions and their native fallback follow the shared application button kit.
 
-Desktop Settings (`Cmd/Ctrl+,`) and Check for Updates commands use the same
-renderer maintenance service. A manual update check opens About, which already
+Desktop Settings (`Cmd/Ctrl+,`) registers its router action immediately; it
+also works when the richer recovery chunk cannot load. The desktop menu loads
+the renderer maintenance service only for Check for Updates; recovery controls
+load it with their deferred UI. A manual update check opens About, which already
 renders checking, no-update, error, download and install states. Router
 navigation preserves the unsaved-settings guard; checks use the saved update
 channel. Repeating the command on About checks again; a download in progress or

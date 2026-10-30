@@ -107,13 +107,20 @@ describe('AppStartupStatusComponent', () => {
         }
     );
 
-    it('provides a settings escape before deferred Material code loads', async () => {
-        const fixture = createFailedFixture();
-        fixture.componentRef.setInput('routeReady', true);
-        fixture.nativeElement.querySelector('[data-test-id="startup-open-settings"]').click();
-        await fixture.whenStable();
-        expect(TestBed.inject(Router).url).toBe('/workspace/settings');
-    });
+    it.each([DeferBlockState.Placeholder, DeferBlockState.Error])(
+        'provides a settings escape when deferred recovery is %s',
+        async (state) => {
+            const fixture = createFailedFixture();
+            fixture.componentRef.setInput('routeReady', true);
+            const [recoveryBlock] = await fixture.getDeferBlocks();
+            await recoveryBlock.render(state);
+            fixture.nativeElement
+                .querySelector('[data-test-id="startup-open-settings"]')
+                .click();
+            await fixture.whenStable();
+            expect(TestBed.inject(Router).url).toBe('/workspace/settings');
+        }
+    );
 
     function createFailedFixture() {
         TestBed.inject(MockStore).overrideSelector(
