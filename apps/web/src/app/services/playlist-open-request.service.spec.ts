@@ -14,6 +14,7 @@ type BridgeMock = {
 describe('PlaylistOpenRequestService', () => {
     let service: PlaylistOpenRequestService;
     let importService: { importFromPath: jest.Mock };
+    let createImportService: jest.Mock;
     let snackBar: { open: jest.Mock };
     let bridge: BridgeMock;
     let pushRequest: (request: ElectronBridgePlaylistOpenRequest) => void;
@@ -40,6 +41,7 @@ describe('PlaylistOpenRequestService', () => {
                 title: 'Playlist',
             }),
         };
+        createImportService = jest.fn(() => importService);
         snackBar = { open: jest.fn().mockResolvedValue(null) };
         bridge = {
             acknowledgePlaylistOpenRequest: jest
@@ -58,7 +60,10 @@ describe('PlaylistOpenRequestService', () => {
         TestBed.configureTestingModule({
             providers: [
                 PlaylistOpenRequestService,
-                { provide: PlaylistFileImportService, useValue: importService },
+                {
+                    provide: PlaylistFileImportService,
+                    useFactory: createImportService,
+                },
                 { provide: LazySnackBar, useValue: snackBar },
                 {
                     provide: TranslateService,
@@ -87,6 +92,23 @@ describe('PlaylistOpenRequestService', () => {
         );
     });
 
+    it('does not construct the file importer until a valid request arrives', async () => {
+        service.start();
+        expect(createImportService).not.toHaveBeenCalled();
+
+        pushRequest({ ...request('empty'), filePath: '' });
+        await settle();
+        expect(createImportService).not.toHaveBeenCalled();
+
+        pushRequest(request('startup'));
+        await settle();
+        expect(createImportService).toHaveBeenCalledTimes(1);
+        expect(importService.importFromPath).toHaveBeenCalledWith(
+            '/tmp/startup.m3u',
+            'startup.m3u'
+        );
+    });
+
     it('imports a playlist the main process pushes', async () => {
         service.start();
         pushRequest(request('startup'));
@@ -110,6 +132,54 @@ describe('PlaylistOpenRequestService', () => {
 
         expect(bridge.acknowledgePlaylistOpenRequest).toHaveBeenCalledWith(
             'startup'
+        );
+    });
+
+    it('acknowledges while the importer loads and keeps the queue in order', async () => {
+        let resolveImport!: (value: PlaylistFileImportService) => void;
+        const load = jest
+            .spyOn(service, 'loadImportService')
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveImport = resolve;
+                })
+            );
+
+        service.start();
+        pushRequest(request('one'));
+        pushRequest(request('two'));
+        await settle();
+
+        expect(bridge.acknowledgePlaylistOpenRequest).toHaveBeenCalledTimes(2);
+        expect(load).toHaveBeenCalledTimes(1);
+        expect(importService.importFromPath).not.toHaveBeenCalled();
+
+        resolveImport(importService as unknown as PlaylistFileImportService);
+        await settle();
+        expect(
+            importService.importFromPath.mock.calls.map(([path]) => path)
+        ).toEqual(['/tmp/one.m3u', '/tmp/two.m3u']);
+    });
+
+    it('reports a failed chunk load and retries for the next file', async () => {
+        jest.spyOn(service, 'loadImportService').mockRejectedValueOnce(
+            new Error('chunk unavailable')
+        );
+
+        service.start();
+        pushRequest(request('broken'));
+        pushRequest(request('healthy'));
+        await settle();
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'HOME.FILE_UPLOAD.OPEN_FAILED',
+            'CLOSE',
+            expect.objectContaining({ panelClass: ['error-snackbar'] })
+        );
+        expect(importService.importFromPath).toHaveBeenCalledTimes(1);
+        expect(importService.importFromPath).toHaveBeenCalledWith(
+            '/tmp/healthy.m3u',
+            'healthy.m3u'
         );
     });
 

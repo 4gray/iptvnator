@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+import { EnvironmentInjector, Injectable, inject } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util/playlist-file-import';
+import type { PlaylistFileImportService } from '@iptvnator/playlist/shared/util/playlist-file-import';
 import type { ElectronBridgePlaylistOpenRequest } from '@iptvnator/shared/interfaces';
 
 type PlaylistOpenRequestBridge = {
@@ -23,9 +23,17 @@ type PlaylistOpenRequestBridge = {
  */
 @Injectable({ providedIn: 'root' })
 export class PlaylistOpenRequestService {
-    private readonly importService = inject(PlaylistFileImportService);
+    private readonly injector = inject(EnvironmentInjector);
     private readonly snackBar = inject(LazySnackBar);
     private readonly translate = inject(TranslateService);
+
+    // Keep the listener eager, but load file parsing only after an OS request.
+    // Imports and root DI are cached; a rejected chunk load is retried next time.
+    loadImportService: () => Promise<PlaylistFileImportService> = () =>
+        import('./playlist-file-import').then(
+            ({ resolvePlaylistFileImportService }) =>
+                resolvePlaylistFileImportService(this.injector)
+        );
 
     private started = false;
     private unsubscribe: (() => void) | undefined;
@@ -93,10 +101,11 @@ export class PlaylistOpenRequestService {
             return;
         }
 
-        const result = await this.importService.importFromPath(
-            request.filePath,
-            request.fileName
-        );
+        const result = await this.loadImportService()
+            .then((importService) =>
+                importService.importFromPath(request.filePath, request.fileName)
+            )
+            .catch(() => ({ ok: false, reason: 'read-error' }) as const);
 
         if (result.ok) {
             return;
