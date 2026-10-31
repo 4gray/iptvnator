@@ -215,6 +215,33 @@ describe('Stalker catalog hide watched', () => {
         expect(filter.paused()).toBe(false);
     });
 
+    it('ignores repeated manual continuation while a page is loading or its scan is settling', async () => {
+        filter.setEnabled(true);
+        await flush();
+        filter.loadMore();
+        await flush();
+        expect(filter.scanning()).toBe(true);
+        expect(store.isPaginatedContentLoading()).toBe(true);
+
+        filter.continueLoading();
+        expect(store.nextPage).toHaveBeenCalledTimes(1);
+        expect(filter.resumeVersion()).toBe(0);
+        expect(filter.scanning()).toBe(true);
+
+        // A completion can arrive before the scan effect consumes the page.
+        store.isPaginatedContentLoading.set(false);
+        filter.continueLoading();
+        expect(store.nextPage).toHaveBeenCalledTimes(1);
+        expect(filter.resumeVersion()).toBe(0);
+        expect(filter.scanning()).toBe(true);
+
+        await finishPage([{ id: 2 }], false);
+        expect(filter.items()).toEqual([{ id: 2 }]);
+        expect(filter.scanning()).toBe(false);
+        expect(filter.paused()).toBe(false);
+        expect(store.nextPage).toHaveBeenCalledTimes(1);
+    });
+
     it('stops a scan at source exhaustion, including an empty/repeated raw page', async () => {
         filter.setEnabled(true);
         await flush();
@@ -323,6 +350,75 @@ describe('Stalker catalog hide watched', () => {
         expect(positions.getItemProgress({ id: 1 }).watchState).toBe(
             'unwatched'
         );
+    });
+
+    it('does not read or replace the snapshot when asked to refresh an inactive portal', async () => {
+        await positions.refresh('b');
+        expect(read).toHaveBeenCalledTimes(1);
+        expect(read).toHaveBeenCalledWith('a');
+        expect(positions.loadState()).toBe('ready');
+        expect(positions.hasSnapshot()).toBe(true);
+        expect(positions.getItemProgress({ id: 1 }).watchState).toBe('watched');
+    });
+
+    it.each(['resolve', 'reject'] as const)(
+        'ignores new reads, inline writes and an in-flight read that %ss after destruction',
+        async (outcome) => {
+            const delayed = deferred<PlaybackPositionData[]>();
+            read.mockReturnValueOnce(delayed.promise);
+            const refresh = positions.refresh('a');
+            TestBed.resetTestingModule();
+            expect(unsubscribe).toHaveBeenCalledTimes(1);
+
+            await positions.refresh('a');
+            expect(read).toHaveBeenCalledTimes(2);
+            positions.applyPosition(position(2));
+            if (outcome === 'resolve') {
+                delayed.resolve([position(2)]);
+                await refresh;
+            } else {
+                delayed.reject(new Error('late read failure'));
+                await expect(refresh).rejects.toThrow('late read failure');
+                expect(positions.loadState()).not.toBe('error');
+            }
+            expect(positions.getItemProgress({ id: 1 }).watchState).toBe(
+                'watched'
+            );
+            expect(positions.getItemProgress({ id: 2 }).watchState).toBe(
+                'unwatched'
+            );
+            expect(write).not.toHaveBeenCalled();
+        }
+    );
+
+    it('keeps live progress through a failed runtime save and an older snapshot, then accepts further updates', async () => {
+        store.getPaginatedContent.set([{ id: 2 }]);
+        filter.setEnabled(true);
+        await flush();
+        expect(filter.items()).toEqual([{ id: 2 }]);
+        const delayed = deferred<PlaybackPositionData[]>();
+        read.mockReturnValueOnce(delayed.promise);
+        const refresh = positions.refresh('a');
+        write.mockRejectedValueOnce(new Error('storage unavailable'));
+
+        runtimeUpdate(position(2));
+        await flush();
+        expect(write).toHaveBeenCalledWith('a', position(2));
+        expect(filter.items()).toEqual([]);
+        delayed.resolve([]);
+        await refresh;
+        expect(filter.loadState()).toBe('ready');
+        expect(filter.items()).toEqual([]);
+        expect(positions.getItemProgress({ id: 2 }).watchState).toBe('watched');
+
+        runtimeUpdate(position(2, 40));
+        await flush();
+        expect(write).toHaveBeenCalledTimes(2);
+        expect(write).toHaveBeenLastCalledWith('a', position(2, 40));
+        expect(positions.getItemProgress({ id: 2 }).watchState).toBe(
+            'in-progress'
+        );
+        expect(filter.items()).toEqual([{ id: 2 }]);
     });
 
     it('retains runtime progress newer than an in-flight read and ignores another portal', async () => {

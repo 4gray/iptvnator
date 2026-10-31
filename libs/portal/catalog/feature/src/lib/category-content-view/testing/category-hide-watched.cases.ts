@@ -96,6 +96,42 @@ export function registerHideWatchedCases({
         ).toBe(true);
     });
 
+    it('returns keyboard focus to Refine after clearing the hide-watched chip', async () => {
+        const enabled = signal(true);
+        const setEnabled = jest.fn((value: boolean) => enabled.set(value));
+        catalog.provider = 'stalker';
+        catalog.hideWatched = {
+            enabled,
+            loadState: signal('ready'),
+            hasSnapshot: signal(true),
+            paused: signal(false),
+            resumeVersion: signal(0),
+            setEnabled,
+            retryPositions: jest.fn(),
+            continueLoading: jest.fn(),
+            pauseAutomaticLoading: jest.fn(),
+        };
+        isPaginatedContentLoading.set(false);
+        const fixture = getFixture();
+        fixture.detectChanges();
+        const chip = fixture.nativeElement.querySelector(
+            '.hide-watched-chip'
+        ) as HTMLButtonElement;
+        expect(chip).not.toBeNull();
+        chip.focus();
+        expect(document.activeElement).toBe(chip);
+        chip.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(setEnabled).toHaveBeenCalledWith(false);
+        expect(
+            fixture.nativeElement.querySelector('.hide-watched-chip')
+        ).toBeNull();
+        expect(document.activeElement).toBe(
+            fixture.nativeElement.querySelector('.refine-action')
+        );
+    });
+
     it('keeps source has-more separate from the paused automatic-loading gate', () => {
         catalog.hideWatched = {
             enabled: signal(true),
