@@ -220,7 +220,7 @@ jobs:
               run: pnpm exec playwright install --with-deps chromium
 
             - name: Run Web E2E Tests
-              run: pnpm nx run web-e2e:e2e -- --project=chromium
+              run: pnpm nx run web-e2e:e2e -- --project=chromium --workers=2
               env:
                   CI: true
 

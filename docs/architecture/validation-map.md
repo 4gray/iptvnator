@@ -225,6 +225,10 @@ changing source exclusions or coverage ratchets to correct a reporting problem.
 | Electron flows        | `pnpm nx run electron-backend-e2e:e2e`          |
 | VOD multi-source      | `pnpm nx run electron-backend-e2e:e2e-ci--src/vod-multi-source.e2e.ts` |
 
+The Web E2E CI job runs Chromium with `--workers=2`; retry and timeout
+settings remain defined by the Playwright configuration. This override applies
+only to the Web E2E workflow step.
+
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
 
