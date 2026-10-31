@@ -452,6 +452,39 @@ async function expectCatalogGrowsOnScroll(page: Page): Promise<number> {
     return catalogCardCount(page);
 }
 
+/** The category's item total, as the catalog header's subtitle states it. */
+async function catalogTotalItems(page: Page): Promise<number> {
+    const totalText = await page
+        .locator('.category-content-header .category-subtitle')
+        .first()
+        .textContent();
+    return Number(/\d+/.exec(totalText ?? '')?.[0] ?? 0);
+}
+
+/**
+ * Scrolls the catalog grid to its bottom. While the category still has items
+ * to load, the infinite-scroll window must append more cards. The poster grid
+ * requests the next page two rows ahead, so a small category (the Stalker
+ * mock's 40 items) can already be complete after its first scroll: then every
+ * item must be rendered and there is nothing left to append. Returns the card
+ * count.
+ */
+async function scrollCatalogToEnd(page: Page): Promise<number> {
+    const grid = catalogGrid(page);
+    await expect(grid).toBeVisible({ timeout: 20000 });
+    const totalItems = await catalogTotalItems(page);
+    const countBefore = await catalogCardCount(page);
+    if (!(totalItems > 0) || countBefore < totalItems) {
+        return expectCatalogGrowsOnScroll(page);
+    }
+
+    expect(countBefore).toBe(totalItems);
+    await grid.evaluate((element: HTMLElement) => {
+        element.scrollTo({ top: element.scrollHeight });
+    });
+    return countBefore;
+}
+
 /**
  * From a grown, scrolled-down grid: opens a visible (bottom) card's detail,
  * navigates back, and expects both the render window and the scroll offset to
@@ -461,7 +494,7 @@ async function expectDetailRoundTripRestoresScroll(
     page: Page,
     detailPathname?: RegExp
 ): Promise<void> {
-    const grownCount = await expectCatalogGrowsOnScroll(page);
+    const grownCount = await scrollCatalogToEnd(page);
     await expect.poll(() => getCatalogGridScrollTop(page)).toBeGreaterThan(100);
 
     // The last card is already in view at the bottom — clicking it does not
@@ -496,11 +529,7 @@ async function expectStalkerCatalogAppendsOnScroll(
     const grid = catalogGrid(page);
     await expect(grid).toBeVisible({ timeout: 20000 });
 
-    const totalText = await page
-        .locator('.category-content-header .category-subtitle')
-        .first()
-        .textContent();
-    const totalItems = Number(/\d+/.exec(totalText ?? '')?.[0] ?? 0);
+    const totalItems = await catalogTotalItems(page);
     const countBefore = await catalogCardCount(page);
     if (countBefore < totalItems) {
         await grid.evaluate((element: HTMLElement) => {

@@ -91,7 +91,7 @@ export async function selectXtreamRendererTarget(
         ({ title, type, url }) =>
             type === 'page' &&
             !url.startsWith('devtools://') &&
-            title.toLocaleLowerCase().includes('iptvnator') &&
+            title.toLocaleLowerCase().includes('natortv') &&
             /\/workspace(?:\/|$)/.test(url)
     );
     if (matches.length !== 1 || !matches[0]) {

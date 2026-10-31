@@ -575,7 +575,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
             }, nativeSession.id);
             await expect
                 .poll(() => launchedFallbackApp.mainWindow.title())
-                .toContain('IPTVnator');
+                .toContain('NatorTV');
         } finally {
             await cleanupPackagedFrameCopySmoke({
                 apps: [frameCopyApp, fallbackApp],

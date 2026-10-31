@@ -52,7 +52,7 @@ const artifactModulePromise = import(artifactUrl.href)
     .then((module) => module as unknown as ArtifactModule)
     .catch(() => null);
 
-test('exports capture and persists the one exact IPTVnator renderer target', async () => {
+test('exports capture and persists the one exact NatorTV renderer target', async () => {
     const module = await modulePromise;
     assert.ok(module, 'Xtream renderer capture module must exist');
     assert.equal(typeof module.startXtreamRendererCapture, 'function');
@@ -62,7 +62,7 @@ test('exports capture and persists the one exact IPTVnator renderer target', asy
         new FakeSession([
             {
                 targetId: 'renderer-7',
-                title: 'IPTVnator',
+                title: 'NatorTV',
                 type: 'page',
                 url: 'http://localhost:4200/workspace/sources',
             },
@@ -82,7 +82,7 @@ test('fails closed when renderer target identity is missing or ambiguous', async
     assert.ok(module?.selectXtreamRendererTarget);
     const target = {
         targetId: 'renderer-1',
-        title: 'IPTVnator',
+        title: 'NatorTV',
         type: 'page',
         url: 'http://localhost:4200/workspace/sources',
     };
