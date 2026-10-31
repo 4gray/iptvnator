@@ -4,9 +4,106 @@ import { configureMockProviderBackend } from './provider-target-route';
 import {
     addStalkerPortal,
     interceptStalkerRequests,
+    MOCK_SERVER,
 } from './stalker-portal.fixture';
+import { selectWebPlayer } from './xtream-series-playback.fixture';
 
 test.use({ serviceWorkers: 'block' });
+
+test('@web @pwa @stalker @playback hides a movie completed in the inline player on return to the catalog', async ({
+    page,
+}) => {
+    test.setTimeout(120_000);
+    await configureMockProviderBackend(page);
+    await interceptStalkerRequests(page);
+    const mediaUrl = `${MOCK_SERVER}/stream/tv-video.webm`;
+    await page.route('**/stalker?**', async (route) => {
+        const url = new URL(route.request().url());
+        if (url.searchParams.get('type') !== 'vod') return route.fallback();
+        if (url.searchParams.get('action') === 'get_ordered_list')
+            return route.fulfill({
+                json: {
+                    payload: {
+                        js: {
+                            data: [
+                                {
+                                    id: '42',
+                                    name: 'Inline completion fixture',
+                                    cmd: mediaUrl,
+                                    use_http_tmp_link: 0,
+                                    use_load_balancing: 0,
+                                },
+                            ],
+                            total_items: 1,
+                        },
+                    },
+                },
+            });
+        if (url.searchParams.get('action') === 'create_link')
+            return route.fulfill({
+                json: { payload: { js: { cmd: mediaUrl } } },
+            });
+        return route.fallback();
+    });
+    await selectWebPlayer(page, 'HTML5 video player');
+    await page.goto('/');
+    await addStalkerPortal(page, {
+        name: 'Inline completion',
+        mac: '00:1A:79:AF:10:05',
+    });
+    const cards = page.locator('app-grid-list mat-card');
+    await expect(cards).toHaveCount(1);
+    await toggleFilter(page);
+    await cards.first().click();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    const video = page.locator('app-portal-inline-player video').first();
+    await expect(video).toBeVisible();
+    await expect
+        .poll(() =>
+            video.evaluate((element) => (element as HTMLVideoElement).duration)
+        )
+        .toBeGreaterThan(1);
+    await video.evaluate((element) => (element as HTMLVideoElement).pause());
+    await page.clock.install();
+    await page.clock.fastForward(16_000);
+    await video.evaluate((element) => {
+        const media = element as HTMLVideoElement;
+        media.currentTime = Math.floor(media.duration);
+        media.dispatchEvent(new Event('timeupdate'));
+    });
+    await expect
+        .poll(() =>
+            page.evaluate(() => {
+                const positions = JSON.parse(
+                    localStorage.getItem('xtream-playback-positions') ?? '{}'
+                ) as Record<
+                    string,
+                    {
+                        contentXtreamId: number;
+                        positionSeconds: number;
+                        durationSeconds: number;
+                    }[]
+                >;
+                return Object.values(positions)
+                    .flat()
+                    .some(
+                        (row) =>
+                            row.contentXtreamId === 42 &&
+                            row.positionSeconds >= row.durationSeconds * 0.9
+                    );
+            })
+        )
+        .toBe(true);
+    await page.locator('[data-test-id="workspace-header-back"]').click();
+    await expect(cards).toHaveCount(0);
+    await expect(
+        page.getByText('No movies match this filter.', { exact: true })
+    ).toBeVisible();
+    await page
+        .getByRole('button', { name: 'Clear watch status', exact: true })
+        .click();
+    await expect(cards).toHaveCount(1);
+});
 
 test('@web @pwa @stalker keeps sparse filtered pages reachable in a wide grid without a scrollbar', async ({
     page,

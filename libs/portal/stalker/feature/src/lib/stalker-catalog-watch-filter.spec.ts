@@ -358,4 +358,25 @@ describe('Stalker catalog hide watched', () => {
         await flush();
         expect(read).toHaveBeenCalledTimes(calls);
     });
+    it('filters completed inline playback after detail return without an external event or a new snapshot', async () => {
+        read.mockResolvedValue([]);
+        await positions.refresh('a');
+        filter.setEnabled(true);
+        await flush();
+        store.selectedItem.set({ id: 1 });
+        const delayed = deferred<PlaybackPositionData[]>();
+        read.mockReturnValueOnce(delayed.promise);
+        const refresh = positions.refresh('a');
+        positions.applyPosition(position(1, 95));
+        delayed.resolve([]);
+        await refresh;
+        expect(store.selectedItem()).toEqual({ id: 1 });
+        store.selectedItem.set(null);
+        expect(filter.items()).toEqual([]);
+        expect(write).not.toHaveBeenCalled();
+        positions.applyPosition({ ...position(2), playlistId: 'other' });
+        expect(positions.getItemProgress({ id: 2 }).watchState).toBe(
+            'unwatched'
+        );
+    });
 });

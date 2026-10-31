@@ -19,6 +19,7 @@ import {
 import { createStalkerCatalogPositions } from './stalker-catalog-positions';
 import { createStalkerCatalogWatchFilter } from './stalker-catalog-watch-filter';
 import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
+import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
 @Injectable()
 export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
@@ -196,6 +197,11 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
 
     getItemProgress(item: StalkerVodSource): PortalCatalogItemProgress {
         return this.positions.getItemProgress(item);
+    }
+
+    /** Shares accepted inline-player ticks with the retained catalog snapshot. */
+    applyPlaybackPosition(position: PlaybackPositionData): void {
+        this.positions.applyPosition(position);
     }
 
     async createLinkToPlayVod(

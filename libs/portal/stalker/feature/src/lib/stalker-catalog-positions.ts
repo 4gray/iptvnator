@@ -88,11 +88,16 @@ export function createStalkerCatalogPositions(
             }
         });
     });
-    const unsubscribe = bridge.onPlaybackPositionUpdate((data) => {
-        if (!data.playlistId || data.playlistId !== current()) return;
+    function applyPosition(data: PlaybackPositionData): void {
+        if (disposed || !data.playlistId || data.playlistId !== current())
+            return;
         activate(data.playlistId);
         pendingReads.forEach((overlay) => overlay.set(key(data), data));
         rows.update((previous) => new Map(previous).set(key(data), data));
+    }
+    const unsubscribe = bridge.onPlaybackPositionUpdate((data) => {
+        if (!data.playlistId || data.playlistId !== current()) return;
+        applyPosition(data);
         void persistence
             .savePlaybackPosition(data.playlistId, data)
             .catch(() => undefined);
@@ -142,5 +147,11 @@ export function createStalkerCatalogPositions(
         };
     }
 
-    return { loadState, hasSnapshot: ownsSnapshot, refresh, getItemProgress };
+    return {
+        loadState,
+        hasSnapshot: ownsSnapshot,
+        refresh,
+        getItemProgress,
+        applyPosition,
+    };
 }
