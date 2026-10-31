@@ -35,6 +35,7 @@ export function registerHideWatchedCases({
             setEnabled,
             retryPositions: jest.fn(),
             continueLoading: jest.fn(),
+            pauseAutomaticLoading: jest.fn(),
         };
         isPaginatedContentLoading.set(false);
         categoryItemCount.set(100);
@@ -73,6 +74,7 @@ export function registerHideWatchedCases({
             setEnabled: jest.fn(),
             retryPositions,
             continueLoading: jest.fn(),
+            pauseAutomaticLoading: jest.fn(),
         };
         isPaginatedContentLoading.set(false);
         getFixture().detectChanges();
@@ -104,6 +106,7 @@ export function registerHideWatchedCases({
             setEnabled: jest.fn(),
             retryPositions: jest.fn(),
             continueLoading: jest.fn(),
+            pauseAutomaticLoading: jest.fn(),
         };
         hasMore.set(true);
         isPaginatedContentLoading.set(false);

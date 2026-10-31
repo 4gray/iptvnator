@@ -8,6 +8,93 @@ import {
 
 test.use({ serviceWorkers: 'block' });
 
+test('@web @pwa @stalker keeps sparse filtered pages reachable in a wide grid without a scrollbar', async ({
+    page,
+}) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 2560, height: 1200 });
+    await configureMockProviderBackend(page);
+    await interceptStalkerRequests(page);
+    const rows = Array.from({ length: 280 }, (_, i) => ({
+        id: String(i + 1),
+        name: `Sparse movie ${i + 1}`,
+        cmd: `ffmpeg http://media.example/${i + 1}.mp4`,
+        category_id: '1',
+    }));
+    await page.route('**/stalker?**', async (route) => {
+        const url = new URL(route.request().url());
+        if (
+            url.searchParams.get('action') !== 'get_ordered_list' ||
+            url.searchParams.get('type') !== 'vod'
+        )
+            return route.fallback();
+        const index = Number(url.searchParams.get('p') ?? 1);
+        return route.fulfill({
+            json: {
+                payload: {
+                    js: {
+                        data: rows.slice((index - 1) * 14, index * 14),
+                        total_items: rows.length,
+                    },
+                },
+            },
+        });
+    });
+    await page.goto('/');
+    await addStalkerPortal(page, {
+        name: 'Sparse watch results',
+        mac: '00:1A:79:AF:10:04',
+    });
+    const grid = page.locator('app-grid-list');
+    const cards = grid.locator('mat-card');
+    await expect(cards.first()).toBeVisible();
+    const id = new URL(page.url()).pathname.match(/stalker\/([^/]+)/)?.[1];
+    expect(id).toBeTruthy();
+    await page.evaluate((playlistId) => {
+        const positions = Array.from({ length: 280 }, (_, i) => i + 1)
+            .filter((id) => id % 14 !== 0)
+            .map((id) => ({
+                playlistId,
+                contentType: 'vod',
+                contentXtreamId: id,
+                positionSeconds: 100,
+                durationSeconds: 100,
+            }));
+        localStorage.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({ [playlistId]: positions })
+        );
+    }, id as string);
+    await page.reload();
+    await expect(cards.first()).toBeVisible();
+    await toggleFilter(page);
+    const more = grid.getByRole('button', { name: 'Load more', exact: true });
+    await expect(more).toBeVisible();
+    expect(await cards.count()).toBeLessThan(20);
+    expect(
+        await grid.evaluate(
+            (element) => element.scrollHeight <= element.clientHeight
+        )
+    ).toBe(true);
+    // Manual continuation must remain possible whenever the height guard fires,
+    // even though every server page added a visible movie and the hidden-page
+    // budget therefore never paused the scan itself.
+    for (let batch = 0; batch < 20 && (await cards.count()) < 20; batch++) {
+        const before = await cards.count();
+        await more.click();
+        await expect.poll(() => cards.count()).toBeGreaterThan(before);
+        await expect
+            .poll(
+                async () =>
+                    (await cards.count()) === 20 || (await more.isVisible())
+            )
+            .toBe(true);
+    }
+    await expect(cards).toHaveCount(20);
+    await expect(cards.last()).toContainText('Sparse movie 280');
+    await expect(more).toBeHidden();
+});
+
 async function toggleFilter(page: Page) {
     await page.getByRole('button', { name: 'Refine', exact: true }).click();
     const checkbox = page.getByRole('menuitemcheckbox', {

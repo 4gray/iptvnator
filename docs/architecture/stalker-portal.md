@@ -496,8 +496,10 @@ pages without visible additions per load-more request, then pauses with **Load
 more**. Clearing the filter restores retained rows without refetching. Filtered
 empty states distinguish partial results from exhausted results; append errors
 retain Retry for the same page. A new selection identity cancels continuation,
-and inline details suspend automatic page requests. Xtream's existing status
-filter and the shared infinite-scroll rendering-stall guard are unchanged.
+and inline details suspend automatic page requests. If sparse visible additions
+trip the shared infinite-scroll height guard before a scrollbar exists, the
+catalog also pauses with **Load more**. The guard emits a notification without
+changing its budget; Xtream's existing status filter is unchanged.
 
 ## Stalker Identity Policy
 

@@ -419,6 +419,7 @@
                         gridResetKey() + hideWatched.resumeVersion()
                     "
                     (infiniteLoadMore)="onLoadMore()"
+                    (infiniteAutoFillStalled)="hideWatched.pause()"
                     [isLoading]="isPaginatedContentLoading()"
                     [isAppending]="infiniteAppending()"
                     [appendError]="infiniteAppendError()"

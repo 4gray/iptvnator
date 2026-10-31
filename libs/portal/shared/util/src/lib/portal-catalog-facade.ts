@@ -44,6 +44,7 @@ export interface PortalCatalogHideWatched {
     readonly resumeVersion: Signal<number>;
     setEnabled(value: boolean): void;
     retryPositions(): void;
+    pauseAutomaticLoading(): void;
     continueLoading(): void;
 }
 

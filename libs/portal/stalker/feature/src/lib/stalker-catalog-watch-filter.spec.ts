@@ -197,6 +197,24 @@ describe('Stalker catalog hide watched', () => {
         expect(filter.resumeVersion()).toBe(1);
     });
 
+    it('offers manual continuation when sparse visible additions trip the render-height guard', async () => {
+        filter.setEnabled(true);
+        await flush();
+        filter.loadMore();
+        await flush();
+        await finishPage([{ id: 2 }]);
+        expect(filter.paused()).toBe(false);
+        filter.pauseAutomaticLoading();
+        expect(filter.paused()).toBe(true);
+        expect(store.hasMoreContent()).toBe(true);
+        filter.continueLoading();
+        await flush();
+        await finishPage([{ id: 3 }], false);
+        expect(filter.items()).toEqual([{ id: 2 }, { id: 3 }]);
+        expect(filter.resumeVersion()).toBe(1);
+        expect(filter.paused()).toBe(false);
+    });
+
     it('stops a scan at source exhaustion, including an empty/repeated raw page', async () => {
         filter.setEnabled(true);
         await flush();

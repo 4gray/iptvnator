@@ -51,6 +51,9 @@ export function createCatalogHideWatched<C, I, S>(
         retry(): void {
             catalog.hideWatched?.retryPositions();
         },
+        pause(): void {
+            catalog.hideWatched?.pauseAutomaticLoading();
+        },
         continueLoading(): void {
             catalog.hideWatched?.continueLoading();
         },
