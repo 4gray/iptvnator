@@ -1073,6 +1073,9 @@ export async function importM3uPlaylistFromUrl(
         playlistUrl
     );
     if (userAgent !== undefined) {
+        await dialog
+            .locator('[data-test-id="url-advanced-settings"] > summary')
+            .click();
         await setInputValue(
             dialog.getByRole('textbox', { name: 'User agent', exact: true }),
             userAgent
