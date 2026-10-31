@@ -13,7 +13,7 @@ test('@web @m3u basic playlist import flow', async ({ page }) => {
     await page.goto('/');
 
     // Basic checks
-    expect(await page.title()).toBe('IPTVnator');
+    expect(await page.title()).toBe('NatorTV');
 
     // Upload playlist test
     await page.getByRole('button', { name: 'Add playlist' }).click();
