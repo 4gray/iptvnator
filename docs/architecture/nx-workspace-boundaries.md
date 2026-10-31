@@ -303,6 +303,14 @@ context panel use, out of that barrel for the same reason, and
 22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
 barrel.
 
+`@iptvnator/services/xtream-catalog-refresh` keeps the edit-time catalog scanner
+with the lazy source editor. Do not re-export it from the eager services barrel;
+ordinary startup does not need the editor's network and recovery orchestration.
+`@iptvnator/services/xtream-catalog-restore` similarly exposes dormant restore
+storage outside that barrel. The Electron data source loads it through a local
+dynamic-import wrapper only for restoration or source cleanup; startup services
+load it only when explicitly clearing history or sources.
+
 `@iptvnator/services/source-sync/connection` and
 `@iptvnator/services/source-sync/profile-user-data` expose the bootstrap helpers
 without the injectable synchronization service. The server initializer loads

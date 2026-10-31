@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
@@ -6,13 +6,11 @@ import {
     ParentalLockService,
     PlaybackPositionService,
     XtreamPendingRestoreService,
-    XtreamDeferredCatalogRestoreService,
     XtreamImportStatus,
     VodSourcePinService,
 } from '@iptvnator/services';
 import {
     normalizeXtreamContentTypes,
-    XTREAM_CONTENT_TYPES,
     XtreamContentType,
     ContentMetadataPatch,
     PlaybackPositionData,
@@ -57,9 +55,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
-    private readonly deferredRestore = inject(
-        XtreamDeferredCatalogRestoreService
-    );
+    private readonly injector = inject(Injector);
     private readonly apiService = inject(XtreamApiService);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly categoryRequests = new Map<
@@ -753,6 +749,14 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         options?: XtreamOperationOptions
     ): Promise<void> {
         this.playbackService.assertSupportsAtomicReplacement();
+        const {
+            XtreamDeferredCatalogRestoreService,
+            restoreCategoryVisibility,
+            resolveAvailableCatalogs,
+        } = await import('./xtream-deferred-restore');
+        const deferredRestore = this.injector.get(
+            XtreamDeferredCatalogRestoreService
+        );
         const categoriesByType = await Promise.all([
             this.dbService.getAllXtreamCategories(playlistId, 'live'),
             this.dbService.getAllXtreamCategories(playlistId, 'movies'),
@@ -761,74 +765,25 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         const enabled = normalizeXtreamContentTypes(
             (await this.getPlaylist(playlistId))?.xtreamContentTypes
         );
-        const available = (
-            await Promise.all(
-                XTREAM_CONTENT_TYPES.map(async (type) =>
-                    enabled.includes(type) ||
-                    ((await this.dbService.hasXtreamContent(
-                        playlistId,
-                        type
-                    )) &&
-                        (await this.dbService.getXtreamImportStatus(
-                            playlistId,
-                            type
-                        )) === 'completed')
-                        ? type
-                        : null
-                )
-            )
-        ).filter((type): type is XtreamContentType => type !== null);
-        const prepared = this.deferredRestore.prepare(
+        const available = await resolveAvailableCatalogs(
+            this.dbService,
+            playlistId,
+            enabled
+        );
+
+        const prepared = deferredRestore.prepare(
             playlistId,
             restoreState,
             available
         );
         restoreState = prepared.state;
-        for (const categories of categoriesByType) {
-            if (
-                categories.length === 0 ||
-                !available.some(
-                    (type) =>
-                        type ===
-                        (categories[0].type === 'movies'
-                            ? 'movie'
-                            : categories[0].type)
-                )
-            ) {
-                continue;
-            }
-
-            const reset = await this.dbService.updateCategoryVisibility(
-                categories.map((category) => category.id),
-                false
-            );
-            if (!reset) {
-                throw new Error(
-                    `Resetting category visibility for "${playlistId}" failed.`
-                );
-            }
-
-            const hiddenCategoryIds = categories
-                .filter((category) =>
-                    restoreState.hiddenCategories.some(
-                        (hiddenCategory) =>
-                            hiddenCategory.categoryType === category.type &&
-                            hiddenCategory.xtreamId === category.xtream_id
-                    )
-                )
-                .map((category) => category.id);
-            if (
-                hiddenCategoryIds.length > 0 &&
-                !(await this.dbService.updateCategoryVisibility(
-                    hiddenCategoryIds,
-                    true
-                ))
-            ) {
-                throw new Error(
-                    `Restoring category visibility for "${playlistId}" failed.`
-                );
-            }
-        }
+        await restoreCategoryVisibility(
+            this.dbService,
+            playlistId,
+            categoriesByType,
+            available,
+            restoreState.hiddenCategories
+        );
 
         await this.restoreFavoriteSnapshots(playlistId, restoreState);
         await this.dbService.restoreXtreamUserData(
@@ -847,11 +802,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // a new playlist has no content yet when the archive is read, so its
         // user state is parked and applied once the import finishes.
         if (!restoreState.sourcePins) {
-            this.deferredRestore.complete(
-                playlistId,
-                prepared.snapshot,
-                available
-            );
+            deferredRestore.complete(playlistId, prepared.snapshot, available);
             return;
         }
 
@@ -875,6 +826,6 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                 `Restoring the pinned sources for "${playlistId}" failed.`
             );
         }
-        this.deferredRestore.complete(playlistId, prepared.snapshot, available);
+        deferredRestore.complete(playlistId, prepared.snapshot, available);
     }
 }

@@ -1,10 +1,10 @@
+import { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
 import { TestBed } from '@angular/core/testing';
 import {
     PLAYLIST_DELETE_CLEANUP,
     PlaylistDeleteCleanup,
     PlaylistsService,
     RuntimeCapabilitiesService,
-    XtreamDeferredCatalogRestoreService,
 } from '@iptvnator/services';
 import { XtreamApiService } from '../services/xtream-api.service';
 import {

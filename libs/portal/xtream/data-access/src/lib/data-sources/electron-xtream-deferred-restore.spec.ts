@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { XtreamDeferredCatalogRestoreService } from '@iptvnator/services';
+import { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
 import { XtreamPendingRestoreState } from '@iptvnator/shared/interfaces';
 import { setupElectronXtreamDataSource } from './electron-xtream-data-source.test-helpers';
 

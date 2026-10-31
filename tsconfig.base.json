@@ -147,6 +147,12 @@
             "@iptvnator/services/lazy-snack-bar": [
                 "libs/services/src/lib/lazy-snack-bar/lazy-snack-bar.ts"
             ],
+            "@iptvnator/services/xtream-catalog-refresh": [
+                "libs/services/src/lib/xtream-selected-catalog-refresh.service.ts"
+            ],
+            "@iptvnator/services/xtream-catalog-restore": [
+                "libs/services/src/lib/xtream-deferred-catalog-restore.service.ts"
+            ],
             "@iptvnator/services/playlist-backup": [
                 "libs/services/src/lib/playlist-backup.service.ts"
             ],

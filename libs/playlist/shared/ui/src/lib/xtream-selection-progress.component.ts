@@ -1,3 +1,4 @@
+import { XtreamSelectedCatalogRefreshService } from '@iptvnator/services/xtream-catalog-refresh';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -5,10 +6,7 @@ import {
     inject,
 } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import {
-    injectTranslationTick,
-    XtreamSelectedCatalogRefreshService,
-} from '@iptvnator/services';
+import { injectTranslationTick } from '@iptvnator/services';
 import {
     DialogShellComponent,
     ImportProgressComponent,

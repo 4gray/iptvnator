@@ -3,7 +3,6 @@ import {
     type DbOperationOptions,
 } from './database-electron.service';
 import { SourceHealthEvidenceService } from './source-health-evidence.service';
-import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { inject, Injectable } from '@angular/core';
 import { LazySnackBar } from './lazy-snack-bar/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -1384,8 +1383,12 @@ export class PlaylistsService {
             if (store) {
                 this.startupMetas = null;
                 await store.dbDeleteAllPlaylists();
-                if (this.usesElectronStorage)
+                if (this.usesElectronStorage) {
+                    const { XtreamDeferredCatalogRestoreService } = await import(
+                        './xtream-deferred-catalog-restore.service'
+                    );
                     new XtreamDeferredCatalogRestoreService().clearAll();
+                }
                 this.healthEvidence?.connections.next({});
             }
             return;

@@ -9,7 +9,6 @@ import type {
 
 import { inject, Injectable } from '@angular/core';
 import { PlaylistStorageBackend } from './playlist-storage-backend';
-import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import type {
     ContentMetadataPatch,
@@ -156,8 +155,12 @@ export interface GlobalRecentlyAddedItem extends XtreamContent {
 })
 export class DatabaseService {
     private readonly playlistBackend = inject(PlaylistStorageBackend);
-    private readonly deferredCatalogRestore =
-        new XtreamDeferredCatalogRestoreService();
+    private async clearDeferredCatalogHistory(playlistId?: string): Promise<void> {
+        const { XtreamDeferredCatalogRestoreService } = await import(
+            './xtream-deferred-catalog-restore.service'
+        );
+        new XtreamDeferredCatalogRestoreService().clearHistory(playlistId);
+    }
     private buildXtreamImportStateKey(
         playlistId: string,
         type: 'live' | 'movie' | 'series'
@@ -823,7 +826,7 @@ export class DatabaseService {
         }
 
         try {
-            this.deferredCatalogRestore.clearHistory();
+            await this.clearDeferredCatalogHistory();
             await window.electron.dbClearRecentlyViewed();
         } catch (error) {
             console.error('Error clearing recently viewed:', error);
@@ -1052,7 +1055,7 @@ export class DatabaseService {
         }
 
         try {
-            this.deferredCatalogRestore.clearHistory(playlistId);
+            await this.clearDeferredCatalogHistory(playlistId);
             await window.electron.dbClearPlaylistRecentItems(playlistId);
             return true;
         } catch (error) {

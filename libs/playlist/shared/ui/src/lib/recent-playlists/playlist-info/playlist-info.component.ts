@@ -1,3 +1,4 @@
+import { XtreamSelectedCatalogRefreshService } from '@iptvnator/services/xtream-catalog-refresh';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Router } from '@angular/router';
 import {
@@ -36,7 +37,6 @@ import {
     PlaylistsService,
     PlaylistStorageBackend,
     RuntimeCapabilitiesService,
-    XtreamSelectedCatalogRefreshService,
     SourceActivityService,
     XtreamPendingRestoreService,
 } from '@iptvnator/services';
