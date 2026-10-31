@@ -1,8 +1,9 @@
-import { Injectable, inject } from '@angular/core';
+import { EnvironmentInjector, Injectable, inject } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util/playlist-file-import';
+import type { PlaylistFileImportService } from '@iptvnator/playlist/shared/util/playlist-file-import';
 import type { ElectronBridgePlaylistOpenRequest } from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 
 type PlaylistOpenRequestBridge = {
     acknowledgePlaylistOpenRequest?: (requestId: string) => Promise<void>;
@@ -23,9 +24,17 @@ type PlaylistOpenRequestBridge = {
  */
 @Injectable({ providedIn: 'root' })
 export class PlaylistOpenRequestService {
-    private readonly importService = inject(PlaylistFileImportService);
+    private readonly injector = inject(EnvironmentInjector);
     private readonly snackBar = inject(LazySnackBar);
     private readonly translate = inject(TranslateService);
+
+    // Keep the listener eager, but load file parsing only after an OS request.
+    // Imports and root DI are cached; a rejected chunk load is retried next time.
+    loadImportService: () => Promise<PlaylistFileImportService> = () =>
+        import('./playlist-file-import').then(
+            ({ resolvePlaylistFileImportService }) =>
+                resolvePlaylistFileImportService(this.injector)
+        );
 
     private started = false;
     private unsubscribe: (() => void) | undefined;
@@ -68,7 +77,7 @@ export class PlaylistOpenRequestService {
         void bridge.announcePlaylistOpenListener().catch((error) => {
             console.error(
                 'Failed to announce the playlist open listener:',
-                error
+                redactSensitiveData(error)
             );
         });
     }
@@ -76,7 +85,10 @@ export class PlaylistOpenRequestService {
     /** Appends a step to the import chain, never breaking it on failure. */
     private chain(step: () => Promise<void>): void {
         this.importChain = this.importChain.then(step).catch((error) => {
-            console.error('Failed to open a playlist file:', error);
+            console.error(
+                'Failed to open a playlist file:',
+                redactSensitiveData(error)
+            );
         });
     }
 
@@ -93,10 +105,17 @@ export class PlaylistOpenRequestService {
             return;
         }
 
-        const result = await this.importService.importFromPath(
-            request.filePath,
-            request.fileName
-        );
+        const result = await this.loadImportService()
+            .then((importService) =>
+                importService.importFromPath(request.filePath, request.fileName)
+            )
+            .catch((error) => {
+                console.error(
+                    'Failed to open a playlist file:',
+                    redactSensitiveData(error)
+                );
+                return { ok: false, reason: 'read-error' } as const;
+            });
 
         if (result.ok) {
             return;
