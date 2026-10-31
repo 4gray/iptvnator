@@ -9,6 +9,7 @@ import { TmdbRuntimeService } from './tmdb-runtime.service';
 import { TmdbSeasonService } from './tmdb-season.service';
 import { TmdbTrendingService } from './tmdb-trending.service';
 import { TmdbMovieDetails } from './tmdb.types';
+import { TmdbMatchService, type TmdbMatchIdentity } from './tmdb-match.service';
 
 /**
  * Regression coverage for provider-supplied `tmdb_id` handling. Panels
@@ -40,9 +41,12 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
 
     // The services Jest target has no @angular/core/testing — build the
     // service in a plain injection context instead of TestBed.
-    function createService(): TmdbEnrichmentService {
+    function createService(
+        matches: TmdbMatchService | null = null
+    ): TmdbEnrichmentService {
         const injector = Injector.create({
             providers: [
+                { provide: TmdbMatchService, useValue: matches },
                 {
                     provide: TmdbRuntimeService,
                     useValue: {
@@ -105,6 +109,56 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         expect(rememberBadProviderId).not.toHaveBeenCalled();
     });
 
+    it('honors an explicit user match even when its title and year contradict the provider', async () => {
+        const matches = new TmdbMatchService();
+        const matchIdentity: TmdbMatchIdentity = {
+            provider: 'xtream',
+            playlistId: 'manual-movie',
+            mediaType: 'movie',
+            itemId: '42',
+        };
+        await matches.save(matchIdentity, {
+            mode: 'manual',
+            tmdbId: 999,
+            title: 'Other film',
+        });
+        getMovieDetails.mockResolvedValue(unrelated);
+        const service = createService(matches);
+        expect(
+            (
+                await service.enrichMovie({
+                    title: 'The Matrix',
+                    year: 1999,
+                    tmdbId: 603,
+                    matchIdentity,
+                })
+            )?.id
+        ).toBe(999);
+        expect(getMovieDetails).toHaveBeenCalledWith(999, 'en-US', 'key');
+        expect(resolveBySearch).not.toHaveBeenCalled();
+        await matches.save(matchIdentity, { mode: 'provider' });
+        getMovieDetails.mockClear();
+        expect(
+            await service.enrichMovie({
+                title: 'The Matrix',
+                tmdbId: 603,
+                matchIdentity,
+            })
+        ).toBeNull();
+        expect(getMovieDetails).not.toHaveBeenCalled();
+        await matches.save(matchIdentity, null);
+        getMovieDetails.mockResolvedValue(matrix);
+        expect(
+            (
+                await service.enrichMovie({
+                    title: 'The Matrix',
+                    tmdbId: 603,
+                    matchIdentity,
+                })
+            )?.id
+        ).toBe(603);
+    });
+
     it('falls back to the title search when the provider id 404s', async () => {
         getMovieDetails
             .mockRejectedValueOnce(new TmdbApiError(404, 'Not Found'))
@@ -120,10 +174,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         // Previously this returned null: the dead id skipped the search
         expect(details?.id).toBe(603);
         expect(resolveBySearch).toHaveBeenCalledTimes(1);
-        expect(rememberBadProviderId).toHaveBeenCalledWith(
-            'movie',
-            123456789
-        );
+        expect(rememberBadProviderId).toHaveBeenCalledWith('movie', 123456789);
     });
 
     it('prefers a confident search match over a stale provider id', async () => {

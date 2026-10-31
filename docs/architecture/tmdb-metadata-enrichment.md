@@ -175,9 +175,12 @@ Wrong metadata is worse than no metadata, so id resolution is conservative:
    must be unambiguous (single hit).
 4. Several admitted results are ranked by **year evidence first**
    (`yearEvidenceTier`): the provider's exact year beats a year off by one,
-   which beats the series "premiered earlier" tolerance. Popularity
-   (`vote_count`, then `popularity`) only breaks ties inside the strongest
-   tier any candidate reached.
+   which beats the series "premiered earlier" tolerance. The strongest tier
+   must contain exactly one result; a tie leaves the provider metadata intact.
+   Popularity and vote counts cannot identify namesakes: both the Russian
+   «Красота» (TMDB 318158) and American *The Beauty* (273160) are named
+   «Красота» in Russian and premiered in 2026. Picking the more popular
+   result silently replaces the Russian series with the American one.
 
    The tolerance is a last resort, not an equal. Ranked alongside the
    exact-year tier it handed every new series its older, better-known
@@ -216,6 +219,47 @@ language is different. This covers English translations of foreign shows whose
 localized and original names both differ (for example, The Chestnut Man).
 The same strict title/year gate applies, each language caches its own verdict,
 and details still use the user's selected metadata language.
+
+## Manual match correction
+
+The Stalker and Xtream movie/series detail overflow menus offer **Correct TMDB
+match…** when TMDB is enabled and a key is configured. The shared lazy dialog
+uses the existing dialog shell and app theme tokens. Search stays within the
+item's media type and shows posters, original titles, release years and TV
+origin countries (original language for movies). A failed request offers Retry;
+empty results still allow provider-only or automatic mode. Selection is explicit,
+and Cancel/Escape never writes a choice.
+
+`TmdbMatchService` stores each choice in a separate local Web Storage key:
+`iptvnator:tmdb-match:v1:` plus a JSON tuple of provider, playlist ID, TMDB media
+type and provider item ID. IDs from different sources and movie/series IDs cannot
+collide. Choices are local to this installation/browser origin, outside the TMDB
+cache and playlist backup format. Clearing the metadata cache leaves them intact.
+Storage failures leave the dialog open and do not change the visible selection.
+
+- **Choose in TMDB:** validate the chosen ID's details, then persist that ID.
+  `getDetailsForMatch` honors opt-in, localization and the normal details cache,
+  bypassing automatic title/year corroboration for this explicit user decision.
+  A failed manual lookup keeps provider metadata; it never guesses another ID.
+- **Provider data:** persist a provider-only verdict, restore original editorial
+  fields and skip show/movie TMDB lookup for this item.
+- **Automatic:** remove only this item's choice and rerun the normal resolver.
+
+The existing selection enrichment helpers register one refresh callback per
+owning store. Explicit changes reapply from the captured provider metadata while
+preserving playback/source identity. Stalker retains that metadata as
+`info.tmdb_provider_info` in enriched favorite/recent snapshots; normalization
+preserves it, so reopening can undo the enrichment. Historical enriched snapshots
+written before this field existed have no recoverable original metadata until
+the portal supplies a fresh item. Xtream restores the original provider episode
+map and resets its season metadata status/overviews/posters when changing a
+series match. Stalker's season overlays are already keyed by TMDB ID.
+Per-item revisions and source/selection guards reject responses started under
+an older choice. Menus do not expose this action for live/radio or the TV app.
+
+Regression coverage includes `tmdb-match.service.spec.ts`,
+`stalker-tmdb-enrichment.spec.ts`, `xtream-tmdb-enrichment.spec.ts`,
+`tmdb-match-dialog.component.spec.ts` and `apps/web-e2e/src/tmdb-match.e2e.ts`.
 
 ## Age classifications in movie and series details
 
@@ -626,7 +670,7 @@ tmdb_metadata (
   media_type  'movie' | 'tv' | 'person',
   lookup_key  'id:<tmdbId>|v2'               -- details payload row
               'id:<tmdbId>|season:<n>'       -- season payload row
-              'title:<query lowercased>|year:<y>|v4' -- search resolution row
+              'title:<query lowercased>|year:<y>|v5' -- search resolution row
               'person:<personId>'            -- person payload row
               'trending:week'                -- trending list row
               'badProviderId:<tmdbId>'       -- id confirmed 404 by TMDB
@@ -641,7 +685,7 @@ tmdb_metadata (
 TTLs (enforced at read time in `TmdbCacheService.isFresh`): details and
 positive matches 30 days, negative matches 7 days.
 
-Search keys carry a `|v4` and details keys a `|v2` version suffix
+Search keys carry a `|v5` and details keys a `|v2` version suffix
 (`buildSearchLookupKey` / `buildDetailsLookupKey` in `tmdb-matcher.ts`): for
 search rows so normalization or query changes cannot reuse stale positive or
 negative resolutions, for details rows because payloads now include videos
@@ -649,8 +693,11 @@ via `append_to_response` and pre-videos cache rows had to be invalidated.
 Search v2 → v3 retired the rows written while the folded comparison key was
 also the wire query (see "Search query vs. comparison key" below); v3 → v4
 retired the rows resolved before year evidence was tiered, where a positive
-row naming the wrong show would otherwise stay fresh for 30 days. Database
-startup deletes the rows of every retired search-key generation once, each
+row naming the wrong show would otherwise stay fresh for 30 days. The v4 → v5
+bump retires popularity-based tie verdicts. Old v4 rows are
+unreachable and can be removed through the existing Clear TMDB cache action;
+this change does not migrate or rewrite stored provider data. Database
+startup deletes the pre-v4 search rows once, each
 under its own `app_state` marker so a skipped release still runs the cleanups
 it missed (`migration:tmdb-search-lookup-v2-cache-cleanup:v1` for the
 unversioned rows, `…-v3-…` for the `|v2` rows, `…-v4-…` for the `|v3` rows;
@@ -666,7 +713,7 @@ both sides fold the same way. `query` is `cleanTitleForSearch`
 stripping, but the letters left as the provider wrote them. The search's
 identity is the query with only its case removed (`searchQueryIdentity`):
 variants are deduplicated by it and every attempted variant is cached under
-its own key (`title:<identity>|year:<y>|v4`, in the language that variant
+its own key (`title:<identity>|year:<y>|v5`, in the language that variant
 was searched in), never by the folded key and never only under the first
 variant — "Леика" and "Лейка", an illustrative pair, fold to one key while
 staying two different searches that can get different answers, so a verdict

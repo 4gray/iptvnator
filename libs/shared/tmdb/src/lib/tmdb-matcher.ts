@@ -14,7 +14,8 @@ export { extractYear, normalizeTitle } from '@iptvnator/shared/interfaces';
  * ("EN - The Matrix (1999) 4K"), so titles are normalized before comparison
  * and a result is only accepted when the match is high-confidence:
  * normalized title equality plus a compatible release year (±1). Without a
- * year, the normalized title must match exactly one search result.
+ * year, the normalized title must match exactly one search result. With a
+ * year, the strongest year-evidence tier must contain exactly one result.
  */
 
 /**
@@ -125,7 +126,10 @@ export function buildSearchLookupKey(
     // v4: year evidence is tiered (see `yearEvidenceTier`), so every v3 row
     // resolved by popularity across tiers may name the wrong show — and a
     // positive row stays fresh for 30 days.
-    return `title:${searchQueryIdentity(query)}|year:${year ?? ''}|v4`;
+    // v5: a tie within the strongest year tier is ambiguous. Popularity
+    // cannot identify same-title, same-year namesakes; v4 positive rows
+    // may point at the wrong title for another 30 days otherwise.
+    return `title:${searchQueryIdentity(query)}|year:${year ?? ''}|v5`;
 }
 
 export function buildDetailsLookupKey(tmdbId: number): string {
@@ -333,8 +337,9 @@ export function pickConfidentMatch(
 
     const wantedYear = query.year;
     if (wantedYear !== null) {
-        // Popularity only breaks ties INSIDE the strongest tier any
-        // candidate reached — see `yearEvidenceTier`.
+        // Only the strongest year tier can identify the item. Several
+        // candidates in that tier remain ambiguous regardless of votes,
+        // popularity or search-result order (e.g. both 2026 "Красота" shows).
         const ranked = exactTitleMatches
             .map((result) => ({
                 result,
@@ -358,21 +363,12 @@ export function pickConfidentMatch(
         }
 
         const bestTier = Math.min(...ranked.map((candidate) => candidate.tier));
-        return pickMostPopular(
-            ranked
-                .filter((candidate) => candidate.tier === bestTier)
-                .map((candidate) => candidate.result)
+        const strongest = ranked.filter(
+            (candidate) => candidate.tier === bestTier
         );
+        return strongest.length === 1 ? strongest[0].result : null;
     }
 
     // Without a year the title must be unambiguous
     return exactTitleMatches.length === 1 ? exactTitleMatches[0] : null;
-}
-
-function pickMostPopular(results: TmdbSearchResult[]): TmdbSearchResult {
-    return [...results].sort(
-        (a, b) =>
-            (b.vote_count ?? 0) - (a.vote_count ?? 0) ||
-            (b.popularity ?? 0) - (a.popularity ?? 0)
-    )[0];
 }

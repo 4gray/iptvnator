@@ -88,7 +88,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(searchTv).toHaveBeenCalledWith('Лейка', null, 'ru-RU', 'key');
         expect(cacheSet).toHaveBeenCalledWith({
             mediaType: 'tv',
-            lookupKey: 'title:лейка|year:2026|v4',
+            lookupKey: 'title:лейка|year:2026|v5',
             language: 'ru-RU',
             tmdbId: 101101,
             payload: null,
@@ -121,12 +121,12 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         );
         expect(cacheGet).toHaveBeenCalledWith(
             'movie',
-            'title:матриця|year:1999|v4',
+            'title:матриця|year:1999|v5',
             'uk-UA'
         );
         expect(cacheSet).toHaveBeenCalledWith({
             mediaType: 'movie',
-            lookupKey: 'title:матриця|year:1999|v4',
+            lookupKey: 'title:матриця|year:1999|v5',
             language: 'uk-UA',
             tmdbId: 603,
             payload: null,
@@ -221,7 +221,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         );
         expect(cacheSet).toHaveBeenCalledWith(
             expect.objectContaining({
-                lookupKey: 'title:пробный выпуск|year:2026|v4',
+                lookupKey: 'title:пробный выпуск|year:2026|v5',
                 tmdbId: null,
             })
         );
@@ -242,7 +242,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(id).toBe(101101);
         expect(cacheGet).toHaveBeenCalledWith(
             'tv',
-            'title:лейка|year:2026|v4',
+            'title:лейка|year:2026|v5',
             'ru-RU'
         );
         expect(searchTv).not.toHaveBeenCalled();
@@ -266,8 +266,8 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(
             cacheSet.mock.calls.map(([row]) => [row.lookupKey, row.tmdbId])
         ).toEqual([
-            ['title:леика|year:2026|v4', null],
-            ['title:лейка|year:2026|v4', 101101],
+            ['title:леика|year:2026|v5', null],
+            ['title:лейка|year:2026|v5', 101101],
         ]);
     });
 
@@ -276,7 +276,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         // "леика". Item B shares the original title but displays "Лейка":
         // the cached miss must not suppress B's own second variant.
         cacheGet.mockImplementation(async (_type: string, key: string) =>
-            key === 'title:леика|year:2026|v4' ? { tmdbId: null } : null
+            key === 'title:леика|year:2026|v5' ? { tmdbId: null } : null
         );
         const service = createService();
         const cacheService = (service as unknown as { cache: TmdbCacheService })
@@ -295,8 +295,8 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(searchTv).toHaveBeenCalledTimes(1);
         expect(searchTv).toHaveBeenCalledWith('Лейка', null, 'ru-RU', 'key');
         expect(cacheGet.mock.calls.map(([, key]) => key)).toEqual([
-            'title:леика|year:2026|v4',
-            'title:лейка|year:2026|v4',
+            'title:леика|year:2026|v5',
+            'title:лейка|year:2026|v5',
         ]);
     });
 

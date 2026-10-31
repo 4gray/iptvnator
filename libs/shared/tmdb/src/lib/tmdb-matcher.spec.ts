@@ -80,10 +80,10 @@ describe('extractYear', () => {
 describe('lookup keys', () => {
     it('builds stable search and details keys', () => {
         expect(buildSearchLookupKey('The Matrix', 1999)).toBe(
-            'title:the matrix|year:1999|v4'
+            'title:the matrix|year:1999|v5'
         );
         expect(buildSearchLookupKey('The Matrix', null)).toBe(
-            'title:the matrix|year:|v4'
+            'title:the matrix|year:|v5'
         );
     });
 
@@ -92,7 +92,7 @@ describe('lookup keys', () => {
         // searches with different answers; a verdict cached for one must
         // never be read back for the other.
         expect(buildSearchLookupKey('Лейка', 2026)).toBe(
-            'title:лейка|year:2026|v4'
+            'title:лейка|year:2026|v5'
         );
         expect(buildSearchLookupKey('Леика', 2026)).not.toBe(
             buildSearchLookupKey('Лейка', 2026)
@@ -267,7 +267,7 @@ describe('pickConfidentMatch', () => {
         ).toBeNull();
     });
 
-    it('disambiguates same-title results by vote count', () => {
+    it('disambiguates same-title results by year evidence', () => {
         const obscure: TmdbSearchResult = {
             id: 111,
             title: 'The Matrix',
@@ -361,7 +361,7 @@ describe('pickConfidentMatch', () => {
         ).toBe(localSeries);
     });
 
-    it('still falls back to an older series when nothing matches the year', () => {
+    it('rejects several older namesakes when nothing matches the year', () => {
         const theBoys: TmdbSearchResult = {
             id: 76479,
             name: 'The Boys',
@@ -381,7 +381,59 @@ describe('pickConfidentMatch', () => {
                 { title: 'The Boys s05', year: 2026 },
                 'tv'
             )
-        ).toBe(theBoys);
+        ).toBeNull();
+    });
+
+    it.each(['movie', 'tv'] as const)(
+        'rejects same-title, same-year %s namesakes regardless of popularity or result order',
+        (mediaType) => {
+            const russian: TmdbSearchResult = {
+                id: 318158,
+                title: 'Красота',
+                name: 'Красота',
+                original_title: 'Красота',
+                original_name: 'Красота',
+                release_date: '2026-10-30',
+                first_air_date: '2026-10-30',
+                vote_count: 0,
+                popularity: 1,
+            };
+            const american: TmdbSearchResult = {
+                ...russian,
+                id: 273160,
+                original_title: 'The Beauty',
+                original_name: 'The Beauty',
+                release_date: '2026-01-21',
+                first_air_date: '2026-01-21',
+                vote_count: 1000,
+                popularity: 100,
+            };
+            for (const results of [
+                [russian, american],
+                [american, russian],
+            ]) {
+                expect(
+                    pickConfidentMatch(
+                        results,
+                        { title: 'Красота (8 серий)', year: 2026 },
+                        mediaType
+                    )
+                ).toBeNull();
+            }
+        }
+    );
+
+    it('rejects multiple candidates in the adjacent-year tier', () => {
+        expect(
+            pickConfidentMatch(
+                [
+                    { id: 1, title: 'Namesake', release_date: '2025-01-01' },
+                    { id: 2, title: 'Namesake', release_date: '2027-01-01' },
+                ],
+                { title: 'Namesake', year: 2026 },
+                'movie'
+            )
+        ).toBeNull();
     });
 
     it('prefers the exact release year over one off by one', () => {

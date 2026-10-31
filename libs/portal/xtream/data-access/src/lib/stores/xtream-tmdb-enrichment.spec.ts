@@ -1,4 +1,5 @@
 import type { TmdbEnrichmentService } from '@iptvnator/services';
+import { TmdbMatchService, type TmdbSelectionQuery } from '@iptvnator/services';
 import {
     enrichSerialSeasonWithTmdb,
     enrichSerialSelectionWithTmdb,
@@ -6,6 +7,8 @@ import {
 } from './xtream-tmdb-enrichment';
 
 type SelectionRecord = { readonly [key: string]: unknown };
+
+afterEach(() => localStorage.clear());
 
 function createStore(initial: SelectionRecord | null) {
     let item = initial;
@@ -66,6 +69,115 @@ const serialItem = {
         backdrop_path: [],
     },
 };
+
+describe('manual TMDB selection refresh', () => {
+    it('replaces movie metadata, restores the provider and re-enables automatic lookup', async () => {
+        const store = {
+            ...createStore(vodItem),
+            currentPlaylist: () => ({ id: 'override-source' }),
+        };
+        const matches = new TmdbMatchService();
+        const identity = {
+            provider: 'xtream' as const,
+            playlistId: 'override-source',
+            mediaType: 'movie' as const,
+            itemId: '42',
+        };
+        const enrichment = createEnrichment({
+            matches,
+            enrichMovie: jest.fn(async (query: TmdbSelectionQuery) => {
+                const choice = matches.read(identity);
+                if (choice?.mode === 'provider') return null;
+                return {
+                    id: choice?.mode === 'manual' ? choice.tmdbId : 603,
+                    overview:
+                        choice?.mode === 'manual'
+                            ? 'Manual plot'
+                            : 'Automatic plot',
+                };
+            }),
+        });
+        await enrichVodSelectionWithTmdb(store, enrichment, '42');
+        expect((store.selectedItem()?.['info'] as { plot: string }).plot).toBe(
+            'Automatic plot'
+        );
+        await matches.save(identity, {
+            mode: 'manual',
+            tmdbId: 999,
+            title: 'Chosen movie',
+        });
+        expect((store.selectedItem()?.['info'] as { plot: string }).plot).toBe(
+            'Manual plot'
+        );
+        await matches.save(identity, { mode: 'provider' });
+        expect(store.selectedItem()?.['info']).toEqual(vodItem.info);
+        expect(store.selectedItem()?.['stream_id']).toBe('42');
+        await matches.save(identity, null);
+        expect((store.selectedItem()?.['info'] as { plot: string }).plot).toBe(
+            'Automatic plot'
+        );
+    });
+
+    it('restores the original series episodes and clears metadata-season status', async () => {
+        const episodes = { '1': [{ id: 'ep1', title: 'Provider episode' }] };
+        const store = {
+            ...createStore({ ...serialItem, episodes }),
+            currentPlaylist: () => ({ id: 'override-source' }),
+            resetTmdbSeasonMetadata: jest.fn(),
+        };
+        const matches = new TmdbMatchService();
+        const identity = {
+            provider: 'xtream' as const,
+            playlistId: 'override-source',
+            mediaType: 'tv' as const,
+            itemId: '7',
+        };
+        const enrichment = createEnrichment({ matches });
+        await enrichSerialSelectionWithTmdb(store, enrichment, '7');
+        store.setSelectedItem({
+            ...store.selectedItem(),
+            episodes: { '1': [{ id: 'ep1', title: 'Wrong episode' }] },
+            tmdb_season_overviews: { '1': 'Wrong season' },
+        });
+        await matches.save(identity, { mode: 'provider' });
+        expect(store.selectedItem()?.['episodes']).toEqual(episodes);
+        expect(store.selectedItem()?.['tmdb_season_overviews']).toBeUndefined();
+        expect(store.resetTmdbSeasonMetadata).toHaveBeenCalledWith('7');
+    });
+
+    it('drops an automatic response arriving after the user chose provider-only', async () => {
+        const store = {
+            ...createStore(vodItem),
+            currentPlaylist: () => ({ id: 'override-source' }),
+        };
+        const matches = new TmdbMatchService();
+        const identity = {
+            provider: 'xtream' as const,
+            playlistId: 'override-source',
+            mediaType: 'movie' as const,
+            itemId: '42',
+        };
+        let finish: (details: { id: number; overview: string }) => void = () =>
+            undefined;
+        const enrichment = createEnrichment({
+            matches,
+            enrichMovie: jest
+                .fn()
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            finish = resolve;
+                        })
+                )
+                .mockResolvedValue(null),
+        });
+        const pending = enrichVodSelectionWithTmdb(store, enrichment, '42');
+        await matches.save(identity, { mode: 'provider' });
+        finish({ id: 999, overview: 'Late wrong plot' });
+        await pending;
+        expect(store.selectedItem()?.['info']).toEqual(vodItem.info);
+    });
+});
 
 describe('enrichVodSelectionWithTmdb', () => {
     it('does nothing when enrichment is disabled', async () => {

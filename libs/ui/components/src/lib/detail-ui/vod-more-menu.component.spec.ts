@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { TmdbRuntimeService } from '@iptvnator/services';
 import {
     VIEW_IN_PORTAL_HANDOFF,
     type ViewInPortalHandoff,
@@ -29,6 +30,12 @@ describe('VodMoreMenuComponent', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [VodMoreMenuComponent, TranslateModule.forRoot()],
+            providers: [
+                {
+                    provide: TmdbRuntimeService,
+                    useValue: { isEnabled: () => true },
+                },
+            ],
         }).compileComponents();
         const translate = TestBed.inject(TranslateService);
         translate.setTranslation('en', {
@@ -84,6 +91,44 @@ describe('VodMoreMenuComponent', () => {
         fixture.detectChanges();
         expect(spy).toHaveBeenCalledWith('copy');
         expect(overlay.querySelector('[role="menu"]')).toBeNull();
+    });
+
+    it('offers correction only with an item context and enabled TMDB', () => {
+        fixture.componentRef.setInput('tmdbMatch', {
+            title: 'Movie',
+            identity: {
+                provider: 'stalker',
+                playlistId: 'source',
+                mediaType: 'movie',
+                itemId: '42',
+            },
+        });
+        fixture.detectChanges();
+        trigger().click();
+        fixture.detectChanges();
+        expect(
+            overlay.querySelector('[data-test-id="tmdb-match-menu"]')
+        ).not.toBeNull();
+        fixture.componentInstance.close();
+        jest.spyOn(
+            TestBed.inject(TmdbRuntimeService),
+            'isEnabled'
+        ).mockReturnValue(false);
+        fixture.componentRef.setInput('tmdbMatch', {
+            title: 'Other movie',
+            identity: {
+                provider: 'stalker',
+                playlistId: 'source',
+                mediaType: 'movie',
+                itemId: '43',
+            },
+        });
+        fixture.detectChanges();
+        trigger().click();
+        fixture.detectChanges();
+        expect(
+            overlay.querySelector('[data-test-id="tmdb-match-menu"]')
+        ).toBeNull();
     });
 
     it('moves focus with the arrow keys and closes on Escape', () => {

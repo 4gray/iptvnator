@@ -190,6 +190,7 @@
         }
 
         <app-vod-more-menu
+            [tmdbMatch]="tmdbMatch()"
             [sections]="hero.menuSections()"
             [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
             testId="vod-more-menu"
