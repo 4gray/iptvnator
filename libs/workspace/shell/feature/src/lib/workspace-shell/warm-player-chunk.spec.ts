@@ -3,11 +3,14 @@ import { Subject } from 'rxjs';
 import { warmPlayerChunk } from './warm-player-chunk';
 
 describe('warmPlayerChunk', () => {
-    function setup(load = jest.fn(() => Promise.resolve())) {
+    function setup(load = jest.fn(() => Promise.resolve()), navigated = false) {
         const events = new Subject<unknown>();
         const scheduled: Array<() => void> = [];
         warmPlayerChunk(
-            { events } as unknown as Pick<Router, 'events'>,
+            { events, navigated } as unknown as Pick<
+                Router,
+                'events' | 'navigated'
+            >,
             load,
             (run) => scheduled.push(run)
         );
@@ -27,6 +30,18 @@ describe('warmPlayerChunk', () => {
         expect(scheduled).toHaveLength(1);
         expect(load).not.toHaveBeenCalled();
 
+        scheduled[0]();
+        expect(load).toHaveBeenCalledTimes(1);
+    });
+
+    it('warms at once when the first navigation is already over', () => {
+        const { events, scheduled, load } = setup(undefined, true);
+        expect(scheduled).toHaveLength(1);
+
+        events.next(
+            new NavigationEnd(2, '/workspace/sources', '/workspace/sources')
+        );
+        expect(scheduled).toHaveLength(1);
         scheduled[0]();
         expect(load).toHaveBeenCalledTimes(1);
     });
