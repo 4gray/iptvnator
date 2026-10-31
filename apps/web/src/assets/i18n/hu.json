@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "A mentett kiszolgálókapcsolat nem érhető el. Ellenőrizze a böngésző tárhelyét, vagy csatlakozzon újra a Beállítások → Kiszolgáló menüpontban.",
         "TITLE": "Kiszolgáló",
-        "DESCRIPTION": "A saját IPTVnator-kiszolgálóhoz csatlakozó eszközök között megoszthatja a forrásokat. A megtekintési adatok ezen az eszközön maradnak.",
-        "URL": "Kiszolgáló URL-címe",
+        "DESCRIPTION": "Csatlakozzon az otthoni szerveren vagy NAS-on Dockerrel futtatott IPTVnatorhoz, hogy megossza a forrásokat az eszközök között. A megtekintési adatok ezen az eszközön maradnak.",
+        "URL": "Az IPTVnator-kiszolgáló címe",
         "TOKEN": "Hozzáférési token (nem kötelező)",
-        "TOKEN_HINT": "A böngészőben a hozzáférési token csak az aktuális lap munkamenetének végéig marad meg. Az asztali alkalmazás lehetőség szerint védett tárolóban őrzi.",
+        "TOKEN_HINT": "Adja meg a kiszolgálón beállított IPTVNATOR_ACCESS_TOKEN értékét, vagy kérje el a tulajdonostól. Hagyja üresen, ha nincs beállítva token.",
         "RESTART_HINT": "Csatlakozáskor és leválasztáskor az alkalmazás újratöltődik. Az eredeti helyi médiatár megmarad.",
         "CONNECT": "Kapcsolódás",
         "REFRESH": "Frissítés",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "Csatlakoztatva",
         "STATE_offline": "A kiszolgáló nem érhető el. A megosztott források változásai nem menthetők.",
         "STATE_locked": "Adjon meg érvényes hozzáférési tokent ehhez a kiszolgálóhoz.",
-        "STATE_conflict": "A megosztott forrást egy másik eszközön módosították. Frissítse az adatokat, majd végezze el újra a kívánt változtatást."
+        "STATE_conflict": "A megosztott forrást egy másik eszközön módosították. Frissítse az adatokat, majd végezze el újra a kívánt változtatást.",
+        "SETUP_GUIDE": "A kiszolgáló beállítása",
+        "URL_HINT": "Azt a címet használja, amelyen a böngészőben megnyitja az IPTVnatort ({{example}}). Az /api útvonal automatikusan hozzáadódik.",
+        "URL_INVALID": "Adjon meg teljes http:// vagy https:// címet bejelentkezési adatok, lekérdezési paraméterek és # töredék nélkül.",
+        "CONNECTION_FAILED": "Nem sikerült csatlakozni. Ellenőrizze a kiszolgáló címét, hogy az IPTVnator fut-e és elérhető-e erről az eszközről, majd próbálja újra."
     }
 }

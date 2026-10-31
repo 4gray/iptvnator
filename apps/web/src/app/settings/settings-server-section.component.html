@@ -2,6 +2,14 @@
     <header class="settings-group__header">
         <h2>{{ 'SOURCE_SYNC.TITLE' | translate }}</h2>
         <p>{{ 'SOURCE_SYNC.DESCRIPTION' | translate }}</p>
+        <a
+            class="server-help"
+            href="https://github.com/4gray/iptvnator/blob/master/docker/README.md#connect-your-clients"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-test-id="source-server-help"
+            >{{ 'SOURCE_SYNC.SETUP_GUIDE' | translate }}</a
+        >
     </header>
     <div class="settings-card server-fields" data-setting-id="source-server">
         @if (sync.connection) {
@@ -21,11 +29,17 @@
                 matInput
                 name="sourceServerUrl"
                 type="url"
-                [(ngModel)]="url"
-                [ngModelOptions]="{ standalone: true }"
+                [formControl]="urlControl"
+                [readOnly]="busy()"
+                placeholder="http://192.168.1.20:4333"
                 autocomplete="url"
                 data-test-id="source-server-url"
             />
+            <mat-hint>{{
+                'SOURCE_SYNC.URL_HINT'
+                    | translate: { example: 'http://192.168.1.20:4333' }
+            }}</mat-hint>
+            <mat-error>{{ 'SOURCE_SYNC.URL_INVALID' | translate }}</mat-error>
         </mat-form-field>
         <mat-form-field appearance="outline">
             <mat-label>{{ 'SOURCE_SYNC.TOKEN' | translate }}</mat-label>
@@ -36,6 +50,7 @@
                 [(ngModel)]="token"
                 [ngModelOptions]="{ standalone: true }"
                 autocomplete="off"
+                [readOnly]="busy()"
                 data-test-id="source-server-token"
             />
             <mat-hint>{{ 'SOURCE_SYNC.TOKEN_HINT' | translate }}</mat-hint>
@@ -47,12 +62,18 @@
             <button
                 type="button"
                 mat-flat-button
-                [disabled]="busy() || !url.trim()"
+                [disabled]="busy() || !urlControl.value.trim()"
+                [attr.aria-busy]="connecting()"
                 (click)="connect()"
                 class="settings-primary-button"
                 data-test-id="source-server-connect"
             >
-                {{ 'SOURCE_SYNC.CONNECT' | translate }}
+                {{
+                    (connecting()
+                        ? 'SOURCE_SYNC.STATE_connecting'
+                        : 'SOURCE_SYNC.CONNECT'
+                    ) | translate
+                }}
             </button>
             @if (sync.connection) {
                 <button
@@ -117,10 +138,17 @@
                 </button>
             </div>
         }
-        @if (message()) {
-            <p role="status" class="server-message">
+        <p
+            role="status"
+            aria-live="polite"
+            class="server-message"
+            data-test-id="source-server-message"
+        >
+            @if (connecting()) {
+                {{ 'SOURCE_SYNC.STATE_connecting' | translate }}
+            } @else if (message()) {
                 {{ message() | translate }}
-            </p>
-        }
+            }
+        </p>
     </div>
 </section>

@@ -205,9 +205,16 @@ allow explicit reconnection or disconnection; the standalone library and prior
 server projections remain intact. Native configuration saves use a flushed
 private temporary file followed by an atomic rename.
 
-Settings → Data → Server connects a desktop or browser client, refreshes the
+Settings → Server connects a desktop or browser client, refreshes the
 library, previews/imports original local sources, and disconnects. Connection
-changes restart/reload the app. Before a forced native restart, the shared
+help links to the [client connection guide](../../docker/README.md#connect-your-clients).
+The form validates full HTTP(S) app addresses before either runtime is called;
+the API suffix is normalized centrally. Pending connections announce their
+state and make the fields read-only. Failed attempts retain the address and
+token for retry; tokens are cleared after successful configuration. Format
+errors are associated with the address field, while authentication,
+compatibility and connection failures use the live status region.
+Connection changes restart/reload the app. Before a forced native restart, the shared
 shutdown handler stops managed MPV/VLC and embedded-player sessions and shuts
 down the database worker; `app.exit()` itself does not emit `will-quit`.
 The original local library is retained. Imports

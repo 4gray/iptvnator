@@ -171,6 +171,12 @@ Evergreen how-to posts live in the blog collection next to release notes
   attached to the v0.24.0 GitHub release, explicitly selected by the maintainer;
   its provenance is recorded alongside the assets. It is not a mock capture.
 
+The server guide's two dark screenshots were refreshed from the running web
+app on 2026-10-31: Server setup and the local-source import preview. The capture
+used an isolated Chromium profile, intercepted server discovery/source responses
+and two synthetic local sources (Holiday cabin list and Living room TV); no
+provider credentials or user data were used.
+
 `tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
 each guide for the FAQPage schema, a link to the download hub and the presence
 of every referenced screenshot in the build output. It also checks the task hub's

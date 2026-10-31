@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "La connexion enregistrée au serveur est indisponible. Vérifiez le stockage du navigateur ou reconnectez-vous dans les paramètres du serveur.",
         "TITLE": "Serveur",
-        "DESCRIPTION": "Partagez les sources de votre serveur IPTVnator entre vos appareils. Votre activité de lecture reste sur cet appareil.",
-        "URL": "Adresse du serveur",
+        "DESCRIPTION": "Connectez-vous à IPTVnator exécuté avec Docker sur votre serveur domestique ou NAS pour partager les sources entre appareils. Votre activité de lecture reste sur cet appareil.",
+        "URL": "Adresse du serveur IPTVnator",
         "TOKEN": "Jeton d’accès (facultatif)",
-        "TOKEN_HINT": "Le jeton du navigateur dure le temps de cet onglet. Sur ordinateur, un stockage protégé est utilisé si disponible.",
+        "TOKEN_HINT": "Utilisez la valeur IPTVNATOR_ACCESS_TOKEN définie sur le serveur ou demandez-la à son propriétaire. Laissez vide si aucun jeton n’est configuré.",
         "RESTART_HINT": "La connexion ou déconnexion redémarre l’application. Votre bibliothèque locale est conservée.",
         "CONNECT": "Connecter",
         "REFRESH": "Actualiser",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "Connecté",
         "STATE_offline": "Serveur indisponible. Impossible d’enregistrer les modifications des sources partagées.",
         "STATE_locked": "Saisissez un jeton d’accès valide.",
-        "STATE_conflict": "La source a été modifiée sur un autre appareil. Actualisez puis recommencez."
+        "STATE_conflict": "La source a été modifiée sur un autre appareil. Actualisez puis recommencez.",
+        "SETUP_GUIDE": "Configurer votre serveur",
+        "URL_HINT": "Utilisez l’adresse à laquelle vous ouvrez IPTVnator dans votre navigateur ({{example}}). Le chemin /api est ajouté automatiquement.",
+        "URL_INVALID": "Saisissez une adresse complète en http:// ou https://, sans identifiants, paramètres de requête ni fragment #.",
+        "CONNECTION_FAILED": "Connexion impossible. Vérifiez l’adresse du serveur, qu’IPTVnator est démarré et accessible depuis cet appareil, puis réessayez."
     }
 }

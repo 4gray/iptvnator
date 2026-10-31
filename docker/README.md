@@ -164,6 +164,65 @@ OS-protected storage where available and otherwise asks again after restart.
 Back up the volume like any database: stop the container, or copy
 `databases/iptvnator.db` together with its `-wal` file.
 
+## Connect your clients
+
+The **Server** page connects to your own IPTVnator installation. It does not
+create a server or connect directly to your IPTV provider. Run the Docker
+container once on your NAS or home server, then connect your clients to it.
+
+1. Start the container with the [Compose instructions above](#run-with-docker-compose).
+   Keep `IPTVNATOR_STORAGE=server` and a persistent volume mounted at `/data`.
+2. Find the address that opens IPTVnator from another device, for example
+   `http://192.168.1.20:4333`. Replace the example IP with your server's LAN
+   address. `localhost` means the device you are currently using, so it is not
+   the NAS address when entered on another computer or phone.
+3. If you set `IPTVNATOR_ACCESS_TOKEN` in the container's environment, use that
+   exact value as the access token. Otherwise leave the field empty. If someone
+   else runs the server, ask them for its address and token. This is not your
+   IPTV provider's password. Changing the environment requires recreating the
+   container with `docker compose -f docker/docker-compose.yml up -d`.
+4. In Electron, open **Settings → Server**, enter the app address and token,
+   then choose **Connect**. Use the address from step 2, not the container's
+   internal backend port, `/api/v1`, a provider login URL or an address with
+   query parameters. The client adds `/api` automatically; an existing `/api`
+   suffix is also accepted. Connection changes restart/reload the application.
+5. On a phone or another browser, open the same server address. The bundled
+   PWA discovers its server automatically. If it asks for a token, open
+   **Settings → Server** and enter the same token there. A standalone PWA can
+   also connect manually through that page.
+6. After connecting, the page shows **Connected** and the last synchronization
+   time. To copy the device's original sources, choose **Import local sources**,
+   review the preview and confirm. Disconnecting returns to the retained local
+   library; it does not delete the server's sources.
+
+Only source definitions synchronize in this version: names, connection
+details and uploaded M3U text. Favorites, recently viewed items, playback
+progress, EPG and device settings remain local. One server is one shared source
+library, not separate user accounts. Browser tokens last for the tab; desktop
+uses protected storage when available. Keep the same token available for a
+later browser session.
+
+### If connecting fails
+
+- **Invalid address:** enter a full `http://` or `https://` app address. Do not
+  put credentials, query parameters or `#` fragments in the address field.
+- **Server unavailable:** open the same address in a browser on this device.
+  Check that the container is running, the host port is reachable, and VPN or
+  firewall rules allow the connection. Check the container logs if it does not
+  start. The form keeps your address and token so you can retry.
+- **Access token rejected:** copy `IPTVNATOR_ACCESS_TOKEN` from the running
+  container's configuration or ask its owner. A token-protected server requires
+  it even though servers without a token can leave this field empty.
+- **Incompatible server:** use a current IPTVnator image with
+  `IPTVNATOR_STORAGE=server`. The old standalone backend and an IPTV provider's
+  portal are not source-sync servers.
+- **Works in Electron but not in a browser:** use HTTPS for an HTTPS PWA's
+  server connection; browsers block mixed-content HTTP requests. Set
+  `CLIENT_URL` to the actual PWA origin for CORS. Opening the bundled PWA at the
+  server's own address is the simplest browser setup. The
+  [runtime configuration reference](#runtime-configuration) covers origins and
+  trusted certificates.
+
 ## IPv6, VPNs, And Connection Fallback
 
 Node races IPv6 and IPv4 addresses when a provider hostname has both ("happy

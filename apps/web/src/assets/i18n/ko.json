@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "저장된 서버 연결을 사용할 수 없습니다. 브라우저 저장소를 확인하거나 서버 설정에서 다시 연결하세요.",
         "TITLE": "서버",
-        "DESCRIPTION": "자체 호스팅 IPTVnator 서버로 기기 간 소스를 공유합니다. 시청 활동은 이 기기에 저장됩니다.",
-        "URL": "서버 주소",
+        "DESCRIPTION": "홈 서버 또는 NAS에서 Docker로 실행 중인 IPTVnator에 연결하여 기기 간 소스를 공유합니다. 시청 활동은 이 기기에 저장됩니다.",
+        "URL": "IPTVnator 서버 주소",
         "TOKEN": "액세스 토큰(선택 사항)",
-        "TOKEN_HINT": "브라우저 토큰은 이 탭에서만 유효합니다. 데스크톱은 가능한 경우 보호된 저장소를 사용합니다.",
+        "TOKEN_HINT": "서버에 설정된 IPTVNATOR_ACCESS_TOKEN 값을 입력하거나 소유자에게 요청하세요. 토큰을 설정하지 않았다면 비워 두세요.",
         "RESTART_HINT": "연결하거나 해제하면 앱이 다시 시작됩니다. 기존 로컬 라이브러리는 유지됩니다.",
         "CONNECT": "연결",
         "REFRESH": "새로 고침",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "연결됨",
         "STATE_offline": "서버에 연결할 수 없습니다. 공유 소스 변경 내용을 저장할 수 없습니다.",
         "STATE_locked": "유효한 액세스 토큰을 입력하세요.",
-        "STATE_conflict": "다른 기기에서 소스가 변경되었습니다. 새로 고친 후 다시 수정하세요."
+        "STATE_conflict": "다른 기기에서 소스가 변경되었습니다. 새로 고친 후 다시 수정하세요.",
+        "SETUP_GUIDE": "서버 설정 방법",
+        "URL_HINT": "브라우저에서 IPTVnator를 열 때 사용하는 주소를 입력하세요 ({{example}}). /api 경로는 자동으로 추가됩니다.",
+        "URL_INVALID": "로그인 정보, 쿼리 매개변수 또는 # 조각이 없는 완전한 http:// 또는 https:// 주소를 입력하세요.",
+        "CONNECTION_FAILED": "연결하지 못했습니다. 서버 주소, IPTVnator 실행 여부 및 이 기기에서의 접근 가능 여부를 확인한 후 다시 시도하세요."
     }
 }

@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "A ligação guardada ao servidor não está disponível. Verifica o armazenamento do navegador ou volta a ligar nas definições do servidor.",
         "TITLE": "Servidor",
-        "DESCRIPTION": "Partilha fontes entre dispositivos ligados ao teu servidor IPTVnator. A atividade de reprodução fica neste dispositivo.",
-        "URL": "Endereço do servidor",
+        "DESCRIPTION": "Liga-te ao IPTVnator executado com Docker no teu servidor doméstico ou NAS para partilhar fontes entre dispositivos. A atividade de reprodução fica neste dispositivo.",
+        "URL": "Endereço do servidor IPTVnator",
         "TOKEN": "Token de acesso (opcional)",
-        "TOKEN_HINT": "O token do navegador é válido apenas neste separador. No computador, utiliza armazenamento protegido quando disponível.",
+        "TOKEN_HINT": "Usa o valor IPTVNATOR_ACCESS_TOKEN definido no servidor ou pede-o ao proprietário. Deixa vazio se não houver um token configurado.",
         "RESTART_HINT": "Ligar ou desligar recarrega a aplicação. A biblioteca local original é preservada.",
         "CONNECT": "Ligar",
         "REFRESH": "Atualizar",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "Ligado",
         "STATE_offline": "Servidor indisponível. Não é possível guardar alterações nas fontes partilhadas.",
         "STATE_locked": "Introduz um token de acesso válido para este servidor.",
-        "STATE_conflict": "A fonte partilhada foi alterada noutro dispositivo. Atualiza e repete a alteração."
+        "STATE_conflict": "A fonte partilhada foi alterada noutro dispositivo. Atualiza e repete a alteração.",
+        "SETUP_GUIDE": "Como configurar o teu servidor",
+        "URL_HINT": "Usa o endereço onde abres o IPTVnator no navegador ({{example}}). O caminho /api é adicionado automaticamente.",
+        "URL_INVALID": "Introduz um endereço completo com http:// ou https://, sem dados de acesso, parâmetros de consulta ou fragmentos #.",
+        "CONNECTION_FAILED": "Não foi possível ligar. Verifica o endereço do servidor, se o IPTVnator está em execução e acessível a partir deste dispositivo, e tenta novamente."
     }
 }

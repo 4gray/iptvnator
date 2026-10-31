@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "无法读取已保存的服务器连接。请检查浏览器存储，或在服务器设置中重新连接。",
         "TITLE": "服务器",
-        "DESCRIPTION": "通过自托管 IPTVnator 服务器在设备间共享来源。观看活动保留在当前设备上。",
-        "URL": "服务器地址",
+        "DESCRIPTION": "连接到通过 Docker 在家庭服务器或 NAS 上运行的 IPTVnator，在设备间共享来源。观看活动保留在当前设备上。",
+        "URL": "IPTVnator 服务器地址",
         "TOKEN": "访问令牌（可选）",
-        "TOKEN_HINT": "浏览器令牌仅在当前标签页有效。桌面应用在可用时使用安全存储。",
+        "TOKEN_HINT": "输入服务器上设置的 IPTVNATOR_ACCESS_TOKEN，或向服务器所有者索取。未设置令牌时请留空。",
         "RESTART_HINT": "连接或断开会重启应用。原有本地媒体库会保留。",
         "CONNECT": "连接",
         "REFRESH": "刷新",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "已连接",
         "STATE_offline": "服务器不可用，无法保存共享来源的更改。",
         "STATE_locked": "请输入有效的访问令牌。",
-        "STATE_conflict": "来源已在其他设备上更改。请刷新后重新编辑。"
+        "STATE_conflict": "来源已在其他设备上更改。请刷新后重新编辑。",
+        "SETUP_GUIDE": "如何设置服务器",
+        "URL_HINT": "使用在浏览器中打开 IPTVnator 的地址 ({{example}})。系统会自动添加 /api 路径。",
+        "URL_INVALID": "请输入完整的 http:// 或 https:// 地址，不要包含登录信息、查询参数或 # 片段。",
+        "CONNECTION_FAILED": "无法连接。请检查服务器地址，确认 IPTVnator 正在运行且可从此设备访问，然后重试。"
     }
 }

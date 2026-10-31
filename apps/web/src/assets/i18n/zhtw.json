@@ -2268,10 +2268,10 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "無法讀取已儲存的伺服器連線。請檢查瀏覽器儲存空間，或在伺服器設定中重新連線。",
         "TITLE": "伺服器",
-        "DESCRIPTION": "透過自行架設的 IPTVnator 伺服器在裝置間共用來源。觀看活動保留在此裝置上。",
-        "URL": "伺服器位址",
+        "DESCRIPTION": "連線至透過 Docker 在家用伺服器或 NAS 上執行的 IPTVnator，在裝置間共用來源。觀看活動保留在此裝置上。",
+        "URL": "IPTVnator 伺服器位址",
         "TOKEN": "存取權杖（選填）",
-        "TOKEN_HINT": "瀏覽器權杖僅在此分頁有效。桌面應用程式會在可用時使用安全儲存空間。",
+        "TOKEN_HINT": "輸入伺服器上設定的 IPTVNATOR_ACCESS_TOKEN，或向伺服器擁有者索取。未設定權杖時請留空。",
         "RESTART_HINT": "連線或中斷會重新啟動應用程式。原有本機媒體庫會保留。",
         "CONNECT": "連線",
         "REFRESH": "重新整理",
@@ -2293,6 +2293,10 @@
         "STATE_connected": "已連線",
         "STATE_offline": "伺服器無法使用，無法儲存共用來源的變更。",
         "STATE_locked": "請輸入有效的存取權杖。",
-        "STATE_conflict": "來源已在其他裝置上變更。請重新整理後再編輯。"
+        "STATE_conflict": "來源已在其他裝置上變更。請重新整理後再編輯。",
+        "SETUP_GUIDE": "如何設定伺服器",
+        "URL_HINT": "使用在瀏覽器中開啟 IPTVnator 的位址 ({{example}})。系統會自動加入 /api 路徑。",
+        "URL_INVALID": "請輸入完整的 http:// 或 https:// 位址，不要包含登入資訊、查詢參數或 # 片段。",
+        "CONNECTION_FAILED": "無法連線。請檢查伺服器位址，確認 IPTVnator 正在執行且可從此裝置存取，然後重試。"
     }
 }
