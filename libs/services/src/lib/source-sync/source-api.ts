@@ -31,6 +31,17 @@ export function sourceRequestRoute(request: SourceServerRequest): {
             return { path: `/v1/sources/${id}`, method: 'DELETE' };
         case 'clear':
             return { path: '/v1/sources', method: 'DELETE' };
+        case 'activity-context':
+            return { path: `/v1/activity/sources/${id}`, method: 'GET' };
+        case 'activity-list':
+            return {
+                path: `/v1/activity/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
+                method: 'GET',
+            };
+        case 'activity-read':
+            return { path: '/v1/activity/read', method: 'POST' };
+        case 'activity-apply':
+            return { path: '/v1/activity/operations', method: 'POST' };
     }
 }
 
@@ -70,7 +81,9 @@ export async function requestSourceServer(
                       }
                     : {}),
             },
-            ...(request.source ? { body: JSON.stringify(request.source) } : {}),
+            ...((request.activity ?? request.source)
+                ? { body: JSON.stringify(request.activity ?? request.source) }
+                : {}),
         });
         // These routes are server-owned; JSON 5xx responses are outages too.
         if (response.status >= 500) throw new Error('SOURCE_SYNC.OFFLINE');

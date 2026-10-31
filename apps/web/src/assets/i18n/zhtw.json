@@ -2338,5 +2338,33 @@
         "URL_HINT": "使用在瀏覽器中開啟 IPTVnator 的位址 ({{example}})。系統會自動加入 /api 路徑。",
         "URL_INVALID": "請輸入完整的 http:// 或 https:// 位址，不要包含登入資訊、查詢參數或 # 片段。",
         "CONNECTION_FAILED": "無法連線。請檢查伺服器位址，確認 IPTVnator 正在執行且可從此裝置存取，然後重試。"
+    },
+    "ACTIVITY_SYNC": {
+        "TITLE": "觀看活動同步",
+        "SHARED_HINT": "所有有權限的裝置共用播放進度和已看標記。",
+        "ENABLE": "同步播放進度和已看標記",
+        "IMPORT_HINT": "啟用後接收伺服器資料並傳送新操作。先前的本機活動僅透過單獨的匯入操作上傳。",
+        "LOCAL_HINT": "收藏、歷史記錄和 EPG 設定保留在本機。停用不會刪除裝置或伺服器上的資料。",
+        "STATE_disabled": "活動保留在此裝置上",
+        "STATE_initializing": "正在載入共用活動…",
+        "STATE_ready": "活動已同步",
+        "STATE_pending": "變更等待傳送",
+        "STATE_offline": "伺服器無法使用。新變更將儲存在本機。",
+        "STATE_conflict": "請選擇要保留的觀看活動",
+        "STATE_incompatible": "請更新伺服器以同步觀看活動",
+        "ERROR": "設定或儲存空間無法使用。請檢查連線和可用空間後重試。",
+        "PREVIEW_IMPORT": "預覽本機活動匯入",
+        "PENDING": "未傳送的變更：{{count}}",
+        "SEND_PENDING": "傳送待處理變更",
+        "KEEP_PENDING_LOCAL": "將待處理變更保留在本機",
+        "CONFLICT": "觀看活動衝突",
+        "MOVIE": "電影",
+        "LOCAL_POSITION": "此裝置",
+        "SERVER_POSITION": "伺服器資料",
+        "KEEP_SERVER": "保留伺服器資料",
+        "USE_LOCAL": "使用此裝置的資料",
+        "IMPORT_PREVIEW": "{{sources}} 個來源中有 {{count}} 筆本機記錄",
+        "IMPORT_CONFLICT_HINT": "伺服器資料會保留。衝突記錄需要另外選擇。身分未確認的影集集數將保留在本機；請開啟影集後重試。",
+        "UNRESOLVED": "因身分未確認而保留在本機的記錄：{{count}}"
     }
 }

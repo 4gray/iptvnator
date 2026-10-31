@@ -2338,5 +2338,33 @@
         "URL_HINT": "Use o endereço onde você abre o IPTVnator no navegador ({{example}}). O caminho /api é adicionado automaticamente.",
         "URL_INVALID": "Digite um endereço completo com http:// ou https://, sem dados de login, parâmetros de consulta ou fragmentos #.",
         "CONNECTION_FAILED": "Não foi possível conectar. Verifique o endereço do servidor, se o IPTVnator está em execução e acessível por este dispositivo, e tente novamente."
+    },
+    "ACTIVITY_SYNC": {
+        "TITLE": "Sincronização da reprodução",
+        "SHARED_HINT": "Todos os dispositivos com acesso compartilham o progresso e as marcações de assistido.",
+        "ENABLE": "Sincronizar progresso e marcações de assistido",
+        "IMPORT_HINT": "Ativar recebe os dados do servidor e envia novas ações. Os dados locais anteriores só são enviados por uma importação separada.",
+        "LOCAL_HINT": "Favoritos, histórico e configurações de EPG ficam locais. Desativar mantém os dados no dispositivo e no servidor.",
+        "STATE_disabled": "A atividade fica neste dispositivo",
+        "STATE_initializing": "Carregando atividade compartilhada…",
+        "STATE_ready": "Atividade sincronizada",
+        "STATE_pending": "Alterações aguardando envio",
+        "STATE_offline": "Servidor indisponível. As novas alterações são salvas localmente.",
+        "STATE_conflict": "Escolha qual atividade manter",
+        "STATE_incompatible": "Atualize o servidor para sincronizar a atividade",
+        "ERROR": "Configurações ou armazenamento indisponíveis. Confira a conexão e o espaço livre e tente novamente.",
+        "PREVIEW_IMPORT": "Prévia da importação local",
+        "PENDING": "Alterações não enviadas: {{count}}",
+        "SEND_PENDING": "Enviar alterações pendentes",
+        "KEEP_PENDING_LOCAL": "Manter alterações pendentes locais",
+        "CONFLICT": "Conflito de reprodução",
+        "MOVIE": "Filme",
+        "LOCAL_POSITION": "Este dispositivo",
+        "SERVER_POSITION": "Dados do servidor",
+        "KEEP_SERVER": "Manter os dados do servidor",
+        "USE_LOCAL": "Usar os dados deste dispositivo",
+        "IMPORT_PREVIEW": "{{count}} registros locais em {{sources}} fontes",
+        "IMPORT_CONFLICT_HINT": "Os dados do servidor são mantidos. Conflitos exigem uma escolha. Episódios sem identidade confirmada ficam locais; abra a série e tente novamente.",
+        "UNRESOLVED": "Registros mantidos locais por identidade não confirmada: {{count}}"
     }
 }

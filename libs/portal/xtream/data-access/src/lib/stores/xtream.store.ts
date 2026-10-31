@@ -1,5 +1,12 @@
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
+import { DestroyRef } from '@angular/core';
 import { computed, inject } from '@angular/core';
-import { signalStore, withComputed, withMethods } from '@ngrx/signals';
+import {
+    signalStore,
+    withComputed,
+    withMethods,
+    withHooks,
+} from '@ngrx/signals';
 import {
     XtreamSerieDetails,
     XtreamVodDetails,
@@ -365,7 +372,18 @@ export const XtreamStore = signalStore(
                 );
             },
         };
-    })
+    }),
+    withHooks((store) => ({
+        onInit() {
+            inject(DestroyRef).onDestroy(
+                observeActivityChanges(() => {
+                    const id = store.currentPlaylist()?.id;
+                    if (id)
+                        void store.loadAllPositions(id).catch(() => undefined);
+                })
+            );
+        },
+    }))
 );
 
 // Type alias for the store

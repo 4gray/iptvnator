@@ -442,7 +442,9 @@ expose desktop-only actions in the PWA/shared UI.
 The sections below describe the legacy whole-document PWA integration and its
 reusable API clients. The current bootstrap does not install these providers:
 PWA and Electron now use the [shared source library](#shared-source-library).
-Viewing activity remains local; the existing user-state API stays compatible
+Viewing activity is local by default; the separate
+[activity synchronization](#viewing-activity-synchronization) consent enables
+progress and watched marks. The existing user-state API remains compatible
 for explicit consumers. Do not re-enable automatic activity uploads by adding
 `provideServerStorage()` alongside source sync.
 
@@ -908,6 +910,107 @@ small M3U fixture, then verify in the browser that M3U, Xtream, and Stalker can
 add sources, play an item, toggle favorites, populate global favorites,
 populate recently viewed, and appear on the dashboard rails, and that Xtream
 and Stalker live channels show their provider's programme guide.
+
+## Viewing activity synchronization
+
+Connecting a source server synchronizes sources only. Settings → Server offers
+an independent, disabled-by-default consent for progress and watched marks.
+The UI explains that the server holds **one shared household activity**: anyone
+with access sees and changes the same activity. Favorites, history and EPG stay
+local. There are no per-person accounts or cross-provider content matching.
+
+Enabling receives server activity and uploads new actions. It never scans and
+uploads older local activity automatically. A separate preview counts local
+entries and sources before explicit import; existing server entries become
+conflicts rather than being overwritten. Episodes without a verified provider
+identity stay local. Open the series to register its aliases, then retry import.
+Disabling retains local and remote data, mirrors the current projection into
+local playback storage and parks pending intent. A new consent generation cannot
+send an older queue until the user chooses to send it or keep it local.
+
+The implementation uses narrow entry points, outside the eager main barrels:
+
+- `@iptvnator/shared/interfaces/activity-sync`: portable addresses, wire parsing,
+  session/reset rules and local transactions;
+- `@iptvnator/shared/database/activity-sync`: SQLite local state/outbox and
+  server state/idempotency receipts;
+- `@iptvnator/services/activity-sync`: client delivery, IndexedDB and Electron
+  local-store adapters;
+- `@iptvnator/services/activity-events`: explicit playback begin/checkpoint and
+  Stalker alias registration; a no-op without consent.
+
+The NAS advertises `activity-v1` alongside `sources-v1`. Authenticated `/v1/activity`
+routes require the verified `X-IPTVnator-Instance-Id`, bounded JSON and canonical
+provider addresses: `GET /sources/:id` returns the source incarnation,
+`GET /sources/:id/items?cursor=…` returns pages of 100 rows, `POST /read` reads one
+address, and `POST /operations` applies one operation. Responses are not cached.
+A persisted source fingerprint determines its incarnation; password rotation
+retains it, while a new account/endpoint or deletion/recreation retires it.
+Pending operations never move automatically to another incarnation or instance.
+
+PWA delivery uses the verified source HTTP client and a separate versioned
+IndexedDB database per instance. Electron uses the same verified native source
+transport and `DB_ACTIVITY_LOCAL` IPC; only the database worker owns SQLite.
+That IPC accepts fixed read/list/pending/compare-and-swap operations, not SQL or
+callbacks, and main verifies the selected instance. Renderer retries preserve a
+sibling window's writes. Native storage errors remain visible/retryable.
+
+The source data-source decorator preserves local behavior while disabled. With
+consent it projects the shared state through existing Xtream/Stalker position
+APIs. Web players begin explicit sessions and save during playback, on completion
+and on teardown; existing native position reports retain session metadata.
+Refresh on focus/online and a visible-page five-second poll deliver changes;
+local invalidation refreshes open detail views and position caches.
+
+An address contains the instance, shared activity scope, source ID, source
+incarnation and a typed provider identity. Episode identities include their
+parent; Stalker episodes additionally retain their mode, season key and episode
+number. The serialized key is a tuple, not a numeric tracking hash. Runtime
+adapters establish the source incarnation and preserve guarded legacy aliases. Stream URLs, credentials,
+local SQL row IDs and content snapshots are not identity inputs.
+
+`begin` and explicit manual actions require the current revision. A successful
+begin advances the ownership generation. Checkpoints require that generation,
+the owning device/session and an increasing sequence; a deliberate rewind is
+valid. Completion retains the portal's rounded 90% threshold when duration is
+known. Manual watched state does not manufacture a duration. A checkpoint does
+not silently unmark an already watched item. `reset` clears resume and watched
+and advances the generation, retaining the empty row as a barrier to old ticks.
+Marking watched also retires the old session. A remote ownership change does
+not command a running player to seek or stop.
+
+The server SQLite store receives a synchronous authorization callback that must
+verify instance and current source incarnation in the mutation transaction.
+State and the immutable operation receipt commit together. Reusing an operation
+ID for another address/body is rejected; an exact retry returns its original
+result without applying the mutation again. Conflict receipts also remain
+immutable: a user-approved retry on a new base needs a new operation ID. Reset
+rows and receipts have no automatic TTL. The HTTP boundary additionally checks
+authentication, source existence and bounded request shapes; the store does not
+replace that access-control boundary.
+
+Both local stores commit a projection and its ordered pending operations in one
+transaction. They bind reads and writes to their instance and expose indexed
+pending-intent discovery for restart recovery. Each intent retains its original
+address and consent generation. The sender filters consent and pauses
+parked generations; recovering an intent does not authorize uploading it.
+Acknowledgements must remove only the confirmed operation inside `mutate`,
+preserving a sibling tab's later intents. Mutators are synchronous and must not
+perform network I/O. The IndexedDB store uses its own versioned database and
+transaction ordering, without relying on Web Locks or changing existing source
+databases. The Electron SQLite store runs in the database worker.
+
+Tests cover session fences, stale/offline bases, reset barriers, retry identity,
+real SQLite rollback/reopen and preservation of populated historical schemas,
+plus two real Chromium tabs sharing IndexedDB with Web Locks unavailable.
+Client tests cover live ownership transfer, lost responses/restart, offline
+conflict choices, parked consent, explicit import and all three Stalker episode
+modes. Mixed-runtime Playwright coverage lives in `activity-sync.e2e.ts`, using
+real HTTP, SQLite IPC and decoded media; run it through the source-sync config.
+The latest explicit online begin owns shared resume. Superseded online players
+keep playing and their background checkpoints are retired. A competing offline
+queue requires an explicit local/server choice; reconnect never silently elects
+an old session. Reset/unwatch clears both progress and watched state in this MVP.
 
 ## Service factory and build bases
 

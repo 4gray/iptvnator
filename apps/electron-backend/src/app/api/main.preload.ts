@@ -309,6 +309,8 @@ const electronApi: ElectronBridgeApi = {
         if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
         return result;
     },
+    activityLocalRequest: (request) =>
+        ipcRenderer.invoke('DB_ACTIVITY_LOCAL', request),
     sourceSyncRequest: (request) =>
         ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
     sourceSyncConfigure: (url, token, restart) =>

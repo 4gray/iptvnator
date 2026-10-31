@@ -2338,5 +2338,33 @@
         "URL_HINT": "브라우저에서 IPTVnator를 열 때 사용하는 주소를 입력하세요 ({{example}}). /api 경로는 자동으로 추가됩니다.",
         "URL_INVALID": "로그인 정보, 쿼리 매개변수 또는 # 조각이 없는 완전한 http:// 또는 https:// 주소를 입력하세요.",
         "CONNECTION_FAILED": "연결하지 못했습니다. 서버 주소, IPTVnator 실행 여부 및 이 기기에서의 접근 가능 여부를 확인한 후 다시 시도하세요."
+    },
+    "ACTIVITY_SYNC": {
+        "TITLE": "시청 활동 동기화",
+        "SHARED_HINT": "접근 권한이 있는 모든 기기가 재생 위치와 시청 완료 표시를 공유합니다.",
+        "ENABLE": "재생 위치와 시청 완료 표시 동기화",
+        "IMPORT_HINT": "활성화하면 서버 데이터를 받고 새 작업을 전송합니다. 기존 로컬 데이터는 별도 가져오기를 실행할 때만 업로드됩니다.",
+        "LOCAL_HINT": "즐겨찾기, 기록, EPG 설정은 로컬에 유지됩니다. 비활성화해도 기기와 서버의 데이터는 보존됩니다.",
+        "STATE_disabled": "활동이 이 기기에 유지됩니다",
+        "STATE_initializing": "공유 활동 불러오는 중…",
+        "STATE_ready": "활동 동기화 완료",
+        "STATE_pending": "변경 사항 전송 대기 중",
+        "STATE_offline": "서버에 연결할 수 없습니다. 새 변경 사항은 로컬에 저장됩니다.",
+        "STATE_conflict": "유지할 활동을 선택하세요",
+        "STATE_incompatible": "활동을 동기화하려면 서버를 업데이트하세요",
+        "ERROR": "설정 또는 저장소를 사용할 수 없습니다. 연결과 여유 공간을 확인한 뒤 다시 시도하세요.",
+        "PREVIEW_IMPORT": "로컬 가져오기 미리 보기",
+        "PENDING": "전송하지 않은 변경 사항: {{count}}",
+        "SEND_PENDING": "대기 중인 변경 사항 전송",
+        "KEEP_PENDING_LOCAL": "대기 중인 변경 사항을 로컬에 유지",
+        "CONFLICT": "시청 활동 충돌",
+        "MOVIE": "영화",
+        "LOCAL_POSITION": "이 기기",
+        "SERVER_POSITION": "서버 데이터",
+        "KEEP_SERVER": "서버 데이터 유지",
+        "USE_LOCAL": "이 기기의 데이터 사용",
+        "IMPORT_PREVIEW": "{{sources}}개 소스의 로컬 항목 {{count}}개",
+        "IMPORT_CONFLICT_HINT": "서버 데이터는 유지됩니다. 충돌하는 항목은 따로 선택해야 합니다. 식별하지 못한 에피소드는 로컬에 남습니다. 시리즈를 열고 다시 시도하세요.",
+        "UNRESOLVED": "식별 정보가 확인되지 않아 로컬에 유지한 항목: {{count}}"
     }
 }

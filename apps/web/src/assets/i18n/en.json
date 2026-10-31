@@ -2338,5 +2338,33 @@
         "URL_HINT": "Use the address where you open IPTVnator in your browser ({{example}}). The /api path is added automatically.",
         "URL_INVALID": "Enter a full http:// or https:// address without login details, query parameters or # fragments.",
         "CONNECTION_FAILED": "Could not connect. Check the server address, that IPTVnator is running, and access from this device, then try again."
+    },
+    "ACTIVITY_SYNC": {
+        "TITLE": "Viewing activity synchronization",
+        "SHARED_HINT": "This server has one shared viewing activity. All connected devices with access can see and change the same progress and watched marks.",
+        "ENABLE": "Synchronize progress and watched marks",
+        "IMPORT_HINT": "Enabling receives server activity and sends new actions. Previous local activity is uploaded only through the separate import below.",
+        "LOCAL_HINT": "Favorites, recently viewed and EPG settings remain local. Disabling keeps activity on this device and the server.",
+        "STATE_disabled": "Activity stays on this device",
+        "STATE_initializing": "Loading shared activity…",
+        "STATE_ready": "Activity is synchronized",
+        "STATE_pending": "Changes are waiting to be sent",
+        "STATE_offline": "Server unavailable. New changes are saved locally.",
+        "STATE_conflict": "Choose which viewing activity to keep",
+        "STATE_incompatible": "Update the server to use activity synchronization",
+        "ERROR": "Activity settings or storage are unavailable. Retry after checking the connection and available storage.",
+        "PREVIEW_IMPORT": "Preview local activity import",
+        "PENDING": "Unsent changes: {{count}}",
+        "SEND_PENDING": "Send waiting changes",
+        "KEEP_PENDING_LOCAL": "Keep waiting changes local",
+        "CONFLICT": "Viewing conflict",
+        "MOVIE": "Movie",
+        "LOCAL_POSITION": "This device",
+        "SERVER_POSITION": "Server",
+        "KEEP_SERVER": "Keep server activity",
+        "USE_LOCAL": "Use this device’s activity",
+        "IMPORT_PREVIEW": "Local entries: {{count}} across {{sources}} sources",
+        "IMPORT_CONFLICT_HINT": "Existing server activity is preserved. Conflicting entries require a separate choice. Episodes without a verified identity stay local; open their series and retry.",
+        "UNRESOLVED": "Entries kept local because their identity could not be verified: {{count}}"
     }
 }

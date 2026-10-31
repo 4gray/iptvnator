@@ -18,7 +18,7 @@
                         (playbackIssue)="handlePlaybackIssue($event, binding)"
                         (playbackStarted)="handlePlaybackStarted(binding)"
                         (retryRequested)="retryPlayback(binding)"
-                        (playbackEnded)="playbackEnded.emit()"
+                        (playbackEnded)="handleActivityEnded(application)"
                         (previousEpisodeRequested)="
                             previousEpisodeRequested.emit()
                         "
@@ -49,7 +49,7 @@
                         (timeUpdate)="handleTimeUpdate($event, application)"
                         (playbackIssue)="handlePlaybackIssue($event, binding)"
                         (playbackStarted)="handlePlaybackStarted(binding)"
-                        (playbackEnded)="playbackEnded.emit()"
+                        (playbackEnded)="handleActivityEnded(application)"
                         (previousEpisodeRequested)="
                             previousEpisodeRequested.emit()
                         "
@@ -80,7 +80,7 @@
                         (timeUpdate)="handleTimeUpdate($event, application)"
                         (playbackIssue)="handlePlaybackIssue($event, binding)"
                         (playbackStarted)="handlePlaybackStarted(binding)"
-                        (playbackEnded)="playbackEnded.emit()"
+                        (playbackEnded)="handleActivityEnded(application)"
                         (previousEpisodeRequested)="
                             previousEpisodeRequested.emit()
                         "
@@ -106,7 +106,7 @@
             [recordingMetadata]="recordingMetadata()"
             [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="handleTimeUpdate($event, application)"
-            (playbackEnded)="playbackEnded.emit()"
+            (playbackEnded)="handleActivityEnded(application)"
             (previousEpisodeRequested)="previousEpisodeRequested.emit()"
             (nextEpisodeRequested)="nextEpisodeRequested.emit()"
             (recordingStopped)="recordingStopped.emit($event)"

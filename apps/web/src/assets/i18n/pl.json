@@ -2338,5 +2338,33 @@
         "URL_HINT": "Użyj adresu, pod którym otwierasz IPTVnator w przeglądarce ({{example}}). Ścieżka /api jest dodawana automatycznie.",
         "URL_INVALID": "Wpisz pełny adres http:// lub https:// bez danych logowania, parametrów zapytania i fragmentu #.",
         "CONNECTION_FAILED": "Nie udało się połączyć. Sprawdź adres serwera, czy IPTVnator działa i jest dostępny z tego urządzenia, a następnie spróbuj ponownie."
+    },
+    "ACTIVITY_SYNC": {
+        "TITLE": "Synchronizacja oglądania",
+        "SHARED_HINT": "Wszystkie urządzenia z dostępem współdzielą postęp i oznaczenia obejrzanych treści.",
+        "ENABLE": "Synchronizuj postęp i oznaczenia obejrzenia",
+        "IMPORT_HINT": "Włączenie pobiera dane serwera i wysyła nowe działania. Starsze dane lokalne są wysyłane tylko przez osobny import.",
+        "LOCAL_HINT": "Ulubione, historia i ustawienia EPG pozostają lokalne. Wyłączenie zachowuje dane urządzenia i serwera.",
+        "STATE_disabled": "Aktywność pozostaje na tym urządzeniu",
+        "STATE_initializing": "Wczytywanie wspólnej aktywności…",
+        "STATE_ready": "Aktywność zsynchronizowana",
+        "STATE_pending": "Zmiany oczekują na wysłanie",
+        "STATE_offline": "Serwer niedostępny. Nowe zmiany są zapisywane lokalnie.",
+        "STATE_conflict": "Wybierz aktywność do zachowania",
+        "STATE_incompatible": "Zaktualizuj serwer, aby synchronizować aktywność",
+        "ERROR": "Ustawienia lub pamięć niedostępne. Sprawdź połączenie i wolne miejsce, a potem ponów próbę.",
+        "PREVIEW_IMPORT": "Podgląd importu lokalnego",
+        "PENDING": "Niewysłane zmiany: {{count}}",
+        "SEND_PENDING": "Wyślij oczekujące zmiany",
+        "KEEP_PENDING_LOCAL": "Zachowaj oczekujące zmiany lokalnie",
+        "CONFLICT": "Konflikt oglądania",
+        "MOVIE": "Film",
+        "LOCAL_POSITION": "To urządzenie",
+        "SERVER_POSITION": "Dane serwera",
+        "KEEP_SERVER": "Zachowaj dane serwera",
+        "USE_LOCAL": "Użyj danych tego urządzenia",
+        "IMPORT_PREVIEW": "{{count}} wpisów lokalnych w {{sources}} źródłach",
+        "IMPORT_CONFLICT_HINT": "Dane serwera zostają zachowane. Konflikty wymagają wyboru. Odcinki bez potwierdzonej tożsamości pozostają lokalne; otwórz serial i ponów próbę.",
+        "UNRESOLVED": "Wpisy zachowane lokalnie bez potwierdzonej tożsamości: {{count}}"
     }
 }

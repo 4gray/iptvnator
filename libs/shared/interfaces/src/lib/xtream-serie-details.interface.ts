@@ -65,6 +65,7 @@ export interface XtreamSerieInfo {
 }
 
 export interface XtreamSerieEpisode {
+    activityIdentity?: import('./activity-sync/activity-sync.contract').ActivityContentIdentity;
     id: string;
     episode_num: number;
     title: string;

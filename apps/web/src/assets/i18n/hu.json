@@ -2338,5 +2338,33 @@
         "URL_HINT": "Azt a címet használja, amelyen a böngészőben megnyitja az IPTVnatort ({{example}}). Az /api útvonal automatikusan hozzáadódik.",
         "URL_INVALID": "Adjon meg teljes http:// vagy https:// címet bejelentkezési adatok, lekérdezési paraméterek és # töredék nélkül.",
         "CONNECTION_FAILED": "Nem sikerült csatlakozni. Ellenőrizze a kiszolgáló címét, hogy az IPTVnator fut-e és elérhető-e erről az eszközről, majd próbálja újra."
+    },
+    "ACTIVITY_SYNC": {
+        "TITLE": "Megtekintések szinkronizálása",
+        "SHARED_HINT": "Minden hozzáférő eszköz közös lejátszási állást és megtekintési jelöléseket használ.",
+        "ENABLE": "Lejátszási állás és megtekintési jelölések szinkronizálása",
+        "IMPORT_HINT": "Bekapcsoláskor a szerver adatai letöltődnek, és az új műveletek elküldésre kerülnek. A korábbi helyi adatokhoz külön importálás kell.",
+        "LOCAL_HINT": "A kedvencek, előzmények és EPG-beállítások helyiek maradnak. A kikapcsolás megőrzi az eszköz és a szerver adatait.",
+        "STATE_disabled": "A tevékenység ezen az eszközön marad",
+        "STATE_initializing": "Közös tevékenység betöltése…",
+        "STATE_ready": "Tevékenység szinkronizálva",
+        "STATE_pending": "Küldésre váró módosítások",
+        "STATE_offline": "A szerver nem elérhető. Az új módosítások helyben mentődnek.",
+        "STATE_conflict": "Válassza ki a megőrzendő tevékenységet",
+        "STATE_incompatible": "A szinkronizáláshoz frissítse a szervert",
+        "ERROR": "A beállítások vagy a tárhely nem érhető el. Ellenőrizze a kapcsolatot és a szabad helyet, majd próbálja újra.",
+        "PREVIEW_IMPORT": "Helyi importálás előnézete",
+        "PENDING": "El nem küldött módosítások: {{count}}",
+        "SEND_PENDING": "Várakozó módosítások küldése",
+        "KEEP_PENDING_LOCAL": "Várakozó módosítások helyben tartása",
+        "CONFLICT": "Megtekintési ütközés",
+        "MOVIE": "Film",
+        "LOCAL_POSITION": "Ez az eszköz",
+        "SERVER_POSITION": "Szerveradatok",
+        "KEEP_SERVER": "Szerveradatok megtartása",
+        "USE_LOCAL": "Az eszköz adatainak használata",
+        "IMPORT_PREVIEW": "{{count}} helyi bejegyzés {{sources}} forrásból",
+        "IMPORT_CONFLICT_HINT": "A szerveradatok megmaradnak. Az ütközésekről külön kell dönteni. Azonosítatlan epizódok helyben maradnak; nyissa meg a sorozatot és próbálja újra.",
+        "UNRESOLVED": "Nem megerősített azonosság miatt helyben maradt: {{count}}"
     }
 }

@@ -2338,5 +2338,33 @@
         "URL_HINT": "Gebruik het adres waarmee u IPTVnator in uw browser opent ({{example}}). Het pad /api wordt automatisch toegevoegd.",
         "URL_INVALID": "Voer een volledig http://- of https://-adres in zonder inloggegevens, queryparameters of #-fragmenten.",
         "CONNECTION_FAILED": "Verbinding mislukt. Controleer het serveradres, of IPTVnator draait en bereikbaar is vanaf dit apparaat, en probeer het opnieuw."
+    },
+    "ACTIVITY_SYNC": {
+        "TITLE": "Kijkactiviteit synchroniseren",
+        "SHARED_HINT": "Alle apparaten met toegang delen dezelfde voortgang en bekeken-markeringen.",
+        "ENABLE": "Voortgang en bekeken-markeringen synchroniseren",
+        "IMPORT_HINT": "Inschakelen ontvangt servergegevens en verstuurt nieuwe acties. Eerdere lokale gegevens worden alleen via een aparte import verstuurd.",
+        "LOCAL_HINT": "Favorieten, geschiedenis en EPG-instellingen blijven lokaal. Uitschakelen bewaart de gegevens op het apparaat en de server.",
+        "STATE_disabled": "Activiteit blijft op dit apparaat",
+        "STATE_initializing": "Gedeelde activiteit laden…",
+        "STATE_ready": "Activiteit gesynchroniseerd",
+        "STATE_pending": "Wijzigingen wachten op verzending",
+        "STATE_offline": "Server niet beschikbaar. Nieuwe wijzigingen worden lokaal opgeslagen.",
+        "STATE_conflict": "Kies welke activiteit je wilt bewaren",
+        "STATE_incompatible": "Werk de server bij om activiteit te synchroniseren",
+        "ERROR": "Instellingen of opslag niet beschikbaar. Controleer de verbinding en vrije ruimte en probeer opnieuw.",
+        "PREVIEW_IMPORT": "Lokale import bekijken",
+        "PENDING": "Niet-verzonden wijzigingen: {{count}}",
+        "SEND_PENDING": "Wachtende wijzigingen versturen",
+        "KEEP_PENDING_LOCAL": "Wachtende wijzigingen lokaal houden",
+        "CONFLICT": "Kijkconflict",
+        "MOVIE": "Film",
+        "LOCAL_POSITION": "Dit apparaat",
+        "SERVER_POSITION": "Servergegevens",
+        "KEEP_SERVER": "Servergegevens behouden",
+        "USE_LOCAL": "Gegevens van dit apparaat gebruiken",
+        "IMPORT_PREVIEW": "{{count}} lokale items in {{sources}} bronnen",
+        "IMPORT_CONFLICT_HINT": "Servergegevens blijven behouden. Conflicten vereisen een keuze. Afleveringen zonder bevestigde identiteit blijven lokaal; open hun serie en probeer opnieuw.",
+        "UNRESOLVED": "Lokaal behouden wegens onbevestigde identiteit: {{count}}"
     }
 }

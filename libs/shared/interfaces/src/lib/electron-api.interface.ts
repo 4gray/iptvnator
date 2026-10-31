@@ -747,6 +747,9 @@ export interface ElectronBridgeApi {
     onAppMenuAction: (
         callback: (action: ElectronBridgeAppMenuAction) => void
     ) => () => void;
+    activityLocalRequest?: (
+        request: import('./activity-sync/activity-sync.wire').ActivityLocalRequest
+    ) => Promise<unknown>;
     sourceSyncConnection?: () =>
         import('./source-sync.interface').SourceServerConnection | null;
     sourceSyncRequest?: (

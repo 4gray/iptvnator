@@ -2338,5 +2338,33 @@
         "URL_HINT": "IPTVnator’ı tarayıcınızda açtığınız adresi kullanın ({{example}}). /api yolu otomatik eklenir.",
         "URL_INVALID": "Giriş bilgileri, sorgu parametreleri veya # parçası içermeyen tam bir http:// ya da https:// adresi girin.",
         "CONNECTION_FAILED": "Bağlanılamadı. Sunucu adresini, IPTVnator’ın çalıştığını ve bu cihazdan erişilebildiğini kontrol edip yeniden deneyin."
+    },
+    "ACTIVITY_SYNC": {
+        "TITLE": "İzleme etkinliği eşitleme",
+        "SHARED_HINT": "Erişimi olan tüm cihazlar aynı ilerlemeyi ve izlendi işaretlerini paylaşır.",
+        "ENABLE": "İlerlemeyi ve izlendi işaretlerini eşitle",
+        "IMPORT_HINT": "Etkinleştirme sunucu verilerini alır ve yeni işlemleri gönderir. Önceki yerel veriler yalnızca ayrı içe aktarmayla yüklenir.",
+        "LOCAL_HINT": "Favoriler, geçmiş ve EPG ayarları yerel kalır. Kapatmak cihaz ve sunucu verilerini korur.",
+        "STATE_disabled": "Etkinlik bu cihazda kalır",
+        "STATE_initializing": "Paylaşılan etkinlik yükleniyor…",
+        "STATE_ready": "Etkinlik eşitlendi",
+        "STATE_pending": "Değişiklikler gönderilmeyi bekliyor",
+        "STATE_offline": "Sunucu kullanılamıyor. Yeni değişiklikler yerel olarak kaydediliyor.",
+        "STATE_conflict": "Korunacak izleme etkinliğini seçin",
+        "STATE_incompatible": "Etkinlik eşitlemesi için sunucuyu güncelleyin",
+        "ERROR": "Ayarlar veya depolama kullanılamıyor. Bağlantıyı ve boş alanı kontrol edip yeniden deneyin.",
+        "PREVIEW_IMPORT": "Yerel içe aktarma önizlemesi",
+        "PENDING": "Gönderilmemiş değişiklikler: {{count}}",
+        "SEND_PENDING": "Bekleyen değişiklikleri gönder",
+        "KEEP_PENDING_LOCAL": "Bekleyen değişiklikleri yerel tut",
+        "CONFLICT": "İzleme çakışması",
+        "MOVIE": "Film",
+        "LOCAL_POSITION": "Bu cihaz",
+        "SERVER_POSITION": "Sunucu verileri",
+        "KEEP_SERVER": "Sunucu verilerini koru",
+        "USE_LOCAL": "Bu cihazın verilerini kullan",
+        "IMPORT_PREVIEW": "{{sources}} kaynakta {{count}} yerel kayıt",
+        "IMPORT_CONFLICT_HINT": "Sunucu verileri korunur. Çakışmalar ayrı seçim gerektirir. Kimliği doğrulanmamış bölümler yerel kalır; diziyi açıp yeniden deneyin.",
+        "UNRESOLVED": "Kimliği doğrulanamadığından yerel tutulan kayıtlar: {{count}}"
     }
 }
