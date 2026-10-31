@@ -141,8 +141,6 @@ describe('AppComponent', () => {
                 },
                 MockProvider(Router, {
                     navigateByUrl: jest.fn(),
-                    // No navigation ends here, so the player warm-up never runs.
-                    events: EMPTY,
                 }),
                 {
                     // Root-provided in production; stubbed because the spec's

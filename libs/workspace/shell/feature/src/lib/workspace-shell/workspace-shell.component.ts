@@ -9,7 +9,7 @@ import {
     viewChild,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
 // File-level entry: the @iptvnator/ui/playback barrel would put the web players on the first route.
@@ -29,6 +29,7 @@ import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './services/workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-command-palette.service';
 import { WorkspaceShellHeaderService } from './services/workspace-shell-header.service';
+import { warmPlayerChunk } from './warm-player-chunk';
 import { WorkspaceShellRouteStateService } from './services/workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
@@ -91,6 +92,10 @@ export class WorkspaceShellComponent {
         viewChild<ElementRef<HTMLElement>>('workspaceContent');
 
     constructor() {
+        // The web players are not on the first route: load them once it has
+        // rendered, so the first list or portal opens without waiting for them.
+        warmPlayerChunk(inject(Router));
+
         // Focus restoration is the closing half of the drawer's focus
         // contract: CdkTrapFocus captures focus into the drawer on open, but
         // deactivating a trap does not restore focus, and the closed drawer
