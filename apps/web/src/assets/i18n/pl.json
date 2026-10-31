@@ -2154,6 +2154,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "Sprawdź aktualizacje",
+        "SETTINGS_LIMITED": "Działania korzystające z zapisanych źródeł są niedostępne do czasu wczytania biblioteki. Pozostałe ustawienia są dostępne.",
         "PREPARING": "Przygotowywanie biblioteki",
         "PREPARING_DETAIL": "Wczytywanie źródeł i sprawdzanie programu TV. Duże biblioteki mogą wymagać więcej czasu.",
         "FAILED": "Nie udało się wczytać źródeł",

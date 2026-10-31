@@ -29,6 +29,7 @@ import {
 } from '@iptvnator/epg/data-access';
 import {
     selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
 import {
@@ -349,6 +350,7 @@ export function settingsTestProviders(
         { provide: ActivatedRoute, useClass: MockActivatedRoute },
         provideMockStore({
             selectors: [
+                { selector: selectPlaylistsLoadingFlag, value: true },
                 { selector: selectAllPlaylistsMeta, value: [] },
                 { selector: selectIsEpgAvailable, value: false },
             ],

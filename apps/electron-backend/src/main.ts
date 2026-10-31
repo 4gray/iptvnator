@@ -1,3 +1,4 @@
+import { installApplicationMenu } from './app/services/application-menu';
 // Select persistence before eager imports (notably electron-conf) cache userData.
 import './app/services/electron-profile-bootstrap';
 import { app, BrowserWindow, ipcMain } from 'electron';
@@ -126,6 +127,7 @@ export default class Main {
         const windowCloseGuard = bootstrapWindowCloseGuard((listener) =>
             App.onMainWindowCreated(listener)
         );
+        App.onMainWindowCreated(installApplicationMenu);
         registerStaticHeaderShims();
         WindowEvents.bootstrapWindowEvents();
         PlaylistOpenEvents.bootstrapPlaylistOpenEvents();

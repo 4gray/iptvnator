@@ -2154,6 +2154,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "检查更新",
+        "SETTINGS_LIMITED": "在资料库加载完成之前，使用已保存来源的操作暂不可用。其他设置仍然可用。",
         "PREPARING": "正在准备媒体库",
         "PREPARING_DETAIL": "正在加载来源并检查节目指南。较大的媒体库可能需要更长时间。",
         "FAILED": "无法加载来源",

@@ -144,17 +144,24 @@ test.describe('Custom window controls', () => {
                     () => document.fullscreenElement !== null
                 );
 
-            await expect.poll(isHtmlFullScreen, { timeout: 10_000 }).toBe(
-                true
-            );
+            await expect.poll(isHtmlFullScreen, { timeout: 10_000 }).toBe(true);
             await expect(controls).toHaveClass(/is-hidden/, {
                 timeout: 10_000,
             });
 
+            const nativeFullscreen = () =>
+                app.electronApp.evaluate(({ BrowserWindow }) =>
+                    BrowserWindow.getAllWindows()[0].isFullScreen()
+                );
+            const nativeStateBeforeF11 = await nativeFullscreen();
+            await app.mainWindow.keyboard.press('F11');
+            expect(await isHtmlFullScreen()).toBe(true);
+            expect(await nativeFullscreen()).toBe(nativeStateBeforeF11);
+
             await app.mainWindow.evaluate(() => document.exitFullscreen());
-            await expect.poll(isHtmlFullScreen, { timeout: 10_000 }).toBe(
-                false
-            );
+            await expect
+                .poll(isHtmlFullScreen, { timeout: 10_000 })
+                .toBe(false);
 
             // Regression: the exit push must not carry a stale
             // isFullScreen=true read mid-transition — the controls have to

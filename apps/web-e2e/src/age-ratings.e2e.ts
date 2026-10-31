@@ -81,11 +81,12 @@ for (const type of ['vod', 'series'] as const) {
             /No classification for France/
         );
         await button.press('Enter');
-        await expect(page.locator('.mat-mdc-tooltip-show')).toContainText(
-            'Source: TMDB'
-        );
+        const ratingTooltip = page
+            .locator('.mat-mdc-tooltip-show')
+            .filter({ hasText: 'Age classification:' });
+        await expect(ratingTooltip).toContainText('Source: TMDB');
         await button.press('Enter');
-        await expect(page.locator('.mat-mdc-tooltip-show')).toBeHidden();
+        await expect(ratingTooltip).toBeHidden();
         if (type === 'vod') {
             for (const theme of ['Light', 'Dark'] as const) {
                 await setAgeRatingTheme(page, theme, detailUrl);

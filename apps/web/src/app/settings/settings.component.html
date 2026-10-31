@@ -5,6 +5,18 @@
         class="settings-layout"
         novalidate
     >
+        @if (!libraryReady()) {
+            <div
+                class="settings-library-status"
+                role="status"
+                data-test-id="settings-library-unavailable"
+            >
+                <p>{{ 'STARTUP.SETTINGS_LIMITED' | translate }}</p>
+                <button mat-button type="button" (click)="retryLibrary()">
+                    {{ 'RETRY' | translate }}
+                </button>
+            </div>
+        }
         <!-- Page-level "Settings" h1 intentionally removed: the left rail
              already labels the page "Settings" (sg-nav-title), and each
              section below provides its own h3 + subtitle. -->
@@ -75,6 +87,7 @@
                             [form]="settingsForm"
                             [epgUrl]="form.epgUrl"
                             [isClearingEpgData]="epg.isClearing()"
+                            [sourceActionsUnavailable]="!libraryReady()"
                             [canBrowseFiles]="epg.supportsFilePicker"
                             [showsXmltvSources]="supportsEpg"
                             [epgViewModeOptions]="epgViewModeOptions"
@@ -110,7 +123,7 @@
                             [hasPin]="parentalLock.hasPin()"
                             [relockMinutes]="parentalLock.relockMinutes()"
                             [relockOptions]="parentalLock.relockOptions"
-                            [busy]="parentalLock.busy()"
+                            [busy]="parentalLock.busy() || !libraryReady()"
                             (toggleEnabled)="parentalLock.toggleEnabled($event)"
                             (changePin)="parentalLock.changePin()"
                             (relockMinutesChanged)="
@@ -120,12 +133,15 @@
                             (unlock)="parentalLock.unlock()"
                         />
                     }
-                    @case ('server') { <app-settings-server-section /> }
+                    @case ('server') {
+                        <app-settings-server-section />
+                    }
                     @case ('backup') {
                         <!-- Backup & data: the former Reset page is this
                              page's last card, since it is one action. -->
                         <app-settings-backup-section
                             [isPwa]="isPwa"
+                            [unavailable]="!libraryReady()"
                             [isRemovingAllPlaylists]="
                                 playlistReset.isRemovingAllPlaylists()
                             "
@@ -135,7 +151,7 @@
                             [importSummary]="backup.importSummary()"
                             [importFailed]="backup.importFailed()"
                             [canRemoveAllPlaylists]="
-                                playlistReset.canRemoveAll()
+                                libraryReady() && playlistReset.canRemoveAll()
                             "
                             [playlistDeleteSummary]="
                                 playlistReset.deleteSummary()

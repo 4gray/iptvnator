@@ -104,10 +104,10 @@
 }
 
 // Windows/Linux frameless title bar: reserve room in top-aligned drag
-// regions for the renderer-drawn window controls (3 × 46px buttons).
+// regions for the renderer-drawn window controls and application menu (4 × 46px buttons).
 // Body-level class so it also reaches cdk-overlay content (dialogs, menus).
 body.frameless-platform .workspace-header {
-    padding-right: 150px;
+    padding-right: 196px;
 }
 
 // ─── Base ─────────────────────────────────────────────────────────────────────

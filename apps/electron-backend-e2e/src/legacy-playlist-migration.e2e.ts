@@ -133,21 +133,32 @@ async function verifyBackupReloadRecovery(
     const chooser = page.waitForEvent('filechooser');
     await backup.getByRole('button', { name: 'Import', exact: true }).click();
     await (await chooser).setFiles(backupPath);
-    const startup = page.locator('app-startup-status');
-    await expect(startup.getByRole('alert')).toContainText(
-        'Your sources could not be loaded'
+    // A reload failure keeps Settings usable; recovery no longer covers this
+    // route with the full-window startup screen.
+    const recovery = page.getByTestId('settings-library-unavailable');
+    await expect(page.getByTestId('settings-container')).toBeVisible();
+    await expect(recovery).toContainText(
+        'Actions that use saved sources are unavailable'
     );
+    await expect(
+        backup.getByRole('button', { name: 'Import', exact: true })
+    ).toBeDisabled();
+    await expect(
+        backup.getByRole('button', { name: 'Export', exact: true })
+    ).toBeDisabled();
     await app.evaluate(() => {
         (globalThis as typeof globalThis & StartupTestGlobals)[
             '__failPlaylistReads'
         ] = false;
     });
-    await startup.getByRole('button', { name: 'Retry', exact: true }).click();
+    await recovery.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(recovery).toBeHidden();
     await openSources(page);
     await expect(
         page.getByText('Current synthetic source', { exact: true })
     ).toBeVisible();
-    await expect(startup.locator('section')).toHaveCount(0);
+    expect(await sourceCount(page)).toBe(1);
+    await expect(page.locator('app-startup-status section')).toHaveCount(0);
 }
 
 test.describe('v0.19 profile migration', () => {

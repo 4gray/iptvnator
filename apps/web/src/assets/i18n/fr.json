@@ -2154,6 +2154,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "Rechercher des mises à jour",
+        "SETTINGS_LIMITED": "Les actions utilisant les sources enregistrées sont indisponibles tant que la bibliothèque ne se charge pas. Les autres réglages restent accessibles.",
         "PREPARING": "Préparation de la bibliothèque",
         "PREPARING_DETAIL": "Chargement des sources et vérification du guide TV. Les grandes bibliothèques peuvent prendre plus de temps.",
         "FAILED": "Impossible de charger vos sources",

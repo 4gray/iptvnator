@@ -2154,6 +2154,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "Nach Updates suchen",
+        "SETTINGS_LIMITED": "Aktionen mit gespeicherten Quellen sind erst verfügbar, wenn die Bibliothek geladen ist. Andere Einstellungen bleiben verfügbar.",
         "PREPARING": "Bibliothek wird vorbereitet",
         "PREPARING_DETAIL": "Quellen werden geladen und der Programmführer geprüft. Große Bibliotheken können etwas länger dauern.",
         "FAILED": "Quellen konnten nicht geladen werden",

@@ -120,7 +120,10 @@
                         <button
                             mat-button
                             type="button"
-                            [disabled]="isClearingEpgData()"
+                            [disabled]="
+                                sourceActionsUnavailable() ||
+                                isClearingEpgData()
+                            "
                             (click)="refreshAllEpg.emit()"
                         >
                             <mat-icon>refresh</mat-icon>
@@ -129,6 +132,7 @@
                         <button
                             mat-flat-button
                             type="button"
+                            [disabled]="sourceActionsUnavailable()"
                             (click)="addEpgSource.emit()"
                         >
                             <mat-icon>add</mat-icon>
@@ -164,6 +168,7 @@
                                     mat-flat-button
                                     class="settings-primary-button"
                                     type="button"
+                                    [disabled]="sourceActionsUnavailable()"
                                     (click)="addEpgSource.emit()"
                                 >
                                     <mat-icon>add</mat-icon>
@@ -188,6 +193,9 @@
                                                 type="text"
                                                 spellcheck="false"
                                                 [formControlName]="i"
+                                                [readonly]="
+                                                    sourceActionsUnavailable()
+                                                "
                                                 [placeholder]="
                                                     'SETTINGS.EPG_URL_PLACEHOLDER'
                                                         | translate
@@ -221,6 +229,9 @@
                                                 "
                                                 type="button"
                                                 data-test-id="epg-source-browse"
+                                                [disabled]="
+                                                    sourceActionsUnavailable()
+                                                "
                                                 (click)="
                                                     browseEpgSource.emit(i)
                                                 "
@@ -240,7 +251,10 @@
                                             "
                                             type="button"
                                             data-test-id="epg-source-refresh"
-                                            [disabled]="epgField.value === ''"
+                                            [disabled]="
+                                                sourceActionsUnavailable() ||
+                                                epgField.value === ''
+                                            "
                                             (click)="
                                                 refreshEpg.emit(
                                                     epgUrl().value[i]
@@ -261,6 +275,9 @@
                                             "
                                             type="button"
                                             data-test-id="epg-source-remove"
+                                            [disabled]="
+                                                sourceActionsUnavailable()
+                                            "
                                             (click)="removeEpgSource.emit(i)"
                                         >
                                             <mat-icon>remove</mat-icon>
@@ -335,7 +352,10 @@
                             mat-stroked-button
                             class="app-destructive-button"
                             type="button"
-                            [disabled]="isClearingEpgData()"
+                            [disabled]="
+                                sourceActionsUnavailable() ||
+                                isClearingEpgData()
+                            "
                             (click)="clearEpgData.emit()"
                         >
                             @if (isClearingEpgData()) {

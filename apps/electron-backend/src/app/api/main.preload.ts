@@ -1,3 +1,4 @@
+import { createAppMenuListener } from './app-menu-listener';
 import type {
     ElectronBridgeFavoriteReorderUpdate,
     XtreamFavoriteRemovalRef,
@@ -6,6 +7,7 @@ import type {
 import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import {
+    APP_MENU_OPEN,
     APP_UPDATE_CHECK,
     APP_UPDATE_DOWNLOAD,
     APP_UPDATE_GET_RELEASE_NOTES,
@@ -301,6 +303,7 @@ const frameZoomPorts = {
 };
 
 const electronApi: ElectronBridgeApi = {
+    onAppMenuAction: createAppMenuListener(ipcRenderer),
     sourceSyncConnection: () => {
         const result = ipcRenderer.sendSync(SOURCE_SYNC_CONNECTION);
         if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
@@ -453,6 +456,7 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.on(APP_UPDATE_STATUS_CHANGED, handler);
         return () => ipcRenderer.off(APP_UPDATE_STATUS_CHANGED, handler);
     },
+    showApplicationMenu: () => ipcRenderer.invoke(APP_MENU_OPEN),
     minimizeWindow: () => ipcRenderer.invoke(WINDOW_MINIMIZE),
     toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
     toggleFullScreenWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_FULLSCREEN),

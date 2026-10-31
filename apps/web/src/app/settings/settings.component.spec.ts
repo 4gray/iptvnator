@@ -3,7 +3,10 @@ import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import {
+    selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import {
     EmbeddedMpvSupport,
     PlaylistMeta,
@@ -69,6 +72,25 @@ describe('SettingsComponent', () => {
         mockStore.refreshState();
         fixture.detectChanges();
     }
+
+    it('keeps settings visible but disables backup and parental actions without sources', async () => {
+        mockStore.overrideSelector(selectPlaylistsLoadingFlag, false);
+        mockStore.refreshState();
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="settings-library-unavailable"]'
+            )
+        ).not.toBeNull();
+        setSettingsSection('backup');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const buttons = Array.from(
+            fixture.nativeElement.querySelectorAll('#backup button')
+        ) as HTMLButtonElement[];
+        expect(buttons.length).toBeGreaterThan(1);
+        expect(buttons.every((button) => button.disabled)).toBe(true);
+    });
 
     it('should create and init component', () => {
         expect(component).toBeTruthy();

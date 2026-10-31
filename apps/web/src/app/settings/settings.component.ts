@@ -1,3 +1,8 @@
+import { Store } from '@ngrx/store';
+import {
+    PlaylistActions,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import {
     Component,
     computed,
@@ -73,6 +78,7 @@ import {
 } from './settings-unsaved-changes-dialog.component';
 import { SettingsLeaveConfirmation } from './settings-unsaved-changes.guard';
 import { SettingsUnloadGuardService } from './settings-unload-guard.service';
+import { waitForSettingsUiFeedbackFrame } from './settings-ui-feedback';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
@@ -137,6 +143,14 @@ export class SettingsComponent
     readonly backup = inject(SettingsBackupFacade);
     readonly embeddedMpv = inject(SettingsEmbeddedMpvFacade);
     readonly epg = inject(SettingsEpgFacade);
+    private readonly libraryStore = inject(Store);
+    readonly libraryReady = this.libraryStore.selectSignal(
+        selectPlaylistsLoadingFlag
+    );
+    retryLibrary(): void {
+        this.libraryStore.dispatch(PlaylistActions.loadPlaylists());
+    }
+
     readonly form = inject(SettingsFormFacade);
     readonly parentalLock = inject(SettingsParentalLockFacade);
     readonly playlistReset = inject(SettingsPlaylistResetFacade);
@@ -495,7 +509,7 @@ export class SettingsComponent
 
     async exportData(): Promise<void> {
         if (this.playlistReset.isRemovingAllPlaylists()) return;
-        await this.backup.exportData(() => this.waitForUiFeedbackFrame());
+        await this.backup.exportData(waitForSettingsUiFeedbackFrame);
     }
 
     importData(): void {
@@ -505,27 +519,10 @@ export class SettingsComponent
 
     removeAll(): void {
         if (this.backup.isBusy()) return;
-        this.playlistReset.confirmAndRemoveAll(() =>
-            this.waitForUiFeedbackFrame()
-        );
+        this.playlistReset.confirmAndRemoveAll(waitForSettingsUiFeedbackFrame);
     }
 
     private isNavigableSection(sectionId: string): boolean {
         return this.sectionNav.some((section) => section.id === sectionId);
-    }
-
-    /**
-     * Lets the browser paint the pending busy state before a long running
-     * task blocks the main thread.
-     */
-    private async waitForUiFeedbackFrame(): Promise<void> {
-        if (typeof window.requestAnimationFrame !== 'function') {
-            await Promise.resolve();
-            return;
-        }
-
-        await new Promise<void>((resolve) => {
-            window.requestAnimationFrame(() => resolve());
-        });
     }
 }

@@ -1,5 +1,38 @@
 # Workspace Shell
 
+## Startup recovery and desktop menus
+
+Source inventory readiness gates library views, but never sign-in or any
+`/workspace/settings` section. A failed source read offers Retry, Open settings
+and, when the update bridge is present, Check for updates. The richer recovery
+controls and installed version/channel information load only on failure; native
+fallback Retry and Open settings buttons remain usable if that chunk cannot load.
+Recovery actions and their native fallback follow the shared application button kit.
+
+Desktop Settings (`Cmd/Ctrl+,`) registers its router action immediately; it
+also works when the richer recovery chunk cannot load. The desktop menu loads
+the renderer maintenance service only for Check for Updates; recovery controls
+load it with their deferred UI. A manual update check opens About, which already
+renders checking, no-update, error, download and install states. Router
+navigation preserves the unsaved-settings guard; checks use the saved update
+channel. Repeating the command on About checks again; a download in progress or
+ready to install is preserved and shown instead of starting another check.
+macOS places commands in the application menu; Windows/Linux place
+Settings in Edit and update checking in Help. Their frameless title bar has an
+Open menu button beside the window controls that opens the native menu as a
+popup; installing an application menu alone does not make it visible there.
+Native custom labels use the OS
+locale's bundled translations, falling back to English.
+The View menu omits native reload commands so Cmd/Ctrl+R continues to open
+Recent instead of reloading the renderer and interrupting playback.
+
+Settings remain browsable while sources are pending or unavailable. A notice
+offers a retry; backup, parental-lock and XMLTV source actions that require the
+library are disabled. Ordinary preferences and update controls stay available,
+subject to their existing runtime capabilities. `startup-recovery.e2e.ts`
+exercises screen and native-menu recovery through a real Electron source-read
+failure, including light/dark rendering.
+
 This document records the current workspace-first shell contract. It is the
 stable replacement for the older UI refactor summary.
 
@@ -729,7 +762,9 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    is hidden and the controls hide themselves) and skips the key while
    `document.fullscreenElement` is set, since the player's own `F` / `Esc`
    own HTML fullscreen and F11 must not yank OS fullscreen out from under
-   it. Without a bridge (PWA) F11 is left to the browser.
+   it. The native View menu keeps its fullscreen action, but does not register
+   its F11 accelerator on Windows/Linux; the renderer owns that guarded key.
+   Without a bridge (PWA) F11 is left to the browser.
 
 Startup window mode (`Settings.startupWindowMode`, issue #1455):
 
@@ -950,9 +985,9 @@ Layout integration:
 1. `document.body` gets a `frameless-platform` class (set in
    `AppComponent`, same mechanism as `dark-theme`) — body-level so rules
    also reach cdk-overlay content rendered outside `app-root`.
-2. `apps/web/src/styles.scss` reserves `padding-right: 150px` in
-   the top-aligned drag region (`.workspace-header`) for the 3 × 46px
-   button strip.
+2. `apps/web/src/styles.scss` reserves `padding-right: 196px` in
+   the top-aligned drag region (`.workspace-header`) for the 4 × 46px
+   menu and window-control button strip.
 3. Button colors follow the theme via CSS variables (`--app-on-surface`,
    `--app-hover-overlay`); the close button uses the Windows-style red
    hover (`#e81123`). No theme IPC is involved.

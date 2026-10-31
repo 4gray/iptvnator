@@ -2154,6 +2154,8 @@
         }
     },
     "STARTUP": {
+        "CHECK_UPDATES": "Buscar actualizaciones",
+        "SETTINGS_LIMITED": "Las acciones que usan fuentes guardadas no están disponibles hasta que se cargue la biblioteca. Los demás ajustes siguen disponibles.",
         "PREPARING": "Preparando tu biblioteca",
         "PREPARING_DETAIL": "Cargando fuentes y comprobando la guía de programación. Las bibliotecas grandes pueden tardar un poco más.",
         "FAILED": "No se pudieron cargar tus fuentes",

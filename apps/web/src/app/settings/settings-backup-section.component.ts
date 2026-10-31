@@ -33,6 +33,7 @@ import { SettingsPlaylistDeleteSummary } from './settings.models';
 export class SettingsBackupSectionComponent {
     readonly sourceIcons = SOURCE_TYPE_ICONS;
     readonly isPwa = input(false);
+    readonly unavailable = input(false);
     readonly isRemovingAllPlaylists = input(false);
     readonly isExportingData = input(false);
     readonly isImportingData = input(false);

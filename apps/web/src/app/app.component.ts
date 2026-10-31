@@ -1,3 +1,4 @@
+import { startAppMenuActions } from './services/app-menu-actions';
 import {
     Component,
     effect,
@@ -97,6 +98,7 @@ export class AppComponent implements OnInit {
     private readonly DEFAULT_LANG = Language.ENGLISH;
 
     constructor() {
+        startAppMenuActions();
         syncDocumentLanguage();
 
         // Body-level class (like 'dark-theme') so layout adjustments also

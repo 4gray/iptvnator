@@ -3,6 +3,7 @@ import {
     DbWorkerOperation,
 } from '../workers/database-worker.types';
 import {
+    APP_MENU_OPEN,
     APP_UPDATE_CHECK,
     APP_UPDATE_DOWNLOAD,
     APP_UPDATE_GET_RELEASE_NOTES,
@@ -226,6 +227,11 @@ describe('main preload DB IPC contract', () => {
         );
     });
 
+    it('opens the fixed application menu without renderer payloads', async () => {
+        await getExposedApi().showApplicationMenu?.();
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(APP_MENU_OPEN);
+    });
+
     it('exposes app update commands and status events through the typed bridge', async () => {
         const api = getExposedApi();
         const callback = jest.fn();
@@ -346,7 +352,9 @@ describe('main preload DB IPC contract', () => {
         };
 
         const unsubscribe = api.onDbOperationEvent(callback) as () => void;
-        const handler = mockIpcRenderer.on.mock.calls[0][1];
+        const handler = mockIpcRenderer.on.mock.calls.find(
+            ([channel]) => channel === 'DB_OPERATION_EVENT'
+        )![1];
 
         handler({}, event);
 
@@ -410,7 +418,9 @@ describe('main preload DB IPC contract', () => {
         const callback = jest.fn();
 
         api.onDbSaveContentProgress(callback);
-        const handler = mockIpcRenderer.on.mock.calls[0][1];
+        const handler = mockIpcRenderer.on.mock.calls.find(
+            ([channel]) => channel === 'DB_OPERATION_EVENT'
+        )![1];
 
         handler({}, { operation: 'delete-playlist', status: 'progress' });
         handler({}, { operation: 'save-content', status: 'started' });
