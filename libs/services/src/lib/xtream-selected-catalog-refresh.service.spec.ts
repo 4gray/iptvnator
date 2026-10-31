@@ -203,4 +203,14 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(release).toHaveBeenCalled();
         expect(service.progress()).toBeNull();
     });
+
+    it('preserves the source User-Agent for edit-time catalog requests', async () => {
+        await service.refresh({ ...playlist, userAgent: ' Custom Player ' }, [
+            'movie',
+        ]);
+        for (const [, request] of data.sendIpcEvent.mock.calls) {
+            expect(request.userAgent).toBe('Custom Player');
+            expect(request.params).not.toHaveProperty('userAgent');
+        }
+    });
 });

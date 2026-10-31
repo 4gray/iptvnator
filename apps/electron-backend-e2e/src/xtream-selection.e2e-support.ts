@@ -8,6 +8,7 @@ import {
 /** Observe real main-process API requests without recording credentials. */
 export async function recordCatalogRequests() {
     const actions: string[] = [];
+    const userAgents = new Map<string, string>();
     let heldAction: string | null = null;
     let heldResponse: Promise<void> = Promise.resolve();
     let releaseResponse: (() => void) | undefined;
@@ -15,7 +16,10 @@ export async function recordCatalogRequests() {
         try {
             const url = new URL(request.url ?? '/', xtreamMockServer);
             const action = url.searchParams.get('action');
-            if (action) actions.push(action);
+            if (action) {
+                actions.push(action);
+                userAgents.set(action, request.headers['user-agent'] ?? '');
+            }
             if (action === heldAction) await heldResponse;
             const upstream = await fetch(url);
             response.writeHead(upstream.status, {
@@ -34,6 +38,7 @@ export async function recordCatalogRequests() {
         throw new Error('No local mock port');
     return {
         actions,
+        userAgents,
         hold(action: string) {
             heldAction = action;
             heldResponse = new Promise<void>((resolve) => {

@@ -380,6 +380,11 @@ read-only progress signal reports the current type, network/local phase and
 worker save counts. The editor stays modal and uses the same shared
 `ImportProgressComponent` as the workspace scanning overlay; disable-only edits
 do not show scanning. This path does not advertise cancellation it cannot perform.
+Edit-time requests honor the source's custom User-Agent, just like ordinary
+imports. Catalog visibility checks use reactive playlist metadata already held by
+NgRx, so each category/content/cache check does not repeat a playlist IPC read.
+When the requested source is not in that metadata, the data source reads SQLite;
+there is no separate long-lived selection cache to invalidate after edits.
 Checkboxes and section selection share the sidebar's Movies → Live TV → Series
 order. After a successful edit-time scan, navigate to the first newly enabled
 type in that order; a single newly enabled type always opens itself. Initial

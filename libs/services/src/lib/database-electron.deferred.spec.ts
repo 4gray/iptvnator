@@ -1,4 +1,6 @@
+import { TestBed } from '@angular/core/testing';
 import { DatabaseService } from './database-electron.service';
+import { PlaylistStorageBackend } from './playlist-storage-backend';
 import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { XtreamPendingRestoreState } from '@iptvnator/shared/interfaces';
 
@@ -11,7 +13,17 @@ const state = (): XtreamPendingRestoreState => ({
     ],
 });
 const originalElectron = window.electron;
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+    localStorage.clear();
+    TestBed.configureTestingModule({
+        providers: [
+            {
+                provide: PlaylistStorageBackend,
+                useValue: { kind: () => 'electron' },
+            },
+        ],
+    });
+});
 afterEach(() => {
     jest.restoreAllMocks();
     localStorage.clear();
@@ -37,7 +49,7 @@ it.each(['playlist', 'global'])(
             writable: true,
             value: bridge,
         });
-        const db = new DatabaseService();
+        const db = TestBed.inject(DatabaseService);
         if (scope === 'playlist') await db.clearPlaylistRecentItems('p');
         else await db.clearGlobalRecentlyViewed();
         expect(deferred.forExport('p', state()).hiddenCategories).toEqual(
@@ -75,8 +87,8 @@ it('does not clear SQLite history if dormant history cannot be cleared safely', 
         throw new Error('storage unavailable');
     });
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    expect(await new DatabaseService().clearPlaylistRecentItems('p')).toBe(
-        false
-    );
+    expect(
+        await TestBed.inject(DatabaseService).clearPlaylistRecentItems('p')
+    ).toBe(false);
     expect(bridge.dbClearPlaylistRecentItems).not.toHaveBeenCalled();
 });

@@ -44,7 +44,7 @@ import {
                 margin-inline-end: 12px;
             }
             p {
-                color: var(--app-eyebrow-color);
+                color: var(--app-muted-color);
                 font-size: 12px;
             }
         `,

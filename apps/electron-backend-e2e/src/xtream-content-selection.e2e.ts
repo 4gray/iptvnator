@@ -71,6 +71,9 @@ test('desktop shows scanning for newly enabled Movies and Series and preserves a
         await expect(
             dialog.getByTestId('xtream-load-movie').getByRole('checkbox')
         ).not.toBeChecked();
+        await dialog
+            .locator('[formcontrolname="userAgent"]')
+            .fill('CatalogReview/1.0');
         for (const next of [
             {
                 type: 'movie',
@@ -129,6 +132,12 @@ test('desktop shows scanning for newly enabled Movies and Series and preserves a
                 next.categories,
                 next.streams,
             ]);
+            expect(recorder.userAgents.get(next.categories)).toBe(
+                'CatalogReview/1.0'
+            );
+            expect(recorder.userAgents.get(next.streams)).toBe(
+                'CatalogReview/1.0'
+            );
             await expect(page).toHaveURL(
                 next.type === 'movie' ? /\/vod(?:\?.*)?$/ : /\/series(?:\?.*)?$/
             );

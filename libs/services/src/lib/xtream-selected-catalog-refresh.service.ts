@@ -219,6 +219,9 @@ export class XtreamSelectedCatalogRefreshService {
             payload?: unknown;
         }>(XTREAM_REQUEST, {
             url: normalizeXtreamServerUrl(playlist.serverUrl ?? ''),
+            ...(playlist.userAgent?.trim()
+                ? { userAgent: playlist.userAgent.trim() }
+                : {}),
             params: {
                 username: playlist.username?.trim(),
                 password: playlist.password?.trim(),

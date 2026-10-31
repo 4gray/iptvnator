@@ -1,4 +1,6 @@
 import { inject, Injectable } from '@angular/core';
+import { Store } from '@ngrx/store';
+import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
     DatabaseService,
     ParentalLockService,
@@ -46,6 +48,9 @@ import {
  */
 @Injectable({ providedIn: 'root' })
 export class ElectronXtreamDataSource implements IXtreamDataSource {
+    private readonly playlistMetas = inject(Store, {
+        optional: true,
+    })?.selectSignal(selectAllPlaylistsMeta);
     private readonly dbService = inject(DatabaseService);
     private readonly playbackService = inject(PlaybackPositionService);
     private readonly vodSourcePinService = inject(VodSourcePinService);
@@ -66,13 +71,24 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         Promise<XtreamContentItem[]>
     >();
 
+    private async getEnabledContentTypes(
+        playlistId: string
+    ): Promise<XtreamContentType[]> {
+        // The app already owns reactive source metadata. Do not re-read the
+        // entire playlist over IPC for every category/content/cache check.
+        const meta = this.playlistMetas?.().find(
+            (row) => row._id === playlistId
+        );
+        const playlist = meta ?? (await this.getPlaylist(playlistId));
+        return normalizeXtreamContentTypes(playlist?.xtreamContentTypes);
+    }
+
     private async isEnabled(
         playlistId: string,
         type: string
     ): Promise<boolean> {
-        const playlist = await this.getPlaylist(playlistId);
         const normalized = type === 'vod' || type === 'movies' ? 'movie' : type;
-        return normalizeXtreamContentTypes(playlist?.xtreamContentTypes).some(
+        return (await this.getEnabledContentTypes(playlistId)).some(
             (value) => value === normalized
         );
     }
@@ -480,10 +496,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         if (this.parentalLock.withholdsEverything?.()) {
             return [];
         }
-        const playlist = await this.getPlaylist(playlistId);
-        const enabled = normalizeXtreamContentTypes(
-            playlist?.xtreamContentTypes
-        );
+        const enabled = await this.getEnabledContentTypes(playlistId);
         const selected = types.filter((type) =>
             enabled.some((value) => value === type)
         );
