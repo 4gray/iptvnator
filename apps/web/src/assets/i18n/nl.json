@@ -2308,7 +2308,7 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "De opgeslagen serververbinding is niet beschikbaar. Controleer de browseropslag of maak opnieuw verbinding via de serverinstellingen.",
         "TITLE": "Eigen server",
-        "DESCRIPTION": "Verbind met IPTVnator dat via Docker op uw thuisserver of NAS draait om bronnen tussen apparaten te delen. Kijkactiviteit blijft op dit apparaat.",
+        "DESCRIPTION": "Verbind met IPTVnator dat via Docker op uw thuisserver of NAS draait om bronnen tussen apparaten te delen.",
         "URL": "Adres van de IPTVnator-server",
         "TOKEN": "Toegangstoken (optioneel)",
         "TOKEN_HINT": "Gebruik de IPTVNATOR_ACCESS_TOKEN die op de server is ingesteld, of vraag deze aan de eigenaar. Laat leeg als er geen token is ingesteld.",

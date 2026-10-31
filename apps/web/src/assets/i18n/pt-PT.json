@@ -2308,7 +2308,7 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "A ligação guardada ao servidor não está disponível. Verifica o armazenamento do navegador ou volta a ligar nas definições do servidor.",
         "TITLE": "Servidor",
-        "DESCRIPTION": "Liga-te ao IPTVnator executado com Docker no teu servidor doméstico ou NAS para partilhar fontes entre dispositivos. A atividade de reprodução fica neste dispositivo.",
+        "DESCRIPTION": "Liga-te ao IPTVnator executado com Docker no teu servidor doméstico ou NAS para partilhar fontes entre dispositivos.",
         "URL": "Endereço do servidor IPTVnator",
         "TOKEN": "Token de acesso (opcional)",
         "TOKEN_HINT": "Usa o valor IPTVNATOR_ACCESS_TOKEN definido no servidor ou pede-o ao proprietário. Deixa vazio se não houver um token configurado.",

@@ -2308,7 +2308,7 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "Saved server connection unavailable. Check browser storage or reconnect in Server settings.",
         "TITLE": "Server",
-        "DESCRIPTION": "Connect to IPTVnator running in Docker on your home server or NAS to share sources between devices. Viewing activity stays on this device.",
+        "DESCRIPTION": "Connect to IPTVnator running in Docker on your home server or NAS to share sources between devices.",
         "URL": "IPTVnator server address",
         "TOKEN": "Access token (optional)",
         "TOKEN_HINT": "Use the IPTVNATOR_ACCESS_TOKEN set on your server, or ask its owner. Leave empty if no token is configured.",

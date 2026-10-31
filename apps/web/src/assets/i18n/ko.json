@@ -2308,7 +2308,7 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "저장된 서버 연결을 사용할 수 없습니다. 브라우저 저장소를 확인하거나 서버 설정에서 다시 연결하세요.",
         "TITLE": "서버",
-        "DESCRIPTION": "홈 서버 또는 NAS에서 Docker로 실행 중인 IPTVnator에 연결하여 기기 간 소스를 공유합니다. 시청 활동은 이 기기에 저장됩니다.",
+        "DESCRIPTION": "홈 서버 또는 NAS에서 Docker로 실행 중인 IPTVnator에 연결하여 기기 간 소스를 공유합니다.",
         "URL": "IPTVnator 서버 주소",
         "TOKEN": "액세스 토큰(선택 사항)",
         "TOKEN_HINT": "서버에 설정된 IPTVNATOR_ACCESS_TOKEN 값을 입력하거나 소유자에게 요청하세요. 토큰을 설정하지 않았다면 비워 두세요.",

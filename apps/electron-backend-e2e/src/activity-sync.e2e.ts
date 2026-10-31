@@ -153,7 +153,8 @@ for (const provider of ['xtream', 'stalker'] as const)
             title: String(seriesData.items[0].name),
         };
         const server = await startSourceSyncServer();
-        const context = await browser.newContext();
+        // A production PWA worker would bypass page.route's local media fixtures.
+        const context = await browser.newContext({ serviceWorkers: 'block' });
         const directory = mkdtempSync(join(tmpdir(), 'iptvnator-activity-'));
         let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
         try {

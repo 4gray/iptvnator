@@ -2308,7 +2308,7 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "保存されたサーバー接続を読み込めません。ブラウザーのストレージを確認するか、サーバー設定で再接続してください。",
         "TITLE": "サーバー",
-        "DESCRIPTION": "自宅のサーバーやNASでDockerを使って実行しているIPTVnatorに接続し、端末間でソースを共有します。視聴履歴はこの端末に保存されます。",
+        "DESCRIPTION": "自宅のサーバーやNASでDockerを使って実行しているIPTVnatorに接続し、端末間でソースを共有します。",
         "URL": "IPTVnatorサーバーのアドレス",
         "TOKEN": "アクセストークン（任意）",
         "TOKEN_HINT": "サーバーに設定されたIPTVNATOR_ACCESS_TOKENの値を入力するか、管理者に確認してください。トークンを設定していない場合は空欄にします。",

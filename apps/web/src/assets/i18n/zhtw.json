@@ -2308,7 +2308,7 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "無法讀取已儲存的伺服器連線。請檢查瀏覽器儲存空間，或在伺服器設定中重新連線。",
         "TITLE": "伺服器",
-        "DESCRIPTION": "連線至透過 Docker 在家用伺服器或 NAS 上執行的 IPTVnator，在裝置間共用來源。觀看活動保留在此裝置上。",
+        "DESCRIPTION": "連線至透過 Docker 在家用伺服器或 NAS 上執行的 IPTVnator，在裝置間共用來源。",
         "URL": "IPTVnator 伺服器位址",
         "TOKEN": "存取權杖（選填）",
         "TOKEN_HINT": "輸入伺服器上設定的 IPTVNATOR_ACCESS_TOKEN，或向伺服器擁有者索取。未設定權杖時請留空。",

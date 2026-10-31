@@ -2308,7 +2308,7 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "无法读取已保存的服务器连接。请检查浏览器存储，或在服务器设置中重新连接。",
         "TITLE": "服务器",
-        "DESCRIPTION": "连接到通过 Docker 在家庭服务器或 NAS 上运行的 IPTVnator，在设备间共享来源。观看活动保留在当前设备上。",
+        "DESCRIPTION": "连接到通过 Docker 在家庭服务器或 NAS 上运行的 IPTVnator，在设备间共享来源。",
         "URL": "IPTVnator 服务器地址",
         "TOKEN": "访问令牌（可选）",
         "TOKEN_HINT": "输入服务器上设置的 IPTVNATOR_ACCESS_TOKEN，或向服务器所有者索取。未设置令牌时请留空。",

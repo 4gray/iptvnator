@@ -2308,7 +2308,7 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "A mentett kiszolgálókapcsolat nem érhető el. Ellenőrizze a böngésző tárhelyét, vagy csatlakozzon újra a Beállítások → Kiszolgáló menüpontban.",
         "TITLE": "Kiszolgáló",
-        "DESCRIPTION": "Csatlakozzon az otthoni szerveren vagy NAS-on Dockerrel futtatott IPTVnatorhoz, hogy megossza a forrásokat az eszközök között. A megtekintési adatok ezen az eszközön maradnak.",
+        "DESCRIPTION": "Csatlakozzon az otthoni szerveren vagy NAS-on Dockerrel futtatott IPTVnatorhoz, hogy megossza a forrásokat az eszközök között.",
         "URL": "Az IPTVnator-kiszolgáló címe",
         "TOKEN": "Hozzáférési token (nem kötelező)",
         "TOKEN_HINT": "Adja meg a kiszolgálón beállított IPTVNATOR_ACCESS_TOKEN értékét, vagy kérje el a tulajdonostól. Hagyja üresen, ha nincs beállítva token.",

@@ -2308,7 +2308,7 @@
     "SOURCE_SYNC": {
         "CONNECTION_RECOVERY": "Kayıtlı sunucu bağlantısı kullanılamıyor. Tarayıcı depolamasını kontrol edin veya Sunucu ayarlarından yeniden bağlanın.",
         "TITLE": "Sunucu",
-        "DESCRIPTION": "Kaynakları cihazlar arasında paylaşmak için ev sunucunuzda veya NAS üzerinde Docker ile çalışan IPTVnator’a bağlanın. İzleme etkinliği bu cihazda kalır.",
+        "DESCRIPTION": "Kaynakları cihazlar arasında paylaşmak için ev sunucunuzda veya NAS üzerinde Docker ile çalışan IPTVnator’a bağlanın.",
         "URL": "IPTVnator sunucu adresi",
         "TOKEN": "Erişim belirteci (isteğe bağlı)",
         "TOKEN_HINT": "Sunucuda ayarlanan IPTVNATOR_ACCESS_TOKEN değerini kullanın veya sunucunun sahibinden isteyin. Belirteç ayarlanmadıysa boş bırakın.",
