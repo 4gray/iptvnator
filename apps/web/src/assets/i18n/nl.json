@@ -2312,7 +2312,7 @@
         "URL": "Adres van de IPTVnator-server",
         "TOKEN": "Toegangstoken (optioneel)",
         "TOKEN_HINT": "Gebruik de IPTVNATOR_ACCESS_TOKEN die op de server is ingesteld, of vraag deze aan de eigenaar. Laat leeg als er geen token is ingesteld.",
-        "RESTART_HINT": "Verbinden en loskoppelen herstarten de app. De oorspronkelijke lokale bibliotheek blijft behouden.",
+        "RESTART_HINT": "Wisselen van serverbibliotheek of de verbinding verbreken herlaadt de app. Uw oorspronkelijke lokale bibliotheek blijft behouden.",
         "CONNECT": "Verbinden",
         "REFRESH": "Vernieuwen",
         "DISCONNECT": "Loskoppelen",

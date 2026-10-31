@@ -2312,7 +2312,7 @@
         "URL": "IPTVnator 伺服器位址",
         "TOKEN": "存取權杖（選填）",
         "TOKEN_HINT": "輸入伺服器上設定的 IPTVNATOR_ACCESS_TOKEN，或向伺服器擁有者索取。未設定權杖時請留空。",
-        "RESTART_HINT": "連線或中斷會重新啟動應用程式。原有本機媒體庫會保留。",
+        "RESTART_HINT": "切換伺服器媒體庫或中斷連線會重新載入應用程式。原來的本機媒體庫會保留。",
         "CONNECT": "連線",
         "REFRESH": "重新整理",
         "DISCONNECT": "中斷連線",

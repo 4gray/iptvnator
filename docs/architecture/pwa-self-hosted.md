@@ -208,6 +208,12 @@ private temporary file followed by an atomic rename.
 Settings → Server connects a desktop or browser client, refreshes the
 library, previews/imports original local sources, and disconnects. Connection
 help links to the [client connection guide](../../docker/README.md#connect-your-clients).
+Rechecking the selected endpoint keeps its saved token when the password field
+is empty. Renewing credentials for the same endpoint and instance does not
+reload either client. Switching an endpoint or server instance still requires
+the native profile restart; disconnecting returns to the retained local profile.
+Connection and activity status share a compact summary with timestamps formatted
+in the selected UI language.
 The form validates full HTTP(S) app addresses before either runtime is called;
 the API suffix is normalized centrally. Pending connections announce their
 state and make the fields read-only. Failed attempts retain the address and

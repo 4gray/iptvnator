@@ -77,14 +77,15 @@ describe('native source transport and connection IPC', () => {
             (app.exit as jest.Mock).mockImplementationOnce(() =>
                 calls.push('exit')
             );
-            if (operation === 'connect')
+            if (operation === 'connect') {
+                (readSourceServerConfig as jest.Mock).mockReturnValue(null);
                 await handler(SOURCE_SYNC_CONFIGURE)(
                     {},
                     connection.apiUrl,
                     '',
                     true
                 );
-            else await handler(SOURCE_SYNC_DISCONNECT)();
+            } else await handler(SOURCE_SYNC_DISCONNECT)();
             expect(calls).toEqual(['shutdown', 'relaunch', 'exit']);
         }
     );
@@ -94,6 +95,39 @@ describe('native source transport and connection IPC', () => {
         expect(prepareRestart).not.toHaveBeenCalled();
         expect(app.relaunch).not.toHaveBeenCalled();
         expect(app.exit).not.toHaveBeenCalled();
+    });
+
+    it('does not restart an unchanged profile even if the caller requests restart', async () => {
+        await handler(SOURCE_SYNC_CONFIGURE)(
+            {},
+            connection.apiUrl,
+            'renewed-token',
+            true
+        );
+        expect(saveSourceServerConfig).toHaveBeenCalledWith(
+            { apiUrl: connection.apiUrl, instanceId: connection.instanceId },
+            'renewed-token'
+        );
+        expect(prepareRestart).not.toHaveBeenCalled();
+        expect(app.relaunch).not.toHaveBeenCalled();
+        expect(app.exit).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [401, 'SOURCE_SYNC.LOCKED'],
+        [403, 'SOURCE_SYNC.LOCKED'],
+        [503, 'SOURCE_SYNC.CONNECTION_FAILED'],
+    ])('classifies a discovery HTTP %s correctly', async (status, key) => {
+        (requestWithValidatedRedirects as jest.Mock).mockResolvedValueOnce({
+            status,
+            headers: {},
+            data: {},
+        });
+        await expect(
+            handler(SOURCE_SYNC_CONFIGURE)({}, connection.apiUrl, '', true)
+        ).rejects.toThrow(key);
+        expect(saveSourceServerConfig).not.toHaveBeenCalled();
+        expect(app.relaunch).not.toHaveBeenCalled();
     });
 
     it('uses the configured API path, scopes credentials and pins redirects for LAN connections', async () => {
@@ -301,6 +335,7 @@ describe('native source transport and connection IPC', () => {
     });
 
     it('validates the server and access token before persisting and restarting', async () => {
+        (readSourceServerConfig as jest.Mock).mockReturnValue(null);
         const result = await handler(SOURCE_SYNC_CONFIGURE)(
             {},
             'https://nas.test/iptvnator',

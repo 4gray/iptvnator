@@ -116,6 +116,21 @@ test('@settings @pwa connects after a rejected token is corrected', async ({
     await expect(page.getByTestId('source-server-url')).toHaveValue(
         `${server}/api`
     );
+    await expect(page.getByTestId('source-server-connect')).toBeDisabled();
+    await page.evaluate(() =>
+        Reflect.set(window, '__connectionSession', 'kept')
+    );
+    await secret.fill(token);
+    await page.getByTestId('source-server-connect').click();
+    await expect(secret).toHaveValue('');
+    await expect(page.getByTestId('source-server-connect')).toBeDisabled();
+    expect(
+        await page.evaluate(() => Reflect.get(window, '__connectionSession'))
+    ).toBe('kept');
+    await page.getByTestId('source-server-refresh').click();
+    expect(
+        await page.evaluate(() => Reflect.get(window, '__connectionSession'))
+    ).toBe('kept');
 });
 
 test('@settings @ui server help fits both themes and a narrow translated view', async ({
@@ -139,4 +154,81 @@ test('@settings @ui server help fits both themes and a narrow translated view', 
     await page.screenshot({
         path: testInfo.outputPath('server-mobile-de.png'),
     });
+});
+
+test('@settings @ui connected activity controls keep clear status, spacing and responsive actions', async ({
+    page,
+}, testInfo) => {
+    await page.route(`${server}/api/v1/**`, async (route) => {
+        const headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers':
+                'Authorization, X-IPTVnator-Instance-Id',
+            ETag: '"polish"',
+        };
+        await route.fulfill({
+            status: route.request().method() === 'OPTIONS' ? 204 : 200,
+            headers,
+            json: route.request().url().endsWith('/instance')
+                ? {
+                      service: 'iptvnator',
+                      apiVersion: 1,
+                      storage: 'server',
+                      instanceId: 'polish-fixture',
+                      auth: 'none',
+                      capabilities: ['sources-v1', 'activity-v1'],
+                  }
+                : { entries: [] },
+        });
+    });
+    await page.getByTestId('source-server-url').fill(server);
+    await page.getByTestId('source-server-connect').click();
+    await expect(page.getByTestId('source-server-state')).toHaveText(
+        'Connected'
+    );
+    await page
+        .getByTestId('activity-sync-enabled')
+        .getByRole('checkbox')
+        .check();
+    await expect(page.getByTestId('activity-sync-state')).toHaveText(
+        'Activity is synchronized'
+    );
+    const connection = await page.locator('#server').boundingBox();
+    const activity = await page
+        .getByTestId('activity-sync-settings')
+        .boundingBox();
+    expect(
+        activity!.y - (connection!.y + connection!.height)
+    ).toBeGreaterThanOrEqual(28);
+    await expect(page.locator('#server .sync-status--success')).toBeVisible();
+    expect(await page.locator('#server time').getAttribute('datetime')).toMatch(
+        /^\d{4}-\d{2}-\d{2}T/
+    );
+    for (const dark of [true, false]) {
+        await applyUiTheme(page, dark);
+        await page.screenshot({
+            path: testInfo.outputPath(
+                `connected-${dark ? 'dark' : 'light'}.png`
+            ),
+            fullPage: true,
+        });
+    }
+    for (const language of ['de', 'ar'] as const) {
+        await selectUiLanguage(page, language);
+        await page.goto('/workspace/settings/server');
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page
+            .getByTestId('activity-sync-settings')
+            .scrollIntoViewIfNeeded();
+        await expect(
+            page.getByTestId('activity-import-preview')
+        ).toBeInViewport();
+        expect(
+            await page.evaluate(() => document.documentElement.scrollWidth)
+        ).toBeLessThanOrEqual(390);
+        await page.screenshot({
+            path: testInfo.outputPath(`connected-mobile-${language}.png`),
+            fullPage: true,
+        });
+    }
 });

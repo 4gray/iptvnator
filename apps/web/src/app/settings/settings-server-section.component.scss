@@ -1,0 +1,39 @@
+:host {
+    display: grid;
+    gap: 32px;
+}
+.server-fields {
+    display: grid;
+    gap: 20px;
+    padding: 20px;
+    min-width: 0;
+}
+.server-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.server-message {
+    margin: 0;
+    color: var(--app-eyebrow-color);
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+}
+.server-message--error {
+    color: var(--app-danger-text);
+}
+.server-message:empty {
+    display: none;
+}
+.server-help {
+    display: inline-block;
+    margin-top: 8px;
+    color: var(--app-selection-text-color);
+    text-underline-offset: 3px;
+}
+button,
+input,
+a {
+    app-region: no-drag;
+}

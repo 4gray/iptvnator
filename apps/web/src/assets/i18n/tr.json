@@ -2312,7 +2312,7 @@
         "URL": "IPTVnator sunucu adresi",
         "TOKEN": "Erişim belirteci (isteğe bağlı)",
         "TOKEN_HINT": "Sunucuda ayarlanan IPTVNATOR_ACCESS_TOKEN değerini kullanın veya sunucunun sahibinden isteyin. Belirteç ayarlanmadıysa boş bırakın.",
-        "RESTART_HINT": "Bağlanma veya bağlantıyı kesme uygulamayı yeniden başlatır. Özgün yerel kitaplık korunur.",
+        "RESTART_HINT": "Sunucu kitaplığını değiştirmek veya bağlantıyı kesmek uygulamayı yeniden yükler. Özgün yerel kitaplığınız korunur.",
         "CONNECT": "Bağlan",
         "REFRESH": "Yenile",
         "DISCONNECT": "Bağlantıyı kes",

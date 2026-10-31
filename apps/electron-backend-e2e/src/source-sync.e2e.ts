@@ -2,7 +2,10 @@ import { setSourceStateWriteFailure } from './source-sync-sqlite-fault';
 import { verifySharedStalkerSessionEditing } from './source-sync-stalker-session';
 import { verifyDelayedSharedM3uRefresh } from './source-sync-m3u-refresh';
 import { verifySourceRestartStopsPlayer } from './source-sync-player-restart';
-import { verifySourceSettingsRecovery } from './source-sync-settings';
+import {
+    verifySourceSettingsRecovery,
+    verifySourceConnectionRecheck,
+} from './source-sync-settings';
 import { test, expect, type Page } from '@playwright/test';
 import {
     mkdtempSync,
@@ -49,6 +52,10 @@ for (const operation of ['connect', 'disconnect'] as const) {
 
 test('validates source settings and retains credentials after a native connection failure @electron @settings', async () => {
     await verifySourceSettingsRecovery();
+});
+
+test('renews credentials and rechecks an existing connection without restarting Electron @electron @settings', async () => {
+    await verifySourceConnectionRecheck();
 });
 
 test('discards a delayed native M3U refresh after the NAS URL changes @electron @m3u @persistence', async ({
@@ -339,8 +346,8 @@ test('shares source changes between independent PWA and Electron clients @critic
     browser,
 }) => {
     const server = await startSourceSyncServer();
-    const context = await browser.newContext();
-    const second = await browser.newContext();
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const second = await browser.newContext({ serviceWorkers: 'block' });
     const desktopDir = mkdtempSync(join(tmpdir(), 'iptvnator-sync-desktop-'));
     let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
     try {
@@ -541,7 +548,7 @@ test('authenticates the PWA and retains its isolated source cache while NAS is o
 }) => {
     const token = 'synthetic-instance-token';
     const server = await startSourceSyncServer(token);
-    const context = await browser.newContext();
+    const context = await browser.newContext({ serviceWorkers: 'block' });
     try {
         const page = await context.newPage();
         await page.route('**/assets/app-config.js', (route) =>
@@ -606,7 +613,7 @@ test('opens shared Xtream and Stalker sources on PWA and independent Electron pr
 }, testInfo) => {
     await resetMockServers(request, ['xtream', 'stalker']);
     const server = await startSourceSyncServer();
-    const context = await browser.newContext();
+    const context = await browser.newContext({ serviceWorkers: 'block' });
     const directories = [
         mkdtempSync(join(tmpdir(), 'iptvnator-sync-provider-')),
         mkdtempSync(join(tmpdir(), 'iptvnator-sync-replica-')),
@@ -744,7 +751,7 @@ test('imports original browser sources once and returns to the preserved local l
     browser,
 }) => {
     const server = await startSourceSyncServer();
-    const context = await browser.newContext();
+    const context = await browser.newContext({ serviceWorkers: 'block' });
     try {
         const page = await context.newPage();
         await page.route('**/assets/app-config.js', (route) =>

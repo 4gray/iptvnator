@@ -13,15 +13,12 @@
     </header>
     <div class="settings-card server-fields" data-setting-id="source-server">
         @if (sync.connection) {
-            <p role="status" data-test-id="source-server-state">
-                {{ sync.stateKey() | translate }}
-            </p>
-            @if (sync.lastSync(); as time) {
-                <p>
-                    {{ 'SOURCE_SYNC.LAST_SYNC' | translate }}:
-                    {{ time | date: 'short' }}
-                </p>
-            }
+            <app-settings-sync-status
+                [state]="sync.state()"
+                [stateKey]="sync.stateKey()"
+                [lastSync]="sync.lastSync()"
+                testId="source-server-state"
+            />
         }
         <mat-form-field appearance="outline">
             <mat-label>{{ 'SOURCE_SYNC.URL' | translate }}</mat-label>
@@ -62,7 +59,13 @@
             <button
                 type="button"
                 mat-flat-button
-                [disabled]="busy() || !urlControl.value.trim()"
+                [disabled]="
+                    busy() ||
+                    !urlControl.value.trim() ||
+                    (isCurrentServer() &&
+                        !token &&
+                        sync.state() === 'connected')
+                "
                 [attr.aria-busy]="connecting()"
                 (click)="connect()"
                 class="settings-primary-button"
@@ -71,7 +74,11 @@
                 {{
                     (connecting()
                         ? 'SOURCE_SYNC.STATE_connecting'
-                        : 'SOURCE_SYNC.CONNECT'
+                        : isCurrentServer() &&
+                            !token &&
+                            sync.state() === 'connected'
+                          ? 'SOURCE_SYNC.STATE_connected'
+                          : 'SOURCE_SYNC.CONNECT'
                     ) | translate
                 }}
             </button>
@@ -80,8 +87,10 @@
                     type="button"
                     mat-flat-button
                     [disabled]="busy()"
-                    (click)="sync.refresh()"
+                    (click)="refresh()"
+                    data-test-id="source-server-refresh"
                 >
+                    <mat-icon aria-hidden="true">refresh</mat-icon>
                     {{ 'SOURCE_SYNC.REFRESH' | translate }}
                 </button>
                 <button
@@ -91,6 +100,7 @@
                     (click)="previewImport()"
                     data-test-id="source-server-import"
                 >
+                    <mat-icon aria-hidden="true">upload</mat-icon>
                     {{ 'SOURCE_SYNC.IMPORT' | translate }}
                 </button>
             }
@@ -142,6 +152,9 @@
             role="status"
             aria-live="polite"
             class="server-message"
+            [class.server-message--error]="
+                message() && message() !== 'SOURCE_SYNC.IMPORTED'
+            "
             data-test-id="source-server-message"
         >
             @if (connecting()) {

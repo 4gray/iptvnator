@@ -2312,7 +2312,7 @@
         "URL": "Dirección del servidor IPTVnator",
         "TOKEN": "Token de acceso (opcional)",
         "TOKEN_HINT": "Usa el valor IPTVNATOR_ACCESS_TOKEN configurado en el servidor o pídelo a su propietario. Déjalo vacío si no se ha configurado ningún token.",
-        "RESTART_HINT": "Conectar o desconectar reinicia la aplicación. Se conserva la biblioteca local original.",
+        "RESTART_HINT": "Cambiar de biblioteca del servidor o desconectarse reinicia la aplicación. Se conserva tu biblioteca local original.",
         "CONNECT": "Conectar",
         "REFRESH": "Actualizar",
         "DISCONNECT": "Desconectar",

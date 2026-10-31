@@ -2312,7 +2312,7 @@
         "URL": "IPTVnator 服务器地址",
         "TOKEN": "访问令牌（可选）",
         "TOKEN_HINT": "输入服务器上设置的 IPTVNATOR_ACCESS_TOKEN，或向服务器所有者索取。未设置令牌时请留空。",
-        "RESTART_HINT": "连接或断开会重启应用。原有本地媒体库会保留。",
+        "RESTART_HINT": "切换服务器媒体库或断开连接会重新加载应用。原来的本地媒体库会保留。",
         "CONNECT": "连接",
         "REFRESH": "刷新",
         "DISCONNECT": "断开连接",

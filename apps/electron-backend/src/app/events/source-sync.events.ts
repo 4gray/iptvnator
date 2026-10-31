@@ -162,6 +162,10 @@ export function registerSourceSyncEvents(prepareRestart: () => void): void {
             const probe = await sourceServerRequest(apiUrl, token, {
                 operation: 'instance',
             });
+            if ([401, 403].includes(probe.status))
+                throw new Error('SOURCE_SYNC.LOCKED');
+            if (probe.status >= 500)
+                throw new Error('SOURCE_SYNC.CONNECTION_FAILED');
             const instance = probe.body as ServerInstanceInfo;
             if (
                 probe.status !== 200 ||
@@ -197,7 +201,11 @@ export function registerSourceSyncEvents(prepareRestart: () => void): void {
                 { apiUrl, instanceId: instance.instanceId },
                 token
             );
-            if (restart) {
+            const needsRestart =
+                !configured ||
+                configured.apiUrl !== apiUrl ||
+                configured.instanceId !== instance.instanceId;
+            if (restart && needsRestart) {
                 // app.exit() skips will-quit, where ordinary quits tear down
                 // managed players and the database worker.
                 prepareRestart();
