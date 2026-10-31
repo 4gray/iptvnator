@@ -1,8 +1,5 @@
 <div class="apd">
-    <app-dialog-shell
-        [heading]="'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate"
-        [subtitle]="'HOME.ADD_PLAYLIST.PICK_METHOD' | translate"
-    >
+    <app-dialog-shell [heading]="'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate">
         <div
             class="apd-method-grid"
             appRadioGroup
@@ -67,7 +64,9 @@
                     />
                 }
                 @case ('url') {
-                    <app-url-upload />
+                    <app-url-upload
+                        (xtreamSelected)="onCandidateSelected($event, true)"
+                    />
                 }
                 @case ('text') {
                     <app-text-import (textAdded)="uploadAsText($event)" />
@@ -76,6 +75,11 @@
                     <app-stalker-portal-import (addClicked)="closeDialog()" />
                 }
                 @case ('xtream') {
+                    @if (canReturnToM3u()) {
+                        <button mat-button type="button" (click)="backToM3u()">
+                            {{ 'HOME.URL_UPLOAD.BACK_TO_M3U' | translate }}
+                        </button>
+                    }
                     <app-xtream-code-import (addClicked)="closeDialog()" />
                 }
                 @case ('auto') {
@@ -89,7 +93,7 @@
         </div>
         <div appDialogFooterStart>
             @if (playlistType() === 'xtream') {
-                <p class="w-full" id="xtream-http-test-notice">
+                <p class="apd-connection-notice" id="xtream-http-test-notice">
                     {{
                         'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.HTTP_PERMISSION'
                             | translate

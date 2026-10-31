@@ -1,0 +1,52 @@
+.xtream-suggestion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--app-widget-header-bg);
+    color: var(--app-body-color);
+
+    > div {
+        flex: 1 1 240px;
+        min-width: 0;
+    }
+
+    button {
+        flex-shrink: 0;
+    }
+
+    &__title,
+    &__description {
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    &__title {
+        font-weight: 600;
+        color: var(--app-heading-color);
+    }
+
+    &__description {
+        margin-top: 4px;
+        color: var(--app-muted-color);
+        font-size: 13px;
+    }
+}
+
+.url-server-info {
+    > summary {
+        color: var(--app-muted-color);
+        font-weight: 400;
+    }
+
+    .cors-note {
+        margin: 0;
+        padding-block: 0 8px;
+        color: var(--app-muted-color);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+}

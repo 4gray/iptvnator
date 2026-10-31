@@ -1,5 +1,7 @@
 import {
     afterRenderEffect,
+    afterNextRender,
+    Injector,
     Component,
     computed,
     DestroyRef,
@@ -43,6 +45,7 @@ import { FileUploadComponent } from '../file-upload/file-upload.component';
 import { StalkerPortalImportComponent } from '../stalker-portal-import/stalker-portal-import.component';
 import { TextImportComponent } from '../text-import/text-import.component';
 import { UrlUploadComponent } from '../url-upload/url-upload.component';
+import { UrlXtreamSuggestion } from '../url-upload/url-xtream-suggestion';
 import { XtreamCodeImportComponent } from '../xtream-code-import/xtream-code-import.component';
 import { createUrlPlaylistImport } from './url-playlist-import';
 import { createImportDrafts } from './import-drafts';
@@ -93,6 +96,7 @@ const METHOD_BY_CANDIDATE_KIND: Record<
     encapsulation: ViewEncapsulation.None,
 })
 export class AddPlaylistDialogComponent {
+    private readonly injector = inject(Injector);
     private dialogRef = inject(MatDialogRef<AddPlaylistDialogComponent>);
     private store = inject(Store);
     private snackBar = inject(MatSnackBar);
@@ -116,6 +120,7 @@ export class AddPlaylistDialogComponent {
     });
 
     readonly method = signal<PlaylistType>('url');
+    readonly canReturnToM3u = signal(false);
     readonly urlImport = createUrlPlaylistImport();
     private readonly urlFeedback =
         viewChild<ElementRef<HTMLElement>>('urlFeedback');
@@ -127,9 +132,7 @@ export class AddPlaylistDialogComponent {
      * the prefill is applied by an effect that re-runs once the child's
      * viewChild signal resolves, then clears this.
      */
-    private readonly pendingPrefill = signal<ProviderImportCandidate | null>(
-        null
-    );
+    private readonly pendingPrefill = signal<UrlXtreamSuggestion | null>(null);
 
     /**
      * Survives the auto-detect surface being destroyed by a method switch, so
@@ -234,10 +237,23 @@ export class AddPlaylistDialogComponent {
      * and the behavioral probes (portal discovery, connection test) stay in
      * charge of what actually gets persisted.
      */
-    onCandidateSelected(candidate: ProviderImportCandidate): void {
+    onCandidateSelected(candidate: UrlXtreamSuggestion, fromM3u = false): void {
         this.pendingPrefill.set(candidate);
         this.selectMethod(METHOD_BY_CANDIDATE_KIND[candidate.kind]);
         this.drafts.discard(METHOD_BY_CANDIDATE_KIND[candidate.kind]);
+        this.canReturnToM3u.set(fromM3u);
+        if (candidate.kind === 'xtream') {
+            afterNextRender(() => this.xtreamImport()?.focusTitle(), {
+                injector: this.injector,
+            });
+        }
+    }
+
+    backToM3u(): void {
+        this.selectMethod('url');
+        afterNextRender(() => this.urlUpload()?.focusUrl(), {
+            injector: this.injector,
+        });
     }
 
     selectMethod(method: PlaylistType): void {
@@ -293,6 +309,9 @@ export class AddPlaylistDialogComponent {
                     serverUrl: candidate.serverUrl ?? '',
                     username: candidate.username ?? '',
                     password: candidate.password ?? '',
+                    ...(candidate.userAgent
+                        ? { userAgent: candidate.userAgent }
+                        : {}),
                 });
                 break;
             }

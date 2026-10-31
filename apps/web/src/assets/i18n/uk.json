@@ -154,6 +154,7 @@
             "AUTO_REFRESH_ENABLED": "Автооновлення увімкнено"
         },
         "ADD_PLAYLIST": {
+            "ADDITIONAL_SETTINGS": "Додаткові налаштування",
             "PICK_METHOD": "Оберіть спосіб підключення. Ви зможете перейменувати його пізніше.",
             "METHOD_GROUP_LABEL": "Спосіб з’єднання",
             "METHOD_URL_LABEL": "Посилання на M3U",
@@ -179,6 +180,11 @@
             "OPEN_FAILED": "Неможливо відткрити \"{{filename}}\"."
         },
         "URL_UPLOAD": {
+            "SERVER_SUMMARY": "Посилання та дані доступу передаються серверу цієї інсталяції.",
+            "XTREAM_SUGGESTION_TITLE": "Можливе підключення через Xtream",
+            "XTREAM_SUGGESTION_DESCRIPTION": "Дані передплати, фільми та серіали — за підтримки провайдера.",
+            "SET_UP_XTREAM": "Налаштувати Xtream",
+            "BACK_TO_M3U": "Повернутися до M3U-посилання",
             "FETCHING": "Завантаження списку відтворення… Ви можете скасувати його під час завантаження.",
             "PLAYLIST_URL": "URL плейлиста (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Введіть дійсну URL-адресу у форматі http:// або https://.",

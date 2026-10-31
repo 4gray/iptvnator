@@ -154,6 +154,7 @@
             "AUTO_REFRESH_ENABLED": "自動更新が有効です"
         },
         "ADD_PLAYLIST": {
+            "ADDITIONAL_SETTINGS": "追加設定",
             "PICK_METHOD": "接続方法を選択してください。名前は後から変更できます。",
             "METHOD_GROUP_LABEL": "接続方法",
             "METHOD_URL_LABEL": "M3U URL",
@@ -179,6 +180,11 @@
             "OPEN_FAILED": "\"{{filename}}\" を開けませんでした。"
         },
         "URL_UPLOAD": {
+            "SERVER_SUMMARY": "プレイリストのURLと認証情報は、この環境のバックエンドに送信されます。",
+            "XTREAM_SUGGESTION_TITLE": "Xtreamで接続できる可能性があります",
+            "XTREAM_SUGGESTION_DESCRIPTION": "プロバイダーが提供する契約情報、映画、シリーズ。",
+            "SET_UP_XTREAM": "Xtreamを設定",
+            "BACK_TO_M3U": "M3Uリンクに戻る",
             "FETCHING": "プレイリストを取得しています… 読み込み中もキャンセルできます。",
             "PLAYLIST_URL": "プレイリスト URL（m3u、m3u8）",
             "URL_VALIDATION_ERROR": "http:// または https:// で始まる有効なURLを入力してください。",
