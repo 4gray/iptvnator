@@ -6,19 +6,21 @@
 // property, set on :host by each consumer. Provider-specific structural
 // tweaks (e.g. the stats column count) stay in the consumer stylesheet.
 
+:host {
+    --app-dialog-close-top: 24px;
+    --app-dialog-header-end-align: flex-start;
+}
+
 // ─── Hero header ────────────────────────────────────────────────────────────
 // The hero band runs edge to edge under the shell's header: it cancels the
 // body's 20px padding on three sides.
 .account-dialog__hero {
     margin: -20px -20px 20px;
-    padding: 20px 20px 18px;
+    padding: 16px 20px;
     display: grid;
-    gap: 18px;
-    background:
-        var(--app-accent-gradient),
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
-    border-bottom: 1px solid
-        var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+    gap: 12px;
+    background: var(--app-widget-header-bg);
+    border-bottom: 1px solid var(--app-widget-header-border);
 }
 
 .account-dialog__hero-copy {
@@ -43,12 +45,6 @@
     height: 8px;
     border-radius: 999px;
     background: var(--account-dialog-accent, var(--mat-sys-primary));
-    box-shadow: 0 0 0 4px
-        color-mix(
-            in srgb,
-            var(--account-dialog-accent, var(--mat-sys-primary)) 14%,
-            transparent
-        );
 }
 
 .account-dialog__eyebrow-divider {
@@ -65,6 +61,14 @@
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 6px;
+    align-items: center;
+    min-height: 32px;
+    margin-block: 4px;
+
+    &:empty {
+        min-height: 0;
+        margin-block: 0;
+    }
 }
 
 .account-dialog__status-pill {
@@ -79,21 +83,20 @@
     color: var(--app-body-color, var(--mat-sys-on-surface));
     font-size: 0.76rem;
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: 0;
 }
 
 .account-dialog__status-pill--active {
-    border-color: color-mix(in srgb, #34d399 30%, transparent);
-    background: color-mix(in srgb, #34d399 12%, transparent);
-    color: #2db36f;
+    border-color: transparent;
+    background: color-mix(in srgb, var(--app-success-color) 5%, transparent);
+    color: var(--app-success-color);
 }
 
 .account-dialog__status-pill--trial,
 .account-dialog__status-pill--cached {
-    border-color: color-mix(in srgb, #fbbf24 28%, transparent);
-    background: color-mix(in srgb, #f59e0b 12%, transparent);
-    color: #d18b09;
+    border-color: transparent;
+    background: var(--app-expiry-warn-surface);
+    color: var(--app-expiry-warn-text);
 }
 
 // ─── Messages ───────────────────────────────────────────────────────────────
@@ -122,29 +125,19 @@
 
 .account-stat {
     display: grid;
-    gap: 6px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 1px solid var(--app-widget-border, transparent);
-    background: var(--app-widget-bg, var(--mat-sys-surface-container));
-    box-shadow: var(--app-widget-shadow, none);
-    // Subtle inset highlight matching widget-shell pattern
-    outline: 1px solid rgba(255, 255, 255, 0.04);
-    outline-offset: -1px;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-content: start;
+    gap: 4px 10px;
+    padding: 8px 0;
 }
 
 .account-stat__icon {
-    width: 32px;
-    height: 32px;
+    grid-row: 1 / span 2;
+    width: 24px;
+    height: 24px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
-    background: color-mix(
-        in srgb,
-        var(--account-dialog-accent, var(--mat-sys-primary)) 12%,
-        transparent
-    );
     color: var(--account-dialog-accent, var(--mat-sys-primary));
 
     mat-icon {
@@ -158,12 +151,11 @@
     color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
     font-size: 0.72rem;
     font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0;
 }
 
 .account-stat__value {
-    font-size: 1.3rem;
+    font-size: 1.125rem;
     font-weight: 600;
     letter-spacing: -0.03em;
     color: var(--app-heading-color, var(--mat-sys-on-surface));
@@ -171,10 +163,11 @@
 }
 
 .account-stat__value--warning {
-    color: #d18b09;
+    color: var(--app-expiry-warn-text);
 }
 
 .account-stat__meter {
+    grid-column: 2;
     position: relative;
     overflow: hidden;
     height: 4px;
@@ -197,20 +190,13 @@
 .account-dialog__grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 24px;
 }
 
 // ─── Detail panels ──────────────────────────────────────────────────────────
 .account-panel {
     display: grid;
-    gap: 14px;
-    padding: 16px;
-    border-radius: 16px;
-    border: 1px solid var(--app-widget-border, transparent);
-    background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
-    box-shadow: var(--app-widget-shadow, none);
-    outline: 1px solid rgba(255, 255, 255, 0.04);
-    outline-offset: -1px;
+    gap: 12px;
     align-content: start;
 }
 
@@ -228,13 +214,10 @@
     overflow-wrap: anywhere;
 }
 
-.account-panel__eyebrow {
+.account-panel__description {
     margin: 0;
-    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    color: var(--app-muted-color);
+    font-size: 0.8125rem;
 }
 
 // ─── Detail rows ────────────────────────────────────────────────────────────
@@ -246,10 +229,10 @@
 
 .account-detail-row {
     display: grid;
-    grid-template-columns: minmax(120px, 140px) minmax(0, 1fr);
+    grid-template-columns: minmax(100px, 120px) minmax(0, 1fr);
     gap: 12px;
     align-items: baseline;
-    padding: 10px 0;
+    padding: 8px 0;
     border-bottom: 1px solid var(--app-separator);
 }
 
@@ -261,10 +244,8 @@
 .account-detail-row dt {
     margin: 0;
     color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: 0.8125rem;
+    font-weight: 400;
 }
 
 .account-detail-row dd {
@@ -280,16 +261,16 @@
     font-size: 0.84rem;
 }
 
-.account-detail-row__value--accent {
-    color: var(--account-dialog-accent, var(--mat-sys-primary));
+.account-detail-row dd.account-detail-row__value--accent {
+    color: var(--app-selection-text-color);
 }
 
-.account-detail-row__value--positive {
-    color: #2db36f;
+.account-detail-row dd.account-detail-row__value--positive {
+    color: var(--app-success-color);
 }
 
-.account-detail-row__value--warning {
-    color: #d18b09;
+.account-detail-row dd.account-detail-row__value--warning {
+    color: var(--app-expiry-warn-text);
 }
 
 // ─── Chip sections ──────────────────────────────────────────────────────────
@@ -330,7 +311,7 @@
         var(--account-dialog-accent, var(--mat-sys-primary)) 8%,
         transparent
     );
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    color: var(--app-heading-color);
     font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -436,7 +417,7 @@
 }
 
 .account-skeleton--stat {
-    min-height: 110px;
+    min-height: 60px;
     border-radius: 12px;
 }
 
@@ -461,6 +442,13 @@
     }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .account-skeleton::after {
+        animation: none;
+        display: none;
+    }
+}
+
 // ─── Responsive breakpoints ─────────────────────────────────────────────────
 @media (max-width: 980px) {
     .account-dialog__hero-stats,
@@ -476,7 +464,10 @@
         justify-content: flex-start;
     }
 
-    .account-dialog__hero-stats,
+    .account-dialog__hero-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .account-dialog__grid {
         grid-template-columns: 1fr;
     }

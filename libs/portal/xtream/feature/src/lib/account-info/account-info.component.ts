@@ -99,9 +99,6 @@ export class AccountInfoComponent {
             '-'
         );
     });
-    readonly serverHost = computed(
-        () => this.accountInfo()?.server_info?.url || '-'
-    );
     readonly activeConnections = computed(() =>
         this.parseNumber(this.accountInfo()?.user_info?.active_cons)
     );

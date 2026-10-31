@@ -1263,6 +1263,17 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   surface scrolls the whole dialog, so a stacked footer never squeezes the
   body to a sliver. A dialog without a footer keeps its body scrolling
   there: its header × is its only in-dialog dismissal and stays in place.
+  Read-only account and shortcuts dialogs opt into `bodyFocusable`: the
+  named content region is the first keyboard stop, so PageDown and arrow
+  keys scroll the information without moving the header. Forms keep their
+  first control as the initial stop. The programme dialog's own frame caps
+  its height to the viewport and scrolls its named body, including archive
+  tools and actions; its hero stays outside that scroll region.
+  Account dialogs use a 960px cap, a neutral statistics band and flat detail
+  sections. Phone statistics use two columns while detail rows stack; an
+  unpaired Stalker statistic spans the row. Status text uses the theme's
+  success/expiry text tokens, and
+  loading shimmer stops under reduced motion and never remains on errors.
 - **Dismiss.** The shell's header × (named "Close dialog", so a footer
   "Close" stays the only button of that name) and the footer
   "Cancel"/"Close" both dismiss; a dialog never adds a second footer

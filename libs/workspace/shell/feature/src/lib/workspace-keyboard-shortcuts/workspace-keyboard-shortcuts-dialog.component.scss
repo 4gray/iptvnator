@@ -193,7 +193,7 @@
 
 .shortcuts-dialog__chord kbd.shortcuts-dialog__keycap--modifier {
     min-width: 38px;
-    color: var(--shortcut-accent);
+    color: var(--app-selection-text-color);
     border-color: color-mix(
         in srgb,
         var(--shortcut-accent) 34%,

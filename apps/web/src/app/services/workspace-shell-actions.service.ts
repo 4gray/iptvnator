@@ -52,8 +52,8 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
             import('@iptvnator/portal/xtream/feature'),
             (dialog, { AccountInfoComponent }) => {
                 dialog.open(AccountInfoComponent, {
-                    width: '80%',
-                    maxWidth: '1200px',
+                    width: '960px',
+                    maxWidth: 'calc(100vw - 32px)',
                     maxHeight: '90vh',
                     data,
                 });
@@ -66,8 +66,8 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
             import('@iptvnator/portal/stalker/feature'),
             (dialog, { StalkerAccountInfoComponent }) => {
                 dialog.open(StalkerAccountInfoComponent, {
-                    width: '80%',
-                    maxWidth: '1200px',
+                    width: '960px',
+                    maxWidth: 'calc(100vw - 32px)',
                     maxHeight: '90vh',
                     data,
                 });

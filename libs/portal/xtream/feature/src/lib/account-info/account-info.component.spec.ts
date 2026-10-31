@@ -116,6 +116,9 @@ describe('AccountInfoComponent', () => {
         expect(fixture.nativeElement.textContent).toContain(
             'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'
         );
+        expect(
+            fixture.nativeElement.querySelector('.account-skeleton')
+        ).toBeNull();
     });
 
     it('loads account info from dialog-supplied playlist credentials', () => {

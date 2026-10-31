@@ -85,7 +85,7 @@ export class WorkspaceKeyboardShortcutsService {
             WorkspaceKeyboardShortcutsDialogData
         >(WorkspaceKeyboardShortcutsDialogComponent, {
             ...dialogSize('lg'),
-            autoFocus: false,
+            autoFocus: 'first-tabbable',
             data: {
                 groups: getKeyboardShortcutGroups({
                     isMac: platform === 'mac',
