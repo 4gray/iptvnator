@@ -3,7 +3,6 @@ import { Router } from '@angular/router';
 import {
     Component,
     DestroyRef,
-    Injector,
     inject,
     runInInjectionContext,
     signal,
@@ -108,7 +107,6 @@ export class PlaylistInfoComponent {
     private readonly playlistStorage = inject(PlaylistStorageBackend);
     private store = inject(Store);
     private databaseService = inject(DatabaseService);
-    private readonly injector = inject(Injector);
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
     private runtime = inject(RuntimeCapabilitiesService);

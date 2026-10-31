@@ -1,5 +1,8 @@
 import type { XtreamPlaylistData } from '@iptvnator/portal/xtream/data-access';
-import { normalizeXtreamContentTypes, type PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    normalizeXtreamContentTypes,
+    type PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 
 function normalizeOptionalConnectionValue(
     value: string | null | undefined
@@ -75,8 +78,12 @@ function hasPlaylistConnectionChanges(
         currentUserAgent !== nextUserAgent ||
         currentReferrer !== nextReferrer ||
         currentOrigin !== nextOrigin ||
-        JSON.stringify(normalizeXtreamContentTypes(currentPlaylist.xtreamContentTypes)) !==
-            JSON.stringify(normalizeXtreamContentTypes(nextPlaylist.xtreamContentTypes))
+        JSON.stringify(
+            normalizeXtreamContentTypes(currentPlaylist.xtreamContentTypes)
+        ) !==
+            JSON.stringify(
+                normalizeXtreamContentTypes(nextPlaylist.xtreamContentTypes)
+            )
     );
 }
 

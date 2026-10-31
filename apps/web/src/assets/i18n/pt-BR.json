@@ -235,7 +235,7 @@
         },
         "XTREAM_PLAYLIST": {
             "CONTENT_TO_LOAD": "Conteúdo a carregar",
-            "CONTENT_TO_LOAD_HINT": "Apenas os tipos selecionados são importados e atualizados. Sem seleção, nenhum catálogo é carregado; os itens guardados e os downloads são preservados.",
+            "CONTENT_TO_LOAD_HINT": "Somente os tipos selecionados são importados e atualizados. Desmarque todos para pausar o carregamento dos catálogos; os itens salvos e os downloads são mantidos.",
             "TITLE": "Título da lista de reprodução",
             "SERVER_URL": "URL do servidor",
             "USERNAME": "Nome de usuário",
