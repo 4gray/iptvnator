@@ -541,6 +541,7 @@ jobs:
                       jest-transform-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig.base.json', 'jest.preset.js', 'jest.web-esm.workspace.ts', 'apps/web/jest.config.ts') }}-
 
             - name: Run Tier A unit coverage suite
+              id: unit-coverage
               if: steps.scope.outputs.run == 'true'
               run: pnpm run coverage:ci
               env:
@@ -580,13 +581,15 @@ jobs:
                   retention-days: 14
 
             - name: Upload unit coverage to Codecov
-              if: always() && steps.scope.outputs.run == 'true'
+              if: ${{ !cancelled() && steps.unit-coverage.outcome == 'success' }}
               uses: codecov/codecov-action@v7
               with:
                   files: ./coverage/merged/lcov.info,./coverage/merged/cobertura-coverage.xml
                   flags: unit
                   name: iptvnator-unit
-                  fail_ci_if_error: false
-                  handle_no_reports_found: true
+                  # Dependabot cannot read Actions secrets. Like fork uploads,
+                  # its PR reports use a prefixed, tokenless Codecov branch.
+                  override_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' && format('dependabot:{0}', github.head_ref) || '' }}
+                  fail_ci_if_error: true
                   disable_search: true
                   token: ${{ secrets.CODECOV_TOKEN }}

@@ -201,6 +201,22 @@ The merged report is written to `coverage/merged/` as HTML, LCOV, Cobertura,
 and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 `unit` flag and keeps the HTML report as a GitHub artifact.
 
+Codecov uploads require the repository upload token in the GitHub Actions
+repository secret `CODECOV_TOKEN`. The workflow passes that secret to the
+uploader and fails on upload errors; it only uploads after the complete Tier A
+coverage suite and health checks succeed. The artifact upload still runs on
+failure to preserve diagnostic reports. Fork pull requests use Codecov's
+tokenless fork uploads without access to the repository secret. Dependabot
+pull requests also lack Actions secrets, so their uploads use a
+`dependabot:`-prefixed Codecov branch for tokenless authentication.
+
+Keep Codecov's default branch set to `master`. The README's Shields badge also
+selects `master` explicitly in its URL path (`/iptvnator/master`); a
+`?branch=master` query parameter does not select a branch for that badge.
+If coverage appears stale, compare the Codecov commit with the GitHub run and
+check the upload log for authentication errors. Fix the secret rather than
+changing source exclusions or coverage ratchets to correct a reporting problem.
+
 ## E2E
 
 | Area                  | Command                                         |
