@@ -1,7 +1,8 @@
 import {
-    detectProviderImportCandidates,
+    extractXtreamCredentialsFromUrl,
+    normalizeXtreamServerUrl,
     ProviderImportCandidate,
-} from '@iptvnator/shared/interfaces/provider-import';
+} from '@iptvnator/shared/interfaces';
 
 export type UrlXtreamSuggestion = ProviderImportCandidate & {
     userAgent?: string;
@@ -28,16 +29,15 @@ export function suggestXtreamFromUrl(
         ) {
             return null;
         }
-        return (
-            detectProviderImportCandidates(value).find(
-                (candidate) =>
-                    candidate.kind === 'xtream' &&
-                    candidate.confidence === 'high' &&
-                    candidate.serverUrl &&
-                    candidate.username &&
-                    candidate.password
-            ) ?? null
-        );
+        const credentials = extractXtreamCredentialsFromUrl(value);
+        if (!credentials) return null;
+        return {
+            kind: 'xtream',
+            confidence: 'high',
+            serverUrl: normalizeXtreamServerUrl(value),
+            suggestedTitle: url.hostname,
+            ...credentials,
+        };
     } catch {
         return null;
     }

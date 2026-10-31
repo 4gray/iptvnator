@@ -198,6 +198,9 @@ the existing explicit connection test remains available in the Xtream form.
 Links with additional query parameters, fragments, missing or duplicate
 credentials stay on the M3U path without a suggestion, since those values
 cannot safely be carried by a standard Xtream connection.
+Credentials are read directly from the complete URL through the existing
+Xtream URL helpers; the provider-message scanner's prose cleanup never runs
+on a URL handoff, preserving punctuation and Unicode in account values.
 
 The dialog’s shared import drafts preserve the original M3U link, title and
 User-Agent across method switches. The return action uses the same method

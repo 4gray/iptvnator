@@ -12,6 +12,10 @@ for (const available of [true, false]) {
     test(`@web @m3u @xtream URL suggestion is optional and keeps the draft: API=${available}`, async ({
         page,
     }) => {
+        const password = available ? "sec'ret!" : 'p&ss';
+        const sourceUrl = available
+            ? `${providerUrl}/get.php?username=demo&password=${password}`
+            : playlistUrl;
         await configureMockProviderBackend(page);
         const targets = await interceptProviderTargetRegistration(page);
         const requested: string[] = [];
@@ -35,7 +39,7 @@ for (const available of [true, false]) {
             .click();
         const dialog = page.getByRole('dialog');
         const urlInput = dialog.locator('[formcontrolname="playlistUrl"]');
-        await urlInput.fill(playlistUrl);
+        await urlInput.fill(sourceUrl);
         await dialog
             .locator('[formcontrolname="playlistName"]')
             .fill('My provider');
@@ -60,7 +64,7 @@ for (const available of [true, false]) {
         await expect(dialog.locator('#title')).toBeFocused();
         await expect(dialog.locator('#serverUrl')).toHaveValue(providerUrl);
         await expect(dialog.locator('#username')).toHaveValue('demo');
-        await expect(dialog.locator('#password')).toHaveValue('p&ss');
+        await expect(dialog.locator('#password')).toHaveValue(password);
         await expect(dialog.locator('#password')).toHaveAttribute(
             'type',
             'password'
@@ -89,7 +93,7 @@ for (const available of [true, false]) {
             .getByRole('button', { name: 'Back to M3U link', exact: true })
             .click();
         await expect(urlInput).toBeFocused();
-        await expect(urlInput).toHaveValue(playlistUrl);
+        await expect(urlInput).toHaveValue(sourceUrl);
         await expect(
             dialog.locator('[formcontrolname="playlistName"]')
         ).toHaveValue('My provider');

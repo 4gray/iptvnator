@@ -1,6 +1,38 @@
 import { suggestXtreamFromUrl } from './url-xtream-suggestion';
 
 describe('suggestXtreamFromUrl', () => {
+    it.each([
+        ['secret!', 'secret!'],
+        ["sec'ret", "sec'ret"],
+        ['secret.', 'secret.'],
+        ['secret%23', 'secret#'],
+        ['p%2Bss', 'p+ss'],
+        ['Ｓecret!', 'Ｓecret!'],
+    ])(
+        'preserves URL credentials without prose cleanup: %s',
+        (encoded, password) => {
+            expect(
+                suggestXtreamFromUrl(
+                    `https://panel.example/get.php?username=alice&password=${encoded}`
+                )
+            ).toMatchObject({
+                username: 'alice',
+                password,
+            });
+        }
+    );
+
+    it('preserves punctuation and Unicode in usernames', () => {
+        expect(
+            suggestXtreamFromUrl(
+                "https://panel.example/get.php?username=Ａli'ce&password=secret!"
+            )
+        ).toMatchObject({
+            username: "Ａli'ce",
+            password: 'secret!',
+        });
+    });
+
     it('recognizes a provider link while preserving the server path, port and decoded credentials', () => {
         expect(
             suggestXtreamFromUrl(
