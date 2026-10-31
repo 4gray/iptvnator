@@ -15,6 +15,8 @@ faq:
       a: Use the value configured as IPTVNATOR_ACCESS_TOKEN on the server, or ask its owner. Leave the field empty only when no token is configured.
     - q: Can people have separate libraries on one server?
       a: One container provides one shared source library, without user accounts. Separate libraries require separate instances with their own data volumes and ports.
+    - q: Will connecting delete my local sources?
+      a: No. Connecting uses a separate server library and keeps the original local library. Import local sources copies source definitions to the server; disconnecting returns to your original library.
 ---
 
 The self-hosted image runs the IPTVnator web app and its backend in one Docker
@@ -35,18 +37,18 @@ IP address with the server address that your other devices can reach:
 
 ```yaml
 services:
-  iptvnator:
-    image: 4gray/iptvnator:latest
-    restart: unless-stopped
-    ports:
-      - "4333:80"
-    environment:
-      CLIENT_URL: http://192.168.1.20:4333
-      IPTVNATOR_STORAGE: server
-      # Optional: replace this example before enabling it.
-      # IPTVNATOR_ACCESS_TOKEN: replace-with-a-long-random-string
-    volumes:
-      - ./data:/data
+    iptvnator:
+        image: 4gray/iptvnator:latest
+        restart: unless-stopped
+        ports:
+            - '4333:80'
+        environment:
+            CLIENT_URL: http://192.168.1.20:4333
+            IPTVNATOR_STORAGE: server
+            # Optional: replace this example before enabling it.
+            # IPTVNATOR_ACCESS_TOKEN: replace-with-a-long-random-string
+        volumes:
+            - ./data:/data
 ```
 
 Run this in the folder containing `compose.yaml`:
@@ -83,6 +85,10 @@ In Electron, open **Settings → Server**. Enter the server address and token,
 then choose **Connect**. The application restarts after successful connection.
 The page then shows the connection state and last synchronization time.
 
+![Settings → Server with the app address, access-token instructions and setup guide](/iptvnator/blog/guides/screenshots/guide-server-settings-dark.png)
+
+Get the desktop app or browser version from the [download hub](/iptvnator/download/).
+
 In a browser, open the same server address. The bundled PWA discovers its server
 automatically. If it needs a token, use **Settings → Server** to provide it.
 A standalone PWA can also connect manually through that page.
@@ -100,6 +106,8 @@ Review the preview before confirming. Matching sources are deduplicated and
 the original local library is kept. Import copies source definitions, not
 favorites or watch progress.
 
+![Settings → Server showing two local sources in the import preview, before confirmation](/iptvnator/blog/guides/screenshots/guide-server-migration-dark.png)
+
 Connected devices refresh source changes within the polling interval, normally
 15 seconds while visible. A previously synchronized client retains cached
 sources while the server is offline; shared source edits require a connection.
@@ -108,12 +116,12 @@ server's sources.
 
 ## What is shared
 
-| Data | Location |
-| --- | --- |
-| Source names, provider endpoints and connection details | Server, shared between connected clients |
-| Uploaded M3U playlist text | Server; referenced media files are not uploaded |
-| Favorites, recently viewed items and playback progress | Each device |
-| EPG, settings, parental locks and UI preferences | Each device |
+| Data                                                    | Location                                        |
+| ------------------------------------------------------- | ----------------------------------------------- |
+| Source names, provider endpoints and connection details | Server, shared between connected clients        |
+| Uploaded M3U playlist text                              | Server; referenced media files are not uploaded |
+| Favorites, recently viewed items and playback progress  | Each device                                     |
+| EPG, settings, parental locks and UI preferences        | Each device                                     |
 
 One server is one shared source library, without separate user accounts.
 Provider credentials are stored unencrypted in the database, as in the desktop
