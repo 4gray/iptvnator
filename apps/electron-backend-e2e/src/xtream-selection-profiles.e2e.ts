@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createServer, request as httpRequest } from 'node:http';
 import type {
     PlaylistBackupManifestV1,
     XtreamPlaylistBackupEntry,
@@ -21,6 +22,51 @@ import {
     catalogActions,
     recordCatalogRequests,
 } from './xtream-selection.e2e-support';
+
+test('catalog request recorder pins its upstream host for absolute-form requests', async () => {
+    let escaped = 0;
+    const unexpected = createServer((_request, response) => {
+        escaped++;
+        response.end('unexpected upstream');
+    });
+    await new Promise<void>((resolve) =>
+        unexpected.listen(0, '127.0.0.1', resolve)
+    );
+    const address = unexpected.address();
+    if (!address || typeof address === 'string')
+        throw new Error('No test port');
+    const recorder = await recordCatalogRequests();
+    try {
+        const body = await new Promise<string>((resolve, reject) => {
+            const req = httpRequest(
+                recorder.url,
+                {
+                    path: `http://127.0.0.1:${address.port}/player_api.php?username=minimal&password=minimal&action=get_live_categories`,
+                },
+                (response) => {
+                    let body = '';
+                    response.on('data', (chunk) => {
+                        body += chunk;
+                    });
+                    response.on('end', () => resolve(body));
+                    response.on('error', reject);
+                }
+            );
+            req.on('error', reject);
+            req.end();
+        });
+        expect(escaped).toBe(0);
+        expect(Array.isArray(JSON.parse(body))).toBe(true);
+        expect(catalogActions(recorder.actions)).toEqual([
+            'get_live_categories',
+        ]);
+    } finally {
+        await recorder.close();
+        await new Promise<void>((resolve, reject) =>
+            unexpected.close((error) => (error ? reject(error) : resolve()))
+        );
+    }
+});
 
 test('server-connected desktop refreshes cached re-enabled catalogs and exports only its own dormant state', async ({
     dataDir,

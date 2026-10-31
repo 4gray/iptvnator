@@ -121,6 +121,41 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(release).toHaveBeenCalled();
     });
 
+    it('does not mutate retained state when the metadata save is rejected after fetching', async () => {
+        const authorize = jest
+            .fn()
+            .mockRejectedValue(new Error('source conflict'));
+        await expect(
+            service.refresh(playlist, ['movie'], authorize)
+        ).rejects.toThrow('source conflict');
+        expect(data.sendIpcEvent).toHaveBeenCalledTimes(2);
+        expect(authorize).toHaveBeenCalledTimes(1);
+        expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        expect(db.saveXtreamContent).not.toHaveBeenCalled();
+        expect(pending['set']).not.toHaveBeenCalled();
+        expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+        expect(service.progress()).toBeNull();
+        expect(release).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for metadata confirmation before parking or replacing catalog state', async () => {
+        let confirm!: () => void;
+        const authorize = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    confirm = resolve;
+                })
+        );
+        const refreshing = service.refresh(playlist, ['movie'], authorize);
+        for (let n = 0; n < 6; n++) await Promise.resolve();
+        expect(authorize).toHaveBeenCalledTimes(1);
+        expect(pending['set']).not.toHaveBeenCalled();
+        expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        confirm();
+        await refreshing;
+        expect(db.deleteXtreamPlaylistContent).toHaveBeenCalledTimes(1);
+    });
+
     it('publishes remote scanning state while a newly enabled type is loading', async () => {
         let respond!: (value: { payload: unknown[] }) => void;
         data.sendIpcEvent.mockImplementationOnce(

@@ -541,22 +541,34 @@ export class PlaylistInfoComponent {
                     throw new Error('Failed to update playlist in database');
                 return playlist;
             });
+        let savedMetadata: PlaylistMeta | undefined;
+        const persistOnce = async () => (savedMetadata ??= await persist());
 
         if (newlyEnabled.length) {
             this.isRefreshingSelectedCatalogs.set(true);
             try {
                 await this.injector
                     .get(XtreamSelectedCatalogRefreshService)
-                    .refresh(playlist, newlyEnabled);
+                    .refresh(playlist, newlyEnabled, async () => {
+                        await persistOnce();
+                    });
             } catch (error) {
-                // A parked snapshot may follow a partial replacement. Keep its types
-                // enabled so retry imports them before consuming their saved history.
+                // Accepted metadata stays authoritative after a cache failure.
+                // A parked snapshot keeps its selected types for retry imports.
                 if (
+                    savedMetadata ||
                     this.injector
                         .get(XtreamPendingRestoreService)
                         .getOrThrow(this.playlist._id)
                 ) {
-                    const saved = await persist();
+                    const saved = await persistOnce();
+                    if (persistShared) {
+                        this.playlist = {
+                            ...this.playlist,
+                            sourceSyncBase: saved.sourceSyncBase,
+                            sourceSyncRevision: saved.sourceSyncRevision,
+                        };
+                    }
                     this.store.dispatch(
                         PlaylistActions.updatePlaylistMeta({
                             playlist: saved,
@@ -569,7 +581,7 @@ export class PlaylistInfoComponent {
         }
         // The metadata action below updates PlaylistContextFacade; the routed
         // Xtream session observes connection changes and bootstraps fresh state.
-        return persist();
+        return persistOnce();
     }
 
     exportPlaylist(): Promise<void> {

@@ -372,7 +372,11 @@ in startup projections without parsing large M3U payloads, and backups preserve
 it, including an explicit empty array.
 
 `XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
-fetching their category/content arrays before deleting their old cache. Recovery
+fetching their category/content arrays before deleting their old cache. The editor
+confirms metadata persistence through `beforeReplace` after fetching and before
+parking or replacing any cached state. A rejected save leaves the original cache
+and history intact. An accepted save is reused if later cache work fails, without
+a second authoritative write. Recovery
 reads the complete source history before parking the snapshot, not the ordinary
 100-entry browsing projection. The optional `dbGetRecentItems` `{ all: true }`
 request crosses preload/main/worker; ordinary reads remain capped at 100. Its

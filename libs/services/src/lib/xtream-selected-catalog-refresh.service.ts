@@ -52,7 +52,8 @@ export class XtreamSelectedCatalogRefreshService {
 
     async refresh(
         playlist: PlaylistMeta,
-        types: XtreamContentType[]
+        types: XtreamContentType[],
+        beforeReplace?: () => Promise<void>
     ): Promise<void> {
         if (!types.length) return;
         if (
@@ -94,6 +95,8 @@ export class XtreamSelectedCatalogRefreshService {
                 );
                 catalogs.push({ type, categories, content });
             }
+            // Rejected metadata edits must leave the old catalog and user state intact.
+            await beforeReplace?.();
             publish(null, 'preparing');
             // Park user state BEFORE deletion so storage failure cannot erase history.
             const [playbackPositions, recent, categoriesByType] =

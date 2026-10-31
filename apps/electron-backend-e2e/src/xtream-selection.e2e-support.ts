@@ -14,7 +14,11 @@ export async function recordCatalogRequests() {
     let releaseResponse: (() => void) | undefined;
     const server = createServer(async (request, response) => {
         try {
-            const url = new URL(request.url ?? '/', xtreamMockServer);
+            const incoming = new URL(request.url ?? '/', xtreamMockServer);
+            // Only path/query may come from the client, never the destination.
+            const url = new URL(xtreamMockServer);
+            url.pathname = incoming.pathname;
+            url.search = incoming.search;
             const action = url.searchParams.get('action');
             if (action) {
                 actions.push(action);

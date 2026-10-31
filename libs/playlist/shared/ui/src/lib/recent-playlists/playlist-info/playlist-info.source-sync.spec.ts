@@ -52,7 +52,9 @@ describe('shared source editor', () => {
         close = jest.fn();
         open = jest.fn();
         runtime.supportsXtreamSqliteDataSource = false;
-        refresh = jest.fn().mockResolvedValue(undefined);
+        refresh = jest.fn(async (_playlist, _types, beforeReplace) => {
+            await beforeReplace?.();
+        });
         pending = jest.fn().mockReturnValue(null);
         sqliteUpdate = jest.fn().mockResolvedValue(true);
         await TestBed.configureTestingModule({
@@ -251,7 +253,8 @@ describe('shared source editor', () => {
         for (let n = 0; n < 6; n++) await Promise.resolve();
         expect(refresh).toHaveBeenCalledWith(
             expect.objectContaining({ _id: 'shared' }),
-            ['movie']
+            ['movie'],
+            expect.any(Function)
         );
         expect(updatePlaylistMeta).toHaveBeenCalledTimes(1);
         persisted.next({ ...next, sourceSyncRevision: '"saved"' });
@@ -267,6 +270,78 @@ describe('shared source editor', () => {
             })
         );
     });
+
+    it.each([false, true])(
+        'confirms metadata before cache mutation and persists once (accepted=%s)',
+        async (accepted) => {
+            const log = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+            try {
+                const complete = {
+                    ...opened,
+                    serverUrl: 'https://panel.test',
+                    username: 'user',
+                    password: 'password',
+                    xtreamContentTypes: ['live'],
+                } as Playlist;
+                (
+                    TestBed.inject(PlaylistsService)
+                        .getPlaylistById as jest.Mock
+                ).mockReturnValue(of(complete));
+                runtime.supportsXtreamSqliteDataSource = true;
+                let replaced = false;
+                refresh.mockImplementation(
+                    async (_playlist, _types, beforeReplace) => {
+                        await beforeReplace();
+                        replaced = true;
+                        pending.mockReturnValue({});
+                        throw new Error('cache save interrupted');
+                    }
+                );
+                const editor = TestBed.createComponent(
+                    PlaylistInfoComponent
+                ).componentInstance;
+                for (let n = 0; n < 6; n++) await Promise.resolve();
+                const next = {
+                    ...complete,
+                    username: 'edited',
+                    xtreamContentTypes: ['live', 'movie'],
+                } as Playlist;
+                const saving = editor.saveChanges(next);
+                for (let n = 0; n < 6; n++) await Promise.resolve();
+                expect(replaced).toBe(false);
+                expect(updatePlaylistMeta).toHaveBeenCalledTimes(1);
+                if (accepted) {
+                    persisted.next({
+                        ...next,
+                        sourceSyncRevision: '"accepted"',
+                    });
+                    persisted.complete();
+                } else persisted.error(new Error('SOURCE_SYNC.CONFLICT'));
+                await saving;
+                expect(replaced).toBe(accepted);
+                expect(editor.playlist.sourceSyncRevision).toBe(
+                    accepted ? '"accepted"' : '"opened"'
+                );
+                expect(updatePlaylistMeta).toHaveBeenCalledTimes(1);
+                expect(close).not.toHaveBeenCalled();
+                expect(sqliteUpdate).not.toHaveBeenCalled();
+                if (accepted)
+                    expect(dispatch).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            persist: false,
+                            playlist: expect.objectContaining({
+                                sourceSyncRevision: '"accepted"',
+                            }),
+                        })
+                    );
+                else expect(dispatch).not.toHaveBeenCalled();
+            } finally {
+                log.mockRestore();
+            }
+        }
+    );
 
     it.each([false, true])(
         'retains server edit recovery without duplicate writes (parked=%s)',
