@@ -3,6 +3,7 @@ import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import type { PlaylistFileImportService } from '@iptvnator/playlist/shared/util/playlist-file-import';
 import type { ElectronBridgePlaylistOpenRequest } from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 
 type PlaylistOpenRequestBridge = {
     acknowledgePlaylistOpenRequest?: (requestId: string) => Promise<void>;
@@ -76,7 +77,7 @@ export class PlaylistOpenRequestService {
         void bridge.announcePlaylistOpenListener().catch((error) => {
             console.error(
                 'Failed to announce the playlist open listener:',
-                error
+                redactSensitiveData(error)
             );
         });
     }
@@ -84,7 +85,10 @@ export class PlaylistOpenRequestService {
     /** Appends a step to the import chain, never breaking it on failure. */
     private chain(step: () => Promise<void>): void {
         this.importChain = this.importChain.then(step).catch((error) => {
-            console.error('Failed to open a playlist file:', error);
+            console.error(
+                'Failed to open a playlist file:',
+                redactSensitiveData(error)
+            );
         });
     }
 
@@ -105,7 +109,13 @@ export class PlaylistOpenRequestService {
             .then((importService) =>
                 importService.importFromPath(request.filePath, request.fileName)
             )
-            .catch(() => ({ ok: false, reason: 'read-error' }) as const);
+            .catch((error) => {
+                console.error(
+                    'Failed to open a playlist file:',
+                    redactSensitiveData(error)
+                );
+                return { ok: false, reason: 'read-error' } as const;
+            });
 
         if (result.ok) {
             return;

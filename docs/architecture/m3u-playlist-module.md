@@ -2066,9 +2066,9 @@ imports them on a single promise chain so a burst arrives in a deterministic
 order. The listener stays on the startup path, but the file-import service
 loads through the app's `playlist-file-import.ts` adapter only after a valid
 request arrives. Receipt is acknowledged before that asynchronous load; a
-failed load shows the usual file-open error and does not poison the queue or
-prevent the next request from retrying. The root injector reuses the same
-import service as the file picker and drop zone. `addPlaylist$` in
+failed load logs its redacted cause, shows the usual file-open error and does
+not poison the queue or prevent the next request from retrying. The root
+injector reuses the same import service as the file picker and drop zone. `addPlaylist$` in
 `libs/m3u-state` uses `concatMap` (not `switchMap`)
 for the same reason: each action carries a different playlist, so a newer add
 must never cancel an older one's write, EPG fetch and navigation. The import
