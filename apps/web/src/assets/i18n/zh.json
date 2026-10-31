@@ -154,6 +154,7 @@
             "AUTO_REFRESH_ENABLED": "已启用自动刷新"
         },
         "ADD_PLAYLIST": {
+            "ADDITIONAL_SETTINGS": "其他设置",
             "PICK_METHOD": "选择您想要的连接方式。稍后可以重命名。",
             "METHOD_GROUP_LABEL": "连接方式",
             "METHOD_URL_LABEL": "M3U URL",
@@ -179,6 +180,11 @@
             "OPEN_FAILED": "无法打开 \"{{filename}}\"。"
         },
         "URL_UPLOAD": {
+            "SERVER_SUMMARY": "播放列表链接和登录信息将发送到此安装环境的后端。",
+            "XTREAM_SUGGESTION_TITLE": "可能支持 Xtream 连接",
+            "XTREAM_SUGGESTION_DESCRIPTION": "提供商支持时，可查看订阅详情、电影和剧集。",
+            "SET_UP_XTREAM": "设置 Xtream",
+            "BACK_TO_M3U": "返回 M3U 链接",
             "FETCHING": "正在获取播放列表…加载期间可以取消。",
             "PLAYLIST_URL": "播放列表 URL（m3u、m3u8）",
             "URL_VALIDATION_ERROR": "请输入以 http:// 或 https:// 开头的有效 URL。",

@@ -149,6 +149,26 @@ describe('UrlUploadComponent form', () => {
         );
     });
 
+    it('keeps the Xtream suggestion inert while a URL import disables the form', () => {
+        component.form.controls.playlistUrl.setValue(
+            'https://panel.example/get.php?username=demo&password=demo'
+        );
+        component.form.disable();
+        fixture.detectChanges();
+        const emit = jest.spyOn(component.xtreamSelected, 'emit');
+        const button = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector<HTMLButtonElement>(
+            '[data-test-id="xtream-url-suggestion"] button'
+        );
+        expect(button?.disabled).toBe(true);
+        component.useXtream();
+        expect(emit).not.toHaveBeenCalled();
+        component.form.enable();
+        fixture.detectChanges();
+        expect(button?.disabled).toBe(false);
+    });
+
     it.each(['http://', 'https:provider.example', 'file:///playlist.m3u'])(
         'rejects a malformed or unsupported address: %s',
         (value) => {
@@ -156,6 +176,21 @@ describe('UrlUploadComponent form', () => {
             expect(component.form.valid).toBe(false);
         }
     );
+
+    it('reveals prefilled User-Agent settings while leaving manual folding in control', () => {
+        const details = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector<HTMLDetailsElement>('details');
+        expect(details?.open).toBe(false);
+        component.form.patchValue({ userAgent: 'VLC/3.0.21' });
+        fixture.detectChanges();
+        expect(details?.open).toBe(true);
+        if (!details) throw new Error('Expected the additional settings');
+        details.open = false;
+        fixture.detectChanges();
+        expect(details.open).toBe(false);
+        expect(component.form.getRawValue().userAgent).toBe('VLC/3.0.21');
+    });
 
     it('explains an invalid playlist URL once the field was touched', () => {
         const root = fixture.nativeElement as HTMLElement;

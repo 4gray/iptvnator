@@ -154,6 +154,7 @@
             "AUTO_REFRESH_ENABLED": "التحديث التلقائي مفعل"
         },
         "ADD_PLAYLIST": {
+            "ADDITIONAL_SETTINGS": "إعدادات إضافية",
             "PICK_METHOD": "اختار كيفاش بغيتي تربط. تقدر تبدل الاسم من بعد.",
             "METHOD_GROUP_LABEL": "طريقة الربط",
             "METHOD_URL_LABEL": "رابط M3U",
@@ -179,6 +180,11 @@
             "OPEN_FAILED": "ما تقدرش تحل \"{{filename}}\"."
         },
         "URL_UPLOAD": {
+            "SERVER_SUMMARY": "رابط اللائحة وبيانات الدخول كيتصيفطو لسيرفر هاد التثبيت.",
+            "XTREAM_SUGGESTION_TITLE": "الاتصال بـ Xtream يقدر يكون متاح",
+            "XTREAM_SUGGESTION_DESCRIPTION": "معلومات الاشتراك والأفلام والمسلسلات، إلا وفّرها المزوّد.",
+            "SET_UP_XTREAM": "إعداد Xtream",
+            "BACK_TO_M3U": "الرجوع لرابط M3U",
             "FETCHING": "كنحمّلو قائمة التشغيل… تقدر تلغي التحميل قبل ما يسالي.",
             "PLAYLIST_URL": "رابط قائمة التشغيل (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "دخل رابط صحيح كيبدا بـ http:// ولا https://.",

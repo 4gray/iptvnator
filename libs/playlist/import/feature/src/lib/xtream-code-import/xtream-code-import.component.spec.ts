@@ -75,6 +75,28 @@ describe('XtreamCodeImportComponent', () => {
         expect(component.form.get('password')?.value).toBe('pass');
     });
 
+    it('carries the custom User-Agent through testing and the saved Xtream source', async () => {
+        component.form.patchValue({
+            title: 'Portal',
+            serverUrl: 'http://example.com',
+            username: 'user',
+            password: 'pass',
+            userAgent: '  VLC/3.0.21  ',
+        });
+        await component.testConnection();
+        expect(connectionTestService.test).toHaveBeenCalledWith(
+            expect.objectContaining({ userAgent: '  VLC/3.0.21  ' }),
+            expect.any(Function),
+            false
+        );
+        component.addPlaylist();
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.addPlaylist({
+                playlist: expect.objectContaining({ userAgent: 'VLC/3.0.21' }),
+            })
+        );
+    });
+
     it('normalizes full Xtream playlist URLs when adding a portal', () => {
         component.form.patchValue({
             title: 'Portal',

@@ -154,6 +154,7 @@
             "AUTO_REFRESH_ENABLED": "Auto-Refresh aktiviert"
         },
         "ADD_PLAYLIST": {
+            "ADDITIONAL_SETTINGS": "Weitere Einstellungen",
             "PICK_METHOD": "Wählen Sie aus, wie Sie sich verbinden möchten. Sie können den Namen später ändern.",
             "METHOD_GROUP_LABEL": "Verbindungsart",
             "METHOD_URL_LABEL": "M3U-URL",
@@ -179,6 +180,11 @@
             "OPEN_FAILED": "\"{{filename}}\" konnte nicht geöffnet werden."
         },
         "URL_UPLOAD": {
+            "SERVER_SUMMARY": "Playlist-URL und Zugangsdaten werden an das Backend dieser Installation gesendet.",
+            "XTREAM_SUGGESTION_TITLE": "Xtream ist möglicherweise verfügbar",
+            "XTREAM_SUGGESTION_DESCRIPTION": "Abodaten, Filme und Serien, sofern vom Anbieter bereitgestellt.",
+            "SET_UP_XTREAM": "Xtream einrichten",
+            "BACK_TO_M3U": "Zurück zum M3U-Link",
             "FETCHING": "Die Wiedergabeliste wird geladen… Du kannst den Vorgang abbrechen.",
             "PLAYLIST_URL": "Wiedergabelisten-URL (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Geben Sie eine gültige URL mit http:// oder https:// ein.",

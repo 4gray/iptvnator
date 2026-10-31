@@ -348,6 +348,9 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
             dialog.getByRole('textbox', { name: 'Playlist title' }),
             'Protected M3U'
         );
+        await dialog
+            .locator('[data-test-id="url-advanced-settings"] > summary')
+            .click();
         await setInputValue(
             dialog.getByRole('textbox', { name: 'User agent', exact: true }),
             `  ${userAgent}  `

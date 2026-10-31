@@ -5,7 +5,9 @@ import {
     inject,
     viewChild,
     ChangeDetectionStrategy,
+    ElementRef,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
     AbstractControl,
     FormControl,
@@ -31,6 +33,7 @@ import {
     Playlist,
 } from '@iptvnator/shared/interfaces';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import { RevealDetailsDirective } from '@iptvnator/ui/components/reveal-details';
 
 function xtreamServerUrlValidator(
     control: AbstractControl
@@ -58,6 +61,7 @@ function xtreamServerUrlValidator(
         PasswordVisibilityToggleDirective,
         ReactiveFormsModule,
         TranslatePipe,
+        RevealDetailsDirective,
     ],
     selector: 'app-xtream-code-import',
     providers: [provideFormFieldDefaults()],
@@ -86,6 +90,7 @@ export class XtreamCodeImportComponent {
         title: new FormControl('', [Validators.required]),
         password: new FormControl('', [Validators.required]),
         username: new FormControl('', [Validators.required]),
+        userAgent: new FormControl(''),
         serverUrl: new FormControl('', [
             Validators.required,
             Validators.pattern(this.URL_REGEX),
@@ -95,10 +100,19 @@ export class XtreamCodeImportComponent {
     });
 
     readonly store = inject(Store);
+    readonly userAgent = toSignal(this.form.controls.userAgent.valueChanges, {
+        initialValue: '',
+    });
     readonly connectionTest = createXtreamConnectionTestState(this.form);
     private readonly passwordToggle = viewChild(
         PasswordVisibilityToggleDirective
     );
+    private readonly titleInput =
+        viewChild<ElementRef<HTMLInputElement>>('titleInput');
+
+    focusTitle(): void {
+        this.titleInput()?.nativeElement.focus();
+    }
 
     get isTestingConnection(): boolean {
         return this.connectionTest.testing();
@@ -116,6 +130,7 @@ export class XtreamCodeImportComponent {
             title: '',
             password: '',
             username: '',
+            userAgent: '',
             serverUrl: '',
             importDate: new Date().toISOString(),
         });
@@ -136,6 +151,8 @@ export class XtreamCodeImportComponent {
                     password: connection.password,
                     serverUrl: connection.serverUrl,
                     username: connection.username,
+                    userAgent:
+                        this.form.controls.userAgent.value?.trim() || undefined,
                 } as Playlist,
             })
         );

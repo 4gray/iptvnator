@@ -154,6 +154,7 @@
             "AUTO_REFRESH_ENABLED": "تم تفعيل التحديث التلقائي"
         },
         "ADD_PLAYLIST": {
+            "ADDITIONAL_SETTINGS": "إعدادات إضافية",
             "PICK_METHOD": "اختر طريقة الاتصال، ويمكنك إعادة تسميتها لاحقًا.",
             "METHOD_GROUP_LABEL": "طريقة الاتصال",
             "METHOD_URL_LABEL": "رابط M3U",
@@ -179,6 +180,11 @@
             "OPEN_FAILED": "تعذر فتح \"{{filename}}\"."
         },
         "URL_UPLOAD": {
+            "SERVER_SUMMARY": "يُرسل رابط قائمة التشغيل وبيانات الدخول إلى خادم هذا التثبيت.",
+            "XTREAM_SUGGESTION_TITLE": "قد يتوفر اتصال Xtream",
+            "XTREAM_SUGGESTION_DESCRIPTION": "تفاصيل الاشتراك والأفلام والمسلسلات، إذا وفّرها المزوّد.",
+            "SET_UP_XTREAM": "إعداد Xtream",
+            "BACK_TO_M3U": "العودة إلى رابط M3U",
             "FETCHING": "جارٍ جلب قائمة التشغيل… يمكنك الإلغاء أثناء التحميل.",
             "PLAYLIST_URL": "رابط قائمة التشغيل (m3u، m3u8)",
             "URL_VALIDATION_ERROR": "أدخل رابطًا صالحًا يبدأ بـ http:// أو https://.",

@@ -188,6 +188,32 @@ There is intentionally **no URL validation** (upstream removed it in 0.15.0): an
 
 The behavioral contract is guarded by `apps/web/src/app/iptv-playlist-parser.contract.spec.ts` (jest maps the module to the real parser source) and by the fork's own test suite.
 
+## Xtream suggestion during URL import
+
+The URL form locally recognizes known Xtream API/download endpoints carrying
+one username and password. It offers an optional handoff to the existing
+Xtream form with the normalized server, credentials, entered title and custom
+User-Agent. Recognition makes no requests and does not confirm API support;
+the existing explicit connection test remains available in the Xtream form.
+Links with additional query parameters, fragments, missing or duplicate
+credentials stay on the M3U path without a suggestion, since those values
+cannot safely be carried by a standard Xtream connection.
+Credentials are read directly from the complete URL through the existing
+Xtream URL helpers; the provider-message scanner's prose cleanup never runs
+on a URL handoff, preserving punctuation and Unicode in account values.
+
+The dialog’s shared import drafts preserve the original M3U link, title and
+User-Agent across method switches. The return action uses the same method
+switch and cancellation path; accepting the suggestion does not add or convert
+a stored playlist. Xtream test requests and
+the saved source use the same optional User-Agent.
+
+URL and Xtream import keep User-Agent in the shared native Additional settings
+disclosure. Prefilling a nonblank value reveals it; clearing or manually folding
+the section keeps the current user-controlled disclosure state. The PWA URL form
+shows a short server-transmission summary and retains the full backend trust
+explanation in an expandable disclosure.
+
 ## User-Agent for URL sources
 
 The M3U URL form accepts an optional User-Agent, including after an Auto-detect

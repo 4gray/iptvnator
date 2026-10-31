@@ -168,4 +168,71 @@ describe('AddPlaylistDialogComponent with the real URL form', () => {
 
         expect(addButton()?.disabled).toBe(false);
     });
+
+    it('offers an optional Xtream handoff and preserves the URL draft on return', async () => {
+        const draft = {
+            playlistUrl:
+                'https://panel.example:8443/base/get.php?username=alice&password=p%26ss&type=m3u_plus',
+            playlistName: 'My provider',
+            userAgent: 'VLC/3.0.21',
+        };
+        const root = fixture.nativeElement as HTMLElement;
+        fixture.componentInstance.urlUpload()?.form.setValue(draft);
+        await settle();
+        const suggestion = root.querySelector<HTMLElement>(
+            '[data-test-id="xtream-url-suggestion"]'
+        );
+        expect(suggestion).not.toBeNull();
+        expect(addButton()?.disabled).toBe(false);
+        suggestion?.querySelector('button')?.click();
+        await settle();
+
+        expect(fixture.componentInstance.method()).toBe('xtream');
+        expect(
+            fixture.componentInstance.xtreamImport()?.form.getRawValue()
+        ).toMatchObject({
+            title: 'My provider',
+            serverUrl: 'https://panel.example:8443/base',
+            username: 'alice',
+            password: 'p&ss',
+            userAgent: 'VLC/3.0.21',
+        });
+        expect(
+            root.querySelector<HTMLDetailsElement>(
+                '[data-test-id="xtream-advanced-settings"]'
+            )?.open
+        ).toBe(true);
+        expect(root.querySelector('app-url-upload')).toBeNull();
+        fixture.componentInstance.backToM3u();
+        await settle();
+        expect(
+            fixture.componentInstance.urlUpload()?.form.getRawValue()
+        ).toEqual(draft);
+        expect(
+            root.querySelector<HTMLDetailsElement>(
+                '[data-test-id="url-advanced-settings"]'
+            )?.open
+        ).toBe(true);
+        expect(root.querySelector('app-url-upload')).not.toBeNull();
+
+        fixture.componentInstance.urlUpload()?.clearForm();
+        await settle();
+        expect(
+            root.querySelector('[data-test-id="xtream-url-suggestion"]')
+        ).toBeNull();
+        expect(addButton()?.disabled).toBe(true);
+    });
+
+    it('leaves regular M3U links available without a suggestion', async () => {
+        fixture.componentInstance
+            .urlUpload()
+            ?.form.patchValue({ playlistUrl: 'https://example.com/list.m3u' });
+        await settle();
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '[data-test-id="xtream-url-suggestion"]'
+            )
+        ).toBeNull();
+        expect(addButton()?.disabled).toBe(false);
+    });
 });

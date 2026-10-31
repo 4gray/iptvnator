@@ -154,6 +154,7 @@
             "AUTO_REFRESH_ENABLED": "Automatikus frissítés bekapcsolva"
         },
         "ADD_PLAYLIST": {
+            "ADDITIONAL_SETTINGS": "További beállítások",
             "PICK_METHOD": "Válassza ki a csatlakozás módját. A lejátszási lista nevét később is módosíthatja.",
             "METHOD_GROUP_LABEL": "Csatlakozási mód",
             "METHOD_URL_LABEL": "M3U-lista URL-címe",
@@ -179,6 +180,11 @@
             "OPEN_FAILED": "Nem sikerült megnyitni a következő fájlt: „{{filename}}”."
         },
         "URL_UPLOAD": {
+            "SERVER_SUMMARY": "A lejátszási lista URL-je és a belépési adatok a telepítés kiszolgálójára kerülnek.",
+            "XTREAM_SUGGESTION_TITLE": "Az Xtream elérhető lehet",
+            "XTREAM_SUGGESTION_DESCRIPTION": "Előfizetési adatok, filmek és sorozatok, ha a szolgáltató biztosítja őket.",
+            "SET_UP_XTREAM": "Xtream beállítása",
+            "BACK_TO_M3U": "Vissza az M3U-hivatkozáshoz",
             "FETCHING": "Lejátszási lista lekérése… A műveletet bármikor megszakíthatja.",
             "PLAYLIST_URL": "Lejátszási lista URL-címe (m3u, m3u8)",
             "URL_VALIDATION_ERROR": "Adjon meg egy http:// vagy https:// kezdetű érvényes URL-címet.",
