@@ -2317,6 +2317,7 @@
         "REFRESH": "刷新",
         "DISCONNECT": "断开连接",
         "IMPORT": "导入本地来源",
+        "IMPORT_EMPTY": "原来的本地媒体库中没有可导入的来源。",
         "IMPORT_PREVIEW": "将 {{count}} 个本地来源复制到服务器？已有来源不会重复。本地数据会保留。",
         "IMPORTED": "来源已导入。",
         "IMPORT_FAILED": "导入失败。重试不会创建重复来源。",

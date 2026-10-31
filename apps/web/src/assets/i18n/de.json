@@ -2317,6 +2317,7 @@
         "REFRESH": "Aktualisieren",
         "DISCONNECT": "Trennen",
         "IMPORT": "Lokale Quellen importieren",
+        "IMPORT_EMPTY": "In Ihrer ursprünglichen lokalen Bibliothek gibt es keine Quellen zum Importieren.",
         "IMPORT_PREVIEW": "{{count}} lokale Quellen auf den Server kopieren? Vorhandene Quellen werden ohne Duplikate zugeordnet. Lokale Daten bleiben erhalten.",
         "IMPORTED": "Quellen importiert.",
         "IMPORT_FAILED": "Import fehlgeschlagen. Erneutes Versuchen erzeugt keine Duplikate.",

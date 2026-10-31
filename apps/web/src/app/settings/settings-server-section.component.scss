@@ -20,6 +20,33 @@
     overflow-wrap: anywhere;
     line-height: 1.5;
 }
+.server-import-preview {
+    display: grid;
+    gap: 12px;
+    padding-block-start: 16px;
+    border-block-start: 1px solid var(--app-widget-border);
+    p,
+    ul {
+        margin: 0;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+    ul {
+        display: grid;
+        gap: 8px;
+        padding-inline-start: 20px;
+    }
+}
+.server-import-empty {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--app-body-color);
+    button {
+        flex-shrink: 0;
+    }
+}
 .server-message--error {
     color: var(--app-danger-text);
 }

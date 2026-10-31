@@ -116,37 +116,62 @@
             }
         </div>
         @if (preview(); as sources) {
-            <p>
-                {{
-                    'SOURCE_SYNC.IMPORT_PREVIEW'
-                        | translate: { count: sources.length }
-                }}
-            </p>
-            <ul>
-                @for (source of sources; track source._id) {
-                    <li>{{ source.title }}</li>
+            <section
+                class="server-import-preview"
+                data-test-id="source-server-import-preview"
+                [attr.aria-label]="'SOURCE_SYNC.IMPORT' | translate"
+            >
+                @if (sources.length) {
+                    <p>
+                        {{
+                            'SOURCE_SYNC.IMPORT_PREVIEW'
+                                | translate: { count: sources.length }
+                        }}
+                    </p>
+                    <ul>
+                        @for (source of sources; track source._id) {
+                            <li>{{ source.title }}</li>
+                        }
+                    </ul>
+                    <div class="server-actions">
+                        <button
+                            type="button"
+                            mat-button
+                            [disabled]="busy()"
+                            (click)="preview.set(null)"
+                        >
+                            {{ 'CANCEL' | translate }}
+                        </button>
+                        <button
+                            type="button"
+                            mat-flat-button
+                            [disabled]="busy()"
+                            (click)="importSources()"
+                            class="settings-primary-button"
+                            data-test-id="source-server-import-confirm"
+                        >
+                            {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                        </button>
+                    </div>
+                } @else {
+                    <div class="server-import-empty">
+                        <p
+                            role="status"
+                            data-test-id="source-server-import-empty"
+                        >
+                            {{ 'SOURCE_SYNC.IMPORT_EMPTY' | translate }}
+                        </p>
+                        <button
+                            type="button"
+                            mat-button
+                            (click)="preview.set(null)"
+                            data-test-id="source-server-import-close"
+                        >
+                            {{ 'CLOSE' | translate }}
+                        </button>
+                    </div>
                 }
-            </ul>
-            <div class="server-actions">
-                <button
-                    type="button"
-                    mat-button
-                    [disabled]="busy()"
-                    (click)="preview.set(null)"
-                >
-                    {{ 'CANCEL' | translate }}
-                </button>
-                <button
-                    type="button"
-                    mat-flat-button
-                    [disabled]="busy() || !sources.length"
-                    (click)="importSources()"
-                    class="settings-primary-button"
-                    data-test-id="source-server-import-confirm"
-                >
-                    {{ 'SETTINGS.IMPORT_DATA' | translate }}
-                </button>
-            </div>
+            </section>
         }
         <p
             role="status"

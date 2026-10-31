@@ -2317,6 +2317,7 @@
         "REFRESH": "Yenile",
         "DISCONNECT": "Bağlantıyı kes",
         "IMPORT": "Yerel kaynakları içe aktar",
+        "IMPORT_EMPTY": "Özgün yerel kitaplığınızda içe aktarılacak kaynak yok.",
         "IMPORT_PREVIEW": "{{count}} yerel kaynak sunucuya kopyalansın mı? Mevcut kaynaklar yinelenmez. Yerel veriler korunur.",
         "IMPORTED": "Kaynaklar içe aktarıldı.",
         "IMPORT_FAILED": "İçe aktarma başarısız. Yeniden denemek yinelenen kaynak oluşturmaz.",

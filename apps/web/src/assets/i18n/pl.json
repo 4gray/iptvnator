@@ -2317,6 +2317,7 @@
         "REFRESH": "Odśwież",
         "DISCONNECT": "Rozłącz",
         "IMPORT": "Importuj lokalne źródła",
+        "IMPORT_EMPTY": "W oryginalnej lokalnej bibliotece nie ma źródeł do zaimportowania.",
         "IMPORT_PREVIEW": "Skopiować lokalne źródła ({{count}}) na serwer? Istniejące źródła są rozpoznawane bez duplikatów. Dane lokalne pozostają zachowane.",
         "IMPORTED": "Źródła zaimportowane.",
         "IMPORT_FAILED": "Import nie powiódł się. Ponowna próba nie tworzy duplikatów.",

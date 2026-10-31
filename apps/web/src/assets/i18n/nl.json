@@ -2317,6 +2317,7 @@
         "REFRESH": "Vernieuwen",
         "DISCONNECT": "Loskoppelen",
         "IMPORT": "Lokale bronnen importeren",
+        "IMPORT_EMPTY": "Uw oorspronkelijke lokale bibliotheek bevat geen bronnen om te importeren.",
         "IMPORT_PREVIEW": "{{count}} lokale bronnen naar de server kopiëren? Bestaande bronnen worden zonder duplicaten herkend. Lokale gegevens blijven behouden.",
         "IMPORTED": "Bronnen geïmporteerd.",
         "IMPORT_FAILED": "Importeren mislukt. Opnieuw proberen maakt geen duplicaten.",

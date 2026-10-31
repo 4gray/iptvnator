@@ -186,6 +186,26 @@ test('@settings @ui connected activity controls keep clear status, spacing and r
     await expect(page.getByTestId('source-server-state')).toHaveText(
         'Connected'
     );
+    await page.getByTestId('source-server-import').click();
+    const emptyPreview = page.getByTestId('source-server-import-preview');
+    await expect(page.getByTestId('source-server-import-empty')).toHaveText(
+        'There are no sources in your original local library to import.'
+    );
+    await expect(emptyPreview.locator('ul')).toHaveCount(0);
+    await expect(page.getByTestId('source-server-import-confirm')).toHaveCount(
+        0
+    );
+    expect((await emptyPreview.boundingBox())!.height).toBeLessThan(110);
+    for (const dark of [true, false]) {
+        await applyUiTheme(page, dark);
+        await emptyPreview.screenshot({
+            path: testInfo.outputPath(
+                `import-empty-${dark ? 'dark' : 'light'}.png`
+            ),
+        });
+    }
+    await page.getByTestId('source-server-import-close').click();
+    await expect(emptyPreview).toHaveCount(0);
     await page
         .getByTestId('activity-sync-enabled')
         .getByRole('checkbox')

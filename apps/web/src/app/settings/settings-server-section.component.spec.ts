@@ -79,6 +79,30 @@ describe('source server settings', () => {
         expect(requestSourceServer).not.toHaveBeenCalled();
     });
 
+    it('shows a compact dismissible empty preview without an empty list or import action', async () => {
+        readLocalSourcesForImport.mockResolvedValueOnce([]);
+        await fixture.componentInstance.previewImport();
+        fixture.detectChanges();
+        const preview = fixture.nativeElement.querySelector(
+            '[data-test-id="source-server-import-preview"]'
+        );
+        expect(preview.querySelector('[role="status"]').textContent).toContain(
+            'SOURCE_SYNC.IMPORT_EMPTY'
+        );
+        expect(preview.querySelector('ul')).toBeNull();
+        expect(
+            preview.querySelector(
+                '[data-test-id="source-server-import-confirm"]'
+            )
+        ).toBeNull();
+        preview
+            .querySelector('[data-test-id="source-server-import-close"]')
+            .click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.preview()).toBeNull();
+        expect(requestSourceServer).not.toHaveBeenCalled();
+    });
+
     it('imports definitions with fresh IDs while leaving favorites and history local', async () => {
         const component = fixture.componentInstance;
         await component.previewImport();

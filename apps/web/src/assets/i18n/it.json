@@ -2317,6 +2317,7 @@
         "REFRESH": "Aggiorna",
         "DISCONNECT": "Disconnetti",
         "IMPORT": "Importa sorgenti locali",
+        "IMPORT_EMPTY": "Non ci sono sorgenti nella libreria locale originale da importare.",
         "IMPORT_PREVIEW": "Copiare {{count}} sorgenti locali sul server? Le sorgenti esistenti vengono riconosciute senza duplicati. I dati locali restano.",
         "IMPORTED": "Sorgenti importate.",
         "IMPORT_FAILED": "Importazione non riuscita. Puoi riprovare senza creare duplicati.",

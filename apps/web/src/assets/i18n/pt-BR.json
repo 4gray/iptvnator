@@ -2317,6 +2317,7 @@
         "REFRESH": "Atualizar",
         "DISCONNECT": "Desconectar",
         "IMPORT": "Importar fontes locais",
+        "IMPORT_EMPTY": "Não há fontes na sua biblioteca local original para importar.",
         "IMPORT_PREVIEW": "Copiar {{count}} fontes locais para o servidor? As fontes existentes são reconhecidas sem duplicatas. Os dados locais são preservados.",
         "IMPORTED": "Fontes importadas.",
         "IMPORT_FAILED": "A importação falhou. Você pode tentar novamente sem criar duplicatas.",

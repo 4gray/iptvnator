@@ -2317,6 +2317,7 @@
         "REFRESH": "重新整理",
         "DISCONNECT": "中斷連線",
         "IMPORT": "匯入本機來源",
+        "IMPORT_EMPTY": "原來的本機媒體庫中沒有可匯入的來源。",
         "IMPORT_PREVIEW": "將 {{count}} 個本機來源複製到伺服器？已有來源不會重複。本機資料會保留。",
         "IMPORTED": "來源已匯入。",
         "IMPORT_FAILED": "匯入失敗。重試不會建立重複來源。",

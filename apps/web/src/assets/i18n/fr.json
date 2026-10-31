@@ -2317,6 +2317,7 @@
         "REFRESH": "Actualiser",
         "DISCONNECT": "Déconnecter",
         "IMPORT": "Importer les sources locales",
+        "IMPORT_EMPTY": "Votre bibliothèque locale d’origine ne contient aucune source à importer.",
         "IMPORT_PREVIEW": "Copier {{count}} sources locales sur ce serveur ? Les sources existantes sont reconnues sans doublons. Les données locales sont conservées.",
         "IMPORTED": "Sources importées.",
         "IMPORT_FAILED": "Échec de l’importation. Réessayer ne crée pas de doublons.",

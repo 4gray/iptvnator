@@ -2317,6 +2317,7 @@
         "REFRESH": "Frissítés",
         "DISCONNECT": "Leválasztás",
         "IMPORT": "Helyi források importálása",
+        "IMPORT_EMPTY": "Az eredeti helyi könyvtárban nincsenek importálható források.",
         "IMPORT_PREVIEW": "Szeretne {{count}} helyi forrást átmásolni a kiszolgálóra? A már meglévő források nem kerülnek be újra, a helyi adatok pedig megmaradnak.",
         "IMPORTED": "Források importálva.",
         "IMPORT_FAILED": "Nem sikerült importálni a forrásokat. Próbálja meg újra: a már meglévő forrásokat az alkalmazás nem veszi fel kétszer.",

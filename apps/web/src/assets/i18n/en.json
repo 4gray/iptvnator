@@ -2317,6 +2317,7 @@
         "REFRESH": "Refresh",
         "DISCONNECT": "Disconnect",
         "IMPORT": "Import local sources",
+        "IMPORT_EMPTY": "There are no sources in your original local library to import.",
         "IMPORT_PREVIEW": "Copy {{count}} local sources to this server? Existing sources are matched without duplicates. Local data is kept.",
         "IMPORTED": "Sources imported.",
         "IMPORT_FAILED": "Import failed. You can retry without creating duplicates.",
