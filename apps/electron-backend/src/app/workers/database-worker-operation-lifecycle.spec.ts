@@ -239,6 +239,7 @@ describe('database worker operation lifecycle', () => {
     );
 
     it('flushes accumulated progress before reporting an import failure', async () => {
+        jest.spyOn(Date, 'now').mockReturnValue(1_000);
         saveContent.mockImplementation(
             async (
                 _db: unknown,
@@ -255,6 +256,10 @@ describe('database worker operation lifecycle', () => {
                         increment: 1,
                     });
                 }
+                expect(lifecycle('failed-import')).toEqual([
+                    'started',
+                    'progress',
+                ]);
                 throw new Error('batch failed');
             }
         );
