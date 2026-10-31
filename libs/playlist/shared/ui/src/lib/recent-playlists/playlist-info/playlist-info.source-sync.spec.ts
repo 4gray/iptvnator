@@ -344,7 +344,7 @@ describe('shared source editor', () => {
     );
 
     it.each([false, true])(
-        'retains server edit recovery without duplicate writes (parked=%s)',
+        'leaves rejected edits untouched when a restore predates this scan (pending=%s)',
         async (parked) => {
             const log = jest
                 .spyOn(console, 'error')
@@ -362,7 +362,7 @@ describe('shared source editor', () => {
                         .getPlaylistById as jest.Mock
                 ).mockReturnValue(of(complete));
                 runtime.supportsXtreamSqliteDataSource = true;
-                refresh.mockRejectedValue(new Error('scan failed'));
+                refresh.mockRejectedValue(new Error('scan blocked'));
                 pending.mockReturnValue(parked ? {} : null);
                 const editor = TestBed.createComponent(
                     PlaylistInfoComponent
@@ -370,35 +370,16 @@ describe('shared source editor', () => {
                 for (let n = 0; n < 6; n++) await Promise.resolve();
                 const next = {
                     ...complete,
+                    username: 'rejected',
                     xtreamContentTypes: ['live', 'movie'],
                 } as Playlist;
-                const saving = editor.saveChanges(next);
-                for (let n = 0; n < 6; n++) await Promise.resolve();
-                if (parked) {
-                    expect(updatePlaylistMeta).toHaveBeenCalledTimes(1);
-                    persisted.next({
-                        ...next,
-                        sourceSyncRevision: '"recovery"',
-                    });
-                    persisted.complete();
-                }
-                await saving;
+                updatePlaylistMeta.mockReturnValue(of(next));
+                await editor.saveChanges(next);
+                expect(updatePlaylistMeta).not.toHaveBeenCalled();
                 expect(sqliteUpdate).not.toHaveBeenCalled();
+                expect(dispatch).not.toHaveBeenCalled();
                 expect(close).not.toHaveBeenCalled();
-                if (parked)
-                    expect(dispatch).toHaveBeenCalledWith(
-                        expect.objectContaining({
-                            persist: false,
-                            playlist: expect.objectContaining({
-                                sourceSyncRevision: '"recovery"',
-                                xtreamContentTypes: ['live', 'movie'],
-                            }),
-                        })
-                    );
-                else {
-                    expect(updatePlaylistMeta).not.toHaveBeenCalled();
-                    expect(dispatch).not.toHaveBeenCalled();
-                }
+                expect(editor.playlist.sourceSyncRevision).toBe('"opened"');
             } finally {
                 log.mockRestore();
             }

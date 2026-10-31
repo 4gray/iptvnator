@@ -404,6 +404,14 @@ Refresh supplies the source's enabled types. Disabled catalog rows remain intact
 restore still sees the complete source's user state. Import completion and progress
 exclude intentionally skipped types.
 
+Failed edit-time writes clear only unfinished catalog types and retain their
+pending user-state snapshot. Native save transactions commit in batches, so a
+partially written catalog must be removed before bootstrap can retry it. Completed
+types survive a failure in another type or in user-state replay. An existing
+pending restore blocks a new edit without persisting any of that rejected edit's
+metadata; recovery publication belongs only to metadata confirmed by the current
+scan's `beforeReplace` callback.
+
 Fresh desktop backup restores separate dormant catalog-dependent history and
 hidden choices from the active import snapshot. Enabled types initialize normally;
 unloaded types retain durable restore data for re-export and later re-enabling.

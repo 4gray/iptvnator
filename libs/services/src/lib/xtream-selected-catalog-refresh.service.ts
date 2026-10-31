@@ -66,6 +66,7 @@ export class XtreamSelectedCatalogRefreshService {
             );
         }
         const release = this.activity.begin([playlist._id]);
+        const incomplete = new Set<XtreamContentType>();
         const publish = (
             type: XtreamContentType | null,
             phase: XtreamSelectedCatalogProgress['phase'],
@@ -145,6 +146,7 @@ export class XtreamSelectedCatalogRefreshService {
             const snapshot = this.pending.getSnapshotOrThrow(playlist._id);
             if (!snapshot)
                 throw new Error('Source restore state is unavailable.');
+            for (const type of types) incomplete.add(type);
             await this.db.deleteXtreamPlaylistContent(playlist._id, {
                 contentTypes: types,
             });
@@ -187,6 +189,7 @@ export class XtreamSelectedCatalogRefreshService {
                     type,
                     'completed'
                 );
+                incomplete.delete(type);
             }
             publish(null, 'restoring');
             const result = await this.pending.applyAndConsume(
@@ -207,6 +210,34 @@ export class XtreamSelectedCatalogRefreshService {
             );
             if (result === 'consume-failed')
                 throw new Error('Could not finish source restore.');
+        } catch (error) {
+            // Native writes commit in chunks. A retry must not reuse a partial
+            // catalog and then consume history for content it never imported.
+            let cleanupFailed = false;
+            for (const type of incomplete) {
+                try {
+                    try {
+                        await this.db.setXtreamImportStatus(
+                            playlist._id,
+                            type,
+                            'failed'
+                        );
+                    } finally {
+                        if (
+                            !(await this.db.clearXtreamImportCache(
+                                playlist._id,
+                                type
+                            ))
+                        )
+                            cleanupFailed = true;
+                    }
+                } catch {
+                    cleanupFailed = true;
+                }
+            }
+            if (cleanupFailed)
+                throw new Error('Could not clear incomplete catalog cache.');
+            throw error;
         } finally {
             this.progressState.set(null);
             release();

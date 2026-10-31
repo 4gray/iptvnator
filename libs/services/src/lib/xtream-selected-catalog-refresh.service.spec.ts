@@ -32,7 +32,8 @@ describe('edit-time Xtream catalog refresh', () => {
         | 'setXtreamImportStatus'
         | 'restoreXtreamUserData'
         | 'getRecentItemsOrThrow'
-        | 'getAllXtreamCategories',
+        | 'getAllXtreamCategories'
+        | 'clearXtreamImportCache',
         jest.Mock
     >;
     let pending: Record<string, jest.Mock>;
@@ -50,9 +51,11 @@ describe('edit-time Xtream catalog refresh', () => {
                 'restoreXtreamUserData',
                 'getRecentItemsOrThrow',
                 'getAllXtreamCategories',
+                'clearXtreamImportCache',
             ].map((name) => [name, jest.fn().mockResolvedValue(undefined)])
         ) as typeof db;
         db.deleteXtreamPlaylistContent.mockResolvedValue(saved);
+        db.clearXtreamImportCache.mockResolvedValue(true);
         db.getAllXtreamCategories.mockResolvedValue([]);
         db.getRecentItemsOrThrow.mockResolvedValue([
             { type: 'live', xtream_id: 42, viewed_at: '2026-01-01' },
@@ -138,6 +141,22 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(release).toHaveBeenCalledTimes(1);
     });
 
+    it('does not confirm an edit or mutate cache while an earlier restore is pending', async () => {
+        pending['getOrThrow'].mockReturnValue({
+            ...saved,
+            playbackPositions: [],
+        });
+        const authorize = jest.fn();
+        await expect(
+            service.refresh(playlist, ['movie'], authorize)
+        ).rejects.toThrow('current source import');
+        expect(authorize).not.toHaveBeenCalled();
+        expect(data.sendIpcEvent).not.toHaveBeenCalled();
+        expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+        expect(pending['set']).not.toHaveBeenCalled();
+    });
+
     it('waits for metadata confirmation before parking or replacing catalog state', async () => {
         let confirm!: () => void;
         const authorize = jest.fn(
@@ -220,6 +239,52 @@ describe('edit-time Xtream catalog refresh', () => {
         );
         expect(pending['set'].mock.invocationCallOrder[0]).toBeLessThan(
             db.deleteXtreamPlaylistContent.mock.invocationCallOrder[0]
+        );
+        expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalled();
+    });
+
+    it('clears only unfinished types after a committed batch fails and keeps recovery parked', async () => {
+        data.sendIpcEvent.mockResolvedValue({
+            payload: [{ stream_id: 1, category_id: 1 }],
+        });
+        db.saveXtreamContent.mockImplementation(async (_id, _rows, type) => {
+            if (type === 'movie') throw new Error('second transaction failed');
+            return 1;
+        });
+        await expect(
+            service.refresh(playlist, ['live', 'movie'])
+        ).rejects.toThrow('second transaction failed');
+        expect(db.clearXtreamImportCache).toHaveBeenCalledTimes(1);
+        expect(db.clearXtreamImportCache).toHaveBeenCalledWith('p', 'movie');
+        expect(db.setXtreamImportStatus).toHaveBeenCalledWith(
+            'p',
+            'live',
+            'completed'
+        );
+        expect(db.setXtreamImportStatus).toHaveBeenCalledWith(
+            'p',
+            'movie',
+            'failed'
+        );
+        expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+    });
+
+    it('keeps healthy completed catalogs if only replay fails', async () => {
+        pending['applyAndConsume'].mockRejectedValue(
+            new Error('restore failed')
+        );
+        await expect(service.refresh(playlist, ['movie'])).rejects.toThrow(
+            'restore failed'
+        );
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+    });
+
+    it('reports cleanup failure without consuming the parked history', async () => {
+        db.saveXtreamCategories.mockRejectedValue(new Error('disk full'));
+        db.clearXtreamImportCache.mockResolvedValue(false);
+        await expect(service.refresh(playlist, ['movie'])).rejects.toThrow(
+            'incomplete catalog'
         );
         expect(pending['applyAndConsume']).not.toHaveBeenCalled();
         expect(release).toHaveBeenCalled();

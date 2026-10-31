@@ -220,37 +220,43 @@ test.describe('Dialog shell', () => {
                 'transform',
                 'none'
             );
-            const geometry = await dialog.evaluate((container) => {
-                const hero = container.querySelector(
-                    '.account-dialog__hero'
-                ) as HTMLElement;
-                const stats = container.querySelector(
-                    '.account-dialog__hero-stats'
-                ) as HTMLElement;
-                const body = container.querySelector(
-                    'mat-dialog-content'
-                ) as HTMLElement;
-                const heroStyle = getComputedStyle(hero);
-                return {
-                    heroWidth: hero.getBoundingClientRect().width,
-                    // The body's width without its scrollbar: the CI runners
-                    // draw a classic 15px one inside the box, a local Mac
-                    // overlays it. The bounding width keeps the fraction the
-                    // integer clientWidth would round away.
-                    bodyWidth:
-                        body.getBoundingClientRect().width -
-                        (body.offsetWidth - body.clientWidth),
-                    statsWidth: stats.getBoundingClientRect().width,
-                    heroInner:
-                        hero.getBoundingClientRect().width -
-                        parseFloat(heroStyle.paddingLeft) -
-                        parseFloat(heroStyle.paddingRight),
-                };
-            });
-            // Edge to edge under the header, and the stats fill the band.
-            expect(
-                Math.abs(geometry.heroWidth - geometry.bodyWidth)
-            ).toBeLessThanOrEqual(1);
+            const readGeometry = () =>
+                dialog.evaluate((container) => {
+                    const hero = container.querySelector(
+                        '.account-dialog__hero'
+                    ) as HTMLElement;
+                    const stats = container.querySelector(
+                        '.account-dialog__hero-stats'
+                    ) as HTMLElement;
+                    const body = container.querySelector(
+                        'mat-dialog-content'
+                    ) as HTMLElement;
+                    const heroStyle = getComputedStyle(hero);
+                    return {
+                        heroWidth: hero.getBoundingClientRect().width,
+                        // The body's width without its scrollbar: the CI runners
+                        // draw a classic 15px one inside the box, a local Mac
+                        // overlays it. The bounding width keeps the fraction the
+                        // integer clientWidth would round away.
+                        bodyWidth:
+                            body.getBoundingClientRect().width -
+                            (body.offsetWidth - body.clientWidth),
+                        statsWidth: stats.getBoundingClientRect().width,
+                        heroInner:
+                            hero.getBoundingClientRect().width -
+                            parseFloat(heroStyle.paddingLeft) -
+                            parseFloat(heroStyle.paddingRight),
+                    };
+                });
+            // Bounding rects follow the entry transform; integer scrollbar
+            // metrics do not. Keep the strict geometry check through settling.
+            let geometry = await readGeometry();
+            await expect
+                .poll(async () => {
+                    geometry = await readGeometry();
+                    return Math.abs(geometry.heroWidth - geometry.bodyWidth);
+                })
+                .toBeLessThanOrEqual(1);
             expect(geometry.statsWidth).toBeGreaterThanOrEqual(
                 geometry.heroInner - 1
             );

@@ -38,7 +38,6 @@ import {
     PlaylistStorageBackend,
     RuntimeCapabilitiesService,
     SourceActivityService,
-    XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import {
     normalizeStalkerIdentityValue,
@@ -555,13 +554,8 @@ export class PlaylistInfoComponent {
             } catch (error) {
                 // Accepted metadata stays authoritative after a cache failure.
                 // A parked snapshot keeps its selected types for retry imports.
-                if (
-                    savedMetadata ||
-                    this.injector
-                        .get(XtreamPendingRestoreService)
-                        .getOrThrow(this.playlist._id)
-                ) {
-                    const saved = await persistOnce();
+                if (savedMetadata) {
+                    const saved = savedMetadata;
                     if (persistShared) {
                         this.playlist = {
                             ...this.playlist,
