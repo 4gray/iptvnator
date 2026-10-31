@@ -1,12 +1,4 @@
-import {
-    DestroyRef,
-    Injectable,
-    Provider,
-    computed,
-    effect,
-    inject,
-    signal,
-} from '@angular/core';
+import { Injectable, Provider, computed, inject } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import {
     buildStalkerSelectedVodItem,
@@ -16,22 +8,16 @@ import {
     StalkerVodSource,
     stalkerCategoryLabelText,
 } from '@iptvnator/portal/stalker/data-access';
-import {
-    PlaybackPositionRuntimeBridgeService,
-    injectTranslationTick,
-} from '@iptvnator/services';
+import { injectTranslationTick } from '@iptvnator/services';
 import {
     PortalCatalogItemProgress,
     PortalCatalogPlaylistMeta,
     PortalCatalogSortMode,
     PORTAL_CATALOG_FACADE,
-    PORTAL_PLAYBACK_POSITIONS,
     StalkerPortalCatalogFacade,
-    getPortalPlaybackProgressPercent,
-    resolvePortalSeriesWatchState,
-    resolvePortalWatchState,
 } from '@iptvnator/portal/shared/util';
-import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import { createStalkerCatalogPositions } from './stalker-catalog-positions';
+import { createStalkerCatalogWatchFilter } from './stalker-catalog-watch-filter';
 import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
 @Injectable()
@@ -43,29 +29,19 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     private readonly stalkerStore = inject(StalkerStore);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
-    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
-    private readonly playbackPositionBridge = inject(
-        PlaybackPositionRuntimeBridgeService
+    private readonly positions = createStalkerCatalogPositions(
+        this.stalkerStore
     );
-    private readonly destroyRef = inject(DestroyRef);
-    private readonly stalkerPositions = signal<
-        Map<string, PlaybackPositionData>
-    >(new Map());
-    private readonly stalkerSeriesPositions = signal<
-        Map<number, PlaybackPositionData[]>
-    >(new Map());
-    private loadedPositionsForPlaylistId: string | null = null;
-    // Latest-load-wins: a positions fetch superseded while in flight must
-    // not patch the maps with another playlist's rows.
-    private positionsLoadGeneration = 0;
+    readonly hideWatched = createStalkerCatalogWatchFilter(
+        this.stalkerStore,
+        this.positions
+    );
 
     readonly provider = 'stalker' as const;
     readonly routeReady = inject(StalkerWorkspaceRouteSession).isReady;
     readonly contentType = this.stalkerStore.selectedContentType;
     readonly selectedCategory = this.stalkerStore.getSelectedCategory;
-    readonly paginatedContent = computed(
-        () => this.stalkerStore.getPaginatedContent() ?? []
-    );
+    readonly paginatedContent = this.hideWatched.items;
     readonly selectedItem = this.stalkerStore.selectedItem;
     /**
      * The store's loading flag covers every portal page; the grid skeleton
@@ -79,9 +55,10 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     );
     readonly isAppending = computed(
         () =>
-            (this.stalkerStore.isPaginatedContentLoading() ||
+            ((this.stalkerStore.isPaginatedContentLoading() ||
                 this.stalkerStore.isContentRetrying()) &&
-            this.stalkerStore.page() > 0
+                this.stalkerStore.page() > 0) ||
+            this.hideWatched.scanning()
     );
     readonly hasMore = this.stalkerStore.hasMoreContent;
     readonly appendError = this.stalkerStore.hasContentAppendError;
@@ -135,59 +112,6 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         };
     });
 
-    constructor() {
-        effect(() => {
-            const playlistId = this.playlist()?.id;
-
-            if (!playlistId) {
-                this.loadedPositionsForPlaylistId = null;
-                this.stalkerPositions.set(new Map());
-                this.stalkerSeriesPositions.set(new Map());
-                return;
-            }
-
-            if (playlistId === this.loadedPositionsForPlaylistId) {
-                return;
-            }
-
-            this.loadedPositionsForPlaylistId = playlistId;
-            void this.loadStalkerPositions(playlistId).catch(() => {
-                // Allow a retry on the next playlist activation; the read
-                // now rejects instead of masquerading as an empty list.
-                this.loadedPositionsForPlaylistId = null;
-            });
-        });
-
-        const unsubscribe =
-            this.playbackPositionBridge.onPlaybackPositionUpdate(
-                (data: PlaybackPositionData) => {
-                    if (
-                        !data.playlistId ||
-                        data.playlistId !== this.playlist()?.id
-                    ) {
-                        return;
-                    }
-
-                    void this.playbackPositions.savePlaybackPosition(
-                        data.playlistId,
-                        data
-                    );
-
-                    if (data.contentType === 'vod') {
-                        this.updateVodPlaybackPosition(data);
-                    }
-
-                    if (data.contentType === 'episode' && data.seriesXtreamId) {
-                        this.updateSeriesPlaybackPosition(data);
-                    }
-                }
-            );
-
-        if (unsubscribe) {
-            this.destroyRef.onDestroy(unsubscribe);
-        }
-    }
-
     initialize(categoryId?: string | null): void {
         this.clearSelectedItem();
         if (categoryId) {
@@ -207,19 +131,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     }
 
     loadMore(): void {
-        if (
-            this.stalkerStore.isPaginatedContentLoading() ||
-            this.stalkerStore.isContentRetrying() ||
-            // A failed append blocks further paging — skipping past the
-            // failed portal page would leave a silent hole in the list; the
-            // grid tail's retry re-runs it instead.
-            this.stalkerStore.hasContentAppendError() ||
-            !this.stalkerStore.hasMoreContent()
-        ) {
-            return;
-        }
-
-        this.stalkerStore.nextPage();
+        this.hideWatched.loadMore();
     }
 
     retryAppend(): void {
@@ -264,6 +176,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
             this.stalkerStore.selectedContentType(),
             String(this.stalkerStore.selectedCategoryId() ?? ''),
             this.stalkerStore.searchPhrase(),
+            this.hideWatched.enabled(),
         ].join('|');
     }
 
@@ -282,29 +195,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     }
 
     getItemProgress(item: StalkerVodSource): PortalCatalogItemProgress {
-        const numericId = Number(item.id);
-        if (Number.isNaN(numericId)) {
-            return {};
-        }
-
-        const hasSeriesProgress = Boolean(
-            this.stalkerSeriesPositions().get(numericId)?.length
-        );
-        const isSeries =
-            this.contentType() === 'series' ||
-            isStalkerSeriesFlag(item.is_series);
-
-        if (hasSeriesProgress || isSeries) {
-            return {
-                watchState: resolvePortalSeriesWatchState(hasSeriesProgress),
-            };
-        }
-
-        const position = this.stalkerPositions().get(`vod_${numericId}`);
-        return {
-            progress: getPortalPlaybackProgressPercent(position),
-            watchState: resolvePortalWatchState(position),
-        };
+        return this.positions.getItemProgress(item);
     }
 
     async createLinkToPlayVod(
@@ -369,57 +260,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         if (this.playlist()?.id !== playlistId) {
             return;
         }
-        await this.loadStalkerPositions(playlistId);
-    }
-
-    private async loadStalkerPositions(playlistId: string): Promise<void> {
-        const generation = ++this.positionsLoadGeneration;
-        const positions =
-            await this.playbackPositions.getAllPlaybackPositions(playlistId);
-        if (generation !== this.positionsLoadGeneration) {
-            return;
-        }
-
-        const positionsMap = new Map<string, PlaybackPositionData>();
-        const seriesMap = new Map<number, PlaybackPositionData[]>();
-
-        positions.forEach((position) => {
-            positionsMap.set(
-                `${position.contentType}_${position.contentXtreamId}`,
-                position
-            );
-
-            if (position.contentType === 'episode' && position.seriesXtreamId) {
-                const existing = seriesMap.get(position.seriesXtreamId) ?? [];
-                existing.push(position);
-                seriesMap.set(position.seriesXtreamId, existing);
-            }
-        });
-
-        this.stalkerPositions.set(positionsMap);
-        this.stalkerSeriesPositions.set(seriesMap);
-    }
-
-    private updateVodPlaybackPosition(position: PlaybackPositionData): void {
-        const updated = new Map(this.stalkerPositions());
-        updated.set(`vod_${position.contentXtreamId}`, position);
-        this.stalkerPositions.set(updated);
-    }
-
-    private updateSeriesPlaybackPosition(position: PlaybackPositionData): void {
-        if (!position.seriesXtreamId) {
-            return;
-        }
-
-        const updated = new Map(this.stalkerSeriesPositions());
-        const positionsForSeries = [
-            ...(updated.get(position.seriesXtreamId) ?? []).filter(
-                (item) => item.contentXtreamId !== position.contentXtreamId
-            ),
-            position,
-        ];
-        updated.set(position.seriesXtreamId, positionsForSeries);
-        this.stalkerSeriesPositions.set(updated);
+        await this.positions.refresh(playlistId);
     }
 }
 
