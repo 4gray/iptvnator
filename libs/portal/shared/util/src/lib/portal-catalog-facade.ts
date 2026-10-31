@@ -35,6 +35,19 @@ export interface PortalCatalogItemProgress {
     watchState?: PortalWatchState;
 }
 
+/** Optional exclusion filter for server-paged catalogs; source totals stay raw. */
+export interface PortalCatalogHideWatched {
+    readonly enabled: Signal<boolean>;
+    readonly loadState: Signal<'idle' | 'loading' | 'ready' | 'error'>;
+    readonly hasSnapshot: Signal<boolean>;
+    readonly paused: Signal<boolean>;
+    readonly resumeVersion: Signal<number>;
+    setEnabled(value: boolean): void;
+    retryPositions(): void;
+    pauseAutomaticLoading(): void;
+    continueLoading(): void;
+}
+
 export interface PortalCatalogFacade<
     TCategory = unknown,
     TItem = unknown,
@@ -93,6 +106,7 @@ export interface PortalCatalogFacade<
     >;
     setWatchStateFilter?(value: PortalWatchStateFilter): void;
     retryWatchFilterPositions?(): void;
+    readonly hideWatched?: PortalCatalogHideWatched;
 
     initialize(categoryId?: string | null): void;
     setSearchQuery?(query: string): void;
