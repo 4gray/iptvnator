@@ -167,9 +167,107 @@ test('server-connected desktop refreshes cached re-enabled catalogs and exports 
                 standaloneKey
             )
         ).toBe(archive(99001));
+        await page
+            .getByRole('button', { name: 'Delete all', exact: true })
+            .click();
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Delete everything', exact: true })
+            .click();
+        await expect(
+            page.getByText('All playlists and playlist data were removed.')
+        ).toBeVisible();
+        expect(
+            await page.evaluate((key) => localStorage.getItem(key), serverKey)
+        ).toBeNull();
+        expect(
+            await page.evaluate(
+                (key) => localStorage.getItem(key),
+                standaloneKey
+            )
+        ).toBe(archive(99001));
     } finally {
         await closeElectronApp(app);
         await recorder.close();
         await server.close();
+    }
+});
+
+test('standalone Settings bulk deletion clears dormant catalog data without touching other profiles', async ({
+    dataDir,
+}) => {
+    const recorder = await recordCatalogRequests();
+    const app = await launchElectronApp(dataDir);
+    const page = app.mainWindow;
+    try {
+        const title = 'Bulk deletion dormant state';
+        await addXtreamPortal(page, {
+            name: title,
+            serverUrl: recorder.url,
+            contentTypes: ['live'],
+        });
+        await expect(
+            page.locator('.workspace-loading-overlay')
+        ).not.toBeVisible();
+        const id = await page.evaluate(
+            async (title) =>
+                (await window.electron.dbGetAppPlaylists()).find(
+                    (row) => row.title === title
+                )!._id,
+            title
+        );
+        const key = `xtream-catalog-restore-${id}`;
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    (id) =>
+                        window.electron.dbGetAppState(
+                            `xtream-import-status:${id}:live`
+                        ),
+                    id
+                )
+            )
+            .toBe('completed');
+        const otherKey = `iptvnator-server:other:${key}`;
+        const state = JSON.stringify({
+            version: 1,
+            favorites: [],
+            playbackPositions: [],
+            hiddenCategories: [{ categoryType: 'movies', xtreamId: 1 }],
+            recentlyViewed: [
+                { contentType: 'movie', xtreamId: 1, viewedAt: '2026-01-01' },
+            ],
+        });
+        await page.evaluate(
+            ({ key, otherKey, state }) => {
+                localStorage.setItem(key, state);
+                localStorage.setItem(otherKey, state);
+            },
+            { key, otherKey, state }
+        );
+        await openSettings(page);
+        await openSettingsSection(page, 'backup');
+        await page
+            .getByRole('button', { name: 'Delete all', exact: true })
+            .click();
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Delete everything', exact: true })
+            .click();
+        await expect(
+            page.getByText('All playlists and playlist data were removed.')
+        ).toBeVisible();
+        expect(
+            await page.evaluate(() => window.electron.dbGetAppPlaylists())
+        ).toEqual([]);
+        expect(
+            await page.evaluate((key) => localStorage.getItem(key), key)
+        ).toBeNull();
+        expect(
+            await page.evaluate((key) => localStorage.getItem(key), otherKey)
+        ).toBe(state);
+    } finally {
+        await closeElectronApp(app);
+        await recorder.close();
     }
 });

@@ -92,3 +92,29 @@ it('does not clear SQLite history if dormant history cannot be cleared safely', 
     ).toBe(false);
     expect(bridge.dbClearPlaylistRecentItems).not.toHaveBeenCalled();
 });
+
+it.each([true, false])(
+    'clears dormant records only after the native bulk deletion succeeds (%s)',
+    async (success) => {
+        const deferred = new XtreamDeferredCatalogRestoreService();
+        deferred.prepare('p', state(), []);
+        const bridge = {
+            dbDeleteAllPlaylists: jest.fn().mockResolvedValue({ success }),
+        };
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            writable: true,
+            value: bridge,
+        });
+        expect(await TestBed.inject(DatabaseService).deleteAllPlaylists()).toBe(
+            success
+        );
+        expect(
+            deferred.forExport('p', {
+                ...state(),
+                hiddenCategories: [],
+                recentlyViewed: [],
+            }).recentlyViewed
+        ).toHaveLength(success ? 0 : 1);
+    }
+);

@@ -360,13 +360,18 @@ export class DatabaseService {
                 await this.playlistBackend.documentStore()!.dbDeleteAllPlaylists();
                 return true;
             }
-            await this.runWithOperationEvents(
+            const result = await this.runWithOperationEvents(
                 'db-delete-all-playlists',
                 'delete-all-playlists',
                 (operationId) =>
                     window.electron.dbDeleteAllPlaylists(operationId),
                 options
             );
+            if (!result.success) return false;
+            const { XtreamDeferredCatalogRestoreService } = await import(
+                './xtream-deferred-catalog-restore.service'
+            );
+            new XtreamDeferredCatalogRestoreService().clearAll();
             return true;
         } catch (error) {
             if (!isDbAbortError(error)) {
