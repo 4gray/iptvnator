@@ -15,6 +15,12 @@ import {
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import { EMPTY, Subject, of } from 'rxjs';
 import { PlaylistInfoComponent } from './playlist-info.component';
+import { XtreamSelectedCatalogRefreshService } from '@iptvnator/services/xtream-catalog-refresh';
+import {
+    SourceActivityService,
+    XtreamPendingRestoreService,
+} from '@iptvnator/services';
+import { Router } from '@angular/router';
 import { STALKER_PLAYLIST_CONNECTION_EDITOR } from './stalker-playlist-connection-editor.token';
 
 describe('shared source editor', () => {
@@ -34,6 +40,10 @@ describe('shared source editor', () => {
     let dispatch: jest.Mock;
     let close: jest.Mock;
     let open: jest.Mock;
+    let refresh: jest.Mock;
+    let pending: jest.Mock;
+    let sqliteUpdate: jest.Mock;
+    const runtime = { supportsXtreamSqliteDataSource: false };
 
     beforeEach(async () => {
         persisted = new Subject();
@@ -41,6 +51,10 @@ describe('shared source editor', () => {
         dispatch = jest.fn();
         close = jest.fn();
         open = jest.fn();
+        runtime.supportsXtreamSqliteDataSource = false;
+        refresh = jest.fn().mockResolvedValue(undefined);
+        pending = jest.fn().mockReturnValue(null);
+        sqliteUpdate = jest.fn().mockResolvedValue(true);
         await TestBed.configureTestingModule({
             imports: [PlaylistInfoComponent],
             providers: [
@@ -70,8 +84,27 @@ describe('shared source editor', () => {
                     },
                 },
                 { provide: Store, useValue: { dispatch } },
-                { provide: DatabaseService, useValue: {} },
-                { provide: RuntimeCapabilitiesService, useValue: {} },
+                {
+                    provide: DatabaseService,
+                    useValue: { updateXtreamPlaylistDetails: sqliteUpdate },
+                },
+                { provide: RuntimeCapabilitiesService, useValue: runtime },
+                {
+                    provide: SourceActivityService,
+                    useValue: { isBusy: () => false },
+                },
+                {
+                    provide: XtreamPendingRestoreService,
+                    useValue: { getOrThrow: pending },
+                },
+                {
+                    provide: XtreamSelectedCatalogRefreshService,
+                    useValue: { refresh },
+                },
+                {
+                    provide: Router,
+                    useValue: { navigate: jest.fn().mockResolvedValue(true) },
+                },
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: { supportsDataManagement: false },
@@ -193,4 +226,107 @@ describe('shared source editor', () => {
             log.mockRestore();
         }
     });
+
+    it('scans newly enabled cached desktop catalogs while retaining authoritative server persistence', async () => {
+        const complete = {
+            ...opened,
+            serverUrl: 'https://panel.test',
+            username: 'user',
+            password: 'password',
+            xtreamContentTypes: ['live'],
+        } as Playlist;
+        (
+            TestBed.inject(PlaylistsService).getPlaylistById as jest.Mock
+        ).mockReturnValue(of(complete));
+        runtime.supportsXtreamSqliteDataSource = true;
+        const editor = TestBed.createComponent(
+            PlaylistInfoComponent
+        ).componentInstance;
+        for (let n = 0; n < 6; n++) await Promise.resolve();
+        const next = {
+            ...complete,
+            xtreamContentTypes: ['live', 'movie'],
+        } as Playlist;
+        const saving = editor.saveChanges(next);
+        for (let n = 0; n < 6; n++) await Promise.resolve();
+        expect(refresh).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: 'shared' }),
+            ['movie']
+        );
+        expect(updatePlaylistMeta).toHaveBeenCalledTimes(1);
+        persisted.next({ ...next, sourceSyncRevision: '"saved"' });
+        persisted.complete();
+        await saving;
+        expect(sqliteUpdate).not.toHaveBeenCalled();
+        expect(dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                persist: false,
+                playlist: expect.objectContaining({
+                    sourceSyncRevision: '"saved"',
+                }),
+            })
+        );
+    });
+
+    it.each([false, true])(
+        'retains server edit recovery without duplicate writes (parked=%s)',
+        async (parked) => {
+            const log = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+            try {
+                const complete = {
+                    ...opened,
+                    serverUrl: 'https://panel.test',
+                    username: 'user',
+                    password: 'password',
+                    xtreamContentTypes: ['live'],
+                } as Playlist;
+                (
+                    TestBed.inject(PlaylistsService)
+                        .getPlaylistById as jest.Mock
+                ).mockReturnValue(of(complete));
+                runtime.supportsXtreamSqliteDataSource = true;
+                refresh.mockRejectedValue(new Error('scan failed'));
+                pending.mockReturnValue(parked ? {} : null);
+                const editor = TestBed.createComponent(
+                    PlaylistInfoComponent
+                ).componentInstance;
+                for (let n = 0; n < 6; n++) await Promise.resolve();
+                const next = {
+                    ...complete,
+                    xtreamContentTypes: ['live', 'movie'],
+                } as Playlist;
+                const saving = editor.saveChanges(next);
+                for (let n = 0; n < 6; n++) await Promise.resolve();
+                if (parked) {
+                    expect(updatePlaylistMeta).toHaveBeenCalledTimes(1);
+                    persisted.next({
+                        ...next,
+                        sourceSyncRevision: '"recovery"',
+                    });
+                    persisted.complete();
+                }
+                await saving;
+                expect(sqliteUpdate).not.toHaveBeenCalled();
+                expect(close).not.toHaveBeenCalled();
+                if (parked)
+                    expect(dispatch).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            persist: false,
+                            playlist: expect.objectContaining({
+                                sourceSyncRevision: '"recovery"',
+                                xtreamContentTypes: ['live', 'movie'],
+                            }),
+                        })
+                    );
+                else {
+                    expect(updatePlaylistMeta).not.toHaveBeenCalled();
+                    expect(dispatch).not.toHaveBeenCalled();
+                }
+            } finally {
+                log.mockRestore();
+            }
+        }
+    );
 });

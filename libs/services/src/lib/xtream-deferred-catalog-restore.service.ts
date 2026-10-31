@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { sourceProfileStorageKey } from './source-sync/source-profile-storage';
 import {
     normalizeXtreamPendingRestoreState,
     XtreamContentType,
@@ -21,6 +22,7 @@ function merge<T>(older: T[], current: T[], key: (item: T) => string): T[] {
     );
 }
 export interface DeferredCatalogSnapshot {
+    readonly key: string;
     readonly raw: string | null;
     readonly state: XtreamPendingRestoreState;
 }
@@ -33,8 +35,9 @@ type CatalogState = Pick<
 @Injectable({ providedIn: 'root' })
 export class XtreamDeferredCatalogRestoreService {
     private read(playlistId: string): DeferredCatalogSnapshot {
-        const raw = localStorage.getItem(prefix + playlistId);
-        if (!raw) return { raw, state: empty() };
+        const key = sourceProfileStorageKey(prefix + playlistId);
+        const raw = localStorage.getItem(key);
+        if (!raw) return { key, raw, state: empty() };
         const parsed = JSON.parse(raw);
         if (
             parsed?.version !== 1 ||
@@ -43,11 +46,11 @@ export class XtreamDeferredCatalogRestoreService {
         ) {
             throw new Error('Deferred catalog restore is unreadable.');
         }
-        return { raw, state: normalizeXtreamPendingRestoreState(parsed) };
+        return { key, raw, state: normalizeXtreamPendingRestoreState(parsed) };
     }
 
     private write(playlistId: string, state: XtreamPendingRestoreState): void {
-        const key = prefix + playlistId;
+        const key = sourceProfileStorageKey(prefix + playlistId);
         const hasData =
             state.hiddenCategories.length || state.recentlyViewed.length;
         const encoded = hasData ? JSON.stringify({ version: 1, ...state }) : '';
@@ -146,7 +149,8 @@ export class XtreamDeferredCatalogRestoreService {
         snapshot: DeferredCatalogSnapshot,
         available: readonly XtreamContentType[]
     ): void {
-        if (this.read(playlistId).raw !== snapshot.raw) return;
+        const current = this.read(playlistId);
+        if (current.key !== snapshot.key || current.raw !== snapshot.raw) return;
         this.write(playlistId, {
             ...snapshot.state,
             ...this.filterCatalogs(snapshot.state, available, false),
@@ -171,13 +175,14 @@ export class XtreamDeferredCatalogRestoreService {
     }
 
     private ids(playlistId?: string): string[] {
+        const scopedPrefix = sourceProfileStorageKey(prefix);
         return playlistId
             ? [playlistId]
             : Array.from({ length: localStorage.length }, (_, index) =>
                   localStorage.key(index)
               )
-                  .filter((key): key is string => !!key?.startsWith(prefix))
-                  .map((key) => key.slice(prefix.length));
+                  .filter((key): key is string => !!key?.startsWith(scopedPrefix))
+                  .map((key) => key.slice(scopedPrefix.length));
     }
 
     clearAll(): void {

@@ -352,12 +352,22 @@ export class PlaylistInfoComponent {
                 this.playlist.password &&
                 this.playlist.serverUrl;
 
-            if (
-                isXtream &&
-                this.runtime.supportsXtreamSqliteDataSource &&
-                !sharedSource
-            ) {
-                await this.updateXtreamPlaylist(normalizedPlaylist);
+            let sharedXtreamPersisted = false;
+            if (isXtream && this.runtime.supportsXtreamSqliteDataSource) {
+                normalizedPlaylist = await this.updateXtreamPlaylist(
+                    normalizedPlaylist,
+                    sharedSource
+                        ? async () => {
+                              const saved = await firstValueFrom(
+                                  this.playlistsService.updatePlaylistMeta(
+                                      normalizedPlaylist
+                                  )
+                              );
+                              sharedXtreamPersisted = true;
+                              return saved;
+                          }
+                        : undefined
+                );
             }
 
             if (resolvedStalkerConnection) {
@@ -375,7 +385,7 @@ export class PlaylistInfoComponent {
                 };
             }
 
-            if (sharedSource) {
+            if (sharedSource && !sharedXtreamPersisted) {
                 normalizedPlaylist = await firstValueFrom(
                     resolvedStalkerConnection
                         ? this.playlistsService.getPlaylistById(
@@ -500,7 +510,10 @@ export class PlaylistInfoComponent {
         }
     }
 
-    async updateXtreamPlaylist(playlist: PlaylistMeta) {
+    async updateXtreamPlaylist(
+        playlist: PlaylistMeta,
+        persistShared?: () => Promise<PlaylistMeta>
+    ): Promise<PlaylistMeta> {
         if (
             this.injector.get(SourceActivityService).isBusy(this.playlist._id)
         ) {
@@ -512,14 +525,21 @@ export class PlaylistInfoComponent {
             this.playlist.xtreamContentTypes,
             playlist.xtreamContentTypes
         );
-        const persist = () =>
-            this.databaseService.updateXtreamPlaylistDetails({
-                id: this.playlist._id,
-                title: playlist.title,
-                username: playlist.username,
-                password: playlist.password,
-                serverUrl: playlist.serverUrl,
-                xtreamContentTypes: playlist.xtreamContentTypes,
+        const persist =
+            persistShared ??
+            (async () => {
+                const saved =
+                    await this.databaseService.updateXtreamPlaylistDetails({
+                        id: this.playlist._id,
+                        title: playlist.title,
+                        username: playlist.username,
+                        password: playlist.password,
+                        serverUrl: playlist.serverUrl,
+                        xtreamContentTypes: playlist.xtreamContentTypes,
+                    });
+                if (!saved)
+                    throw new Error('Failed to update playlist in database');
+                return playlist;
             });
 
         if (newlyEnabled.length) {
@@ -536,22 +556,20 @@ export class PlaylistInfoComponent {
                         .get(XtreamPendingRestoreService)
                         .getOrThrow(this.playlist._id)
                 ) {
-                    if (!(await persist()))
-                        throw new Error(
-                            'Failed to persist catalog recovery selection.'
-                        );
+                    const saved = await persist();
                     this.store.dispatch(
-                        PlaylistActions.updatePlaylistMeta({ playlist })
+                        PlaylistActions.updatePlaylistMeta({
+                            playlist: saved,
+                            ...(persistShared ? { persist: false } : {}),
+                        })
                     );
                 }
                 throw error;
             }
         }
-        if (!(await persist()))
-            throw new Error('Failed to update playlist in database');
-
         // The metadata action below updates PlaylistContextFacade; the routed
         // Xtream session observes connection changes and bootstraps fresh state.
+        return persist();
     }
 
     exportPlaylist(): Promise<void> {

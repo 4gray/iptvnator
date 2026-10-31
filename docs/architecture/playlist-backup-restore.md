@@ -103,6 +103,13 @@ choices. Explicit history clearing and source deletion clear corresponding dorma
 data. Storage failures retain the original active restore for retry rather than
 acknowledging an incomplete restore.
 
+Dormant records use the active source profile's storage prefix, including the
+server instance ID in connected desktop mode. Export, replay, history clearing
+and source deletion only read or mutate that profile. A replay snapshot also
+retains its storage key, so switching profiles cannot consume an identical record
+owned by another server. Standalone records keep their existing unprefixed keys;
+they are not adopted by an unrelated server profile.
+
 A failed pending-storage, recent-history or playback-position read fails export.
 An unreadable collection must never be serialized as a successful empty collection.
 
