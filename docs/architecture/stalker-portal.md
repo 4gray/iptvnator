@@ -490,6 +490,9 @@ and show a retry notice; newer player updates beat in-flight snapshot reads.
 Accepted throttled inline-player writes feed the same catalog snapshot as
 external-player events, so returning from inline completion immediately hides
 that movie without re-reading the whole progress history.
+Catalog entry also refreshes local progress so watched toggles and inline
+playback in Favorites/Recent are reflected when returning to Movies; retained
+provider pages are not refetched for that refresh.
 
 `StalkerCatalogFacadeService` derives the visible list from retained raw pages;
 provider totals, deduplication and exhaustion remain store-owned. Counts say how

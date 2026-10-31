@@ -2,7 +2,9 @@ import {
     addStalkerPortal,
     closeElectronApp,
     expect,
+    expectPathname,
     launchElectronApp,
+    openWorkspaceSection,
     test,
 } from './electron-test-fixtures';
 
@@ -111,6 +113,71 @@ test('@electron @stalker @persistence hide watched follows SQLite marks and exte
                 .locator('app-grid-list')
                 .getByRole('button', { name: title, exact: true })
         ).toHaveCount(1);
+    } finally {
+        await closeElectronApp(app);
+    }
+});
+
+test('@electron @stalker @persistence refreshes hide watched after marking and unmarking a favorite', async ({
+    dataDir,
+}) => {
+    test.setTimeout(120_000);
+    const app = await launchElectronApp(dataDir);
+    const page = app.mainWindow;
+    try {
+        await addStalkerPortal(page, {
+            name: 'Stalker favorite watch changes',
+            macAddress: '00:1A:79:AF:10:06',
+        });
+        const grid = page.locator('app-grid-list');
+        const cards = grid.locator('mat-card');
+        await expect(cards.first()).toBeVisible();
+        await expect(cards.first()).toHaveAttribute('aria-label', /\S/);
+        const title = (await cards
+            .first()
+            .getAttribute('aria-label')) as string;
+        await cards.first().click();
+        await page.getByRole('button', { name: 'Add to favorites' }).click();
+        await expect(
+            page.getByRole('button', { name: 'Remove from favorites' })
+        ).toBeVisible();
+        await page.getByTestId('workspace-header-back').click();
+        await page.getByRole('button', { name: 'Refine', exact: true }).click();
+        await page
+            .getByRole('menuitemcheckbox', {
+                name: 'Hide watched',
+                exact: true,
+            })
+            .click();
+
+        for (const watched of [true, false]) {
+            await openWorkspaceSection(page, 'Favorites');
+            await page
+                .getByRole('button', { name: title, exact: true })
+                .click();
+            const toggle = page.locator('[data-testid="vod-watched-toggle"]');
+            await expect(toggle).toBeEnabled();
+            await expect(toggle).toHaveAttribute(
+                'aria-pressed',
+                String(!watched)
+            );
+            await toggle.click();
+            await expect(toggle).toHaveAttribute(
+                'aria-pressed',
+                String(watched)
+            );
+            await openWorkspaceSection(page, 'Movies');
+            await expectPathname(page, /\/vod$/);
+            await expect(
+                page.getByRole('button', {
+                    name: 'Clear hide watched filter',
+                    exact: true,
+                })
+            ).toBeVisible();
+            await expect(
+                grid.getByRole('button', { name: title, exact: true })
+            ).toHaveCount(watched ? 0 : 1);
+        }
     } finally {
         await closeElectronApp(app);
     }

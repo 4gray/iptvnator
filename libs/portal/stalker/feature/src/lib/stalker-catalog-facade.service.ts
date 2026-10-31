@@ -115,6 +115,11 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
 
     initialize(categoryId?: string | null): void {
         this.clearSelectedItem();
+        // The retained facade also returns from collections, whose watched
+        // toggles and inline playback write persistence outside this snapshot.
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        if (playlistId)
+            void this.positions.refresh(playlistId).catch(() => undefined);
         if (categoryId) {
             this.stalkerStore.setSelectedCategory(categoryId);
             return;
