@@ -105,7 +105,13 @@ export function createStalkerCatalogWatchFilter(
                 cancel();
                 return;
             }
-            if (!pending) return;
+            if (!pending) {
+                // A delayed first page can finish with zero visible rows,
+                // leaving no rendered-count change to wake infinite scroll.
+                if (page === 0 && raw?.length && count === 0 && enabled())
+                    loadMore();
+                return;
+            }
             if (selected || failed || page !== pending.page) {
                 cancel();
                 return;

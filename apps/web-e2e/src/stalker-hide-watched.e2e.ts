@@ -202,6 +202,96 @@ async function toggleFilter(page: Page) {
     await checkbox.click();
 }
 
+test('@web @pwa @stalker scans past a delayed watched-only first page after changing categories', async ({
+    page,
+}) => {
+    test.setTimeout(120_000);
+    await configureMockProviderBackend(page);
+    await interceptStalkerRequests(page);
+    const categoryPages: number[] = [];
+    let releaseFirstPage!: () => void;
+    const firstPageGate = new Promise<void>((resolve) => {
+        releaseFirstPage = resolve;
+    });
+    await page.route('**/stalker?**', async (route) => {
+        const url = new URL(route.request().url());
+        if (
+            url.searchParams.get('action') !== 'get_ordered_list' ||
+            url.searchParams.get('type') !== 'vod'
+        )
+            return route.fallback();
+        const category = url.searchParams.get('category');
+        const index = Number(url.searchParams.get('p') ?? 1);
+        const all = category === '*';
+        if (!all) {
+            categoryPages.push(index);
+            if (index === 1) await firstPageGate;
+        }
+        const ids = all
+            ? [999]
+            : Array.from({ length: 14 }, (_, i) => (index - 1) * 14 + i + 1);
+        return route.fulfill({
+            json: {
+                payload: {
+                    js: {
+                        data: ids.map((id) => ({
+                            id: String(id),
+                            name: `Delayed movie ${id}`,
+                            cmd: `ffmpeg http://media.example/${id}.mp4`,
+                            category_id: all ? '1' : category,
+                        })),
+                        total_items: all ? 1 : 28,
+                    },
+                },
+            },
+        });
+    });
+    await page.goto('/');
+    await addStalkerPortal(page, {
+        name: 'Delayed watched category',
+        mac: '00:1A:79:AF:10:07',
+    });
+    const cards = page.locator('app-grid-list mat-card');
+    await expect(cards).toHaveCount(1);
+    const playlistId = new URL(page.url()).pathname.match(
+        /stalker\/([^/]+)/
+    )?.[1];
+    expect(playlistId).toBeTruthy();
+    await page.evaluate((id) => {
+        localStorage.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({
+                [id]: Array.from({ length: 14 }, (_, i) => ({
+                    playlistId: id,
+                    contentType: 'vod',
+                    contentXtreamId: i + 1,
+                    positionSeconds: 100,
+                    durationSeconds: 100,
+                })),
+            })
+        );
+    }, playlistId as string);
+    await page.reload();
+    await expect(cards).toHaveCount(1);
+    await toggleFilter(page);
+    await page.locator('.category-item').nth(1).click();
+    try {
+        await expect.poll(() => categoryPages).toEqual([1]);
+        await expect(page.locator('.grid-skeleton-card').first()).toBeVisible();
+    } finally {
+        releaseFirstPage();
+    }
+    await expect(cards).toHaveCount(14);
+    await expect(cards.first()).toContainText('Delayed movie 15');
+    expect(categoryPages).toEqual([1, 2]);
+    await expect(
+        page.getByRole('button', {
+            name: 'Clear hide watched filter',
+            exact: true,
+        })
+    ).toBeVisible();
+});
+
 test('@web @pwa @stalker @persistence hides manually watched movies after detail return and restores them without catalog requests', async ({
     page,
 }) => {

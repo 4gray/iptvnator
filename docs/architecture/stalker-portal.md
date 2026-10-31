@@ -499,7 +499,9 @@ provider totals, deduplication and exhaustion remain store-owned. Counts say how
 many loaded items are shown versus the category total, not a filtered total.
 `stalker-catalog-watch-filter.ts` scans sequentially through up to three provider
 pages without visible additions per load-more request, then pauses with **Load
-more**. Clearing the filter restores retained rows without refetching. Filtered
+more**. A delayed first page containing only hidden movies starts that same
+bounded scan after loading, including when the filter carries into another
+category. Clearing the filter restores retained rows without refetching. Filtered
 empty states distinguish partial results from exhausted results; append errors
 retain Retry for the same page. A new selection identity cancels continuation,
 and inline details suspend automatic page requests. If sparse visible additions

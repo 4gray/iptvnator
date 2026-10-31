@@ -242,6 +242,43 @@ describe('Stalker catalog hide watched', () => {
         expect(store.nextPage).toHaveBeenCalledTimes(1);
     });
 
+    it('does not scan retained rows from the previous category before its replacement loads', async () => {
+        store.page.set(3);
+        filter.setEnabled(true);
+        await flush();
+        filter.pauseAutomaticLoading();
+        expect(filter.paused()).toBe(true);
+
+        // Category selection resets the page before its request replaces rows.
+        store.selectedCategoryId.set('new-category');
+        store.page.set(0);
+        await flush();
+        expect(store.nextPage).not.toHaveBeenCalled();
+        expect(filter.scanning()).toBe(false);
+    });
+
+    it('starts a bounded scan when a delayed first page in another category is fully watched', async () => {
+        store.getPaginatedContent.set([{ id: 2 }]);
+        filter.setEnabled(true);
+        await flush();
+        store.selectedCategoryId.set('new-category');
+        store.getPaginatedContent.set([]);
+        store.isPaginatedContentLoading.set(true);
+        await flush();
+        expect(filter.enabled()).toBe(true);
+        expect(store.nextPage).not.toHaveBeenCalled();
+
+        store.getPaginatedContent.set([{ id: 1 }]);
+        store.isPaginatedContentLoading.set(false);
+        await flush();
+        expect(store.nextPage).toHaveBeenCalledTimes(1);
+        expect(filter.scanning()).toBe(true);
+        await finishPage([{ id: 2 }], false);
+        expect(filter.items()).toEqual([{ id: 2 }]);
+        expect(filter.scanning()).toBe(false);
+        expect(store.nextPage).toHaveBeenCalledTimes(1);
+    });
+
     it('stops a scan at source exhaustion, including an empty/repeated raw page', async () => {
         filter.setEnabled(true);
         await flush();
