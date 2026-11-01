@@ -159,6 +159,92 @@ describe('activity HTTP API', () => {
             });
         }));
 
+    it('retains activity through canonical URL, password and metadata-only edits', () =>
+        withTempStorage(async (storage) => {
+            storage.playlists.upsert(source, { keepPayload: false });
+            const service = new ServerActivityService(storage);
+            const old = service.context('source');
+            storage.playlists.upsert(
+                {
+                    ...source,
+                    serverUrl: 'HTTPS://PROVIDER.TEST/',
+                    password: 'synthetic-rotated-secret',
+                    title: 'Synthetic renamed source',
+                },
+                { keepPayload: false }
+            );
+            expect(service.context('source').sourceIncarnation).toBe(
+                old.sourceIncarnation
+            );
+        }));
+
+    it.each(['account', 'endpoint', 'mac'] as const)(
+        'retires an unobserved %s round-trip inside the source update transaction',
+        (change) =>
+            withTempStorage(async (storage) => {
+                const original =
+                    change === 'mac'
+                        ? {
+                              ...source,
+                              type: 'stalker',
+                              serverUrl: undefined,
+                              portalUrl: 'https://synthetic.invalid',
+                              macAddress: '00:11:22:33:44:55',
+                          }
+                        : source;
+                storage.playlists.upsert(original, { keepPayload: false });
+                const service = new ServerActivityService(storage);
+                const old = service.context('source');
+                const changed =
+                    change === 'account'
+                        ? { ...original, username: 'synthetic-other-account' }
+                        : change === 'endpoint'
+                          ? {
+                                ...original,
+                                serverUrl: 'https://synthetic-other.invalid',
+                            }
+                          : { ...original, macAddress: '00:11:22:33:44:66' };
+                expect(() =>
+                    storage.database.transaction(() => {
+                        storage.playlists.upsert(changed, {
+                            keepPayload: false,
+                        });
+                        throw new Error('Synthetic rollback');
+                    })
+                ).toThrow('Synthetic rollback');
+                expect(service.context('source').sourceIncarnation).toBe(
+                    old.sourceIncarnation
+                );
+                storage.playlists.upsert(changed, { keepPayload: false });
+                storage.playlists.upsert(original, { keepPayload: false });
+                expect(service.context('source').sourceIncarnation).not.toBe(
+                    old.sourceIncarnation
+                );
+                expect(() =>
+                    service.states.apply(
+                        {
+                            instanceId: storage.database.instanceId,
+                            scope: 'shared',
+                            sourceId: 'source',
+                            sourceIncarnation: old.sourceIncarnation,
+                            content: {
+                                provider:
+                                    change === 'mac' ? 'stalker' : 'xtream',
+                                kind: 'vod',
+                                id: '42',
+                            },
+                        },
+                        {
+                            kind: 'reset',
+                            operationId: 'synthetic-stale-reset',
+                            deviceId: 'synthetic-device',
+                            expectedRevision: 0,
+                        }
+                    )
+                ).toThrow('Source identity changed');
+            })
+    );
+
     it('rejects queued activity after source deletion/recreation and retains history separately', () =>
         withTempStorage(async (storage) => {
             storage.playlists.upsert(source, { keepPayload: false });

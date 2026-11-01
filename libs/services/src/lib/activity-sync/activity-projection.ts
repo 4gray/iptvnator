@@ -96,3 +96,18 @@ export function activityResume(position: PlaybackPositionData): ActivityResume {
             : {}),
     };
 }
+
+/** Exact zero rows mirror a cleared Stalker episode, not a playable resume point. */
+export function activityImportResume(
+    address: ActivityAddress,
+    position: PlaybackPositionData
+): ActivityResume | null {
+    if (
+        address.content.provider === 'stalker' &&
+        address.content.kind === 'episode' &&
+        position.positionSeconds === 0 &&
+        position.durationSeconds === 0
+    )
+        return null;
+    return activityResume(position);
+}

@@ -1,9 +1,10 @@
-import { randomUUID, createHash } from 'node:crypto';
-import { SqliteActivityServerStore } from '@iptvnator/shared/database/activity-sync';
+import { randomUUID } from 'node:crypto';
 import {
-    sourceFingerprint,
-    sourceFromPlaylist,
-} from '@iptvnator/shared/interfaces/source-definition';
+    activitySourceFingerprint,
+    initializeActivitySources,
+} from './activity-source-lifecycle';
+import { SqliteActivityServerStore } from '@iptvnator/shared/database/activity-sync';
+import { sourceFromPlaylist } from '@iptvnator/shared/interfaces/source-definition';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import type {
     ActivityAddress,
@@ -16,13 +17,7 @@ import { StorageRequestError } from './storage-route-errors';
 export class ServerActivityService {
     readonly states: SqliteActivityServerStore;
     constructor(private readonly storage: ServerStorage) {
-        storage.database.sqlite.exec(`
-            CREATE TABLE IF NOT EXISTS activity_source_context (
-                source_id TEXT PRIMARY KEY NOT NULL, fingerprint TEXT NOT NULL, incarnation TEXT NOT NULL
-            );
-            CREATE TRIGGER IF NOT EXISTS activity_source_deleted AFTER DELETE ON playlists
-                BEGIN DELETE FROM activity_source_context WHERE source_id = OLD.id; END;
-        `);
+        initializeActivitySources(storage.database.sqlite);
         this.states = new SqliteActivityServerStore(
             storage.database.sqlite,
             (address) => this.authorize(address)
@@ -48,9 +43,7 @@ export class ServerActivityService {
                 'This source does not support viewing activity.'
             );
         }
-        const fingerprint = createHash('sha256')
-            .update(sourceFingerprint(source))
-            .digest('hex');
+        const fingerprint = activitySourceFingerprint(source);
         const existing = this.storage.database.sqlite
             .prepare(
                 'SELECT fingerprint, incarnation FROM activity_source_context WHERE source_id = ?'

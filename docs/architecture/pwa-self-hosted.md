@@ -947,6 +947,8 @@ server state is a reset, so disabling or keeping the queue local preserves it.
 Queue actions use the current source incarnation and leave retired records parked.
 Successful delivery determines readiness from current-incarnation, current-consent
 operations; parked historical queues do not preserve an obsolete offline status.
+Explicit import preserves these zero-position, zero-duration episode rows as
+null resume state with identity metadata, rather than creating resume activity.
 Stalker episode resets keep exact zero rows in series reads and local mirrors;
 compatible legacy aliases cannot promote old progress over that reset.
 
@@ -969,6 +971,10 @@ before shared activity exists. `GET /sources/:id` returns the source incarnation
 address, and `POST /operations` applies one operation. Responses are not cached.
 A persisted source fingerprint determines its incarnation; password rotation
 retains it, while a new account/endpoint or deletion/recreation retires it.
+The source repository invalidates a changed fingerprint inside its upsert
+transaction, so an account/endpoint change followed by a return to the original
+identity still retires old queues even if activity never observed the intermediate
+identity. Canonically equivalent URLs and metadata/password edits keep their scope.
 Pending operations never move automatically to another incarnation or instance.
 
 The local consent reader accepts the original boolean records and normalizes

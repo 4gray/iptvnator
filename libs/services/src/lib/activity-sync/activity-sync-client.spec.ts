@@ -274,6 +274,38 @@ describe('activity sync clients', () => {
     });
 
     it.each(['regular', 'embedded', 'lazy'] as const)(
+        'imports a mirrored Stalker %s reset without creating resume activity',
+        async (mode) => {
+            const h = harness('stalker');
+            const a = h.client('synthetic-device');
+            const position: PlaybackPositionData = {
+                contentType: 'episode',
+                contentXtreamId: 101,
+                seriesXtreamId: 100,
+                positionSeconds: 0,
+                durationSeconds: 0,
+                watched: false,
+                activityIdentity: {
+                    provider: 'stalker',
+                    kind: 'episode',
+                    seriesId: '100',
+                    id: 'synthetic-episode',
+                    mode,
+                    seasonKey: '1',
+                    episodeNumber: 1,
+                },
+            };
+            await a.value.importPosition('source', position);
+            await a.value.flush();
+            expect([...h.states.values()][0].resume).toBeNull();
+            expect((await a.value.positions('source'))[0]).toMatchObject({
+                reset: true,
+                position: { activityIdentity: position.activityIdentity },
+            });
+        }
+    );
+
+    it.each(['regular', 'embedded', 'lazy'] as const)(
         'preserves scoped metadata on a first Stalker %s reset before other clients open the series',
         async (mode) => {
             const h = harness('stalker');
