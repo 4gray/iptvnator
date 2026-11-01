@@ -39,6 +39,78 @@ const resume = (page: Page, name: string) =>
     page
         .locator('.resume-card')
         .filter({ has: page.getByText(name, { exact: true }) });
+
+for (const intent of ['details', 'resume'] as const)
+    for (const direction of ['Next', 'Previous'] as const)
+        test(`changing the featured title with ${direction} cancels delayed ${intent}`, async ({
+            page,
+        }) => {
+            await start(page);
+            await watch(page, sourceA);
+            await watch(page, sourceB, false, 1);
+            await addSource(page, 'xtream', {
+                name: 'Synthetic source C',
+                username: 'marketing',
+                password: 'marketing',
+            });
+            await expect(page.locator('.hero .home-source-name')).toHaveText(
+                sourceB
+            );
+            let held = 0;
+            let release!: () => void;
+            const gate = new Promise<void>((resolve) => (release = resolve));
+            await page.route('**/xtream?**', async (route) => {
+                const action =
+                    new URL(route.request().url()).searchParams.get('action') ??
+                    '';
+                if (!['get_account_info', '', 'get_profile'].includes(action))
+                    return route.fallback();
+                held++;
+                await gate;
+                try {
+                    await route.fallback();
+                } catch {
+                    /* The retired source request can already be aborted. */
+                }
+            });
+            try {
+                await page
+                    .locator(
+                        intent === 'details'
+                            ? '[data-focus="hero"]'
+                            : '[data-focus="hero-resume"]'
+                    )
+                    .click();
+                await expect.poll(() => held).toBeGreaterThan(0);
+                await expect(
+                    page.getByRole('button', { name: 'Cancel opening title' })
+                ).toBeVisible();
+                const control = page.getByRole('button', {
+                    name: `${direction} unfinished title`,
+                });
+                await control.focus();
+                await page.keyboard.press('Enter');
+                await expect(
+                    page.locator('.hero .home-source-name')
+                ).toHaveText(sourceA);
+                await expect(
+                    page.getByRole('button', { name: 'Cancel opening title' })
+                ).toBeHidden();
+                release();
+                await expect(page.locator('.loading')).toBeHidden();
+                await expect(
+                    page.locator('.hero .home-source-name')
+                ).toHaveText(sourceA);
+                await expect(control).toBeFocused();
+                await expect(
+                    page.locator(
+                        '.detail-hero,.player-controls,video[src],video source'
+                    )
+                ).toHaveCount(0);
+            } finally {
+                release();
+            }
+        });
 async function active(page: Page) {
     return page.evaluate(
         () =>
@@ -620,7 +692,7 @@ test('a ready-source resume waits behind an earlier source save', async ({
     }
 });
 
-for (const action of ['resume', 'Back'] as const)
+for (const action of ['resume', 'Back', 'Next', 'Previous'] as const)
     test(`episode-details persistence cannot navigate after ${action}`, async ({
         page,
     }) => {
@@ -728,7 +800,14 @@ for (const action of ['resume', 'Back'] as const)
                 )
                 .toBe(true);
             if (action === 'Back') await page.keyboard.press('Escape');
-            else await resume(page, sourceB).click();
+            else if (action === 'resume') await resume(page, sourceB).click();
+            else {
+                const control = page.getByRole('button', {
+                    name: `${action} unfinished title`,
+                });
+                await control.focus();
+                await page.keyboard.press('Enter');
+            }
             await page.evaluate(() =>
                 (
                     window as unknown as { releaseSeriesSave?: () => void }
@@ -739,7 +818,7 @@ for (const action of ['resume', 'Back'] as const)
                 await expect(
                     page.locator('video[src],video source')
                 ).toHaveCount(0);
-            } else {
+            } else if (action === 'resume') {
                 await expect(page.locator('.player-controls')).toBeVisible();
                 expect(await active(page)).toBe(expected);
                 await expect
@@ -751,6 +830,18 @@ for (const action of ['resume', 'Back'] as const)
                     .toBeGreaterThan(7);
                 await page.keyboard.press('Escape');
                 await expect(resume(page, sourceB)).toBeFocused();
+            } else {
+                await expect(
+                    page.locator('.hero .home-source-name')
+                ).toHaveText(sourceB);
+                await expect(
+                    page.getByRole('button', {
+                        name: `${action} unfinished title`,
+                    })
+                ).toBeFocused();
+                await expect(
+                    page.locator('video[src],video source')
+                ).toHaveCount(0);
             }
             await expect(page.locator('.detail-hero')).toHaveCount(0);
         } finally {
