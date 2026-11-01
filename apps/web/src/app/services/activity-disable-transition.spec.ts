@@ -169,6 +169,46 @@ describe('retryable activity disable transition', () => {
         localStorage.clear();
         await prepareSourceConnection();
     });
+    it('reconciles a superseded pause after consent reads recover', async () => {
+        const f = fixture('native');
+        f.recover();
+        const { runtime, client } = f.makeRuntime();
+        let blocked = false;
+        const get = Storage.prototype.getItem;
+        jest.spyOn(Storage.prototype, 'getItem').mockImplementation(function (
+            this: Storage,
+            key: string
+        ) {
+            if (key === consentKey && blocked)
+                throw new Error('Synthetic read failure');
+            return get.call(this, key);
+        });
+        const save = f.save.getMockImplementation()!;
+        f.save.mockImplementationOnce(async (...args) => {
+            await save(...args);
+            localStorage.setItem(
+                consentKey,
+                JSON.stringify({
+                    enabled: true,
+                    generation: 'synthetic-new-enabled',
+                    deviceId: 'synthetic-device',
+                })
+            );
+            blocked = true;
+        });
+        await runtime.setEnabled(false);
+        blocked = false;
+        jest.spyOn(client, 'refresh').mockResolvedValue(undefined);
+        jest.spyOn(client, 'flush').mockResolvedValue(undefined);
+        await runtime.refresh();
+        expect(readActivityConsent()).toMatchObject({
+            enabled: true,
+            disabling: false,
+            generation: 'synthetic-new-enabled',
+        });
+        expect(runtime.enabled()).toBe(true);
+    });
+
     it.each(['origin', 'sibling'] as const)(
         'preserves an already-started %s checkpoint across disable',
         async (writer) => {

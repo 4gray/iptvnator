@@ -972,7 +972,10 @@ The local consent reader accepts the original boolean records and normalizes
 client has no delivery consent. This compact value fits in the existing record
 when storage is full; final persistence failure keeps the retryable pause. The
 settings show that activity is being saved locally while synchronization is
-paused. The local value never travels to the NAS.
+paused. A local pause retains its profile and consent generation. Superseding it
+in another window cancels the old retry, including when a storage read only
+recovers on a later refresh. Same-generation storage failures remain retryable.
+The local value never travels to the NAS.
 
 PWA delivery uses the verified source HTTP client and a separate versioned
 IndexedDB database per instance. Electron uses the same verified native source
@@ -994,7 +997,7 @@ transient pre-seek position. If an explicit launch cannot commit its source
 context, its later checkpoints stay on the local persistence path, including
 when connectivity returns. Failed-launch ownership is persisted before the begin
 promise rejects, so an external player remains local if the renderer reloads
-before its first checkpoint. Unknown native durations normalize to an omitted
+before its first checkpoint. Unknown or non-finite player durations normalize to an omitted
 value before local persistence. Per-position local-only flags in the selected instance's
 renderer storage keep those raw rows ahead of downloaded server projections and
 out of disable-time mirroring, including after renderer recreation. The flags

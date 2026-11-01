@@ -43,12 +43,10 @@ describe('activity consent transition ownership', () => {
         );
         await prepareSourceConnection();
         localStorage.setItem(key, JSON.stringify(original));
-        request
-            .mockReset()
-            .mockResolvedValue({
-                status: 200,
-                body: { capabilities: ['activity-v1'] },
-            });
+        request.mockReset().mockResolvedValue({
+            status: 200,
+            body: { capabilities: ['activity-v1'] },
+        });
     });
     afterEach(async () => {
         localStorage.clear();
@@ -69,6 +67,29 @@ describe('activity consent transition ownership', () => {
         expect(state.error()).toBe(true);
         expect(JSON.parse(localStorage.getItem(key)!)).toEqual(later);
     });
+    it('releases a stale disable pause after another window enables a newer consent', async () => {
+        localStorage.setItem(
+            key,
+            JSON.stringify({ ...original, enabled: true })
+        );
+        const state = controls();
+        state.enabled.set(true);
+        const later = {
+            ...original,
+            enabled: true,
+            generation: 'synthetic-new-enabled',
+        };
+        state.mirror.mockImplementationOnce(async () => {
+            localStorage.setItem(key, JSON.stringify(later));
+        });
+        await changeActivityConsent(state, false);
+        expect(JSON.parse(localStorage.getItem(key)!)).toEqual(later);
+        expect(state.pause).toHaveBeenLastCalledWith(false);
+        expect(state.enabled()).toBe(true);
+        expect(state.state()).toBe('initializing');
+        expect(state.error()).toBe(false);
+    });
+
     it('leaves the old profile retryable if the connection changes during copying', async () => {
         localStorage.setItem(
             key,

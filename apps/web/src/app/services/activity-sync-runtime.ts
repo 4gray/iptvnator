@@ -1,6 +1,9 @@
 import { createActivityRuntimeClient } from './activity-runtime-client';
 import { readActivityConsent } from './activity-consent-state';
-import { changeActivityConsent } from './activity-consent-transition';
+import {
+    changeActivityConsent,
+    type ActivityConsentPause,
+} from './activity-consent-transition';
 import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import {
     DestroyRef,
@@ -30,7 +33,7 @@ import type {
     PlaybackPositionData,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
-import { activityEnabled } from './activity-consent';
+import { activityConsentKey, activityEnabled } from './activity-consent';
 import { ActivityPositionAdapter } from './activity-position-adapter';
 import {
     handleParkedActivity,
@@ -59,6 +62,7 @@ export class ActivitySyncRuntime {
     private consentChange?: Promise<void>;
     private changingTo?: boolean;
     private readonly deliveryPaused = signal(false);
+    private pauseOwner?: ActivityConsentPause;
     readonly enabled = signal(activityEnabled());
     readonly state = signal('disabled');
     readonly stateKey = computed(
@@ -135,7 +139,10 @@ export class ActivitySyncRuntime {
                         for (const sourceId of await this.sourceIds())
                             await this.adapter!.keepLocal(this.raw, sourceId);
                     },
-                    pause: (value) => this.deliveryPaused.set(value),
+                    pause: (value, owner) => {
+                        this.pauseOwner = value ? owner : undefined;
+                        this.deliveryPaused.set(value);
+                    },
                     stopTimer: () => {
                         clearInterval(this.timer);
                         this.timer = undefined;
@@ -156,7 +163,17 @@ export class ActivitySyncRuntime {
 
     private isDisabling(): boolean {
         try {
-            return this.deliveryPaused() || !!readActivityConsent()?.disabling;
+            const current = readActivityConsent();
+            if (
+                this.deliveryPaused() &&
+                this.pauseOwner &&
+                (this.pauseOwner.key !== activityConsentKey() ||
+                    this.pauseOwner.generation !== current?.generation)
+            ) {
+                this.pauseOwner = undefined;
+                this.deliveryPaused.set(false);
+            }
+            return this.deliveryPaused() || !!current?.disabling;
         } catch {
             return true;
         }

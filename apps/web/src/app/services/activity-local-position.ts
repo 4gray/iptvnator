@@ -6,7 +6,9 @@ export function localActivityPosition(
 ): PlaybackPositionData {
     const local = {
         ...position,
-        durationSeconds: position.durationSeconds ?? undefined,
+        durationSeconds: Number.isFinite(position.durationSeconds)
+            ? position.durationSeconds
+            : undefined,
     };
     delete local.activitySessionId;
     delete local.activityAction;

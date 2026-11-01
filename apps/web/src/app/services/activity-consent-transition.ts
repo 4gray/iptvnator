@@ -14,6 +14,11 @@ import {
     type ActivityConsent,
 } from './activity-consent-state';
 
+export interface ActivityConsentPause {
+    key: string;
+    generation: string;
+}
+
 interface ConsentControls {
     enabled: WritableSignal<boolean>;
     busy: WritableSignal<boolean>;
@@ -24,7 +29,7 @@ interface ConsentControls {
     refreshSources(): Promise<void>;
     client(): ActivitySyncClient;
     mirror(): Promise<void>;
-    pause(value: boolean): void;
+    pause(value: boolean, owner?: ActivityConsentPause): void;
     stopTimer(): void;
 }
 
@@ -35,6 +40,7 @@ export async function changeActivityConsent(
 ): Promise<void> {
     controls.busy.set(true);
     controls.error.set(false);
+    let attempt: ActivityConsentPause | undefined;
     try {
         const key = activityConsentKey();
         if (
@@ -66,9 +72,10 @@ export async function changeActivityConsent(
                 throw new Error('Activity server incompatible');
             }
         } else {
-            controls.pause(true);
-            controls.state.set('disabling');
             if (!previous) throw new Error('Activity consent unavailable');
+            attempt = { key, generation: previous.generation };
+            controls.pause(true, attempt);
+            controls.state.set('disabling');
             writeActivityConsent(key, {
                 ...previous,
                 enabled: true,
@@ -109,6 +116,31 @@ export async function changeActivityConsent(
         if (!enabled) controls.stopTimer();
     } catch {
         controls.error.set(true);
+        if (attempt) {
+            try {
+                const sameProfile = activityConsentKey() === attempt.key;
+                const current = sameProfile ? readActivityConsent() : null;
+                if (
+                    !sameProfile ||
+                    current?.generation !== attempt.generation
+                ) {
+                    controls.pause(false);
+                    const active = sameProfile && !!current?.enabled;
+                    controls.enabled.set(active);
+                    controls.state.set(
+                        active
+                            ? current?.disabling
+                                ? 'disabling'
+                                : 'initializing'
+                            : 'disabled'
+                    );
+                    if (sameProfile) controls.error.set(false);
+                    if (!active) controls.stopTimer();
+                }
+            } catch {
+                // Retain the pause until the current consent can be read safely.
+            }
+        }
     } finally {
         controls.busy.set(false);
     }
