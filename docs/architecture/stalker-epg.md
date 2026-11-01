@@ -10,6 +10,12 @@ Related architecture docs:
 
 ## Overview
 
+All paths below honor the global `Settings.epgEnabled` opt-out. When off, bulk
+and short guide requests, mappings and previews are skipped and programme UI is
+hidden. Preference changes retire cached/pending answers; channel artwork from
+the portal is preserved. The shared contract is in
+[Global EPG preference](m3u-playlist-module.md#global-epg-preference).
+
 Stalker now uses two EPG paths with different purposes:
 
 - The active channel EPG panel uses `get_epg_info` as a bulk endpoint, fetches a

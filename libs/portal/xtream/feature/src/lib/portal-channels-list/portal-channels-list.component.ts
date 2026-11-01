@@ -54,6 +54,7 @@ import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
+    EpgPreferencesService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -134,15 +135,24 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly dialog = inject(MatDialog);
 
     readonly channelContextMenu = viewChild.required(
         ChannelContextMenuComponent
     );
     readonly contextMenuChannel = signal<XtreamChannelListItem | null>(null);
-    readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
-    readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
-    readonly channelItemSize = this.supportsProviderEpg ? 68 : 52;
+    get supportsProviderEpg(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.runtime.supportsProviderEpg
+        );
+    }
+    get supportsEpgMapping(): boolean {
+        return this.epgPreferences.enabled() && this.runtime.supportsEpgMapping;
+    }
+    get channelItemSize(): number {
+        return this.supportsProviderEpg ? 68 : 52;
+    }
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly channels = computed(() => {

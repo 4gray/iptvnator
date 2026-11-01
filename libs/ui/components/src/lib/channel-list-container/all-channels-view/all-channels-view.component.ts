@@ -18,7 +18,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { SettingsStore } from '@iptvnator/services';
+import { EpgPreferencesService, SettingsStore } from '@iptvnator/services';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import {
     foldSearchText,
@@ -68,10 +68,15 @@ export type { ChannelEpgMetadata } from '../epg-enrichment.util';
     ],
 })
 export class AllChannelsViewComponent {
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
-    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
+    get supportsEpgMapping(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.epgBridge.supportsEpgMapping
+        );
+    }
 
     readonly channelContextMenu = viewChild.required(
         ChannelContextMenuComponent

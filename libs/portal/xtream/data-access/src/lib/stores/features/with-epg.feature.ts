@@ -13,6 +13,7 @@ import {
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
 import {
+    EpgPreferencesService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -115,8 +116,9 @@ export function withEpg() {
             // the PWA's backend proxy). The XMLTV parts — the manual mapping
             // lookup below and XtreamXmltvFallbackService — keep their own
             // capability checks and stay off in the PWA.
+            const preferences = inject(EpgPreferencesService);
             const supportsProviderEpg = (): boolean =>
-                runtime.supportsProviderEpg;
+                preferences.enabled() && runtime.supportsProviderEpg;
 
             /**
              * Helper to get credentials from parent store

@@ -5,373 +5,434 @@
     </header>
 
     <section class="settings-section">
-        <div class="settings-section__header">
-            <h3>{{ 'SETTINGS.CARD_GUIDE' | translate }}</h3>
-        </div>
         <div class="settings-card">
-            <div class="setting-item" data-setting-id="epg-view-mode">
+            <div class="setting-item" data-setting-id="epg-enabled">
                 <div class="setting-item__meta">
-                    <h4>{{ 'SETTINGS.EPG_VIEW_MODE' | translate }}</h4>
-                    <p>
-                        {{ 'SETTINGS.EPG_VIEW_MODE_DESCRIPTION' | translate }}
+                    <h4 id="epg-enabled-label">
+                        {{ 'SETTINGS.EPG_ENABLED' | translate }}
+                    </h4>
+                    <p id="epg-enabled-description">
+                        {{ 'SETTINGS.EPG_ENABLED_DESCRIPTION' | translate }}
                     </p>
                 </div>
-                <div class="setting-item__control">
-                    <div
-                        class="theme-switcher"
-                        appRadioGroup
-                        [attr.aria-label]="'SETTINGS.EPG_VIEW_MODE' | translate"
-                        data-test-id="select-epg-view-mode"
-                    >
-                        @for (
-                            option of epgViewModeOptions();
-                            track option.value
-                        ) {
-                            <button
-                                type="button"
-                                class="theme-switcher__option"
-                                [class.theme-switcher__option--selected]="
-                                    form().value.epgViewMode === option.value
-                                "
-                                [appRadioOption]="
-                                    form().value.epgViewMode === option.value
-                                "
-                                [attr.data-test-id]="
-                                    'epg-view-mode-' + option.value
-                                "
-                                (click)="selectEpgViewMode.emit(option.value)"
-                            >
-                                <mat-icon>{{ option.icon }}</mat-icon>
-                                <span>{{ option.labelKey | translate }}</span>
-                            </button>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div class="setting-item" data-setting-id="epg-offset">
-                <div class="setting-item__meta">
-                    <h4 id="epg-offset-label">
-                        {{ 'SETTINGS.EPG_OFFSET_TITLE' | translate }}
-                    </h4>
-                    <p>{{ 'SETTINGS.EPG_OFFSET_HINT' | translate }}</p>
-                </div>
-                <div class="setting-item__control setting-item__control--stack">
-                    <div
-                        class="settings-stepper"
-                        [class.settings-stepper--invalid]="
-                            offsetControl?.invalid
-                        "
-                    >
-                        <button
-                            type="button"
-                            class="settings-stepper__button"
-                            [attr.aria-label]="
-                                'SETTINGS.EPG_OFFSET_STEP_DOWN'
-                                    | translate: { minutes: offsetStep }
-                            "
-                            (click)="stepOffset(-offsetStep)"
-                        >
-                            −
-                        </button>
-                        <input
-                            type="number"
-                            min="-720"
-                            max="720"
-                            [step]="offsetStep"
-                            formControlName="epgOffsetMinutes"
-                            aria-labelledby="epg-offset-label"
-                            data-test-id="epg-offset-minutes"
-                        />
-                        <span class="settings-stepper__unit">{{
-                            'SETTINGS.EPG_OFFSET_UNIT' | translate
-                        }}</span>
-                        <button
-                            type="button"
-                            class="settings-stepper__button"
-                            [attr.aria-label]="
-                                'SETTINGS.EPG_OFFSET_STEP_UP'
-                                    | translate: { minutes: offsetStep }
-                            "
-                            (click)="stepOffset(offsetStep)"
-                        >
-                            +
-                        </button>
-                    </div>
-                    @if (offsetControl?.invalid) {
-                        <p class="settings-field-error" role="alert">
-                            {{ 'SETTINGS.EPG_OFFSET_ERROR' | translate }}
-                        </p>
-                    }
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-slide-toggle
+                        formControlName="epgEnabled"
+                        aria-labelledby="epg-enabled-label"
+                        aria-describedby="epg-enabled-description"
+                        data-test-id="toggle-epg-enabled"
+                    />
                 </div>
             </div>
         </div>
     </section>
-
-    @if (showsXmltvSources()) {
+    @if (form().get('epgEnabled')?.value !== false) {
         <section class="settings-section">
             <div class="settings-section__header">
-                <h3>{{ 'SETTINGS.CARD_SOURCES' | translate }}</h3>
-                @if (epgUrl().length > 0) {
-                    <span class="settings-section__count">{{
-                        epgUrl().length
-                    }}</span>
-                    <div class="settings-section__actions">
-                        <button
-                            mat-button
-                            type="button"
-                            [disabled]="
-                                sourceActionsUnavailable() ||
-                                isClearingEpgData()
-                            "
-                            (click)="refreshAllEpg.emit()"
-                        >
-                            <mat-icon>refresh</mat-icon>
-                            {{ 'SETTINGS.REFRESH_ALL_EPG' | translate }}
-                        </button>
-                        <button
-                            mat-flat-button
-                            type="button"
-                            [disabled]="sourceActionsUnavailable()"
-                            (click)="addEpgSource.emit()"
-                        >
-                            <mat-icon>add</mat-icon>
-                            {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
-                        </button>
-                    </div>
-                }
-            </div>
-            <p class="settings-section__desc">
-                {{ 'SETTINGS.EPG_SOURCE_FORMATS_HINT' | translate }}
-            </p>
-            <div class="settings-card">
-                <div
-                    class="setting-item setting-item--list"
-                    data-setting-id="epg-sources"
-                >
-                    <ng-container formArrayName="epgUrl">
-                        @if (epgUrl().length === 0) {
-                            <div
-                                class="epg-sources-empty"
-                                data-test-id="epg-sources-empty"
-                            >
-                                <mat-icon class="epg-sources-empty__icon"
-                                    >event_busy</mat-icon
-                                >
-                                <p class="epg-sources-empty__title">
-                                    {{ 'SETTINGS.EPG_EMPTY_TITLE' | translate }}
-                                </p>
-                                <p class="epg-sources-empty__hint">
-                                    {{ 'SETTINGS.EPG_EMPTY_HINT' | translate }}
-                                </p>
-                                <button
-                                    mat-flat-button
-                                    class="settings-primary-button"
-                                    type="button"
-                                    [disabled]="sourceActionsUnavailable()"
-                                    (click)="addEpgSource.emit()"
-                                >
-                                    <mat-icon>add</mat-icon>
-                                    {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
-                                </button>
-                            </div>
-                        } @else {
-                            <div class="epg-sources">
-                                @for (
-                                    _ of epgUrl().controls;
-                                    track _;
-                                    let i = $index
-                                ) {
-                                    <div class="epg-source-row">
-                                        <mat-form-field
-                                            appearance="outline"
-                                            subscriptSizing="dynamic"
-                                            class="w-full"
-                                        >
-                                            <input
-                                                matInput
-                                                type="text"
-                                                spellcheck="false"
-                                                [formControlName]="i"
-                                                [readonly]="
-                                                    sourceActionsUnavailable()
-                                                "
-                                                [placeholder]="
-                                                    'SETTINGS.EPG_URL_PLACEHOLDER'
-                                                        | translate
-                                                "
-                                                [attr.aria-label]="
-                                                    'SETTINGS.EPG_URL_LABEL'
-                                                        | translate
-                                                "
-                                                #epgField
-                                            />
-                                            <mat-error>{{
-                                                'SETTINGS.EPG_URL_ERROR'
-                                                    | translate
-                                            }}</mat-error>
-                                        </mat-form-field>
-                                        @if (epgField.value) {
-                                            <app-epg-source-status
-                                                [url]="epgField.value"
-                                            />
-                                        }
-                                        @if (canBrowseFiles()) {
-                                            <button
-                                                mat-icon-button
-                                                [matTooltip]="
-                                                    'SETTINGS.BROWSE_EPG_FILE'
-                                                        | translate
-                                                "
-                                                [attr.aria-label]="
-                                                    'SETTINGS.BROWSE_EPG_FILE'
-                                                        | translate
-                                                "
-                                                type="button"
-                                                data-test-id="epg-source-browse"
-                                                [disabled]="
-                                                    sourceActionsUnavailable()
-                                                "
-                                                (click)="
-                                                    browseEpgSource.emit(i)
-                                                "
-                                            >
-                                                <mat-icon>folder_open</mat-icon>
-                                            </button>
-                                        }
-                                        <button
-                                            mat-icon-button
-                                            [matTooltip]="
-                                                'SETTINGS.REFRESH_EPG'
-                                                    | translate
-                                            "
-                                            [attr.aria-label]="
-                                                'SETTINGS.REFRESH_EPG'
-                                                    | translate
-                                            "
-                                            type="button"
-                                            data-test-id="epg-source-refresh"
-                                            [disabled]="
-                                                sourceActionsUnavailable() ||
-                                                epgField.value === ''
-                                            "
-                                            (click)="
-                                                refreshEpg.emit(
-                                                    epgUrl().value[i]
-                                                )
-                                            "
-                                        >
-                                            <mat-icon>refresh</mat-icon>
-                                        </button>
-                                        <button
-                                            mat-icon-button
-                                            [matTooltip]="
-                                                'SETTINGS.REMOVE_EPG_SOURCE'
-                                                    | translate
-                                            "
-                                            [attr.aria-label]="
-                                                'SETTINGS.REMOVE_EPG_SOURCE'
-                                                    | translate
-                                            "
-                                            type="button"
-                                            data-test-id="epg-source-remove"
-                                            [disabled]="
-                                                sourceActionsUnavailable()
-                                            "
-                                            (click)="removeEpgSource.emit(i)"
-                                        >
-                                            <mat-icon>remove</mat-icon>
-                                        </button>
-                                    </div>
-                                }
-                            </div>
-                        }
-                    </ng-container>
-                    <p
-                        class="epg-sources__formats-examples"
-                        data-test-id="epg-source-formats"
-                    >
-                        <span>{{
-                            'SETTINGS.EPG_SOURCE_FORMATS_EXAMPLES' | translate
-                        }}</span>
-                        <code>https://example.org/guide.xml.gz</code>
-                        <code>/home/you/epg/guide.xml</code>
-                        <code>C:\epg\guide.xml.gz</code>
-                        <code>file:///…/guide.xml</code>
-                    </p>
-                </div>
-            </div>
-        </section>
-
-        <section class="settings-section">
-            <div class="settings-section__header">
-                <h3>{{ 'SETTINGS.CARD_XTREAM_PLAYLISTS' | translate }}</h3>
+                <h3>{{ 'SETTINGS.CARD_GUIDE' | translate }}</h3>
             </div>
             <div class="settings-card">
-                <div class="setting-item" data-setting-id="prefer-uploaded-epg">
+                <div class="setting-item" data-setting-id="epg-view-mode">
                     <div class="setting-item__meta">
-                        <h4 id="prefer-uploaded-epg-label">
-                            {{
-                                'SETTINGS.PREFER_UPLOADED_EPG_TITLE' | translate
-                            }}
-                        </h4>
+                        <h4>{{ 'SETTINGS.EPG_VIEW_MODE' | translate }}</h4>
                         <p>
                             {{
-                                'SETTINGS.PREFER_UPLOADED_EPG_HINT' | translate
-                            }}
-                        </p>
-                    </div>
-                    <div class="setting-item__control setting-item__toggle">
-                        <mat-slide-toggle
-                            formControlName="preferUploadedEpgOverXtream"
-                            aria-labelledby="prefer-uploaded-epg-label"
-                            data-test-id="toggle-prefer-uploaded-epg"
-                        ></mat-slide-toggle>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="settings-section">
-            <div class="settings-section__header">
-                <h3>{{ 'SETTINGS.DATA' | translate }}</h3>
-            </div>
-            <div class="settings-card">
-                <div class="setting-item" data-setting-id="epg-clear-data">
-                    <div class="setting-item__meta">
-                        <h4>{{ 'SETTINGS.CLEAR_EPG_DATA' | translate }}</h4>
-                        <p>
-                            {{
-                                'SETTINGS.CLEAR_EPG_DATA_DESCRIPTION'
-                                    | translate
+                                'SETTINGS.EPG_VIEW_MODE_DESCRIPTION' | translate
                             }}
                         </p>
                     </div>
                     <div class="setting-item__control">
-                        <button
-                            mat-stroked-button
-                            class="app-destructive-button"
-                            type="button"
-                            [disabled]="
-                                sourceActionsUnavailable() ||
-                                isClearingEpgData()
+                        <div
+                            class="theme-switcher"
+                            appRadioGroup
+                            [attr.aria-label]="
+                                'SETTINGS.EPG_VIEW_MODE' | translate
                             "
-                            (click)="clearEpgData.emit()"
+                            data-test-id="select-epg-view-mode"
                         >
-                            @if (isClearingEpgData()) {
-                                <mat-progress-spinner
-                                    class="button-spinner"
-                                    diameter="16"
-                                    mode="indeterminate"
-                                />
-                                {{ 'SETTINGS.CLEARING_EPG_DATA' | translate }}
-                            } @else {
-                                {{ 'SETTINGS.CLEAR_EPG_DATA' | translate }}
+                            @for (
+                                option of epgViewModeOptions();
+                                track option.value
+                            ) {
+                                <button
+                                    type="button"
+                                    class="theme-switcher__option"
+                                    [class.theme-switcher__option--selected]="
+                                        form().value.epgViewMode ===
+                                        option.value
+                                    "
+                                    [appRadioOption]="
+                                        form().value.epgViewMode ===
+                                        option.value
+                                    "
+                                    [attr.data-test-id]="
+                                        'epg-view-mode-' + option.value
+                                    "
+                                    (click)="
+                                        selectEpgViewMode.emit(option.value)
+                                    "
+                                >
+                                    <mat-icon>{{ option.icon }}</mat-icon>
+                                    <span>{{
+                                        option.labelKey | translate
+                                    }}</span>
+                                </button>
                             }
-                        </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-item" data-setting-id="epg-offset">
+                    <div class="setting-item__meta">
+                        <h4 id="epg-offset-label">
+                            {{ 'SETTINGS.EPG_OFFSET_TITLE' | translate }}
+                        </h4>
+                        <p>{{ 'SETTINGS.EPG_OFFSET_HINT' | translate }}</p>
+                    </div>
+                    <div
+                        class="setting-item__control setting-item__control--stack"
+                    >
+                        <div
+                            class="settings-stepper"
+                            [class.settings-stepper--invalid]="
+                                offsetControl?.invalid
+                            "
+                        >
+                            <button
+                                type="button"
+                                class="settings-stepper__button"
+                                [attr.aria-label]="
+                                    'SETTINGS.EPG_OFFSET_STEP_DOWN'
+                                        | translate: { minutes: offsetStep }
+                                "
+                                (click)="stepOffset(-offsetStep)"
+                            >
+                                −
+                            </button>
+                            <input
+                                type="number"
+                                min="-720"
+                                max="720"
+                                [step]="offsetStep"
+                                formControlName="epgOffsetMinutes"
+                                aria-labelledby="epg-offset-label"
+                                data-test-id="epg-offset-minutes"
+                            />
+                            <span class="settings-stepper__unit">{{
+                                'SETTINGS.EPG_OFFSET_UNIT' | translate
+                            }}</span>
+                            <button
+                                type="button"
+                                class="settings-stepper__button"
+                                [attr.aria-label]="
+                                    'SETTINGS.EPG_OFFSET_STEP_UP'
+                                        | translate: { minutes: offsetStep }
+                                "
+                                (click)="stepOffset(offsetStep)"
+                            >
+                                +
+                            </button>
+                        </div>
+                        @if (offsetControl?.invalid) {
+                            <p class="settings-field-error" role="alert">
+                                {{ 'SETTINGS.EPG_OFFSET_ERROR' | translate }}
+                            </p>
+                        }
                     </div>
                 </div>
             </div>
         </section>
+
+        @if (showsXmltvSources()) {
+            <section class="settings-section">
+                <div class="settings-section__header">
+                    <h3>{{ 'SETTINGS.CARD_SOURCES' | translate }}</h3>
+                    @if (epgUrl().length > 0) {
+                        <span class="settings-section__count">{{
+                            epgUrl().length
+                        }}</span>
+                        <div class="settings-section__actions">
+                            <button
+                                mat-button
+                                type="button"
+                                [disabled]="
+                                    sourceActionsUnavailable() ||
+                                    isClearingEpgData()
+                                "
+                                (click)="refreshAllEpg.emit()"
+                            >
+                                <mat-icon>refresh</mat-icon>
+                                {{ 'SETTINGS.REFRESH_ALL_EPG' | translate }}
+                            </button>
+                            <button
+                                mat-flat-button
+                                type="button"
+                                [disabled]="sourceActionsUnavailable()"
+                                (click)="addEpgSource.emit()"
+                            >
+                                <mat-icon>add</mat-icon>
+                                {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
+                            </button>
+                        </div>
+                    }
+                </div>
+                <p class="settings-section__desc">
+                    {{ 'SETTINGS.EPG_SOURCE_FORMATS_HINT' | translate }}
+                </p>
+                <div class="settings-card">
+                    <div
+                        class="setting-item setting-item--list"
+                        data-setting-id="epg-sources"
+                    >
+                        <ng-container formArrayName="epgUrl">
+                            @if (epgUrl().length === 0) {
+                                <div
+                                    class="epg-sources-empty"
+                                    data-test-id="epg-sources-empty"
+                                >
+                                    <mat-icon class="epg-sources-empty__icon"
+                                        >event_busy</mat-icon
+                                    >
+                                    <p class="epg-sources-empty__title">
+                                        {{
+                                            'SETTINGS.EPG_EMPTY_TITLE'
+                                                | translate
+                                        }}
+                                    </p>
+                                    <p class="epg-sources-empty__hint">
+                                        {{
+                                            'SETTINGS.EPG_EMPTY_HINT'
+                                                | translate
+                                        }}
+                                    </p>
+                                    <button
+                                        mat-flat-button
+                                        class="settings-primary-button"
+                                        type="button"
+                                        [disabled]="sourceActionsUnavailable()"
+                                        (click)="addEpgSource.emit()"
+                                    >
+                                        <mat-icon>add</mat-icon>
+                                        {{
+                                            'SETTINGS.ADD_EPG_SOURCE'
+                                                | translate
+                                        }}
+                                    </button>
+                                </div>
+                            } @else {
+                                <div class="epg-sources">
+                                    @for (
+                                        _ of epgUrl().controls;
+                                        track _;
+                                        let i = $index
+                                    ) {
+                                        <div class="epg-source-row">
+                                            <mat-form-field
+                                                appearance="outline"
+                                                subscriptSizing="dynamic"
+                                                class="w-full"
+                                            >
+                                                <input
+                                                    matInput
+                                                    type="text"
+                                                    spellcheck="false"
+                                                    [formControlName]="i"
+                                                    [readonly]="
+                                                        sourceActionsUnavailable()
+                                                    "
+                                                    [placeholder]="
+                                                        'SETTINGS.EPG_URL_PLACEHOLDER'
+                                                            | translate
+                                                    "
+                                                    [attr.aria-label]="
+                                                        'SETTINGS.EPG_URL_LABEL'
+                                                            | translate
+                                                    "
+                                                    #epgField
+                                                />
+                                                <mat-error>{{
+                                                    'SETTINGS.EPG_URL_ERROR'
+                                                        | translate
+                                                }}</mat-error>
+                                            </mat-form-field>
+                                            @if (epgField.value) {
+                                                <app-epg-source-status
+                                                    [url]="epgField.value"
+                                                />
+                                            }
+                                            @if (canBrowseFiles()) {
+                                                <button
+                                                    mat-icon-button
+                                                    [matTooltip]="
+                                                        'SETTINGS.BROWSE_EPG_FILE'
+                                                            | translate
+                                                    "
+                                                    [attr.aria-label]="
+                                                        'SETTINGS.BROWSE_EPG_FILE'
+                                                            | translate
+                                                    "
+                                                    type="button"
+                                                    data-test-id="epg-source-browse"
+                                                    [disabled]="
+                                                        sourceActionsUnavailable()
+                                                    "
+                                                    (click)="
+                                                        browseEpgSource.emit(i)
+                                                    "
+                                                >
+                                                    <mat-icon
+                                                        >folder_open</mat-icon
+                                                    >
+                                                </button>
+                                            }
+                                            <button
+                                                mat-icon-button
+                                                [matTooltip]="
+                                                    'SETTINGS.REFRESH_EPG'
+                                                        | translate
+                                                "
+                                                [attr.aria-label]="
+                                                    'SETTINGS.REFRESH_EPG'
+                                                        | translate
+                                                "
+                                                type="button"
+                                                data-test-id="epg-source-refresh"
+                                                [disabled]="
+                                                    sourceActionsUnavailable() ||
+                                                    epgField.value === ''
+                                                "
+                                                (click)="
+                                                    refreshEpg.emit(
+                                                        epgUrl().value[i]
+                                                    )
+                                                "
+                                            >
+                                                <mat-icon>refresh</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                [matTooltip]="
+                                                    'SETTINGS.REMOVE_EPG_SOURCE'
+                                                        | translate
+                                                "
+                                                [attr.aria-label]="
+                                                    'SETTINGS.REMOVE_EPG_SOURCE'
+                                                        | translate
+                                                "
+                                                type="button"
+                                                data-test-id="epg-source-remove"
+                                                [disabled]="
+                                                    sourceActionsUnavailable()
+                                                "
+                                                (click)="
+                                                    removeEpgSource.emit(i)
+                                                "
+                                            >
+                                                <mat-icon>remove</mat-icon>
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </ng-container>
+                        <p
+                            class="epg-sources__formats-examples"
+                            data-test-id="epg-source-formats"
+                        >
+                            <span>{{
+                                'SETTINGS.EPG_SOURCE_FORMATS_EXAMPLES'
+                                    | translate
+                            }}</span>
+                            <code>https://example.org/guide.xml.gz</code>
+                            <code>/home/you/epg/guide.xml</code>
+                            <code>C:\epg\guide.xml.gz</code>
+                            <code>file:///…/guide.xml</code>
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <div class="settings-section__header">
+                    <h3>{{ 'SETTINGS.CARD_XTREAM_PLAYLISTS' | translate }}</h3>
+                </div>
+                <div class="settings-card">
+                    <div
+                        class="setting-item"
+                        data-setting-id="prefer-uploaded-epg"
+                    >
+                        <div class="setting-item__meta">
+                            <h4 id="prefer-uploaded-epg-label">
+                                {{
+                                    'SETTINGS.PREFER_UPLOADED_EPG_TITLE'
+                                        | translate
+                                }}
+                            </h4>
+                            <p>
+                                {{
+                                    'SETTINGS.PREFER_UPLOADED_EPG_HINT'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control setting-item__toggle">
+                            <mat-slide-toggle
+                                formControlName="preferUploadedEpgOverXtream"
+                                aria-labelledby="prefer-uploaded-epg-label"
+                                data-test-id="toggle-prefer-uploaded-epg"
+                            ></mat-slide-toggle>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <div class="settings-section__header">
+                    <h3>{{ 'SETTINGS.DATA' | translate }}</h3>
+                </div>
+                <div class="settings-card">
+                    <div class="setting-item" data-setting-id="epg-clear-data">
+                        <div class="setting-item__meta">
+                            <h4>{{ 'SETTINGS.CLEAR_EPG_DATA' | translate }}</h4>
+                            <p>
+                                {{
+                                    'SETTINGS.CLEAR_EPG_DATA_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control">
+                            <button
+                                mat-stroked-button
+                                class="app-destructive-button"
+                                type="button"
+                                [disabled]="
+                                    sourceActionsUnavailable() ||
+                                    isClearingEpgData()
+                                "
+                                (click)="clearEpgData.emit()"
+                            >
+                                @if (isClearingEpgData()) {
+                                    <mat-progress-spinner
+                                        class="button-spinner"
+                                        diameter="16"
+                                        mode="indeterminate"
+                                    />
+                                    {{
+                                        'SETTINGS.CLEARING_EPG_DATA' | translate
+                                    }}
+                                } @else {
+                                    {{ 'SETTINGS.CLEAR_EPG_DATA' | translate }}
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        }
+    } @else {
+        <p class="settings-section__desc" data-test-id="epg-disabled-hint">
+            {{ 'SETTINGS.EPG_DISABLED_HINT' | translate }}
+        </p>
     }
 </section>

@@ -6,6 +6,7 @@ import { SETTINGS_EPG_VIEW_MODE_OPTIONS } from './settings-options';
 
 function createForm(offset = 0): FormGroup {
     return new FormGroup({
+        epgEnabled: new FormControl(true),
         epgUrl: new FormArray<FormControl<string | null>>([]),
         epgViewMode: new FormControl('timeline'),
         epgOffsetMinutes: new FormControl<number>(offset, [
@@ -39,6 +40,27 @@ describe('SettingsEpgSectionComponent offset stepper', () => {
             imports: [SettingsEpgSectionComponent, TranslateModule.forRoot()],
         }).compileComponents();
         fixture = TestBed.createComponent(SettingsEpgSectionComponent);
+    });
+
+    it('hides guide controls while disabled and restores their saved values', () => {
+        const form = configure(createForm(90));
+        (form.get('epgUrl') as FormArray).push(
+            new FormControl('https://example.org/guide.xml')
+        );
+        form.get('epgEnabled')?.setValue(false);
+        fixture.detectChanges();
+        expect(query('[data-test-id="toggle-epg-enabled"]')).not.toBeNull();
+        expect(query('[data-test-id="epg-disabled-hint"]')).not.toBeNull();
+        expect(query('[data-setting-id="epg-view-mode"]')).toBeNull();
+        expect(query('[data-setting-id="epg-sources"]')).toBeNull();
+        expect(form.get('epgOffsetMinutes')?.value).toBe(90);
+        expect(form.get('epgUrl')?.value).toEqual([
+            'https://example.org/guide.xml',
+        ]);
+        form.get('epgEnabled')?.setValue(true);
+        fixture.detectChanges();
+        expect(query('[data-setting-id="epg-view-mode"]')).not.toBeNull();
+        expect(query('[data-setting-id="epg-sources"]')).not.toBeNull();
     });
 
     it('moves the offset by one step and stages the change', () => {
@@ -81,7 +103,9 @@ describe('SettingsEpgSectionComponent offset stepper', () => {
         const form = configure(createForm());
         const addButtons = () =>
             Array.from(
-                (fixture.nativeElement as HTMLElement).querySelectorAll('button')
+                (fixture.nativeElement as HTMLElement).querySelectorAll(
+                    'button'
+                )
             ).filter((button) =>
                 button.textContent?.includes('SETTINGS.ADD_EPG_SOURCE')
             );
@@ -105,6 +129,7 @@ describe('SettingsEpgSectionComponent offset stepper', () => {
 
     it('renders only the display settings without XMLTV sources (browser PWA)', () => {
         const form = new FormGroup({
+            epgEnabled: new FormControl(true),
             epgViewMode: new FormControl('timeline'),
             epgOffsetMinutes: new FormControl<number>(0),
         });

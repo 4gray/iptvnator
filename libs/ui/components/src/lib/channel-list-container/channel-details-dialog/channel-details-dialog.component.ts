@@ -1,3 +1,4 @@
+import { EpgPreferencesService } from '@iptvnator/services';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -60,6 +61,7 @@ interface HeroStat {
     ],
 })
 export class ChannelDetailsDialogComponent {
+    private readonly epgPreferences = inject(EpgPreferencesService);
     readonly channel = inject<Channel>(MAT_DIALOG_DATA);
 
     /** Opens the dialog with the size every entry point shares. */
@@ -74,7 +76,11 @@ export class ChannelDetailsDialogComponent {
     }
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
-    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
+    get supportsEpgMapping(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.epgBridge.supportsEpgMapping
+        );
+    }
 
     readonly archiveDays = getM3uArchiveDays(this.channel);
     readonly catchupAvailable = this.archiveDays > 0;

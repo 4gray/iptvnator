@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
     vlcReuseInstance: false,
     remoteControl: false,
     remoteControlPort: 8765,
+    epgEnabled: true,
     epgUrl: [],
     downloadFolder: '',
     recordingFolder: '',

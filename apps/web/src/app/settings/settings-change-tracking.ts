@@ -33,6 +33,7 @@ export const SETTINGS_CONTROL_SECTIONS: Readonly<Record<string, string>> = {
     vlcPlayerPath: 'playback',
     vlcPlayerArguments: 'playback',
     vlcReuseInstance: 'playback',
+    epgEnabled: 'epg',
     epgUrl: 'epg',
     epgViewMode: 'epg',
     epgOffsetMinutes: 'epg',

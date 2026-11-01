@@ -9,7 +9,11 @@ import {
     EpgProgram,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
-import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgPreferencesService,
+    EpgSourceSettingsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     EpgLookupOptions,
     EpgRuntimeBridgeService,
@@ -38,12 +42,19 @@ export class EpgService {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly sourceSettings = inject(EpgSourceSettingsService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
 
     constructor() {
+        let wasEnabled = this.epgPreferences.enabled();
         this.sourceSettings.changed$.subscribe(() => {
             this.clearCache();
             this.currentEpgPrograms.next([]);
-            this.epgAvailable.next(true);
+            const enabled = this.epgPreferences.enabled();
+            this.epgAvailable.next(enabled);
+            if (enabled && !wasEnabled) {
+                void this.fetchEpg(this.sourceSettings.getActiveSourceUrls());
+            }
+            wasEnabled = enabled;
         });
     }
 
@@ -67,7 +78,11 @@ export class EpgService {
     private readonly lookupContext: EpgLookupContext = {
         bridge: this.epgBridge,
         cache: this.programCache,
-        guard: () => this.sourceSettings.guard(),
+        guard: () => (source) =>
+            source.pipe(
+                this.sourceSettings.guard(),
+                this.epgPreferences.guard()
+            ),
         offsetMinutes: () => this.epgOffsetMinutes(),
         clockMs: () => this.epgClockMs(),
         globalSourceUrls: (excluding) => this.getGlobalEpgSourceUrls(excluding),
@@ -108,6 +123,7 @@ export class EpgService {
         // Filter out empty and duplicate URLs and send all URLs at once.
         const revision = this.sourceSettings.revision();
         await this.settingsStore.loadSettings();
+        if (!this.epgPreferences.enabled()) return;
         await this.sourceSettings.waitForReconciliation();
         const validUrls = this.sourceSettings.retainCurrentSources(
             normalizeEpgUrls(urls),
@@ -123,6 +139,7 @@ export class EpgService {
         )
             .pipe(
                 this.sourceSettings.guard(),
+                this.epgPreferences.guard(),
                 tap((result) => {
                     if (result === null) return;
 
@@ -156,12 +173,17 @@ export class EpgService {
      * Gets EPG programs for a specific channel
      */
     getChannelPrograms(channelId: string): void {
-        if (!this.epgBridge.supportsProgramLookup) return;
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsProgramLookup
+        )
+            return;
         debugEpgService('Fetching EPG for channel ID:', channelId);
 
         from(this.epgBridge.getChannelPrograms(channelId))
             .pipe(
                 this.sourceSettings.guard(),
+                this.epgPreferences.guard(),
                 timeout(3000),
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
                 catchError((err) => {
@@ -200,7 +222,11 @@ export class EpgService {
         channelId: string,
         options?: EpgLookupOptions
     ): Observable<EpgProgram | null> {
-        if (!this.epgBridge.supportsProgramLookup || !channelId) {
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsProgramLookup ||
+            !channelId
+        ) {
             return of(null);
         }
         return this.singleProgram.forChannel(channelId, options);
@@ -215,7 +241,10 @@ export class EpgService {
         channelIds: string[],
         options?: EpgLookupOptions
     ): Observable<Map<string, EpgProgram | null>> {
-        if (!this.epgBridge.supportsProgramLookup) {
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsProgramLookup
+        ) {
             return of(new Map());
         }
         if (!channelIds || channelIds.length === 0) {
@@ -228,7 +257,10 @@ export class EpgService {
         channelIds: string[],
         options?: EpgLookupOptions
     ): Observable<Map<string, EpgChannelMetadata | null>> {
-        if (!this.epgBridge.supportsChannelMetadata) {
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsChannelMetadata
+        ) {
             return of(new Map());
         }
 

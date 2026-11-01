@@ -7,6 +7,7 @@ import {
     resolveDefaultOnSettings,
 } from './settings-opt-out.util';
 import { computed, inject } from '@angular/core';
+import { EpgPreferencesService } from './epg-preferences.service';
 import {
     patchState,
     signalStore,
@@ -66,6 +67,7 @@ export const SettingsStore = signalStore(
     })),
     withMethods((store, storage = inject(StorageMap)) => {
         const epgSources = inject(EpgSourceSettingsService);
+        const epgPreferences = inject(EpgPreferencesService);
         let settingsLoadPromise: Promise<void> | undefined;
 
         return {
@@ -74,6 +76,7 @@ export const SettingsStore = signalStore(
                     return settingsLoadPromise;
                 }
 
+                epgPreferences.beginLoad();
                 settingsLoadPromise = (async () => {
                     const stored = await firstValueFrom(
                         storage.get(STORE_KEY.Settings)
@@ -118,14 +121,18 @@ export const SettingsStore = signalStore(
                                 error
                             );
                         });
-                })().catch((error) => {
-                    settingsLoadPromise = undefined;
-                    console.error('Failed to load settings:', error);
-                    // Keep default settings if loading fails, but remember
-                    // that they are defaults-by-failure rather than by choice
-                    // so the settings UI can warn about it.
-                    patchState(store, { storageFailure: 'load' });
-                });
+                })()
+                    .catch((error) => {
+                        settingsLoadPromise = undefined;
+                        console.error('Failed to load settings:', error);
+                        // Keep default settings if loading fails, but remember
+                        // that they are defaults-by-failure rather than by choice
+                        // so the settings UI can warn about it.
+                        patchState(store, { storageFailure: 'load' });
+                    })
+                    .finally(() =>
+                        epgPreferences.apply(store.epgEnabled?.() !== false)
+                    );
 
                 return settingsLoadPromise;
             },
@@ -135,6 +142,7 @@ export const SettingsStore = signalStore(
                 options: { retryEpgCleanup?: boolean } = {}
             ) {
                 const previousEpgUrls = store.epgUrl();
+                const previousEpgEnabled = store.epgEnabled?.();
                 patchState(store, {
                     ...settings,
                     ...(settings.language !== undefined
@@ -187,15 +195,21 @@ export const SettingsStore = signalStore(
                     patchState(store, {
                         storageFailure: 'save',
                         epgUrl: previousEpgUrls,
+                        epgEnabled: previousEpgEnabled,
                     });
                     throw error;
                 }
+                const enableEpg = completeSettings.epgEnabled !== false;
+                const wasEpgEnabled = epgPreferences.enabled();
+                if (!enableEpg) await epgPreferences.apply(false);
                 if (
                     epgSourceUrlsChanged(previousEpgUrls, settings.epgUrl) ||
-                    options.retryEpgCleanup
+                    options.retryEpgCleanup ||
+                    (enableEpg && !wasEpgEnabled)
                 ) {
                     await epgSources.synchronize(completeSettings.epgUrl);
                 }
+                if (enableEpg) await epgPreferences.apply(true);
             },
 
             getSettings() {
@@ -251,6 +265,7 @@ export const SettingsStore = signalStore(
                     vlcReuseInstance: store.vlcReuseInstance(),
                     remoteControl: store.remoteControl(),
                     remoteControlPort: store.remoteControlPort(),
+                    epgEnabled: store.epgEnabled?.() !== false,
                     epgUrl: store.epgUrl(),
                     downloadFolder:
                         store.downloadFolder?.() ??

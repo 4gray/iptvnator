@@ -1,4 +1,10 @@
-import { inject, Injectable, Injector, signal } from '@angular/core';
+import {
+    inject,
+    Injectable,
+    Injector,
+    signal,
+    DestroyRef,
+} from '@angular/core';
 import {
     firstValueFrom,
     Subject,
@@ -7,6 +13,8 @@ import {
     filter,
     takeUntil,
 } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { EpgPreferencesService } from './epg-preferences.service';
 import { PlaylistsService } from './playlists.service';
 
 export class EpgSourceReconciliationError extends Error {
@@ -46,10 +54,23 @@ export class EpgSourceSettingsService {
     readonly revision = signal(0);
     readonly changed$ = new Subject<void>();
 
+    constructor() {
+        inject(EpgPreferencesService)
+            .changed$.pipe(takeUntilDestroyed(inject(DestroyRef)))
+            .subscribe(() => {
+                this.revision.update((revision) => revision + 1);
+                this.changed$.next();
+            });
+    }
+
     retainCurrentSources(urls: string[], requestedRevision: number): string[] {
         return requestedRevision === this.revision()
             ? urls
             : urls.filter((url) => this.activeUrls.has(url));
+    }
+
+    getActiveSourceUrls(): string[] {
+        return [...this.activeUrls];
     }
 
     guard<T>(): MonoTypeOperatorFunction<T> {

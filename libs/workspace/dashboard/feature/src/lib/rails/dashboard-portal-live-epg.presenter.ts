@@ -12,7 +12,7 @@ import type {
     EpgProgram,
     PortalActivityItem,
 } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { EpgPreferencesService, SettingsStore } from '@iptvnator/services';
 import {
     buildDashboardPortalLiveEpgEntry,
     DashboardPortalLiveEpgService,
@@ -36,6 +36,7 @@ import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
 @Injectable()
 export class DashboardPortalLiveEpgPresenter {
     private readonly service = inject(DashboardPortalLiveEpgService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly clock = inject(DashboardLiveEpgClock);
 
@@ -62,6 +63,7 @@ export class DashboardPortalLiveEpgPresenter {
     });
 
     private readonly wanted = computed<DashboardPortalLiveEpgEntry[]>(() => {
+        if (!this.epgPreferences.enabled()) return [];
         const entries = this.entries();
         const keys = new Set<string>(this.pinnedKeys());
         for (const railKeys of this.visibleKeysByRail().values()) {

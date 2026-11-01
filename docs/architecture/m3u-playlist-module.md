@@ -1226,6 +1226,23 @@ These URLs are playlist-scoped by default:
 
 ## EPG Integration
 
+### Global EPG preference
+
+`Settings.epgEnabled` is a default-on opt-out shared by Electron and the PWA.
+Settings → EPG stages the switch until Save. Turning it off preserves source
+addresses, mappings and committed XMLTV data, while hiding programme panels,
+guide commands, row previews and EPG source editors. Channel logos supplied by
+the playlist or provider remain visible; XMLTV-only artwork is not requested.
+
+`EpgPreferencesService` gates import and lookup transports. Settings hydration
+blocks requests until the saved preference is known. Preference changes retire
+the source lookup revision, which clears ephemeral previews and fences late
+responses across XMLTV, portal stores, collections and the dashboard. Electron's
+`EPG_SET_ENABLED` drains active and queued imports without clearing the database.
+Re-enabling restores ordinary loading and freshness checks without a restart.
+Archive browsing through the programme guide is unavailable while EPG is off.
+
+
 ### Xtream channel-row programme refresh
 
 The "current programme" line under each Xtream Live TV channel used to be

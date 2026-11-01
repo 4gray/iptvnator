@@ -1,3 +1,4 @@
+import { EpgPreferencesService } from '@iptvnator/services';
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, WritableSignal } from '@angular/core';
 import {
@@ -72,6 +73,7 @@ export function createUnifiedLiveSelection(options: {
     onAutoOpenHandled(): void;
 }): UnifiedLiveSelection {
     const streamResolver = inject(StreamResolverService);
+    const preferences = inject(EpgPreferencesService);
     const recentData = inject(UnifiedRecentDataService);
     const streamHeaders = inject(ElectronStreamHeadersService);
     const portalPlayer = inject(PORTAL_PLAYER);
@@ -118,7 +120,7 @@ export function createUnifiedLiveSelection(options: {
                               ),
                       }
                     : { epgItems: await streamResolver.loadEpgItems(item) };
-            if (guideOwner !== owner) return;
+            if (guideOwner !== owner || !preferences.enabled()) return;
             options.activeDetail.update((current) =>
                 current === detail ? { ...current, ...guide } : current
             );
@@ -246,9 +248,10 @@ export function createUnifiedLiveSelection(options: {
             guideOwner = owner;
 
             const supportsGuide =
-                detail.epgMode === 'm3u'
+                preferences.enabled() &&
+                (detail.epgMode === 'm3u'
                     ? options.supportsEpg
-                    : options.supportsProviderEpg;
+                    : options.supportsProviderEpg);
             if (supportsGuide) {
                 void hydrateSelectedPrograms(item, detail, owner);
             }

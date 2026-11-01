@@ -1,3 +1,4 @@
+import { EpgPreferencesService } from './epg-preferences.service';
 import { Injector } from '@angular/core';
 import { firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { EpgSourceSettingsService } from './epg-source-settings.service';
@@ -19,6 +20,7 @@ describe('EPG source settings synchronization', () => {
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 {
                     provide: PlaylistsService,
@@ -55,6 +57,7 @@ describe('EPG source settings synchronization', () => {
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 {
                     provide: PlaylistsService,
@@ -88,6 +91,7 @@ describe('EPG source settings synchronization', () => {
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 {
                     provide: PlaylistsService,
@@ -121,6 +125,7 @@ describe('EPG source settings synchronization', () => {
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 { provide: PlaylistsService, useValue: { getAllPlaylists } },
             ],
@@ -156,6 +161,7 @@ describe('EPG source settings synchronization', () => {
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 {
                     provide: PlaylistsService,

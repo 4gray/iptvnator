@@ -68,6 +68,36 @@ describe('EpgWorkerService worker lifecycle', () => {
         consoleErrorSpy.mockRestore();
     });
 
+    it('stops active and queued imports without clearing committed guide data', async () => {
+        service.markFetchedUrl('https://example.com/retained.xml');
+        const active = service.fetchEpgFromUrl(url);
+        const queued = service.fetchEpgFromUrl(
+            'https://example.com/queued.xml'
+        );
+        const worker = mockWorkerInstances[0];
+        worker.terminate.mockImplementation(async () => {
+            worker.emit('exit', 0);
+            return 0;
+        });
+        await service.setEnabled(false);
+        await Promise.all([active, queued]);
+        expect(worker.terminate).toHaveBeenCalledTimes(1);
+        expect(mockWorkerInstances).toHaveLength(1);
+        expect(service.hasFetchedUrl('https://example.com/retained.xml')).toBe(
+            true
+        );
+        await service.fetchEpgFromUrl('https://example.com/disabled.xml');
+        expect(mockWorkerInstances).toHaveLength(1);
+        await service.setEnabled(true);
+        const resumed = service.fetchEpgFromUrl(url);
+        expect(mockWorkerInstances).toHaveLength(2);
+        mockWorkerInstances[1].emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 1 },
+        });
+        await resumed;
+    });
+
     it('keeps source credentials out of completion, reuse, cache and cleanup logs', async () => {
         const secretUrl =
             'https://secret-user:secret-password@example.com/private-key/guide.xml?custom=secret-query#secret-fragment';
@@ -196,6 +226,7 @@ describe('EpgWorkerService worker lifecycle', () => {
 
         it('cancels a local source retired while its authorization prompt is open', async () => {
             const localPath = '/home/user/epg/retired.xml.gz';
+            const generation = epgSourceGeneration(localPath);
             const progressSpy = jest.spyOn(service, 'sendProgressToRenderer');
             let answer: (allowed: boolean) => void = () => undefined;
             service.localSourceAuthorizer = {
@@ -223,7 +254,7 @@ describe('EpgWorkerService worker lifecycle', () => {
                 undefined,
                 undefined,
                 undefined,
-                0
+                generation
             );
         });
 

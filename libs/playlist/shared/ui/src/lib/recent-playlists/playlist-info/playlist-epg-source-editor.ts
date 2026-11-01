@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { SettingsStore } from '@iptvnator/services';
+import { EpgPreferencesService, SettingsStore } from '@iptvnator/services';
 import {
     isRemoteEpgSourceUrl,
     Playlist,
@@ -20,6 +20,7 @@ import { createPlaylistEpgSourceControl } from './playlist-info-form';
 /** Playlist-local EPG operations; independent Save remains scoped to EPG. */
 export class PlaylistEpgSourceEditor {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
@@ -121,6 +122,7 @@ export class PlaylistEpgSourceEditor {
     }
 
     get canManage(): boolean {
+        if (!this.epgPreferences.enabled()) return false;
         return !this.playlist.serverUrl && !this.playlist.macAddress;
     }
 

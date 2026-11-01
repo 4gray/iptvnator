@@ -30,6 +30,27 @@ export interface EpgProgressStats {
 }
 
 export class EpgWorkerService {
+    private enabled = true;
+    private suspension: Promise<void> | undefined;
+
+    /** Retire work and drain writers; keep all committed XMLTV data intact. */
+    async setEnabled(enabled: boolean): Promise<void> {
+        this.enabled = enabled;
+        if (!enabled && !this.suspension) {
+            retireAllEpgSources();
+            const imports = [...this.inFlightFetches.values()];
+            this.suspension = (async () => {
+                await this.runtime.stopAllWorkers(this.workers.values());
+                await Promise.all(
+                    imports.map((pending) => pending.catch(() => undefined))
+                );
+                this.workers.clear();
+            })().finally(() => {
+                this.suspension = undefined;
+            });
+        }
+        await this.suspension;
+    }
     private readonly fetchedUrls = new Set<string>();
     private readonly fetchQueue = new EpgFetchQueue();
     private readonly workers = new Map<string, Worker>();
@@ -94,6 +115,9 @@ export class EpgWorkerService {
         options: ElectronBridgeTrustOptions = {},
         force = false
     ): Promise<void> {
+        if (!this.enabled) return;
+        if (this.suspension) await this.suspension;
+        if (!this.enabled) return;
         url = url.trim();
         const generation = requestEpgSource(url);
         const clear = this.globalClear ?? this.inFlightSourceClears.get(url);

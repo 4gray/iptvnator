@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
 import {
     DataService,
+    EpgPreferencesService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
@@ -120,6 +121,15 @@ describe('withStalkerEpg', () => {
             expect(store.bulkItvEpgLoaded()).toBe(true);
         }
     );
+
+    it('does not request bulk or short programmes while globally disabled', async () => {
+        await TestBed.inject(EpgPreferencesService).apply(false);
+        await store.ensureBulkItvEpg();
+        expect(await store.fetchChannelEpg('10001', 3)).toEqual([]);
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(stalkerSessionService.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        expect(store.bulkItvEpgByChannel()).toEqual({});
+    });
 
     it('fetches fallback short EPG via get_short_epg', async () => {
         dataService.sendIpcEvent.mockResolvedValue({

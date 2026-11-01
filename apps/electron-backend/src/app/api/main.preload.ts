@@ -715,6 +715,8 @@ const electronApi: ElectronBridgeApi = {
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
     ) => ipcRenderer.invoke('AUTO_UPDATE', playlists, options),
+    setEpgEnabled: (enabled: boolean) =>
+        ipcRenderer.invoke('EPG_SET_ENABLED', enabled),
     fetchEpg: (urls: string[], options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('FETCH_EPG', { url: urls, options }),
     getChannelPrograms: (

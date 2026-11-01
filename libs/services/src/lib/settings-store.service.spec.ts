@@ -1,3 +1,4 @@
+import { EpgPreferencesService } from './epg-preferences.service';
 import { EpgSourceSettingsService } from './epg-source-settings.service';
 import { Injector } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -46,6 +47,7 @@ describe('SettingsStore dashboard rail settings', () => {
 
         injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 SettingsStore,
                 EpgSourceSettingsService,
                 {
@@ -54,6 +56,48 @@ describe('SettingsStore dashboard rail settings', () => {
                 },
             ],
         });
+    });
+
+    it('defaults EPG on for old settings and preserves sources on opt-out', async () => {
+        storedSettings = { epgUrl: ['https://example.org/guide.xml'] };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        const preferences = injector.get(EpgPreferencesService);
+        expect(store.getSettings().epgEnabled).toBe(true);
+        expect(preferences.enabled()).toBe(true);
+        await store.updateSettings({ epgEnabled: false });
+        expect(preferences.enabled()).toBe(false);
+        expect(store.epgUrl()).toEqual(['https://example.org/guide.xml']);
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                epgEnabled: false,
+                epgUrl: ['https://example.org/guide.xml'],
+            })
+        );
+        const reconcile = jest
+            .spyOn(injector.get(EpgSourceSettingsService), 'synchronize')
+            .mockImplementation(async () => {
+                expect(preferences.enabled()).toBe(false);
+            });
+        await store.updateSettings({ epgEnabled: true });
+        expect(reconcile).toHaveBeenCalledWith([
+            'https://example.org/guide.xml',
+        ]);
+        expect(preferences.enabled()).toBe(true);
+    });
+
+    it('keeps the committed EPG preference when persistence fails', async () => {
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        storage.set.mockReturnValue(new Subject<void>());
+        const pending = store.updateSettings({ epgEnabled: false });
+        expect(injector.get(EpgPreferencesService).enabled()).toBe(true);
+        const writing = storage.set.mock.results[0].value as Subject<void>;
+        writing.error(new Error('storage failed'));
+        await expect(pending).rejects.toThrow('storage failed');
+        expect(injector.get(EpgPreferencesService).enabled()).toBe(true);
+        expect(store.getSettings().epgEnabled).toBe(true);
     });
 
     it('preserves an explicit age-rating country across saved settings reloads', async () => {
@@ -645,6 +689,7 @@ describe('SettingsStore storage failure reporting', () => {
 
         injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 SettingsStore,
                 EpgSourceSettingsService,
                 {

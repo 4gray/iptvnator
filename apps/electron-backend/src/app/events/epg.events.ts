@@ -39,6 +39,9 @@ export default class EpgEvents {
      * Bootstrap EPG events
      */
     static bootstrapEpgEvents(): Electron.IpcMain {
+        ipcMain.handle('EPG_SET_ENABLED', (_event, enabled: boolean) =>
+            epgWorkerService.setEnabled(enabled !== false)
+        );
         ipcMain.handle(
             'EPG_RECONCILE_SOURCES',
             async (_event, args: { urls: string[] }) => {

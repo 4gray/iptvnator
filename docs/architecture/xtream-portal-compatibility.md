@@ -724,6 +724,12 @@ and private-network checks.
 
 ## Provider EPG
 
+The global `Settings.epgEnabled` opt-out gates short/full provider requests and
+XMLTV fallbacks, including collections and dashboard previews. Turning it off
+retires queue state and pending answers and hides programme UI; provider channel
+logos remain visible. See the
+[shared preference contract](m3u-playlist-module.md#global-epg-preference).
+
 Xtream EPG comes from the portal itself. `get_short_epg` feeds the
 channel-row previews (`EpgQueueService`: three items, two requests in flight)
 and the collection previews (`StreamResolverService`). `get_simple_data_table`,

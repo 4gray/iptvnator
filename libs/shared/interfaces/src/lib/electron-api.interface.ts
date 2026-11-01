@@ -925,6 +925,8 @@ export interface ElectronBridgeApi {
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
     ) => Promise<AutoUpdatePlaylistsResult>;
+    /** Stops imports without removing sources, mappings or cached programmes. */
+    setEpgEnabled?: (enabled: boolean) => Promise<void>;
     fetchEpg: (
         urls: string[],
         options?: ElectronBridgeTrustOptions
