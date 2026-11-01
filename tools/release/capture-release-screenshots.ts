@@ -260,7 +260,7 @@ async function main(): Promise<void> {
                 const { action, param } = parseSetupStep(String(step));
                 await runAction(page, action, param);
             }
-            previewWindowClosed = await waitForCinematicPreview(app);
+            previewWindowClosed = await waitForCinematicPreview(app, page);
         }
 
         for (const theme of preview ? [] : themes) {

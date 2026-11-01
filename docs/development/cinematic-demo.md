@@ -95,7 +95,9 @@ process and renderer network gates. An attempted external request still fails
 the entire capture, even if it was blocked. There is no licensed-artwork
 allowlist. Frames are published only after all isolation checks pass.
 The interactive preview retains the network gates but publishes no frames;
-closing its process can end its recorder before the final request audit.
+closing its window or process skips final request collection and proceeds to
+profile cleanup. The main-window close event is observed separately because
+macOS can keep Electron running after its last window closes.
 
 ## Artwork and prompts
 

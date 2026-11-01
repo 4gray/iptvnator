@@ -98,3 +98,10 @@ The complete eight-frame Electron capture passes on the new base with 209
 distinct local requests and unchanged personal-data guards. Eight cinematic
 fixture tests, the other 236 release-tool tests, 100 mock tests and seven shared
 fixture tests pass. Existing committed screenshots and previews are preserved.
+
+Local review found that closing the preview's last window on macOS did not
+terminate Electron, leaving its wait promise and temporary resources alive.
+The preview now observes both the main page and application close events.
+Regression coverage reproduces the previous helper's failure and verifies
+Enter cleanup as well; a real isolated macOS Electron window-close check passes.
+The cinematic test target now has ten passing checks, with typecheck and lint.

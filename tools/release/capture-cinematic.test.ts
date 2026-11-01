@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { describe, it } from 'node:test';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
+import type { ElectronApplication, Page } from '@playwright/test';
 import sharp from 'sharp';
 import {
     cinematicCacheRows,
@@ -9,6 +12,7 @@ import {
 } from './capture-cinematic-cache';
 import { validCaptureMetadataSettings } from './capture-tmdb-check';
 import { validateManifest } from './screenshot-guards.mjs';
+import { waitForCinematicPreview } from './capture-cinematic-preview';
 import {
     cinematicLiveFrameViolations,
     type CinematicLiveFrameReport,
@@ -210,6 +214,72 @@ describe('committed cinematic artwork', () => {
             assert.equal(asset.status, 'generated-and-visually-reviewed');
             if (asset.reference)
                 assert.ok(statSync(path.join(root, asset.reference)).size > 0);
+        }
+    });
+});
+
+describe('interactive preview cleanup', () => {
+    it('finishes when its main page closes while Electron remains alive', async () => {
+        const app = new EventEmitter();
+        const page = Object.assign(new EventEmitter(), {
+            isClosed: () => false,
+        });
+        const input = new PassThrough();
+        const output = new PassThrough();
+        const pending = waitForCinematicPreview(
+            app as unknown as ElectronApplication,
+            page as unknown as Page,
+            { input, output }
+        );
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            page.emit('close');
+            const result = await Promise.race([
+                pending,
+                new Promise<never>((_, reject) => {
+                    timer = setTimeout(
+                        () =>
+                            reject(
+                                new Error(
+                                    'Preview waits for application exit after its page closed'
+                                )
+                            ),
+                        1000
+                    );
+                }),
+            ]);
+            assert.equal(result, true);
+            assert.equal(app.listenerCount('close'), 0);
+            assert.equal(page.listenerCount('close'), 0);
+        } finally {
+            clearTimeout(timer);
+            app.emit('close');
+            input.destroy();
+            output.destroy();
+        }
+    });
+
+    it('still allows Enter to close the preview and removes page listeners', async () => {
+        const app = new EventEmitter();
+        const page = Object.assign(new EventEmitter(), {
+            isClosed: () => false,
+        });
+        const input = new PassThrough();
+        const output = new PassThrough();
+        const pending = waitForCinematicPreview(
+            app as unknown as ElectronApplication,
+            page as unknown as Page,
+            { input, output }
+        );
+        try {
+            input.write('\n');
+            assert.equal(await pending, false);
+            assert.equal(page.listenerCount('close'), 0);
+            assert.equal(app.listenerCount('close'), 0);
+        } finally {
+            app.emit('close');
+            input.destroy();
+            output.destroy();
         }
     });
 });
