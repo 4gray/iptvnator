@@ -1,8 +1,5 @@
 import { normalizeStalkerMacAddress } from './stalker-mac-address.util';
-import {
-    hashStalkerProtocolValue,
-    STALKER_HASH_ALGORITHM,
-} from './stalker-protocol-hash.util';
+import { loadStalkerProtocolHash } from './stalker-protocol-hash.loader';
 
 export const LEGACY_DEFAULT_STALKER_SERIAL = 'BEDACD4569BAF';
 const STALKER_CFDUID_LENGTH = 32;
@@ -102,6 +99,10 @@ export async function deriveStalkerDeviceIdsFromMac(
         return null;
     }
 
+    // Identity normalization runs during startup; hashing is only needed
+    // when the user explicitly opts into deriving device IDs.
+    const { hashStalkerProtocolValue, STALKER_HASH_ALGORITHM } =
+        await loadStalkerProtocolHash();
     const [deviceId1, deviceId2] = await Promise.all([
         hashStalkerProtocolValue(normalizedMac, STALKER_HASH_ALGORITHM.SHA256),
         hashStalkerProtocolValue(

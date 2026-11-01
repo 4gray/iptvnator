@@ -15,7 +15,8 @@ export async function hashStalkerProtocolValue(
     algorithm: StalkerHashAlgorithm
 ): Promise<string> {
     const data = new TextEncoder().encode(value);
-    const subtle = globalThis.crypto?.subtle;
+    // Chromium 68 (the TV target) has crypto but no globalThis binding.
+    const subtle = typeof crypto === 'undefined' ? undefined : crypto.subtle;
     let digest: Uint8Array;
     if (subtle) {
         digest = new Uint8Array(await subtle.digest(algorithm, data));
