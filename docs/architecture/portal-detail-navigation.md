@@ -98,6 +98,10 @@ handler as the header Back.
   replaces the detail entry with its route's source, content section and
   category, preserving query parameters. Collection-owned details keep their
   history return behavior; the active source store does not choose the parent.
+  On the SQLite runtime, the owning typed content row supplies the local
+  category ID: a cross-portal link can carry a provider category ID that
+  differs from, or collides with, a SQLite row ID. An unavailable item lookup
+  returns to the catalog section root instead of guessing the category.
 - Stalker uses an inline/store-state detail model.
 - Detail pages themselves are two-state (browse ↔ watch) inside
   `PortalDetailShellComponent`; entering/leaving watch is a layout state,

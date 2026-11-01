@@ -44,62 +44,76 @@ test.afterAll(async () => {
 });
 
 for (const kind of ['vod', 'series'] as const) {
-    test(`@electron @xtream reloaded ${kind} detail Back replaces its entry with the owning category`, async ({
-        dataDir,
-    }) => {
-        const app = await launchElectronApp(dataDir);
-        const page = app.mainWindow;
-        try {
-            await addXtreamPortal(page, {
-                serverUrl,
-                name: 'Synthetic Source A',
-                username: 'synthetic-a',
-                password: 'synthetic-only',
-            });
-            await waitForXtreamWorkspaceReady(page);
-            if (kind === 'series') {
-                await page
-                    .getByRole('link', { name: 'Series', exact: true })
-                    .click();
+    for (const categoryIdentity of ['catalog', 'provider'] as const) {
+        test(`@electron @xtream reloaded ${kind} detail with ${categoryIdentity} category ID returns to its owning category`, async ({
+            dataDir,
+        }) => {
+            const app = await launchElectronApp(dataDir);
+            const page = app.mainWindow;
+            try {
+                await addXtreamPortal(page, {
+                    serverUrl,
+                    name: 'Synthetic Source A',
+                    username: 'synthetic-a',
+                    password: 'synthetic-only',
+                });
+                await waitForXtreamWorkspaceReady(page);
+                if (kind === 'series') {
+                    await page
+                        .getByRole('link', { name: 'Series', exact: true })
+                        .click();
+                }
+                await page.locator('app-grid-list mat-card').first().click();
+                await expect(
+                    page.locator('app-portal-detail-shell h1')
+                ).toBeVisible();
+                const detail = page.url();
+                const parent = detail.slice(0, detail.lastIndexOf('/'));
+                if (categoryIdentity === 'provider') {
+                    await page.evaluate(
+                        (categoryId) => {
+                            const url = new URL(location.href);
+                            const segments = url.pathname.split('/');
+                            segments[segments.length - 2] = categoryId;
+                            url.pathname = segments.join('/');
+                            history.replaceState(history.state, '', url);
+                        },
+                        kind === 'vod' ? '201' : '301'
+                    );
+                }
+                await reloadFromMainProcess(app);
+                await expectRendererReloadedOnRoute(
+                    page,
+                    new RegExp(`/${kind}/[^/]+/[^/]+$`)
+                );
+                await expect(
+                    page.locator('app-portal-detail-shell h1')
+                ).toBeVisible();
+                const index = await page.evaluate(
+                    () => navigation.currentEntry?.index
+                );
+                await page.getByTestId('workspace-header-back').click();
+                await expect(page).toHaveURL(parent);
+                await expect(
+                    page.locator('app-grid-list mat-card').first()
+                ).toBeVisible();
+                expect(
+                    await page.evaluate(() => navigation.currentEntry?.index)
+                ).toBe(index);
+                await expect(
+                    page.getByTestId('workspace-header-back')
+                ).toHaveCount(0);
+                await page.locator('app-grid-list mat-card').first().click();
+                await expect(
+                    page.locator('app-portal-detail-shell h1')
+                ).toBeVisible();
+                await page.getByTestId('workspace-header-back').click();
+                await expect(page).toHaveURL(parent);
+            } finally {
+                await closeElectronApp(app);
             }
-            await page.locator('app-grid-list mat-card').first().click();
-            await expect(
-                page.locator('app-portal-detail-shell h1')
-            ).toBeVisible();
-            const detail = page.url();
-            const parent = detail.slice(0, detail.lastIndexOf('/'));
-            await reloadFromMainProcess(app);
-            await expectRendererReloadedOnRoute(
-                page,
-                new RegExp(`/${kind}/[^/]+/[^/]+$`)
-            );
-            await expect(
-                page.locator('app-portal-detail-shell h1')
-            ).toBeVisible();
-            const index = await page.evaluate(
-                () => navigation.currentEntry?.index
-            );
-            await page.getByTestId('workspace-header-back').click();
-            await expect(page).toHaveURL(parent);
-            await expect(
-                page.locator('app-grid-list mat-card').first()
-            ).toBeVisible();
-            expect(
-                await page.evaluate(() => navigation.currentEntry?.index)
-            ).toBe(index);
-            await expect(page.getByTestId('workspace-header-back')).toHaveCount(
-                0
-            );
-            await page.locator('app-grid-list mat-card').first().click();
-            await expect(
-                page.locator('app-portal-detail-shell h1')
-            ).toBeVisible();
-            await page.getByTestId('workspace-header-back').click();
-            await expect(page).toHaveURL(parent);
-        } finally {
-            await closeElectronApp(app);
-        }
-    });
+        });
+    }
 }
 
 for (const type of ['movie', 'series'] as const) {

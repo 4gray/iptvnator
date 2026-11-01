@@ -2,9 +2,13 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter, Router } from '@angular/router';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    XTREAM_DATA_SOURCE,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import {
     CrossPortalSimilarService,
+    RuntimeCapabilitiesService,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
 import {
@@ -18,6 +22,8 @@ describe('injectXtreamDetailNavigation', () => {
     };
     const navigate = jest.fn();
     const back = jest.fn();
+    const getContentByXtreamId = jest.fn();
+    const runtime = { supportsXtreamSqliteDataSource: false };
     const buildLink = jest.fn();
     const currentPlaylist = signal<{ id: string } | null>(null);
     const enrichmentEnabled = signal(true);
@@ -31,6 +37,8 @@ describe('injectXtreamDetailNavigation', () => {
     beforeEach(() => {
         navigate.mockReset();
         back.mockReset();
+        getContentByXtreamId.mockReset().mockResolvedValue(null);
+        runtime.supportsXtreamSqliteDataSource = false;
         buildLink.mockReset();
         route.snapshot.params = {};
         route.snapshot.queryParams = {};
@@ -40,6 +48,11 @@ describe('injectXtreamDetailNavigation', () => {
             providers: [
                 provideRouter([]),
                 { provide: WorkspaceBackNavigationService, useValue: { back } },
+                {
+                    provide: XTREAM_DATA_SOURCE,
+                    useValue: { getContentByXtreamId },
+                },
+                { provide: RuntimeCapabilitiesService, useValue: runtime },
                 { provide: ActivatedRoute, useValue: route },
                 { provide: XtreamStore, useValue: { currentPlaylist } },
                 { provide: CrossPortalSimilarService, useValue: { buildLink } },
@@ -59,36 +72,85 @@ describe('injectXtreamDetailNavigation', () => {
         ['tv', 'series'],
     ] as const)(
         'resolves the %s Back parent from the route, including its query',
-        (type, section) => {
+        async (type, section) => {
             route.snapshot.params = { id: 'route-source', categoryId: '201' };
             route.snapshot.queryParams = { q: 'Synthetic title' };
 
             create(type).back();
 
             expect(back).toHaveBeenCalledTimes(1);
-            expect(back.mock.calls[0][0]()).toBe(
+            expect(await back.mock.calls[0][0]()).toBe(
                 `/workspace/xtreams/route-source/${section}/201?q=Synthetic%20title`
             );
         }
     );
 
-    it('uses the catalog root when no category is present', () => {
+    it('uses the catalog root when no category is present', async () => {
         route.snapshot.params = { id: 'route-source' };
 
         create('movie').back();
 
-        expect(back.mock.calls[0][0]()).toBe(
+        expect(await back.mock.calls[0][0]()).toBe(
             '/workspace/xtreams/route-source/vod'
         );
     });
 
-    it('leaves collection details without a portal route to history Back', () => {
+    it('leaves collection details without a portal route to history Back', async () => {
         route.snapshot.params = { categoryId: '201', vodId: '20001' };
 
         create('movie').back();
 
-        expect(back.mock.calls[0][0]()).toBeNull();
+        expect(await back.mock.calls[0][0]()).toBeNull();
     });
+
+    it.each([
+        ['movie', 'vod', 'vodId', 'movie'],
+        ['tv', 'series', 'serialId', 'series'],
+    ] as const)(
+        'resolves the owning %s row rather than trusting a colliding category ID',
+        async (type, section, key, contentType) => {
+            runtime.supportsXtreamSqliteDataSource = true;
+            route.snapshot.params = {
+                id: 'route-source',
+                categoryId: '201',
+                [key]: '20001',
+            };
+            getContentByXtreamId.mockResolvedValue({ category_id: 7 });
+
+            create(type).back();
+
+            expect(await back.mock.calls[0][0]()).toBe(
+                `/workspace/xtreams/route-source/${section}/7`
+            );
+            expect(getContentByXtreamId).toHaveBeenCalledWith(
+                20001,
+                'route-source',
+                contentType
+            );
+        }
+    );
+
+    it.each(['missing', 'failed'])(
+        'falls back to the SQLite catalog root when the row is %s',
+        async (outcome) => {
+            runtime.supportsXtreamSqliteDataSource = true;
+            route.snapshot.params = {
+                id: 'route-source',
+                categoryId: '201',
+                vodId: '20001',
+            };
+            if (outcome === 'failed')
+                getContentByXtreamId.mockRejectedValue(
+                    new Error('Synthetic lookup failure')
+                );
+
+            create('movie').back();
+
+            expect(await back.mock.calls[0][0]()).toBe(
+                '/workspace/xtreams/route-source/vod'
+            );
+        }
+    );
 
     it('opens the actor page of a TMDB-matched cast member', () => {
         create('movie').openActor({ name: 'Mara', tmdbPersonId: 77 } as never);

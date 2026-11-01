@@ -1,4 +1,4 @@
-import { inject } from '@angular/core';
+import { inject, Injector } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
     createDiscoverFacetNavigation,
@@ -6,10 +6,14 @@ import {
     workspacePortalCommands,
 } from '@iptvnator/portal/shared/util';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    XTREAM_DATA_SOURCE,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
+    RuntimeCapabilitiesService,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
 import type { TmdbEnrichedCastMember } from '@iptvnator/shared/interfaces';
@@ -41,20 +45,46 @@ export function injectXtreamDetailNavigation(
     const router = inject(Router);
     const route = inject(ActivatedRoute);
     const backNavigation = inject(WorkspaceBackNavigationService);
+    const injector = inject(Injector);
+    const runtime = inject(RuntimeCapabilitiesService);
     const xtreamStore = inject(XtreamStore);
     const crossPortalSimilar = inject(CrossPortalSimilarService);
     const tmdbEnrichment = inject(TmdbEnrichmentService);
 
     return {
         back() {
-            backNavigation.back(() => {
+            backNavigation.back(async () => {
                 const parent = workspacePortalCommands(
                     route,
                     'xtreams',
                     mediaType === 'movie' ? 'vod' : 'series'
                 );
                 if (!parent) return null;
-                const categoryId = route.snapshot.params['categoryId'];
+                let categoryId = route.snapshot.params['categoryId'];
+                if (runtime.supportsXtreamSqliteDataSource) {
+                    // Similar links can carry provider category IDs. The owning
+                    // typed content row disambiguates them from SQLite row IDs.
+                    categoryId = undefined;
+                    const itemId = Number(
+                        route.snapshot.params[
+                            mediaType === 'movie' ? 'vodId' : 'serialId'
+                        ]
+                    );
+                    if (Number.isFinite(itemId) && itemId > 0) {
+                        try {
+                            const item = await injector
+                                .get(XTREAM_DATA_SOURCE)
+                                .getContentByXtreamId(
+                                    itemId,
+                                    parent[2],
+                                    mediaType === 'movie' ? 'movie' : 'series'
+                                );
+                            categoryId = item?.category_id;
+                        } catch {
+                            // An unavailable row still has a safe catalog root.
+                        }
+                    }
+                }
                 if (categoryId) parent.push(String(categoryId));
                 return router.serializeUrl(
                     router.createUrlTree(parent, {
