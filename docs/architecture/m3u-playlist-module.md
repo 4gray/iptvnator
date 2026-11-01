@@ -1035,7 +1035,7 @@ import and lookup. Two additional lists preserve user edits:
 
 - `Playlist.manualEpgUrls` stores URLs the user explicitly added for this
   playlist, including detected catalog URLs the user manually enabled.
-- `Playlist.disabledEpgUrls` stores detected URLs the user removed from this
+- `Playlist.disabledEpgUrls` stores source URLs the user removed from this
   playlist so playlist refreshes do not silently re-enable them.
 
 The playlist editor's main Save includes valid new EPG rows in the same metadata
@@ -1053,6 +1053,7 @@ record use “Saved source”. Do not infer detection from enabled URLs. SQLite
 metadata and source projections preserve that distinction, including
 legacy rows with only an enabled set. Unknown-origin enabled guides survive
 metadata edits and delayed source writes without being marked as detected.
+Removing one records an exclusion, so a later header parse cannot re-enable it.
 The detected summary counts the intersection of normalized enabled and detected URLs, excluding
 manual-only sources, and describes current enablement rather than initial automatic
 selection. A collapsed list exposes detected remote URLs that are not enabled.

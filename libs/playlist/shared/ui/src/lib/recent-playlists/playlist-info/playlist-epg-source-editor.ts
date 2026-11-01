@@ -230,9 +230,12 @@ export class PlaylistEpgSourceEditor {
         const disabledEpgUrls = this.normalizeEpgUrls(
             this.playlist.disabledEpgUrls
         );
-        const nextDisabledEpgUrls = detectedEpgUrls.includes(epgUrl)
-            ? this.normalizeEpgUrls([...disabledEpgUrls, epgUrl])
-            : disabledEpgUrls.filter((disabledUrl) => disabledUrl !== epgUrl);
+        // A future header parse may discover this URL regardless of its
+        // recorded origin. Only an explicit enable/add should undo removal.
+        const nextDisabledEpgUrls = this.normalizeEpgUrls([
+            ...disabledEpgUrls,
+            epgUrl,
+        ]);
 
         const state = resolvePlaylistEpgSourceState({
             autoImportEpg: this.playlist.autoImportEpg,

@@ -11,11 +11,12 @@ import {
     openSources,
     restartElectronApp,
     saveSourceDialog,
+    refreshSource,
     test,
 } from './electron-test-fixtures';
 import { applyTheme, expectTextContrast } from './theme-contrast';
 
-test('legacy SQLite EPG sources keep unknown provenance through rename and restart', async ({
+test('legacy SQLite EPG sources preserve provenance and removal through rename, restart and refresh', async ({
     dataDir,
 }) => {
     const server = await createMutableTextServer(
@@ -24,20 +25,40 @@ test('legacy SQLite EPG sources keep unknown provenance through rename and resta
     );
     let app = await launchElectronApp(dataDir);
     try {
-        await app.mainWindow.evaluate(async (guide) => {
-            await window.electron.dbUpsertAppPlaylist({
-                _id: 'synthetic-legacy-guide',
-                title: 'Synthetic legacy guide',
-                count: 0,
-                importDate: '2026-11-01T00:00:00Z',
-                lastUsage: '',
-                autoRefresh: false,
-                favorites: [],
-                epgUrls: [guide],
-                sourceRawM3u: '#EXTM3U',
-                playlist: { header: { raw: '#EXTM3U', attrs: {} }, items: [] },
-            });
-        }, server.resourceUrl);
+        const file = join(dataDir, 'synthetic-legacy-guide.m3u');
+        const raw = buildM3uContent([
+            {
+                name: 'Synthetic legacy channel',
+                url: 'https://media.example.test/legacy.m3u8',
+            },
+        ]).replace('#EXTM3U', `#EXTM3U x-tvg-url="${server.resourceUrl}"`);
+        writeFileSync(file, raw);
+        await app.mainWindow.evaluate(
+            async ({ guide, file, raw }) => {
+                await window.electron.dbUpsertAppPlaylist({
+                    _id: 'synthetic-legacy-guide',
+                    title: 'Synthetic legacy guide',
+                    count: 1,
+                    importDate: '2026-11-01T00:00:00Z',
+                    lastUsage: '',
+                    autoRefresh: false,
+                    favorites: [],
+                    epgUrls: [guide],
+                    filePath: file,
+                    sourceRawM3u: raw,
+                    playlist: {
+                        header: { raw: raw.split('\n')[0], attrs: {} },
+                        items: [
+                            {
+                                name: 'Synthetic legacy channel',
+                                url: 'https://media.example.test/legacy.m3u8',
+                            },
+                        ],
+                    },
+                });
+            },
+            { guide: server.resourceUrl, file, raw }
+        );
         app = await restartElectronApp(app, dataDir);
         await openSources(app.mainWindow);
         let dialog = await openSourceEditor(
@@ -86,6 +107,33 @@ test('legacy SQLite EPG sources keep unknown provenance through rename and resta
         await expect(
             dialog.getByTestId('playlist-epg-detected-count')
         ).toHaveCount(0);
+        await savedRow()
+            .getByRole('button', {
+                name: 'Remove from this playlist',
+                exact: true,
+            })
+            .click();
+        await expect(savedRow()).toHaveCount(0);
+        await dialog
+            .getByRole('button', { name: 'Close', exact: true })
+            .click();
+        await refreshSource(app.mainWindow, 'Synthetic renamed legacy guide');
+        dialog = await openSourceEditor(
+            app.mainWindow,
+            'Synthetic renamed legacy guide'
+        );
+        await expect(
+            dialog.getByTestId('playlist-epg-detected-count')
+        ).toHaveText('From playlist: 0 of 1 enabled.');
+        await expect(savedRow()).toHaveCount(0);
+        const refreshed = await app.mainWindow.evaluate(() =>
+            window.electron.dbGetAppPlaylist('synthetic-legacy-guide')
+        );
+        expect(refreshed).toMatchObject({
+            detectedEpgUrls: [server.resourceUrl],
+            disabledEpgUrls: [server.resourceUrl],
+            epgUrls: [],
+        });
     } finally {
         await closeElectronApp(app);
         await server.close();

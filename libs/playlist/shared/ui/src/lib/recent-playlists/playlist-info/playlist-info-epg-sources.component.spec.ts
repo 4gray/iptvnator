@@ -173,6 +173,23 @@ describe('PlaylistInfoComponent playlist EPG source rows', () => {
         );
     });
 
+    it.each([false, true])(
+        'keeps removal exclusions for unknown sources without inventing provenance (known manual: %s)',
+        async (knownManual) => {
+            const component = render({
+                ...playlist,
+                epgUrls: [keepUrl],
+                detectedEpgUrls: [],
+                manualEpgUrls: knownManual ? [keepUrl] : [],
+            }).componentInstance;
+            await component.epg.remove(keepUrl);
+            expect(component.playlist.epgUrls).toEqual([]);
+            expect(component.playlist.detectedEpgUrls).toEqual([]);
+            expect(component.playlist.manualEpgUrls).toEqual([]);
+            expect(component.playlist.disabledEpgUrls).toEqual([keepUrl]);
+        }
+    );
+
     it('deduplicates detected URLs and never offers legacy local header sources', () => {
         const component = render({
             ...mixed,
