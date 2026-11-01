@@ -31,6 +31,7 @@ describe('activity projection local preservation', () => {
             },
         };
         const client = {
+            options: { changed: () => undefined },
             aliases: new Map(),
             positions: async () => [
                 { position: reset, reset: true, conflict: false },
@@ -54,6 +55,19 @@ describe('activity projection local preservation', () => {
             'synthetic-source',
             100,
         ]);
+        const exported = await adapter.exportPositions('synthetic-source', [
+            ...rows.values(),
+        ]);
+        expect(exported).toEqual(
+            expect.arrayContaining([
+                legacy,
+                expect.objectContaining({
+                    contentXtreamId: 1001,
+                    positionSeconds: 0,
+                    durationSeconds: 0,
+                }),
+            ])
+        );
         expect(series).toEqual([
             legacy,
             expect.objectContaining({

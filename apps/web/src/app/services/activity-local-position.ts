@@ -34,7 +34,7 @@ export function resetPosition(
     return {
         ...position,
         positionSeconds: 0,
-        durationSeconds: undefined,
+        durationSeconds: 0,
         watched: false,
     };
 }

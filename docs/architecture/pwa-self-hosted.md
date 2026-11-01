@@ -1004,6 +1004,10 @@ old ownership, including after restart. Bootstrap bindings persist before the
 new context cache is published. Development flags without verified identity are
 not applied to a verified source.
 
+Opt-out drains local shared mutations already started in the renderer before
+mirroring. A checkpoint committed after another window pauses consent also
+returns through the local persistence path, preserving that acknowledged point.
+
 Before a raw fallback write, a minimal position snapshot is saved locally without
 titles or stream addresses. A failed raw write keeps this snapshot readable and
 retryable. Raw writes are ordered per item; acknowledgements remove only their

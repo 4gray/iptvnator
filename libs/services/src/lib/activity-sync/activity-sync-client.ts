@@ -1,3 +1,4 @@
+import { ActivityMutationBarrier } from './activity-mutation-barrier';
 import { ActivityDeliveryCoordinator } from './activity-delivery-coordinator';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import { beginActivity } from './activity-sync-sessions';
@@ -68,10 +69,19 @@ export class ActivitySyncClient {
         { sourceId: string; incarnation?: string }
     >();
     private flushing?: Promise<void>;
+    private readonly mutations = new ActivityMutationBarrier();
+    readonly store: ActivityLocalStore;
     constructor(
-        readonly store: ActivityLocalStore,
+        store: ActivityLocalStore,
         readonly options: ActivityClientOptions
     ) {
+        this.store = {
+            read: (address) => store.read(address),
+            entries: (sourceId) => store.entries(sourceId),
+            pending: () => store.pending(),
+            mutate: (address, update) =>
+                this.mutations.track(store.mutate(address, update)),
+        };
         for (const context of options.contexts ?? [])
             this.contexts.set(context.sourceId, context);
     }
@@ -165,21 +175,27 @@ export class ActivitySyncClient {
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<{ address: ActivityAddress; generation: number }> {
-        return beginActivity.call(this, sourceId, position);
+        return this.mutations.track(
+            beginActivity.call(this, sourceId, position)
+        );
     }
 
     async save(
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<'local-only' | void> {
-        return saveActivity.call(this, sourceId, position);
+        return this.mutations.track(
+            saveActivity.call(this, sourceId, position)
+        );
     }
 
     async reset(
         sourceId: string,
         position: Partial<PlaybackPositionData>
     ): Promise<void> {
-        return resetActivity.call(this, sourceId, position);
+        return this.mutations.track(
+            resetActivity.call(this, sourceId, position)
+        );
     }
 
     async refresh(sourceId: string): Promise<void> {
@@ -317,8 +333,9 @@ export class ActivitySyncClient {
             }));
     }
 
-    stopDelivery(): Promise<void> {
-        return this.delivery.release();
+    async stopDelivery(): Promise<void> {
+        await this.mutations.drain();
+        await this.delivery.release();
     }
 
     flush(): Promise<void> {

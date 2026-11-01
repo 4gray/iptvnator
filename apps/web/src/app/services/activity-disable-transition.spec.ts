@@ -125,7 +125,7 @@ function fixture(mode: 'native' | 'browser', watched = false) {
             conflicts: signal([]),
             lastSync: signal(null),
         });
-        return { runtime, client };
+        return { runtime, client, adapter };
     };
     return {
         makeRuntime,
@@ -169,6 +169,48 @@ describe('retryable activity disable transition', () => {
         localStorage.clear();
         await prepareSourceConnection();
     });
+    it.each(['origin', 'sibling'] as const)(
+        'preserves an already-started %s checkpoint across disable',
+        async (writer) => {
+            const f = fixture('native');
+            f.recover();
+            const owner = f.makeRuntime();
+            const { runtime } = owner;
+            const { client, adapter } =
+                writer === 'origin' ? owner : f.makeRuntime();
+            let release!: () => void;
+            let started!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const entered = new Promise<void>((resolve) => {
+                started = resolve;
+            });
+            const mutate = client.store.mutate.bind(client.store);
+            jest.spyOn(client.store, 'mutate').mockImplementationOnce(
+                async (address, update) => {
+                    started();
+                    await held;
+                    return mutate(address, update);
+                }
+            );
+            const checkpoint = adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.sourceId,
+                {
+                    ...f.position,
+                    positionSeconds: 65,
+                    activitySessionId: 'synthetic-session',
+                },
+            ]);
+            await entered;
+            const disable = runtime.setEnabled(false);
+            for (let i = 0; i < 30; i++) await Promise.resolve();
+            release();
+            await Promise.all([checkpoint, disable]);
+            expect(runtime.enabled()).toBe(false);
+            expect(f.rows()[0].positionSeconds).toBe(65);
+        }
+    );
     it.each([
         ['native', false],
         ['native', true],

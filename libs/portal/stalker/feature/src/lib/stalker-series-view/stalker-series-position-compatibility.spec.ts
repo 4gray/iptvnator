@@ -2,6 +2,7 @@ import type {
     PlaybackPositionData,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
+import { getSeriesNextUp } from '@iptvnator/portal/shared/util';
 import type { StalkerMappedEpisode } from '@iptvnator/portal/stalker/data-access';
 import {
     clearStalkerSeriesPosition,
@@ -75,6 +76,47 @@ function reconcile(
 }
 
 describe('stalker series position compatibility', () => {
+    it('retains a scoped reset over a legacy row while continuing after the last played episode', () => {
+        const episodes = [1, 2, 3].map((n) =>
+            createEpisode({
+                trackingId: 1000 + n,
+                legacyTrackingId: 500 + n,
+                episodeNumber: n,
+            })
+        );
+        const first = createPosition({
+            contentXtreamId: 1001,
+            episodeNumber: 1,
+            positionSeconds: 120,
+            updatedAt: '2026-10-01T12:00:00.000Z',
+        });
+        const legacy = createPosition({
+            contentXtreamId: 503,
+            episodeNumber: 3,
+            positionSeconds: 120,
+        });
+        const reset = createPosition({
+            contentXtreamId: 1003,
+            episodeNumber: 3,
+            positionSeconds: 0,
+            durationSeconds: 0,
+            watched: false,
+            updatedAt: '2026-10-02T12:00:00.000Z',
+        });
+        const positions = reconcile(episodes, [first, legacy, reset]);
+        expect(positions.positionsByTrackingId.get(1003)).toEqual(reset);
+        expect(positions.legacyPositionByTrackingId.get(1003)).toEqual(legacy);
+        const next = getSeriesNextUp({
+            seasons: { '1': episodes },
+            playbackPositions: positions.positionsByTrackingId,
+        });
+        expect(next).toMatchObject({
+            kind: 'next',
+            entry: { episode: { id: '1002' } },
+        });
+    });
+
+
     it('keeps an exact zero reset ahead of watched legacy progress for guarded cleanup', () => {
         const episode = createEpisode({ legacyTrackingId: LEGACY_TRACKING_ID });
         const reset = createPosition({

@@ -1713,6 +1713,11 @@ series' positions and mapped episodes are available:
   progress; the guarded alias remains available for normal migration cleanup.
   The first reset also sends resolved scoped tracking and season metadata, so a
   client that has not opened the series can mirror the correct zero row.
+  A zero duration distinguishes these zero-position barriers in the local
+  mirror; ordinary launches at zero with unknown duration remain activity.
+  Next-up excludes the barriers from played activity without removing exact
+  rows needed for guarded reconciliation. Backups retain these barrier rows so
+  restoring alongside a legacy alias cannot resurrect its prior watched mark.
 - This is an on-read/on-write compatibility path, not a database schema
   migration or a bulk rewrite of saved positions.
 

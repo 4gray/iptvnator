@@ -242,17 +242,19 @@ export async function saveActivity(
     )
         this.delivery.start();
     else this.delivery.settled(operationId);
-    if (
-        committed.pending.some(
-            (intent) => intent.operation.operationId === operationId
-        )
-    )
+    const persisted = committed.pending.some(
+        (intent) => intent.operation.operationId === operationId
+    );
+    if (persisted)
         this.options.committed?.(
             sourceId,
             position,
             session ? 'checkpoint' : 'command'
         );
     this.options.changed();
+    // Another window may finish opt-out while this local commit is in flight.
+    if (persisted && this.options.consent() !== consentGeneration)
+        return 'local-only';
     void this.flush();
 }
 

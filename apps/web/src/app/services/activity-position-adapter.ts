@@ -243,6 +243,7 @@ export class ActivityPositionAdapter {
         if (position.activitySessionId)
             this.seenLocalSessions.add(position.activitySessionId);
         await this.persistLocal(raw, sourceId, snapshot);
+        this.client.options.changed();
     }
 
     private persistLocal(
@@ -307,7 +308,9 @@ export class ActivityPositionAdapter {
         sourceId: string,
         local: PlaybackPositionData[]
     ): Promise<PlaybackPositionData[]> {
-        return (await this.project(sourceId, local)).map(localActivityPosition);
+        return (await this.project(sourceId, local, true)).map(
+            localActivityPosition
+        );
     }
 
     protectLocal(sourceId: string, position: PlaybackPositionData): void {

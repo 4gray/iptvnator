@@ -184,7 +184,7 @@ export class SerialDetailsPlaybackPositionState {
             ...contentInfo,
             playlistId: contentInfo.playlistId,
             positionSeconds,
-            durationSeconds: existing?.durationSeconds,
+            durationSeconds: existing?.durationSeconds || undefined,
             updatedAt: new Date().toISOString(),
         };
 
