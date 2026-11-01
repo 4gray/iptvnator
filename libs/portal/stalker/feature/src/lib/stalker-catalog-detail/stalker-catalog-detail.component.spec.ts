@@ -94,6 +94,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     const catalogPlaylist = signal({ id: 'stalker-1' });
     const snackBar = { open: jest.fn() };
     const refreshPositions = jest.fn().mockResolvedValue(undefined);
+    const applyPlaybackPosition = jest.fn();
     const getPlaybackPosition = jest.fn().mockResolvedValue(null);
     const savePlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
     const routerMock = { navigateByUrl: jest.fn() };
@@ -117,6 +118,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         catalogPlaylist.set({ id: 'stalker-1' });
         snackBar.open.mockReset();
         refreshPositions.mockClear();
+        applyPlaybackPosition.mockClear();
         getPlaybackPosition.mockReset().mockResolvedValue(null);
         savePlaybackPositionOrThrow.mockClear().mockResolvedValue(undefined);
         routerMock.navigateByUrl.mockReset();
@@ -134,6 +136,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                         clearSelectedItem: jest.fn(),
                         resolveVodPlayback,
                         refreshPositions,
+                        applyPlaybackPosition,
                     },
                 },
                 {
@@ -621,5 +624,32 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
 
         expect(locationMock.back).not.toHaveBeenCalled();
         expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    });
+    it('shares accepted inline completion updates with the catalog before returning from detail', () => {
+        fixture.detectChanges();
+        fixture.componentInstance.inlinePlayback.set({
+            streamUrl: 'https://example.test/movie.webm',
+            title: 'Inline completion',
+            contentInfo: {
+                playlistId: 'stalker-1',
+                contentXtreamId: 42,
+                contentType: 'vod',
+            },
+        });
+        fixture.componentInstance.handleInlineTimeUpdate({
+            currentTime: 95,
+            duration: 100,
+        });
+        expect(applyPlaybackPosition).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: 'stalker-1',
+                contentXtreamId: 42,
+                contentType: 'vod',
+                positionSeconds: 95,
+                durationSeconds: 100,
+            })
+        );
+        fixture.componentInstance.onVodBack();
+        expect(fixture.componentInstance.inlinePlayback()).toBeNull();
     });
 });
