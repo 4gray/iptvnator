@@ -37,6 +37,7 @@ import {
     waitForXtreamImportCompleted,
     xtreamPlaylistIdFromUrl,
 } from './xtream-import-wait';
+import { findMainWindow } from './electron-main-window';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -614,22 +615,6 @@ function assertPackagedRendererBuildIsElectronSafe(): void {
     }
 }
 
-async function findMainWindow(app: ElectronApplication): Promise<Page> {
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 2000));
-
-    const windows = app.windows();
-
-    for (const window of windows) {
-        const title = await window.title();
-
-        if (!title.includes('DevTools')) {
-            return window;
-        }
-    }
-
-    return app.firstWindow();
-}
-
 async function waitForAppReady(page: Page): Promise<void> {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForSelector('app-root', { timeout: 30000 });
@@ -664,6 +649,21 @@ async function waitForAppReady(page: Page): Promise<void> {
             )}`
         );
     }
+
+    // The old startup sleep also hid the rail's entrance animation. Keep
+    // geometry-sensitive tests ready for interaction without a fixed delay.
+    await page.locator('.app-rail').evaluate(async (rail) => {
+        await document.fonts.ready;
+        await Promise.all(
+            rail
+                .getAnimations({ subtree: true })
+                .filter(
+                    (animation) =>
+                        animation.effect?.getTiming().iterations !== Infinity
+                )
+                .map((animation) => animation.finished.catch(() => undefined))
+        );
+    });
 }
 
 export async function openAddPlaylistDialog(page: Page): Promise<void> {

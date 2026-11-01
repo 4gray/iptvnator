@@ -73,6 +73,10 @@ verify download preservation using a development-profile download instead.
 
 The Electron E2E test uses a loopback recording proxy to assert which category
 and catalog actions the real desktop process sends. It never records credentials.
+Shared-connection edit tests wait for the initial Live catalog's native
+`completed` status, the loading overlay to disappear, and the source row to be
+idle before editing. An absent overlay alone can precede the account response
+and import startup; editing then can be rejected as source-busy before any scan.
 The SQLite regression uses Electron's native SQLite and foreign keys enabled.
 The preservation E2E seeds 105 history entries and a resume point, downloads a
 valid local media clip, disables all catalogs, refreshes, and restarts the app.
