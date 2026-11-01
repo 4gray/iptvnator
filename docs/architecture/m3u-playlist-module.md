@@ -1244,6 +1244,9 @@ responses across XMLTV, portal stores, collections and the dashboard. Electron's
 Suspension clears session fetch markers after writers drain, so a source that
 becomes stale while disabled can refresh on resumption; fresh stored data still
 skips downloading through the ordinary freshness check.
+The resumable list follows `filterPlaylistEpgUrlsForFetch`: global sources stay
+eligible, while local playlist paths require explicit manual provenance. The
+ownership inventory remains intact for reconciliation and lookup retirement.
 Re-enabling restores ordinary loading and freshness checks without a restart.
 Archive browsing through the programme guide is unavailable while EPG is off.
 

@@ -52,7 +52,7 @@ export class EpgService {
             const enabled = this.epgPreferences.enabled();
             this.epgAvailable.next(enabled);
             if (enabled && !wasEnabled) {
-                void this.fetchEpg(this.sourceSettings.getActiveSourceUrls());
+                void this.fetchEpg(this.sourceSettings.getFetchableSourceUrls());
             }
             wasEnabled = enabled;
         });

@@ -14,6 +14,7 @@ import {
     takeUntil,
 } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filterPlaylistEpgUrlsForFetch } from '@iptvnator/shared/m3u-utils';
 import { EpgPreferencesService } from './epg-preferences.service';
 import { PlaylistsService } from './playlists.service';
 
@@ -49,6 +50,7 @@ export function epgSourceUrlsChanged(
 export class EpgSourceSettingsService {
     private readonly injector = inject(Injector);
     private activeUrls = new Set<string>();
+    private fetchableUrls = new Set<string>();
     private reconciliation: Promise<void> | undefined;
     private failedReconciliation: { urls: string[] } | undefined;
     readonly revision = signal(0);
@@ -69,8 +71,8 @@ export class EpgSourceSettingsService {
             : urls.filter((url) => this.activeUrls.has(url));
     }
 
-    getActiveSourceUrls(): string[] {
-        return [...this.activeUrls];
+    getFetchableSourceUrls(): string[] {
+        return [...this.fetchableUrls];
     }
 
     guard<T>(): MonoTypeOperatorFunction<T> {
@@ -127,6 +129,7 @@ export class EpgSourceSettingsService {
         // These globals are committed even if playlist ownership or cleanup
         // cannot be read. Never keep the previous global list on failure.
         this.activeUrls = new Set(normalized);
+        this.fetchableUrls = new Set(normalized);
         try {
             // This includes the legacy IndexedDB → SQLite playlist migration.
             const playlists = await firstValueFrom(
@@ -136,6 +139,13 @@ export class EpgSourceSettingsService {
                 if (playlist.serverUrl || playlist.macAddress) continue;
                 for (const url of playlist.epgUrls ?? []) {
                     if (url.trim()) this.activeUrls.add(url.trim());
+                }
+                for (const url of filterPlaylistEpgUrlsForFetch(
+                    playlist.epgUrls,
+                    normalized,
+                    playlist.manualEpgUrls
+                )) {
+                    this.fetchableUrls.add(url);
                 }
             }
             const result =
