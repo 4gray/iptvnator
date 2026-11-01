@@ -6,6 +6,7 @@ import android.util.Log;
 
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.ShellApp;
+import org.tvshell.iptvnator.backend.DiagnosticRedactor;
 import org.tvshell.iptvnator.backend.HttpFetcher;
 import org.tvshell.iptvnator.backend.ShellSite;
 import org.tvshell.iptvnator.backend.WebBackend;
@@ -61,7 +62,7 @@ public final class TvShellServer extends NanoHTTPD {
                     // Thread.start() fails with an OutOfMemoryError when the device is short of memory:
                     // uncaught on the listener thread it would kill the app. Drop this connection only;
                     // the WebView retries it.
-                    Log.w(ShellApp.TAG, "cannot serve a connection: " + e);
+                    Log.w(ShellApp.TAG, "cannot serve a connection: " + DiagnosticRedactor.redact(e.toString()));
                     closed(handler);
                     handler.close();
                 }
@@ -78,7 +79,7 @@ public final class TvShellServer extends NanoHTTPD {
                 try {
                     super.run(); // its finally{} closes the socket and unregisters the handler
                 } catch (Error e) {
-                    Log.e(ShellApp.TAG, "request thread failed: " + e);
+                    Log.e(ShellApp.TAG, "request thread failed: " + DiagnosticRedactor.redact(e.toString()));
                 }
             }
         };
@@ -192,28 +193,28 @@ public final class TvShellServer extends NanoHTTPD {
             response.addHeader("Cache-Control", res.cacheControl);
             return response;
         } catch (IOException e) {
-            Log.e(ShellApp.TAG, "serve " + uri + " failed", e);
+            Log.e(ShellApp.TAG, DiagnosticRedactor.redact("serve " + uri + " failed\n" + DiagnosticRedactor.stackTrace(e)));
             return error(Response.Status.INTERNAL_ERROR, "I/O error: " + e.getMessage());
         } catch (RuntimeException e) {
-            Log.e(ShellApp.TAG, "serve " + uri + " crashed", e);
+            Log.e(ShellApp.TAG, DiagnosticRedactor.redact("serve " + uri + " crashed\n" + DiagnosticRedactor.stackTrace(e)));
             return error(Response.Status.INTERNAL_ERROR, "Internal error: " + e);
         } catch (OutOfMemoryError e) {
             // NanoHTTPD's ClientHandler only catches Exception: an Error escaping serve() reaches
             // Android's default uncaught handler, which kills the whole process. Once this frame
             // unwinds the request buffers are unreachable, so answering is safe; the PWA shows the
             // message in its usual error toast (same body shape as the backend's 500 answers).
-            Log.e(ShellApp.TAG, "serve " + uri + " ran out of memory");
+            Log.e(ShellApp.TAG, DiagnosticRedactor.redact("serve " + uri + " ran out of memory"));
             Response r = newFixedLengthResponse(status(500), "application/json; charset=utf-8",
                 "{\"message\":\"The provider response is too large for this device's memory\",\"status\":500}");
             return r;
         } catch (StackOverflowError e) {
             // Same reasoning: the JSON reader bounds its nesting (Json.MAX_DEPTH), this is the
             // backstop for any other deep recursion a hostile payload might find.
-            Log.e(ShellApp.TAG, "serve " + uri + " overflowed the stack");
+            Log.e(ShellApp.TAG, DiagnosticRedactor.redact("serve " + uri + " overflowed the stack"));
             return newFixedLengthResponse(status(500), "application/json; charset=utf-8",
                 "{\"message\":\"The provider response is too deeply nested for this device\",\"status\":500}");
         } catch (Error e) {
-            Log.e(ShellApp.TAG, "serve " + uri + " failed: " + e, e);
+            Log.e(ShellApp.TAG, DiagnosticRedactor.redact("serve " + uri + " failed\n" + DiagnosticRedactor.stackTrace(e)));
             return close(newFixedLengthResponse(status(500), "application/json; charset=utf-8",
                 "{\"message\":\"Internal error\",\"status\":500}"));
         }

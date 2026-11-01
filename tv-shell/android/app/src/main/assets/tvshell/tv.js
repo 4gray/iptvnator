@@ -672,7 +672,9 @@
                 native('showKeyboard');
                 return; // let the app submit on Enter if it wants to
             }
-            if (active.hasAttribute(MADE_FOCUSABLE)) {
+            // Android's DPAD_CENTER maps to Enter. Native checkboxes/radios only activate
+            // with Space in a browser, so handle OK explicitly and prevent form submission.
+            if ((active.tagName === 'INPUT' && /^(checkbox|radio)$/.test(active.type)) || active.hasAttribute(MADE_FOCUSABLE)) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 active.click();

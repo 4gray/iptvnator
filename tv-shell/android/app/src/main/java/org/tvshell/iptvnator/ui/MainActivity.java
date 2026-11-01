@@ -36,6 +36,7 @@ import android.widget.Toast;
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
 import org.tvshell.iptvnator.ShellApp;
+import org.tvshell.iptvnator.backend.DiagnosticRedactor;
 import org.tvshell.iptvnator.server.TvShellServer;
 
 /**
@@ -270,7 +271,7 @@ public class MainActivity extends Activity {
             @Override
             public boolean onConsoleMessage(ConsoleMessage message) {
                 if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
-                    lastConsoleError = message.message() + " (" + message.sourceId() + ":" + message.lineNumber() + ")";
+                    lastConsoleError = DiagnosticRedactor.redact(message.message() + " (" + message.sourceId() + ":" + message.lineNumber() + ")");
                     Log.w(ShellApp.TAG, "[console] " + lastConsoleError);
                     // A bundle this engine cannot parse: show the diagnostics now rather than after the timeout.
                     if (!pageReady && message.message().startsWith("Uncaught SyntaxError")) {
@@ -278,7 +279,8 @@ public class MainActivity extends Activity {
                         showLoadTimeout();
                     }
                 }
-                return false;
+                // Handled here: do not delegate the original, unsanitized message to WebView.
+                return true;
             }
 
             @Override

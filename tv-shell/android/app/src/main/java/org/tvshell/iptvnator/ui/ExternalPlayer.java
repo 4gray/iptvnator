@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import org.tvshell.iptvnator.R;
 import org.tvshell.iptvnator.ShellApp;
+import org.tvshell.iptvnator.backend.DiagnosticRedactor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -77,7 +78,7 @@ public final class ExternalPlayer {
         } catch (RuntimeException e) {
             // ActivityNotFoundException, but also SecurityException (the player's activity is no
             // longer exported) or a too-large transaction: none of them may take the shell down.
-            Log.w(ShellApp.TAG, "external player launch failed: " + e);
+            Log.w(ShellApp.TAG, "external player launch failed: " + DiagnosticRedactor.redact(e.toString()));
             if (preferredPackage != null && !preferredPackage.isEmpty()) {
                 // The preferred app is gone or refuses: fall back to the system chooser.
                 intent.setPackage(null);

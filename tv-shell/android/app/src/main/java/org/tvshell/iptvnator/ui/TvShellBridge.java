@@ -4,6 +4,7 @@ import android.util.Log;
 import android.webkit.JavascriptInterface;
 
 import org.tvshell.iptvnator.ShellApp;
+import org.tvshell.iptvnator.backend.DiagnosticRedactor;
 
 /**
  * {@code window.TvShell} inside the page. Every method is called from the
@@ -19,7 +20,7 @@ public class TvShellBridge {
 
     @JavascriptInterface
     public void onReady(String url) {
-        Log.i(ShellApp.TAG, "web app ready: " + url);
+        Log.i(ShellApp.TAG, "web app ready: " + DiagnosticRedactor.redact(url));
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -122,6 +123,6 @@ public class TvShellBridge {
 
     @JavascriptInterface
     public void log(String message) {
-        Log.d(ShellApp.TAG, "[page] " + message);
+        Log.d(ShellApp.TAG, "[page] " + DiagnosticRedactor.redact(message));
     }
 }

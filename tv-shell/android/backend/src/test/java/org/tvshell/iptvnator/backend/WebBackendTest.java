@@ -202,6 +202,28 @@ public class WebBackendTest {
         assertEquals("502", 502, Integer.valueOf(((Number) body(reset).get("status")).intValue()));
     }
 
+    public void testXtreamUserAgentIsAHeaderForCatalogAndConnectionTests() {
+        FakeFetcher fetcher = new FakeFetcher();
+        fetcher.answers.put("http://synthetic.example/player_api.php?", "[]");
+        WebBackend backend = new WebBackend(fetcher, "/api");
+        String id = register(backend, "http://synthetic.example");
+        for (String connectionTest : new String[] { "false", "true" }) {
+            WebBackend.Response result = backend.handle("GET", "/xtream",
+                query("targetId", id, "username", "synthetic-account", "password", "synthetic-secret",
+                    "action", "get_live_categories", "userAgent", "  SyntheticPlayer/1.0  ", "connectionTest", connectionTest), null);
+            assertEquals("successful response", 200, Integer.valueOf(result.status));
+            int last = fetcher.urls.size() - 1;
+            assertEquals("trimmed override in header", "SyntheticPlayer/1.0", fetcher.headers.get(last).get("User-Agent"));
+            assertEquals("control parameters never sent to the provider",
+                "http://synthetic.example/player_api.php?username=synthetic-account&password=synthetic-secret&action=get_live_categories",
+                fetcher.urls.get(last));
+        }
+        backend.handle("GET", "/xtream", query("targetId", id, "username", "synthetic-account", "userAgent", "   "), null);
+        int last = fetcher.urls.size() - 1;
+        assertEquals("blank override uses the fetcher default", null, fetcher.headers.get(last).get("User-Agent"));
+        assertEquals("blank override absent from query", "http://synthetic.example/player_api.php?username=synthetic-account", fetcher.urls.get(last));
+    }
+
     @SuppressWarnings("unchecked")
     public void testStalkerProxy() {
         FakeFetcher fetcher = new FakeFetcher();

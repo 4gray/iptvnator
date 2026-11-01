@@ -64,6 +64,10 @@ features in IPTVnator).
 - The published APK is a **non-debuggable** release build, `allowBackup` is
   off (the WebView storage holds portal credentials) and remote debugging
   (`chrome://inspect`) is **opt-in** in the NatorTV settings.
+- Native diagnostics and forwarded WebView errors share a redactor: full URLs,
+  credential fields and authorization values are removed before logging or
+  displaying startup diagnostics. Other console levels are consumed without
+  forwarding their original text; each diagnostic is capped at 4,000 characters.
 - Cleartext traffic is allowed on purpose: the app's own origin is
   `http://127.0.0.1` and most IPTV portals and streams are plain `http`.
 - Known limitation: any other app on the device can reach the loopback server

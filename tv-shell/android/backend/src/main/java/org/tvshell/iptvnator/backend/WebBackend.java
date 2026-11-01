@@ -189,7 +189,7 @@ public class WebBackend {
         } catch (RuntimeException e) {
             // Not a bad playlist: a bug while items were parsed, decorated or written. The answer is
             // the same, but the cause stays in logcat (tag System.err) for a user's adb log.
-            e.printStackTrace();
+            System.err.println(DiagnosticRedactor.stackTrace(e));
             return json(500, error("Error, something went wrong", 500));
         }
         return new Response(200, JSON_TYPE, record);
@@ -203,9 +203,12 @@ public class WebBackend {
         boolean connectionTest = "true".equals(query.get("connectionTest"));
         try {
             String base = PortalUrls.normalizeXtreamServerUrl(registeredUrl);
-            Map<String, String> params = proxyParams(query, "targetId", "connectionTest");
+            Map<String, String> params = proxyParams(query, "targetId", "connectionTest", "userAgent");
+            Map<String, String> headers = new LinkedHashMap<String, String>();
+            String userAgent = query.get("userAgent");
+            if (userAgent != null) headers.put("User-Agent", userAgent);
             String requestUrl = PortalUrls.withQuery(PortalUrls.xtreamApiUrl(base), params);
-            HttpFetcher.Result result = fetcher.get(requestUrl, null, TIMEOUT_XTREAM_MS);
+            HttpFetcher.Result result = fetcher.get(requestUrl, headers, TIMEOUT_XTREAM_MS);
             Map<String, Object> out = Json.object();
             out.put("action", action);
             out.put("payload", payloadOf(result.body));

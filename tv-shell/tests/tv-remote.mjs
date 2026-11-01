@@ -570,6 +570,31 @@ console.log('10. D-pad robustness: queued repeats, snack bars, animated rails');
     check(r.scope === 'document', 'a snack bar does not become the navigation scope: ' + r.scope);
     check(railScroll > 0, 'a smooth rail with nothing on screen to land on scrolls at once: scrollLeft ' + railScroll);
 }
+console.log('11. OK toggles native checkbox and radio controls once without submitting');
+await page.evaluate(() => {
+    document.body.innerHTML = `<form id="tv-checkbox-form">
+        <label><input id="tv-checkbox" type="checkbox">Synthetic option</label>
+        <input id="tv-radio-a" type="radio" name="synthetic-choice" checked>
+        <input id="tv-radio-b" type="radio" name="synthetic-choice">
+    </form>`;
+    window.tvControlEvents = { changes: 0, submits: 0 };
+    document.querySelector('#tv-checkbox').addEventListener('change', () => window.tvControlEvents.changes++);
+    document.querySelector('form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        window.tvControlEvents.submits++;
+    });
+    document.querySelector('#tv-checkbox').focus();
+});
+await page.keyboard.press('Enter');
+check(await page.locator('#tv-checkbox').isChecked(), 'OK selects a native checkbox');
+await page.keyboard.press('Enter');
+check(!(await page.locator('#tv-checkbox').isChecked()), 'OK clears a native checkbox');
+check(await page.evaluate(() => window.tvControlEvents.changes === 2 && window.tvControlEvents.submits === 0),
+    'one change per OK press and no form submission');
+await page.locator('#tv-radio-b').focus();
+await page.keyboard.press('Enter');
+check(await page.locator('#tv-radio-b').isChecked() && !(await page.locator('#tv-radio-a').isChecked()),
+    'OK selects a radio option and clears its peer');
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();
