@@ -36,13 +36,13 @@ it.each(['playlist', 'global'])(
         const deferred = new XtreamDeferredCatalogRestoreService();
         deferred.prepare('p', state(), []);
         deferred.prepare('q', state(), []);
+        const acknowledge = async () => {
+            expect(deferred.getSnapshot('p').state.recentlyViewed).toEqual([]);
+            return { success: true };
+        };
         const bridge = {
-            dbClearRecentlyViewed: jest
-                .fn()
-                .mockResolvedValue({ success: true }),
-            dbClearPlaylistRecentItems: jest
-                .fn()
-                .mockResolvedValue({ success: true }),
+            dbClearRecentlyViewed: jest.fn(acknowledge),
+            dbClearPlaylistRecentItems: jest.fn(acknowledge),
         };
         Object.defineProperty(window, 'electron', {
             configurable: true,

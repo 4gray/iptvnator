@@ -132,6 +132,35 @@ describe('database worker IPC contract', () => {
         expect(mockWorkerRequest).not.toHaveBeenCalled();
     });
 
+    it.each(['DB_CLEAR_RECENTLY_VIEWED', 'DB_CLEAR_PLAYLIST_RECENT_ITEMS'])(
+        '%s persists dormant history before clearing native rows',
+        async (channel) => {
+            const event = createIpcEvent();
+            await getHandler(channel)(event, playlistId);
+            expect(event.sender.session.flushStorageData).toHaveBeenCalledTimes(
+                1
+            );
+            expect(
+                event.sender.session.flushStorageData.mock
+                    .invocationCallOrder[0]
+            ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
+        }
+    );
+
+    it.each(['DB_CLEAR_RECENTLY_VIEWED', 'DB_CLEAR_PLAYLIST_RECENT_ITEMS'])(
+        '%s does not acknowledge a clear when dormant state cannot be persisted',
+        async (channel) => {
+            const event = createIpcEvent();
+            event.sender.session.flushStorageData.mockImplementation(() => {
+                throw new Error('storage flush failed');
+            });
+            await expect(
+                getHandler(channel)(event, playlistId)
+            ).rejects.toThrow('storage flush failed');
+            expect(mockWorkerRequest).not.toHaveBeenCalled();
+        }
+    );
+
     beforeEach(async () => {
         jest.resetModules();
         mockRegisteredHandlers.clear();

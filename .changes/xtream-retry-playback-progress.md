@@ -3,4 +3,4 @@ type: fix
 area: xtream
 ---
 
-Catalog retries and Refresh retain later history edits, clears, progress and hidden categories, including crashes during import or recovery. Failed preparation keeps healthy caches. Older pending scans migrate before retry/export. Backup retries reset stale recovery. Offline restore uses selected caches and preserves dormant types. Disabled sections finish loading. Exports reflect current state.
+Catalog retries and Refresh keep newer history, clears, progress and hidden categories through crashes during import or recovery. Explicit history clears persist dormant removals. Failed preparation keeps healthy caches. Older scans migrate before retry/export. Backup retries reset stale recovery. Offline restore uses selected caches and preserves unloaded types. Disabled sections finish loading.

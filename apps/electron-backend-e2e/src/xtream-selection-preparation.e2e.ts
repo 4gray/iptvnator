@@ -7,6 +7,8 @@ import {
     openSourceEditor,
     openSources,
     test,
+    waitForDbOperationEvent,
+    waitForSourceRowIdle,
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
 import { recordCatalogRequests } from './xtream-selection.e2e-support';
@@ -90,6 +92,7 @@ test('failed native deletion preparation retains healthy cached catalog identiti
             };
         }, title);
         await openSources(page);
+        await waitForSourceRowIdle(page, title);
         let dialog = await openSourceEditor(page, title);
         await dialog
             .getByTestId('xtream-load-movie')
@@ -110,9 +113,11 @@ test('failed native deletion preparation retains healthy cached catalog identiti
             .locator('mat-dialog-actions')
             .getByRole('button', { name: 'Save', exact: true })
             .click();
-        await expect(
-            dialog.locator('.workspace-loading-overlay')
-        ).toBeVisible();
+        await waitForDbOperationEvent(page, {
+            operation: 'delete-xtream-content',
+            playlistId: seeded.id,
+            status: 'error',
+        });
         await expect(
             dialog.locator('.workspace-loading-overlay')
         ).not.toBeVisible();
