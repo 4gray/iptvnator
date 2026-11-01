@@ -33,6 +33,8 @@ describe('activity projection local preservation', () => {
         const client = {
             options: { changed: () => undefined },
             aliases: new Map(),
+            localSessions: new Map(),
+            retiredSessions: new Set(),
             positions: async () => [
                 { position: reset, reset: true, conflict: false },
             ],

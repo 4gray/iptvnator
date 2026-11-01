@@ -310,14 +310,18 @@ describe('retryable activity disable transition', () => {
         }
     );
 
-    it.each([
-        { reset: false, failedBegin: false, failedWrite: false },
-        { reset: true, failedBegin: false, failedWrite: false },
-        { reset: false, failedBegin: false, failedWrite: true },
-        { reset: false, failedBegin: true, failedWrite: true },
-    ])(
+    it.each(
+        [
+            { reset: false, failedBegin: false, failedWrite: false },
+            { reset: true, failedBegin: false, failedWrite: false },
+            { reset: false, failedBegin: false, failedWrite: true },
+            { reset: false, failedBegin: true, failedWrite: true },
+        ].flatMap((test) =>
+            [false, true].map((beforeCommit) => ({ ...test, beforeCommit }))
+        )
+    )(
         'preserves newer local actions while an older launch finishes during opt-out (%o)',
-        async ({ reset, failedBegin, failedWrite }) => {
+        async ({ reset, failedBegin, failedWrite, beforeCommit }) => {
             const f = fixture('native');
             f.recover();
             const { runtime, client, localOnly } = f.makeRuntime();
@@ -332,11 +336,15 @@ describe('retryable activity disable transition', () => {
             const mutate = client.store.mutate.bind(client.store);
             jest.spyOn(client.store, 'mutate').mockImplementationOnce(
                 async (address, update) => {
+                    const committed =
+                        !beforeCommit && !failedBegin
+                            ? await mutate(address, update)
+                            : undefined;
                     entered();
                     await held;
                     if (failedBegin)
                         throw new Error('Synthetic launch storage failure');
-                    return mutate(address, update);
+                    return beforeCommit ? mutate(address, update) : committed!;
                 }
             );
             const beginning = client.begin(f.sourceId, {
@@ -374,6 +382,10 @@ describe('retryable activity disable transition', () => {
             if (failedBegin)
                 await expect(beginning).rejects.toThrow(
                     'Synthetic launch storage failure'
+                );
+            else if (beforeCommit)
+                await expect(beginning).rejects.toThrow(
+                    'Activity consent changed'
                 );
             else await beginning;
             await disabling;

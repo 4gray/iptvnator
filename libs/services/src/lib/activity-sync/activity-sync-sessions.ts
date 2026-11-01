@@ -35,10 +35,13 @@ export function beginActivity(
         incarnation = address.sourceIncarnation;
         let generation = 0;
         if (!currentAction()) throw new Error('Activity launch superseded');
-        if (!matchesConsent(this, consentGeneration))
+        if (!this.consentMatches(consentGeneration))
             throw new Error('Activity consent changed');
         this.delivery.begins.set(operationId, consentGeneration);
         const committed = await this.store.mutate(address, (current) => {
+            if (!currentAction()) throw new Error('Activity launch superseded');
+            if (!this.consentMatches(consentGeneration))
+                throw new Error('Activity consent changed');
             const state = current?.state ?? emptyActivityState();
             const operation: ActivityOperation = {
                 kind: 'begin',
@@ -79,7 +82,7 @@ export function beginActivity(
             };
         });
         const active =
-            matchesConsent(this, consentGeneration) && currentAction();
+            this.consentMatches(consentGeneration) && currentAction();
         if (!currentAction()) this.retiredSessions.add(sessionId);
         if (
             active &&
@@ -101,7 +104,7 @@ export function beginActivity(
         return { address, generation };
     })().catch((error) => {
         const superseded = !currentAction();
-        const obsolete = superseded || !matchesConsent(this, launchConsent);
+        const obsolete = superseded || !this.consentMatches(launchConsent);
         if (superseded) this.retiredSessions.add(sessionId);
         if (obsolete) this.localSessions.delete(sessionId);
         else this.localSessions.set(sessionId, { sourceId, incarnation });
@@ -121,24 +124,14 @@ export function beginActivity(
     return begin;
 }
 
-function matchesConsent(
-    client: ActivitySyncClient,
-    generation?: string
-): boolean {
-    try {
-        return (
-            generation !== undefined && client.options.consent() === generation
-        );
-    } catch {
-        return false;
-    }
-}
-
 export async function saveActivity(
     this: ActivitySyncClient,
     sourceId: string,
     position: PlaybackPositionData
 ): Promise<'local-only' | void> {
+    const currentAction = position.activitySessionId
+        ? () => true
+        : this.actions.position(sourceId, position);
     const failed = position.activitySessionId
         ? this.localSessions.get(position.activitySessionId)
         : undefined;
@@ -166,7 +159,13 @@ export async function saveActivity(
     )
         return;
     const sessionId = position.activitySessionId;
-    let session = sessionId ? await this.sessions.get(sessionId) : undefined;
+    let session;
+    try {
+        session = sessionId ? await this.sessions.get(sessionId) : undefined;
+    } catch (error) {
+        if (sessionId && this.retiredSessions.has(sessionId)) return;
+        throw error;
+    }
     const address =
         session?.address ?? (await this.address(sourceId, position));
     if (sessionId && !session) {
@@ -199,6 +198,7 @@ export async function saveActivity(
     let committed: ActivityLocalRecord;
     try {
         committed = await this.store.mutate(address, (current) => {
+            if (!currentAction()) throw new Error('Activity action superseded');
             const state = current?.state ?? emptyActivityState();
             if (
                 session &&
@@ -266,6 +266,7 @@ export async function saveActivity(
         });
     } catch (error) {
         this.delivery.settled(operationId);
+        if (!currentAction()) return;
         throw error;
     }
     if (
@@ -277,6 +278,7 @@ export async function saveActivity(
     )
         this.delivery.start();
     else this.delivery.settled(operationId);
+    if (!currentAction()) return;
     const persisted = committed.pending.some(
         (intent) => intent.operation.operationId === operationId
     );
@@ -298,40 +300,50 @@ export async function resetActivity(
     sourceId: string,
     position: Partial<PlaybackPositionData>
 ): Promise<void> {
+    const currentAction = this.actions.position(sourceId, position);
+    const consentGeneration = this.consent();
     const address = await this.address(sourceId, position);
-    const committed = await this.store.mutate(address, (current) => {
-        const state = current?.state ?? emptyActivityState();
-        const operation: ActivityOperation = {
-            kind: 'reset',
-            operationId: createRandomId(),
-            deviceId: this.options.deviceId,
-            expectedRevision: state.revision,
-            positionMetadata: metadata({
-                ...projectActivity(address, state, this.alias(address)),
-                ...position,
-                positionSeconds: 0,
-            }),
-        };
-        return {
-            ...current,
-            state: applyActivityOperation(state, operation).state,
-            position: projectActivity(
-                address,
-                {
-                    ...emptyActivityState(),
-                    positionMetadata: operation.positionMetadata,
-                },
-                this.alias(address) ?? { ...current?.position, ...position }
-            ),
-            pending: [
-                ...(current?.pending ?? []),
-                { address, consentGeneration: this.consent(), operation },
-            ],
-        };
-    });
-    this.options.committed?.(sourceId, position, 'command');
-    if (committed.position)
-        this.options.committed?.(sourceId, committed.position, 'command');
+    const committed = await this.store
+        .mutate(address, (current) => {
+            if (!currentAction()) throw new Error('Activity action superseded');
+            const state = current?.state ?? emptyActivityState();
+            const operation: ActivityOperation = {
+                kind: 'reset',
+                operationId: createRandomId(),
+                deviceId: this.options.deviceId,
+                expectedRevision: state.revision,
+                positionMetadata: metadata({
+                    ...projectActivity(address, state, this.alias(address)),
+                    ...position,
+                    positionSeconds: 0,
+                }),
+            };
+            return {
+                ...current,
+                state: applyActivityOperation(state, operation).state,
+                position: projectActivity(
+                    address,
+                    {
+                        ...emptyActivityState(),
+                        positionMetadata: operation.positionMetadata,
+                    },
+                    this.alias(address) ?? { ...current?.position, ...position }
+                ),
+                pending: [
+                    ...(current?.pending ?? []),
+                    { address, consentGeneration, operation },
+                ],
+            };
+        })
+        .catch((error) => {
+            if (currentAction()) throw error;
+        });
+    if (!committed) return;
+    if (currentAction() && this.consentMatches(consentGeneration)) {
+        this.options.committed?.(sourceId, position, 'command');
+        if (committed.position)
+            this.options.committed?.(sourceId, committed.position, 'command');
+    }
     this.options.changed();
     void this.flush();
 }

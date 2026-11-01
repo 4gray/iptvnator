@@ -145,11 +145,13 @@ describe('keeping pending activity local', () => {
         (
             ['begin', 'reset', 'mark-watched', 'import', 'resolve'] as const
         ).flatMap((action) =>
-            [false, true].map((succeeds) => ({ action, succeeds }))
+            [false, true].flatMap((succeeds) =>
+                [false, true].map((early) => ({ action, succeeds, early }))
+            )
         )
     )(
-        'ignores an old context response after a newer $action action (success: $succeeds)',
-        async ({ action, succeeds }) => {
+        'ignores an old context response after a newer $action action (success: $succeeds, early checkpoint: $early)',
+        async ({ action, succeeds, early }) => {
             const f = fixture();
             f.saved.push({ ...f.position, positionSeconds: 10 });
             if (action === 'resolve') {
@@ -204,6 +206,21 @@ describe('keeping pending activity local', () => {
                 activitySessionId: 'synthetic-older',
             });
             await started;
+            const checkpoint = early
+                ? f.adapter
+                      .invoke(f.raw, 'savePlaybackPosition', [
+                          f.address.sourceId,
+                          {
+                              ...f.position,
+                              positionSeconds: 65,
+                              activitySessionId: 'synthetic-older',
+                          },
+                      ])
+                      .then(
+                          () => undefined,
+                          (error) => error
+                      )
+                : undefined;
             if (action === 'begin') {
                 const next = {
                     ...f.position,
@@ -236,6 +253,7 @@ describe('keeping pending activity local', () => {
                     ? 'Activity launch superseded'
                     : 'Synthetic old context failure'
             );
+            if (early) expect(await checkpoint).toBeUndefined();
             await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
                 f.address.sourceId,
                 {
@@ -255,6 +273,256 @@ describe('keeping pending activity local', () => {
             expect(f.client.retiredSessions.has('synthetic-older')).toBe(true);
         }
     );
+
+    it('retires a failed launch cleared before its first checkpoint', async () => {
+        const f = fixture();
+        f.client.contexts.clear();
+        f.setOffline(true);
+        const position = {
+            ...f.position,
+            activitySessionId: 'synthetic-no-checkpoint',
+        };
+        await expect(
+            f.client.begin(f.address.sourceId, position)
+        ).rejects.toThrow();
+        await f.adapter.invoke(f.raw, 'clearPlaybackPosition', [
+            f.address.sourceId,
+            42,
+            'vod',
+        ]);
+        await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+            f.address.sourceId,
+            { ...position, positionSeconds: 65 },
+        ]);
+        expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual([]);
+        expect(f.client.retiredSessions.has(position.activitySessionId)).toBe(
+            true
+        );
+    });
+
+    it.each(['reset', 'mark-watched', 'import', 'resolve'] as const)(
+        'keeps newer opt-out progress when an older %s acknowledgement arrives',
+        async (action) => {
+            const f = fixture();
+            const session = {
+                ...f.position,
+                activitySessionId: 'synthetic-shared-session',
+            };
+            await f.client.begin(f.address.sourceId, session);
+            await f.client.save(f.address.sourceId, session);
+            await f.client.flush();
+            let consent: string | null = 'current-consent';
+            jest.spyOn(f.client.options, 'consent').mockImplementation(
+                () => consent
+            );
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const mutate = f.store.mutate;
+            jest.spyOn(f.store, 'mutate').mockImplementationOnce(
+                async (address, change) => {
+                    const record = await mutate(address, change);
+                    entered();
+                    await held;
+                    return record;
+                }
+            );
+            const command =
+                action === 'reset'
+                    ? f.client.reset(f.address.sourceId, f.position)
+                    : action === 'mark-watched'
+                      ? f.client.save(f.address.sourceId, {
+                            ...f.position,
+                            activityAction: 'mark-watched',
+                        })
+                      : action === 'import'
+                        ? f.client.importPosition(
+                              f.address.sourceId,
+                              f.position
+                          )
+                        : f.client.resolve(f.address, false);
+            await started;
+            consent = null;
+            await f.adapter.invoke(
+                f.raw,
+                'savePlaybackPosition',
+                [f.address.sourceId, { ...session, positionSeconds: 80 }],
+                true
+            );
+            release();
+            await command;
+            await f.adapter.keepLocal(f.raw, f.address.sourceId);
+            expect(
+                (await f.adapter.all(f.raw, f.address.sourceId))[0]
+                    .positionSeconds
+            ).toBe(80);
+        }
+    );
+
+    it.each(['reset', 'mark-watched', 'import', 'resolve'] as const)(
+        'does not replay an older %s mutation after a newer launch wins CAS',
+        async (action) => {
+            const f = fixture();
+            const initial = {
+                ...f.position,
+                activitySessionId: 'synthetic-initial',
+            };
+            await f.client.begin(f.address.sourceId, initial);
+            await f.client.save(f.address.sourceId, initial);
+            await f.client.flush();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const mutate = f.store.mutate;
+            jest.spyOn(f.store, 'mutate').mockImplementationOnce(
+                async (address, change) => {
+                    change(await f.store.read(address));
+                    entered();
+                    await held;
+                    return mutate(address, change);
+                }
+            );
+            const command =
+                action === 'reset'
+                    ? f.client.reset(f.address.sourceId, f.position)
+                    : action === 'mark-watched'
+                      ? f.client.save(f.address.sourceId, {
+                            ...f.position,
+                            activityAction: 'mark-watched',
+                        })
+                      : action === 'import'
+                        ? f.client.importPosition(
+                              f.address.sourceId,
+                              f.position
+                          )
+                        : f.client.resolve(f.address, false);
+            await started;
+            const newer = {
+                ...f.position,
+                positionSeconds: 80,
+                activitySessionId: 'synthetic-cas-new',
+            };
+            await f.client.begin(f.address.sourceId, newer);
+            await f.client.save(f.address.sourceId, newer);
+            await f.client.flush();
+            release();
+            await command;
+            const projected = await f.adapter.all(f.raw, f.address.sourceId);
+            expect(projected[0]).toMatchObject({
+                positionSeconds: 80,
+                watched: false,
+            });
+        }
+    );
+
+    it.each(['reset', 'mark-watched', 'import', 'resolve'] as const)(
+        'keeps a newer failed-launch fallback when an older %s acknowledgement arrives',
+        async (action) => {
+            const f = fixture();
+            const initial = {
+                ...f.position,
+                activitySessionId: 'synthetic-initial',
+            };
+            await f.client.begin(f.address.sourceId, initial);
+            await f.client.save(f.address.sourceId, initial);
+            await f.client.flush();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const mutate = f.store.mutate;
+            const spy = jest
+                .spyOn(f.store, 'mutate')
+                .mockImplementationOnce(async (address, change) => {
+                    const record = await mutate(address, change);
+                    entered();
+                    await held;
+                    return record;
+                });
+            const command =
+                action === 'reset'
+                    ? f.client.reset(f.address.sourceId, f.position)
+                    : action === 'mark-watched'
+                      ? f.client.save(f.address.sourceId, {
+                            ...f.position,
+                            activityAction: 'mark-watched',
+                        })
+                      : action === 'import'
+                        ? f.client.importPosition(
+                              f.address.sourceId,
+                              f.position
+                          )
+                        : f.client.resolve(f.address, false);
+            await started;
+            spy.mockRejectedValueOnce(
+                new Error('Synthetic newer launch failure')
+            );
+            const newer = {
+                ...f.position,
+                positionSeconds: 80,
+                activitySessionId: 'synthetic-failed-new',
+            };
+            await expect(
+                f.client.begin(f.address.sourceId, newer)
+            ).rejects.toThrow('Synthetic newer launch failure');
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                newer,
+            ]);
+            release();
+            await command;
+            expect(
+                (await f.adapter.all(f.raw, f.address.sourceId))[0]
+                    .positionSeconds
+            ).toBe(80);
+        }
+    );
+
+    it('does not append an obsolete begin when compare-and-swap retries after a newer reset', async () => {
+        const f = fixture();
+        let release!: () => void;
+        let entered!: () => void;
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const started = new Promise<void>((resolve) => {
+            entered = resolve;
+        });
+        const mutate = f.store.mutate;
+        jest.spyOn(f.store, 'mutate').mockImplementationOnce(
+            async (address, change) => {
+                change(await f.store.read(address)); // First CAS attempt loses to the reset.
+                entered();
+                await held;
+                return mutate(address, change);
+            }
+        );
+        const begin = f.client.begin(f.address.sourceId, {
+            ...f.position,
+            activitySessionId: 'synthetic-cas-old',
+        });
+        await started;
+        await f.client.reset(f.address.sourceId, f.position);
+        release();
+        await expect(begin).rejects.toThrow('Activity launch superseded');
+        await f.client.flush();
+        expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual([]);
+        expect((await f.store.read(f.address))?.state.owner).toBeNull();
+    });
 
     it.each([false, true])(
         'durably clears an unbound offline fallback and retires its old checkpoints (retry: %s)',

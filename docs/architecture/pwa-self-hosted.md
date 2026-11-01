@@ -1015,7 +1015,11 @@ A failure after consent changes preserves an existing local snapshot or reset;
 its callback creates fallback ownership only when no newer local record exists.
 An explicit begin, watched/reset action, import or conflict resolution supersedes
 older launches for the same item. Their delayed context responses and failures
-cannot reclaim fallback ownership or accept an obsolete source context.
+cannot reclaim fallback ownership or accept an obsolete source context. Every
+compare-and-swap attempt checks the explicit-action fence again, including
+watched/reset, import and conflict resolution mutations. Command acknowledgements
+clear local ownership only while their action and consent are still current.
+A reset retires a failed launch even before its first local checkpoint.
 Transferring fallback ownership to a new launch retains any unfinished raw snapshot
 and its acknowledgement token until the raw writer succeeds.
 A delayed shared-save completion may fall back locally only while its original

@@ -191,8 +191,6 @@ export class ActivitySyncClient {
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<'local-only' | void> {
-        if (!position.activitySessionId)
-            this.actions.position(sourceId, position);
         return this.mutations.track(
             saveActivity.call(this, sourceId, position)
         );
@@ -202,7 +200,6 @@ export class ActivitySyncClient {
         sourceId: string,
         position: Partial<PlaybackPositionData>
     ): Promise<void> {
-        this.actions.position(sourceId, position);
         return this.mutations.track(
             resetActivity.call(this, sourceId, position)
         );
@@ -268,7 +265,6 @@ export class ActivitySyncClient {
         useLocal: boolean,
         preserveLocal = false
     ): Promise<void> {
-        this.actions.address(address, this.alias(address));
         return resolveActivity.call(this, address, useLocal, preserveLocal);
     }
 
@@ -276,7 +272,8 @@ export class ActivitySyncClient {
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<void> {
-        this.actions.position(sourceId, position);
+        const currentAction = this.actions.position(sourceId, position);
+        const consentGeneration = this.consent();
         const address = await this.address(sourceId, position);
         const watched =
             position.watched === true ||
@@ -293,20 +290,29 @@ export class ActivitySyncClient {
             positionMetadata: metadata(position),
             resume: watched ? null : activityResume(position),
         };
-        await this.store.mutate(address, (current) => {
-            const state = current?.state ?? emptyActivityState();
-            const result = applyActivityOperation(state, operation);
-            return {
-                state: result.state,
-                position: { ...position, watched },
-                pending: [
-                    ...(current?.pending ?? []),
-                    { address, operation, consentGeneration: this.consent() },
-                ],
-                ...(result.status === 'conflict' ? { conflict: state } : {}),
-            };
-        });
-        this.options.committed?.(sourceId, position, 'command');
+        await this.store
+            .mutate(address, (current) => {
+                if (!currentAction())
+                    throw new Error('Activity action superseded');
+                const state = current?.state ?? emptyActivityState();
+                const result = applyActivityOperation(state, operation);
+                return {
+                    state: result.state,
+                    position: { ...position, watched },
+                    pending: [
+                        ...(current?.pending ?? []),
+                        { address, operation, consentGeneration },
+                    ],
+                    ...(result.status === 'conflict'
+                        ? { conflict: state }
+                        : {}),
+                };
+            })
+            .catch((error) => {
+                if (currentAction()) throw error;
+            });
+        if (currentAction() && this.consentMatches(consentGeneration))
+            this.options.committed?.(sourceId, position, 'command');
         this.options.changed();
         await this.flush();
     }
@@ -368,6 +374,16 @@ export class ActivitySyncClient {
                 activityIdentityKey(address.content),
             ])
         );
+    }
+    consentMatches(generation?: string): boolean {
+        try {
+            return (
+                generation !== undefined &&
+                this.options.consent() === generation
+            );
+        } catch {
+            return false;
+        }
     }
     consent(): string {
         const consent = this.options.consent();

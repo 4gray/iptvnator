@@ -232,7 +232,10 @@ export class ActivityPositionAdapter {
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<void> {
-        for (const sessionId of this.seenLocalSessions)
+        for (const sessionId of new Set([
+            ...this.seenLocalSessions,
+            ...this.client.localSessions.keys(),
+        ]))
             if (
                 this.localOnly.owns(sourceId, {
                     ...position,

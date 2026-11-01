@@ -29,7 +29,10 @@ export class ActivityActionFence {
         return this.advance(keys);
     }
 
-    address(address: ActivityAddress, alias?: PlaybackPositionData): void {
+    address(
+        address: ActivityAddress,
+        alias?: PlaybackPositionData
+    ): () => boolean {
         const keys = [
             JSON.stringify([
                 'identity',
@@ -58,7 +61,7 @@ export class ActivityActionFence {
                     address.content.id,
                 ])
             );
-        this.advance(keys);
+        return this.advance(keys);
     }
 
     private advance(keys: string[]): () => boolean {
