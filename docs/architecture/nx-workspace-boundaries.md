@@ -403,6 +403,11 @@ The Xtream category visibility ledger uses
 parser. The main shared-interface barrel exports only its type, keeping this
 backup/recovery code out of the initial renderer graph.
 
+The root Xtream store keeps its lightweight detail-request generation guard
+separate from sparse VOD reconstruction. It loads the reconstruction module after
+the detail response and rechecks the guard before publishing or recovering data,
+so opening a source does not load movie-detail recovery code.
+
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency
 paths to `dist/` during `@nx/js:tsc` builds.
