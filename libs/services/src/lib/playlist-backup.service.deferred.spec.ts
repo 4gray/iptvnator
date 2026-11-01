@@ -133,9 +133,13 @@ it('upgrades older cache-only pending history before export instead of dropping 
     internal.databaseService.getRecentItemsOrThrow.mockResolvedValue([
         { type: 'live', xtream_id: 11, viewed_at: 'new' },
     ]);
-    internal.databaseService.readAppState.mockImplementation(async () => ({
-        value: journal,
-    }));
+    internal.databaseService.readAppState.mockImplementation(
+        async (key: string) => ({
+            value: key.startsWith('xtream-category-visibility:')
+                ? null
+                : journal,
+        })
+    );
     internal.databaseService.setAppState.mockImplementation(
         async (_key, value) => {
             journal = JSON.stringify({

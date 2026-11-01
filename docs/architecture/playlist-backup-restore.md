@@ -142,6 +142,15 @@ deferred state completes, so retry cannot undo intervening history actions.
 Cache-pending exports reconcile hidden flags by current category identity too:
 live visibility wins for present categories, while absent categories retain
 their parked choices.
+Explicit user visibility changes additionally live in the profile-scoped native
+`xtream-category-visibility:` ledger, committed atomically with category updates.
+Its typed hide/show choices override dormant state even when an interrupted
+catalog is disabled or its rows disappear. Untouched partial-import defaults do
+not override dormant choices. Reimport honors the ledger, and export serializes
+the reconciled hidden choices rather than the internal ledger. A new explicit
+backup clears older overrides after parking its pending state and passing
+preflight; retry repeats that reset. Permanent source deletion clears the ledger,
+while cache invalidation preserves it.
 An existing selective source can restore offline when every selected catalog is
 complete. Apply hidden flags only to selected or completed retained catalogs;
 apply history to exact native identities and leave missing state dormant instead of requiring all three

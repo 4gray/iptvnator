@@ -12,6 +12,7 @@ const key = `xtream-import-status:${playlist._id}:movie`;
 let descriptor: PropertyDescriptor | undefined;
 let write: jest.Mock;
 let check: jest.Mock;
+let read: jest.Mock;
 beforeEach(() => {
     descriptor = Object.getOwnPropertyDescriptor(window, 'electron');
     write = jest
@@ -20,11 +21,35 @@ beforeEach(() => {
     check = jest
         .fn()
         .mockResolvedValue({ success: true, conditionChecked: true });
+    read = jest.fn().mockResolvedValue(playlist);
     Object.defineProperty(window, 'electron', {
         configurable: true,
-        value: { dbSetAppState: write, dbCheckXtreamCatalogConnection: check },
+        value: {
+            dbSetAppState: write,
+            dbCheckXtreamCatalogConnection: check,
+            dbGetAppPlaylist: read,
+        },
     });
 });
+
+it('reads the canonical stored connection including its custom header before staging', async () => {
+    await expect(
+        new XtreamCatalogCommitService().readCurrent(playlist._id)
+    ).resolves.toEqual(playlist);
+    expect(read).toHaveBeenCalledWith(playlist._id);
+    expect(write).not.toHaveBeenCalled();
+});
+
+it.each([null, undefined, { ...playlist, _id: 'another-synthetic-source' }])(
+    'rejects missing or mismatched native source reads before staging',
+    async (row) => {
+        read.mockResolvedValue(row);
+        await expect(
+            new XtreamCatalogCommitService().readCurrent(playlist._id)
+        ).rejects.toThrow('Could not read');
+        expect(write).not.toHaveBeenCalled();
+    }
+);
 afterEach(() => {
     if (descriptor) Object.defineProperty(window, 'electron', descriptor);
     else Reflect.deleteProperty(window, 'electron');

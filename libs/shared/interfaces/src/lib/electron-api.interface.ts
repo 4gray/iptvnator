@@ -1128,8 +1128,9 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgeCategoryRow[]>;
     dbUpdateCategoryVisibility: (
         categoryIds: number[],
-        hidden: boolean
-    ) => Promise<ElectronBridgeResult>;
+        hidden: boolean,
+        explicit?: boolean
+    ) => Promise<ElectronBridgeResult & { explicitRecorded?: true }>;
     /**
      * Re-stamps `categories.locked` for one playlist and type from the given
      * provider category ids: rows in the list become locked, every other row

@@ -482,9 +482,19 @@ pending restore blocks a new edit before metadata persistence. Recovery prepared
 for a rejected `beforeReplace` callback is removed only if its pending revision
 still belongs to that attempt.
 Native deletion resets existing statuses to `idle` before deleting any rows.
-Edit-time cleanup owns types only after native invalidation succeeds and persists
-`importing` before replacement saves; failed deletion preparation keeps healthy
-rows intact. Interrupted deletion retains pending recovery for bootstrap cleanup. The deletion IPC flushes the sender session’s DOM storage
+Edit preparation durably stages unfinished markers before accepting metadata,
+including a shared connection change returned by acceptance. Marker failure
+aborts acceptance. Rejected edits
+conditionally restore the previous markers only while the original connection
+still owns the cache; rollback failure retains recovery without deleting rows.
+Accepted staged edits authorize cleanup even when deletion fails before reaching
+the worker. An unchanged connection may restore healthy prior markers only when
+strict reads prove every staged marker is still `importing`: native deletion
+resets them to `idle` before mutating rows. An unknown or reset marker cannot
+authorize restoring completion. Direct refreshes without metadata acceptance
+authorize cleanup after native invalidation succeeds.
+Replacement saves re-arm `importing` after deletion; failed preparation keeps
+healthy rows intact. Interrupted deletion retains pending recovery for bootstrap cleanup. The deletion IPC flushes the sender session’s DOM storage
 before native work, so an immediate process exit cannot drop the parked snapshot.
 A failed/false completion-status write keeps the type unfinished and recovery
 pending; it must not acknowledge the journal or snapshot.
@@ -496,6 +506,10 @@ removals and clears retain that proof. Each replay replaces the proof so rows
 lost in a later interrupted deletion remain dormant. Completion uses this proof
 alongside current rows and tombstones, including a remove/rewatch between the
 renderer’s separate history and journal reads.
+Explicit category visibility writes update SQLite rows and their typed override
+ledger in one transaction. Recovery and export honor these overrides even for
+disabled unfinished catalogs, while untouched partial-import defaults remain
+non-authoritative. Category reimport applies the same explicit choices.
 Full-history backups resolve native content identities in bounded batches before
 clearing existing recent history. A lookup failure preserves the previous rows;
 backups larger than SQLite’s parameter limit remain importable.

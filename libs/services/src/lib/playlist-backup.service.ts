@@ -454,18 +454,30 @@ export class PlaylistBackupService {
             this.readSourcePinsForExport(playlist._id),
         ]);
 
-        const catalogState = this.deferredRestore.forExport(playlist._id, {
-            hiddenCategories: [
-                ...this.mapHiddenCategories(liveCategories, 'live'),
-                ...this.mapHiddenCategories(movieCategories, 'movies'),
-                ...this.mapHiddenCategories(seriesCategories, 'series'),
-            ],
-            recentlyViewed: recent.map((item) => ({
-                xtreamId: item.xtream_id,
-                contentType: item.type as XtreamBackupContentType,
-                viewedAt: item.viewed_at ?? new Date().toISOString(),
-            })),
-        });
+        const { readExplicitCatalogVisibility } =
+            await import('./xtream-explicit-category-visibility');
+        const explicitVisibility = await readExplicitCatalogVisibility(
+            this.databaseService,
+            playlist._id
+        );
+        const catalogState = this.deferredRestore.forExport(
+            playlist._id,
+            {
+                hiddenCategories: [
+                    ...this.mapHiddenCategories(liveCategories, 'live'),
+                    ...this.mapHiddenCategories(movieCategories, 'movies'),
+                    ...this.mapHiddenCategories(seriesCategories, 'series'),
+                ],
+                recentlyViewed: recent.map((item) => ({
+                    xtreamId: item.xtream_id,
+                    contentType: item.type as XtreamBackupContentType,
+                    viewedAt: item.viewed_at ?? new Date().toISOString(),
+                })),
+            },
+            undefined,
+            undefined,
+            explicitVisibility
+        );
         return {
             ...entry,
             userState: {
@@ -1096,6 +1108,9 @@ export class PlaylistBackupService {
             await (
                 await import('./xtream-catalog-history-recovery')
             ).clearCatalogHistoryRecovery(this.databaseService, playlistId);
+            await (
+                await import('./xtream-explicit-category-visibility')
+            ).clearExplicitCatalogVisibility(this.databaseService, playlistId);
             await this.databaseService.restoreXtreamFavoriteSnapshots(
                 playlistId,
                 restoreState.favorites,
@@ -1159,6 +1174,7 @@ export class PlaylistBackupService {
     ): Promise<void> {
         this.playbackPositionService.assertSupportsAtomicReplacement();
         const archiveHistory = state.recentlyViewed;
+        const archiveVisibility = state.hiddenCategories;
         const { resolveAvailableCatalogs } =
             await import('./xtream-catalog-availability');
         const available = await resolveAvailableCatalogs(
@@ -1176,10 +1192,14 @@ export class PlaylistBackupService {
             explicitCatalogHistoryForReplay,
         } = await import('./xtream-catalog-history-recovery');
         state = prepared.state;
+        const { explicitCategoryVisibilityForReplay } =
+            await import('./xtream-explicit-category-visibility');
         await this.restoreXtreamCategoryVisibility(
             playlistId,
-            state,
-            available
+            explicitCategoryVisibilityForReplay(
+                prepared.snapshot,
+                archiveVisibility
+            )
         );
         await this.databaseService.restoreXtreamFavoriteSnapshots(
             playlistId,
@@ -1239,8 +1259,7 @@ export class PlaylistBackupService {
 
     private async restoreXtreamCategoryVisibility(
         playlistId: string,
-        state: XtreamPendingRestoreState,
-        available: readonly XtreamContentType[]
+        hiddenCategories: XtreamBackupHiddenCategory[]
     ): Promise<void> {
         const categoriesByType = await Promise.all([
             this.databaseService.getAllXtreamCategories(playlistId, 'live'),
@@ -1249,16 +1268,7 @@ export class PlaylistBackupService {
         ]);
 
         for (const categories of categoriesByType) {
-            if (
-                categories.length === 0 ||
-                !available.some(
-                    (type) =>
-                        type ===
-                        (categories[0].type === 'movies'
-                            ? 'movie'
-                            : categories[0].type)
-                )
-            ) {
+            if (categories.length === 0) {
                 continue;
             }
 
@@ -1274,7 +1284,7 @@ export class PlaylistBackupService {
 
             const hiddenCategoryIds = categories
                 .filter((category) =>
-                    state.hiddenCategories.some(
+                    hiddenCategories.some(
                         (hiddenCategory) =>
                             hiddenCategory.categoryType === category.type &&
                             hiddenCategory.xtreamId === category.xtream_id

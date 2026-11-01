@@ -23,6 +23,8 @@ import {
     completeCatalogHistoryRecovery,
     completeExplicitCatalogHistoryRestore,
     explicitCatalogHistoryForReplay,
+    clearExplicitCatalogVisibility,
+    explicitCategoryVisibilityForReplay,
 } from '@iptvnator/services/xtream-catalog-restore';
 import type { XtreamOperationOptions } from './xtream-data-source.interface';
 
@@ -35,6 +37,22 @@ export {
 } from '@iptvnator/services/xtream-catalog-restore';
 
 /** Full recovery is cold work; keep it outside the warm-cache data-source module. */
+export async function prepareElectronFavoriteRestore(
+    db: DatabaseService,
+    injector: Injector,
+    playlistId: string,
+    state: XtreamPendingRestoreState
+): Promise<void> {
+    if (state.preservePlaybackPositions)
+        await prepareLegacyCatalogHistoryRecovery(
+            db,
+            injector.get(XtreamDeferredCatalogRestoreService),
+            playlistId,
+            state
+        );
+    else await clearExplicitCatalogVisibility(db, playlistId);
+}
+
 export async function restoreElectronUserData(
     services: {
         db: DatabaseService;
@@ -55,6 +73,7 @@ export async function restoreElectronUserData(
 ): Promise<void> {
     services.playback.assertSupportsAtomicReplacement();
     const archiveHistory = restoreState.recentlyViewed;
+    const archiveVisibility = restoreState.hiddenCategories;
     const deferred = services.injector.get(XtreamDeferredCatalogRestoreService);
     if (restoreState.preservePlaybackPositions)
         await prepareLegacyCatalogHistoryRecovery(
@@ -90,8 +109,10 @@ export async function restoreElectronUserData(
             services.db,
             playlistId,
             categories,
-            available,
-            restoreState.hiddenCategories
+            explicitCategoryVisibilityForReplay(
+                prepared.snapshot,
+                archiveVisibility
+            )
         );
     await services.restoreFavorites(playlistId, restoreState);
     const restored = await services.db.restoreXtreamUserData(
@@ -196,20 +217,10 @@ export async function restoreCategoryVisibility(
     db: Pick<DatabaseService, 'updateCategoryVisibility'>,
     playlistId: string,
     categoriesByType: XCategoryFromDb[][],
-    available: readonly XtreamContentType[],
     hiddenCategories: XtreamPendingRestoreState['hiddenCategories']
 ): Promise<void> {
     for (const categories of categoriesByType) {
-        if (
-            categories.length === 0 ||
-            !available.some(
-                (type) =>
-                    type ===
-                    (categories[0].type === 'movies'
-                        ? 'movie'
-                        : categories[0].type)
-            )
-        ) {
+        if (categories.length === 0) {
             continue;
         }
 

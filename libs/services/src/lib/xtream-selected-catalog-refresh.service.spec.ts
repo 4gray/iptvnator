@@ -57,6 +57,7 @@ describe('edit-time Xtream catalog refresh', () => {
     let service: XtreamSelectedCatalogRefreshService;
     let commitState: jest.Mock;
     let assertCurrent: jest.Mock;
+    let readCurrent: jest.Mock;
 
     beforeEach(() => {
         data = { sendIpcEvent: jest.fn().mockResolvedValue({ payload: [] }) };
@@ -77,7 +78,11 @@ describe('edit-time Xtream catalog refresh', () => {
         ) as typeof db;
         db.deleteXtreamPlaylistContent.mockResolvedValue(saved);
         db.clearXtreamImportCache.mockResolvedValue(true);
-        const appState = new Map<string, string>();
+        const appState = new Map<string, string>([
+            ['xtream-import-status:p:movie', 'completed'],
+            ['xtream-import-status:p:live', 'completed'],
+            ['xtream-import-status:p:series', 'completed'],
+        ]);
         db.setAppState.mockImplementation(async (key, value) => {
             appState.set(key, value);
             return true;
@@ -85,7 +90,12 @@ describe('edit-time Xtream catalog refresh', () => {
         db.readAppState.mockImplementation(async (key) => ({
             value: appState.get(key) ?? null,
         }));
-        db.setXtreamImportStatus.mockResolvedValue(true);
+        db.setXtreamImportStatus.mockImplementation(
+            async (id, type, status) => {
+                appState.set(`xtream-import-status:${id}:${type}`, status);
+                return true;
+            }
+        );
         db.getAllXtreamCategories.mockResolvedValue([]);
         db.getXtreamImportStatus.mockResolvedValue('completed');
         db.getRecentItemsOrThrow.mockResolvedValue([
@@ -113,6 +123,7 @@ describe('edit-time Xtream catalog refresh', () => {
         };
         release = jest.fn();
         assertCurrent = jest.fn().mockResolvedValue(undefined);
+        readCurrent = jest.fn().mockResolvedValue(playlist);
         commitState = jest.fn(async (_playlist, key, value) => {
             const saved =
                 value === 'completed'
@@ -131,7 +142,11 @@ describe('edit-time Xtream catalog refresh', () => {
                 { provide: DatabaseService, useValue: db },
                 {
                     provide: XtreamCatalogCommitService,
-                    useValue: { setState: commitState, assertCurrent },
+                    useValue: {
+                        setState: commitState,
+                        assertCurrent,
+                        readCurrent,
+                    },
                 },
                 {
                     provide: ParentalLockService,
@@ -295,6 +310,271 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(db.setXtreamImportStatus).not.toHaveBeenCalled();
         expect(db.saveXtreamCategories).not.toHaveBeenCalled();
         expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+    });
+
+    it('restores a same-connection accepted attempt only while every staged marker proves invalidation never began', async () => {
+        db.deleteXtreamPlaylistContent.mockRejectedValue(
+            new Error('synthetic pre-worker failure')
+        );
+        await expect(
+            service.refresh(playlist, ['movie', 'series'], async () => playlist)
+        ).rejects.toThrow('synthetic pre-worker failure');
+        expect(db.setXtreamImportStatus.mock.calls).toEqual([
+            ['p', 'movie', 'importing'],
+            ['p', 'series', 'importing'],
+            ['p', 'movie', 'completed'],
+            ['p', 'series', 'completed'],
+        ]);
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+        expect(pending['clear']).toHaveBeenCalled();
+        expect(db.setAppState).toHaveBeenLastCalledWith(
+            'xtream-history-recovery:p',
+            ''
+        );
+    });
+
+    it.each(['idle', 'missing', 'unreadable'])(
+        'does not restore completed after accepted invalidation has %s status proof',
+        async (proof) => {
+            const readState = db.readAppState.getMockImplementation()!;
+            let deletionAttempted = false;
+            db.readAppState.mockImplementation(async (key) => {
+                if (
+                    deletionAttempted &&
+                    key === 'xtream-import-status:p:movie'
+                ) {
+                    if (proof === 'unreadable')
+                        throw new Error('synthetic status read failure');
+                    return proof === 'missing' ? null : { value: 'idle' };
+                }
+                return readState(key);
+            });
+            db.deleteXtreamPlaylistContent.mockImplementation(async () => {
+                deletionAttempted = true;
+                throw new Error('synthetic deletion failure');
+            });
+            await expect(
+                service.refresh(playlist, ['movie'], async () => playlist)
+            ).rejects.toThrow('synthetic deletion failure');
+            expect(commitState).not.toHaveBeenCalledWith(
+                playlist,
+                'xtream-import-status:p:movie',
+                'completed'
+            );
+            expect(db.clearXtreamImportCache).toHaveBeenCalledWith(
+                'p',
+                'movie'
+            );
+            expect(pending['clear']).not.toHaveBeenCalled();
+            expect(db.setAppState).not.toHaveBeenCalledWith(
+                'xtream-history-recovery:p',
+                ''
+            );
+        }
+    );
+
+    it('invalidates retained catalogs when accepted connection edits precede a pre-worker deletion failure', async () => {
+        readCurrent.mockResolvedValue({
+            ...playlist,
+            serverUrl: 'https://synthetic-before.invalid',
+        });
+        db.deleteXtreamPlaylistContent.mockRejectedValue(
+            new Error('synthetic pre-worker storage failure')
+        );
+        const accept = jest.fn().mockResolvedValue(playlist);
+        await expect(
+            service.refresh(playlist, ['movie'], accept)
+        ).rejects.toThrow('synthetic pre-worker storage failure');
+        expect(accept).toHaveBeenCalledTimes(1);
+        expect(db.setXtreamImportStatus).toHaveBeenCalledWith(
+            'p',
+            'movie',
+            'importing'
+        );
+        expect(
+            db.setXtreamImportStatus.mock.invocationCallOrder[0]
+        ).toBeLessThan(
+            db.deleteXtreamPlaylistContent.mock.invocationCallOrder[0]
+        );
+        expect(db.clearXtreamImportCache).toHaveBeenCalledWith('p', 'movie');
+        expect(pending['clear']).not.toHaveBeenCalled();
+        expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+    });
+
+    it('retains a durable retry marker when an unexpected accepted connection defeats both terminal invalidation writes', async () => {
+        let status = 'completed';
+        db.setXtreamImportStatus.mockImplementation(
+            async (_id, _type, next) => {
+                if (next === 'failed') return false;
+                status = next;
+                return true;
+            }
+        );
+        db.clearXtreamImportCache.mockResolvedValue(false);
+        db.deleteXtreamPlaylistContent.mockRejectedValue(
+            new Error('synthetic pre-worker deletion failure')
+        );
+        const accepted = {
+            ...playlist,
+            serverUrl: 'https://synthetic-unexpected.invalid',
+        };
+        await expect(
+            service.refresh(playlist, ['movie'], async () => accepted)
+        ).rejects.toThrow('incomplete catalog cache');
+        expect(status).toBe('importing');
+        expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        expect(pending['clear']).not.toHaveBeenCalled();
+        expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+    });
+
+    it('rejects a planned connection edit before acceptance when its staged marker fails', async () => {
+        readCurrent.mockResolvedValue({
+            ...playlist,
+            serverUrl: 'https://synthetic-before.invalid',
+        });
+        db.setXtreamImportStatus.mockImplementation(
+            async (_id, _type, status) => status !== 'importing'
+        );
+        const accept = jest.fn().mockResolvedValue(playlist);
+        await expect(
+            service.refresh(playlist, ['movie'], accept)
+        ).rejects.toThrow('unfinished catalog');
+        expect(accept).not.toHaveBeenCalled();
+        expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+        expect(pending['clear']).toHaveBeenCalled();
+    });
+
+    it('does not accept metadata or delete healthy rows when staging and its rollback both fail', async () => {
+        readCurrent.mockResolvedValue({
+            ...playlist,
+            serverUrl: 'https://synthetic-before.invalid',
+        });
+        db.setXtreamImportStatus.mockResolvedValue(false);
+        const accept = jest.fn().mockResolvedValue(playlist);
+        await expect(
+            service.refresh(playlist, ['movie'], accept)
+        ).rejects.toThrow('unfinished catalog');
+        expect(accept).not.toHaveBeenCalled();
+        expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+        expect(pending['clear']).not.toHaveBeenCalled();
+        expect(db.setAppState).not.toHaveBeenCalledWith(
+            'xtream-history-recovery:p',
+            ''
+        );
+    });
+
+    it.each([
+        new Error('synthetic rejected metadata'),
+        new XtreamCatalogConnectionChangedError(),
+    ])(
+        'restores staged statuses without deleting healthy cache when metadata rejects the connection edit: %s',
+        async (failure) => {
+            const original = {
+                ...playlist,
+                serverUrl: 'https://synthetic-before.invalid',
+            };
+            readCurrent.mockResolvedValue(original);
+            const accept = jest.fn().mockRejectedValue(failure);
+            await expect(
+                service.refresh(playlist, ['movie'], accept)
+            ).rejects.toBe(failure);
+            expect(db.setXtreamImportStatus.mock.calls).toEqual([
+                ['p', 'movie', 'importing'],
+                ['p', 'movie', 'completed'],
+            ]);
+            expect(assertCurrent).toHaveBeenCalledWith(original);
+            expect(commitState).toHaveBeenCalledWith(
+                original,
+                'xtream-import-status:p:movie',
+                'completed'
+            );
+            expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+            expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+            expect(pending['clear']).toHaveBeenCalled();
+        }
+    );
+
+    it('keeps staged markers and recovery without deletion when a typed rejection accompanies an external connection change', async () => {
+        readCurrent.mockResolvedValue({
+            ...playlist,
+            serverUrl: 'https://synthetic-before.invalid',
+        });
+        assertCurrent.mockRejectedValue(
+            new XtreamCatalogConnectionChangedError()
+        );
+        const failure = new XtreamCatalogConnectionChangedError();
+        await expect(
+            service.refresh(playlist, ['movie'], async () => {
+                throw failure;
+            })
+        ).rejects.toBe(failure);
+        expect(db.setXtreamImportStatus.mock.calls).toEqual([
+            ['p', 'movie', 'importing'],
+        ]);
+        expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+        expect(pending['clear']).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        new XtreamCatalogConnectionChangedError(),
+        new Error('synthetic unavailable connection read'),
+    ])(
+        'retains staged recovery without physical deletion when rollback is unauthorized: %s',
+        async (failure) => {
+            readCurrent.mockResolvedValue({
+                ...playlist,
+                serverUrl: 'https://synthetic-before.invalid',
+            });
+            assertCurrent.mockRejectedValue(failure);
+            await expect(
+                service.refresh(playlist, ['movie'], async () => {
+                    throw new Error('synthetic rejected metadata');
+                })
+            ).rejects.toThrow('synthetic rejected metadata');
+            expect(db.setXtreamImportStatus.mock.calls).toEqual([
+                ['p', 'movie', 'importing'],
+            ]);
+            expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+            expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+            expect(pending['clear']).not.toHaveBeenCalled();
+            expect(db.setAppState).not.toHaveBeenCalledWith(
+                'xtream-history-recovery:p',
+                ''
+            );
+        }
+    );
+
+    it('keeps direct refresh preparation failure unchanged without an acceptance callback', async () => {
+        readCurrent.mockResolvedValue({
+            ...playlist,
+            serverUrl: 'https://synthetic-before.invalid',
+        });
+        db.deleteXtreamPlaylistContent.mockRejectedValue(
+            new Error('synthetic pre-worker failure')
+        );
+        await expect(service.refresh(playlist, ['movie'])).rejects.toThrow(
+            'synthetic pre-worker failure'
+        );
+        expect(readCurrent).not.toHaveBeenCalled();
+        expect(db.setXtreamImportStatus).not.toHaveBeenCalled();
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+    });
+
+    it('invalidates attempted types when a late projection precedes a pre-worker deletion failure', async () => {
+        db.deleteXtreamPlaylistContent.mockRejectedValue(
+            new Error('synthetic pre-worker failure')
+        );
+        assertCurrent.mockRejectedValue(
+            new XtreamCatalogConnectionChangedError()
+        );
+        await expect(
+            service.refresh(playlist, ['movie'], async () => playlist)
+        ).rejects.toThrow('synthetic pre-worker failure');
+        expect(db.clearXtreamImportCache).toHaveBeenCalledWith('p', 'movie');
+        expect(pending['clear']).not.toHaveBeenCalled();
     });
 
     it('does not authorize cleanup when native invalidation returns false', async () => {

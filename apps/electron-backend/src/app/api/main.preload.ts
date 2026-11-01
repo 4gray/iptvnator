@@ -908,11 +908,16 @@ const electronApi: ElectronBridgeApi = {
         ),
     dbGetAllCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_GET_ALL_CATEGORIES', playlistId, type),
-    dbUpdateCategoryVisibility: (categoryIds: number[], hidden: boolean) =>
+    dbUpdateCategoryVisibility: (
+        categoryIds: number[],
+        hidden: boolean,
+        explicit?: boolean
+    ) =>
         ipcRenderer.invoke(
             'DB_UPDATE_CATEGORY_VISIBILITY',
             categoryIds,
-            hidden
+            hidden,
+            ...(explicit === undefined ? [] : [explicit])
         ),
     dbSetCategoryLocks: (
         playlistId: string,

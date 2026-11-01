@@ -29,18 +29,25 @@ const categoryWireShape = {
 };
 
 function createDbMock(existingCount = 0) {
-    const where = jest.fn().mockResolvedValue([{ count: existingCount }]);
+    const where = jest.fn().mockImplementation(() =>
+        Object.assign(Promise.resolve([{ count: existingCount }]), {
+            get: jest.fn().mockReturnValue(undefined),
+        })
+    );
     const from = jest.fn().mockReturnValue({ where });
     const select = jest.fn().mockReturnValue({ from });
-    const onConflictDoNothing = jest.fn().mockResolvedValue(undefined);
+    const onConflictDoNothing = jest.fn().mockReturnValue({ run: jest.fn() });
     const values = jest.fn().mockReturnValue({ onConflictDoNothing });
     const insert = jest.fn().mockReturnValue({ values });
+    const db = { select, insert } as unknown as AppDatabase;
+    Object.assign(db, {
+        transaction: jest.fn((callback: (tx: AppDatabase) => unknown) =>
+            callback(db)
+        ),
+    });
 
     return {
-        db: {
-            select,
-            insert,
-        } as unknown as AppDatabase,
+        db,
         insert,
         values,
         onConflictDoNothing,

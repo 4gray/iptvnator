@@ -155,9 +155,11 @@ it.each([
 
 it('retains pending and missing history when the final DOM flush is rejected', async () => {
     const context = setup();
-    context.db.setAppState
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false);
+    let acknowledgments = 0;
+    context.db.setAppState.mockImplementation(
+        async (key: string) =>
+            !key.startsWith('xtream-history-recovery:') || ++acknowledgments < 2
+    );
     await expect(
         context.inner.restoreXtreamEntry(source._id, context.entry)
     ).rejects.toThrow('Could not finish catalog history recovery');
@@ -168,7 +170,7 @@ it('retains pending and missing history when the final DOM flush is rejected', a
         new XtreamDeferredCatalogRestoreService().getSnapshot(source._id).state
             .recentlyViewed
     ).toEqual(history.slice(1));
-    expect(context.db.setAppState).toHaveBeenCalledTimes(2);
+    expect(acknowledgments).toBe(2);
 });
 
 it('does not consume or acknowledge a newer deferred receipt with an older replay proof', async () => {
@@ -202,5 +204,9 @@ it('does not consume or acknowledge a newer deferred receipt with an older repla
     expect(stored.favoritesRestoreId).toBe(newer.favoritesRestoreId);
     // Only explicit preflight reset ran. An older completion cannot clear a
     // journal or flush/acknowledge state owned by the newer receipt.
-    expect(context.db.setAppState).toHaveBeenCalledTimes(1);
+    expect(
+        context.db.setAppState.mock.calls.filter(([key]) =>
+            key.startsWith('xtream-history-recovery:')
+        )
+    ).toHaveLength(1);
 });

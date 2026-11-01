@@ -13,6 +13,7 @@ import type {
     DeferredCatalogSnapshot,
 } from './xtream-deferred-catalog-restore.service';
 import type { PlaybackPositionService } from './playback-position.service';
+import { readExplicitCatalogVisibility } from './xtream-explicit-category-visibility';
 
 export async function readCatalogHistoryRecovery(
     db: Pick<DatabaseService, 'readAppState'>,
@@ -188,7 +189,7 @@ export async function prepareLegacyCatalogHistoryRecovery(
 export async function readCatalogRecoveryVisibility(
     db: Pick<
         DatabaseService,
-        'getAllXtreamCategories' | 'getXtreamImportStatus'
+        'getAllXtreamCategories' | 'getXtreamImportStatus' | 'readAppState'
     >,
     playlistId: string,
     fallback: XtreamBackupHiddenCategory[] = []
@@ -210,14 +211,26 @@ export async function readCatalogRecoveryVisibility(
         })
     );
     const present = ([] as (typeof groups)[number]).concat(...groups);
+    const explicit = await readExplicitCatalogVisibility(db, playlistId);
     // Partial catalog rows must not erase the archive's hidden choices.
-    const currentCategories = present
-        .filter((row) => row.complete)
-        .map(({ categoryType, xtreamId, hidden }) => ({
-            categoryType,
-            xtreamId,
-            hidden,
-        }));
+    const currentCategories = Array.from(
+        new Map(
+            [...present.filter((row) => row.complete), ...explicit].map(
+                ({ categoryType, xtreamId, hidden }) => [
+                    `${categoryType}:${xtreamId}`,
+                    { categoryType, xtreamId, hidden },
+                ]
+            )
+        ).values()
+    );
+    const visibility = Array.from(
+        new Map(
+            [...present, ...explicit].map((row) => [
+                `${row.categoryType}:${row.xtreamId}`,
+                row,
+            ])
+        ).values()
+    );
     const ids = new Set(
         currentCategories.map((row) => `${row.categoryType}:${row.xtreamId}`)
     );
@@ -229,7 +242,7 @@ export async function readCatalogRecoveryVisibility(
                     ...fallback.filter(
                         (row) => !ids.has(`${row.categoryType}:${row.xtreamId}`)
                     ),
-                    ...present
+                    ...visibility
                         .filter((row) => row.hidden)
                         .map(({ categoryType, xtreamId }) => ({
                             categoryType,
@@ -245,7 +258,7 @@ export async function readCatalogRecoveryVisibility(
 export async function captureCatalogCacheRecoveryState(
     db: Pick<
         DatabaseService,
-        'getAllXtreamCategories' | 'getXtreamImportStatus'
+        'getAllXtreamCategories' | 'getXtreamImportStatus' | 'readAppState'
     >,
     deferred: XtreamDeferredCatalogRestoreService,
     playlistId: string,

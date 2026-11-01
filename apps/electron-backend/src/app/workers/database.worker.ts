@@ -491,11 +491,13 @@ async function executeRequest(
             const payload = message.payload as {
                 categoryIds: number[];
                 hidden: boolean;
+                explicit?: boolean;
             };
             return updateCategoryVisibility(
                 db,
                 payload.categoryIds,
-                payload.hidden
+                payload.hidden,
+                payload.explicit === true
             );
         }
 

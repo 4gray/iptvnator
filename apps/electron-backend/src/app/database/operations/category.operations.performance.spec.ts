@@ -53,14 +53,25 @@ describe('category operation performance phases', () => {
     });
 
     it('captures normalization and the existing category write separately', async () => {
-        const existingWhere = jest.fn().mockResolvedValue([{ count: 0 }]);
+        const existingWhere = jest.fn().mockImplementation(() =>
+            Object.assign(Promise.resolve([{ count: 0 }]), {
+                get: jest.fn().mockReturnValue(undefined),
+            })
+        );
         const select = jest.fn(() => ({
             from: jest.fn(() => ({ where: existingWhere })),
         }));
-        const onConflictDoNothing = jest.fn().mockResolvedValue(undefined);
+        const onConflictDoNothing = jest
+            .fn()
+            .mockReturnValue({ run: jest.fn() });
         const values = jest.fn(() => ({ onConflictDoNothing }));
         const insert = jest.fn(() => ({ values }));
         const db = { insert, select } as unknown as AppDatabase;
+        Object.assign(db, {
+            transaction: jest.fn((callback: (tx: AppDatabase) => unknown) =>
+                callback(db)
+            ),
+        });
         const recording = createRecordingOperationPhaseCapture();
 
         await expect(

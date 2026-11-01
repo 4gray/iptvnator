@@ -554,14 +554,19 @@ export class DatabaseService {
      */
     async updateCategoryVisibility(
         categoryIds: number[],
-        hidden: boolean
+        hidden: boolean,
+        explicit?: boolean
     ): Promise<boolean> {
         try {
-            await window.electron.dbUpdateCategoryVisibility(
+            const result = await window.electron.dbUpdateCategoryVisibility(
                 categoryIds,
-                hidden
+                hidden,
+                ...(explicit === undefined ? [] : [explicit])
             );
-            return true;
+            return (
+                result.success &&
+                (!explicit || result.explicitRecorded === true)
+            );
         } catch (error) {
             console.error('Error updating category visibility:', error);
             return false;

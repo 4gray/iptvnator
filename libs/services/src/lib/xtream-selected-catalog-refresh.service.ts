@@ -13,6 +13,7 @@ import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
 import {
+    sameXtreamCatalogConnection,
     XtreamCatalogCommitService,
     XtreamCatalogConnectionChangedError,
 } from './xtream-catalog-commit.service';
@@ -84,6 +85,11 @@ export class XtreamSelectedCatalogRefreshService {
         let historyPrepared = false;
         let replacementStarted = false;
         let acceptedConnectionChanged = false;
+        let original: PlaylistMeta | null = null;
+        let markersStaged = false;
+        let metadataAccepted = false;
+        let keepPreparedRecovery = false;
+        const priorStatuses = new Map<XtreamContentType, string | null>();
         const publish = (
             type: XtreamContentType | null,
             phase: XtreamSelectedCatalogProgress['phase'],
@@ -134,14 +140,32 @@ export class XtreamSelectedCatalogRefreshService {
                 prepared.archivedHistory
             );
             historyPrepared = true;
+            if (beforeReplace)
+                original = await this.commit.readCurrent(playlist._id);
+            if (original) {
+                // Acceptance may return a newer connection than either input.
+                // Stage every attempted type before invoking that boundary.
+                for (const type of types) {
+                    const row = await this.db.readAppState(
+                        `xtream-import-status:${playlist._id}:${type}`
+                    );
+                    if (!row) throw new Error('Could not read catalog status.');
+                    priorStatuses.set(type, row.value);
+                }
+                markersStaged = true;
+                for (const type of types)
+                    await this.markUnfinished(playlist._id, type);
+            }
             // Secure recovery before accepting metadata, but never replace a
             // catalog until the authoritative edit is accepted.
             const accepted = await beforeReplace?.();
-            if (accepted && !this.sameConnection(playlist, accepted)) {
+            metadataAccepted = beforeReplace !== undefined;
+            if (accepted && !sameXtreamCatalogConnection(playlist, accepted)) {
                 acceptedConnectionChanged = true;
                 throw new XtreamCatalogConnectionChangedError();
             }
             replacementStarted = true;
+            if (markersStaged) types.forEach((type) => incomplete.add(type));
             const invalidated = await this.db.deleteXtreamPlaylistContent(
                 playlist._id,
                 {
@@ -150,9 +174,9 @@ export class XtreamSelectedCatalogRefreshService {
             );
             if (!invalidated.success)
                 throw new Error('Could not invalidate catalog cache.');
-            // Only a completed native invalidation authorizes cleanup here.
-            // Interrupted deletion keeps its idle status + pending recovery;
-            // bootstrap clears it, while a failed preflight keeps healthy rows.
+            // Unchanged connections acquire cleanup ownership after native
+            // invalidation; accepted connection edits already own staged types.
+            // Interrupted deletion keeps its idle status + pending recovery.
             for (const type of types) {
                 incomplete.add(type);
                 replaced.add(type);
@@ -229,9 +253,54 @@ export class XtreamSelectedCatalogRefreshService {
             if (result === 'consume-failed')
                 throw new Error('Could not finish source restore.');
         } catch (error) {
+            let rollbackSucceeded = false;
+            if (
+                markersStaged &&
+                original &&
+                (!metadataAccepted ||
+                    (replacementStarted &&
+                        !replaced.size &&
+                        sameXtreamCatalogConnection(original, playlist)))
+            ) {
+                try {
+                    await this.commit.assertCurrent(original);
+                    if (metadataAccepted) {
+                        // Native invalidation atomically resets every staged
+                        // key to idle before deleting rows. Only importing on
+                        // all keys proves the worker never passed that reset.
+                        for (const type of types) {
+                            const row = await this.db.readAppState(
+                                `xtream-import-status:${playlist._id}:${type}`
+                            );
+                            if (row?.value !== 'importing')
+                                throw new Error(
+                                    'Catalog invalidation may have started.'
+                                );
+                        }
+                    }
+                    for (const [type, value] of priorStatuses) {
+                        const key = `xtream-import-status:${playlist._id}:${type}`;
+                        if (value === 'completed')
+                            await this.commit.setState(original, key, value);
+                        else if (!(await this.db.setAppState(key, value ?? '')))
+                            throw new Error(
+                                'Could not restore catalog status.'
+                            );
+                    }
+                    rollbackSucceeded = true;
+                    incomplete.clear();
+                    replacementStarted = false;
+                } catch {
+                    // Unknown/changed connections cannot authorize rolling a
+                    // marker back to completed. Keep recovery for the retry.
+                    keepPreparedRecovery = true;
+                }
+            }
             let connectionChanged =
+                !rollbackSucceeded &&
+                (metadataAccepted || replacementStarted) &&
                 error instanceof XtreamCatalogConnectionChangedError;
-            if (!connectionChanged && replaced.size) {
+            if (!connectionChanged && replacementStarted) {
                 try {
                     await this.commit.assertCurrent(playlist);
                 } catch (checkError) {
@@ -244,13 +313,15 @@ export class XtreamSelectedCatalogRefreshService {
                 incomplete.clear();
                 // Accepted metadata can enable retained caches from the old
                 // endpoint before replacement starts. They also need retry.
-                (acceptedConnectionChanged ? types : replaced).forEach((type) =>
-                    incomplete.add(type)
-                );
+                (acceptedConnectionChanged || !replaced.size
+                    ? types
+                    : replaced
+                ).forEach((type) => incomplete.add(type));
             }
             if (
                 !replacementStarted &&
                 !acceptedConnectionChanged &&
+                !keepPreparedRecovery &&
                 snapshot &&
                 this.pending.getSnapshotOrThrow(playlist._id)?.revision ===
                     snapshot.revision
@@ -291,22 +362,6 @@ export class XtreamSelectedCatalogRefreshService {
             this.progressState.set(null);
             release();
         }
-    }
-
-    private sameConnection(
-        fetched: PlaylistMeta,
-        accepted: PlaylistMeta
-    ): boolean {
-        const identity = (source: PlaylistMeta) => [
-            normalizeXtreamServerUrl(source.serverUrl ?? ''),
-            source.username?.trim() ?? '',
-            source.password?.trim() ?? '',
-            source.userAgent?.trim() ?? '',
-        ];
-        return (
-            JSON.stringify(identity(fetched)) ===
-            JSON.stringify(identity(accepted))
-        );
     }
 
     private async markUnfinished(

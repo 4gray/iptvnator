@@ -19,6 +19,31 @@ const archive: XtreamPendingRestoreState = {
 beforeEach(() => localStorage.clear());
 afterEach(() => localStorage.clear());
 
+it('applies an authoritative empty visibility list to actual idle retained rows on an explicit route retry', async () => {
+    const { dataSource, dbService } = setupElectronXtreamDataSource();
+    dbService.getPlaylistById.mockResolvedValue({
+        id: 'p',
+        xtreamContentTypes: [],
+    });
+    dbService.getXtreamImportStatus.mockResolvedValue('idle');
+    dbService.hasXtreamContent.mockResolvedValue(true);
+    dbService.getAllXtreamCategories.mockImplementation(async (_id, type) =>
+        type === 'movies'
+            ? [{ id: 22, type: 'movies', xtream_id: 2, hidden: true }]
+            : []
+    );
+    await dataSource.restoreUserData('p', { ...archive, hiddenCategories: [] });
+    expect(dbService.updateCategoryVisibility).toHaveBeenCalledTimes(1);
+    expect(dbService.updateCategoryVisibility).toHaveBeenCalledWith(
+        [22],
+        false
+    );
+    expect(
+        TestBed.inject(XtreamDeferredCatalogRestoreService).getSnapshot('p')
+            .state.hiddenCategories
+    ).toEqual([]);
+});
+
 it('consumes explicit history restored into an idle disabled catalog while retaining absent identities and flags', async () => {
     const { dataSource, dbService } = setupElectronXtreamDataSource();
     dbService.getPlaylistById.mockResolvedValue({
@@ -65,7 +90,11 @@ it('consumes explicit history restored into an idle disabled catalog while retai
         recentlyViewed: [absent],
     });
     // Explicit preflight reset, then the post-consumption storage flush.
-    expect(dbService.setAppState).toHaveBeenCalledTimes(2);
+    expect(
+        dbService.setAppState.mock.calls.filter(([key]) =>
+            key.startsWith('xtream-history-recovery:')
+        )
+    ).toHaveLength(2);
 });
 
 it('keeps current playback positions when retrying cache-only recovery', async () => {

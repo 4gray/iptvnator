@@ -217,6 +217,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { categoryIds, hidden: true },
     },
     {
+        operation: 'DB_UPDATE_CATEGORY_VISIBILITY',
+        args: [categoryIds, false, true],
+        payload: { categoryIds, hidden: false, explicit: true },
+    },
+    {
         operation: 'DB_SET_CATEGORY_LOCKS',
         args: [playlistId, 'live', categoryIds],
         payload: { playlistId, type: 'live', lockedXtreamIds: categoryIds },

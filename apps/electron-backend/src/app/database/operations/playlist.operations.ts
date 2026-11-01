@@ -26,6 +26,7 @@ import type {
     XtreamCatalogStateResult,
 } from '@iptvnator/shared/interfaces';
 import { setConditionalCatalogState } from './xtream-catalog-state';
+import { deleteExplicitCategoryVisibility } from './category-visibility';
 import {
     type CategoryRowCount,
     countContentRowsByCategory,
@@ -605,6 +606,7 @@ async function deleteCollectedPlaylistRows(
     });
 
     deleteHistoryRecovery(db, playlistId);
+    deleteExplicitCategoryVisibility(db, playlistId);
     return countPlaylistDeletionRows(collection) + 1;
 }
 
@@ -742,5 +744,6 @@ export async function deleteAllPlaylists(
     }
 
     deleteHistoryRecovery(db);
+    deleteExplicitCategoryVisibility(db);
     return { success: true };
 }

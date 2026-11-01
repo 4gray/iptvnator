@@ -7,6 +7,7 @@ import {
     XtreamHistoryRecovery,
     XtreamBackupRecentlyViewedItem,
     createRandomId,
+    type XtreamCategoryVisibility,
 } from '@iptvnator/shared/interfaces';
 
 const prefix = 'xtream-catalog-restore-';
@@ -232,7 +233,8 @@ export class XtreamDeferredCatalogRestoreService {
         > & {
             currentCategories?: XtreamPendingRestoreState['hiddenCategories'];
             snapshot?: XtreamPendingRestoreState['catalogSnapshot'];
-        }
+        },
+        explicitVisibility: XtreamCategoryVisibility['categories'] = []
     ): CatalogState {
         const snapshot = this.read(playlistId);
         const stored = snapshot.state;
@@ -255,7 +257,7 @@ export class XtreamDeferredCatalogRestoreService {
             ).recentlyViewed,
         };
         const currentIds = new Set(
-            recovery?.currentCategories?.map(
+            [...(recovery?.currentCategories ?? []), ...explicitVisibility].map(
                 (row) => `${row.categoryType}:${row.xtreamId}`
             )
         );
@@ -272,7 +274,20 @@ export class XtreamDeferredCatalogRestoreService {
                               removed.xtreamId === row.xtreamId
                       )
               );
-        return this.combined(remaining, current);
+        const hidden = merge(
+            current.hiddenCategories.map((row) => ({ ...row, hidden: true })),
+            explicitVisibility,
+            (row) => `${row.categoryType}:${row.xtreamId}`
+        )
+            .filter((row) => row.hidden)
+            .map(({ categoryType, xtreamId }) => ({
+                categoryType,
+                xtreamId,
+            }));
+        return this.combined(remaining, {
+            ...current,
+            hiddenCategories: hidden,
+        });
     }
 
     getSnapshot(playlistId: string): DeferredCatalogSnapshot {
@@ -321,3 +336,8 @@ export {
 } from './xtream-catalog-history-recovery';
 
 export { resolveAvailableCatalogs } from './xtream-catalog-availability';
+export {
+    readExplicitCatalogVisibility,
+    clearExplicitCatalogVisibility,
+    explicitCategoryVisibilityForReplay,
+} from './xtream-explicit-category-visibility';

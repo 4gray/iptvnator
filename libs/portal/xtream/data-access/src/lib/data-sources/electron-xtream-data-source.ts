@@ -705,14 +705,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         state: XtreamPendingRestoreState
     ): Promise<void> {
         this.playbackService.assertSupportsAtomicReplacement();
-        if (state.preservePlaybackPositions && !state.catalogSnapshot) {
-            const {
-                prepareLegacyCatalogHistoryRecovery,
-                XtreamDeferredCatalogRestoreService,
-            } = await import('./xtream-deferred-restore');
-            await prepareLegacyCatalogHistoryRecovery(
+        if (!state.preservePlaybackPositions || !state.catalogSnapshot) {
+            const { prepareElectronFavoriteRestore } =
+                await import('./xtream-deferred-restore');
+            await prepareElectronFavoriteRestore(
                 this.dbService,
-                this.injector.get(XtreamDeferredCatalogRestoreService),
+                this.injector,
                 playlistId,
                 state
             );

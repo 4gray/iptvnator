@@ -274,10 +274,24 @@ export class CategoryManagementDialogComponent implements OnInit {
         const toHide = categories.filter((c) => !c.selected).map((c) => c.id);
         const toShow = categories.filter((c) => c.selected).map((c) => c.id);
         if (toHide.length > 0) {
-            await this.dbService.updateCategoryVisibility(toHide, true);
+            if (
+                !(await this.dbService.updateCategoryVisibility(
+                    toHide,
+                    true,
+                    true
+                ))
+            )
+                throw new Error('Saving explicit category visibility failed.');
         }
         if (toShow.length > 0) {
-            await this.dbService.updateCategoryVisibility(toShow, false);
+            if (
+                !(await this.dbService.updateCategoryVisibility(
+                    toShow,
+                    false,
+                    true
+                ))
+            )
+                throw new Error('Saving explicit category visibility failed.');
         }
     }
 

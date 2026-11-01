@@ -17,9 +17,13 @@ const journal = {
 };
 const setup = () => ({
     getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
-    readAppState: jest
-        .fn()
-        .mockResolvedValue({ value: JSON.stringify(journal) }),
+    readAppState: jest.fn(
+        async (key: string): Promise<{ value: string | null } | null> => ({
+            value: key.startsWith('xtream-category-visibility:')
+                ? null
+                : JSON.stringify(journal),
+        })
+    ),
     setAppState: jest.fn().mockResolvedValue(true),
     getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
     getAllXtreamCategories: jest.fn().mockResolvedValue([]),

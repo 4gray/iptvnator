@@ -3,6 +3,10 @@ import * as schema from '@iptvnator/shared/database/schema';
 import { XTREAM_DATABASE_PERFORMANCE_PHASE } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import { unlockedCategoryCondition } from '../parental-lock-state';
+import {
+    applyExplicitCategoryVisibility,
+    updateExplicitCategoryVisibility,
+} from './category-visibility';
 import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
 
 type XtreamCategoryInput = {
@@ -69,16 +73,23 @@ async function insertXtreamCategories(
     db: AppDatabase,
     values: XtreamCategoryValue[]
 ): Promise<void> {
-    await db
-        .insert(schema.categories)
-        .values(values)
-        .onConflictDoNothing({
-            target: [
-                schema.categories.playlistId,
-                schema.categories.type,
-                schema.categories.xtreamId,
-            ],
-        });
+    db.transaction((tx) => {
+        const applied = applyExplicitCategoryVisibility(
+            tx,
+            values[0].playlistId,
+            values
+        );
+        tx.insert(schema.categories)
+            .values(applied)
+            .onConflictDoNothing({
+                target: [
+                    schema.categories.playlistId,
+                    schema.categories.type,
+                    schema.categories.xtreamId,
+                ],
+            })
+            .run();
+    });
 }
 
 export async function hasCategories(
@@ -216,10 +227,15 @@ export async function getAllCategories(
 export async function updateCategoryVisibility(
     db: AppDatabase,
     categoryIds: number[],
-    hidden: boolean
-): Promise<{ success: boolean }> {
+    hidden: boolean,
+    explicit = false
+): Promise<{ success: boolean; explicitRecorded?: true }> {
     if (categoryIds.length === 0) {
         return { success: true };
+    }
+    if (explicit === true) {
+        updateExplicitCategoryVisibility(db, categoryIds, hidden);
+        return { success: true, explicitRecorded: true };
     }
 
     await db
