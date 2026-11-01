@@ -44,19 +44,23 @@ export function PageHeader({ tv }: { tv: TvModel }) {
                     ) : null}
                 </div>
             )}
-            <TvSelect
-                label="Active source"
-                focusKey="source-picker"
-                value={tv.data.activeId}
-                placeholder="No source connected"
-                options={tv.data.sources.map((s) => ({
-                    value: s.id,
-                    label: `${s.name} · ${s.provider.toUpperCase()}`,
-                }))}
-                onChange={(value) => {
-                    void tv.switchSource(value);
-                }}
-            />
+            {view === 'home' ? (
+                <span class="home-scope">All sources</span>
+            ) : (
+                <TvSelect
+                    label="Active source"
+                    focusKey="source-picker"
+                    value={tv.data.activeId}
+                    placeholder="No source connected"
+                    options={tv.data.sources.map((s) => ({
+                        value: s.id,
+                        label: `${s.name} · ${s.provider.toUpperCase()}`,
+                    }))}
+                    onChange={(value) => {
+                        void tv.switchSource(value);
+                    }}
+                />
+            )}
         </header>
     );
 }

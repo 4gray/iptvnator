@@ -464,7 +464,7 @@ header .tv-select {
 .resume-card {
     width: 400px;
     min-width: 400px;
-    height: 186px;
+    height: 220px;
     margin-right: 24px;
     padding: 0;
     display: flex;
@@ -474,7 +474,7 @@ header .tv-select {
 .resume-art {
     width: 120px;
     min-width: 120px;
-    height: 180px;
+    height: 100%;
     position: relative;
     display: flex;
     align-items: center;
@@ -1457,4 +1457,32 @@ main.live-page {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+.home-source-name {
+    color: var(--tv-muted);
+    font-size: 20px;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.hero .home-source-name {
+    margin: 12px 0;
+    font-size: 20px;
+}
+.home-scope {
+    font-size: 22px;
+    color: var(--tv-muted);
+    background: var(--tv-bg);
+    padding: 14px 18px;
+    border-radius: 6px;
+}
+.home-source-pending {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--tv-surface);
+    padding: 18px 24px;
+    margin-bottom: 24px;
 }

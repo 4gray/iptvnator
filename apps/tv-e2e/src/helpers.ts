@@ -54,6 +54,7 @@ export async function addSource(
     page: Page,
     type: 'xtream' | 'stalker' | 'm3u',
     options: {
+        name?: string;
         url?: string;
         username?: string;
         password?: string;
@@ -68,7 +69,9 @@ export async function addSource(
         .getByRole('button', { name: type.toUpperCase(), exact: true })
         .click();
     await page.getByLabel('IPTVnator backend URL').fill(backend);
-    await page.getByLabel('Name', { exact: true }).fill(`TV ${type}`);
+    await page
+        .getByLabel('Name', { exact: true })
+        .fill(options.name ?? `TV ${type}`);
     await page
         .getByLabel(type === 'm3u' ? 'Playlist URL' : 'Provider URL')
         .fill(

@@ -22,9 +22,13 @@ export function ChannelLogo({ src }: { src?: string }) {
 export function ChannelCard({
     item,
     open,
+    sourceName,
+    focusKey,
     ...attributes
 }: {
     item: Media;
+    sourceName?: string;
+    focusKey?: string;
     open: (item: Media) => void;
     'data-virtual-index'?: number;
 }) {
@@ -32,13 +36,13 @@ export function ChannelCard({
         <button
             {...attributes}
             class="channel-card"
-            data-focus={item.id}
+            data-focus={focusKey ?? item.id}
             onClick={() => open(item)}
         >
             <ChannelLogo src={item.poster} />
             <span class="channel-card-copy">
                 <strong>{item.title}</strong>
-                <small>Live TV</small>
+                <small>{sourceName ?? 'Live TV'}</small>
             </span>
         </button>
     );
