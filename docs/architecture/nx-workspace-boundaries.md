@@ -314,6 +314,8 @@ a project-local `xtream-refresh-recovery` wrapper for the same cold boundary.
 The Electron data source also loads its project-local `xtream-category-import`
 helper only for cold category fills or failed-cache cleanup. Completed cache reads
 return before that import, preserving the warm path's startup work and IPC count.
+Shared catalog availability checks stay outside the eager services barrel in
+`xtream-catalog-availability`, reused by explicit offline restore and route replay.
 Full user-state replay also stays in the local `xtream-deferred-restore` module;
 the data source delegates to it only when restoring a backup or failed import,
 or when the legacy cache-snapshot API is explicitly invoked.

@@ -36,6 +36,7 @@ import {
     XtreamBackupCategoryType,
     XtreamBackupContentType,
     XtreamPlaylistBackupEntry,
+    type XtreamContentType,
     XtreamBackupSourcePin,
     XtreamPendingRestoreState,
     createRandomId,
@@ -1100,7 +1101,13 @@ export class PlaylistBackupService {
                 restoreState.favorites,
                 restoreState.favoritesRestoreId
             );
-            if (!(await this.hasCompletedOfflineCache(playlistId))) return;
+            if (
+                !(await this.hasCompletedOfflineCache(
+                    playlistId,
+                    entry.xtreamContentTypes
+                ))
+            )
+                return;
         }
 
         const restoreResult = await this.pendingRestoreService.applyAndConsume(
@@ -1108,7 +1115,11 @@ export class PlaylistBackupService {
             restoreSnapshot,
             async (state) =>
                 sqlite
-                    ? this.applyXtreamRestoreState(playlistId, state)
+                    ? this.applyXtreamRestoreState(
+                          playlistId,
+                          state,
+                          entry.xtreamContentTypes
+                      )
                     : this.pwaXtream.restore(playlistId, state, entry)
         );
         if (restoreResult !== 'consumed') {
@@ -1119,60 +1130,52 @@ export class PlaylistBackupService {
     }
 
     private async hasCompletedOfflineCache(
-        playlistId: string
+        playlistId: string,
+        selected?: XtreamContentType[]
     ): Promise<boolean> {
         const checks = await Promise.all(
-            [
-                {
-                    categoryType: 'live' as const,
-                    contentType: 'live' as const,
-                },
-                {
-                    categoryType: 'movies' as const,
-                    contentType: 'movie' as const,
-                },
-                {
-                    categoryType: 'series' as const,
-                    contentType: 'series' as const,
-                },
-            ].map(async ({ categoryType, contentType }) => {
-                const [importStatus, hasCategories, hasContent] =
-                    await Promise.all([
-                        this.databaseService.getXtreamImportStatus(
-                            playlistId,
-                            contentType
-                        ),
-                        this.databaseService.hasXtreamCategories(
-                            playlistId,
-                            categoryType
-                        ),
-                        this.databaseService.hasXtreamContent(
-                            playlistId,
-                            contentType
-                        ),
-                    ]);
-
-                return (
-                    importStatus === 'completed' && hasCategories && hasContent
-                );
+            normalizeXtreamContentTypes(selected).map(async (type) => {
+                const [status, categories, content] = await Promise.all([
+                    this.databaseService.getXtreamImportStatus(
+                        playlistId,
+                        type
+                    ),
+                    this.databaseService.hasXtreamCategories(
+                        playlistId,
+                        type === 'movie' ? 'movies' : type
+                    ),
+                    this.databaseService.hasXtreamContent(playlistId, type),
+                ]);
+                return status === 'completed' && categories && content;
             })
         );
-
         return checks.every(Boolean);
     }
 
     private async applyXtreamRestoreState(
         playlistId: string,
-        state: XtreamPendingRestoreState
+        state: XtreamPendingRestoreState,
+        selected?: XtreamContentType[]
     ): Promise<void> {
         this.playbackPositionService.assertSupportsAtomicReplacement();
+        const { resolveAvailableCatalogs } =
+            await import('./xtream-catalog-availability');
+        const available = await resolveAvailableCatalogs(
+            this.databaseService,
+            playlistId,
+            normalizeXtreamContentTypes(selected)
+        );
         const prepared = this.deferredRestore.prepare(
             playlistId,
             state,
-            XTREAM_CONTENT_TYPES
+            available
         );
         state = prepared.state;
-        await this.restoreXtreamCategoryVisibility(playlistId, state);
+        await this.restoreXtreamCategoryVisibility(
+            playlistId,
+            state,
+            available
+        );
         await this.databaseService.restoreXtreamFavoriteSnapshots(
             playlistId,
             state.favorites,
@@ -1198,7 +1201,7 @@ export class PlaylistBackupService {
             this.deferredRestore.complete(
                 playlistId,
                 prepared.snapshot,
-                XTREAM_CONTENT_TYPES
+                available
             );
             return;
         }
@@ -1226,16 +1229,13 @@ export class PlaylistBackupService {
                 `Restoring the pinned sources for "${playlistId}" failed.`
             );
         }
-        this.deferredRestore.complete(
-            playlistId,
-            prepared.snapshot,
-            XTREAM_CONTENT_TYPES
-        );
+        this.deferredRestore.complete(playlistId, prepared.snapshot, available);
     }
 
     private async restoreXtreamCategoryVisibility(
         playlistId: string,
-        state: XtreamPendingRestoreState
+        state: XtreamPendingRestoreState,
+        available: readonly XtreamContentType[]
     ): Promise<void> {
         const categoriesByType = await Promise.all([
             this.databaseService.getAllXtreamCategories(playlistId, 'live'),
@@ -1244,7 +1244,16 @@ export class PlaylistBackupService {
         ]);
 
         for (const categories of categoriesByType) {
-            if (categories.length === 0) {
+            if (
+                categories.length === 0 ||
+                !available.some(
+                    (type) =>
+                        type ===
+                        (categories[0].type === 'movies'
+                            ? 'movie'
+                            : categories[0].type)
+                )
+            ) {
                 continue;
             }
 

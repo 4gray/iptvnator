@@ -281,3 +281,5 @@ export {
     clearCatalogHistoryRecovery,
     readCatalogHistoryRecovery,
 } from './xtream-catalog-history-recovery';
+
+export { resolveAvailableCatalogs } from './xtream-catalog-availability';

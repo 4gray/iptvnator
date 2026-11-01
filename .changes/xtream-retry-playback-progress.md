@@ -3,4 +3,4 @@ type: fix
 area: xtream
 ---
 
-Failed catalog scan retries preserve later history edits, playback progress and category visibility, including history clears. Older pending scans migrate before retry or export. Ordinary Refresh uses the same protection, and explicit backup retries reset stale recovery state before applying the archive. Exports use current state.
+Catalog retries and ordinary Refresh keep later history edits, including clears, playback progress and category visibility. Older pending scans migrate before retry or export. Explicit backup retries reset stale recovery state. Offline restoration uses selected cached catalogs and keeps unloaded catalogs dormant. Exports reflect current state.

@@ -16,6 +16,7 @@ import type {
 import {
     XtreamDeferredCatalogRestoreService,
     prepareLegacyCatalogHistoryRecovery,
+    resolveAvailableCatalogs,
     beginCatalogHistoryRecovery,
     readCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
@@ -25,6 +26,7 @@ import type { XtreamOperationOptions } from './xtream-data-source.interface';
 // Local dynamic-import target: keep restoration-only work off the startup path.
 export { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
 export {
+    resolveAvailableCatalogs,
     prepareLegacyCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
 } from '@iptvnator/services/xtream-catalog-restore';
@@ -216,25 +218,6 @@ export async function restoreCategoryVisibility(
             );
         }
     }
-}
-
-export async function resolveAvailableCatalogs(
-    db: Pick<DatabaseService, 'hasXtreamContent' | 'getXtreamImportStatus'>,
-    playlistId: string,
-    enabled: readonly XtreamContentType[]
-): Promise<XtreamContentType[]> {
-    return (
-        await Promise.all(
-            XTREAM_CONTENT_TYPES.map(async (type) =>
-                enabled.includes(type) ||
-                ((await db.hasXtreamContent(playlistId, type)) &&
-                    (await db.getXtreamImportStatus(playlistId, type)) ===
-                        'completed')
-                    ? type
-                    : null
-            )
-        )
-    ).filter((type): type is XtreamContentType => type !== null);
 }
 
 /** Legacy cache-snapshot API is cold work too; keep its existing semantics. */

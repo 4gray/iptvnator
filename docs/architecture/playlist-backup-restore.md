@@ -136,6 +136,11 @@ deferred state completes, so retry cannot undo intervening history actions.
 Cache-pending exports reconcile hidden flags by current category identity too:
 live visibility wins for present categories, while absent categories retain
 their parked choices.
+An existing selective source can restore offline when every selected catalog is
+complete. Apply history/hidden flags only to selected or completed retained
+catalogs; leave unavailable catalog state dormant instead of requiring all three
+catalogs or consuming their parked data. An explicit empty selection needs no
+catalog cache for independent playback-position/source-pin restoration.
 
 Explicitly excluded:
 

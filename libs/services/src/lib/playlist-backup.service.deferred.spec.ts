@@ -1,3 +1,4 @@
+import { createXtreamManifest } from './playlist-backup.xtream-fixtures';
 import { of } from 'rxjs';
 import {
     Playlist,
@@ -162,3 +163,63 @@ it('upgrades older cache-only pending history before export instead of dropping 
     );
     expect(entry.userState.recentlyViewed).toHaveLength(2);
 });
+
+it.each([{ selection: ['live'] }, { selection: [] }])(
+    'finishes selective offline backup restoration for enabled catalogs %j and parks unavailable data',
+    async ({ selection }) => {
+        const service = createPlaylistBackupService({
+            runtime: { supportsXtreamSqliteDataSource: true },
+        });
+        const inner = service as unknown as {
+            databaseService: {
+                getXtreamImportStatus: jest.Mock;
+                hasXtreamCategories: jest.Mock;
+                hasXtreamContent: jest.Mock;
+                restoreXtreamUserData: jest.Mock;
+            };
+            pendingRestoreService: {
+                getOrThrow: (id: string) => XtreamPendingRestoreState | null;
+            };
+            restoreXtreamEntry: (
+                id: string,
+                entry: XtreamPlaylistBackupEntry
+            ) => Promise<void>;
+        };
+        inner.databaseService.getXtreamImportStatus.mockImplementation(
+            async (_id, type) => (type === 'live' ? 'completed' : 'idle')
+        );
+        inner.databaseService.hasXtreamCategories.mockImplementation(
+            async (_id, type) => type === 'live'
+        );
+        inner.databaseService.hasXtreamContent.mockImplementation(
+            async (_id, type) => type === 'live'
+        );
+        const entry = createXtreamManifest([
+            { categoryType: 'movies', xtreamId: 2 },
+        ]).playlists[0] as XtreamPlaylistBackupEntry;
+        entry.xtreamContentTypes = selection as 'live'[];
+        entry.userState.recentlyViewed = [
+            { contentType: 'live', xtreamId: 10, viewedAt: 'live' },
+            { contentType: 'movie', xtreamId: 20, viewedAt: 'movie' },
+        ];
+        await inner.restoreXtreamEntry('xtream-1', entry);
+        expect(inner.pendingRestoreService.getOrThrow('xtream-1')).toBeNull();
+        expect(
+            inner.databaseService.restoreXtreamUserData
+        ).toHaveBeenCalledWith(
+            'xtream-1',
+            [],
+            entry.userState.recentlyViewed.slice(0, 1)
+        );
+        const parked = new XtreamDeferredCatalogRestoreService().forExport(
+            'xtream-1',
+            empty()
+        );
+        expect(parked.recentlyViewed).toEqual(
+            entry.userState.recentlyViewed.slice(1)
+        );
+        expect(parked.hiddenCategories).toEqual(
+            entry.userState.hiddenCategories
+        );
+    }
+);

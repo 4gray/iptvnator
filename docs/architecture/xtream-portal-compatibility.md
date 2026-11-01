@@ -362,6 +362,10 @@ Desktop source metadata optionally carries `xtreamContentTypes` using `live`,
 `movie`, and `series`. Missing means all types (legacy behavior); `[]` means
 load no catalogs. Add/Edit expose independent checkboxes only with the complete
 Xtream SQLite capability. PWA imports keep their existing all-catalog behavior.
+Catalog choices belong to the device's source profile. Canonical shared-source
+definitions exclude `xtreamContentTypes`; remote title/connection updates retain
+the device's existing choice. The local editor owns re-enabling and deferred
+catalog replay, rather than another client's source-definition update.
 
 Electron category/content cache reads and imports honor the selection. Ordinary
 catalog search and recently-added SQL exclude disabled types; collection and
@@ -443,7 +447,10 @@ save work, retaining pending history. Completed warm caches keep their existing
 read path; cold category-import code is loaded only when needed.
 
 Fresh desktop backup restores separate dormant catalog-dependent history and
-hidden choices from the active import snapshot. Enabled types initialize normally;
+hidden choices from the active import snapshot. Offline restore readiness checks
+only selected catalogs; completed retained caches can also accept their saved
+state. Unavailable types remain dormant, and an empty selection needs no catalog
+cache before its independent user state can restore. Enabled types initialize normally;
 unloaded types retain durable restore data for re-export and later re-enabling.
 Replay merges with current source history and does not overwrite later progress,
 favorite removals or source-pin edits. See [backup restoration](./playlist-backup-restore.md).
