@@ -9,6 +9,9 @@ import {
     type IXtreamDataSource,
 } from '@iptvnator/portal/xtream/data-access';
 import { activityEnabled } from './activity-consent';
+import type { ActivitySyncRuntime } from './activity-sync-runtime';
+
+const runtimes = new WeakMap<EnvironmentInjector, ActivitySyncRuntime>();
 
 export function activityDataSourceFactory(): IXtreamDataSource {
     const injector = inject(EnvironmentInjector);
@@ -17,11 +20,14 @@ export function activityDataSourceFactory(): IXtreamDataSource {
             const value = Reflect.get(target, key);
             if (typeof value !== 'function') return value;
             const local = value.bind(target);
-            if (!String(key).includes('PlaybackPosition')) return local;
+            const method = String(key);
+            if (!method.includes('PlaybackPosition')) return local;
             return async (...args: unknown[]) => {
-                if (!activityEnabled()) return local(...args);
-                const service = await loadActivityRuntime(injector);
-                return service.invoke(target, String(key), args);
+                const existing = runtimes.get(injector);
+                if (!existing && !activityEnabled()) return local(...args);
+                const service =
+                    existing ?? (await loadActivityRuntime(injector));
+                return service.invoke(target, method, args);
             };
         },
     }) as IXtreamDataSource;
@@ -57,5 +63,7 @@ export function activityEventsFactory() {
 
 export async function loadActivityRuntime(injector: EnvironmentInjector) {
     const { ActivitySyncRuntime } = await import('./activity-sync-runtime');
-    return injector.get(ActivitySyncRuntime);
+    const service = injector.get(ActivitySyncRuntime);
+    runtimes.set(injector, service);
+    return service;
 }

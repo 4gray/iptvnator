@@ -286,7 +286,7 @@ export class ActivitySyncClient {
             const result = applyActivityOperation(state, operation);
             return {
                 state: result.state,
-                position,
+                position: { ...position, watched },
                 pending: [
                     ...(current?.pending ?? []),
                     { address, operation, consentGeneration: this.consent() },

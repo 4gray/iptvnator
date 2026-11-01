@@ -1012,7 +1012,11 @@ mirroring. A checkpoint committed after another window pauses consent also
 returns through the local persistence path, preserving that acknowledged point.
 A delayed shared-save completion may fall back locally only while its original
 write is still the latest invocation for that item; later checkpoints or resets
-supersede it before awaiting storage.
+supersede it before awaiting storage. The data-source proxy keeps an already loaded
+runtime informed after consent is disabled; a client that never enabled activity
+keeps its direct local path. Imported positions persist their computed watched
+flag separately from a conflicting server mark, so keeping them local preserves
+the imported progress.
 
 Before a raw fallback write, a minimal position snapshot is saved locally without
 titles or stream addresses. A failed raw write keeps this snapshot readable and

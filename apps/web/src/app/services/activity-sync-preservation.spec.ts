@@ -297,6 +297,33 @@ describe('keeping pending activity local', () => {
         }
     );
 
+    it('keeps an unwatched legacy import below completion when a watched server row conflicts', async () => {
+        const f = fixture();
+        const remote = f.setRemote({
+            kind: 'mark-watched',
+            operationId: 'synthetic-watched',
+            deviceId: 'synthetic-other',
+            expectedRevision: 0,
+        });
+        await f.store.mutate(f.address, () => ({ state: remote, pending: [] }));
+        await f.client.importPosition(f.address.sourceId, {
+            ...f.position,
+            watched: undefined,
+        });
+        expect((await f.store.read(f.address))?.conflict).toBeDefined();
+        expect(
+            (await f.client.positions(f.address.sourceId))[0].position.watched
+        ).toBe(false);
+        await f.adapter.keepLocal(f.raw, f.address.sourceId);
+        expect(f.saved).toEqual([
+            expect.objectContaining({
+                positionSeconds: 20,
+                durationSeconds: 100,
+                watched: false,
+            }),
+        ]);
+    });
+
     it.each([false, true])(
         'preserves an imported position over a synchronized reset (watched: %s)',
         async (watched) => {

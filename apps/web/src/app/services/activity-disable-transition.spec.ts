@@ -1,4 +1,8 @@
 import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { PwaXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
+import { activityDataSourceFactory } from './activity-sync.providers';
 import { ActivitySyncClient } from '@iptvnator/services/activity-sync';
 import { prepareSourceConnection } from '@iptvnator/services/source-sync/connection';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
@@ -215,7 +219,12 @@ describe('retryable activity disable transition', () => {
         expect(runtime.enabled()).toBe(true);
     });
 
-    it.each(['paused', 'disabled', 'failed-local-write'] as const)(
+    it.each([
+        'paused',
+        'disabled',
+        'disabled-reset',
+        'failed-local-write',
+    ] as const)(
         'keeps a newer local checkpoint after a delayed shared commit (%s)',
         async (mode) => {
             const f = fixture('native');
@@ -229,6 +238,19 @@ describe('retryable activity disable transition', () => {
             const started = new Promise<void>((resolve) => {
                 entered = resolve;
             });
+            TestBed.configureTestingModule({
+                providers: [
+                    {
+                        provide: RuntimeCapabilitiesService,
+                        useValue: { supportsXtreamSqliteDataSource: false },
+                    },
+                    { provide: PwaXtreamDataSource, useValue: f.raw },
+                    { provide: ActivitySyncRuntime, useValue: runtime },
+                ],
+            });
+            const dataSource = TestBed.runInInjectionContext(
+                activityDataSourceFactory
+            );
             const mutate = client.store.mutate.bind(client.store);
             jest.spyOn(client.store, 'mutate').mockImplementationOnce(
                 async (address, update) => {
@@ -237,19 +259,16 @@ describe('retryable activity disable transition', () => {
                     return mutate(address, update);
                 }
             );
-            const older = runtime.invoke(f.raw, 'savePlaybackPosition', [
-                f.sourceId,
-                {
-                    ...f.position,
-                    positionSeconds: 50,
-                    activitySessionId: 'synthetic-session',
-                },
-            ]);
+            const older = dataSource.savePlaybackPosition(f.sourceId, {
+                ...f.position,
+                positionSeconds: 50,
+                activitySessionId: 'synthetic-session',
+            });
             await started;
             localStorage.setItem(
                 consentKey,
                 JSON.stringify({
-                    enabled: mode === 'disabled' ? false : 2,
+                    enabled: mode.startsWith('disabled') ? false : 2,
                     generation: 'original-consent',
                     deviceId: 'synthetic-device',
                 })
@@ -258,14 +277,14 @@ describe('retryable activity disable transition', () => {
                 f.save.mockRejectedValueOnce(
                     new Error('Synthetic newer write failure')
                 );
-            const newer = runtime.invoke(f.raw, 'savePlaybackPosition', [
-                f.sourceId,
-                {
-                    ...f.position,
-                    positionSeconds: 75,
-                    activitySessionId: 'synthetic-session',
-                },
-            ]);
+            const newer =
+                mode === 'disabled-reset'
+                    ? dataSource.clearPlaybackPosition(f.sourceId, 42, 'vod')
+                    : dataSource.savePlaybackPosition(f.sourceId, {
+                          ...f.position,
+                          positionSeconds: 75,
+                          activitySessionId: 'synthetic-session',
+                      });
             if (mode === 'failed-local-write')
                 await expect(newer).rejects.toThrow(
                     'Synthetic newer write failure'
@@ -273,7 +292,8 @@ describe('retryable activity disable transition', () => {
             else await newer;
             release();
             await older;
-            if (mode === 'disabled')
+            if (mode === 'disabled-reset') expect(f.rows()).toEqual([]);
+            else if (mode === 'disabled')
                 expect(f.rows()[0].positionSeconds).toBe(75);
             else
                 expect(await adapter.all(f.raw, f.sourceId)).toEqual([
