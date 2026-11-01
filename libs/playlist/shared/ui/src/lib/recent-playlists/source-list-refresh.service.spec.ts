@@ -431,7 +431,12 @@ describe('SourceListRefreshService', () => {
         );
         expect(parkedState).toEqual({
             version: 1,
-            generation: expect.any(String),
+            generation: null,
+            revision: expect.any(String),
+            catalogSnapshot: {
+                key: `xtream-catalog-restore-${item._id}`,
+                generation: null,
+            },
             hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
             recentlyViewed: [],
             favorites: [],

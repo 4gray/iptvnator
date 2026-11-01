@@ -84,7 +84,7 @@ async function setReplayFault(
     );
 }
 
-test('ordinary refresh retry consumes its newly created deferred generation before later history removal', async ({
+test('ordinary refresh retry retains recovery ownership before later history removal', async ({
     dataDir,
 }) => {
     test.setTimeout(120000);
@@ -192,12 +192,20 @@ test('ordinary refresh retry consumes its newly created deferred generation befo
             const raw = localStorage.getItem(`xtream-restore-${id}`);
             if (!raw) throw new Error('Synthetic recovery is missing');
             const pending = JSON.parse(raw);
+            const dormant = JSON.parse(
+                localStorage.getItem(`xtream-catalog-restore-${id}`) ?? '{}'
+            );
             return {
                 generation: pending.catalogSnapshot.generation,
-                dormant: localStorage.getItem(`xtream-catalog-restore-${id}`),
+                history: dormant.recentlyViewed ?? [],
+                categories: dormant.hiddenCategories ?? [],
             };
         }, id);
-        expect(initial).toEqual({ generation: null, dormant: null });
+        expect(initial).toEqual({
+            generation: null,
+            history: [],
+            categories: [],
+        });
         releaseContent();
         await expect
             .poll(() =>
@@ -205,10 +213,15 @@ test('ordinary refresh retry consumes its newly created deferred generation befo
                     const raw = localStorage.getItem(
                         `xtream-catalog-restore-${id}`
                     );
-                    return raw ? JSON.parse(raw).generation : null;
+                    return raw
+                        ? JSON.parse(raw).recentlyViewed?.some(
+                              (row: { xtreamId: number }) =>
+                                  row.xtreamId === 881201
+                          )
+                        : false;
                 }, id)
             )
-            .not.toBeNull();
+            .toBe(true);
         await expect(
             page.getByRole('button', { name: 'Retry', exact: true })
         ).toBeVisible();
@@ -249,9 +262,7 @@ test('ordinary refresh retry consumes its newly created deferred generation befo
             };
         }, id);
         expect(failed.pending).toBe(true);
-        expect(failed.state?.generation, JSON.stringify(failed)).toEqual(
-            expect.any(String)
-        );
+        expect(failed.state?.generation).toBe(failed.owner.generation);
         expect(failed.state?.recentlyViewed).toContainEqual(
             expect.objectContaining({ contentType: 'live', xtreamId: 881201 })
         );
