@@ -49,6 +49,7 @@ export function epgSourceUrlsChanged(
 @Injectable({ providedIn: 'root' })
 export class EpgSourceSettingsService {
     private readonly injector = inject(Injector);
+    private readonly preferences = inject(EpgPreferencesService);
     private activeUrls = new Set<string>();
     private fetchableUrls = new Set<string>();
     private reconciliation: Promise<void> | undefined;
@@ -57,8 +58,8 @@ export class EpgSourceSettingsService {
     readonly changed$ = new Subject<void>();
 
     constructor() {
-        inject(EpgPreferencesService)
-            .changed$.pipe(takeUntilDestroyed(inject(DestroyRef)))
+        this.preferences.changed$
+            .pipe(takeUntilDestroyed(inject(DestroyRef)))
             .subscribe(() => {
                 this.revision.update((revision) => revision + 1);
                 this.changed$.next();
@@ -102,7 +103,10 @@ export class EpgSourceSettingsService {
         }
     }
 
-    async synchronize(urls: string[] | string | undefined): Promise<void> {
+    async synchronize(
+        urls: string[] | string | undefined,
+        epgEnabled?: boolean
+    ): Promise<void> {
         if (
             typeof window === 'undefined' ||
             !window.electron?.reconcileEpgSources
@@ -112,8 +116,10 @@ export class EpgSourceSettingsService {
         this.revision.update((revision) => revision + 1);
         const previous = this.reconciliation;
         const operation = previous
-            ? previous.catch(() => undefined).then(() => this.reconcile(urls))
-            : this.reconcile(urls);
+            ? previous
+                  .catch(() => undefined)
+                  .then(() => this.reconcile(urls, epgEnabled))
+            : this.reconcile(urls, epgEnabled);
         const pending = operation.finally(() => {
             if (this.reconciliation === pending)
                 this.reconciliation = undefined;
@@ -123,7 +129,8 @@ export class EpgSourceSettingsService {
     }
 
     private async reconcile(
-        urls: string[] | string | undefined
+        urls: string[] | string | undefined,
+        epgEnabled?: boolean
     ): Promise<void> {
         const normalized = normalizeEpgSourceUrls(urls);
         // These globals are committed even if playlist ownership or cleanup
@@ -148,10 +155,20 @@ export class EpgSourceSettingsService {
                     this.fetchableUrls.add(url);
                 }
             }
-            const result =
-                await window.electron.reconcileEpgSources(normalized);
-            if (!result.success)
-                throw new Error('EPG source reconciliation failed');
+            const reconcile = async () => {
+                const result =
+                    epgEnabled === undefined
+                        ? await window.electron.reconcileEpgSources(normalized)
+                        : await window.electron.reconcileEpgSources(
+                              normalized,
+                              epgEnabled
+                          );
+                if (!result.success)
+                    throw new Error('EPG source reconciliation failed');
+            };
+            if (epgEnabled === undefined) await reconcile();
+            else
+                await this.preferences.synchronizeNative(epgEnabled, reconcile);
             this.failedReconciliation = undefined;
         } catch {
             this.failedReconciliation = { urls: normalized };

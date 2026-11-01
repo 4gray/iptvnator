@@ -15,6 +15,10 @@ import {
     setSwitch,
     test,
 } from './electron-test-fixtures';
+import {
+    expectRendererReloadedOnRoute,
+    reloadFromMainProcess,
+} from './renderer-reload.support';
 
 test('@epg @electron global opt-out ignores declared XMLTV and preserves playlist logos across restart', async ({
     dataDir,
@@ -101,6 +105,23 @@ test('@epg @electron global opt-out ignores declared XMLTV and preserves playlis
             'src',
             logo
         );
+        // A fresh renderer must restore its saved preference even when the
+        // existing main-process worker was left suspended by the prior one.
+        await app.mainWindow.evaluate(async () => {
+            const setEnabled = window.electron.setEpgEnabled;
+            if (!setEnabled) throw new Error('Missing EPG preference bridge');
+            await setEnabled(false);
+        });
+        const beforeResume = guideRequests;
+        await reloadFromMainProcess(app);
+        await expectRendererReloadedOnRoute(app.mainWindow, /\/workspace/);
+        await expect(channel()).toBeVisible();
+        await expect(channel()).not.toHaveClass(/compact/);
+        await app.mainWindow.evaluate(
+            (url) => window.electron.forceFetchEpg(url),
+            epgUrl
+        );
+        await expect.poll(() => guideRequests).toBeGreaterThan(beforeResume);
     } finally {
         await closeElectronApp(app);
         await playlist.close();

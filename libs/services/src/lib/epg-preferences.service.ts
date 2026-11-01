@@ -9,6 +9,9 @@ export class EpgPreferencesService {
     readonly changed$ = new Subject<void>();
     private revision = 0;
     private applicationRevision = 0;
+    private nativeEnabled: boolean | undefined;
+    private nativeRevision = 0;
+    private nativePending = 0;
     private loading: Promise<void> | undefined;
     private finishLoading: (() => void) | undefined;
 
@@ -25,7 +28,7 @@ export class EpgPreferencesService {
         // Disable the renderer first; enabling waits for the importer barrier.
         if (!enabled) this.setEnabled(false);
         try {
-            await window.electron?.setEpgEnabled?.(enabled);
+            await this.setNativeEnabled(enabled);
             if (application === this.applicationRevision)
                 this.setEnabled(enabled);
         } finally {
@@ -64,6 +67,40 @@ export class EpgPreferencesService {
                 takeUntil(this.changed$),
                 filter(() => this.enabled() && revision === this.revision)
             );
+    }
+
+    private async setNativeEnabled(enabled: boolean): Promise<void> {
+        const bridge = window.electron;
+        const setEnabled = bridge?.setEpgEnabled;
+        if (
+            !setEnabled ||
+            (this.nativeEnabled === enabled && this.nativePending === 0)
+        )
+            return;
+
+        await this.synchronizeNative(enabled, () =>
+            setEnabled.call(bridge, enabled)
+        );
+    }
+
+    /** Track acknowledgements from both the setter and bootstrap reconciliation. */
+    async synchronizeNative<T>(
+        enabled: boolean,
+        update: () => Promise<T>
+    ): Promise<T> {
+        const revision = ++this.nativeRevision;
+        this.nativePending++;
+        try {
+            const result = await update();
+            if (revision === this.nativeRevision) this.nativeEnabled = enabled;
+            return result;
+        } catch (error) {
+            if (revision === this.nativeRevision)
+                this.nativeEnabled = undefined;
+            throw error;
+        } finally {
+            this.nativePending--;
+        }
     }
 
     private setEnabled(enabled: boolean): void {

@@ -69,7 +69,11 @@ describe('EPG source settings synchronization', () => {
                         getAllPlaylists: () =>
                             of([
                                 {
-                                    epgUrls: [declaredLocal, manualLocal, remote],
+                                    epgUrls: [
+                                        declaredLocal,
+                                        manualLocal,
+                                        remote,
+                                    ],
                                     manualEpgUrls: [manualLocal],
                                 },
                             ]),
@@ -88,6 +92,38 @@ describe('EPG source settings synchronization', () => {
         expect(service.retainCurrentSources([declaredLocal], 0)).toEqual([
             declaredLocal,
         ]);
+    });
+
+    it('restores a reused native worker during bootstrap without a separate enable command', async () => {
+        let nativeEnabled = false;
+        const setEpgEnabled = jest.fn().mockResolvedValue(undefined);
+        const reconcileEpgSources = jest.fn(
+            async (_urls: string[], enabled?: boolean) => {
+                if (enabled !== undefined) nativeEnabled = enabled;
+                return { success: true };
+            }
+        );
+        window.electron = {
+            reconcileEpgSources,
+            setEpgEnabled,
+        } as unknown as typeof window.electron;
+        const injector = Injector.create({
+            providers: [
+                EpgPreferencesService,
+                EpgSourceSettingsService,
+                {
+                    provide: PlaylistsService,
+                    useValue: { getAllPlaylists: () => of([]) },
+                },
+            ],
+        });
+        const preferences = injector.get(EpgPreferencesService);
+        preferences.beginLoad();
+        await injector.get(EpgSourceSettingsService).synchronize([], true);
+        await preferences.apply(true);
+        expect(nativeEnabled).toBe(true);
+        expect(reconcileEpgSources).toHaveBeenCalledWith([], true);
+        expect(setEpgEnabled).not.toHaveBeenCalled();
     });
 
     it('invalidates possibly partially deleted data and reports reconciliation failure', async () => {

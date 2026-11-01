@@ -1241,6 +1241,11 @@ blocks requests until the saved preference is known. Preference changes retire
 the source lookup revision, which clears ephemeral previews and fences late
 responses across XMLTV, portal stores, collections and the dashboard. Electron's
 `EPG_SET_ENABLED` drains active and queued imports without clearing the database.
+Startup synchronizes the native preference in the existing source-reconciliation
+IPC before reconciling source data, including when a renderer reopens over a
+reused native worker. Its acknowledgement avoids a separate enable command.
+Actual changes still synchronize the worker; overlapping updates use the latest
+acknowledgement and failures retry.
 Suspension clears session fetch markers after writers drain, so a source that
 becomes stale while disabled can refresh on resumption; fresh stored data still
 skips downloading through the ordinary freshness check.

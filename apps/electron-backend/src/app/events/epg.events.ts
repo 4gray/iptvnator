@@ -44,7 +44,9 @@ export default class EpgEvents {
         );
         ipcMain.handle(
             'EPG_RECONCILE_SOURCES',
-            async (_event, args: { urls: string[] }) => {
+            async (_event, args: { urls: string[]; epgEnabled?: boolean }) => {
+                if (typeof args.epgEnabled === 'boolean')
+                    await epgWorkerService.setEnabled(args.epgEnabled);
                 await reconcileEpgSources(args.urls);
                 return { success: true };
             }

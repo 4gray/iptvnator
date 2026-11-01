@@ -114,7 +114,10 @@ export const SettingsStore = signalStore(
                         );
                     }
                     await epgSources
-                        .synchronize(this.getSettings().epgUrl)
+                        .synchronize(
+                            this.getSettings().epgUrl,
+                            this.getSettings().epgEnabled !== false
+                        )
                         .catch((error) => {
                             console.warn(
                                 'Could not reconcile cached EPG sources on startup.',

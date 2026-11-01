@@ -150,6 +150,47 @@ describe('EpgEvents', () => {
         }
     );
 
+    it.each([true, false, undefined])(
+        'synchronizes bootstrap EPG state %s in the source reconciliation IPC',
+        async (enabled) => {
+            const { ipcMain } = await import('electron');
+            const { epgWorkerService } = await import('./epg-worker.service');
+            const sources = await import('./epg-source-settings.service');
+            const order: string[] = [];
+            const setEnabled = jest
+                .spyOn(epgWorkerService, 'setEnabled')
+                .mockImplementation(async () => {
+                    order.push('preference');
+                });
+            const reconcile = jest
+                .spyOn(sources, 'reconcileEpgSources')
+                .mockImplementation(async () => {
+                    order.push('sources');
+                });
+            try {
+                EpgEvents.bootstrapEpgEvents();
+                const handler = (ipcMain.handle as jest.Mock).mock.calls.find(
+                    ([channel]) => channel === 'EPG_RECONCILE_SOURCES'
+                )?.[1];
+                expect(handler).toBeDefined();
+                await expect(
+                    handler({}, { urls: [], epgEnabled: enabled })
+                ).resolves.toEqual({ success: true });
+                expect(order).toEqual(
+                    enabled === undefined
+                        ? ['sources']
+                        : ['preference', 'sources']
+                );
+                if (enabled !== undefined)
+                    expect(setEnabled).toHaveBeenCalledWith(enabled);
+                else expect(setEnabled).not.toHaveBeenCalled();
+            } finally {
+                setEnabled.mockRestore();
+                reconcile.mockRestore();
+            }
+        }
+    );
+
     it('uses the shared worker bootstrap and passes native module search paths to the EPG worker', async () => {
         const fetchPromise = (EpgEvents as unknown as Record<string, any>)[
             'fetchEpgFromUrl'

@@ -15,17 +15,82 @@ describe('global EPG preference', () => {
         const enabling = new Promise<void>((resolve) => {
             finish = resolve;
         });
+        const setEpgEnabled = jest.fn((enabled: boolean) =>
+            enabled ? enabling : Promise.resolve()
+        );
         window.electron = {
             ...original,
-            setEpgEnabled: (enabled: boolean) =>
-                enabled ? enabling : Promise.resolve(),
+            setEpgEnabled,
         } as typeof window.electron;
         try {
+            await preferences.apply(false);
             const oldEnable = preferences.apply(true);
             await preferences.apply(false);
             finish();
             await oldEnable;
             expect(preferences.enabled()).toBe(false);
+            await preferences.apply(true);
+            expect(
+                setEpgEnabled.mock.calls.map(([enabled]) => enabled)
+            ).toEqual([false, true, false, true]);
+        } finally {
+            window.electron = original;
+        }
+    });
+
+    it('uses acknowledged bootstrap state without repeating the enable IPC', async () => {
+        const original = window.electron;
+        const setEpgEnabled = jest.fn().mockResolvedValue(undefined);
+        window.electron = {
+            ...original,
+            setEpgEnabled,
+        } as typeof window.electron;
+        try {
+            preferences.beginLoad();
+            await preferences.synchronizeNative(true, async () => undefined);
+            await preferences.apply(true);
+            expect(preferences.enabled()).toBe(true);
+            expect(setEpgEnabled).not.toHaveBeenCalled();
+            await preferences.apply(false);
+            await preferences.apply(false);
+            await preferences.apply(true);
+            expect(setEpgEnabled.mock.calls).toEqual([[false], [true]]);
+        } finally {
+            window.electron = original;
+        }
+    });
+
+    it('synchronizes an unknown native state when a renderer is recreated', async () => {
+        const original = window.electron;
+        const setEpgEnabled = jest.fn().mockResolvedValue(undefined);
+        window.electron = {
+            ...original,
+            setEpgEnabled,
+        } as typeof window.electron;
+        try {
+            await preferences.apply(true);
+            expect(setEpgEnabled.mock.calls).toEqual([[true]]);
+        } finally {
+            window.electron = original;
+        }
+    });
+
+    it('retries a native state change after a failed acknowledgement', async () => {
+        const original = window.electron;
+        const setEpgEnabled = jest
+            .fn()
+            .mockRejectedValueOnce(new Error('Synthetic bridge failure'))
+            .mockResolvedValue(undefined);
+        window.electron = {
+            ...original,
+            setEpgEnabled,
+        } as typeof window.electron;
+        try {
+            await expect(preferences.apply(false)).rejects.toThrow(
+                'Synthetic bridge failure'
+            );
+            await preferences.apply(false);
+            expect(setEpgEnabled.mock.calls).toEqual([[false], [false]]);
         } finally {
             window.electron = original;
         }
