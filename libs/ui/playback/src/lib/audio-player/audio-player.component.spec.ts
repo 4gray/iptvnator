@@ -138,6 +138,54 @@ describe('AudioPlayerComponent', () => {
         expect(component.volume()).toBe(0.5);
     });
 
+    it.each(['dialog', 'alertdialog'])(
+        'leaves reading keys to a focused %s while radio is playing',
+        (role) => {
+            const audio = createComponent();
+            component.setVolume(0.5);
+            const emitted = jest.fn();
+            component.volumeChange.subscribe(emitted);
+            const dialog = document.createElement('div');
+            dialog.setAttribute('role', role);
+            const region = document.createElement('div');
+            region.setAttribute('role', 'region');
+            region.tabIndex = 0;
+            dialog.append(region);
+            document.body.append(dialog);
+            region.focus();
+
+            try {
+                for (const key of ['ArrowUp', 'ArrowDown', 'm', 'M']) {
+                    const event = new KeyboardEvent('keydown', {
+                        key,
+                        bubbles: true,
+                        cancelable: true,
+                    });
+                    region.dispatchEvent(event);
+                    expect(event.defaultPrevented).toBe(false);
+                    expect(component.volume()).toBe(0.5);
+                    expect(audio.volume).toBe(0.5);
+                    expect(audio.muted).toBe(false);
+                    expect(localStorage.getItem('volume')).toBe('0.5');
+                }
+                expect(component.playState()).toBe('play');
+                expect(emitted).not.toHaveBeenCalled();
+            } finally {
+                dialog.remove();
+            }
+
+            document.body.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'ArrowDown',
+                    bubbles: true,
+                    cancelable: true,
+                })
+            );
+            expect(component.volume()).toBe(0.45);
+            expect(emitted).toHaveBeenCalledWith(0.45);
+        }
+    );
+
     it('restores the previous volume when unmuting', () => {
         const audio = createComponent();
         component.setVolume(0.65);

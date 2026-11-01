@@ -86,4 +86,33 @@ describe('EPG mapping search recovery', () => {
         search('new query');
         expect(fixture.componentInstance.selectedId()).toBeNull();
     }));
+
+    it('clears a failed lookup when the query becomes too short without another request', fakeAsync(() => {
+        bridge.searchEpgChannels.mockRejectedValueOnce(new Error('offline'));
+        search('demo');
+        search(' ');
+        expect(bridge.searchEpgChannels).toHaveBeenCalledTimes(1);
+        expect(fixture.componentInstance.searchFailed()).toBe(false);
+        expect(fixture.componentInstance.loading()).toBe(false);
+        expect(fixture.componentInstance.results()).toEqual([]);
+        expect(
+            fixture.nativeElement.querySelector('[role="status"]')
+        ).toBeNull();
+    }));
+
+    it.each([undefined, null])(
+        'treats an unavailable or empty bridge response (%s) as no results',
+        fakeAsync((response: undefined | null) => {
+            bridge.searchEpgChannels.mockReturnValueOnce(
+                response === undefined ? undefined : Promise.resolve(response)
+            );
+            search('demo');
+            expect(fixture.componentInstance.results()).toEqual([]);
+            expect(fixture.componentInstance.loading()).toBe(false);
+            expect(fixture.componentInstance.searchFailed()).toBe(false);
+            expect(fixture.nativeElement.textContent).toContain(
+                'EPG_MAPPING_DIALOG.NO_RESULTS'
+            );
+        })
+    );
 });

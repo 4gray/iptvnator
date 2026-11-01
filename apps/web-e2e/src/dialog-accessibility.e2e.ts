@@ -11,6 +11,10 @@ import {
 import { applyUiTheme, rasterTextContrast } from './ui-consistency.fixture';
 import type { Locator } from '@playwright/test';
 import { configureMockProviderBackend } from './provider-target-route';
+import {
+    addStalkerPortal,
+    interceptStalkerRequests,
+} from './stalker-portal.fixture';
 
 test.use({ serviceWorkers: 'block' });
 
@@ -237,4 +241,129 @@ test('focused account and shortcut regions keep playback keys away from a mounte
         await page.keyboard.press('Escape');
         await expect(dialog).toBeHidden();
     }
+});
+
+test('reading account and shortcuts while Stalker radio plays keeps its volume unchanged', async ({
+    page,
+}) => {
+    test.setTimeout(120_000);
+    await interceptStalkerRequests(page);
+    const source = 'http://radio-fixture.invalid/sample.wav';
+    // One minute of synthetic PCM silence, with no external stream or metadata.
+    const bytes = 8000 * 60 * 2;
+    const wav = Buffer.alloc(44 + bytes);
+    wav.write('RIFF', 0);
+    wav.writeUInt32LE(36 + bytes, 4);
+    wav.write('WAVEfmt ', 8);
+    wav.writeUInt32LE(16, 16);
+    wav.writeUInt16LE(1, 20);
+    wav.writeUInt16LE(1, 22);
+    wav.writeUInt32LE(8000, 24);
+    wav.writeUInt32LE(16000, 28);
+    wav.writeUInt16LE(2, 32);
+    wav.writeUInt16LE(16, 34);
+    wav.write('data', 36);
+    wav.writeUInt32LE(bytes, 40);
+    await page.route(source, (route) =>
+        route.fulfill({ contentType: 'audio/wav', body: wav })
+    );
+    await page.route('**/localhost:3000/stalker**', async (route) => {
+        const url = new URL(route.request().url());
+        if (url.searchParams.get('type') !== 'radio') return route.fallback();
+        const action = url.searchParams.get('action');
+        if (action === 'create_link') {
+            await route.fulfill({ json: { payload: { js: { cmd: source } } } });
+        } else if (action === 'get_ordered_list') {
+            await route.fulfill({
+                json: {
+                    payload: {
+                        js: {
+                            data: [
+                                {
+                                    id: '9001',
+                                    name: 'Synthetic Radio Alpha',
+                                    o_name: 'Synthetic Radio Alpha',
+                                    cmd: source,
+                                    logo: '',
+                                    category_id:
+                                        url.searchParams.get('genre') ?? '1',
+                                    tv_genre_id:
+                                        url.searchParams.get('genre') ?? '1',
+                                    number: '1',
+                                    radio: true,
+                                },
+                            ],
+                            total_items: 1,
+                            max_page_items: 20,
+                            cur_page: 1,
+                            total_pages: 1,
+                        },
+                    },
+                },
+            });
+        } else await route.fallback();
+    });
+    await addStalkerPortal(page);
+    await page.getByRole('link', { name: /radio/i }).click();
+    await page.locator('.category-item').nth(1).click();
+    await page.getByText('Synthetic Radio Alpha', { exact: true }).click();
+    const audio = page.locator('app-audio-player audio');
+    await expect
+        .poll(() => audio.evaluate((el: HTMLAudioElement) => el.currentTime))
+        .toBeGreaterThan(0);
+    await page
+        .locator('app-audio-player .radio-hero')
+        .click({ position: { x: 5, y: 5 } });
+    const initialVolume = await audio.evaluate(
+        (el: HTMLAudioElement) => el.volume
+    );
+    await page.keyboard.press('ArrowDown');
+    await expect(audio).toHaveJSProperty(
+        'volume',
+        Math.round((initialVolume - 0.05) * 100) / 100
+    );
+    const volume = await audio.evaluate((el: HTMLAudioElement) => el.volume);
+    const savedVolume = await page.evaluate(() =>
+        localStorage.getItem('volume')
+    );
+    await page.setViewportSize({ width: 390, height: 480 });
+    for (const kind of ['account', 'shortcuts']) {
+        await page.locator('body').focus();
+        if (kind === 'account') {
+            await page.keyboard.press(
+                process.platform === 'darwin' ? 'Meta+k' : 'Control+k'
+            );
+            const palette = page.locator('app-workspace-command-palette');
+            await palette.locator('input[type="search"]').fill('account');
+            await palette
+                .getByRole('button', { name: /Account info/i })
+                .click();
+        } else await page.keyboard.press('?');
+        const dialog = page.getByRole('dialog');
+        const region = dialog.getByRole('region');
+        await expect(region).toBeFocused();
+        for (const key of ['ArrowUp', 'ArrowDown', 'm', 'M']) {
+            await page.keyboard.press(key);
+            await expect(audio).toHaveJSProperty('volume', volume);
+            await expect(audio).toHaveJSProperty('muted', false);
+            await expect(audio).toHaveJSProperty('paused', false);
+            expect(
+                await page.evaluate(() => localStorage.getItem('volume'))
+            ).toBe(savedVolume);
+        }
+        await page.keyboard.press('PageDown');
+        await expect
+            .poll(() => region.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(0);
+        await page.keyboard.press('Escape');
+        await expect(dialog).toHaveCount(0);
+    }
+    await page
+        .locator('app-audio-player .radio-hero')
+        .click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press('ArrowDown');
+    await expect(audio).toHaveJSProperty(
+        'volume',
+        Math.round((volume - 0.05) * 100) / 100
+    );
 });

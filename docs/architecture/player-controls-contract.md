@@ -1912,6 +1912,9 @@ radio layout; title/group scrolling is CSS-only. It supports play/pause, mute,
 and volume, including the volume keys in 5% steps. Volume shares the video
 players' `volume` localStorage key. The template, SCSS and TypeScript component
 live together; routing/integration stays in the M3U player template.
+When focus is inside a dialog or alertdialog, its reading region owns the
+arrows and M key. Radio leaves those events unconsumed and does not change or
+persist background volume; keyboard volume control resumes after dismissal.
 
 ### Display sleep during playback
 

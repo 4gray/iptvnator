@@ -128,6 +128,7 @@ test('@electron @stalker built-in audio player plays an auth-gated radio stream'
     dataDir,
     request,
 }) => {
+    test.setTimeout(120_000);
     await resetMockServers(request, ['stalker']);
 
     // The radio branch renders the dedicated audio player instead of
@@ -164,6 +165,11 @@ test('@electron @stalker built-in audio player plays an auth-gated radio stream'
         // assert attachment rather than visibility.
         const audio = app.mainWindow.locator('app-audio-player audio').first();
         await expect(audio).toBeAttached({ timeout: 15_000 });
+        // Repeat the synthetic clip so it behaves like a live radio stream.
+        await audio.evaluate((element: HTMLAudioElement) => {
+            element.loop = true;
+            return element.play();
+        });
 
         await expect
             .poll(
@@ -174,6 +180,63 @@ test('@electron @stalker built-in audio player plays an auth-gated radio stream'
                 { timeout: 20_000 }
             )
             .toBeGreaterThan(0.5);
+
+        const page = app.mainWindow;
+        await page
+            .locator('app-audio-player .radio-hero')
+            .click({ position: { x: 5, y: 5 } });
+        const initialVolume = await audio.evaluate(
+            (element: HTMLAudioElement) => element.volume
+        );
+        await page.keyboard.press('ArrowDown');
+        await expect(audio).toHaveJSProperty(
+            'volume',
+            Math.round((initialVolume - 0.05) * 100) / 100
+        );
+        const volume = await audio.evaluate(
+            (element: HTMLAudioElement) => element.volume
+        );
+        const saved = await page.evaluate(() => localStorage.getItem('volume'));
+        await page.setViewportSize({ width: 390, height: 480 });
+        for (const kind of ['account', 'shortcuts']) {
+            await page.locator('body').focus();
+            if (kind === 'account') {
+                await page.keyboard.press(
+                    process.platform === 'darwin' ? 'Meta+k' : 'Control+k'
+                );
+                const palette = page.locator('app-workspace-command-palette');
+                await palette.locator('input[type="search"]').fill('account');
+                await palette
+                    .getByRole('button', { name: /Account info/i })
+                    .click();
+            } else await page.keyboard.press('?');
+            const dialog = page.getByRole('dialog');
+            const region = dialog.getByRole('region');
+            await expect(region).toBeFocused();
+            for (const key of ['ArrowUp', 'ArrowDown', 'm', 'M']) {
+                await page.keyboard.press(key);
+                await expect(audio).toHaveJSProperty('volume', volume);
+                await expect(audio).toHaveJSProperty('muted', false);
+                await expect(audio).toHaveJSProperty('paused', false);
+                expect(
+                    await page.evaluate(() => localStorage.getItem('volume'))
+                ).toBe(saved);
+            }
+            await page.keyboard.press('PageDown');
+            await expect
+                .poll(() => region.evaluate((element) => element.scrollTop))
+                .toBeGreaterThan(0);
+            await page.keyboard.press('Escape');
+            await expect(dialog).toHaveCount(0);
+        }
+        await page
+            .locator('app-audio-player .radio-hero')
+            .click({ position: { x: 5, y: 5 } });
+        await page.keyboard.press('ArrowDown');
+        await expect(audio).toHaveJSProperty(
+            'volume',
+            Math.round((volume - 0.05) * 100) / 100
+        );
     } finally {
         await closeElectronApp(app);
     }
