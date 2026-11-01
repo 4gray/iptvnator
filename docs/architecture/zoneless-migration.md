@@ -101,7 +101,7 @@ picker), so each marks itself on the form's `events` through
 - [x] `libs/ui/epg/src/lib/epg-item-description/epg-item-description.component.ts`
 - [x] `libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.ts` (idle audit root; also `EpgTrustConfirmDialogComponent`)
 - [x] `libs/ui/epg/src/lib/epg-source-status/epg-source-status.component.ts`
-- [ ] `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` (`apps/remote-control-web` only)
+- [x] `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` (`apps/remote-control-web` only)
 - [x] `libs/ui/playback/src/lib/art-player/art-player.component.ts`
 - [x] `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
 - [x] `libs/ui/playback/src/lib/external-player-info-dialog/external-player-info-dialog.component.ts`
@@ -115,7 +115,7 @@ picker), so each marks itself on the form's `events` through
 
 ### apps/remote-control-web (1)
 
-- [ ] `apps/remote-control-web/src/app/app.ts` (separate app; converts with `remote-control.component.ts`)
+- [x] `apps/remote-control-web/src/app/app.ts` (separate app; converts with `remote-control.component.ts`)
 
 ### libs/workspace (7)
 
@@ -179,7 +179,7 @@ the field a signal (or a `computed`), or writes it through one.
 | [x] | same file, programme dialog `afterClosed` | deletes from `epgPrograms`/`currentProgramsProgress` after `await` without marking | portal |
 | [x] | `apps/web/src/app/settings/settings-backup.facade.ts` (backup import) | `change` listener on a detached file input → `hydrateFromStore()`; section templates read `form().value.theme`/`coverSize`; each section now marks itself on its form's `events` (`markSectionForCheckOnFormEvents`), which `settings.component.form.spec.ts` guards without a forced render | apps/web |
 | [x] | `libs/ui/epg/src/lib/epg-guide/epg-guide.component.ts` (jump to now, keyboard focus) | `afterNextRender` registered from CDK/RxJS callbacks; zone.js followed them with a tick, zoneless schedules no render, so the guide opened at midnight. It now marks itself when it registers the hook. Found by `epg-guide.e2e.ts` on the zoneless build | flag |
-| [ ] | `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` | plain `isLoading`/`error`/`status` written after `await` and from a 2 s `setInterval` | only if `apps/remote-control-web` goes zoneless |
+| [x] | `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` | plain `isLoading`/`error`/`status` written after `await` and from a 2 s `setInterval` | remote pilot: explicit notifications and request lifecycle guards; Zone bootstrap retained |
 
 ## Explicit zone and change-detector calls
 
@@ -325,3 +325,13 @@ iterations each) against `master` the same day with zone.js:
 
 J3 wall clock is in the same range, so the local rise measured on the flag
 PR was machine load.
+
+## Remote-control pilot after the renderer migration
+
+The separate remote-control root and component use OnPush. Async status and
+command completions explicitly mark the view. A command invalidates older status
+requests; interval polling skips pending commands and status requests, and late
+completions after destruction are ignored. Deferred DOM tests exercise these
+boundaries without forced change detection after responses. The standalone
+remote-control app still loads Zone; removing its bootstrap polyfill is a separate
+step from this pilot.
