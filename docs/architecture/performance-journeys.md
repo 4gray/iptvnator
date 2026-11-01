@@ -1478,6 +1478,14 @@ listener's tests preserve immediate acknowledgment, sequential imports and
 retry after a failed chunk load. This is a loading-boundary change with no
 new user-facing behavior; no feature flag or baseline increase is needed.
 
+EPG read helpers also load on demand: source importing and settings hydration
+do not need the programme-scope and channel-metadata lookup implementations.
+The first subscribed lookup loads their shared module; concurrent calls share
+it, failed chunk loads can retry, and source-revision guards retire requests
+before they can use a late module. The public Observable APIs and source
+priority rules stay the same. This loading boundary needs no feature flag or
+baseline increase.
+
 `--summary` writes the journey summary shape (`journeys.<journey>.counters`)
 that the ratchet checker consumes. `--dist <dir>` points the script at another
 build output, for example the `electron-performance` configuration.

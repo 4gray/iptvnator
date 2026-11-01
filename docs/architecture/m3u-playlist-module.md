@@ -1247,6 +1247,11 @@ skips downloading through the ordinary freshness check.
 The resumable list follows `filterPlaylistEpgUrlsForFetch`: global sources stay
 eligible, while local playlist paths require explicit manual provenance. The
 ownership inventory remains intact for reconciliation and lookup retirement.
+Read helpers for programme and channel metadata lookups load on the first
+subscribed lookup, keeping source imports and settings hydration on the small
+startup path. Concurrent reads share that module; failed chunk loads can retry.
+Requests retain their source revision across loading, so a retired request
+cannot start after the chunk arrives or survive an EPG off/on cycle.
 Re-enabling restores ordinary loading and freshness checks without a restart.
 Archive browsing through the programme guide is unavailable while EPG is off.
 

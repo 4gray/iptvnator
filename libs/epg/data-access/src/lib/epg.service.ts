@@ -20,10 +20,7 @@ import {
 } from './epg-runtime-bridge.service';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 import { EpgProgramCache } from './epg-program-cache';
-import { EpgChannelMetadataLookup } from './epg-channel-metadata.lookup';
-import { EpgCurrentProgramsLookup } from './epg-current-programs.lookup';
-import { EpgSingleProgramLookup } from './epg-single-program.lookup';
-import { EpgScopedBatchLookup } from './epg-scoped-batch.lookup';
+import { EpgLookupLoader } from './epg-lookup-loader';
 import type { EpgLookupContext } from './epg-lookup-context';
 import {
     normalizeLookupChannelIds,
@@ -61,13 +58,6 @@ export class EpgService {
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
 
-    /** Channel icons/display names; same scope ladder as the programmes. */
-    private readonly channelMetadata = new EpgChannelMetadataLookup(
-        this.epgBridge,
-        () => this.sourceSettings.guard(),
-        (excluding) => this.getGlobalEpgSourceUrls(excluding)
-    );
-
     /** 60 s "currently airing" memory, keyed by scope + display offset. */
     private readonly programCache = new EpgProgramCache(
         () => this.epgOffsetMinutes(),
@@ -87,13 +77,10 @@ export class EpgService {
         clockMs: () => this.epgClockMs(),
         globalSourceUrls: (excluding) => this.getGlobalEpgSourceUrls(excluding),
     };
-    private readonly singleProgram = new EpgSingleProgramLookup(
-        this.lookupContext
-    );
-    private readonly currentPrograms = new EpgCurrentProgramsLookup(
+    private readonly lookups = new EpgLookupLoader(
         this.lookupContext,
-        this.singleProgram,
-        new EpgScopedBatchLookup(this.lookupContext)
+        () => this.epgPreferences.enabled(),
+        () => this.sourceSettings.revision()
     );
 
     /** Display offset every "currently airing" decision in here is made with. */
@@ -229,7 +216,10 @@ export class EpgService {
         ) {
             return of(null);
         }
-        return this.singleProgram.forChannel(channelId, options);
+        return this.lookups.run(
+            ({ single }) => single.forChannel(channelId, options),
+            null
+        );
     }
 
     /**
@@ -250,7 +240,10 @@ export class EpgService {
         if (!channelIds || channelIds.length === 0) {
             return of(new Map());
         }
-        return this.currentPrograms.forChannels(channelIds, options);
+        return this.lookups.run(
+            ({ current }) => current.forChannels(channelIds, options),
+            new Map<string, EpgProgram | null>()
+        );
     }
 
     getChannelMetadataForChannels(
@@ -269,9 +262,13 @@ export class EpgService {
             return of(new Map());
         }
 
-        return this.channelMetadata.forChannels(
-            normalizedChannelIds,
-            normalizeLookupSourceUrls(options)
+        return this.lookups.run(
+            ({ metadata }) =>
+                metadata.forChannels(
+                    normalizedChannelIds,
+                    normalizeLookupSourceUrls(options)
+                ),
+            new Map<string, EpgChannelMetadata | null>()
         );
     }
 
