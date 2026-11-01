@@ -167,6 +167,27 @@ test('disabled catalogs preserve playable saved items, resume progress, download
             await persistedHistoryCount(app, dataDir, saved.playlistId)
         ).toBe(105);
         expect(catalogActions(recorder.actions)).toEqual([]);
+        // Empty selections need no catalog overlay, but native user-state
+        // restoration must finish before this test's planned graceful restart.
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    (id) => localStorage.getItem(`xtream-restore-${id}`),
+                    saved.playlistId
+                )
+            )
+            .toBeNull();
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    (id) =>
+                        window.electron.dbGetAppState(
+                            `xtream-history-recovery:${id}`
+                        ),
+                    saved.playlistId
+                )
+            )
+            .toBe('');
 
         app = await restartElectronApp(app, dataDir);
         page = app.mainWindow;

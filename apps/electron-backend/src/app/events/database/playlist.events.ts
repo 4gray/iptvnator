@@ -4,6 +4,7 @@
  */
 
 import { ipcMain } from 'electron';
+import { XTREAM_HISTORY_RECOVERY_PREFIX } from '@iptvnator/shared/interfaces';
 import { recoverLegacyProfile } from '../../services/legacy-profile-recovery';
 import { databaseWorkerClient } from '../../services/database-worker-client';
 import {
@@ -68,10 +69,16 @@ handleWorkerRequest(
     })
 );
 handleWorkerRequest('DB_GET_APP_STATE', (key: string) => ({ key }));
-handleWorkerRequest('DB_SET_APP_STATE', (key: string, value: string) => ({
-    key,
-    value,
-}));
+handleWorkerRequest(
+    'DB_SET_APP_STATE',
+    (key: string, value: string) => ({ key, value }),
+    (event, key, value) => {
+        // Deferred archive changes must reach disk before their SQLite journal
+        // tombstones are acknowledged, including retries without cache deletion.
+        if (value === '' && key.startsWith(XTREAM_HISTORY_RECOVERY_PREFIX))
+            event.sender.session.flushStorageData();
+    }
+);
 
 ipcMain.handle(
     'DB_DELETE_PLAYLIST',

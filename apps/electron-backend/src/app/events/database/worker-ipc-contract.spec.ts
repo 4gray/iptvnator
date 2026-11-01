@@ -95,6 +95,43 @@ describe('database worker IPC contract', () => {
         ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
     });
 
+    it('flushes resolved deferred state before acknowledging its native history journal', async () => {
+        const event = createIpcEvent();
+        await getHandler('DB_SET_APP_STATE')(
+            event,
+            'xtream-history-recovery:p',
+            ''
+        );
+        expect(event.sender.session.flushStorageData).toHaveBeenCalledTimes(1);
+        expect(
+            event.sender.session.flushStorageData.mock.invocationCallOrder[0]
+        ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
+    });
+
+    it.each([
+        ['xtream-history-recovery:p', '{"version":1}'],
+        ['workspace:last-route', ''],
+    ])('does not flush unrelated app-state writes (%s)', async (key, value) => {
+        const event = createIpcEvent();
+        await getHandler('DB_SET_APP_STATE')(event, key, value);
+        expect(event.sender.session.flushStorageData).not.toHaveBeenCalled();
+    });
+
+    it('keeps the native journal when persisting resolved DOM state fails', async () => {
+        const event = createIpcEvent();
+        event.sender.session.flushStorageData.mockImplementation(() => {
+            throw new Error('storage flush failed');
+        });
+        await expect(
+            getHandler('DB_SET_APP_STATE')(
+                event,
+                'xtream-history-recovery:p',
+                ''
+            )
+        ).rejects.toThrow('storage flush failed');
+        expect(mockWorkerRequest).not.toHaveBeenCalled();
+    });
+
     beforeEach(async () => {
         jest.resetModules();
         mockRegisteredHandlers.clear();

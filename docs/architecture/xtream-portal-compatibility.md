@@ -396,7 +396,9 @@ the parked JSON snapshot. Tombstones prevent deferred archive entries from
 undoing removals or clears. Deferred history ownership uses a generation token,
 so an older import cannot consume a newly parked archive. Resolved history replaces the owned deferred
 history before replay; hidden choices remain parked until applied. The journal is
-acknowledged only after deferred completion, and source deletion removes it. Category imports
+acknowledged only after deferred completion, and source deletion removes it. The
+app-state IPC flushes the updated deferred DOM state before clearing a native
+history journal; a flush failure leaves the journal/tombstones intact. Category imports
 already apply the parked hidden flags, so cache retry preserves live visibility
 instead of resetting it like an explicit backup restore. Only completed catalogs
 can override archived visibility; default flags on partially imported rows must
