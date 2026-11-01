@@ -10,6 +10,16 @@ export type View =
     | 'settings'
     | 'person'
     | 'detail';
+export const mainNavigation: [View, string][] = [
+    ['home', 'Home'],
+    ['live', 'TV'],
+    ['movies', 'Movies'],
+    ['series', 'Series'],
+    ['favorites', 'Favorites'],
+    ['search', 'Search'],
+    ['sources', 'Sources'],
+    ['settings', 'Settings'],
+];
 export interface Route {
     view: View;
     kind: Kind;

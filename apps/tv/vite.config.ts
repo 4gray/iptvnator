@@ -2,12 +2,14 @@ import { defineConfig } from 'vite';
 import preact from '@preact/preset-vite';
 import { resolve } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { tvBuildInfo } from './build-info';
 const workspace = process.cwd();
 const paths = JSON.parse(readFileSync('tsconfig.base.json', 'utf8'))
     .compilerOptions.paths as Record<string, string[]>;
 export default defineConfig({
     root: resolve(workspace, 'apps/tv'),
     base: './',
+    define: { __TV_BUILD_INFO__: JSON.stringify(tvBuildInfo(workspace)) },
     plugins: [
         preact({ devToolsEnabled: false }),
         {

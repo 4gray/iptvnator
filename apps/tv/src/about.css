@@ -1,0 +1,51 @@
+.about-page {
+    max-width: 1120px;
+}
+.about-page h2 {
+    margin-top: 0;
+}
+.about-page h3 {
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0 0 20px;
+}
+.about-page > p {
+    margin-bottom: 36px;
+}
+.about-columns {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    grid-gap: 36px;
+}
+.about-page dl {
+    margin: 0;
+}
+.about-row {
+    margin-bottom: 20px;
+}
+.about-row dt {
+    color: var(--tv-muted);
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+.about-row dd {
+    font-size: 24px;
+    line-height: 1.4;
+    margin: 0;
+    overflow-wrap: break-word;
+}
+.about-project {
+    margin-top: 28px;
+}
+.about-project p {
+    font-size: 22px;
+    line-height: 1.5;
+    overflow-wrap: break-word;
+    margin: 8px 0;
+}
+@media (max-width: 1400px) {
+    .about-columns {
+        grid-template-columns: 1fr;
+        grid-gap: 16px;
+    }
+}
