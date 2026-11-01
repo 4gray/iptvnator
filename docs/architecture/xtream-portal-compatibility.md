@@ -378,9 +378,14 @@ it, including an explicit empty array.
 `XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
 fetching their category/content arrays before deleting their old cache. The editor
 prepares durable recovery after fetching, then confirms metadata persistence
-through `beforeReplace` before replacing any cached state. A rejected save cleans
-its prepared recovery and leaves the original cache and history intact. An accepted save is reused if later cache work fails, without
-a second authoritative write. Recovery captures the complete source history in SQLite, not the ordinary
+through `beforeReplace` before replacing any cached state. The active route waits
+for the edit-time activity hold before bootstrapping metadata published by
+source-server synchronization, so an ongoing scan is never treated as an
+interrupted import. Navigation queued during that wait uses its latest route.
+A rejected save cleans its prepared recovery and leaves the original cache and
+history intact. An accepted save is reused if later cache work fails, without
+a second authoritative write. Recovery captures the complete source history in
+SQLite, not the ordinary
 100-entry browsing projection. The optional `dbGetRecentItems` `{ all: true }`
 request crosses preload/main/worker; ordinary reads remain capped at 100. The
 cache-recovery snapshot sets internal `preservePlaybackPositions: true`: catalog

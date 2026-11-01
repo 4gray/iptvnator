@@ -309,6 +309,46 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(activity.isBusy(PLAYLIST_ID)).toBe(false);
     });
 
+    it('applies an idle section navigation before its categories can be opened', async () => {
+        currentPlaylist.set(XTREAM_PLAYLIST);
+        playlistId.set(PLAYLIST_ID);
+        isContentInitialized.set(true);
+        contentLoadStateByType.set({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+        router.url = `/workspace/xtreams/${PLAYLIST_ID}/live`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        expect(selectedContentType()).toBe('live');
+        expect(xtreamStore.resetStore).not.toHaveBeenCalled();
+    });
+
+    it('waits for an active catalog edit before resetting the route and uses the latest section', async () => {
+        xtreamStore.checkPortalStatus.mockResolvedValue('active');
+        const activity = TestBed.inject(SourceActivityService);
+        const finishEdit = activity.begin([PLAYLIST_ID]);
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+        expect(xtreamStore.resetStore).not.toHaveBeenCalled();
+        expect(xtreamStore.initializeContent).not.toHaveBeenCalled();
+
+        router.url = `/workspace/xtreams/${PLAYLIST_ID}/live`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        finishEdit();
+        await flushEffects();
+        await flushEffects();
+        expect(xtreamStore.resetStore).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.setSelectedContentType).toHaveBeenLastCalledWith(
+            'live'
+        );
+        expect(xtreamStore.initializeContent).toHaveBeenCalledTimes(1);
+        await flushEffects();
+        expect(activity.isBusy(PLAYLIST_ID)).toBe(false);
+    });
+
     it('marks the routed section loading before status checks complete during playlist switches', async () => {
         const portalStatusCheck = createDeferred<PortalStatusType>();
         xtreamStore.checkPortalStatus.mockReturnValue(
