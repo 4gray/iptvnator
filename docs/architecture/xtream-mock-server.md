@@ -475,14 +475,16 @@ This scenario is reserved for release screenshots and marketing materials:
 
 - VOD and series data use 65 curated fictional titles instead of faker-generated
   titles or real media metadata
-- the core 30-title generated artwork pack keeps matched posters and backdrops;
-  35 additional movie-poster showcase titles use approved local poster PNGs and
-  the deterministic SVG fallback for their missing backdrops; the newest 20
-  appear first in the VOD catalog
+- the cinematic pack adds six backdrops, two series posters and two episode
+  stills to the existing original artwork; the newest 20 movie-poster showcase
+  entries appear first in the VOD catalog; missing artwork retains SVG fallback
 - showcase metadata comes from the provider-neutral
   `@iptvnator/shared/marketing-fixtures` catalog shared with the Stalker mock
-- posters and backdrops are served from committed PNG files in
-  `apps/xtream-mock-server/public/marketing/{poster,backdrop}/`
+- posters, backdrops and episode stills are served from committed PNG files in
+  `apps/xtream-mock-server/public/marketing/{poster,backdrop,episode}/`
+- cinematic prompts and provenance live in `cinematic-artwork.json` under that
+  asset root; the [cinematic demo guide](../development/cinematic-demo.md)
+  documents the disposable profile, synthetic cache, capture and validation
 - `tools/release/generate-marketing-artwork.ts` generates the PNGs with
   `gpt-image-2` only when `OPENAI_API_KEY` is present; it also writes the
   prompt/asset manifest at `apps/xtream-mock-server/public/marketing/manifest.json`
@@ -493,8 +495,11 @@ This scenario is reserved for release screenshots and marketing materials:
   `tools/release/capture-release-screenshots.ts` consumes the local mock server
   assets and never calls OpenAI; its guards additionally verify that the
   service answering on the mock port really is this fixture server
+- `marketing-stories.ts` supplies individual names and plots for the cinematic
+  series across three seasons; season covers reuse each series poster and
+  episodes use original stills or the matching series backdrop
 - the SVG renderer in `marketing.generator.ts` remains the fallback for missing
-  assets, live logos, season covers, and episode thumbnails
+  assets and live logos
 
 ### `performance:performance` fixture details
 
