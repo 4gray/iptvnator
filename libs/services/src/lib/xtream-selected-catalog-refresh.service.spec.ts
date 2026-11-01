@@ -185,7 +185,15 @@ describe('edit-time Xtream catalog refresh', () => {
             expect(db.saveXtreamCategories).not.toHaveBeenCalled();
             expect(db.saveXtreamContent).not.toHaveBeenCalled();
             expect(pending['applyAndConsume']).not.toHaveBeenCalled();
-            expect(pending['clear']).toHaveBeenCalled();
+            expect(pending['clear']).not.toHaveBeenCalled();
+            expect(db.clearXtreamImportCache).toHaveBeenCalledWith(
+                'p',
+                'movie'
+            );
+            expect(db.setAppState).not.toHaveBeenCalledWith(
+                'xtream-history-recovery:p',
+                ''
+            );
             expect(release).toHaveBeenCalled();
         }
     );

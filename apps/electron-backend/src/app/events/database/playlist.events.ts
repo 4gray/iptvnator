@@ -82,10 +82,12 @@ handleWorkerRequest(
         value,
         ...(condition === undefined ? {} : { condition }),
     }),
-    (event, key, value) => {
-        // Deferred archive changes must reach disk before their SQLite journal
-        // tombstones are acknowledged, including retries without cache deletion.
-        if (value === '' && key.startsWith(XTREAM_HISTORY_RECOVERY_PREFIX))
+    (event, key) => {
+        // Persist prepared recovery before registering its native journal or
+        // accepting metadata; early connection mismatches can clear retained
+        // caches without entering the ordinary catalog-deletion IPC.
+        // Also flush resolved archives before acknowledging native tombstones.
+        if (key.startsWith(XTREAM_HISTORY_RECOVERY_PREFIX))
             event.sender.session.flushStorageData();
     }
 );

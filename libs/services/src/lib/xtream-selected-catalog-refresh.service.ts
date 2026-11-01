@@ -83,6 +83,7 @@ export class XtreamSelectedCatalogRefreshService {
         let snapshot: XtreamPendingRestoreSnapshot | null = null;
         let historyPrepared = false;
         let replacementStarted = false;
+        let acceptedConnectionChanged = false;
         const publish = (
             type: XtreamContentType | null,
             phase: XtreamSelectedCatalogProgress['phase'],
@@ -137,6 +138,7 @@ export class XtreamSelectedCatalogRefreshService {
             // catalog until the authoritative edit is accepted.
             const accepted = await beforeReplace?.();
             if (accepted && !this.sameConnection(playlist, accepted)) {
+                acceptedConnectionChanged = true;
                 throw new XtreamCatalogConnectionChangedError();
             }
             replacementStarted = true;
@@ -240,10 +242,15 @@ export class XtreamSelectedCatalogRefreshService {
             }
             if (connectionChanged) {
                 incomplete.clear();
-                replaced.forEach((type) => incomplete.add(type));
+                // Accepted metadata can enable retained caches from the old
+                // endpoint before replacement starts. They also need retry.
+                (acceptedConnectionChanged ? types : replaced).forEach((type) =>
+                    incomplete.add(type)
+                );
             }
             if (
                 !replacementStarted &&
+                !acceptedConnectionChanged &&
                 snapshot &&
                 this.pending.getSnapshotOrThrow(playlist._id)?.revision ===
                     snapshot.revision

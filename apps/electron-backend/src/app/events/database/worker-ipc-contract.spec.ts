@@ -95,21 +95,27 @@ describe('database worker IPC contract', () => {
         ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
     });
 
-    it('flushes resolved deferred state before acknowledging its native history journal', async () => {
-        const event = createIpcEvent();
-        await getHandler('DB_SET_APP_STATE')(
-            event,
-            'xtream-history-recovery:p',
-            ''
-        );
-        expect(event.sender.session.flushStorageData).toHaveBeenCalledTimes(1);
-        expect(
-            event.sender.session.flushStorageData.mock.invocationCallOrder[0]
-        ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
-    });
+    it.each(['', '{"version":1}'])(
+        'flushes durable deferred state before writing its native history journal (%s)',
+        async (value) => {
+            const event = createIpcEvent();
+            await getHandler('DB_SET_APP_STATE')(
+                event,
+                'xtream-history-recovery:p',
+                value
+            );
+            expect(event.sender.session.flushStorageData).toHaveBeenCalledTimes(
+                1
+            );
+            expect(
+                event.sender.session.flushStorageData.mock
+                    .invocationCallOrder[0]
+            ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
+        }
+    );
 
     it.each([
-        ['xtream-history-recovery:p', '{"version":1}'],
+        ['workspace:last-route', '/workspace'],
         ['workspace:last-route', ''],
     ])('does not flush unrelated app-state writes (%s)', async (key, value) => {
         const event = createIpcEvent();

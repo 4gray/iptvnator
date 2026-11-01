@@ -391,6 +391,10 @@ invalidated, including types completed earlier; pending recovery and its journal
 remain available for retry. The editor rereads authoritative metadata after a
 shared failure and rehydrates a changed connection without publishing its older
 accepted projection or reusing stale form credentials.
+An accepted mismatch before replacement also invalidates selected retained
+caches and keeps recovery; their older completed markers cannot authorize reuse
+on the new endpoint. Registering the native journal flushes its prepared DOM
+snapshot before metadata acceptance, including this early cleanup path.
 Terminal save errors also check the connection without writing recovery state;
 a coincident projection invalidates earlier completed types from that scan.
 Standalone saves persist the edited User-Agent before native completion checks,
