@@ -36,6 +36,11 @@ export interface ActivityClientOptions {
     consent(): string | null;
     request(value: SourceServerRequest): Promise<SourceServerResponse>;
     changed(): void;
+    committed?(
+        sourceId: string,
+        position: Partial<PlaybackPositionData>,
+        kind: 'begin' | 'checkpoint' | 'command'
+    ): void;
     status(
         value: 'ready' | 'offline' | 'conflict' | 'pending' | 'incompatible'
     ): void;
@@ -202,8 +207,12 @@ export class ActivitySyncClient {
         }
     }
 
-    async resolve(address: ActivityAddress, useLocal: boolean): Promise<void> {
-        return resolveActivity.call(this, address, useLocal);
+    async resolve(
+        address: ActivityAddress,
+        useLocal: boolean,
+        preserveLocal = false
+    ): Promise<void> {
+        return resolveActivity.call(this, address, useLocal, preserveLocal);
     }
 
     async importPosition(
@@ -239,6 +248,7 @@ export class ActivitySyncClient {
                 ...(result.status === 'conflict' ? { conflict: state } : {}),
             };
         });
+        this.options.committed?.(sourceId, position, 'command');
         this.options.changed();
         await this.flush();
     }

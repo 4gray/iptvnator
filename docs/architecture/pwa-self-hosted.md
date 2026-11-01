@@ -953,7 +953,8 @@ The implementation uses narrow entry points, outside the eager main barrels:
 
 The NAS advertises `activity-v1` alongside `sources-v1`. Authenticated `/v1/activity`
 routes require the verified `X-IPTVnator-Instance-Id`, bounded JSON and canonical
-provider addresses: `GET /sources/:id` returns the source incarnation,
+provider addresses: reset operations retain resolved tracking/season hints even
+before shared activity exists. `GET /sources/:id` returns the source incarnation,
 `GET /sources/:id/items?cursor=…` returns pages of 100 rows, `POST /read` reads one
 address, and `POST /operations` applies one operation. Responses are not cached.
 A persisted source fingerprint determines its incarnation; password rotation
@@ -978,7 +979,15 @@ then accept deliberate rewinds. The same guard filters the emitted time updates
 before legacy episode writers receive them, so those writers cannot upload a
 transient pre-seek position. If an explicit launch cannot commit its source
 context, its later checkpoints stay on the local persistence path, including
-when connectivity returns. A new explicit launch may acquire shared ownership.
+when connectivity returns. Per-position local-only flags in the selected instance's
+renderer storage keep those raw rows ahead of downloaded server projections and
+out of disable-time mirroring, including after renderer recreation. The flags
+contain only source/type/tracking keys and local session tokens, use independent
+storage entries and never
+travel to the server. A committed explicit launch, watched/reset action, import
+or conflict choice can clear the corresponding flag; keeping a parked queue local
+retains it. Superseded fallback callbacks cannot reclaim a cleared flag. A new
+explicit launch may acquire shared ownership.
 Durable local snapshots get a fresh save timestamp for offline episode ordering
 and retain the reducer's watched state.
 Refresh on focus/online and a visible-page five-second poll deliver changes;

@@ -171,6 +171,54 @@ async function launch(
 }
 
 describe('activity sync clients', () => {
+    it.each(['regular', 'embedded', 'lazy'] as const)(
+        'preserves scoped metadata on a first Stalker %s reset before other clients open the series',
+        async (mode) => {
+            const h = harness('stalker');
+            const a = h.client('a');
+            const b = h.client('b');
+            const position: PlaybackPositionData = {
+                contentType: 'episode',
+                contentXtreamId: 1001,
+                seriesXtreamId: 100,
+                seasonNumber: 2,
+                episodeNumber: 3,
+                positionSeconds: 95,
+                durationSeconds: 100,
+                activityIdentity: {
+                    provider: 'stalker',
+                    kind: 'episode',
+                    mode,
+                    seriesId: '100',
+                    id: '77',
+                    seasonKey: '2',
+                    episodeNumber: 3,
+                },
+            };
+            await a.value.reset('source', position);
+            await a.value.flush();
+            expect([...h.states.values()][0].positionMetadata).toEqual(
+                expect.objectContaining({
+                    contentXtreamId: 1001,
+                    seriesXtreamId: 100,
+                    seasonNumber: 2,
+                    episodeNumber: 3,
+                })
+            );
+            await b.value.refresh('source');
+            expect((await b.value.positions('source'))[0]).toMatchObject({
+                reset: true,
+                position: {
+                    contentXtreamId: 1001,
+                    seriesXtreamId: 100,
+                    seasonNumber: 2,
+                    episodeNumber: 3,
+                    positionSeconds: 0,
+                },
+            });
+        }
+    );
+
     it.each([
         ['reset', false],
         ['reset', true],

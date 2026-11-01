@@ -18,7 +18,8 @@ import {
 export async function resolveActivity(
     this: ActivitySyncClient,
     address: ActivityAddress,
-    useLocal: boolean
+    useLocal: boolean,
+    preserveLocal = false
 ): Promise<void> {
     const remote = (await this.request({
         operation: 'activity-read',
@@ -28,7 +29,9 @@ export async function resolveActivity(
     let session: { id: string; generation: number } | undefined;
     let discardedSessions: string[] = [];
     let discardedOperations: string[] = [];
-    await this.store.mutate(address, (current) => {
+    let previousPosition: PlaybackPositionData | undefined;
+    const committed = await this.store.mutate(address, (current) => {
+        previousPosition = current?.position;
         discardedSessions = [];
         discardedOperations =
             current?.pending.map((intent) => intent.operation.operationId) ??
@@ -155,6 +158,20 @@ export async function resolveActivity(
             session.id,
             Promise.resolve({ address, generation: session.generation })
         );
+    if (!preserveLocal) {
+        if (previousPosition)
+            this.options.committed?.(
+                address.sourceId,
+                previousPosition,
+                'command'
+            );
+        if (committed.position)
+            this.options.committed?.(
+                address.sourceId,
+                committed.position,
+                'command'
+            );
+    }
     this.options.changed();
     await this.flush();
 }

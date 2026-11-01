@@ -80,6 +80,8 @@ export function beginActivity(
             this.delivery.start();
         else this.delivery.settled(operationId);
         this.localSessions.delete(sessionId);
+        this.retiredSessions.delete(sessionId);
+        this.options.committed?.(sourceId, position, 'begin');
         this.options.changed();
         void this.flush();
         return { address, generation };
@@ -103,7 +105,8 @@ export async function saveActivity(
     // fallback active until another explicit launch commits ownership.
     if (
         position.activitySessionId &&
-        this.localSessions.has(position.activitySessionId)
+        this.localSessions.has(position.activitySessionId) &&
+        !this.sessions.has(position.activitySessionId)
     )
         return 'local-only';
     if (
@@ -214,6 +217,16 @@ export async function saveActivity(
     )
         this.delivery.start();
     else this.delivery.settled(operationId);
+    if (
+        committed.pending.some(
+            (intent) => intent.operation.operationId === operationId
+        )
+    )
+        this.options.committed?.(
+            sourceId,
+            position,
+            session ? 'checkpoint' : 'command'
+        );
     this.options.changed();
     void this.flush();
 }
@@ -224,21 +237,29 @@ export async function resetActivity(
     position: Partial<PlaybackPositionData>
 ): Promise<void> {
     const address = await this.address(sourceId, position);
-    await this.store.mutate(address, (current) => {
+    const committed = await this.store.mutate(address, (current) => {
         const state = current?.state ?? emptyActivityState();
         const operation: ActivityOperation = {
             kind: 'reset',
             operationId: createRandomId(),
             deviceId: this.options.deviceId,
             expectedRevision: state.revision,
+            positionMetadata: metadata({
+                ...projectActivity(address, state, this.alias(address)),
+                ...position,
+                positionSeconds: 0,
+            }),
         };
         return {
             ...current,
             state: applyActivityOperation(state, operation).state,
             position: projectActivity(
                 address,
-                emptyActivityState(),
-                current?.position
+                {
+                    ...emptyActivityState(),
+                    positionMetadata: operation.positionMetadata,
+                },
+                this.alias(address) ?? { ...current?.position, ...position }
             ),
             pending: [
                 ...(current?.pending ?? []),
@@ -246,6 +267,9 @@ export async function resetActivity(
             ],
         };
     });
+    this.options.committed?.(sourceId, position, 'command');
+    if (committed.position)
+        this.options.committed?.(sourceId, committed.position, 'command');
     this.options.changed();
     void this.flush();
 }

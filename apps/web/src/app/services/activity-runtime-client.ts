@@ -13,6 +13,7 @@ import { requestSourceServer } from '@iptvnator/services/source-sync';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { readActivityConsent } from './activity-consent-state';
 import { ActivityPositionAdapter } from './activity-position-adapter';
+import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
 
 /** Bind delivery and persistence to a verified server profile before any activity request. */
 export function createActivityRuntimeClient(
@@ -46,7 +47,10 @@ export function createActivityRuntimeClient(
               window.electron!.activityLocalRequest!(request)
           )
         : new IndexedDbActivityLocalStore(instanceId);
+    const localOnly = new ActivityLocalOnlyPositions(instanceId, localStorage);
     const client = new ActivitySyncClient(store, {
+        committed: (sourceId, position, kind) =>
+            localOnly.committed(sourceId, position, kind),
         instanceId,
         deviceId: consent.deviceId,
         contexts,
@@ -75,7 +79,8 @@ export function createActivityRuntimeClient(
                           type
                       ),
               }
-            : undefined
+            : undefined,
+        localOnly
     );
 
     return { client, adapter };

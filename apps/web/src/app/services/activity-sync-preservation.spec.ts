@@ -14,6 +14,7 @@ import {
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { ActivityPositionAdapter } from './activity-position-adapter';
 import { ActivitySyncRuntime } from './activity-sync-runtime';
+import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -53,7 +54,13 @@ function fixture() {
     };
     let remote = emptyActivityState();
     let offline = false;
+    const localOnly = new ActivityLocalOnlyPositions(
+        'synthetic-nas',
+        localStorage
+    );
     const client = new ActivitySyncClient(store, {
+        committed: (sourceId, position, kind) =>
+            localOnly.committed(sourceId, position, kind),
         instanceId: address.instanceId,
         deviceId: 'synthetic-device',
         contexts: [context],
@@ -99,7 +106,7 @@ function fixture() {
             saved.length = 0;
         }),
     } as unknown as IXtreamDataSource;
-    const adapter = new ActivityPositionAdapter(client);
+    const adapter = new ActivityPositionAdapter(client, undefined, localOnly);
     const position: PlaybackPositionData = {
         playlistId: context.sourceId,
         contentType: 'vod',
@@ -132,6 +139,22 @@ describe('keeping pending activity local', () => {
     });
     it('continues saving locally after an uncached offline launch and recovery', async () => {
         const f = fixture();
+        f.setRemote({
+            kind: 'begin',
+            operationId: 'synthetic-remote-begin',
+            expectedRevision: 0,
+            deviceId: 'other-device',
+            sessionId: 'synthetic-server-session',
+        });
+        f.setRemote({
+            kind: 'checkpoint',
+            operationId: 'synthetic-remote-checkpoint',
+            generation: 1,
+            deviceId: 'other-device',
+            sessionId: 'synthetic-server-session',
+            sequence: 1,
+            resume: { positionSeconds: 30, durationSeconds: 100 },
+        });
         f.client.contexts.clear();
         f.setOffline(true);
         const position = {
@@ -164,19 +187,115 @@ describe('keeping pending activity local', () => {
             ])
         ).resolves.toBeUndefined();
         expect(f.saved[f.saved.length - 1].positionSeconds).toBe(35);
-        expect((await f.store.read(f.address))?.state.owner).toBeNull();
-        expect(await f.store.pending()).toHaveLength(0);
-        await f.client.begin(f.address.sourceId, position);
-        await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+        expect((await f.store.read(f.address))?.state.owner?.sessionId).toBe(
+            'synthetic-server-session'
+        );
+        expect(
+            (await f.adapter.all(f.raw, f.address.sourceId))[0].positionSeconds
+        ).toBe(35);
+        await f.adapter.keepLocal(f.raw, f.address.sourceId);
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(35);
+        // Flags survive a renderer/client recreation and do not grant shared ownership.
+        const reopenedClient = new ActivitySyncClient(
+            f.store,
+            f.client.options
+        );
+        const reopened = new ActivityPositionAdapter(
+            reopenedClient,
+            undefined,
+            new ActivityLocalOnlyPositions('synthetic-nas', localStorage)
+        );
+        await reopened.invoke(f.raw, 'savePlaybackPosition', [
             f.address.sourceId,
             { ...position, positionSeconds: 45 },
         ]);
-        await f.client.flush();
+        expect(
+            (await reopened.all(f.raw, f.address.sourceId))[0].positionSeconds
+        ).toBe(45);
+        await reopened.keepLocal(f.raw, f.address.sourceId);
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(45);
         expect(
             (await f.store.read(f.address))?.state.resume?.positionSeconds
-        ).toBe(45);
-        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(35);
+        ).toBe(30);
+        expect(await f.store.pending()).toHaveLength(0);
+        await reopenedClient.resolve(f.address, false);
+        await reopened.invoke(f.raw, 'savePlaybackPosition', [
+            f.address.sourceId,
+            { ...position, positionSeconds: 50 },
+        ]);
+        expect(
+            (await reopened.all(f.raw, f.address.sourceId))[0].positionSeconds
+        ).toBe(30);
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(45);
+        await reopenedClient.begin(f.address.sourceId, position);
+        await reopened.invoke(f.raw, 'savePlaybackPosition', [
+            f.address.sourceId,
+            { ...position, positionSeconds: 55 },
+        ]);
+        await reopenedClient.flush();
+        expect(
+            (await f.store.read(f.address))?.state.resume?.positionSeconds
+        ).toBe(55);
+        expect(
+            (await reopened.all(f.raw, f.address.sourceId))[0].positionSeconds
+        ).toBe(55);
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(45);
     });
+
+    it.each(['mark-watched', 'reset', 'import', 'server-choice'] as const)(
+        'releases local-only ownership after an explicit %s',
+        async (action) => {
+            const f = fixture();
+            f.setRemote({
+                kind: 'begin',
+                operationId: 'synthetic-begin',
+                expectedRevision: 0,
+                deviceId: 'other-device',
+                sessionId: 'synthetic-session',
+            });
+            f.setRemote({
+                kind: 'checkpoint',
+                operationId: 'synthetic-checkpoint',
+                generation: 1,
+                deviceId: 'other-device',
+                sessionId: 'synthetic-session',
+                sequence: 1,
+                resume: { positionSeconds: 30, durationSeconds: 100 },
+            });
+            await f.client.refresh(f.address.sourceId);
+            const position = { ...f.position, positionSeconds: 45 };
+            await f.raw.savePlaybackPosition(f.address.sourceId, position);
+            const localOnly = new ActivityLocalOnlyPositions(
+                'synthetic-nas',
+                localStorage
+            );
+            localOnly.mark(f.address.sourceId, position);
+            if (action === 'mark-watched')
+                await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                    f.address.sourceId,
+                    { ...position, activityAction: 'mark-watched' },
+                ]);
+            else if (action === 'reset')
+                await f.adapter.invoke(f.raw, 'clearPlaybackPosition', [
+                    f.address.sourceId,
+                    42,
+                    'vod',
+                ]);
+            else if (action === 'import')
+                await f.client.importPosition(f.address.sourceId, position);
+            else await f.client.resolve(f.address, false);
+            await f.client.flush();
+            expect(localOnly.has(f.address.sourceId, position)).toBe(false);
+            const projected = await f.adapter.all(f.raw, f.address.sourceId);
+            if (action === 'reset') expect(projected).toHaveLength(0);
+            else if (action === 'mark-watched')
+                expect(projected[0].watched).toBe(true);
+            else
+                expect(projected[0].positionSeconds).toBe(
+                    action === 'import' ? 45 : 30
+                );
+        }
+    );
 
     it.each([false, true])(
         'preserves an imported position over a synchronized reset (watched: %s)',
@@ -280,6 +399,13 @@ describe('keeping pending activity local', () => {
                 (await f.store.read(retired))?.pending[0].consentGeneration
             ).toBe('previous-consent');
             expect(f.saved).toHaveLength(send ? 0 : 1);
+            if (!send) {
+                await f.adapter.keepLocal(f.raw, f.address.sourceId);
+                expect(f.saved).toHaveLength(1);
+                expect(
+                    (await f.adapter.all(f.raw, f.address.sourceId))[0].watched
+                ).toBe(true);
+            }
         }
     );
 });

@@ -1,9 +1,11 @@
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import type { ActivitySyncClient } from '@iptvnator/services/activity-sync';
+import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
 
 /** Compose the selected local data source with activity; catalog/favorites remain owned by raw. */
 export class ActivityPositionAdapter {
+    private readonly seenLocalSessions = new Set<string>();
     constructor(
         private readonly client: ActivitySyncClient,
         private readonly strict?: {
@@ -13,7 +15,8 @@ export class ActivityPositionAdapter {
                 id: number,
                 type: 'vod' | 'episode'
             ): Promise<void>;
-        }
+        },
+        private readonly localOnly = new ActivityLocalOnlyPositions()
     ) {}
 
     async invoke(
@@ -39,23 +42,47 @@ export class ActivityPositionAdapter {
                         raw.savePlaybackPosition(sourceId, position));
                     continue;
                 }
+                const localSession = position.activitySessionId;
+                if (
+                    localSession &&
+                    this.seenLocalSessions.has(localSession) &&
+                    !this.localOnly.owns(sourceId, position) &&
+                    !this.client.sessions.has(localSession)
+                ) {
+                    // A committed action cleared this fallback, including in a sibling tab.
+                    this.client.retiredSessions.add(localSession);
+                    this.client.localSessions.delete(localSession);
+                    continue;
+                }
+                if (
+                    position.activitySessionId &&
+                    this.localOnly.has(sourceId, position) &&
+                    !this.client.sessions.has(position.activitySessionId)
+                ) {
+                    if (
+                        !this.localOnly.owns(sourceId, position) &&
+                        !this.client.localSessions.has(
+                            position.activitySessionId
+                        )
+                    ) {
+                        this.client.retiredSessions.add(
+                            position.activitySessionId
+                        );
+                        continue;
+                    }
+                    await this.saveLocalOnly(raw, sourceId, position);
+                    continue;
+                }
                 let delivery: 'local-only' | void;
                 try {
                     delivery = await this.client.save(sourceId, position);
                 } catch (error) {
                     // A new source may never have received its portable incarnation before going offline.
-                    const local = { ...position };
-                    delete local.activitySessionId;
-                    delete local.activityAction;
-                    await (this.strict?.save(sourceId, local) ??
-                        raw.savePlaybackPosition(sourceId, local));
+                    await this.saveLocalOnly(raw, sourceId, position);
                     throw error;
                 }
-                if (delivery === 'local-only') {
-                    const local = localActivityPosition(position);
-                    await (this.strict?.save(sourceId, local) ??
-                        raw.savePlaybackPosition(sourceId, local));
-                }
+                if (delivery === 'local-only')
+                    await this.saveLocalOnly(raw, sourceId, position);
             }
             return;
         }
@@ -150,6 +177,20 @@ export class ActivityPositionAdapter {
         return positions;
     }
 
+    private async saveLocalOnly(
+        raw: IXtreamDataSource,
+        sourceId: string,
+        position: PlaybackPositionData
+    ): Promise<void> {
+        // Mark first: a failed flag write must never leave unprotected fallback data.
+        this.localOnly.mark(sourceId, position);
+        if (position.activitySessionId)
+            this.seenLocalSessions.add(position.activitySessionId);
+        const local = localActivityPosition(position);
+        await (this.strict?.save(sourceId, local) ??
+            raw.savePlaybackPosition(sourceId, local));
+    }
+
     async all(
         raw: IXtreamDataSource,
         sourceId: string,
@@ -172,6 +213,11 @@ export class ActivityPositionAdapter {
         );
         for (const item of await this.client.positions(sourceId)) {
             const key = `${item.position.contentType}:${item.position.contentXtreamId}`;
+            if (
+                this.localOnly.has(sourceId, item.position) &&
+                positions.has(key)
+            )
+                continue;
             if (item.reset) {
                 positions.delete(key);
                 // An exact zero row blocks guarded legacy aliases from promoting
@@ -190,9 +236,14 @@ export class ActivityPositionAdapter {
         return (await this.project(sourceId, local)).map(localActivityPosition);
     }
 
+    protectLocal(sourceId: string, position: PlaybackPositionData): void {
+        this.localOnly.mark(sourceId, position);
+    }
+
     async keepLocal(raw: IXtreamDataSource, sourceId: string): Promise<void> {
         for (const item of await this.client.positions(sourceId)) {
             const position = item.position;
+            if (this.localOnly.has(sourceId, position)) continue;
             if (item.reset && isStalkerEpisode(position)) {
                 const reset = localActivityPosition(resetPosition(position));
                 await (this.strict?.save(sourceId, reset) ??

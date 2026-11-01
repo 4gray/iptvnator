@@ -254,8 +254,14 @@ export class ActivitySyncRuntime {
                             client.contexts.get(sourceId)?.sourceIncarnation
                     )
                         continue;
-                    if (!send) await client.resolve(address, false);
-                    else
+                    if (!send) {
+                        if (record.position)
+                            this.adapter?.protectLocal(
+                                sourceId,
+                                record.position
+                            );
+                        await client.resolve(address, false, true);
+                    } else
                         await client.store.mutate(address, (current) => ({
                             ...current!,
                             pending: current!.pending.map((p) => ({
