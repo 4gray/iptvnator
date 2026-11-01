@@ -11,13 +11,16 @@ import {
     useSettingsNavigation,
 } from './settings-navigation';
 import type { TvModel } from './use-tv';
+import { About, type TvBuildInfo } from './about';
 
 export function Settings({
     tv,
     memory,
+    buildInfo,
 }: {
     tv: TvModel;
     memory: SettingsMemory;
+    buildInfo: TvBuildInfo;
 }) {
     const navigation = useSettingsNavigation(memory);
     const [phoneRevision, setPhoneRevision] = useState(0);
@@ -103,6 +106,8 @@ export function Settings({
                                 key={`tmdb:${phoneRevision}`}
                                 tv={tv}
                             />
+                        ) : id === 'about' ? (
+                            <About build={buildInfo} />
                         ) : (
                             <>
                                 <h2>Your remote</h2>

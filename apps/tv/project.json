@@ -10,7 +10,11 @@
         },
         "build": {
             "cache": true,
-            "inputs": ["production", "^production"],
+            "inputs": [
+                "production",
+                "^production",
+                { "runtime": "node apps/tv/build-info.ts --cache-key" }
+            ],
             "outputs": ["{workspaceRoot}/dist/apps/tv"],
             "command": "vite build --config apps/tv/vite.config.ts"
         },
@@ -21,7 +25,7 @@
             "command": "eslint \"apps/tv/**/*.{ts,tsx,mjs}\""
         },
         "test": {
-            "command": "tsx --tsconfig apps/tv/tsconfig.app.json --test libs/tv/testing/*.test.ts"
+            "command": "tsx --tsconfig apps/tv/tsconfig.app.json --test libs/tv/testing/*.test.ts apps/tv/*.test.mjs"
         },
         "package": {
             "dependsOn": ["verify-build"],
