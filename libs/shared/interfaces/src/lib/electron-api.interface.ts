@@ -925,6 +925,8 @@ export interface ElectronBridgeApi {
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
     ) => Promise<AutoUpdatePlaylistsResult>;
+    /** Stops imports without removing sources, mappings or cached programmes. */
+    setEpgEnabled?: (enabled: boolean) => Promise<void>;
     fetchEpg: (
         urls: string[],
         options?: ElectronBridgeTrustOptions
@@ -955,7 +957,10 @@ export interface ElectronBridgeApi {
     /** Native picker for a local XMLTV file; resolves null when cancelled. */
     openEpgFileDialog: () => Promise<string | null>;
     clearEpgData: () => Promise<ElectronBridgeResult>;
-    reconcileEpgSources: (urls: string[]) => Promise<ElectronBridgeResult>;
+    reconcileEpgSources: (
+        urls: string[],
+        epgEnabled?: boolean
+    ) => Promise<ElectronBridgeResult>;
     clearEpgDataForSource: (sourceUrl: string) => Promise<ElectronBridgeResult>;
     checkEpgFreshness: (
         urls: string[],

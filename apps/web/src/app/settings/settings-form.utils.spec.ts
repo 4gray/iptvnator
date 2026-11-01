@@ -1,6 +1,7 @@
-import { FormBuilder } from '@angular/forms';
+import { FormArray, FormBuilder } from '@angular/forms';
 import { Settings, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
+    applyEpgUrlsToFormArray,
     createEpgUrlControl,
     createSettingsForm,
     createSettingsFromFormValue,
@@ -282,6 +283,20 @@ describe('settings form utils — EPG display without XMLTV sources', () => {
         expect(settings.epgOffsetMinutes).toBe(60);
         expect(settings.epgUrl).toEqual(['https://example.org/guide.xml']);
         expect(settings.preferUploadedEpgOverXtream).toBe(true);
+    });
+
+    it('keeps hydrated sources disabled so hidden legacy errors cannot block Save', () => {
+        const form = createSettingsForm(formBuilder, true);
+        form.patchValue({ epgEnabled: false });
+        const sources = form.get('epgUrl') as FormArray;
+        sources.clear();
+        applyEpgUrlsToFormArray(sources, ['legacy-invalid-source']);
+        expect(sources.disabled).toBe(true);
+        expect(form.valid).toBe(true);
+        expect(form.getRawValue().epgUrl).toEqual(['legacy-invalid-source']);
+        form.patchValue({ epgEnabled: true });
+        expect(sources.enabled).toBe(true);
+        expect(form.invalid).toBe(true);
     });
 
     it('keeps every EPG control where XMLTV sources exist (desktop)', () => {

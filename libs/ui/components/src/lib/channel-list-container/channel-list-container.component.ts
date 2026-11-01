@@ -42,6 +42,7 @@ import {
     Subscription,
 } from 'rxjs';
 import {
+    EpgPreferencesService,
     ParentalLockService,
     PlaylistsService,
     RuntimeCapabilitiesService,
@@ -124,6 +125,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly route = inject(ActivatedRoute);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
     /** Route-aware playlist ID for recent-item mutations */
     private readonly resolvedPlaylistId =
@@ -158,12 +160,13 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     });
     readonly shouldShowEpg = computed(
         () =>
+            this.epgPreferences.enabled() &&
             this.runtime.supportsEpg &&
             (this.globalEpgUrls().length > 0 ||
                 this.playlistEpgUrls().length > 0)
     );
     private readonly epgSourceRefreshKey = computed(() => {
-        if (!this.runtime.supportsEpg) {
+        if (!this.epgPreferences.enabled() || !this.runtime.supportsEpg) {
             return '';
         }
 

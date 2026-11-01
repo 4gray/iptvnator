@@ -1,3 +1,4 @@
+import { EpgPreferencesService } from '@iptvnator/services';
 import {
     isCatalogUnavailable,
     XTREAM_FAVORITE_IDENTITY_CONFLICT,
@@ -115,6 +116,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
@@ -171,8 +173,10 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     /** Skeleton rows reserve the programme line like the rows they stand for. */
     readonly skeletonShowsEpg = computed(() =>
         collectionSkeletonShowsEpg(this.portalType(), this.effectiveScope(), {
-            xmltv: this.runtime.supportsEpg,
-            provider: this.runtime.supportsProviderEpg,
+            xmltv: this.epgPreferences.enabled() && this.runtime.supportsEpg,
+            provider:
+                this.epgPreferences.enabled() &&
+                this.runtime.supportsProviderEpg,
         })
     );
     /**

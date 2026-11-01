@@ -86,7 +86,16 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     ...PLAYBACK_SETTINGS_SEARCH_ENTRIES,
     {
+        id: 'epg-enabled',
+        section: 'epg',
+        labelKey: 'SETTINGS.EPG_ENABLED',
+        descriptionKey: 'SETTINGS.EPG_ENABLED_DESCRIPTION',
+        keywords: ['epg', 'tv guide', 'disable', 'enable', 'programme'],
+        requires: ['epg-display'],
+    },
+    {
         id: 'epg-view-mode',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.EPG_VIEW_MODE',
         descriptionKey: 'SETTINGS.EPG_VIEW_MODE_DESCRIPTION',
@@ -95,6 +104,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     {
         id: 'epg-offset',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.EPG_OFFSET_TITLE',
         descriptionKey: 'SETTINGS.EPG_OFFSET_HINT',
@@ -103,6 +113,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     {
         id: 'epg-sources',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.EPG_SOURCE_LIST_TITLE',
         descriptionKey: 'SETTINGS.EPG_SOURCE_FORMATS_HINT',
@@ -111,6 +122,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     {
         id: 'prefer-uploaded-epg',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.PREFER_UPLOADED_EPG_TITLE',
         descriptionKey: 'SETTINGS.PREFER_UPLOADED_EPG_HINT',
@@ -119,6 +131,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     {
         id: 'epg-clear-data',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.CLEAR_EPG_DATA',
         descriptionKey: 'SETTINGS.CLEAR_EPG_DATA_DESCRIPTION',
@@ -268,8 +281,11 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         keywords: ['backup', 'restore', 'import', 'export', 'migrate'],
     },
     {
-        id: 'source-server', section: 'server', labelKey: 'SOURCE_SYNC.TITLE',
-        descriptionKey: 'SOURCE_SYNC.DESCRIPTION', keywords: [...SERVER_KEYWORDS, 'NAS', 'sync', 'sources'],
+        id: 'source-server',
+        section: 'server',
+        labelKey: 'SOURCE_SYNC.TITLE',
+        descriptionKey: 'SOURCE_SYNC.DESCRIPTION',
+        keywords: [...SERVER_KEYWORDS, 'NAS', 'sync', 'sources'],
     },
     {
         id: 'remove-all-playlists',

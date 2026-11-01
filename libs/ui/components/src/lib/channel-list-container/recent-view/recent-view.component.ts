@@ -14,7 +14,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { SettingsStore } from '@iptvnator/services';
+import { EpgPreferencesService, SettingsStore } from '@iptvnator/services';
 import {
     foldSearchText,
     Channel,
@@ -50,10 +50,15 @@ export interface RecentViewItem {
     ],
 })
 export class RecentViewComponent {
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
-    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
+    get supportsEpgMapping(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.epgBridge.supportsEpgMapping
+        );
+    }
 
     readonly channelContextMenu = viewChild.required(
         ChannelContextMenuComponent

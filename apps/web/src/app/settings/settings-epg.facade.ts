@@ -1,3 +1,4 @@
+import { EpgPreferencesService } from '@iptvnator/services';
 import { inject, Injectable, signal } from '@angular/core';
 import {
     EpgRuntimeBridgeService,
@@ -18,6 +19,7 @@ export class SettingsEpgFacade {
     private readonly dialogService = inject(DialogService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly epgService = inject(EpgService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly formFacade = inject(SettingsFormFacade);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly settingsStore = inject(SettingsStore);
@@ -55,7 +57,11 @@ export class SettingsEpgFacade {
      * intends when clicking "Refresh".
      */
     refresh(url: string): void {
-        if (!this.epgBridge.supportsDataManagement || !url) {
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsDataManagement ||
+            !url
+        ) {
             return;
         }
         void this.epgBridge.forceFetchEpg(
@@ -70,7 +76,11 @@ export class SettingsEpgFacade {
      * gets visible per-URL feedback.
      */
     refreshAll(): void {
-        if (!this.epgBridge.supportsDataManagement) return;
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsDataManagement
+        )
+            return;
         const options = this.settingsStore.getTrustOptions();
         this.formFacade.epgUrls.forEach(
             (url) => void this.epgBridge.forceFetchEpg(url, options)
@@ -126,7 +136,7 @@ export class SettingsEpgFacade {
      * the new configuration without a restart.
      */
     fetchConfiguredEpg(): void {
-        if (!this.formFacade.supportsEpg) {
+        if (!this.epgPreferences.enabled() || !this.formFacade.supportsEpg) {
             return;
         }
 

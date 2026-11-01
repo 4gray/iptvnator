@@ -18,7 +18,10 @@ import {
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    EpgPreferencesService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 
 export const EPG_IMPORT_STATUS = ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES;
 export type EpgImportStatus = ElectronBridgeEpgProgressStatus;
@@ -66,6 +69,7 @@ type EpgElectronBridge = Pick<
 @Injectable({ providedIn: 'root' })
 export class EpgRuntimeBridgeService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly preferences = inject(EpgPreferencesService);
 
     get supportsImport(): boolean {
         return this.runtime.supportsEpgImport;
@@ -119,7 +123,11 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.fetchEpg?.(urls, options) ?? Promise.resolve(null);
+        return this.preferences.run(
+            () =>
+                this.bridge?.fetchEpg?.(urls, options) ?? Promise.resolve(null),
+            null
+        );
     }
 
     forceFetchEpg(
@@ -130,8 +138,11 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return (
-            this.bridge?.forceFetchEpg?.(url, options) ?? Promise.resolve(null)
+        return this.preferences.run(
+            () =>
+                this.bridge?.forceFetchEpg?.(url, options) ??
+                Promise.resolve(null),
+            null
         );
     }
 
@@ -176,13 +187,19 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        if (!this.bridge?.getChannelPrograms) {
+        const bridge = this.bridge;
+        const lookup = bridge?.getChannelPrograms;
+        if (!lookup) {
             return Promise.resolve(null);
         }
 
-        return options
-            ? this.bridge.getChannelPrograms(channelId, options)
-            : this.bridge.getChannelPrograms(channelId);
+        return this.preferences.run(
+            () =>
+                options
+                    ? lookup.call(bridge, channelId, options)
+                    : lookup.call(bridge, channelId),
+            null
+        );
     }
 
     getCurrentProgramsBatch(
@@ -193,13 +210,19 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        if (!this.bridge?.getCurrentProgramsBatch) {
+        const bridge = this.bridge;
+        const lookup = bridge?.getCurrentProgramsBatch;
+        if (!lookup) {
             return Promise.resolve(null);
         }
 
-        return options
-            ? this.bridge.getCurrentProgramsBatch(channelIds, options)
-            : this.bridge.getCurrentProgramsBatch(channelIds);
+        return this.preferences.run(
+            () =>
+                options
+                    ? lookup.call(bridge, channelIds, options)
+                    : lookup.call(bridge, channelIds),
+            null
+        );
     }
 
     getChannelMetadata(
@@ -210,13 +233,19 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        if (!this.bridge?.getEpgChannelMetadata) {
+        const bridge = this.bridge;
+        const lookup = bridge?.getEpgChannelMetadata;
+        if (!lookup) {
             return Promise.resolve(null);
         }
 
-        return options
-            ? this.bridge.getEpgChannelMetadata(channelIds, options)
-            : this.bridge.getEpgChannelMetadata(channelIds);
+        return this.preferences.run(
+            () =>
+                options
+                    ? lookup.call(bridge, channelIds, options)
+                    : lookup.call(bridge, channelIds),
+            null
+        );
     }
 
     checkFreshness(
@@ -227,9 +256,11 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return (
-            this.bridge?.checkEpgFreshness?.(urls, maxAgeHours) ??
-            Promise.resolve(null)
+        return this.preferences.run(
+            () =>
+                this.bridge?.checkEpgFreshness?.(urls, maxAgeHours) ??
+                Promise.resolve(null),
+            null
         );
     }
 
@@ -239,9 +270,11 @@ export class EpgRuntimeBridgeService {
         if (!this.supportsGuide || guideWindow.channelIds.length === 0) {
             return Promise.resolve(null);
         }
-        return (
-            this.bridge?.getEpgProgramsForChannels?.(guideWindow) ??
-            Promise.resolve(null)
+        return this.preferences.run(
+            () =>
+                this.bridge?.getEpgProgramsForChannels?.(guideWindow) ??
+                Promise.resolve(null),
+            null
         );
     }
 
@@ -251,9 +284,11 @@ export class EpgRuntimeBridgeService {
         if (!this.supportsGuide || guideWindow.channelIds.length === 0) {
             return Promise.resolve(null);
         }
-        return (
-            this.bridge?.getEpgProgramCoverage?.(guideWindow) ??
-            Promise.resolve(null)
+        return this.preferences.run(
+            () =>
+                this.bridge?.getEpgProgramCoverage?.(guideWindow) ??
+                Promise.resolve(null),
+            null
         );
     }
 
@@ -265,9 +300,11 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return (
-            this.bridge?.searchEpgPrograms?.(searchTerm, limit) ??
-            Promise.resolve(null)
+        return this.preferences.run(
+            () =>
+                this.bridge?.searchEpgPrograms?.(searchTerm, limit) ??
+                Promise.resolve(null),
+            null
         );
     }
 
@@ -278,8 +315,11 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return (
-            this.bridge?.getEpgMapping?.(channelKey) ?? Promise.resolve(null)
+        return this.preferences.run(
+            () =>
+                this.bridge?.getEpgMapping?.(channelKey) ??
+                Promise.resolve(null),
+            null
         );
     }
 
@@ -290,9 +330,11 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return (
-            this.bridge?.getEpgMappingsBatch?.(channelKeys) ??
-            Promise.resolve(null)
+        return this.preferences.run(
+            () =>
+                this.bridge?.getEpgMappingsBatch?.(channelKeys) ??
+                Promise.resolve(null),
+            null
         );
     }
 
@@ -332,9 +374,11 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return (
-            this.bridge?.searchEpgChannels?.(searchTerm, limit) ??
-            Promise.resolve(null)
+        return this.preferences.run(
+            () =>
+                this.bridge?.searchEpgChannels?.(searchTerm, limit) ??
+                Promise.resolve(null),
+            null
         );
     }
 

@@ -9,17 +9,18 @@ import {
     EpgProgram,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
-import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgPreferencesService,
+    EpgSourceSettingsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     EpgLookupOptions,
     EpgRuntimeBridgeService,
 } from './epg-runtime-bridge.service';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 import { EpgProgramCache } from './epg-program-cache';
-import { EpgChannelMetadataLookup } from './epg-channel-metadata.lookup';
-import { EpgCurrentProgramsLookup } from './epg-current-programs.lookup';
-import { EpgSingleProgramLookup } from './epg-single-program.lookup';
-import { EpgScopedBatchLookup } from './epg-scoped-batch.lookup';
+import { EpgLookupLoader } from './epg-lookup-loader';
 import type { EpgLookupContext } from './epg-lookup-context';
 import {
     normalizeLookupChannelIds,
@@ -38,24 +39,24 @@ export class EpgService {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly sourceSettings = inject(EpgSourceSettingsService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
 
     constructor() {
+        let wasEnabled = this.epgPreferences.enabled();
         this.sourceSettings.changed$.subscribe(() => {
             this.clearCache();
             this.currentEpgPrograms.next([]);
-            this.epgAvailable.next(true);
+            const enabled = this.epgPreferences.enabled();
+            this.epgAvailable.next(enabled);
+            if (enabled && !wasEnabled) {
+                void this.fetchEpg(this.sourceSettings.getFetchableSourceUrls());
+            }
+            wasEnabled = enabled;
         });
     }
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
-
-    /** Channel icons/display names; same scope ladder as the programmes. */
-    private readonly channelMetadata = new EpgChannelMetadataLookup(
-        this.epgBridge,
-        () => this.sourceSettings.guard(),
-        (excluding) => this.getGlobalEpgSourceUrls(excluding)
-    );
 
     /** 60 s "currently airing" memory, keyed by scope + display offset. */
     private readonly programCache = new EpgProgramCache(
@@ -67,18 +68,19 @@ export class EpgService {
     private readonly lookupContext: EpgLookupContext = {
         bridge: this.epgBridge,
         cache: this.programCache,
-        guard: () => this.sourceSettings.guard(),
+        guard: () => (source) =>
+            source.pipe(
+                this.sourceSettings.guard(),
+                this.epgPreferences.guard()
+            ),
         offsetMinutes: () => this.epgOffsetMinutes(),
         clockMs: () => this.epgClockMs(),
         globalSourceUrls: (excluding) => this.getGlobalEpgSourceUrls(excluding),
     };
-    private readonly singleProgram = new EpgSingleProgramLookup(
-        this.lookupContext
-    );
-    private readonly currentPrograms = new EpgCurrentProgramsLookup(
+    private readonly lookups = new EpgLookupLoader(
         this.lookupContext,
-        this.singleProgram,
-        new EpgScopedBatchLookup(this.lookupContext)
+        () => this.epgPreferences.enabled(),
+        () => this.sourceSettings.revision()
     );
 
     /** Display offset every "currently airing" decision in here is made with. */
@@ -108,6 +110,7 @@ export class EpgService {
         // Filter out empty and duplicate URLs and send all URLs at once.
         const revision = this.sourceSettings.revision();
         await this.settingsStore.loadSettings();
+        if (!this.epgPreferences.enabled()) return;
         await this.sourceSettings.waitForReconciliation();
         const validUrls = this.sourceSettings.retainCurrentSources(
             normalizeEpgUrls(urls),
@@ -123,6 +126,7 @@ export class EpgService {
         )
             .pipe(
                 this.sourceSettings.guard(),
+                this.epgPreferences.guard(),
                 tap((result) => {
                     if (result === null) return;
 
@@ -156,12 +160,17 @@ export class EpgService {
      * Gets EPG programs for a specific channel
      */
     getChannelPrograms(channelId: string): void {
-        if (!this.epgBridge.supportsProgramLookup) return;
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsProgramLookup
+        )
+            return;
         debugEpgService('Fetching EPG for channel ID:', channelId);
 
         from(this.epgBridge.getChannelPrograms(channelId))
             .pipe(
                 this.sourceSettings.guard(),
+                this.epgPreferences.guard(),
                 timeout(3000),
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
                 catchError((err) => {
@@ -200,10 +209,17 @@ export class EpgService {
         channelId: string,
         options?: EpgLookupOptions
     ): Observable<EpgProgram | null> {
-        if (!this.epgBridge.supportsProgramLookup || !channelId) {
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsProgramLookup ||
+            !channelId
+        ) {
             return of(null);
         }
-        return this.singleProgram.forChannel(channelId, options);
+        return this.lookups.run(
+            ({ single }) => single.forChannel(channelId, options),
+            null
+        );
     }
 
     /**
@@ -215,20 +231,29 @@ export class EpgService {
         channelIds: string[],
         options?: EpgLookupOptions
     ): Observable<Map<string, EpgProgram | null>> {
-        if (!this.epgBridge.supportsProgramLookup) {
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsProgramLookup
+        ) {
             return of(new Map());
         }
         if (!channelIds || channelIds.length === 0) {
             return of(new Map());
         }
-        return this.currentPrograms.forChannels(channelIds, options);
+        return this.lookups.run(
+            ({ current }) => current.forChannels(channelIds, options),
+            new Map<string, EpgProgram | null>()
+        );
     }
 
     getChannelMetadataForChannels(
         channelIds: string[],
         options?: EpgLookupOptions
     ): Observable<Map<string, EpgChannelMetadata | null>> {
-        if (!this.epgBridge.supportsChannelMetadata) {
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.epgBridge.supportsChannelMetadata
+        ) {
             return of(new Map());
         }
 
@@ -237,9 +262,13 @@ export class EpgService {
             return of(new Map());
         }
 
-        return this.channelMetadata.forChannels(
-            normalizedChannelIds,
-            normalizeLookupSourceUrls(options)
+        return this.lookups.run(
+            ({ metadata }) =>
+                metadata.forChannels(
+                    normalizedChannelIds,
+                    normalizeLookupSourceUrls(options)
+                ),
+            new Map<string, EpgChannelMetadata | null>()
         );
     }
 

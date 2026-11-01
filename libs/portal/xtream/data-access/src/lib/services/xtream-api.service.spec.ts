@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { DataService } from '@iptvnator/services';
+import { DataService, EpgPreferencesService } from '@iptvnator/services';
 import { XTREAM_REQUEST } from '@iptvnator/shared/interfaces';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 
@@ -28,6 +28,16 @@ describe('XtreamApiService', () => {
         });
 
         service = TestBed.inject(XtreamApiService);
+    });
+
+    it('skips every EPG endpoint while disabled but keeps catalog requests working', async () => {
+        await TestBed.inject(EpgPreferencesService).apply(false);
+        expect(await service.getShortEpg(credentials, 101)).toEqual([]);
+        expect(await service.getFullEpg(credentials, 101)).toEqual([]);
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        dataService.sendIpcEvent.mockResolvedValue({ payload: [] });
+        await service.getCategories(credentials, 'live');
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
     });
 
     it('forwards the connection User-Agent on account variants and catalog requests', async () => {

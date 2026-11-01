@@ -8,6 +8,7 @@ import { Settings } from '@iptvnator/shared/interfaces';
  * such as the string `'false'` falls back to the default too.
  */
 export const DEFAULT_ON_SETTINGS = [
+    'epgEnabled',
     'webPlayerSharedControls',
     'portalConnectivityGuard',
     'embeddedMpvAutoReconnect',

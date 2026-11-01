@@ -1,4 +1,7 @@
-import { EpgSourceSettingsService } from '@iptvnator/services';
+import {
+    EpgPreferencesService,
+    EpgSourceSettingsService,
+} from '@iptvnator/services';
 import { CdkFixedSizeVirtualScroll } from '@angular/cdk/scrolling';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -17,6 +20,7 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import { PortalChannelsListComponent } from './portal-channels-list.component';
 import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
+import { EpgRefreshCoordinator } from './epg-refresh-coordinator.service';
 
 function buildEpgItem(params: {
     id: string;
@@ -206,6 +210,52 @@ describe('PortalChannelsListComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.empty-search-state')
         ).not.toBeNull();
+    });
+
+    it('receives guide results after hydration and ignores them while disabled', async () => {
+        const preferences = TestBed.inject(EpgPreferencesService);
+        const registerRefresh = jest.spyOn(
+            TestBed.inject(EpgRefreshCoordinator),
+            'register'
+        );
+        preferences.beginLoad();
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([{ title: 'Synthetic channel', xtream_id: 50 }]);
+        currentPlaylist.set({
+            id: 'synthetic-playlist',
+            serverUrl: 'https://example.test',
+            username: 'fixture-user',
+            password: 'fixture-password',
+        });
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        const result = {
+            streamId: 50,
+            items: [
+                buildEpgItem({
+                    id: 'synthetic-programme',
+                    title: 'Synthetic programme',
+                    start: new Date(Date.now() - 60_000).toISOString(),
+                    stop: new Date(Date.now() + 60_000).toISOString(),
+                    startTimestamp: Math.floor((Date.now() - 60_000) / 1000),
+                    stopTimestamp: Math.floor((Date.now() + 60_000) / 1000),
+                }),
+            ],
+        };
+
+        expect(epgQueueService.enqueue).not.toHaveBeenCalled();
+        await preferences.apply(true);
+        epgResults$.next(result);
+        expect(component.epgPrograms.get(50)?.title).toBe('Synthetic programme');
+        expect(registerRefresh).toHaveBeenCalledTimes(1);
+        await preferences.apply(false);
+        epgQueueService.enqueue.mockClear();
+        epgResults$.next(result);
+        expect(component.epgPrograms.size).toBe(0);
+        expect(epgQueueService.enqueue).not.toHaveBeenCalled();
+        await preferences.apply(true);
+        epgResults$.next(result);
+        expect(component.epgPrograms.get(50)?.title).toBe('Synthetic programme');
     });
 
     it('selects the current preview program by timestamps, preserves them, and updates progress from them', () => {

@@ -141,13 +141,18 @@ describe('EpgService', () => {
     it('prevents pending programmes from repopulating a cache after source deletion', async () => {
         epgBridge.supportsProgramLookup = true;
         let resolveOld!: (programs: unknown[]) => void;
-        (epgBridge.getChannelPrograms as jest.Mock).mockReturnValueOnce(
-            new Promise((resolve) => {
-                resolveOld = resolve;
-            })
+        let onStarted!: () => void;
+        const started = new Promise<void>((resolve) => (onStarted = resolve));
+        (epgBridge.getChannelPrograms as jest.Mock).mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    resolveOld = resolve;
+                    onStarted();
+                })
         );
         const stale = jest.fn();
         service.getCurrentProgramForChannel('deleted-channel').subscribe(stale);
+        await started;
         const sources = TestBed.inject(EpgSourceSettingsService);
         sources.revision.update((revision) => revision + 1);
         sources.changed$.next();
@@ -410,15 +415,27 @@ describe('EpgService', () => {
         epgBridge.supportsCurrentProgramBatch = true;
         let resolveFirst: (value: Record<string, null>) => void = () =>
             undefined;
+        let onFirstStarted!: () => void;
+        let onSecondStarted!: () => void;
+        const firstStarted = new Promise<void>(
+            (resolve) => (onFirstStarted = resolve)
+        );
+        const secondStarted = new Promise<void>(
+            (resolve) => (onSecondStarted = resolve)
+        );
         epgBridge.getCurrentProgramsBatch = jest
             .fn()
             .mockImplementationOnce(
                 () =>
                     new Promise<Record<string, null>>((resolve) => {
                         resolveFirst = resolve;
+                        onFirstStarted();
                     })
             )
-            .mockResolvedValueOnce({ 'guide-news': null });
+            .mockImplementationOnce(() => {
+                onSecondStarted();
+                return Promise.resolve({ 'guide-news': null });
+            });
         const options = {
             sourceUrls: ['https://playlist.example.com/guide.xml'],
         };
@@ -426,6 +443,7 @@ describe('EpgService', () => {
         const first = firstValueFrom(
             service.getCurrentProgramsForChannels(['guide-news'], options)
         );
+        await firstStarted;
         // The setting changes while the first batch is still on the wire:
         // the refresh it triggers must evaluate at the new provider clock,
         // not reuse the pending request computed for the old one.
@@ -433,6 +451,7 @@ describe('EpgService', () => {
         const second = firstValueFrom(
             service.getCurrentProgramsForChannels(['guide-news'], options)
         );
+        await secondStarted;
         resolveFirst({ 'guide-news': null });
         await Promise.all([first, second]);
 
@@ -516,10 +535,13 @@ describe('EpgService', () => {
     it('deduplicates concurrent scoped current program lookups for the same source scope', async () => {
         epgBridge.supportsProgramLookup = true;
         let resolvePrograms: ((programs: EpgProgram[]) => void) | undefined;
+        let onStarted!: () => void;
+        const started = new Promise<void>((resolve) => (onStarted = resolve));
         epgBridge.getChannelPrograms = jest.fn(
             () =>
                 new Promise((resolve) => {
                     resolvePrograms = resolve;
+                    onStarted();
                 })
         );
         jest.useFakeTimers();
@@ -537,6 +559,7 @@ describe('EpgService', () => {
                 })
             );
 
+            await started;
             expect(epgBridge.getChannelPrograms).toHaveBeenCalledTimes(1);
             resolvePrograms?.([
                 {
@@ -981,10 +1004,13 @@ describe('EpgService', () => {
         const batchResolvers: Array<
             (programs: Record<string, EpgProgram | null>) => void
         > = [];
+        let onStarted!: () => void;
+        const started = new Promise<void>((resolve) => (onStarted = resolve));
         epgBridge.getCurrentProgramsBatch = jest.fn(
             () =>
                 new Promise((resolve) => {
                     batchResolvers.push(resolve);
+                    onStarted();
                 })
         );
 
@@ -1000,6 +1026,7 @@ describe('EpgService', () => {
         );
 
         try {
+            await started;
             expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
             batchResolvers.forEach((resolve) =>
                 resolve({
@@ -1035,10 +1062,13 @@ describe('EpgService', () => {
         epgBridge.supportsCurrentProgramBatch = true;
         let resolveBatch:
             ((programs: Record<string, EpgProgram | null>) => void) | undefined;
+        let onStarted!: () => void;
+        const started = new Promise<void>((resolve) => (onStarted = resolve));
         epgBridge.getCurrentProgramsBatch = jest.fn(
             () =>
                 new Promise((resolve) => {
                     resolveBatch = resolve;
+                    onStarted();
                 })
         );
 
@@ -1056,6 +1086,7 @@ describe('EpgService', () => {
         );
 
         try {
+            await started;
             expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
             resolveBatch?.({
                 'guide-news': {

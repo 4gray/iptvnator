@@ -39,6 +39,7 @@ import {
     ResizableDirective,
 } from '@iptvnator/ui/components';
 import {
+    EpgPreferencesService,
     ParentalLockService,
     PlaylistsService,
     RecordingsService,
@@ -195,6 +196,7 @@ export class StalkerLiveStreamLayoutComponent
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly streamHeaders = inject(ElectronStreamHeadersService);
@@ -371,8 +373,14 @@ export class StalkerLiveStreamLayoutComponent
     );
     readonly contextMenuChannel = signal<StalkerItvChannel | null>(null);
     readonly isElectron = this.runtime.isElectron;
-    readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
-    readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
+    get supportsProviderEpg(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.runtime.supportsProviderEpg
+        );
+    }
+    get supportsEpgMapping(): boolean {
+        return this.epgPreferences.enabled() && this.runtime.supportsEpgMapping;
+    }
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );

@@ -8,6 +8,7 @@ import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
+    EpgPreferencesService,
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -185,6 +186,59 @@ describe('StreamResolverService provider EPG', () => {
         });
 
         service = TestBed.inject(StreamResolverService);
+    });
+
+    it('reloads collection programmes after a global off/on cycle', async () => {
+        await service.loadEpgForItems([xtreamItem]);
+        const preferences = TestBed.inject(EpgPreferencesService);
+        await preferences.apply(false);
+        await preferences.apply(true);
+        xtreamApi.getShortEpg.mockResolvedValue([
+            xtreamListing('Fresh programme'),
+        ]);
+        const programs = await service.loadEpgForItems([xtreamItem]);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledTimes(2);
+        expect(
+            [...programs.values()].some(
+                (program) => program?.title === 'Fresh programme'
+            )
+        ).toBe(true);
+    });
+
+    it('does not cache an empty answer from a retired collection request', async () => {
+        const preferences = TestBed.inject(EpgPreferencesService);
+        let finish!: (items: ReturnType<typeof xtreamListing>[]) => void;
+        let markStarted!: () => void;
+        const started = new Promise<void>((resolve) => {
+            markStarted = resolve;
+        });
+        const response = new Promise<ReturnType<typeof xtreamListing>[]>(
+            (resolve) => {
+                finish = resolve;
+            }
+        );
+        xtreamApi.getShortEpg.mockImplementationOnce(() =>
+            preferences.run(() => {
+                markStarted();
+                return response;
+            }, [])
+        );
+        const retired = service.loadEpgForItems([xtreamItem]);
+        await started;
+        await preferences.apply(false);
+        await preferences.apply(true);
+        finish([xtreamListing('Retired programme')]);
+        await retired;
+        xtreamApi.getShortEpg.mockResolvedValue([
+            xtreamListing('Fresh programme'),
+        ]);
+        const programs = await service.loadEpgForItems([xtreamItem]);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledTimes(2);
+        expect(
+            [...programs.values()].some(
+                (program) => program?.title === 'Fresh programme'
+            )
+        ).toBe(true);
     });
 
     it.each(['xtream', 'stalker'] as const)(

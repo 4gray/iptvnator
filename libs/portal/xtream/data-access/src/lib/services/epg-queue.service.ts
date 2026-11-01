@@ -5,7 +5,11 @@ import {
     EpgItem,
     windowEpgItemsAtProviderClock,
 } from '@iptvnator/shared/interfaces';
-import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgPreferencesService,
+    EpgSourceSettingsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
@@ -50,6 +54,7 @@ export class EpgQueueService implements OnDestroy {
     private readonly apiService = inject(XtreamApiService);
     private readonly fallbackService = inject(XtreamXmltvFallbackService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly sourceSubscription = inject(
         EpgSourceSettingsService
     ).changed$.subscribe(() => {
@@ -90,6 +95,7 @@ export class EpgQueueService implements OnDestroy {
     readonly epgResult$ = new Subject<{ streamId: number; items: EpgItem[] }>();
 
     getCached(streamId: number): EpgItem[] | null {
+        if (!this.epgPreferences.enabled()) return null;
         this.retireStateOfPreviousOffset();
         const entry = this.cache.get(streamId);
         if (!entry) return null;
@@ -161,6 +167,7 @@ export class EpgQueueService implements OnDestroy {
 
     private shouldFetch(streamId: number): boolean {
         return (
+            this.epgPreferences.enabled() &&
             this.getCached(streamId) === null &&
             !this.isFailureCoolingDown(streamId) &&
             !this.inFlight.has(streamId)
@@ -178,6 +185,7 @@ export class EpgQueueService implements OnDestroy {
         visibleIds: Set<number>,
         credentials: XtreamCredentials
     ): Promise<void> {
+        if (!this.epgPreferences.enabled()) return;
         this.retireStateOfPreviousOffset();
         const generation = ++this.enqueueGeneration;
 

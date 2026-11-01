@@ -11,6 +11,7 @@ describe('default-on settings coercion', () => {
                 portalConnectivityGuard: 'false' as unknown as boolean,
             })
         ).toEqual({
+            epgEnabled: true,
             webPlayerSharedControls: false,
             portalConnectivityGuard: true,
             embeddedMpvAutoReconnect: true,

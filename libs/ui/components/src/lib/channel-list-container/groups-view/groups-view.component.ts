@@ -22,7 +22,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { ParentalLockService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgPreferencesService,
+    ParentalLockService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     foldSearchText,
     Channel,
@@ -95,11 +99,16 @@ interface FilteredGroupView {
     ],
 })
 export class GroupsViewComponent {
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly dialog = inject(MatDialog);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
-    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
+    get supportsEpgMapping(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.epgBridge.supportsEpgMapping
+        );
+    }
     private readonly hostEl = inject(ElementRef<HTMLElement>);
 
     readonly channelContextMenu = viewChild.required(

@@ -1,4 +1,10 @@
-import { inject, Injectable, Injector, signal } from '@angular/core';
+import {
+    inject,
+    Injectable,
+    Injector,
+    signal,
+    DestroyRef,
+} from '@angular/core';
 import {
     firstValueFrom,
     Subject,
@@ -7,6 +13,9 @@ import {
     filter,
     takeUntil,
 } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filterPlaylistEpgUrlsForFetch } from '@iptvnator/shared/m3u-utils';
+import { EpgPreferencesService } from './epg-preferences.service';
 import { PlaylistsService } from './playlists.service';
 
 export class EpgSourceReconciliationError extends Error {
@@ -40,16 +49,31 @@ export function epgSourceUrlsChanged(
 @Injectable({ providedIn: 'root' })
 export class EpgSourceSettingsService {
     private readonly injector = inject(Injector);
+    private readonly preferences = inject(EpgPreferencesService);
     private activeUrls = new Set<string>();
+    private fetchableUrls = new Set<string>();
     private reconciliation: Promise<void> | undefined;
     private failedReconciliation: { urls: string[] } | undefined;
     readonly revision = signal(0);
     readonly changed$ = new Subject<void>();
 
+    constructor() {
+        this.preferences.changed$
+            .pipe(takeUntilDestroyed(inject(DestroyRef)))
+            .subscribe(() => {
+                this.revision.update((revision) => revision + 1);
+                this.changed$.next();
+            });
+    }
+
     retainCurrentSources(urls: string[], requestedRevision: number): string[] {
         return requestedRevision === this.revision()
             ? urls
             : urls.filter((url) => this.activeUrls.has(url));
+    }
+
+    getFetchableSourceUrls(): string[] {
+        return [...this.fetchableUrls];
     }
 
     guard<T>(): MonoTypeOperatorFunction<T> {
@@ -79,7 +103,10 @@ export class EpgSourceSettingsService {
         }
     }
 
-    async synchronize(urls: string[] | string | undefined): Promise<void> {
+    async synchronize(
+        urls: string[] | string | undefined,
+        epgEnabled?: boolean
+    ): Promise<void> {
         if (
             typeof window === 'undefined' ||
             !window.electron?.reconcileEpgSources
@@ -89,8 +116,10 @@ export class EpgSourceSettingsService {
         this.revision.update((revision) => revision + 1);
         const previous = this.reconciliation;
         const operation = previous
-            ? previous.catch(() => undefined).then(() => this.reconcile(urls))
-            : this.reconcile(urls);
+            ? previous
+                  .catch(() => undefined)
+                  .then(() => this.reconcile(urls, epgEnabled))
+            : this.reconcile(urls, epgEnabled);
         const pending = operation.finally(() => {
             if (this.reconciliation === pending)
                 this.reconciliation = undefined;
@@ -100,12 +129,14 @@ export class EpgSourceSettingsService {
     }
 
     private async reconcile(
-        urls: string[] | string | undefined
+        urls: string[] | string | undefined,
+        epgEnabled?: boolean
     ): Promise<void> {
         const normalized = normalizeEpgSourceUrls(urls);
         // These globals are committed even if playlist ownership or cleanup
         // cannot be read. Never keep the previous global list on failure.
         this.activeUrls = new Set(normalized);
+        this.fetchableUrls = new Set(normalized);
         try {
             // This includes the legacy IndexedDB → SQLite playlist migration.
             const playlists = await firstValueFrom(
@@ -116,11 +147,28 @@ export class EpgSourceSettingsService {
                 for (const url of playlist.epgUrls ?? []) {
                     if (url.trim()) this.activeUrls.add(url.trim());
                 }
+                for (const url of filterPlaylistEpgUrlsForFetch(
+                    playlist.epgUrls,
+                    normalized,
+                    playlist.manualEpgUrls
+                )) {
+                    this.fetchableUrls.add(url);
+                }
             }
-            const result =
-                await window.electron.reconcileEpgSources(normalized);
-            if (!result.success)
-                throw new Error('EPG source reconciliation failed');
+            const reconcile = async () => {
+                const result =
+                    epgEnabled === undefined
+                        ? await window.electron.reconcileEpgSources(normalized)
+                        : await window.electron.reconcileEpgSources(
+                              normalized,
+                              epgEnabled
+                          );
+                if (!result.success)
+                    throw new Error('EPG source reconciliation failed');
+            };
+            if (epgEnabled === undefined) await reconcile();
+            else
+                await this.preferences.synchronizeNative(epgEnabled, reconcile);
             this.failedReconciliation = undefined;
         } catch {
             this.failedReconciliation = { urls: normalized };
