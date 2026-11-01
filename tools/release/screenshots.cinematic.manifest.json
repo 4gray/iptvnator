@@ -1,0 +1,22 @@
+{
+    "version": 1,
+    "viewport": { "width": 1600, "height": 1100 },
+    "themes": ["dark", "light"],
+    "shots": [
+        {
+            "slug": "dashboard",
+            "title": "Cinematic dashboard",
+            "setup": ["open-cinematic-dashboard"]
+        },
+        {
+            "slug": "xtream-vod-details",
+            "title": "Movie opened from the dashboard",
+            "setup": ["open-cinematic-movie"]
+        },
+        {
+            "slug": "xtream-series-season-open",
+            "title": "Series and original episode stills",
+            "setup": ["open-cinematic-series"]
+        }
+    ]
+}

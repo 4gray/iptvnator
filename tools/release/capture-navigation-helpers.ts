@@ -144,7 +144,8 @@ export async function clickHrefSuffix(
 export async function openXtreamSection(
     page: Page,
     section: 'vod' | 'series',
-    category: string
+    category: string,
+    title?: string
 ): Promise<void> {
     await goHome(page);
     await clickHrefSuffix(
@@ -168,7 +169,8 @@ export async function openXtreamSection(
     await item.click();
     await page.waitForTimeout(600);
 
-    const card = page.locator('.category-content-layout mat-card').first();
+    const cards = page.locator('.category-content-layout mat-card');
+    const card = (title ? cards.filter({ hasText: title }) : cards).first();
     await card.waitFor({ state: 'visible', timeout: 30_000 });
     await card.click();
 }

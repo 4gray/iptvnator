@@ -20,14 +20,15 @@
  *   G3  a main-process recorder (installed before the renderer boots) plus a
  *       page-level deny-by-default route; any external attempt fails the run
  *   G4  every frame is checked for external resources / credential text
- *   G5  TMDB stays disabled (fresh profile default, asserted via IndexedDB)
+ *   G5  regular captures keep TMDB disabled; --cinematic accepts only an
+ *       invalid fixture key with a pre-seeded synthetic cache
  *
  * Frames are staged outside the repository and published only after every
  * shot and every guard has passed, so a failure can neither leave unsafe
  * frames behind nor destroy previously committed release assets.
  */
 
-import { accessSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -59,7 +60,11 @@ import {
     runAction,
     settleUi,
 } from './capture-navigation';
-import { assertTmdbDisabled } from './capture-tmdb-check';
+import { assertCaptureMetadata } from './capture-tmdb-check';
+import { seedCinematicMetadata } from './capture-cinematic-cache';
+import { openCinematicDashboard, seedCinematicActivity, settleCinematicFrame } from './capture-navigation-cinematic-actions';
+import { waitForCinematicPreview } from './capture-cinematic-preview';
+import { assertBuiltRuntime, readAppVersion } from './capture-runtime';
 import {
     drainRecordedRequests,
     installRequestRecorder,
@@ -68,9 +73,11 @@ import {
 type Theme = 'dark' | 'light';
 
 const workspaceRoot = process.cwd();
+const cinematic = process.argv.includes('--cinematic');
+const preview = process.argv.includes('--preview');
 const manifestPath = path.join(
     workspaceRoot,
-    'tools/release/screenshots.manifest.json'
+    cinematic ? 'tools/release/screenshots.cinematic.manifest.json' : 'tools/release/screenshots.manifest.json'
 );
 const electronMainPath = path.join(
     workspaceRoot,
@@ -88,6 +95,7 @@ const flag = (name: string): string | null => {
 const blockedRequests: string[] = [];
 
 async function main(): Promise<void> {
+    if (preview && !cinematic) throw new Error('--preview requires --cinematic');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     const manifestErrors = validateManifest(manifest);
 
@@ -146,7 +154,7 @@ async function main(): Promise<void> {
         `refusing to publish outside the blog tree: ${outputRoot}`
     );
 
-    assertBuiltRuntime();
+    assertBuiltRuntime(workspaceRoot, electronMainPath);
 
     // G1: snapshot the real database directory BEFORE anything launches.
     const dbBefore = snapshotDatabaseState(realDbDir);
@@ -178,6 +186,7 @@ async function main(): Promise<void> {
     const dataDir = mkdtempSync(path.join(tmpdir(), 'iptvnator-release-shots-'));
     let app: Awaited<ReturnType<typeof driver.launchApp>> | undefined;
     let page: Page | undefined;
+    let previewWindowClosed = false;
     let recordedRequests: string[] = [];
     let captured = 0;
     let primaryError: unknown;
@@ -232,14 +241,26 @@ async function main(): Promise<void> {
         });
 
         await driver.sizeWindow(app, manifest.viewport);
+        if (cinematic && !preview) await page.setViewportSize(manifest.viewport);
         await driver.waitForAppReady(page);
-        await assertTmdbDisabled(page); // G5
+        await assertCaptureMetadata(page); // G5, fresh profile must start disabled
         await driver.seedDemoData(page, driver.writeM3uFixture(dataDir), {
             stalker: needsStalker,
             secondaryXtream: needsSecondaryXtream,
         });
+        if (cinematic) {
+            await seedCinematicActivity(page);
+            await seedCinematicMetadata(page);
+        }
+        await assertCaptureMetadata(page, cinematic);
 
-        for (const theme of themes) {
+        if (preview) {
+            await applyTheme(page, themes[0]);
+            await openCinematicDashboard(page);
+            previewWindowClosed = await waitForCinematicPreview(app);
+        }
+
+        for (const theme of preview ? [] : themes) {
             await applyTheme(page, theme);
 
             for (const shot of shots) {
@@ -247,6 +268,7 @@ async function main(): Promise<void> {
                     const { action, param } = parseSetupStep(String(step));
                     await runAction(page, action, param);
                 }
+                await assertCaptureMetadata(page, cinematic);
 
                 if (shot.browser) {
                     await captureBrowserShot(
@@ -263,7 +285,10 @@ async function main(): Promise<void> {
             }
         }
 
-        recordedRequests = await drainRecordedRequests(app);
+        // A preview publishes no frames. Its process can already be closed;
+        // the request gate remains installed until that close. Captures always
+        // drain and audit the live recorder before publishing.
+        recordedRequests = previewWindowClosed ? [] : await drainRecordedRequests(app);
 
         // A recorder that observes nothing is indistinguishable from a
         // passing run, which is how a guard silently stops guarding. Assert
@@ -271,7 +296,7 @@ async function main(): Promise<void> {
         // traffic: seeding requests alone would prove nothing about whether
         // the hook existed before the renderer started fetching.
         assertSync(
-            recordedRequests.some((url) => /\/index\.html?($|[?#])/.test(url)),
+            previewWindowClosed || recordedRequests.some((url) => /\/index\.html?($|[?#])/.test(url)),
             `G3 failed: the request recorder never saw the renderer document load (${recordedRequests.length} URL(s) recorded) — it was installed too late to cover startup`
         );
 
@@ -332,12 +357,17 @@ async function main(): Promise<void> {
         rmSync(stagingDir, { recursive: true, force: true });
         throw primaryError;
     }
+    if (preview) {
+        rmSync(stagingDir, { recursive: true, force: true });
+        console.log('Disposable cinematic demo closed.');
+        return;
+    }
 
     // A filtered run refreshes a subset, so it must overlay rather than
     // replace: publishing only the captured frames would delete every other
     // screenshot of the release.
     publishDirectory(stagingDir, outputRoot, String(process.pid), {
-        mode: only || themeFilter ? 'merge' : 'replace',
+        mode: only || themeFilter || cinematic ? 'merge' : 'replace',
     });
     rmSync(stagingDir, { recursive: true, force: true });
     console.log(
@@ -456,6 +486,7 @@ async function captureShot(
     theme: Theme
 ): Promise<void> {
     await settleUi(page);
+    if (cinematic) await settleCinematicFrame(page, slug);
 
     // G4: inspect the frame before trusting it.
     const report = await page.evaluate(() => {
@@ -492,27 +523,6 @@ async function captureShot(
         type: 'png',
     });
     console.log(`  ✓ ${slug} (${theme})`);
-}
-
-function assertBuiltRuntime(): void {
-    for (const required of [
-        electronMainPath,
-        path.join(workspaceRoot, 'dist/apps/web/index.html'),
-    ]) {
-        try {
-            accessSync(required);
-        } catch {
-            throw new Error(
-                `Built runtime missing: ${required}\nBuild it first: pnpm nx run electron-backend:build-e2e`
-            );
-        }
-    }
-}
-
-function readAppVersion(): string {
-    return JSON.parse(
-        readFileSync(path.join(workspaceRoot, 'package.json'), 'utf8')
-    ).version;
 }
 
 function assertSync(condition: unknown, message: string): asserts condition {
