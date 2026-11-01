@@ -83,7 +83,13 @@ function fixture(mode: 'native' | 'browser', watched = false) {
             ActivitySyncRuntime.prototype
         ) as ActivitySyncRuntime;
         const paused = signal(false);
+        const localOnly = new ActivityLocalOnlyPositions(
+            'synthetic-nas',
+            localStorage
+        );
         const client = new ActivitySyncClient(store, {
+            committed: (sourceId, position, kind) =>
+                localOnly.committed(sourceId, position, kind),
             instanceId: 'synthetic-nas',
             deviceId: 'synthetic-device',
             contexts: [
@@ -108,7 +114,7 @@ function fixture(mode: 'native' | 'browser', watched = false) {
             mode === 'native'
                 ? { save, clear: raw.clearPlaybackPosition.bind(raw) }
                 : undefined,
-            new ActivityLocalOnlyPositions('synthetic-nas', localStorage)
+            localOnly
         );
         Object.assign(runtime, {
             client,
@@ -125,7 +131,7 @@ function fixture(mode: 'native' | 'browser', watched = false) {
             conflicts: signal([]),
             lastSync: signal(null),
         });
-        return { runtime, client, adapter };
+        return { runtime, client, adapter, localOnly };
     };
     return {
         makeRuntime,
@@ -208,6 +214,77 @@ describe('retryable activity disable transition', () => {
         });
         expect(runtime.enabled()).toBe(true);
     });
+
+    it.each(['paused', 'disabled', 'failed-local-write'] as const)(
+        'keeps a newer local checkpoint after a delayed shared commit (%s)',
+        async (mode) => {
+            const f = fixture('native');
+            f.recover();
+            const { runtime, client, adapter, localOnly } = f.makeRuntime();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const mutate = client.store.mutate.bind(client.store);
+            jest.spyOn(client.store, 'mutate').mockImplementationOnce(
+                async (address, update) => {
+                    entered();
+                    await held;
+                    return mutate(address, update);
+                }
+            );
+            const older = runtime.invoke(f.raw, 'savePlaybackPosition', [
+                f.sourceId,
+                {
+                    ...f.position,
+                    positionSeconds: 50,
+                    activitySessionId: 'synthetic-session',
+                },
+            ]);
+            await started;
+            localStorage.setItem(
+                consentKey,
+                JSON.stringify({
+                    enabled: mode === 'disabled' ? false : 2,
+                    generation: 'original-consent',
+                    deviceId: 'synthetic-device',
+                })
+            );
+            if (mode === 'failed-local-write')
+                f.save.mockRejectedValueOnce(
+                    new Error('Synthetic newer write failure')
+                );
+            const newer = runtime.invoke(f.raw, 'savePlaybackPosition', [
+                f.sourceId,
+                {
+                    ...f.position,
+                    positionSeconds: 75,
+                    activitySessionId: 'synthetic-session',
+                },
+            ]);
+            if (mode === 'failed-local-write')
+                await expect(newer).rejects.toThrow(
+                    'Synthetic newer write failure'
+                );
+            else await newer;
+            release();
+            await older;
+            if (mode === 'disabled')
+                expect(f.rows()[0].positionSeconds).toBe(75);
+            else
+                expect(await adapter.all(f.raw, f.sourceId)).toEqual([
+                    expect.objectContaining({ positionSeconds: 75 }),
+                ]);
+            if (mode === 'failed-local-write')
+                expect(
+                    localOnly.snapshots(f.sourceId)[0].position.positionSeconds
+                ).toBe(75);
+        }
+    );
 
     it.each(['origin', 'sibling'] as const)(
         'preserves an already-started %s checkpoint across disable',

@@ -192,6 +192,36 @@ describe('activity sync clients', () => {
         expect(await a.store.pending()).toEqual([]);
     });
 
+    it('does not clear local ownership when a shared checkpoint finishes after consent pauses', async () => {
+        const a = harness().client('synthetic-device');
+        await launch(a, movie('synthetic-session', 20));
+        await a.value.flush();
+        const committed = jest.fn();
+        a.value.options.committed = committed;
+        let release!: () => void;
+        let entered!: () => void;
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const started = new Promise<void>((resolve) => {
+            entered = resolve;
+        });
+        const mutate = a.store.mutate.bind(a.store);
+        jest.spyOn(a.store, 'mutate').mockImplementationOnce(
+            async (address, update) => {
+                entered();
+                await held;
+                return mutate(address, update);
+            }
+        );
+        const saving = a.value.save('source', movie('synthetic-session', 50));
+        await started;
+        a.consent(null);
+        release();
+        expect(await saving).toBe('local-only');
+        expect(committed).not.toHaveBeenCalled();
+    });
+
     it('ignores old shared checkpoints and aliases after source replacement', async () => {
         const h = harness();
         const a = h.client('a');

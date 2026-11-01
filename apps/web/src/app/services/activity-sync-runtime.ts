@@ -221,8 +221,10 @@ export class ActivitySyncRuntime {
         method: string,
         args: unknown[]
     ): Promise<unknown> {
-        if (!activityEnabled() || !ActivityPositionAdapter.handles(method))
+        if (!activityEnabled() || !ActivityPositionAdapter.handles(method)) {
+            this.adapter?.supersede(method, args);
             return Reflect.get(raw, method).apply(raw, args);
+        }
         this.ensureClient();
         try {
             return await this.adapter!.invoke(

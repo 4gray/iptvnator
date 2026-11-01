@@ -1010,6 +1010,9 @@ not applied to a verified source.
 Opt-out drains local shared mutations already started in the renderer before
 mirroring. A checkpoint committed after another window pauses consent also
 returns through the local persistence path, preserving that acknowledged point.
+A delayed shared-save completion may fall back locally only while its original
+write is still the latest invocation for that item; later checkpoints or resets
+supersede it before awaiting storage.
 
 Before a raw fallback write, a minimal position snapshot is saved locally without
 titles or stream addresses. A failed raw write keeps this snapshot readable and

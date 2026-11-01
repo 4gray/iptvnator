@@ -245,7 +245,8 @@ export async function saveActivity(
     const persisted = committed.pending.some(
         (intent) => intent.operation.operationId === operationId
     );
-    if (persisted)
+    const localOnly = persisted && this.options.consent() !== consentGeneration;
+    if (persisted && !localOnly)
         this.options.committed?.(
             sourceId,
             position,
@@ -253,8 +254,7 @@ export async function saveActivity(
         );
     this.options.changed();
     // Another window may finish opt-out while this local commit is in flight.
-    if (persisted && this.options.consent() !== consentGeneration)
-        return 'local-only';
+    if (localOnly) return 'local-only';
     void this.flush();
 }
 

@@ -107,6 +107,77 @@ describe('activity projection local preservation', () => {
         );
     });
 
+    it.each(['checkpoint', 'reset', 'failed-save'] as const)(
+        'does not let a delayed shared fallback overwrite a newer local %s',
+        async (action) => {
+            const position: PlaybackPositionData = {
+                contentType: 'vod',
+                contentXtreamId: 42,
+                positionSeconds: 50,
+                durationSeconds: 100,
+                activitySessionId: 'synthetic-session',
+            };
+            let release!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const client = {
+                sessions: new Map(),
+                aliases: new Map(),
+                localSessions: new Map(),
+                retiredSessions: new Set(),
+                options: { changed: () => undefined },
+                positions: async () => [],
+                save: jest.fn(async () => {
+                    await held;
+                    if (action === 'failed-save')
+                        throw new Error('Synthetic delayed failure');
+                    return 'local-only';
+                }),
+            } as unknown as ActivitySyncClient;
+            let row: PlaybackPositionData | undefined;
+            const raw = {
+                savePlaybackPosition: async (
+                    _id: string,
+                    value: PlaybackPositionData
+                ) => {
+                    row = value;
+                },
+                getAllPlaybackPositions: async () => (row ? [row] : []),
+                clearPlaybackPosition: async () => {
+                    row = undefined;
+                },
+            } as unknown as IXtreamDataSource;
+            const adapter = new ActivityPositionAdapter(client);
+            const older = adapter.invoke(raw, 'savePlaybackPosition', [
+                'synthetic-source',
+                position,
+            ]);
+            if (action === 'reset')
+                await adapter.invoke(
+                    raw,
+                    'clearPlaybackPosition',
+                    ['synthetic-source', 42, 'vod'],
+                    true
+                );
+            else
+                await adapter.invoke(
+                    raw,
+                    'savePlaybackPosition',
+                    ['synthetic-source', { ...position, positionSeconds: 75 }],
+                    true
+                );
+            release();
+            if (action === 'failed-save')
+                await expect(older).rejects.toThrow(
+                    'Synthetic delayed failure'
+                );
+            else await older;
+            if (action === 'reset') expect(row).toBeUndefined();
+            else expect(row?.positionSeconds).toBe(75);
+        }
+    );
+
     it('routes an explicit watched action through shared projection instead of the local mirror', async () => {
         let shared: PlaybackPositionData = {
             contentType: 'vod',

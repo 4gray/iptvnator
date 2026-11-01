@@ -1,3 +1,4 @@
+import { ActivityPositionWriteFence } from './activity-position-write-fence';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import type { ActivitySyncClient } from '@iptvnator/services/activity-sync';
@@ -29,6 +30,7 @@ export class ActivityPositionAdapter {
         return positionMethods.has(method);
     }
     private readonly localWrites = new ActivityLocalWriteQueue();
+    private readonly writeFence = new ActivityPositionWriteFence();
     private readonly seenLocalSessions = new Set<string>();
     constructor(
         private readonly client: ActivitySyncClient,
@@ -58,60 +60,69 @@ export class ActivityPositionAdapter {
                 method === 'savePlaybackPosition' ? [args[1]] : args[1]
             ) as PlaybackPositionData[];
             for (const position of positions) {
-                if (localOnly) {
-                    await this.saveLocalOnly(raw, sourceId, position);
-                    continue;
-                }
-                // Compatibility migrations and restores are local writes, never consent to upload.
-                if (
-                    !position.activitySessionId &&
-                    position.activityAction !== 'mark-watched'
-                ) {
-                    await (this.strict?.save(sourceId, position) ??
-                        raw.savePlaybackPosition(sourceId, position));
-                    continue;
-                }
-                const localSession = position.activitySessionId;
-                if (
-                    localSession &&
-                    this.seenLocalSessions.has(localSession) &&
-                    !this.localOnly.owns(sourceId, position) &&
-                    !this.client.sessions.has(localSession)
-                ) {
-                    // A committed action cleared this fallback, including in a sibling tab.
-                    this.client.retiredSessions.add(localSession);
-                    this.client.localSessions.delete(localSession);
-                    continue;
-                }
-                if (
-                    position.activitySessionId &&
-                    this.localOnly.has(sourceId, position) &&
-                    !this.client.sessions.has(position.activitySessionId)
-                ) {
-                    if (
-                        !this.localOnly.owns(sourceId, position) &&
-                        !this.client.localSessions.has(
-                            position.activitySessionId
-                        )
-                    ) {
-                        this.client.retiredSessions.add(
-                            position.activitySessionId
-                        );
+                const { current, finish } = this.writeFence.start(
+                    sourceId,
+                    position
+                );
+                try {
+                    if (localOnly) {
+                        await this.saveLocalOnly(raw, sourceId, position);
                         continue;
                     }
-                    await this.saveLocalOnly(raw, sourceId, position);
-                    continue;
+                    // Compatibility migrations and restores are local writes, never consent to upload.
+                    if (
+                        !position.activitySessionId &&
+                        position.activityAction !== 'mark-watched'
+                    ) {
+                        await (this.strict?.save(sourceId, position) ??
+                            raw.savePlaybackPosition(sourceId, position));
+                        continue;
+                    }
+                    const localSession = position.activitySessionId;
+                    if (
+                        localSession &&
+                        this.seenLocalSessions.has(localSession) &&
+                        !this.localOnly.owns(sourceId, position) &&
+                        !this.client.sessions.has(localSession)
+                    ) {
+                        // A committed action cleared this fallback, including in a sibling tab.
+                        this.client.retiredSessions.add(localSession);
+                        this.client.localSessions.delete(localSession);
+                        continue;
+                    }
+                    if (
+                        position.activitySessionId &&
+                        this.localOnly.has(sourceId, position) &&
+                        !this.client.sessions.has(position.activitySessionId)
+                    ) {
+                        if (
+                            !this.localOnly.owns(sourceId, position) &&
+                            !this.client.localSessions.has(
+                                position.activitySessionId
+                            )
+                        ) {
+                            this.client.retiredSessions.add(
+                                position.activitySessionId
+                            );
+                            continue;
+                        }
+                        await this.saveLocalOnly(raw, sourceId, position);
+                        continue;
+                    }
+                    let delivery: 'local-only' | void;
+                    try {
+                        delivery = await this.client.save(sourceId, position);
+                    } catch (error) {
+                        // A new source may never have received its portable incarnation before going offline.
+                        if (current())
+                            await this.saveLocalOnly(raw, sourceId, position);
+                        throw error;
+                    }
+                    if (delivery === 'local-only' && current())
+                        await this.saveLocalOnly(raw, sourceId, position);
+                } finally {
+                    finish();
                 }
-                let delivery: 'local-only' | void;
-                try {
-                    delivery = await this.client.save(sourceId, position);
-                } catch (error) {
-                    // A new source may never have received its portable incarnation before going offline.
-                    await this.saveLocalOnly(raw, sourceId, position);
-                    throw error;
-                }
-                if (delivery === 'local-only')
-                    await this.saveLocalOnly(raw, sourceId, position);
             }
             return;
         }
@@ -131,6 +142,7 @@ export class ActivityPositionAdapter {
                           contentXtreamId: number;
                           contentType: 'vod' | 'episode';
                       }[]);
+            this.supersede(method, args);
             const current = await this.all(raw, sourceId);
             for (const item of items) {
                 const position = current.find(
@@ -216,6 +228,10 @@ export class ActivityPositionAdapter {
                 : positions.slice(0, args[1] as number);
         }
         return positions;
+    }
+
+    supersede(method: string, args: unknown[]): void {
+        this.writeFence.supersede(method, args);
     }
 
     private async saveLocalOnly(
