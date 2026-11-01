@@ -21,10 +21,21 @@ test('@tmdb-match corrects an Xtream movie through its route menu', async ({
         params: { ...params, action: 'get_vod_streams' },
     });
     const movie = (await listing.json())[0];
-    const response = await request.get(`${MOCK_SERVER}/player_api.php`, {
-        params: { ...params, action: 'get_vod_info', vod_id: movie.stream_id },
+    const providerPlot = 'The original provider movie description.';
+    // The mock generates a new plot for each request; pin it across reloads.
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        if (original.searchParams.get('action') !== 'get_vod_info')
+            return route.fallback();
+        const url = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') url.searchParams.set(key, value);
+        });
+        const response = await route.fetch({ url: url.toString() });
+        const body = await response.json();
+        body.payload.info.plot = providerPlot;
+        await route.fulfill({ response, json: body });
     });
-    const providerPlot = (await response.json()).info.plot;
     const manualPlot = 'The movie selected manually in TMDB.';
     await page.route('https://api.themoviedb.org/**', (route) => {
         const path = new URL(route.request().url()).pathname;
