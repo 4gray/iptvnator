@@ -118,3 +118,42 @@ Recreate an image by passing its saved prompt and optional committed reference
 to the built-in image tool, reviewing the result, copying it into the manifest
 path and refreshing dimensions/byte sizes. Generation is separate from normal
 demo startup and screenshot capture.
+
+## Theme comparison preview
+
+Create an additional image for a README or release preview from the two
+committed dashboard captures:
+
+```bash
+pnpm release:preview:themes
+
+# Optional straight 50/50 cut instead of the default diagonal
+pnpm release:preview:themes --split vertical
+
+# Use another release or the dashboard without the live-channel row
+pnpm release:preview:themes --release v0-25 --shot dashboard
+```
+
+The default is `dashboard-live-channels`, with light on the left and dark on
+the right. Its diagonal crosses 40% of the width at the top and 60% at the
+bottom, giving each theme half the area. It keeps the source dimensions and
+original pixels on each side, with antialiasing only at the seam. There are no
+extra labels, frames or changes to the interface. This is a comparison
+composite of two real captures, rather than a separately captured app state.
+
+The local Sharp script needs neither Electron nor an image-generation API.
+It rejects different source dimensions instead of stretching a screenshot.
+If either theme is missing, capture both first using the command in its error.
+The original screenshots and README are preserved.
+
+Outputs are separate from captures, under
+`apps/website/public/blog/v0-25/previews/`:
+
+- `dashboard-live-channels-themes-diagonal.png` — lossless full-size preview
+- `dashboard-live-channels-themes-diagonal.webp` — lossless smaller web copy
+- `dashboard-live-channels-themes-diagonal.json` — source and output SHA-256
+  hashes, dimensions and split geometry
+
+Re-run the command after refreshing its two source screenshots. The manifest
+records which exact source bytes were used. The composition and CLI checks run
+with `pnpm nx test release-tools`.

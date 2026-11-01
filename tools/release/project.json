@@ -30,10 +30,12 @@
                 "{workspaceRoot}/tools/release/verify-draft-release.test.mjs",
                 "{workspaceRoot}/tools/release/highlight-cards.test.mjs",
                 "{workspaceRoot}/tools/release/screenshot-guards.test.mjs",
-                "{workspaceRoot}/tools/release/nightly-version.test.mjs"
+                "{workspaceRoot}/tools/release/nightly-version.test.mjs",
+                "{workspaceRoot}/tools/release/generate-theme-preview.mjs",
+                "{workspaceRoot}/tools/release/theme-preview.test.mjs"
             ],
             "options": {
-                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs tools/release/build-release-notes.test.mjs tools/release/release-announcements.test.mjs tools/release/verify-draft-release.test.mjs tools/release/highlight-cards.test.mjs tools/release/screenshot-guards.test.mjs tools/release/nightly-version.test.mjs",
+                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs tools/release/build-release-notes.test.mjs tools/release/release-announcements.test.mjs tools/release/verify-draft-release.test.mjs tools/release/highlight-cards.test.mjs tools/release/screenshot-guards.test.mjs tools/release/nightly-version.test.mjs tools/release/theme-preview.test.mjs",
                 "cwd": "{workspaceRoot}"
             },
             "dependsOn": [

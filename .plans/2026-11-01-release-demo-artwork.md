@@ -74,3 +74,16 @@ distinct local requests and the existing isolation guards. Release tooling has
 230 existing tests plus seven cinematic tests, with typecheck and lint passing.
 All six original committed screenshots remain byte-for-byte unchanged. This is
 mock/capture tooling only and needs no user-facing release note.
+
+## Additional theme preview
+
+The follow-up adds an original-pixel composite of the two live dashboard
+captures: light on the left, dark on the right, equal-area diagonal split.
+The PNG and lossless WebP live in the release's separate `previews/` folder,
+with source/output hashes and geometry in a JSON manifest. Original captures
+and README are preserved.
+
+`pnpm release:preview:themes` regenerates the default preview without starting
+an app or calling an image API; `--split vertical` supports a straight 50/50
+variant. Six composition/CLI tests cover source fidelity, equal area, dimensions
+and invalid arguments. The result was inspected at its original 1600×1100 size.

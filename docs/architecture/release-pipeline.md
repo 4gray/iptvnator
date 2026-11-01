@@ -169,6 +169,12 @@ the external-request and personal-database guards. Saved prompts, the interactiv
 `pnpm demo:cinematic` / `pnpm demo:cinematic:live` launchers and validation commands are in the
 [cinematic demo guide](../development/cinematic-demo.md).
 
+`pnpm release:preview:themes` additionally composes the saved dark/light
+dashboard captures into a diagonal theme comparison for README or release
+previews. It writes lossless PNG/WebP files and source hashes to the release's
+`previews/` directory, preserving the captured screenshots and README. This is
+a local image-composition command; it starts no app, remote image API or CI job.
+
 The same script also produces the evergreen screenshots of the website guides.
 Manifest shots that carry `"group": "guides"` are skipped by a release run and
 captured only with `pnpm release:screenshots --group guides`, which publishes

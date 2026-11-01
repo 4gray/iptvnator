@@ -128,6 +128,7 @@
         "release:cards:dry-run": "node tools/release/generate-highlight-cards.mjs --dry-run",
         "release:cards:generate": "node tools/release/generate-highlight-cards.mjs --generate",
         "release:screenshots": "tsx tools/release/capture-release-screenshots.ts",
+        "release:preview:themes": "node tools/release/generate-theme-preview.mjs",
         "demo:cinematic": "pnpm run release:screenshots --cinematic --preview --theme dark",
         "demo:cinematic:live": "pnpm run release:screenshots --cinematic --preview --only dashboard-live-channels --theme dark",
         "lint": "nx run-many --target=lint --all",
