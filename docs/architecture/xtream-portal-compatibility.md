@@ -381,9 +381,10 @@ reads the complete source history before parking the snapshot, not the ordinary
 100-entry browsing projection. The optional `dbGetRecentItems` `{ all: true }`
 request crosses preload/main/worker; ordinary reads remain capped at 100. Its
 read-only progress signal reports the current type, network/local phase and
-worker save counts. The editor stays modal and uses the same shared
-`ImportProgressComponent` as the workspace scanning overlay; disable-only edits
-do not show scanning. This path does not advertise cancellation it cannot perform.
+worker save counts. The editor stays modal with its close button hidden and uses
+the same shared `ImportProgressComponent` as the workspace scanning overlay;
+disable-only edits do not show scanning. This path does not advertise cancellation
+it cannot perform.
 Connected desktop sources use the same refresh path, including already cached
 catalogs. Their metadata save goes through the authoritative server-aware playlist
 service and dispatches the returned revision without a second persistence effect.

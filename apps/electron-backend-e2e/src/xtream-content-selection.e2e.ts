@@ -101,6 +101,11 @@ test('desktop shows scanning for newly enabled Movies and Series and preserves a
                     .poll(() => recorder.actions.includes(next.streams))
                     .toBeTruthy();
                 await expect(scanning).toBeVisible();
+                await expect(
+                    dialog.locator('.app-dialog__close')
+                ).toHaveCount(0);
+                await page.keyboard.press('Escape');
+                await expect(scanning).toBeVisible();
                 await expect(page).toHaveURL(/\/workspace\/sources$/);
                 await expect(
                     dialog.getByRole('heading', {

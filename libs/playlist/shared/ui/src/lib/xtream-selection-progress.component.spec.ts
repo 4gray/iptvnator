@@ -83,6 +83,9 @@ describe('catalog selection progress', () => {
                 '.workspace-loading-overlay__action'
             )
         ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.app-dialog__close')
+        ).toBeNull();
         progress.set({
             playlistId: 'p',
             type: 'movie',
