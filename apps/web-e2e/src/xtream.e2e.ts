@@ -1046,6 +1046,7 @@ type XtreamRawEpgListing = {
 test('@xtream posters-only wall — hides VOD titles behind a hover caption after Save', async ({
     page,
 }) => {
+    await expect(page).toHaveURL(/\/workspace\/dashboard$/);
     await addXtreamPortal(page);
     await page.locator('.context-panel .category-item').first().click();
 

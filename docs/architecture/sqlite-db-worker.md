@@ -973,6 +973,18 @@ regression tests explicitly assert `.run()` is used and `.execute()` is not.
 
 ### Unit coverage added
 
+`libs/services/src/lib/database-electron.operations.spec.ts` covers concurrent
+renderer operation isolation, cancellation acknowledgement versus completion,
+modern/legacy progress listener cleanup on success and failure, failed-delete
+results, restore payload preservation, and cancellation capability guards.
+
+`apps/electron-backend/src/app/workers/database-worker-operation-lifecycle.spec.ts`
+covers request/operation correlation across concurrent imports, cancellation of
+one operation without cancelling another, progress flush before error events,
+error serialization and subsequent requests, and non-cancellable delete-all.
+These protocol tests mock SQL operations; historical migration, durable
+favorites and packaged-worker tests remain the real SQLite persistence checks.
+
 `apps/electron-backend/src/app/services/database-worker-client.spec.ts`
 covers:
 

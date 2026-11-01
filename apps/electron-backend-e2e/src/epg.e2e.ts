@@ -41,10 +41,11 @@ function createCurrentXmltvFixture(
     channelId: string,
     channelName: string,
     programTitle: string,
-    iconUrl?: string
+    iconUrl?: string,
+    referenceTime = Date.now()
 ): string {
-    const start = new Date(Date.now() - 15 * 60 * 1000);
-    const stop = new Date(Date.now() + 45 * 60 * 1000);
+    const start = new Date(referenceTime - 15 * 60 * 1000);
+    const stop = new Date(referenceTime + 45 * 60 * 1000);
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <tv>
@@ -506,6 +507,10 @@ test.describe('Electron EPG', () => {
     test('@epg @electron Refresh all queues configured sources until the active import completes', async ({
         dataDir,
     }) => {
+        // Refresh preserves yesterday's programmes for catch-up. Keep both
+        // imports in the same future window even when this test crosses UTC
+        // midnight, so replacement is independent of archive retention.
+        const fixtureTime = Date.now() + 24 * 60 * 60 * 1000;
         let refreshing = false;
         let released = false;
         let releaseFirst: (() => void) | undefined;
@@ -517,7 +522,9 @@ test.describe('Electron EPG', () => {
             let xml = createCurrentXmltvFixture(
                 source,
                 `${source} News`,
-                `${refreshing ? 'Updated' : 'Initial'} ${source} Bulletin`
+                `${refreshing ? 'Updated' : 'Initial'} ${source} Bulletin`,
+                undefined,
+                fixtureTime
             );
             response.writeHead(200, { 'Content-Type': 'application/xml' });
             if (refreshing) {

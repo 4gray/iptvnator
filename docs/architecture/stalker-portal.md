@@ -477,6 +477,38 @@ Detail metadata rule:
   there instead of silently vanishing from the view (as the genre and country
   Discover chips once did).
 
+## Catalog Refine
+
+Stalker VOD categories (including All items and category search) offer **Hide
+watched** in Refine. The default is off; the preference survives category/search
+and inline-detail round trips within the active portal, and resets when the
+portal or route session is replaced. Existing progress classification (90%
+completion, including manual marks) hides only movies; started movies and all
+three supported series shapes remain visible. Initial progress read failures
+leave activation disabled with Retry. Refresh failures retain the last snapshot
+and show a retry notice; newer player updates beat in-flight snapshot reads.
+Accepted throttled inline-player writes feed the same catalog snapshot as
+external-player events, so returning from inline completion immediately hides
+that movie without re-reading the whole progress history.
+Catalog entry also refreshes local progress so watched toggles and inline
+playback in Favorites/Recent are reflected when returning to Movies; retained
+provider pages are not refetched for that refresh.
+
+`StalkerCatalogFacadeService` derives the visible list from retained raw pages;
+provider totals, deduplication and exhaustion remain store-owned. Counts say how
+many loaded items are shown versus the category total, not a filtered total.
+`stalker-catalog-watch-filter.ts` scans sequentially through up to three provider
+pages without visible additions per load-more request, then pauses with **Load
+more**. A delayed first page containing only hidden movies starts that same
+bounded scan after loading, including when the filter carries into another
+category. Clearing the filter restores retained rows without refetching. Filtered
+empty states distinguish partial results from exhausted results; append errors
+retain Retry for the same page. A new selection identity cancels continuation,
+and inline details suspend automatic page requests. If sparse visible additions
+trip the shared infinite-scroll height guard before a scrollbar exists, the
+catalog also pauses with **Load more**. The guard emits a notification without
+changing its budget; Xtream's existing status filter is unchanged.
+
 ## Stalker Identity Policy
 
 Full Stalker/Ministra portal authentication defaults to MAC-only identity. The

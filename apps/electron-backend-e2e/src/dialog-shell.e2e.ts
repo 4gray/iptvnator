@@ -45,10 +45,13 @@ async function openChannelDetailsNarrow(
     const dialog = page.locator('mat-dialog-container').filter({
         has: page.locator('app-channel-details-dialog'),
     });
+    // The Material container can be visible before the dialog component's
+    // heading is mounted. Wait for the content measured by the layout tests.
     await expect(dialog.locator('.app-dialog__title')).toHaveText(
         UNBREAKABLE_NAME
     );
     await expect(dialog.locator('.app-dialog__close')).toBeVisible();
+    await expect(dialog.locator('.app-dialog__header')).toBeVisible();
     await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
         'transform',
         'none'
