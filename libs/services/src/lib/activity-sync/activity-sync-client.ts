@@ -26,6 +26,7 @@ import {
     activityIdentityKey,
     projectActivity,
     activityPositionMetadata as metadata,
+    activityResume,
 } from './activity-projection';
 
 export interface ActivityClientOptions {
@@ -222,15 +223,7 @@ export class ActivitySyncClient {
             expectedRevision: 0,
             watched,
             positionMetadata: metadata(position),
-            resume: watched
-                ? null
-                : {
-                      positionSeconds: position.positionSeconds,
-                      ...(Number.isFinite(position.durationSeconds) &&
-                      position.durationSeconds! > 0
-                          ? { durationSeconds: position.durationSeconds }
-                          : {}),
-                  },
+            resume: watched ? null : activityResume(position),
         };
         await this.store.mutate(address, (current) => {
             const state = current?.state ?? emptyActivityState();

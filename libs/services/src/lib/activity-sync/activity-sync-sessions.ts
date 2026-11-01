@@ -12,6 +12,7 @@ import type { ActivitySyncClient } from './activity-sync-client';
 import {
     projectActivity,
     activityPositionMetadata as metadata,
+    activityResume,
 } from './activity-projection';
 
 export function beginActivity(
@@ -115,20 +116,7 @@ export async function saveActivity(
                                   : 0
                           )
                       ) + 1,
-                  resume: {
-                      positionSeconds: Math.max(
-                          0,
-                          Math.floor(position.positionSeconds)
-                      ),
-                      ...(Number.isFinite(position.durationSeconds) &&
-                      position.durationSeconds! > 0
-                          ? {
-                                durationSeconds: Math.floor(
-                                    position.durationSeconds!
-                                ),
-                            }
-                          : {}),
-                  },
+                  resume: activityResume(position),
                   positionMetadata: metadata(position),
               }
             : {

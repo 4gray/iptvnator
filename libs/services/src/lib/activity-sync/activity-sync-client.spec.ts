@@ -275,6 +275,47 @@ describe('activity sync clients', () => {
             expect([...h.states.values()][0].resume?.positionSeconds).toBe(40);
         }
     );
+    describe.each([
+        {
+            seconds: 65.25,
+            duration: 100.5,
+            resume: { positionSeconds: 65, durationSeconds: 100 },
+        },
+        { seconds: 65.25, duration: Infinity, resume: { positionSeconds: 65 } },
+        { seconds: 0.25, duration: 0.75, resume: { positionSeconds: 0 } },
+    ])(
+        'fractional snapshots ($seconds / $duration)',
+        ({ seconds, duration, resume }) => {
+            const position = {
+                ...movie('offline', seconds),
+                durationSeconds: duration,
+            };
+            it('normalizes the local choice after an offline conflict', async () => {
+                const h = harness();
+                const a = h.client('a');
+                const b = h.client('b');
+                h.offline(true);
+                await a.value.save('source', position);
+                await a.value.flush();
+                h.offline(false);
+                await b.value.save('source', movie('online', 30));
+                await b.value.flush();
+                await a.value.flush();
+                const entry = (await a.store.entries('source'))[0];
+                expect(entry.record.conflict).toBeDefined();
+                await a.value.resolve(entry.address, true);
+                expect([...h.states.values()][0].resume).toEqual(resume);
+                expect(await a.store.pending()).toHaveLength(0);
+            });
+            it('normalizes an explicit local import', async () => {
+                const h = harness();
+                const a = h.client('a');
+                await a.value.importPosition('source', position);
+                expect([...h.states.values()][0].resume).toEqual(resume);
+                expect(await a.store.pending()).toHaveLength(0);
+            });
+        }
+    );
     it('leaves explicitly imported server collisions for a choice', async () => {
         const h = harness();
         const a = h.client('a');

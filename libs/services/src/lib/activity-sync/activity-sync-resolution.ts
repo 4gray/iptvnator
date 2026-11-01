@@ -12,6 +12,7 @@ import type { ActivitySyncClient } from './activity-sync-client';
 import {
     projectActivity,
     activityPositionMetadata as metadata,
+    activityResume,
 } from './activity-projection';
 
 export async function resolveActivity(
@@ -111,13 +112,7 @@ export async function resolveActivity(
                 generation: remote.generation + 1,
                 sessionId,
                 sequence: 1,
-                resume: {
-                    positionSeconds: position.positionSeconds,
-                    ...(position.durationSeconds &&
-                    Number.isFinite(position.durationSeconds)
-                        ? { durationSeconds: position.durationSeconds }
-                        : {}),
-                },
+                resume: activityResume(position),
                 positionMetadata: metadata(position),
             });
             if (

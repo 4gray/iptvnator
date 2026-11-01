@@ -1,6 +1,7 @@
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import type {
     ActivityAddress,
+    ActivityResume,
     ActivityState,
 } from '@iptvnator/shared/interfaces/activity-sync';
 
@@ -82,5 +83,16 @@ export function activityPositionMetadata(position: PlaybackPositionData) {
         ...(position.episodeNumber === undefined
             ? {}
             : { episodeNumber: position.episodeNumber }),
+    };
+}
+
+/** Player snapshots use fractional seconds; the protocol stores whole seconds. */
+export function activityResume(position: PlaybackPositionData): ActivityResume {
+    const duration = Math.floor(position.durationSeconds ?? 0);
+    return {
+        positionSeconds: Math.max(0, Math.floor(position.positionSeconds)),
+        ...(Number.isFinite(duration) && duration > 0
+            ? { durationSeconds: duration }
+            : {}),
     };
 }
