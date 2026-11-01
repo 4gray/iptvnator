@@ -132,6 +132,11 @@ Recent collections also check the current catalog row's favorite status through
 the data source when loading: a retained favorite's matching provider key alone
 cannot mark an incompatible replacement as saved.
 
+Manual TMDB corrections retain the provider's identity claims separately from
+display metadata, so correcting a match keeps existing favorites usable without
+weakening these checks. See [manual matching](tmdb-metadata-enrichment.md#manual-match-correction)
+for the retained identity marker and persistence rules.
+
 `catalog_status` is `present`, `missing`, or `unknown`. Only a completed import
 of the relevant type can prove absence. Failed, cancelled and in-progress
 imports remain unknown. Collections and dashboard rails retain unresolved rows

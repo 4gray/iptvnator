@@ -4,6 +4,7 @@ import {
     loadTmdbMergers,
     mergeEpisodesWithTmdb,
     tmdbSeasonPosterUrl,
+    type TmdbMatchIdentity,
 } from '@iptvnator/services';
 import {
     XtreamSerieDetails,
@@ -11,6 +12,7 @@ import {
     getXtreamVodInfo,
     resolveEnrichmentSeasonNumber,
 } from '@iptvnator/shared/interfaces';
+import { preserveXtreamProviderIdentity } from '../xtream-content-metadata.util';
 
 /**
  * Async TMDB enrichment of the currently selected Xtream detail item.
@@ -25,6 +27,8 @@ import {
 interface EnrichableSelectionStore<TItem> {
     selectedItem: () => TItem | null;
     setSelectedItem: (item: TItem | null) => void;
+    currentPlaylist?: () => { id: string } | null;
+    resetTmdbSeasonMetadata?: (seriesId: string | number) => void;
 }
 
 type SelectionRecord = { readonly [key: string]: unknown };
@@ -39,8 +43,26 @@ export async function enrichVodSelectionWithTmdb<TItem extends SelectionRecord>(
         return;
     }
 
+    const playlistId = store.currentPlaylist?.()?.id;
+    const matchIdentity: TmdbMatchIdentity | undefined = playlistId
+        ? {
+              provider: 'xtream',
+              playlistId,
+              mediaType: 'movie',
+              itemId: String(vodId),
+          }
+        : undefined;
+    const matches = matchIdentity ? await enrichment.getMatches?.() : null;
+    if (matchIdentity && !matches) return;
+    const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
+
     const isCurrent = (): TItem | null => {
-        if (!isCurrentRequest()) {
+        if (
+            !isCurrentRequest() ||
+            (matchIdentity &&
+                (matches?.version(matchIdentity) !== version ||
+                    store.currentPlaylist?.()?.id !== playlistId))
+        ) {
             return null;
         }
         const item = store.selectedItem();
@@ -57,11 +79,30 @@ export async function enrichVodSelectionWithTmdb<TItem extends SelectionRecord>(
         return;
     }
 
+    if (matchIdentity && matches)
+        matches.register(store, matchIdentity, async () => {
+            const current = store.selectedItem();
+            if (
+                !isCurrentRequest() ||
+                store.currentPlaylist?.()?.id !== playlistId ||
+                String(current?.['stream_id']) !== String(vodId)
+            )
+                return;
+            store.setSelectedItem({ ...current, info } as unknown as TItem);
+            await enrichVodSelectionWithTmdb(
+                store,
+                enrichment,
+                vodId,
+                isCurrentRequest
+            );
+        });
+
     const details = await enrichment.enrichMovie({
         tmdbId: info.tmdb_id,
         title: info.name,
         originalTitle: info.o_name,
         year: extractYear(info.releasedate, info.name),
+        ...(matchIdentity ? { matchIdentity } : {}),
     });
     if (!details) {
         return;
@@ -81,7 +122,12 @@ export async function enrichVodSelectionWithTmdb<TItem extends SelectionRecord>(
     try {
         store.setSelectedItem({
             ...current,
-            info: mergers.mergeVodInfoWithTmdb(currentInfo, details),
+            info: preserveXtreamProviderIdentity(
+                info,
+                mergers.mergeVodInfoWithTmdb(currentInfo, details),
+                !!matchIdentity &&
+                    matches?.read(matchIdentity)?.mode === 'manual'
+            ),
         } as unknown as TItem);
     } catch (error) {
         // Never degrade provider data over a malformed payload shape
@@ -101,8 +147,26 @@ export async function enrichSerialSelectionWithTmdb<
         return;
     }
 
+    const playlistId = store.currentPlaylist?.()?.id;
+    const matchIdentity: TmdbMatchIdentity | undefined = playlistId
+        ? {
+              provider: 'xtream',
+              playlistId,
+              mediaType: 'tv',
+              itemId: String(serialId),
+          }
+        : undefined;
+    const matches = matchIdentity ? await enrichment.getMatches?.() : null;
+    if (matchIdentity && !matches) return;
+    const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
+
     const isCurrent = (): TItem | null => {
-        if (!isCurrentRequest()) {
+        if (
+            !isCurrentRequest() ||
+            (matchIdentity &&
+                (matches?.version(matchIdentity) !== version ||
+                    store.currentPlaylist?.()?.id !== playlistId))
+        ) {
             return null;
         }
         const item = store.selectedItem();
@@ -113,13 +177,45 @@ export async function enrichSerialSelectionWithTmdb<
 
     const selected = isCurrent() as unknown as XtreamSerieDetails | null;
     const info = selected?.info;
-    if (!info || Array.isArray(info) || !info.name) {
+    if (!info || Array.isArray(info)) {
         return;
     }
 
+    if (matchIdentity && matches)
+        matches.register(store, matchIdentity, async () => {
+            const current = store.selectedItem();
+            if (
+                !isCurrentRequest() ||
+                store.currentPlaylist?.()?.id !== playlistId ||
+                String(current?.['series_id']) !== String(serialId)
+            )
+                return;
+            store.resetTmdbSeasonMetadata?.(serialId);
+            store.setSelectedItem({
+                ...current,
+                info,
+                episodes: selected.episodes,
+                tmdb_season_overviews: undefined,
+                tmdb_season_posters: undefined,
+            } as unknown as TItem);
+            await enrichSerialSelectionWithTmdb(
+                store,
+                enrichment,
+                serialId,
+                isCurrentRequest
+            );
+        });
+
+    if (
+        !info.name?.trim() &&
+        (!matchIdentity || matches?.read(matchIdentity)?.mode !== 'manual')
+    )
+        return;
+
     const details = await enrichment.enrichTv({
-        title: info.name,
+        title: info.name ?? '',
         year: extractYear(info.releaseDate, info.name),
+        ...(matchIdentity ? { matchIdentity } : {}),
     });
     if (!details) {
         return;
@@ -137,7 +233,12 @@ export async function enrichSerialSelectionWithTmdb<
     try {
         store.setSelectedItem({
             ...current,
-            info: mergers.mergeSerieInfoWithTmdb(currentInfo, details),
+            info: preserveXtreamProviderIdentity(
+                info,
+                mergers.mergeSerieInfoWithTmdb(currentInfo, details),
+                !!matchIdentity &&
+                    matches?.read(matchIdentity)?.mode === 'manual'
+            ),
         } as unknown as TItem);
     } catch (error) {
         console.warn('[TMDB] series merge failed:', error);
@@ -178,6 +279,30 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
     }
 
     const providerSeasonNumber = Number(episodes[0]?.season ?? seasonKey);
+    const playlistId = store.currentPlaylist?.()?.id;
+    const matchIdentity: TmdbMatchIdentity | undefined = playlistId
+        ? {
+              provider: 'xtream',
+              playlistId,
+              mediaType: 'tv',
+              itemId: String(serialId),
+          }
+        : undefined;
+    const matches = matchIdentity ? await enrichment.getMatches?.() : null;
+    if (!isCurrentSelection() || (matchIdentity && !matches)) return;
+    const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
+    const isCurrentChoice = () => {
+        if (!matchIdentity) return true;
+        const choice = matches?.read(matchIdentity);
+        return (
+            store.currentPlaylist?.()?.id === playlistId &&
+            matches?.version(matchIdentity) === version &&
+            choice?.mode !== 'provider' &&
+            (choice?.mode !== 'manual' || choice.tmdbId === info.tmdb_id)
+        );
+    };
+    if (!isCurrentChoice()) return;
+
     if (!Number.isFinite(providerSeasonNumber)) {
         return;
     }
@@ -196,7 +321,8 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
     const seasonPoster = tmdbSeasonPosterUrl(season?.poster_path);
     if (
         (!tmdbEpisodes.length && !seasonOverview && !seasonPoster) ||
-        !isCurrentSelection()
+        !isCurrentSelection() ||
+        !isCurrentChoice()
     ) {
         return;
     }
@@ -206,6 +332,7 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
     const currentEpisodes = current?.episodes?.[seasonKey];
     if (
         !current ||
+        current.info?.tmdb_id !== info.tmdb_id ||
         String(current.series_id) !== String(serialId) ||
         !currentEpisodes?.length
     ) {

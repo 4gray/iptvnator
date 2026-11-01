@@ -1,6 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Injector, inject } from '@angular/core';
 import { TmdbMetadataClient } from '@iptvnator/shared/tmdb';
 import { TmdbMediaType } from '@iptvnator/shared/interfaces';
+import type { TmdbMatchService, TmdbMatchIdentity } from './tmdb-match.service';
 import { TmdbApiService } from './tmdb-api.service';
 import { TmdbCacheService } from './tmdb-cache.service';
 import { TmdbIdResolverService } from './tmdb-id-resolver.service';
@@ -16,9 +17,17 @@ import {
     TmdbPersonDetails,
     TmdbSeasonDetails,
     TmdbTrendingEntry,
+    TmdbEnrichmentQuery,
+    TmdbMovieDetails,
+    TmdbTvDetails,
 } from './tmdb.types';
+
+export interface TmdbSelectionQuery extends TmdbEnrichmentQuery {
+    matchIdentity?: TmdbMatchIdentity;
+}
 @Injectable({ providedIn: 'root' })
 export class TmdbEnrichmentService extends TmdbMetadataClient {
+    private readonly injector = inject(Injector);
     private readonly person = inject(TmdbPersonService);
     private readonly season = inject(TmdbSeasonService);
     private readonly trending = inject(TmdbTrendingService);
@@ -31,6 +40,45 @@ export class TmdbEnrichmentService extends TmdbMetadataClient {
             inject(TmdbIdResolverService)
         );
     }
+
+    /** Item choices are detail-only; keep their storage service off startup. */
+    getMatches(): Promise<TmdbMatchService | null> {
+        return import('./tmdb-match.service')
+            .then(({ TmdbMatchService }) =>
+                this.injector.get(TmdbMatchService, null)
+            )
+            .catch(() => null);
+    }
+    override async enrichMovie(
+        query: TmdbSelectionQuery
+    ): Promise<TmdbMovieDetails | null> {
+        if (!this.isEnabled()) return null;
+        const matches = query.matchIdentity ? await this.getMatches() : null;
+        if (query.matchIdentity && !matches) return null;
+        const choice =
+            query.matchIdentity && matches?.read(query.matchIdentity);
+        if (choice?.mode === 'provider') return null;
+        if (choice?.mode !== 'manual') return super.enrichMovie(query);
+        return this.getDetailsForMatch('movie', choice.tmdbId).catch(
+            () => null
+        ) as Promise<TmdbMovieDetails | null>;
+    }
+
+    override async enrichTv(
+        query: TmdbSelectionQuery
+    ): Promise<TmdbTvDetails | null> {
+        if (!this.isEnabled()) return null;
+        const matches = query.matchIdentity ? await this.getMatches() : null;
+        if (query.matchIdentity && !matches) return null;
+        const choice =
+            query.matchIdentity && matches?.read(query.matchIdentity);
+        if (choice?.mode === 'provider') return null;
+        if (choice?.mode !== 'manual') return super.enrichTv(query);
+        return this.getDetailsForMatch('tv', choice.tmdbId).catch(
+            () => null
+        ) as Promise<TmdbTvDetails | null>;
+    }
+
     async getSeasonEpisodes(
         tmdbId: number,
         seasonNumber: number

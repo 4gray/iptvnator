@@ -22,6 +22,8 @@ export interface StalkerVodDetails {
 }
 
 export interface StalkerVodInfo {
+    /** Original provider metadata, retained across enriched favorites/recent snapshots. */
+    tmdb_provider_info?: Omit<StalkerVodInfo, 'tmdb_provider_info'>;
     /** All country classifications supplied by TMDB. */
     tmdb_certifications?: readonly ContentCertification[];
     /** Poster/cover image URL */

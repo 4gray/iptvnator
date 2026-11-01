@@ -2,6 +2,7 @@ import {
     TmdbEnrichmentService,
     extractYear,
     loadTmdbMergers,
+    type TmdbMatchIdentity,
 } from '@iptvnator/services';
 import { StalkerVodInfo, TmdbMediaType } from '@iptvnator/shared/interfaces';
 import { StalkerVodSource } from '../models';
@@ -24,6 +25,8 @@ import {
 
 interface StalkerEnrichableStore {
     selectedItem: () => StalkerVodSource | null | undefined;
+    currentPlaylist?: () => { _id?: string } | undefined;
+    selectedContentType?: () => string;
 }
 
 export function stalkerSelectionMediaType(
@@ -42,33 +45,98 @@ export async function enrichStalkerSelectionWithTmdb(
     mediaType: TmdbMediaType,
     applyEnrichedItem: (enriched: StalkerVodSource) => void
 ): Promise<void> {
-    if (!enrichment.isEnabled()) {
-        return;
-    }
-
-    const info = item.info as Partial<StalkerVodInfo> | null | undefined;
-    const title = info?.name?.trim();
-    if (!title || title === 'Unknown') {
-        return;
-    }
+    const info = (item.info?.tmdb_provider_info ??
+        item.info ??
+        {}) as Partial<StalkerVodInfo>;
+    const title = info?.name?.trim() ?? '';
 
     const itemId = firstNonBlankStalkerIdText(item.id, item.stream_id);
+    const playlistId = store.currentPlaylist?.()?._id;
+    const contentType = store.selectedContentType?.();
+    const matchIdentity: TmdbMatchIdentity | undefined =
+        playlistId && itemId
+            ? {
+                  provider: 'stalker',
+                  playlistId,
+                  mediaType,
+                  itemId,
+                  catalog: contentType === 'series' ? 'series' : 'vod',
+              }
+            : undefined;
+    const matches = matchIdentity ? await enrichment.getMatches?.() : null;
+    const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
     const isCurrent = (): StalkerVodSource | null => {
+        if (
+            matchIdentity &&
+            (store.currentPlaylist?.()?._id !== playlistId ||
+                store.selectedContentType?.() !== contentType ||
+                matches?.version(matchIdentity) !== version)
+        )
+            return null;
         const current = store.selectedItem();
         if (!current) {
             return null;
         }
-        const matches = itemId
+        const sameEntity = itemId
             ? firstNonBlankStalkerIdText(current.id, current.stream_id) ===
               itemId
             : current === item;
-        return matches ? current : null;
+        return sameEntity ? current : null;
     };
+
+    // Loading choice storage may finish after a different selection registered.
+    if (!isCurrent()) return;
+    if (matchIdentity && matches) {
+        matches.register(store, matchIdentity, async () => {
+            // The old request version is intentionally not checked on explicit refresh.
+            const current = store.selectedItem();
+            if (
+                store.currentPlaylist?.()?._id !== playlistId ||
+                store.selectedContentType?.() !== contentType ||
+                !current ||
+                firstNonBlankStalkerIdText(current.id, current.stream_id) !==
+                    itemId
+            )
+                return;
+            const restored = { ...current, info };
+            applyEnrichedItem(restored);
+            await enrichStalkerSelectionWithTmdb(
+                store,
+                enrichment,
+                restored,
+                mediaType,
+                applyEnrichedItem
+            );
+        });
+    }
+
+    // A saved enriched snapshot must also honor a provider-only choice on reopen.
+    if (
+        item.info?.tmdb_provider_info ||
+        !enrichment.isEnabled() ||
+        (matchIdentity && matches?.read(matchIdentity)?.mode === 'provider')
+    ) {
+        const current = isCurrent();
+        if (current) applyEnrichedItem({ ...current, info });
+    }
+    if (
+        !enrichment.isEnabled() ||
+        (matchIdentity && !matches) ||
+        (matchIdentity && matches?.read(matchIdentity)?.mode === 'provider')
+    )
+        return;
+
+    if (
+        (!title || title === 'Unknown') &&
+        (!matchIdentity || matches?.read(matchIdentity)?.mode !== 'manual')
+    )
+        return;
 
     const query = {
         title,
         originalTitle: info?.o_name,
         year: extractYear(info?.releasedate, title),
+        ...(matchIdentity ? { matchIdentity } : {}),
     };
     const details =
         mediaType === 'tv'
@@ -82,19 +150,21 @@ export async function enrichStalkerSelectionWithTmdb(
     if (!mergers) return;
 
     const current = isCurrent();
-    const currentInfo = current?.info as StalkerVodInfo | null | undefined;
-    if (!current || !currentInfo?.name) {
+    if (!current) {
         return;
     }
 
     try {
         applyEnrichedItem({
             ...current,
-            info: mergers.mergeStalkerInfoWithTmdb(
-                currentInfo,
-                details,
-                mediaType
-            ),
+            info: {
+                ...mergers.mergeStalkerInfoWithTmdb(
+                    info as StalkerVodInfo,
+                    details,
+                    mediaType
+                ),
+                tmdb_provider_info: info as StalkerVodInfo,
+            },
         });
     } catch (error) {
         // Never degrade provider data over a malformed payload shape

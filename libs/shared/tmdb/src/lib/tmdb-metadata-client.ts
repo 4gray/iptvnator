@@ -56,6 +56,21 @@ export class TmdbMetadataClient {
         return (await this.enrich('tv', query)) as TmdbTvDetails | null;
     }
 
+    /** A user-selected identity bypasses title matching, while retaining opt-in and caching. */
+    async getDetailsForMatch(
+        mediaType: TmdbMediaType,
+        tmdbId: number
+    ): Promise<TmdbDetails | null> {
+        if (!this.isEnabled() || !Number.isInteger(tmdbId) || tmdbId <= 0)
+            return null;
+        try {
+            return await this.getDetails(mediaType, tmdbId);
+        } catch {
+            this.report(`TMDB ${mediaType} manual match unavailable.`);
+            return null;
+        }
+    }
+
     private async enrich(
         mediaType: TmdbMediaType,
         query: TmdbEnrichmentQuery

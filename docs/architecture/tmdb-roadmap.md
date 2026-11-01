@@ -12,6 +12,10 @@ Emby, Stremio and Kodi present metadata. Line numbers reference the state
 of the repo at that date and will drift — treat them as pointers, not
 addresses.
 
+Manual match correction (F2 / recommendation 8) now ships in Stalker and Xtream
+movie/series detail menus. Its persistence, provider-only mode and reset behavior
+are specified in [TMDB Metadata Enrichment](./tmdb-metadata-enrichment.md#manual-match-correction).
+
 > Three items in here are **defects in shipped code**, not features:
 > A1 (broken provider `tmdb_id` suppresses enrichment), A2 (series cast is
 > latest-season-only) and F1 (cache retention exceeds the TMDB ToS limit).
@@ -146,7 +150,7 @@ Realistic: **H, multi-PR.** Worth doing eventually; not worth doing next.
 | #   | Idea                                       | Effort |
 | --- | ------------------------------------------ | ------ |
 | F1  | **6-month cache TTL sweep + purge button** | L+     |
-| F2  | **"Wrong movie?" manual match override**   | M      |
+| F2  | **"Wrong movie?" manual match override — implemented** | M      |
 
 F1 is a **live compliance gap in shipped code**, not a feature. `tmdb.operations.ts` has only `get`/`set`; `setTmdbMetadata` uses `onConflictDoUpdate`, so untouched rows persist forever. The ToS caps retention at 6 months. `fetched_at` already exists (`schema.ts:376`).
 
@@ -293,5 +297,5 @@ Zero i18n keys. Zero UI change.
 2. **Extras shelf** + **series structure** — pure zero-call presentation wins off already-cached payloads
 3. **Consolidated v3 append PR** — `images` + `release_dates`/`content_ratings` + `alternative_titles` + `aggregate_credits`, with payload trimming, mediaType-scoped key
 4. **Title logos** and remaining cast/artwork work — certification already ships through the focused path above; recheck the cast implementation before planning another bump
-5. **"Because you watched X"** + **"Wrong movie?" override** — the two strategic bets
+5. **"Because you watched X"** — the remaining strategic bet; manual match override now ships
 6. **Theme E** (library index) — only after A5 (backoff), batched cache ops, and a personal-key gate exist

@@ -201,6 +201,7 @@ type TmdbEnrichmentKey = Extract<keyof StalkerVodInfo, `tmdb_${string}`>;
  * and a field this list missed would vanish right after enrichment.
  */
 const TMDB_ENRICHMENT_KEYS: Record<TmdbEnrichmentKey, true> = {
+    tmdb_provider_info: true,
     tmdb_id: true,
     tmdb_certifications: true,
     tmdb_cast: true,

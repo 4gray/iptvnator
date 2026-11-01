@@ -97,6 +97,7 @@ import {
     CrossPortalSimilarService,
     PlaybackPositionRuntimeBridgeService,
     TmdbEnrichmentService,
+    type TmdbMatchContext,
     injectTranslationTick,
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
@@ -231,6 +232,25 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly providerOnly = input(false);
 
     readonly selectedItem = this.stalkerStore.selectedItem;
+    readonly tmdbMatch = computed<TmdbMatchContext | null>(() => {
+        const item = this.displayItem();
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        if (!item?.id || !playlistId) return null;
+        return {
+            identity: {
+                provider: 'stalker',
+                catalog:
+                    this.stalkerStore.selectedContentType() === 'series'
+                        ? 'series'
+                        : 'vod',
+                playlistId,
+                mediaType: 'tv',
+                itemId: String(item.id),
+            },
+            title: item.info.name,
+            tmdbId: item.info.tmdb_id,
+        };
+    });
 
     private readonly tmdbSeasons = inject(StalkerSeriesTmdbSeasonsService);
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);

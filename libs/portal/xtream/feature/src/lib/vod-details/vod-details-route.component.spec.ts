@@ -5,7 +5,10 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { NEVER, of } from 'rxjs';
 import { Location } from '@angular/common';
-import { ContentHeroComponent } from '@iptvnator/ui/components';
+import {
+    ContentHeroComponent,
+    VodMoreMenuComponent,
+} from '@iptvnator/ui/components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -215,6 +218,33 @@ describe('VodDetailsRouteComponent', () => {
     afterEach(() => {
         consoleDebugSpy?.mockRestore();
         consoleWarnSpy?.mockRestore();
+    });
+
+    it('passes the route movie correction context to the actual detail menu', () => {
+        currentPlaylist.set({ id: 'source-a' });
+        selectedItem.set({
+            stream_id: 650020,
+            info: { name: 'Movie', tmdb_id: 603 },
+        } as unknown as XtreamVodDetails);
+        fixture.detectChanges();
+        const menu = fixture.debugElement.query(
+            By.directive(VodMoreMenuComponent)
+        );
+        expect(menu.componentInstance.tmdbMatch()).toEqual({
+            identity: {
+                provider: 'xtream',
+                playlistId: 'source-a',
+                mediaType: 'movie',
+                itemId: '650020',
+            },
+            title: 'Movie',
+            tmdbId: 603,
+        });
+        currentPlaylist.set({ id: 'source-b' });
+        fixture.detectChanges();
+        expect(menu.componentInstance.tmdbMatch().identity.playlistId).toBe(
+            'source-b'
+        );
     });
 
     it('keeps the fallback visible and exposes actions when catalog playback fields are usable', () => {

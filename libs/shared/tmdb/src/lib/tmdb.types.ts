@@ -6,6 +6,9 @@
 
 export interface TmdbSearchResult {
     id: number;
+    original_language?: string;
+    origin_country?: string[];
+    overview?: string;
     /** Movie results */
     title?: string;
     original_title?: string;

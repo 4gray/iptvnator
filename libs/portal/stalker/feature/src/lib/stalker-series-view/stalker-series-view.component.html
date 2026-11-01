@@ -132,6 +132,7 @@
                 [item]="serial"
             />
             <app-vod-more-menu
+                [tmdbMatch]="tmdbMatch()"
                 [sections]="menu.sections()"
                 [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
                 testId="series-more-menu"

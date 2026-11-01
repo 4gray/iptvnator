@@ -9,6 +9,7 @@ import { TmdbRuntimeService } from './tmdb-runtime.service';
 import { TmdbSeasonService } from './tmdb-season.service';
 import { TmdbTrendingService } from './tmdb-trending.service';
 import { TmdbMovieDetails } from './tmdb.types';
+import { TmdbMatchService, type TmdbMatchIdentity } from './tmdb-match.service';
 
 /**
  * Regression coverage for provider-supplied `tmdb_id` handling. Panels
@@ -18,9 +19,9 @@ import { TmdbMovieDetails } from './tmdb.types';
  */
 describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
     const matrix: TmdbMovieDetails = {
-        id: 603,
-        title: 'The Matrix',
-        original_title: 'The Matrix',
+        id: 900001,
+        title: 'Synthetic Movie Alpha',
+        original_title: 'Synthetic Movie Alpha',
         overview: 'Plot',
         videos: { results: [{ key: 'k', site: 'YouTube', type: 'Trailer' }] },
     };
@@ -40,9 +41,12 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
 
     // The services Jest target has no @angular/core/testing — build the
     // service in a plain injection context instead of TestBed.
-    function createService(): TmdbEnrichmentService {
+    function createService(
+        matches: TmdbMatchService | null = null
+    ): TmdbEnrichmentService {
         const injector = Injector.create({
             providers: [
+                { provide: TmdbMatchService, useValue: matches },
                 {
                     provide: TmdbRuntimeService,
                     useValue: {
@@ -95,35 +99,82 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         const service = createService();
 
         const details = await service.enrichMovie({
-            tmdbId: 603,
-            title: 'The Matrix',
+            tmdbId: 900001,
+            title: 'Synthetic Movie Alpha',
         });
 
-        expect(details?.id).toBe(603);
+        expect(details?.id).toBe(900001);
         expect(getMovieDetails).toHaveBeenCalledTimes(1);
         expect(resolveBySearch).not.toHaveBeenCalled();
         expect(rememberBadProviderId).not.toHaveBeenCalled();
+    });
+
+    it('honors an explicit user match even when its title and year contradict the provider', async () => {
+        const matches = new TmdbMatchService();
+        const matchIdentity: TmdbMatchIdentity = {
+            provider: 'xtream',
+            playlistId: 'manual-movie',
+            mediaType: 'movie',
+            itemId: '42',
+        };
+        await matches.save(matchIdentity, {
+            mode: 'manual',
+            tmdbId: 999,
+            title: 'Other film',
+        });
+        getMovieDetails.mockResolvedValue(unrelated);
+        const service = createService(matches);
+        expect(
+            (
+                await service.enrichMovie({
+                    title: 'Synthetic Movie Alpha',
+                    year: 1999,
+                    tmdbId: 900001,
+                    matchIdentity,
+                })
+            )?.id
+        ).toBe(999);
+        expect(getMovieDetails).toHaveBeenCalledWith(999, 'en-US', 'key');
+        expect(resolveBySearch).not.toHaveBeenCalled();
+        await matches.save(matchIdentity, { mode: 'provider' });
+        getMovieDetails.mockClear();
+        expect(
+            await service.enrichMovie({
+                title: 'Synthetic Movie Alpha',
+                tmdbId: 900001,
+                matchIdentity,
+            })
+        ).toBeNull();
+        expect(getMovieDetails).not.toHaveBeenCalled();
+        await matches.save(matchIdentity, null);
+        getMovieDetails.mockResolvedValue(matrix);
+        expect(
+            (
+                await service.enrichMovie({
+                    title: 'Synthetic Movie Alpha',
+                    tmdbId: 900001,
+                    matchIdentity,
+                })
+            )?.id
+        ).toBe(900001);
     });
 
     it('falls back to the title search when the provider id 404s', async () => {
         getMovieDetails
             .mockRejectedValueOnce(new TmdbApiError(404, 'Not Found'))
             .mockResolvedValueOnce(matrix);
-        resolveBySearch.mockResolvedValue(603);
+        resolveBySearch.mockResolvedValue(900001);
         const service = createService();
 
         const details = await service.enrichMovie({
             tmdbId: 123456789,
-            title: 'The Matrix',
+            title: 'Synthetic Movie Alpha',
         });
 
         // Previously this returned null: the dead id skipped the search
-        expect(details?.id).toBe(603);
+        expect(details?.id).toBe(900001);
         expect(resolveBySearch).toHaveBeenCalledTimes(1);
-        expect(rememberBadProviderId).toHaveBeenCalledWith(
-            'movie',
-            123456789
-        );
+        expect(rememberBadProviderId).toHaveBeenCalledWith('movie', 123456789);
     });
 
     it('prefers a confident search match over a stale provider id', async () => {
@@ -131,16 +182,16 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         getMovieDetails
             .mockResolvedValueOnce(unrelated)
             .mockResolvedValueOnce(matrix);
-        resolveBySearch.mockResolvedValue(603);
+        resolveBySearch.mockResolvedValue(900001);
         const service = createService();
 
         const details = await service.enrichMovie({
             tmdbId: 999,
-            title: 'The Matrix',
+            title: 'Synthetic Movie Alpha',
             year: 1999,
         });
 
-        expect(details?.id).toBe(603);
+        expect(details?.id).toBe(900001);
         // The id EXISTS — it is just wrong for this item. The bad-id row is
         // keyed by id alone and shared across playlists, so recording a
         // per-item mismatch would deny the direct lookup to every other
@@ -155,7 +206,10 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         resolveBySearch.mockResolvedValue(null);
         const service = createService();
 
-        await service.enrichMovie({ tmdbId: 603, title: 'The Matrix' });
+        await service.enrichMovie({
+            tmdbId: 900001,
+            title: 'Synthetic Movie Alpha',
+        });
 
         expect(rememberBadProviderId).not.toHaveBeenCalled();
     });
@@ -164,12 +218,12 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         // The search would hit the same outage, and a title match that
         // does come back is weaker evidence than the id we already have
         getMovieDetails.mockRejectedValue(new TmdbApiError(503, 'Down'));
-        resolveBySearch.mockResolvedValue(603);
+        resolveBySearch.mockResolvedValue(900001);
         const service = createService();
 
         const details = await service.enrichMovie({
-            tmdbId: 603,
-            title: 'The Matrix',
+            tmdbId: 900001,
+            title: 'Synthetic Movie Alpha',
         });
 
         expect(details).toBeNull();
@@ -181,7 +235,10 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         resolveBySearch.mockResolvedValue(null);
         const service = createService();
 
-        await service.enrichMovie({ tmdbId: 603, title: 'The Matrix' });
+        await service.enrichMovie({
+            tmdbId: 900001,
+            title: 'Synthetic Movie Alpha',
+        });
 
         expect(rememberBadProviderId).not.toHaveBeenCalled();
     });
@@ -196,7 +253,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
 
         const details = await service.enrichMovie({
             tmdbId: 999,
-            title: 'Ирония судьбы',
+            title: 'Синтетический фильм Бета',
             year: 1979,
         });
 
@@ -262,7 +319,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
 
         const details = await service.enrichMovie({
             tmdbId: 999,
-            title: 'Ирония судьбы',
+            title: 'Синтетический фильм Бета',
             year: 1999,
         });
 
@@ -271,18 +328,18 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
 
     it('skips a provider id already known to be bad', async () => {
         isKnownBadProviderId.mockResolvedValue(true);
-        resolveBySearch.mockResolvedValue(603);
+        resolveBySearch.mockResolvedValue(900001);
         const service = createService();
 
         const details = await service.enrichMovie({
             tmdbId: 123456789,
-            title: 'The Matrix',
+            title: 'Synthetic Movie Alpha',
         });
 
-        expect(details?.id).toBe(603);
+        expect(details?.id).toBe(900001);
         // One details call for the searched id — none for the dead one
         expect(getMovieDetails).toHaveBeenCalledTimes(1);
-        expect(getMovieDetails).toHaveBeenCalledWith(603, 'en-US', 'key');
+        expect(getMovieDetails).toHaveBeenCalledWith(900001, 'en-US', 'key');
     });
 
     it('returns null when there is no provider id and no search match', async () => {
