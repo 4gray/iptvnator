@@ -1,9 +1,11 @@
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 import {
     EpgPreferencesService,
+    EpgSourceSettingsService,
     DataService,
     PlaylistsService,
     RuntimeCapabilitiesService,
@@ -104,6 +106,7 @@ export class StreamResolverService {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly epgPreferences = inject(EpgPreferencesService);
+    private readonly epgSources = inject(EpgSourceSettingsService);
     private readonly settingsStore = inject(SettingsStore);
 
     /**
@@ -132,6 +135,13 @@ export class StreamResolverService {
     private readonly xtreamEpgFailureTimestamps = new Map<string, number>();
     private readonly xtreamEpgCacheTtlMs = 60 * 1000;
     private readonly xtreamEpgFailureCooldownMs = 30 * 1000;
+
+    constructor() {
+        this.epgSources.changed$.pipe(takeUntilDestroyed()).subscribe(() => {
+            this.xtreamEpgCache.clear();
+            this.xtreamEpgFailureTimestamps.clear();
+        });
+    }
 
     /** Local XMLTV: M3U guides, `epg_channel_id` matches, manual mappings. */
     private get supportsProgramLookup(): boolean {
@@ -1173,6 +1183,7 @@ export class StreamResolverService {
         }
 
         const { offsetMinutes, wallNowMs } = clock;
+        const revision = this.epgSources.revision();
         const cacheKey = this.getXtreamEpgCacheKey(
             playlistId,
             streamId,
@@ -1212,6 +1223,7 @@ export class StreamResolverService {
                           wallNowMs
                       );
 
+            if (revision !== this.epgSources.revision()) return [];
             this.xtreamEpgCache.set(cacheKey, {
                 data: items,
                 timestamp: Date.now(),
@@ -1219,6 +1231,7 @@ export class StreamResolverService {
             this.xtreamEpgFailureTimestamps.delete(cacheKey);
             return items;
         } catch {
+            if (revision !== this.epgSources.revision()) return [];
             this.xtreamEpgFailureTimestamps.set(cacheKey, Date.now());
             return [];
         }

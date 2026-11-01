@@ -179,8 +179,11 @@ export function applyEpgUrlsToFormArray(
         .map((url) => url.trim())
         .filter((url) => url !== '');
 
+    const disabled = epgUrl.disabled;
     filteredUrls.forEach((url) => {
-        epgUrl.push(createEpgUrlControl(url));
+        const control = createEpgUrlControl(url);
+        if (disabled) control.disable({ emitEvent: false });
+        epgUrl.push(control);
     });
 }
 
