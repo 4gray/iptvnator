@@ -346,6 +346,10 @@ export function getScenario(
     username: string,
     password: string
 ): ScenarioConfig {
+    // Per-test PWA accounts retain the default catalog and seed.
+    if (/^pwa-[a-f0-9]{32}$/.test(username) && password === 'pass1') {
+        return SCENARIOS['user1:pass1'];
+    }
     const key = `${username}:${password}`;
     if (SCENARIOS[key]) return SCENARIOS[key];
     return {

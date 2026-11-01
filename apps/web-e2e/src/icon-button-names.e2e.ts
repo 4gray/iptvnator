@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { expect, test } from './fixtures';
+import { expect, test } from './pwa-mock.fixture';
 import { CLIP_TITLE, importPlaylist } from './player-settings-panel.fixture';
 import {
     addM3uUrlPlaylist,
@@ -8,7 +8,6 @@ import {
     interceptPwaProviderRequests,
     openSourceEditor,
     openSources,
-    resetPwaMockServers,
     sourceRowByTitle,
     XTREAM_MOCK_SERVER,
 } from './sources-pwa.helpers';
@@ -67,8 +66,7 @@ async function closeDialog(page: Page, dialog: Locator) {
     await expect(dialog).toBeHidden();
 }
 
-test.beforeEach(async ({ page, request }) => {
-    await resetPwaMockServers(request);
+test.beforeEach(async ({ page }) => {
     await interceptPwaProviderRequests(page);
     await page.goto('/');
 });
@@ -141,14 +139,15 @@ test('@a11y icon-only buttons are named in Sources and the playlist info dialog'
 test('@a11y icon-only buttons are named in an Xtream catalog search', async ({
     page,
     request,
+    pwaMocks,
 }) => {
-    await addXtreamPortal(page, XTREAM_TITLE);
+    await addXtreamPortal(page, XTREAM_TITLE, pwaMocks);
 
     // Search for a word from a movie the portal serves, so the results grid
     // renders cards. The PWA searches the catalog it holds in memory, so stay
     // in the app instead of reloading into the search route.
     const response = await request.get(
-        `${XTREAM_MOCK_SERVER}/player_api.php?username=user1&password=pass1&action=get_vod_streams`
+        `${XTREAM_MOCK_SERVER}/player_api.php?username=${pwaMocks.username}&password=${pwaMocks.password}&action=get_vod_streams`
     );
     expect(response.ok()).toBeTruthy();
     const [movie] = (await response.json()) as { name: string }[];

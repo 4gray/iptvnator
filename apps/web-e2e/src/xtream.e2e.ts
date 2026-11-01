@@ -96,7 +96,7 @@ async function openPlaylistDetailsDialog(page: Page, title: string) {
 // ---------------------------------------------------------------------------
 
 test.beforeEach(async ({ page, request }) => {
-    await request.post(`${MOCK_SERVER}/reset`);
+    await request.post(`${MOCK_SERVER}/reset?username=user1&password=pass1`);
 
     await configureMockProviderBackend(page);
 
@@ -385,7 +385,7 @@ test('@xtream reset — data regenerates identically after reset', async ({
     const url = `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_live_categories`;
 
     const before = await (await request.get(url)).json();
-    await request.post(`${MOCK_SERVER}/reset`);
+    await request.post(`${MOCK_SERVER}/reset?username=user1&password=pass1`);
     const after = await (await request.get(url)).json();
 
     // Data is deterministic: same after reset
