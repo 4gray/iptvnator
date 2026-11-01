@@ -9,6 +9,11 @@
             "setup": ["open-cinematic-dashboard"]
         },
         {
+            "slug": "dashboard-live-channels",
+            "title": "Cinematic dashboard with live channels and current EPG",
+            "setup": ["open-cinematic-live-dashboard"]
+        },
+        {
             "slug": "xtream-vod-details",
             "title": "Movie opened from the dashboard",
             "setup": ["open-cinematic-movie"]

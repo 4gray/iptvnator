@@ -1,7 +1,7 @@
 # Cinematic release demo
 
 The release 0.25 preset shows the real Electron UI with original fictional
-films, series, cast names and artwork. It captures the dashboard, a movie
+films, series, cast names and artwork. It captures two dashboard variants, a movie
 opened from its favorites rail, and a series with its first season expanded,
 in dark and light themes. The application UI and normal account data are not
 modified by the preset.
@@ -14,6 +14,9 @@ Use the repository Node and pnpm versions, then build the capture runtime:
 pnpm install --frozen-lockfile
 pnpm nx run electron-backend:build-e2e
 pnpm demo:cinematic
+
+# Alternate dashboard: Continue Watching, then live channels with current EPG
+pnpm demo:cinematic:live
 ```
 
 The launcher starts or verifies the local Xtream mock on port 3211, creates
@@ -23,6 +26,13 @@ dashboard with Black Harbor selected. Explore the other carousel slides,
 favorites and series normally. Press Enter in the terminal, Ctrl+C, or close
 the demo window to finish; the temporary profile is removed. Changes made
 inside this preview do not persist between runs.
+
+The live variant additionally favorites eight fictional channels with original
+local SVG logos and the mock's rolling programme guide. News, sports, family,
+documentary and music channels lead the row. It uses the application's real
+EPG lookup, programme names, time ranges and progress bars; playback is not
+started. The original dashboard variant clears these extra live favorites
+before capture, including when both variants run sequentially in both themes.
 
 To use the catalog in an existing development app instead, run
 `pnpm nx run xtream-mock-server:serve` and add an Xtream source with host
@@ -36,6 +46,7 @@ account is needed to run either scenario.
 ```bash
 pnpm release:screenshots --cinematic --release v0-25
 pnpm release:screenshots --cinematic --release v0-25 --only dashboard --theme dark
+pnpm release:screenshots --cinematic --release v0-25 --only dashboard-live-channels
 ```
 
 The preset reads `tools/release/screenshots.cinematic.manifest.json`, uses a
@@ -45,12 +56,18 @@ and waits for fonts, image decoding and transitions before saving PNGs.
 Outputs are in `apps/website/public/blog/v0-25/screenshots/`:
 
 - `dashboard-{dark,light}.png`
+- `dashboard-live-channels-{dark,light}.png`
 - `xtream-vod-details-{dark,light}.png`
 - `xtream-series-season-open-{dark,light}.png`
 
-Cinematic captures overlay those three pairs, preserving other release
+Cinematic captures overlay those four pairs, preserving other release
 screenshots. If producing the full release set, run the standard capture
 first, then the cinematic preset. The standard manifest remains unchanged.
+
+The live shot additionally waits for decoded channel icons and current EPG on
+the visible cards. Its frame guard requires at least four distinct channels,
+their names, programme titles, time labels and active progress bars, fully
+visible below Continue Watching.
 
 ## Offline metadata and isolation
 

@@ -59,3 +59,18 @@ release-note exempt. Update the canonical mock and screenshot documentation.
   non-null-assertion warnings. Release-note and agent-guidance validation passed.
 - The Electron E2E build passed. Embedded MPV was unavailable in this checkout;
   the screenshot scenario does not start playback. No CI was dispatched.
+
+## Additional live dashboard variant
+
+The follow-up adds `dashboard-live-channels-{dark,light}.png` alongside the
+original images. Continue Watching remains first; eight synthetic live favorites
+provide original local logos, current programme titles, time ranges and progress
+in the second rail. The first cards span news, sports, family, documentary and
+music. `pnpm demo:cinematic:live` opens this variant interactively.
+
+The frame guard checks loaded EPG/icons, distinct channels and visibility below
+the movie rail. Full sequential capture of all eight frames passes with 182
+distinct local requests and the existing isolation guards. Release tooling has
+230 existing tests plus seven cinematic tests, with typecheck and lint passing.
+All six original committed screenshots remain byte-for-byte unchanged. This is
+mock/capture tooling only and needs no user-facing release note.

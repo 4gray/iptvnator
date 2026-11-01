@@ -24,6 +24,9 @@ pnpm run serve:marketing-demo:web
 # Open a disposable Electron profile with cinematic artwork and seeded rails
 # First build: pnpm nx run electron-backend:build-e2e
 pnpm demo:cinematic
+
+# Alternate dashboard with live channel logos and the current programme guide
+pnpm demo:cinematic:live
 ```
 
 ---
@@ -273,7 +276,7 @@ artwork keeps the deterministic SVG fallback. Assets are served from:
 apps/xtream-mock-server/public/marketing/{poster,backdrop,episode}/
 ```
 
-For the seeded interactive demo, six release screenshots, saved cinematic
+For the seeded interactive demos, eight release screenshots, saved cinematic
 prompts and offline validation, follow the
 [cinematic demo guide](../../docs/development/cinematic-demo.md).
 

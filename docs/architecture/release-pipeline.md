@@ -162,11 +162,11 @@ metadata are copyrighted, and credentials must never reach a published image.
 
 For the release 0.25 dashboard and detail showcase, run
 `pnpm release:screenshots --cinematic --release v0-25` after the standard
-capture. This overlays three screenshot pairs using committed original artwork
+capture. This overlays four screenshot pairs using committed original artwork
 and a synthetic offline metadata cache. The default capture keeps enrichment
 disabled; the explicit preset accepts only its invalid fixture key and retains
 the external-request and personal-database guards. Saved prompts, the interactive
-`pnpm demo:cinematic` launcher and validation commands are in the
+`pnpm demo:cinematic` / `pnpm demo:cinematic:live` launchers and validation commands are in the
 [cinematic demo guide](../development/cinematic-demo.md).
 
 The same script also produces the evergreen screenshots of the website guides.

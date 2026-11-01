@@ -5,6 +5,11 @@ import {
     openXtreamSection,
     requirePlaylistId,
 } from './capture-navigation-helpers';
+import {
+    assertCinematicLiveFrame,
+    setCinematicLiveFavorites,
+    waitForCinematicLiveEpg,
+} from './capture-cinematic-live';
 
 export async function seedCinematicActivity(page: Page): Promise<void> {
     const playlistId = requirePlaylistId('xtreams');
@@ -66,6 +71,17 @@ export async function seedCinematicActivity(page: Page): Promise<void> {
 }
 
 export async function openCinematicDashboard(page: Page): Promise<void> {
+    await setCinematicLiveFavorites(page, false);
+    await showCinematicDashboard(page);
+}
+
+export async function openCinematicLiveDashboard(page: Page): Promise<void> {
+    await setCinematicLiveFavorites(page, true);
+    await showCinematicDashboard(page);
+    await waitForCinematicLiveEpg(page);
+}
+
+async function showCinematicDashboard(page: Page): Promise<void> {
     await page
         .locator('app-workspace-shell-rail a[href$="/workspace/dashboard"]')
         .click();
@@ -161,17 +177,29 @@ export async function settleCinematicFrame(
         await Promise.all(images.map((image) => image.decode()));
     });
     await page.waitForTimeout(600);
-    if (slug === 'dashboard') {
+    if (slug === 'dashboard' || slug === 'dashboard-live-channels') {
         const title = await page
             .locator('[data-test-id="dashboard-hero-slide"] .hero__title')
             .textContent();
         if (title?.trim() !== 'Black Harbor')
             throw new Error('Cinematic hero changed before capture');
     }
+    if (
+        slug === 'dashboard' &&
+        (await page
+            .locator('[data-test-id="dashboard-live-favorites-rail"]')
+            .count())
+    )
+        throw new Error(
+            'Live fixtures leaked into the original dashboard variant'
+        );
+    if (slug === 'dashboard-live-channels')
+        await assertCinematicLiveFrame(page);
 }
 
 export const CINEMATIC_ACTIONS: Readonly<Record<string, CaptureAction>> = {
     'open-cinematic-dashboard': openCinematicDashboard,
+    'open-cinematic-live-dashboard': openCinematicLiveDashboard,
     'open-cinematic-movie': openCinematicMovie,
     'open-cinematic-series': openCinematicSeries,
 };

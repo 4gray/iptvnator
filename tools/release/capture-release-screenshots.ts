@@ -62,7 +62,7 @@ import {
 } from './capture-navigation';
 import { assertCaptureMetadata } from './capture-tmdb-check';
 import { seedCinematicMetadata } from './capture-cinematic-cache';
-import { openCinematicDashboard, seedCinematicActivity, settleCinematicFrame } from './capture-navigation-cinematic-actions';
+import { seedCinematicActivity, settleCinematicFrame } from './capture-navigation-cinematic-actions';
 import { waitForCinematicPreview } from './capture-cinematic-preview';
 import { assertBuiltRuntime, readAppVersion } from './capture-runtime';
 import {
@@ -256,7 +256,10 @@ async function main(): Promise<void> {
 
         if (preview) {
             await applyTheme(page, themes[0]);
-            await openCinematicDashboard(page);
+            for (const step of shots[0].setup) {
+                const { action, param } = parseSetupStep(String(step));
+                await runAction(page, action, param);
+            }
             previewWindowClosed = await waitForCinematicPreview(app);
         }
 

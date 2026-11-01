@@ -129,6 +129,7 @@
         "release:cards:generate": "node tools/release/generate-highlight-cards.mjs --generate",
         "release:screenshots": "tsx tools/release/capture-release-screenshots.ts",
         "demo:cinematic": "pnpm run release:screenshots --cinematic --preview --theme dark",
+        "demo:cinematic:live": "pnpm run release:screenshots --cinematic --preview --only dashboard-live-channels --theme dark",
         "lint": "nx run-many --target=lint --all",
         "build": "nx build electron-backend"
     },

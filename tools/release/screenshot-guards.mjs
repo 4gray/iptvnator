@@ -48,6 +48,7 @@ export const KNOWN_ACTIONS = [
     'open-stream-info',
     'open-dashboard',
     'open-cinematic-dashboard',
+    'open-cinematic-live-dashboard',
     'open-cinematic-movie',
     'open-cinematic-series',
     'open-settings',

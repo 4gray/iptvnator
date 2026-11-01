@@ -9,6 +9,10 @@ import {
 } from './capture-cinematic-cache';
 import { validCaptureMetadataSettings } from './capture-tmdb-check';
 import { validateManifest } from './screenshot-guards.mjs';
+import {
+    cinematicLiveFrameViolations,
+    type CinematicLiveFrameReport,
+} from './capture-cinematic-live';
 
 describe('cinematic capture isolation', () => {
     it('rejects real keys and unexpected enabled states in either capture mode', () => {
@@ -91,7 +95,64 @@ describe('cinematic capture isolation', () => {
             )
         );
         assert.deepEqual(validateManifest(manifest), []);
-        assert.equal(manifest.shots.length, 3);
+        assert.equal(manifest.shots.length, 4);
+        assert.deepEqual(
+            manifest.shots
+                .filter((shot: { slug: string }) =>
+                    shot.slug.startsWith('dashboard')
+                )
+                .map((shot: { slug: string }) => shot.slug),
+            ['dashboard', 'dashboard-live-channels']
+        );
+    });
+});
+
+describe('cinematic live dashboard frame', () => {
+    const frame = (): CinematicLiveFrameReport => ({
+        continueBottom: 880,
+        liveTop: 920,
+        viewportHeight: 1100,
+        cards: Array.from({ length: 5 }, (_, index) => ({
+            name: `Synthetic Channel ${index + 1}`,
+            programme: `Synthetic Programme ${index + 1}`,
+            timeRange: '18:00 – 18:30',
+            logoLoaded: true,
+            progressReady: true,
+            bottom: 1040,
+        })),
+    });
+
+    it('accepts a second rail with different channels and fully loaded current EPG', () => {
+        assert.deepEqual(cinematicLiveFrameViolations(frame()), []);
+    });
+
+    it('rejects missing logos, pending EPG and placeholder metadata', () => {
+        for (const patch of [
+            { logoLoaded: false },
+            { progressReady: false },
+            { programme: '' },
+            { name: '' },
+            { timeRange: '' },
+        ]) {
+            const report = frame();
+            Object.assign(report.cards[0], patch);
+            assert.ok(cinematicLiveFrameViolations(report).length > 0);
+        }
+    });
+
+    it('rejects clipped cards, repeated channels or incorrect rail placement', () => {
+        const clipped = frame();
+        clipped.cards[0].bottom = 1120;
+        assert.ok(cinematicLiveFrameViolations(clipped).length > 0);
+        const repeated = frame();
+        repeated.cards[1].name = repeated.cards[0].name;
+        assert.ok(cinematicLiveFrameViolations(repeated).length > 0);
+        const above = frame();
+        above.liveTop = 700;
+        assert.ok(cinematicLiveFrameViolations(above).length > 0);
+        const sparse = frame();
+        sparse.cards = sparse.cards.slice(0, 2);
+        assert.ok(cinematicLiveFrameViolations(sparse).length > 0);
     });
 });
 
