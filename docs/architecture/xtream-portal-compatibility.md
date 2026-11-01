@@ -729,6 +729,10 @@ XMLTV fallbacks, including collections and dashboard previews. Turning it off
 retires queue state and pending answers and hides programme UI; provider channel
 logos remain visible. See the
 [shared preference contract](m3u-playlist-module.md#global-epg-preference).
+Channel lists attach guide-result, viewport and refresh listeners based on the
+runtime capability, independently of the saved preference. Each callback gates
+work on the current preference, so hydration or re-enabling cannot strand an
+already mounted list without programme previews.
 
 Xtream EPG comes from the portal itself. `get_short_epg` feeds the
 channel-row previews (`EpgQueueService`: three items, two requests in flight)

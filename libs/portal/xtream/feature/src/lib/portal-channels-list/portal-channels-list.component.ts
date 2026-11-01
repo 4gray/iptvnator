@@ -366,10 +366,11 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             );
         }
 
-        if (this.supportsProviderEpg) {
+        if (this.runtime.supportsProviderEpg) {
             this.subscriptions.add(
                 this.epgQueueService.epgResult$.subscribe(
                     ({ streamId, items }) => {
+                        if (!this.supportsProviderEpg) return;
                         // The earliest-item fallback belongs to a row that has
                         // nothing to show yet. Once a row holds a programme,
                         // only one on air or upcoming may replace it: a refill
@@ -396,7 +397,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     ngAfterViewInit() {
         const vp = this.viewport();
         if (
-            this.supportsProviderEpg &&
+            this.runtime.supportsProviderEpg &&
             vp &&
             this.xtreamStore.selectedContentType() === 'live'
         ) {
