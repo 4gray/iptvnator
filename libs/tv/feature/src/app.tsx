@@ -8,9 +8,10 @@ import { Favorites } from './favorites';
 import { usePlayerControls } from './player-controls';
 import { useEffect, useRef } from 'preact/hooks';
 import { useTv } from './use-tv';
-import type { View } from './navigation';
+import { mainNavigation } from './navigation';
 import { Sources } from './forms';
 import { Settings } from './settings';
+import type { TvBuildInfo } from './about';
 import type { SettingsMemory } from './settings-navigation';
 import { Home, CatalogScreen } from './screens';
 import { Detail } from './detail';
@@ -23,17 +24,7 @@ import { useSeriesDetails } from './use-series-details';
 import { mediaTitle } from '@iptvnator/tv/util';
 import { PersonPage } from './person-page';
 import type { FilmographyMemory } from './use-filmography-search';
-const navigation: [View, string][] = [
-    ['home', 'Home'],
-    ['live', 'TV'],
-    ['movies', 'Movies'],
-    ['series', 'Series'],
-    ['favorites', 'Favorites'],
-    ['search', 'Search'],
-    ['sources', 'Sources'],
-    ['settings', 'Settings'],
-];
-export function TvApp() {
+export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
     const personMemory = useRef<FilmographyMemory>(new WeakMap());
     const settingsMemory = useRef<SettingsMemory>({
         category: 'connection',
@@ -139,7 +130,7 @@ export function TvApp() {
                     ip<span>tv</span>nator<small>TV EDITION</small>
                 </div>
                 <nav aria-label="Main navigation">
-                    {navigation.map(([view, label]) => (
+                    {mainNavigation.map(([view, label]) => (
                         <button
                             data-focus={`nav:${view}`}
                             aria-current={r.view === view ? 'page' : undefined}
@@ -219,7 +210,11 @@ export function TvApp() {
                 ) : r.view === 'sources' ? (
                     <Sources tv={tv} />
                 ) : r.view === 'settings' ? (
-                    <Settings tv={tv} memory={settingsMemory.current} />
+                    <Settings
+                        tv={tv}
+                        memory={settingsMemory.current}
+                        buildInfo={buildInfo}
+                    />
                 ) : r.view === 'live' ? (
                     <Live
                         key={tv.data.activeId}

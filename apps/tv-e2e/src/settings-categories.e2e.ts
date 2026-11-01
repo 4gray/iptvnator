@@ -117,6 +117,7 @@ test('panels fit TV sizes, keep categories fixed and support pointer selection',
             'Library',
             'Metadata',
             'Your remote',
+            'About',
         ]) {
             const tab = page.getByRole('tab', { name, exact: false });
             await tab.hover();
