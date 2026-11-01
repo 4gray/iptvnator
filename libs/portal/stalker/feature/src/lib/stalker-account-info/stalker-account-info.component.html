@@ -1,5 +1,6 @@
 <app-dialog-shell
     icon="account_circle"
+    [bodyFocusable]="true"
     [heading]="'STALKER.ACCOUNT_INFO.TITLE' | translate"
     [subtitle]="playlistLabel()"
 >
@@ -74,7 +75,7 @@
                         </div>
                     </article>
                 }
-            } @else {
+            } @else if (loadState() === 'loading') {
                 @for (item of skeletonStats; track item) {
                     <div class="account-skeleton account-skeleton--stat"></div>
                 }
@@ -136,10 +137,9 @@
             <div class="account-dialog__grid">
                 <section class="account-panel">
                     <div class="account-panel__header">
-                        <p class="account-panel__eyebrow">
+                        <h3>
                             {{ 'STALKER.ACCOUNT_INFO.ACCOUNT' | translate }}
-                        </p>
-                        <h3>{{ snapshot()?.login || playlistLabel() }}</h3>
+                        </h3>
                     </div>
 
                     @if (accountDetails().length > 0) {
@@ -187,10 +187,10 @@
 
                 <section class="account-panel">
                     <div class="account-panel__header">
-                        <p class="account-panel__eyebrow">
-                            {{ 'STALKER.ACCOUNT_INFO.PORTAL_INFO' | translate }}
-                        </p>
                         <h3>
+                            {{ 'STALKER.ACCOUNT_INFO.PORTAL_INFO' | translate }}
+                        </h3>
+                        <p class="account-panel__description">
                             @if (isFullPortal) {
                                 {{
                                     'STALKER.ACCOUNT_INFO.PORTAL_TYPE_FULL'
@@ -202,7 +202,7 @@
                                         | translate
                                 }}
                             }
-                        </h3>
+                        </p>
                     </div>
 
                     <dl class="account-detail-list">

@@ -46,7 +46,7 @@ class FullHostComponent {
 @Component({
     imports: [DialogShellComponent],
     template: `
-        <app-dialog-shell heading="Keyboard shortcuts">
+        <app-dialog-shell heading="Keyboard shortcuts" [bodyFocusable]="true">
             <p>Body only</p>
         </app-dialog-shell>
     `,
@@ -172,5 +172,19 @@ describe('DialogShellComponent', () => {
         const root = await render(FullHostComponent, { showClose: false });
 
         expect(root.querySelector('.app-dialog__close')).toBeNull();
+    });
+
+    it('offers a named keyboard stop for informational content without adding one to forms', async () => {
+        const bare = await render(BareHostComponent);
+        const content = bare.querySelector('.app-dialog__body');
+        expect(content?.getAttribute('tabindex')).toBe('0');
+        expect(content?.getAttribute('role')).toBe('region');
+        expect(content?.getAttribute('aria-label')).toBe('Keyboard shortcuts');
+
+        TestBed.resetTestingModule();
+        const form = await render(FullHostComponent);
+        expect(
+            form.querySelector('.app-dialog__body')?.hasAttribute('tabindex')
+        ).toBe(false);
     });
 });

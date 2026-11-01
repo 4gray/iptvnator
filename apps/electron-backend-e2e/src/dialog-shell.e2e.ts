@@ -96,6 +96,39 @@ async function serveUnbreakableChannel() {
 }
 
 test.describe('Dialog shell', () => {
+    test('scrolls account information with the keyboard while retaining the header', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        try {
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await page.setViewportSize({ width: 1024, height: 520 });
+            const dialog = await openAccountInfoDialog(page);
+            const body = dialog.getByRole('region', {
+                name: 'Account Information',
+            });
+            await expect(body).toBeFocused();
+            await page.keyboard.press('PageDown');
+            await expect
+                .poll(() => body.evaluate((element) => element.scrollTop))
+                .toBeGreaterThan(0);
+            const close = dialog.getByRole('button', { name: 'Close dialog' });
+            await expect(close).toBeInViewport();
+            await page.keyboard.press('Tab');
+            await expect(close).toBeFocused();
+            await page.keyboard.press('Shift+Tab');
+            await expect(body).toBeFocused();
+            await page.keyboard.press('Escape');
+            await expect(dialog).toBeHidden();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('wraps an unbreakable heading before it reaches the close button', async ({
         dataDir,
     }) => {
@@ -104,6 +137,11 @@ test.describe('Dialog shell', () => {
         try {
             app = await launchElectronApp(dataDir);
             const dialog = await openChannelDetailsNarrow(app, m3u.resourceUrl);
+            await expect(dialog.locator('.app-dialog__title')).toBeVisible();
+            await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
+                'transform',
+                'none'
+            );
             const geometry = await dialog.evaluate((container) => {
                 const title = container.querySelector(
                     '.app-dialog__title'
@@ -156,6 +194,11 @@ test.describe('Dialog shell', () => {
             await waitForXtreamWorkspaceReady(page);
             await page.setViewportSize({ width: 560, height: 760 });
             const dialog = await openAccountInfoDialog(page);
+            await expect(dialog.locator('.app-dialog__title')).toBeVisible();
+            await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
+                'transform',
+                'none'
+            );
             const geometry = await dialog.evaluate((container) => {
                 const hero = container.querySelector(
                     '.account-dialog__hero'

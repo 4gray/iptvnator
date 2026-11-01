@@ -72,6 +72,8 @@ export class DialogShellComponent {
      */
     readonly showClose = input(true);
     readonly bodyLayout = input<DialogBodyLayout>('block');
+    /** Read-only, scrolling content needs a keyboard stop of its own. */
+    readonly bodyFocusable = input(false);
 
     private readonly footer = contentChild(DialogFooterDirective);
     private readonly footerStart = contentChild(DialogFooterStartDirective);
