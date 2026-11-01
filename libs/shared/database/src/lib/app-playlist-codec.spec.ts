@@ -60,6 +60,27 @@ describe('app playlist codec', () => {
         ).toBeUndefined();
     });
 
+    it.each([false, true])(
+        'keeps unknown EPG provenance in a legacy row (metadata only: %s)',
+        (metadataOnly) => {
+            const guide = 'https://guide.example.test/legacy.xml';
+            const row = rowOf({ ...m3uDocument, epgUrls: [guide] });
+            const decoded = parseAppPlaylist(
+                storedRow(row, metadataOnly ? null : undefined)
+            );
+            expect(decoded).toMatchObject({
+                epgUrls: [guide],
+                detectedEpgUrls: [],
+                manualEpgUrls: [],
+            });
+            expect(parseAppPlaylist(storedRow(rowOf(decoded)))).toMatchObject({
+                epgUrls: [guide],
+                detectedEpgUrls: [],
+                manualEpgUrls: [],
+            });
+        }
+    );
+
     it('round-trips an M3U document through a stored row', () => {
         const row = rowOf(m3uDocument);
 

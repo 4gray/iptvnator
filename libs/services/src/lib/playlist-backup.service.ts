@@ -859,7 +859,12 @@ export class PlaylistBackupService {
             ...resolvePlaylistEpgSourceState({
                 autoImportEpg,
                 detectedEpgUrls: parsedPlaylist.detectedEpgUrls,
-                enabledEpgUrls: parsedPlaylist.epgUrls,
+                enabledEpgUrls:
+                    parsedPlaylist.epgUrls ??
+                    (entry.manualEpgUrls === undefined &&
+                    entry.disabledEpgUrls === undefined
+                        ? existing?.epgUrls
+                        : undefined),
                 manualEpgUrls:
                     entry.manualEpgUrls ??
                     existing?.manualEpgUrls ??

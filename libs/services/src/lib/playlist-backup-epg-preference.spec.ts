@@ -4,6 +4,68 @@ import { createPlaylistBackupService } from './playlist-backup.service.test-help
 import { hasValidBackupEntryData } from './playlist-backup-validation';
 
 describe('M3U backup EPG import preference', () => {
+    it.each([undefined, { manualEpgUrls: [], disabledEpgUrls: [] }])(
+        'retains legacy enabled guides only when the archive omits EPG overrides: %s',
+        async (overrides) => {
+            const guide = 'https://guide.example.test/legacy.xml';
+            const existing = {
+                _id: 'synthetic-legacy',
+                title: 'Synthetic legacy guide',
+                url: 'https://provider.example.test/legacy.m3u',
+                count: 0,
+                autoRefresh: false,
+                importDate: '',
+                lastUsage: '',
+                favorites: [],
+                epgUrls: [guide],
+            } as Playlist;
+            const restorePlaylist = jest.fn((value: Playlist) => of(value));
+            await createPlaylistBackupService({
+                playlistsService: {
+                    getAllData: () => of([existing]),
+                    restorePlaylist,
+                    handlePlaylistParsing: async () => ({
+                        _id: 'parsed',
+                        title: 'Synthetic parsed source',
+                        count: 0,
+                    }),
+                },
+            }).importBackup(
+                JSON.stringify({
+                    kind: 'iptvnator-playlist-backup',
+                    version: 1,
+                    exportedAt: '2026-11-01T00:00:00Z',
+                    includeSecrets: true,
+                    playlists: [
+                        {
+                            portalType: 'm3u',
+                            exportedId: existing._id,
+                            title: existing.title,
+                            autoRefresh: false,
+                            ...overrides,
+                            source: {
+                                kind: 'url',
+                                url: existing.url,
+                                rawM3u: '#EXTM3U',
+                            },
+                            userState: {
+                                favorites: [],
+                                recentlyViewed: [],
+                                hiddenGroupTitles: [],
+                            },
+                        },
+                    ],
+                })
+            );
+            expect(restorePlaylist).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    epgUrls: overrides ? [] : [guide],
+                    detectedEpgUrls: [],
+                })
+            );
+        }
+    );
+
     it.each([
         { autoImportEpg: false, merge: false },
         { autoImportEpg: true, merge: false },

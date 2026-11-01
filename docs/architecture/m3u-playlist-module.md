@@ -204,6 +204,8 @@ disabled source markers, so a fresh installation restores explicit choices too.
 Restore applies those saved overrides before the imported preference; empty
 arrays clear previous overrides. Legacy archives that omit a field retain that
 field from the existing playlist when merged.
+An old archive without EPG headers or override fields also retains existing
+enabled guide addresses whose provenance was never recorded.
 The preference belongs to local playlist state, like manual and disabled EPG
 selections, rather than the portable `SourceDefinition` connection.
 
@@ -1044,8 +1046,11 @@ late cleanup cannot overwrite a newly added EPG row.
 
 The editor labels saved rows by recorded provenance: detected URLs are “From
 playlist”, manual-only URLs are “Added manually”, and older rows without either
-record use “Saved source”. Do not infer detection from enabled URLs. The detected
-summary counts the intersection of normalized enabled and detected URLs, excluding
+record use “Saved source”. Do not infer detection from enabled URLs. SQLite
+metadata and source projections preserve that distinction, including
+legacy rows with only an enabled set. Unknown-origin enabled guides survive
+metadata edits and delayed source writes without being marked as detected.
+The detected summary counts the intersection of normalized enabled and detected URLs, excluding
 manual-only sources, and describes current enablement rather than initial automatic
 selection. A collapsed list exposes detected remote URLs that are not enabled.
 Its rows mount only while open, initially 25 at a time; Load more reveals the

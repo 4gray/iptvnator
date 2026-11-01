@@ -212,7 +212,7 @@ export function parseAppPlaylist(
     const detectedEpgUrls = getStringArrayValue(
         row.detectedEpgUrls
             ? parseJsonValue<unknown[]>(row.detectedEpgUrls, [])
-            : (base['detectedEpgUrls'] ?? epgUrls)
+            : base['detectedEpgUrls']
     );
     const manualEpgUrls = getStringArrayValue(
         row.manualEpgUrls

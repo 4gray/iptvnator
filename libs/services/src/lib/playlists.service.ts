@@ -220,7 +220,7 @@ export class PlaylistsService {
             url: playlist.url,
             filePath: playlist.filePath,
             epgUrls: playlist.epgUrls ?? [],
-            detectedEpgUrls: playlist.detectedEpgUrls ?? playlist.epgUrls ?? [],
+            detectedEpgUrls: playlist.detectedEpgUrls ?? [],
             manualEpgUrls: playlist.manualEpgUrls ?? [],
             disabledEpgUrls: playlist.disabledEpgUrls ?? [],
             userAgent: playlist.userAgent,
