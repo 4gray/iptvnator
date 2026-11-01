@@ -992,7 +992,10 @@ then accept deliberate rewinds. The same guard filters the emitted time updates
 before legacy episode writers receive them, so those writers cannot upload a
 transient pre-seek position. If an explicit launch cannot commit its source
 context, its later checkpoints stay on the local persistence path, including
-when connectivity returns. Per-position local-only flags in the selected instance's
+when connectivity returns. Failed-launch ownership is persisted before the begin
+promise rejects, so an external player remains local if the renderer reloads
+before its first checkpoint. Unknown native durations normalize to an omitted
+value before local persistence. Per-position local-only flags in the selected instance's
 renderer storage keep those raw rows ahead of downloaded server projections and
 out of disable-time mirroring, including after renderer recreation. The flags
 are bound to the verified source incarnation. The first verified context binds

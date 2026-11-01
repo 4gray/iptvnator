@@ -1,6 +1,29 @@
 import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
+import { localActivityPosition } from './activity-local-position';
+import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 const position = { contentType: 'vod' as const, contentXtreamId: 42 };
 describe('durable local-only position ownership', () => {
+    it('preserves a native checkpoint with an unknown duration', () => {
+        const native = {
+            ...position,
+            positionSeconds: 65,
+            durationSeconds: null,
+        } as unknown as PlaybackPositionData;
+        const local = localActivityPosition(native);
+        const store = new ActivityLocalOnlyPositions(
+            'synthetic-nas',
+            localStorage
+        );
+        store.stage('source-a', local, 'synthetic-session');
+        expect(local.durationSeconds).toBeUndefined();
+        expect(store.snapshots('source-a')[0].position).toMatchObject({
+            positionSeconds: 65,
+        });
+        expect(
+            store.snapshots('source-a')[0].position.durationSeconds
+        ).toBeUndefined();
+    });
+
     afterEach(() => localStorage.clear());
     it('survives recreation while keeping server and source profiles separate', () => {
         new ActivityLocalOnlyPositions('synthetic-nas', localStorage).mark(

@@ -4,7 +4,10 @@ import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 export function localActivityPosition(
     position: PlaybackPositionData
 ): PlaybackPositionData {
-    const local = { ...position };
+    const local = {
+        ...position,
+        durationSeconds: position.durationSeconds ?? undefined,
+    };
     delete local.activitySessionId;
     delete local.activityAction;
     if (local.watched) {

@@ -137,6 +137,56 @@ describe('activity consent persistence', () => {
         await reopened.adapter.keepLocal(raw, context.sourceId);
         expect(point.positionSeconds).toBe(30);
     });
+    it('recovers a failed external launch after reload before its first checkpoint', async () => {
+        const make = () =>
+            createActivityRuntimeClient(
+                {
+                    supportsActivityStorage: true,
+                    isElectron: true,
+                    supportsXtreamSqliteDataSource: false,
+                } as RuntimeCapabilitiesService,
+                {} as PlaybackPositionRuntimeBridgeService,
+                { changed: () => undefined, status: () => undefined }
+            );
+        const launch = {
+            ...position,
+            activitySessionId: 'synthetic-external-session',
+        };
+        const first = make();
+        jest.spyOn(first.client.options, 'request').mockRejectedValue(
+            new Error('Synthetic offline launch')
+        );
+        await expect(
+            first.client.begin('synthetic-source', launch)
+        ).rejects.toThrow();
+        localStorage.setItem(
+            'iptvnator-server:synthetic-nas:activity-contexts-v1',
+            JSON.stringify([
+                {
+                    sourceId: 'synthetic-source',
+                    provider: 'xtream',
+                    sourceIncarnation: 'original',
+                },
+            ])
+        );
+        const reopened = make();
+        jest.spyOn(reopened.client.store, 'read').mockResolvedValue(null);
+        const save = jest.fn(async () => undefined);
+        const raw = {
+            savePlaybackPosition: save,
+        } as unknown as import('@iptvnator/portal/xtream/data-access').IXtreamDataSource;
+        await reopened.adapter.invoke(raw, 'savePlaybackPosition', [
+            'synthetic-source',
+            { ...launch, positionSeconds: 65 },
+        ]);
+        expect(save).toHaveBeenCalledWith(
+            'synthetic-source',
+            expect.objectContaining({ positionSeconds: 65 })
+        );
+        expect(
+            reopened.client.retiredSessions.has(launch.activitySessionId)
+        ).toBe(false);
+    });
     it.each([1, 'true', null, '2'])(
         'rejects invalid consent values (%s)',
         (enabled) => {

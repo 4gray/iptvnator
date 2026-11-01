@@ -44,6 +44,11 @@ export interface ActivityClientOptions {
     status(
         value: 'ready' | 'offline' | 'conflict' | 'pending' | 'incompatible'
     ): void;
+    failedLaunch?(
+        sourceId: string,
+        position: PlaybackPositionData,
+        incarnation?: string
+    ): void;
     contexts?: ActivitySourceContext[];
     remember?(contexts: ActivitySourceContext[]): void;
 }

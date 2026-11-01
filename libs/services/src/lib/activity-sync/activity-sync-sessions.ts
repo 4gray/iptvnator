@@ -87,12 +87,13 @@ export function beginActivity(
         this.options.changed();
         void this.flush();
         return { address, generation };
-    })();
-    void begin.catch(() => {
+    })().catch((error) => {
         this.localSessions.set(sessionId, { sourceId, incarnation });
         this.delivery.settled(operationId);
         if (this.sessions.get(sessionId) === begin)
             this.sessions.delete(sessionId);
+        this.options.failedLaunch?.(sourceId, position, incarnation);
+        throw error;
     });
     this.sessions.set(sessionId, begin);
     return begin;

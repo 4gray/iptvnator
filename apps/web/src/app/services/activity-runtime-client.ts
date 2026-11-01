@@ -57,6 +57,14 @@ export function createActivityRuntimeClient(
     const client = new ActivitySyncClient(store, {
         committed: (sourceId, position, kind) =>
             localOnly.committed(sourceId, position, kind),
+        failedLaunch: (sourceId, position, incarnation) => {
+            if (
+                incarnation &&
+                client.contexts.get(sourceId)?.sourceIncarnation !== incarnation
+            )
+                return;
+            localOnly.mark(sourceId, position);
+        },
         instanceId,
         deviceId: consent.deviceId,
         contexts,
