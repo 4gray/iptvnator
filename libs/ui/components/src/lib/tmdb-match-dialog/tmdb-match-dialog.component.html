@@ -11,7 +11,7 @@
             <strong>{{
                 (currentMode === 'manual'
                     ? 'TMDB_MATCH.CURRENT_MANUAL'
-                    : 'TMDB_MATCH.MODE_' + currentMode.toUpperCase()
+                    : modeLabels[currentMode]
                 ) | translate
             }}</strong>
             @if (previous?.mode === 'manual') {
@@ -33,7 +33,7 @@
                 [disabled]="saving()"
                 (click)="setMode(value)"
             >
-                {{ 'TMDB_MATCH.MODE_' + value.toUpperCase() | translate }}
+                {{ modeLabels[value] | translate }}
             </button>
         }
     </div>
@@ -137,7 +137,7 @@
             <mat-icon aria-hidden="true">{{
                 mode() === 'auto' ? 'refresh' : 'link_off'
             }}</mat-icon>
-            <h3>{{ 'TMDB_MATCH.MODE_' + mode().toUpperCase() | translate }}</h3>
+            <h3>{{ modeLabels[mode()] | translate }}</h3>
             <p>
                 {{
                     (mode() === 'auto'

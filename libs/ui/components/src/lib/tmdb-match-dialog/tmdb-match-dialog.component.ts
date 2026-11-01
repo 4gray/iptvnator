@@ -27,6 +27,7 @@ import {
 import { cleanTitleForSearch } from '@iptvnator/shared/interfaces';
 import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
 import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
+import { provideFormFieldDefaults } from '../form-field-defaults/form-field-defaults';
 
 const DisplayNames = (
     Intl as unknown as {
@@ -41,6 +42,7 @@ type Mode = 'auto' | 'manual' | 'provider';
 
 @Component({
     selector: 'app-tmdb-match-dialog',
+    providers: [provideFormFieldDefaults()],
     imports: [
         FormsModule,
         MatButtonModule,
@@ -74,6 +76,11 @@ export class TmdbMatchDialogComponent {
     readonly searched = signal(false);
     readonly failedPosters = signal<ReadonlySet<number>>(new Set());
     readonly modes: Mode[] = ['auto', 'manual', 'provider'];
+    readonly modeLabels: Record<Mode, string> = {
+        auto: 'TMDB_MATCH.MODE_AUTO',
+        manual: 'TMDB_MATCH.MODE_MANUAL',
+        provider: 'TMDB_MATCH.MODE_PROVIDER',
+    };
     readonly canSave = computed(
         () =>
             !this.saving() &&

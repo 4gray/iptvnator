@@ -140,7 +140,7 @@ describe('StalkerSeriesViewComponent', () => {
     });
 
     it('scopes correction identities to the current Stalker catalog', async () => {
-        currentPlaylist.set({ _id: 'source' });
+        currentPlaylist.update((playlist) => ({ ...playlist, _id: 'source' }));
         selectedItem.set({ id: '42', info: { name: 'Series' } });
         for (const catalog of ['series', 'vod'] as const) {
             selectedContentType.set(catalog);
