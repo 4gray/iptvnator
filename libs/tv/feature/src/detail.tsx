@@ -1,4 +1,9 @@
-import { Empty, VirtualCollection } from '@iptvnator/tv/ui';
+import {
+    Empty,
+    VirtualCollection,
+    TvSelect,
+    TvDescription,
+} from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 import { TvMetadata } from '@iptvnator/tv/data-access';
 import { mediaTitle } from '@iptvnator/tv/util';
@@ -54,10 +59,13 @@ export function Detail({
                             {item.title}
                         </div>
                     ) : null}
-                    <p>
-                        {item.description ||
-                            'Your provider has not supplied a description for this title.'}
-                    </p>
+                    <TvDescription
+                        key={item.id}
+                        text={
+                            item.description ||
+                            'Your provider has not supplied a description for this title.'
+                        }
+                    />
                     <div class="actions">
                         {item.kind !== 'series' ? (
                             <button
@@ -98,17 +106,17 @@ export function Detail({
                         <h2>Episodes</h2>
                         <label>
                             Season
-                            <select
-                                aria-label="Season"
-                                value={currentSeason}
-                                onChange={(e) => {
-                                    selectSeason(Number(e.currentTarget.value));
-                                }}
-                            >
-                                {seasons.map((s) => (
-                                    <option value={s}>Season {s}</option>
-                                ))}
-                            </select>
+                            <TvSelect
+                                label="Season"
+                                value={String(currentSeason)}
+                                options={seasons.map((s) => ({
+                                    value: String(s),
+                                    label: `Season ${s}`,
+                                }))}
+                                onChange={(value) =>
+                                    selectSeason(Number(value))
+                                }
+                            />
                         </label>
                     </div>
                     {metadata.failed ? (

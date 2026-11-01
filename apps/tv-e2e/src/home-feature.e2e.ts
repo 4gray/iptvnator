@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { addSource, nav, start, xtream } from './helpers';
+import { chooseTv, addSource, nav, start, xtream } from './helpers';
 
 async function watch(page: Page, index: number, episode = false) {
     await nav(page, episode ? 'Series' : 'Movies');
@@ -422,15 +422,7 @@ test('a retained series-details retry cannot reopen the previous source', async 
     await addSource(page, 'm3u');
     await nav(page, 'Home');
     const sources = page.getByLabel('Active source', { exact: true });
-    const firstSource = await sources
-        .locator('option')
-        .filter({ hasText: 'TV xtream' })
-        .getAttribute('value');
-    const nextSource = await sources
-        .locator('option')
-        .filter({ hasText: 'TV m3u' })
-        .getAttribute('value');
-    await sources.selectOption(firstSource!);
+    await chooseTv(page, 'Active source', { label: 'TV xtream · XTREAM' });
     await expect(page.locator('[data-focus="hero-resume"]')).toBeVisible();
     await expect(page.locator('.loading')).toBeHidden();
     const retry = page.getByRole('button', {
@@ -470,7 +462,7 @@ test('a retained series-details retry cannot reopen the previous source', async 
     await expect(page.locator('[data-focus="hero-resume"]')).toBeFocused();
     await failDetails();
     const retained = await retry.elementHandle();
-    await sources.selectOption(nextSource!);
+    await chooseTv(page, 'Active source', { label: 'TV m3u · M3U' });
     await expect(page.locator('.loading')).toBeHidden();
     await expect(page.locator('.hero')).toBeVisible();
     // An already queued click remains harmless after its original notice is retired.
@@ -483,7 +475,7 @@ test('a retained series-details retry cannot reopen the previous source', async 
                 )
             )
     );
-    await expect(sources).toHaveValue(nextSource!);
+    await expect(sources).toContainText('TV m3u');
     await expect(page.locator('.hero')).toBeVisible();
     await expect(page.locator('.detail-hero')).toHaveCount(0);
     await expect(retry).toHaveCount(0);

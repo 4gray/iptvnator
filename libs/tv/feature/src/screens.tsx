@@ -3,6 +3,7 @@ import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import { CatalogOrder, CatalogSortNotice } from './catalog-order';
 import {
     Empty,
+    TvSelect,
     Hero,
     VirtualCollection,
     Poster,
@@ -133,42 +134,41 @@ export function CatalogScreen({ tv }: { tv: TvModel }) {
                 {r.view === 'search' ? (
                     <label>
                         Content
-                        <select
-                            aria-label="Content type"
+                        <TvSelect
+                            label="Content type"
                             value={r.kind}
-                            onChange={(e) =>
+                            options={[
+                                { value: 'movie', label: 'Movies' },
+                                { value: 'series', label: 'Series' },
+                                { value: 'live', label: 'Live TV' },
+                            ]}
+                            onChange={(value) =>
                                 tv.setRoute({
                                     ...r,
-                                    kind: e.currentTarget
-                                        .value as typeof r.kind,
+                                    kind: value as typeof r.kind,
                                     page: 0,
                                     category: '',
                                 })
                             }
-                        >
-                            <option value="movie">Movies</option>
-                            <option value="series">Series</option>
-                            <option value="live">Live TV</option>
-                        </select>
+                        />
                     </label>
                 ) : null}
                 <label>
                     Category
-                    <select
+                    <TvSelect
+                        label="Category"
                         value={r.category}
-                        onChange={(e) =>
-                            tv.setRoute({
-                                ...r,
-                                category: e.currentTarget.value,
-                                page: 0,
-                            })
+                        options={[
+                            { value: '', label: 'All categories' },
+                            ...tv.catalog.categories.map((c) => ({
+                                value: c.id,
+                                label: c.name,
+                            })),
+                        ]}
+                        onChange={(value) =>
+                            tv.setRoute({ ...r, category: value, page: 0 })
                         }
-                    >
-                        <option value="">All categories</option>
-                        {tv.catalog.categories.map((c) => (
-                            <option value={c.id}>{c.name}</option>
-                        ))}
-                    </select>
+                    />
                 </label>
                 {r.kind === 'movie' || r.kind === 'series' ? (
                     <CatalogOrder tv={tv} kind={r.kind} />

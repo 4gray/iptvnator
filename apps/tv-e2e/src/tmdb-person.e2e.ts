@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { addSource, nav, start } from './helpers';
+import { chooseTv, addSource, nav, start } from './helpers';
 
 const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#37544b"/><circle cx="100" cy="74" r="35" fill="#a5c7b5"/><path d="M35 200v-30a65 65 0 0 1 130 0v30" fill="#a5c7b5"/></svg>';
@@ -670,7 +670,7 @@ test('@tmdb-person series keeps its selected season after visiting a person and 
         });
     });
     await page.locator('.poster-card').first().click();
-    await page.getByLabel('Season', { exact: true }).selectOption('2');
+    await chooseTv(page, 'Season', '2');
     await expect(page.locator('.episode strong')).toHaveText(
         'Second season episode'
     );
@@ -679,13 +679,19 @@ test('@tmdb-person series keeps its selected season after visiting a person and 
         .click();
     await expect(page.locator('.person-page h1')).toHaveText('Fixture Actor');
     await page.keyboard.press('Escape');
-    await expect(page.getByLabel('Season', { exact: true })).toHaveValue('2');
+    await expect(page.getByLabel('Season', { exact: true })).toHaveAttribute(
+        'data-value',
+        '2'
+    );
     await expect(page.locator('.episode strong')).toHaveText(
         'Second season episode'
     );
     await page.keyboard.press('Escape');
     await page.locator('.poster-card').first().click();
-    await expect(page.getByLabel('Season', { exact: true })).toHaveValue('1');
+    await expect(page.getByLabel('Season', { exact: true })).toHaveAttribute(
+        'data-value',
+        '1'
+    );
     await expect(page.locator('.episode strong')).toHaveText(
         'First season episode'
     );

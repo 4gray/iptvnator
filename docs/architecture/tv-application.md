@@ -227,6 +227,14 @@ create a second shared database. Electron still does not activate server storage
 
 ## Playback and local data
 
+TV source, catalog, season and settings choices use the shared `TvSelect`.
+Its large list owns directional and Tab focus; moving focus does not select.
+OK or a pointer click commits, while platform Back cancels and restores the
+trigger. Lists with more than twelve choices offer a text filter. Dialogs use
+`TvDialog` outside scrolling content so settings navigation cannot capture their
+keys. Long detail descriptions expose a full-text dialog whose scroll region
+accepts Up/Down; closing it restores the description action.
+
 One `HTMLVideoElement` exists for preview and fullscreen. Focus movement never
 switches streams. First OK starts live preview; repeated OK opens fullscreen.
 Fullscreen Back restores the opening control, and detail Back restores item

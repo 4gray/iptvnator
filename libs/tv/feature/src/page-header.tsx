@@ -1,3 +1,4 @@
+import { TvSelect } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 import { favoritesFor } from './favorites';
 export function PageHeader({ tv }: { tv: TvModel }) {
@@ -43,22 +44,19 @@ export function PageHeader({ tv }: { tv: TvModel }) {
                     ) : null}
                 </div>
             )}
-            <select
-                aria-label="Active source"
+            <TvSelect
+                label="Active source"
+                focusKey="source-picker"
                 value={tv.data.activeId}
-                onChange={(event) => {
-                    void tv.switchSource(event.currentTarget.value);
+                placeholder="No source connected"
+                options={tv.data.sources.map((s) => ({
+                    value: s.id,
+                    label: `${s.name} · ${s.provider.toUpperCase()}`,
+                }))}
+                onChange={(value) => {
+                    void tv.switchSource(value);
                 }}
-            >
-                {!tv.data.sources.length ? (
-                    <option value="">No source connected</option>
-                ) : null}
-                {tv.data.sources.map((s) => (
-                    <option value={s.id}>
-                        {s.name} · {s.provider.toUpperCase()}
-                    </option>
-                ))}
-            </select>
+            />
         </header>
     );
 }
