@@ -1,5 +1,5 @@
 import { tmdbPosterUrl } from './tmdb-config';
-import { extractYear } from './tmdb-matcher';
+import { extractYear } from '@iptvnator/shared/interfaces';
 import { TmdbSearchResult } from './tmdb.types';
 
 /**

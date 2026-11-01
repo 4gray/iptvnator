@@ -1,3 +1,4 @@
+import { loadTmdbMatcher } from './tmdb-matcher-loader';
 import { TmdbMediaType } from '@iptvnator/shared/interfaces';
 import { TmdbApiClient } from './tmdb-api-client';
 import { TmdbClientCache, TmdbClientRuntime } from './tmdb-client-contracts';
@@ -6,14 +7,7 @@ import {
     TMDB_NEGATIVE_MATCH_CACHE_TTL_MS,
     tmdbSearchLanguagesForTitle,
 } from './tmdb-config';
-import {
-    SearchTitleVariant,
-    buildBadProviderIdLookupKey,
-    buildSearchLookupKey,
-    buildSearchTitleVariants,
-    extractYear,
-    pickConfidentMatch,
-} from './tmdb-matcher';
+import type { SearchTitleVariant } from './tmdb-matcher';
 import { TmdbEnrichmentQuery } from './tmdb.types';
 
 /**
@@ -50,6 +44,8 @@ export class TmdbIdResolver {
     ): Promise<number | null> {
         // Try the original title, the display title, then language-prefix-
         // stripped fallbacks; the first confident match wins.
+        const { buildSearchTitleVariants, extractYear } =
+            await loadTmdbMatcher();
         const variants = buildSearchTitleVariants(
             query.title,
             query.originalTitle
@@ -101,6 +97,8 @@ export class TmdbIdResolver {
         year: number | null,
         language: string
     ): Promise<number | null> {
+        const { buildSearchLookupKey, pickConfidentMatch } =
+            await loadTmdbMatcher();
         const lookupKey = buildSearchLookupKey(variant.query, year);
 
         const cached = await this.cache.get(mediaType, lookupKey, language);
@@ -164,6 +162,7 @@ export class TmdbIdResolver {
         mediaType: TmdbMediaType,
         tmdbId: number
     ): Promise<boolean> {
+        const { buildBadProviderIdLookupKey } = await loadTmdbMatcher();
         const cached = await this.cache.get(
             mediaType,
             buildBadProviderIdLookupKey(tmdbId),
@@ -176,6 +175,7 @@ export class TmdbIdResolver {
         mediaType: TmdbMediaType,
         tmdbId: number
     ): Promise<void> {
+        const { buildBadProviderIdLookupKey } = await loadTmdbMatcher();
         await this.cache.set({
             mediaType,
             lookupKey: buildBadProviderIdLookupKey(tmdbId),

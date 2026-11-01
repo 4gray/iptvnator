@@ -18,6 +18,9 @@
         "baseUrl": ".",
         "paths": {
             "@iptvnator/shared/tmdb": ["libs/shared/tmdb/src/index.ts"],
+            "@iptvnator/shared/tmdb/matcher": [
+                "libs/shared/tmdb/src/lib/tmdb-matcher.ts"
+            ],
             "@iptvnator/shared/epg": ["libs/shared/epg/src/index.ts"],
             "@iptvnator/portal/catalog/feature": [
                 "libs/portal/catalog/feature/src/index.ts"

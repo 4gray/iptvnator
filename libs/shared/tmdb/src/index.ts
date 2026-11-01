@@ -1,5 +1,6 @@
 export * from './lib/tmdb-config';
-export * from './lib/tmdb-matcher';
+export { extractYear, normalizeTitle } from '@iptvnator/shared/interfaces';
+export type { SearchTitleVariant, ProviderIdVerdict } from './lib/tmdb-matcher';
 export * from './lib/tmdb.types';
 export * from './lib/tmdb-credits';
 export * from './lib/tmdb-cache-payload';

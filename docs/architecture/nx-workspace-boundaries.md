@@ -342,6 +342,10 @@ entry for lazy consumers. Eager provider data access calls `loadTmdbMergers`, wh
 local dynamic import defers that implementation until metadata enrichment, then
 checks the current selection again before applying it. This keeps age metadata
 off the launch path without changing the module-boundary rules.
+`@iptvnator/shared/tmdb/matcher` likewise exposes the pure confidence matcher
+without re-exporting its runtime functions from the eager shared/services
+barrels. Asynchronous metadata lookups load it through their local matcher loader;
+lightweight title helpers remain direct shared-interface imports.
 
 The web app's root shell (`app.component.ts`, `app.config.ts` and the services
 they construct) is on the renderer's initial path, where a barrel costs its
