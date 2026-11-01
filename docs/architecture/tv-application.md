@@ -435,8 +435,11 @@ are absent. Favorites separates Movies, Series (including saved episodes) and
 TV within the active source. Movie/series posters retain their proportions;
 channels use horizontal cards. Detail Back restores the selected favorite type,
 item and scroll position. Home Continue watching pairs a 2:3 cover (or local
-fallback icon) with persisted progress and its existing resume action. Available
-parent artwork fills missing episode covers without requesting a new catalog.
+fallback icon) with persisted progress and its existing resume action. The cover
+keeps its 2:3 frame within taller cards and fits the whole image without cropping;
+cards grow to keep episode details and the resume action inside their background.
+Available parent series artwork takes precedence over episode imagery without
+requesting a new catalog.
 Historical Stalker history/favorites recover missing covers from their saved raw
 fields through the provider artwork resolver, without rewriting saved commands,
 positions or credentials.
