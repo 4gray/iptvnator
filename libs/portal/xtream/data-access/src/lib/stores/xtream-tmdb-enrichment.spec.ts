@@ -371,6 +371,78 @@ describe('enrichSerialSeasonWithTmdb', () => {
         };
     }
 
+    it.each(['provider', 'manual'] as const)(
+        'skips the provider season while the saved choice is %s',
+        async (mode) => {
+            const store = {
+                ...createStore(
+                    seasonSliceItem('Dark', {
+                        '1': [{ episode_num: 1, season: 1 }],
+                    })
+                ),
+                currentPlaylist: () => ({ id: 'season-source' }),
+            };
+            const matches = new TmdbMatchService();
+            await matches.save(
+                {
+                    provider: 'xtream',
+                    playlistId: 'season-source',
+                    mediaType: 'tv',
+                    itemId: '7',
+                },
+                mode === 'provider'
+                    ? { mode }
+                    : { mode, tmdbId: 999, title: 'Other show' }
+            );
+            const enrichment = createEnrichment({ matches });
+            await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+            expect(enrichment.getSeason).not.toHaveBeenCalled();
+            expect(store.setSelectedItem).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each(['provider', 'manual', 'auto'] as const)(
+        'drops an in-flight season after choosing %s even if the TMDB ID is unchanged',
+        async (mode) => {
+            const store = {
+                ...createStore(
+                    seasonSliceItem('Dark', {
+                        '1': [{ episode_num: 1, season: 1 }],
+                    })
+                ),
+                currentPlaylist: () => ({ id: 'season-source' }),
+            };
+            const matches = new TmdbMatchService();
+            let finish!: (value: { overview: string; episodes: [] }) => void;
+            const enrichment = createEnrichment({
+                matches,
+                getSeason: jest.fn(
+                    () =>
+                        new Promise((resolve) => {
+                            finish = resolve;
+                        })
+                ),
+            });
+            const pending = enrichSerialSeasonWithTmdb(store, enrichment, '1');
+            await matches.save(
+                {
+                    provider: 'xtream',
+                    playlistId: 'season-source',
+                    mediaType: 'tv',
+                    itemId: '7',
+                },
+                mode === 'auto'
+                    ? null
+                    : mode === 'provider'
+                      ? { mode }
+                      : { mode, tmdbId: 82856, title: 'Dark' }
+            );
+            finish({ overview: 'Stale season', episodes: [] });
+            await pending;
+            expect(store.setSelectedItem).not.toHaveBeenCalled();
+        }
+    );
+
     it('fetches the title-marked season for a renumbered single-season slice', async () => {
         const store = createStore(
             seasonSliceItem('The Mandalorian (2 season)', {

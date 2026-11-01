@@ -384,6 +384,21 @@ describe('VodDetailsComponent offline playback', () => {
         fixture?.destroy();
     });
 
+    it.each(['0042', 'movie-42', ' 0042 '])(
+        'preserves the provider string ID %s in correction identities',
+        async (id) => {
+            await render({
+                item: {
+                    ...STALKER_VOD,
+                    data: { ...STALKER_VOD.data, id },
+                },
+            });
+            expect(fixture.componentInstance.tmdbMatch()?.identity.itemId).toBe(
+                id.trim()
+            );
+        }
+    );
+
     it('scopes embedded Stalker series corrections as TV even before enrichment', async () => {
         await render();
         fixture.componentRef.setInput('item', {

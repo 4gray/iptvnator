@@ -260,6 +260,29 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
     }
 
     const providerSeasonNumber = Number(episodes[0]?.season ?? seasonKey);
+    const playlistId = store.currentPlaylist?.()?.id;
+    const matchIdentity: TmdbMatchIdentity | undefined = playlistId
+        ? {
+              provider: 'xtream',
+              playlistId,
+              mediaType: 'tv',
+              itemId: String(serialId),
+          }
+        : undefined;
+    const matches = enrichment.matches;
+    const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
+    const isCurrentChoice = () => {
+        if (!matchIdentity) return true;
+        const choice = matches?.read(matchIdentity);
+        return (
+            store.currentPlaylist?.()?.id === playlistId &&
+            matches?.version(matchIdentity) === version &&
+            choice?.mode !== 'provider' &&
+            (choice?.mode !== 'manual' || choice.tmdbId === info.tmdb_id)
+        );
+    };
+    if (!isCurrentChoice()) return;
+
     if (!Number.isFinite(providerSeasonNumber)) {
         return;
     }
@@ -278,7 +301,8 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
     const seasonPoster = tmdbSeasonPosterUrl(season?.poster_path);
     if (
         (!tmdbEpisodes.length && !seasonOverview && !seasonPoster) ||
-        !isCurrentSelection()
+        !isCurrentSelection() ||
+        !isCurrentChoice()
     ) {
         return;
     }

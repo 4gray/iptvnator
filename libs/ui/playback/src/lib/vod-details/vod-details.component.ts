@@ -36,6 +36,7 @@ import {
     ResolvedPortalPlayback,
     TmdbEnrichedCastMember,
     VodDetailsItem,
+    getVodId,
     getVodNumericId,
     getXtreamVodInfo,
     isStalkerSeriesItem,
@@ -220,7 +221,7 @@ export class VodDetailsComponent {
     readonly normalizedMeta = computed(() => normalizeVodDetails(this.item()));
     readonly tmdbMatch = computed<TmdbMatchContext | null>(() => {
         const item = this.item();
-        const itemId = getVodNumericId(item);
+        const itemId = String(getVodId(item) ?? '').trim();
         if (
             !item.playlistId ||
             !itemId ||
