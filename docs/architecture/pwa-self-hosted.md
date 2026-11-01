@@ -934,7 +934,9 @@ Disabling retains local and remote data, mirrors the current projection into
 local playback storage and parks pending intent. Native mirror writes require a
 confirmed acknowledgement before pending intent can be discarded. A new consent
 generation cannot send an older queue until the user chooses to send it or keep
-it local.
+it local. A pending import keeps its local projection even when the conflicting
+server state is a reset, so disabling or keeping the queue local preserves it.
+Queue actions use the current source incarnation and leave retired records parked.
 
 The implementation uses narrow entry points, outside the eager main barrels:
 

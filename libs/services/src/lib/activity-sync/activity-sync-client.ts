@@ -268,7 +268,10 @@ export class ActivitySyncClient {
                 reset:
                     !record.state.resume &&
                     !record.state.watched &&
-                    !record.state.owner,
+                    !record.state.owner &&
+                    (!record.pending.length ||
+                        record.pending[record.pending.length - 1]?.operation
+                            .kind === 'reset'),
                 conflict: !!record.conflict,
             }));
     }

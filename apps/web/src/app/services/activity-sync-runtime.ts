@@ -248,7 +248,12 @@ export class ActivitySyncRuntime {
                 for (const { address, record } of await client.store.entries(
                     sourceId
                 )) {
-                    if (!record.pending.length) continue;
+                    if (
+                        !record.pending.length ||
+                        address.sourceIncarnation !==
+                            client.contexts.get(sourceId)?.sourceIncarnation
+                    )
+                        continue;
                     if (!send) await client.resolve(address, false);
                     else
                         await client.store.mutate(address, (current) => ({
