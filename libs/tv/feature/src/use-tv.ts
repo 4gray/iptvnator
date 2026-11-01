@@ -5,7 +5,7 @@ import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
 import { firstRoute, type View } from './navigation';
 import { useRouteHistory, type NavigationOrigin } from './use-route-history';
-import { usePlaybackOrigin } from './use-playback-origin';
+import { usePlaybackOrigin, type FailedPlayback } from './use-playback-origin';
 import { useUserData } from './user-data';
 import { useContent } from './use-content';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -30,11 +30,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const [fullscreen, setFullscreen] = useState(false);
     const [, tick] = useState(0);
     const playback = useRef(new LatestRequest());
-    const failedResolution = useRef<{
-        item: Media;
-        category: string;
-        origin: NavigationOrigin;
-    }>();
+    const failedResolution = useRef<FailedPlayback>();
     const { stack, visit } = useRouteHistory(route, setRoute);
     const playerOrigin = usePlaybackOrigin();
     const playingCategory = useRef('');
@@ -177,7 +173,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         item: Media,
         category = route.category,
         origin: string | NavigationOrigin = focusKey(),
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        retryResolution?: () => void
     ) {
         if (!ready || item.sourceId !== data.activeId || signal?.aborted)
             return false;
@@ -228,7 +225,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                 };
                 setError(
                     'Playback could not be resolved. Check the source and retry.',
-                    retryPlayback,
+                    retryResolution ?? retryPlayback,
                     'Retry playback'
                 );
             }
