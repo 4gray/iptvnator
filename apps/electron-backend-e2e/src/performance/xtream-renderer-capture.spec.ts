@@ -52,7 +52,18 @@ const artifactModulePromise = import(artifactUrl.href)
     .then((module) => module as unknown as ArtifactModule)
     .catch(() => null);
 
+// The renderer target is picked by the page title: take it from the shipped
+// page, so renaming the app cannot leave the benchmark without a target.
+const APP_TITLE =
+    /<title>([^<]*)<\/title>/.exec(
+        readFileSync(
+            new URL('../../../web/src/index.html', import.meta.url),
+            'utf8'
+        )
+    )?.[1] ?? '';
+
 test('exports capture and persists the one exact NatorTV renderer target', async () => {
+    assert.ok(APP_TITLE, 'apps/web index.html must declare a <title>');
     const module = await modulePromise;
     assert.ok(module, 'Xtream renderer capture module must exist');
     assert.equal(typeof module.startXtreamRendererCapture, 'function');
@@ -62,7 +73,7 @@ test('exports capture and persists the one exact NatorTV renderer target', async
         new FakeSession([
             {
                 targetId: 'renderer-7',
-                title: 'NatorTV',
+                title: APP_TITLE,
                 type: 'page',
                 url: 'http://localhost:4200/workspace/sources',
             },
@@ -82,7 +93,7 @@ test('fails closed when renderer target identity is missing or ambiguous', async
     assert.ok(module?.selectXtreamRendererTarget);
     const target = {
         targetId: 'renderer-1',
-        title: 'NatorTV',
+        title: APP_TITLE,
         type: 'page',
         url: 'http://localhost:4200/workspace/sources',
     };

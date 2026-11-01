@@ -8,7 +8,7 @@ import { SettingsPlaybackSectionComponent } from './settings-playback-section.co
 const MPV_PATH_DESCRIPTION =
     'Set the path to MPV. On macOS you can use the MPV app bundle, such as /Applications/mpv.app, or the executable path.';
 const MPV_COMPATIBLE_PLAYER_TIP =
-    'IINA can be launched as an MPV-compatible player on macOS, but use its executable path, such as /Applications/IINA.app/Contents/MacOS/iina-cli or /Applications/IINA.app/Contents/MacOS/IINA. IPTVnator controls, position polling, and reuse-instance behavior are guaranteed only for MPV IPC.';
+    'IINA can be launched as an MPV-compatible player on macOS, but use its executable path, such as /Applications/IINA.app/Contents/MacOS/iina-cli or /Applications/IINA.app/Contents/MacOS/IINA. NatorTV controls, position polling, and reuse-instance behavior are guaranteed only for MPV IPC.';
 const VLC_PATH_DESCRIPTION =
     'Set the path to VLC. On macOS you can use the VLC app bundle, such as /Applications/VLC.app, or the executable path.';
 const MPV_ARGUMENTS_PLACEHOLDER =
