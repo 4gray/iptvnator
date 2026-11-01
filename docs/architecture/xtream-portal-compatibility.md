@@ -384,6 +384,17 @@ compares its normalized connection with the connection used to fetch the arrays.
 A concurrent shared-source connection change aborts replacement; the accepted
 metadata stays authoritative and opening the source retries against its current
 connection. Old arrays must never become a completed cache for the new endpoint.
+Native completion and recovery acknowledgment compare the fetched connection
+with the current playlist inside their SQLite transaction. If a shared projection
+changes it during writes or replay, every catalog replaced by that scan is
+invalidated, including types completed earlier; pending recovery and its journal
+remain available for retry. The editor rereads authoritative metadata after a
+shared failure and rehydrates a changed connection without publishing its older
+accepted projection or reusing stale form credentials.
+Terminal save errors also check the connection without writing recovery state;
+a coincident projection invalidates earlier completed types from that scan.
+Standalone saves persist the edited User-Agent before native completion checks,
+whose column-first header lookup follows the authoritative playlist codec.
 The active route waits for the edit-time activity hold before bootstrapping metadata published by
 source-server synchronization, so an ongoing scan is never treated as an
 interrupted import. Navigation queued during that wait uses its latest route.

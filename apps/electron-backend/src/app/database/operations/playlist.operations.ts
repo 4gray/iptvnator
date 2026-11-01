@@ -21,6 +21,11 @@ import {
     type PerformancePhaseMetadata,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
+import type {
+    XtreamCatalogStateCondition,
+    XtreamCatalogStateResult,
+} from '@iptvnator/shared/interfaces';
+import { setConditionalCatalogState } from './xtream-catalog-state';
 import {
     type CategoryRowCount,
     countContentRowsByCategory,
@@ -419,6 +424,7 @@ export async function updatePlaylist(
         name?: string;
         username?: string;
         password?: string;
+        userAgent?: string;
         serverUrl?: string;
         lastUpdated?: string;
         xtreamContentTypes?: XtreamContentType[];
@@ -650,8 +656,15 @@ export async function getAppState(db: AppDatabase, key: string) {
 export async function setAppState(
     db: AppDatabase,
     key: string,
-    value: string
-): Promise<{ success: boolean }> {
+    value: string,
+    condition?: XtreamCatalogStateCondition
+): Promise<XtreamCatalogStateResult> {
+    if (condition !== undefined) {
+        const result = setConditionalCatalogState(db, key, value, condition);
+        if (result.success)
+            await reconcileCompletedFavoriteCatalog(db, key, value);
+        return result;
+    }
     if (value && key.startsWith(XTREAM_HISTORY_RECOVERY_PREFIX)) {
         beginHistoryRecovery(
             db,

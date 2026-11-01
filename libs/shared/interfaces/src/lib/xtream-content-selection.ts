@@ -2,6 +2,21 @@
 export const XTREAM_CONTENT_TYPES = ['movie', 'live', 'series'] as const;
 export type XtreamContentType = (typeof XTREAM_CONTENT_TYPES)[number];
 
+/** Native catalog commits must still belong to their fetched connection. */
+export interface XtreamCatalogStateCondition {
+    playlistId: string;
+    serverUrl: string;
+    username: string;
+    password: string;
+    userAgent?: string;
+}
+
+export interface XtreamCatalogStateResult {
+    success: boolean;
+    conditionChecked?: true;
+    connectionChanged?: true;
+}
+
 /** Missing settings preserve legacy behavior; an explicit empty list loads nothing. */
 export function normalizeXtreamContentTypes(
     value: unknown

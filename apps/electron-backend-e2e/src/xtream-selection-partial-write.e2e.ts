@@ -374,9 +374,14 @@ for (const { failCleanup, legacy, failCompletion } of [
                     ipcMain.removeHandler('DB_SET_APP_STATE');
                     ipcMain.handle(
                         'DB_SET_APP_STATE',
-                        async (event, key, value) => {
+                        async (event, key, value, ...rest) => {
                             try {
-                                return await original(event, key, value);
+                                return await original(
+                                    event,
+                                    key,
+                                    value,
+                                    ...rest
+                                );
                             } catch (error) {
                                 if (
                                     key ===

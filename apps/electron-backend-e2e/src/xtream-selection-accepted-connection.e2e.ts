@@ -88,7 +88,7 @@ test('a catalog-only edit cannot install arrays fetched with a superseded shared
             dialog.locator('.workspace-loading-overlay')
         ).not.toBeVisible();
         await expect(
-            dialog.getByRole('button', { name: 'Save', exact: true })
+            dialog.getByRole('button', { name: 'Close', exact: true })
         ).toBeEnabled();
         expect(
             previous.actions.filter((action) => action === 'get_vod_streams')

@@ -3,6 +3,7 @@ import type {
     ElectronBridgeFavoriteReorderUpdate,
     XtreamFavoriteRemovalRef,
     XtreamBackupFavoriteItem,
+    XtreamCatalogStateCondition,
 } from '@iptvnator/shared/interfaces';
 import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
@@ -1077,8 +1078,19 @@ const electronApi: ElectronBridgeApi = {
     dbCancelOperation: (operationId: string) =>
         ipcRenderer.invoke('DB_CANCEL_OPERATION', operationId),
     dbGetAppState: (key: string) => ipcRenderer.invoke('DB_GET_APP_STATE', key),
-    dbSetAppState: (key: string, value: string) =>
-        ipcRenderer.invoke('DB_SET_APP_STATE', key, value),
+    dbCheckXtreamCatalogConnection: (condition: XtreamCatalogStateCondition) =>
+        ipcRenderer.invoke('DB_CHECK_XTREAM_CATALOG_CONNECTION', condition),
+    dbSetAppState: (
+        key: string,
+        value: string,
+        condition?: XtreamCatalogStateCondition
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SET_APP_STATE',
+            key,
+            value,
+            ...(condition === undefined ? [] : [condition])
+        ),
     // TMDB metadata cache
     dbGetTmdbMetadata: (
         mediaType: TmdbCacheMediaType,

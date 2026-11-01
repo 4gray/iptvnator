@@ -9,6 +9,10 @@ import {
 } from './xtream-pending-restore.service';
 import { XtreamSelectedCatalogRefreshService } from './xtream-selected-catalog-refresh.service';
 import {
+    XtreamCatalogCommitService,
+    XtreamCatalogConnectionChangedError,
+} from './xtream-catalog-commit.service';
+import {
     PlaylistMeta,
     XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
@@ -51,6 +55,8 @@ describe('edit-time Xtream catalog refresh', () => {
     let pending: Record<string, jest.Mock>;
     let release: jest.Mock;
     let service: XtreamSelectedCatalogRefreshService;
+    let commitState: jest.Mock;
+    let assertCurrent: jest.Mock;
 
     beforeEach(() => {
         data = { sendIpcEvent: jest.fn().mockResolvedValue({ payload: [] }) };
@@ -106,10 +112,27 @@ describe('edit-time Xtream catalog refresh', () => {
                 }),
         };
         release = jest.fn();
+        assertCurrent = jest.fn().mockResolvedValue(undefined);
+        commitState = jest.fn(async (_playlist, key, value) => {
+            const saved =
+                value === 'completed'
+                    ? await db.setXtreamImportStatus(
+                          'p',
+                          key.split(':').at(-1),
+                          value
+                      )
+                    : await db.setAppState(key, value);
+            if (!saved)
+                throw new Error('Could not persist catalog completion status.');
+        });
         TestBed.configureTestingModule({
             providers: [
                 { provide: DataService, useValue: data },
                 { provide: DatabaseService, useValue: db },
+                {
+                    provide: XtreamCatalogCommitService,
+                    useValue: { setState: commitState, assertCurrent },
+                },
                 {
                     provide: ParentalLockService,
                     useValue: { lockedXtreamIds: () => [] },
@@ -177,6 +200,63 @@ describe('edit-time Xtream catalog refresh', () => {
         }));
         expect(db.saveXtreamContent).toHaveBeenCalled();
         expect(pending['applyAndConsume']).toHaveBeenCalled();
+    });
+
+    it.each(['series', 'acknowledgment'])(
+        'clears all replaced types and retains recovery after a late connection change at %s',
+        async (phase) => {
+            const original = commitState.getMockImplementation()!;
+            commitState.mockImplementation(async (source, key, value) => {
+                if (
+                    (phase === 'series' && key.endsWith(':series')) ||
+                    (phase === 'acknowledgment' && value === '')
+                ) {
+                    throw new XtreamCatalogConnectionChangedError();
+                }
+                return original(source, key, value);
+            });
+            await expect(
+                service.refresh(playlist, ['movie', 'series'])
+            ).rejects.toThrow('connection changed');
+            expect(db.setXtreamImportStatus).toHaveBeenCalledWith(
+                'p',
+                'movie',
+                'completed'
+            );
+            expect(db.clearXtreamImportCache.mock.calls).toEqual([
+                ['p', 'movie'],
+                ['p', 'series'],
+            ]);
+            expect(pending['clear']).not.toHaveBeenCalled();
+            expect(db.setAppState).not.toHaveBeenCalledWith(
+                'xtream-history-recovery:p',
+                ''
+            );
+            expect(release).toHaveBeenCalled();
+        }
+    );
+
+    it('clears an earlier completed type if a save error also moved the connection', async () => {
+        db.saveXtreamContent.mockImplementation(async (_id, _rows, type) => {
+            if (type === 'series') throw new Error('Synthetic save failure');
+            return 0;
+        });
+        assertCurrent.mockRejectedValue(
+            new XtreamCatalogConnectionChangedError()
+        );
+        await expect(
+            service.refresh(playlist, ['movie', 'series'])
+        ).rejects.toThrow('Synthetic save failure');
+        expect(assertCurrent).toHaveBeenCalledWith(playlist);
+        expect(db.clearXtreamImportCache.mock.calls).toEqual([
+            ['p', 'movie'],
+            ['p', 'series'],
+        ]);
+        expect(pending['clear']).not.toHaveBeenCalled();
+        expect(db.setAppState).not.toHaveBeenCalledWith(
+            'xtream-history-recovery:p',
+            ''
+        );
     });
 
     it('durably marks each invalidated catalog before any replacement write', async () => {

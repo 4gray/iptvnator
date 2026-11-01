@@ -139,9 +139,51 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { key: 'workspace:last-route' },
     },
     {
+        operation: 'DB_CHECK_XTREAM_CATALOG_CONNECTION',
+        args: [
+            {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        ],
+        payload: {
+            condition: {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        },
+    },
+    {
         operation: 'DB_SET_APP_STATE',
         args: ['workspace:last-route', '/workspace'],
         payload: { key: 'workspace:last-route', value: '/workspace' },
+    },
+    {
+        operation: 'DB_SET_APP_STATE',
+        args: [
+            'xtream-import-status:p:movie',
+            'completed',
+            {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        ],
+        payload: {
+            key: 'xtream-import-status:p:movie',
+            value: 'completed',
+            condition: {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        },
     },
     {
         operation: 'DB_HAS_CATEGORIES',

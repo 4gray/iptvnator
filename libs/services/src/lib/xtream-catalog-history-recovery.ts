@@ -60,7 +60,8 @@ export async function completeCatalogHistoryRecovery(
     deferred: XtreamDeferredCatalogRestoreService,
     playlistId: string,
     snapshot: DeferredCatalogSnapshot,
-    available: readonly XtreamContentType[]
+    available: readonly XtreamContentType[],
+    acknowledge?: () => Promise<void>
 ): Promise<void> {
     // Native replay records resolved identities atomically. Its proof survives
     // a remove/rewatch between these reads, even if the later watch erased its
@@ -80,7 +81,8 @@ export async function completeCatalogHistoryRecovery(
         afterClearHistory: journal.cleared ? journal.recentlyViewed : undefined,
     });
     // This native acknowledgment flushes the resolved DOM archive first.
-    await clearCatalogHistoryRecovery(db, playlistId);
+    if (acknowledge) await acknowledge();
+    else await clearCatalogHistoryRecovery(db, playlistId);
 }
 
 /** Upgrade older pending scans before bootstrap replaces their failed catalogs. */

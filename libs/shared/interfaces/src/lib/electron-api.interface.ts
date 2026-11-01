@@ -3,6 +3,10 @@ import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
 import type { PortalRequestFailureEnvelope } from './portal-request-failure.util';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
+import type {
+    XtreamCatalogStateCondition,
+    XtreamCatalogStateResult,
+} from './xtream-content-selection';
 import type { ZoomLevelAction } from './zoom-level.util';
 import type {
     CatchupDownloadMetadata,
@@ -1219,8 +1223,12 @@ export interface ElectronBridgeApi {
     dbGetAppState: (key: string) => Promise<string | null>;
     dbSetAppState: (
         key: string,
-        value: string
-    ) => Promise<ElectronBridgeResult>;
+        value: string,
+        condition?: XtreamCatalogStateCondition
+    ) => Promise<XtreamCatalogStateResult>;
+    dbCheckXtreamCatalogConnection: (
+        condition: XtreamCatalogStateCondition
+    ) => Promise<XtreamCatalogStateResult>;
     // TMDB metadata cache
     dbGetTmdbMetadata: (
         mediaType: TmdbCacheMediaType,

@@ -13,7 +13,7 @@ import {
     XtreamConnectionTestService,
 } from '@iptvnator/services';
 import type { Playlist } from '@iptvnator/shared/interfaces';
-import { EMPTY, Subject, of } from 'rxjs';
+import { EMPTY, Subject, of, throwError } from 'rxjs';
 import { PlaylistInfoComponent } from './playlist-info.component';
 import { XtreamSelectedCatalogRefreshService } from '@iptvnator/services/xtream-catalog-refresh';
 import {
@@ -135,6 +135,41 @@ describe('shared source editor', () => {
         ).componentInstance;
         await Promise.resolve();
         await Promise.resolve();
+    });
+
+    it('normalizes standalone connection fields and persists User-Agent before catalog completion', async () => {
+        jest.spyOn(
+            TestBed.inject(PlaylistStorageBackend),
+            'kind'
+        ).mockReturnValue('electron');
+        runtime.supportsXtreamSqliteDataSource = true;
+        const original = {
+            ...opened,
+            serverUrl: 'https://old.synthetic.invalid',
+            username: 'old-user',
+            password: 'old-password',
+        };
+        component.playlist = original;
+        component.playlistDetails.patchValue(original);
+        await component.saveChanges({
+            ...original,
+            title: 'Updated synthetic source',
+            serverUrl:
+                ' https://new.synthetic.invalid/get.php?username=ignored&password=ignored ',
+            username: ' new-user ',
+            password: ' new-password ',
+            userAgent: 'Fixture agent',
+        });
+        expect(sqliteUpdate).toHaveBeenCalledWith({
+            id: opened._id,
+            title: 'Updated synthetic source',
+            serverUrl: 'https://new.synthetic.invalid',
+            username: 'new-user',
+            password: 'new-password',
+            userAgent: 'Fixture agent',
+            xtreamContentTypes: undefined,
+        });
+        expect(sqliteUpdate).toHaveBeenCalledTimes(1);
     });
 
     it('hydrates a lightweight shared summary before capturing its edit revision', async () => {
@@ -313,10 +348,15 @@ describe('shared source editor', () => {
                 expect(replaced).toBe(false);
                 expect(updatePlaylistMeta).toHaveBeenCalledTimes(1);
                 if (accepted) {
-                    persisted.next({
+                    const saved = {
                         ...next,
                         sourceSyncRevision: '"accepted"',
-                    });
+                    };
+                    (
+                        TestBed.inject(PlaylistsService)
+                            .getPlaylistById as jest.Mock
+                    ).mockReturnValue(of(saved));
+                    persisted.next(saved);
                     persisted.complete();
                 } else persisted.error(new Error('SOURCE_SYNC.CONFLICT'));
                 await saving;
@@ -340,6 +380,148 @@ describe('shared source editor', () => {
             } finally {
                 log.mockRestore();
             }
+        }
+    );
+
+    it.each(['current', 'unavailable', 'deleted'] as const)(
+        'does not republish a superseded shared connection after cache failure (read=%s)',
+        async (readResult) => {
+            const original = {
+                ...opened,
+                serverUrl: 'https://synthetic-before.invalid',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+                xtreamContentTypes: ['live'],
+            } as Playlist;
+            const accepted = {
+                ...original,
+                xtreamContentTypes: ['live', 'movie'],
+                sourceSyncRevision: '"accepted-r1"',
+            } as Playlist;
+            const current = {
+                ...accepted,
+                serverUrl: 'https://synthetic-current.invalid',
+                sourceSyncRevision: '"current-r2"',
+            };
+            component.playlist = { ...original, id: original._id };
+            const getCurrent = TestBed.inject(PlaylistsService)
+                .getPlaylistById as jest.Mock;
+            getCurrent.mockClear();
+            const failure = new Error('Synthetic interrupted catalog save');
+            const persist = jest.fn().mockResolvedValue(accepted);
+            refresh.mockImplementation(
+                async (_playlist, _types, beforeReplace) => {
+                    await beforeReplace();
+                    if (readResult === 'unavailable') {
+                        // Preserve a newer context even when storage cannot
+                        // confirm its projection after the native write fails.
+                        component.playlist = { ...current, id: current._id };
+                        getCurrent.mockReturnValue(
+                            throwError(
+                                () => new Error('Synthetic read failure')
+                            )
+                        );
+                    } else {
+                        getCurrent.mockReturnValue(
+                            of(readResult === 'deleted' ? null : current)
+                        );
+                    }
+                    throw failure;
+                }
+            );
+
+            await expect(
+                component.updateXtreamPlaylist(accepted, persist)
+            ).rejects.toBe(failure);
+            expect(persist).toHaveBeenCalledTimes(1);
+            expect(sqliteUpdate).not.toHaveBeenCalled();
+            if (readResult === 'current') {
+                expect(dispatch).toHaveBeenCalledTimes(1);
+                expect(dispatch).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        persist: false,
+                        playlist: current,
+                    })
+                );
+                expect(component.playlist.sourceSyncRevision).toBe(
+                    current.sourceSyncRevision
+                );
+            } else {
+                expect(dispatch).not.toHaveBeenCalled();
+                if (readResult === 'unavailable')
+                    expect(component.playlist).toEqual(current);
+            }
+            expect(close).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each([false, true])(
+        'rehydrates the existing form after a connection-change failure (custom header=%s)',
+        async (customHeader) => {
+            const original = {
+                ...opened,
+                serverUrl: 'https://synthetic-before.invalid',
+                username: 'synthetic-before-user',
+                password: 'synthetic-before-password',
+                userAgent: 'Synthetic previous player',
+                xtreamContentTypes: ['live'],
+            } as Playlist;
+            const accepted = {
+                ...original,
+                xtreamContentTypes: ['live', 'movie'],
+                sourceSyncRevision: '"accepted-r1"',
+            } as Playlist;
+            const current = {
+                ...accepted,
+                serverUrl: 'https://synthetic-current.invalid',
+                username: 'synthetic-current-user',
+                password: 'synthetic-current-password',
+                userAgent: customHeader
+                    ? 'Synthetic current player'
+                    : undefined,
+                sourceSyncRevision: '"current-r2"',
+            };
+            component.playlist = { ...original, id: original._id };
+            component.playlistDetails.patchValue(accepted);
+            component.playlistDetails.markAsDirty();
+            const form = component.playlistDetails;
+            const connectionTest = component.connectionTest;
+            const failure = new Error('Synthetic connection changed');
+            failure.name = 'XtreamCatalogConnectionChangedError';
+            const persist = jest.fn().mockResolvedValue(accepted);
+            refresh.mockImplementation(
+                async (_playlist, _types, beforeReplace) => {
+                    await beforeReplace();
+                    (
+                        TestBed.inject(PlaylistsService)
+                            .getPlaylistById as jest.Mock
+                    ).mockReturnValue(of(current));
+                    throw failure;
+                }
+            );
+
+            await expect(
+                component.updateXtreamPlaylist(accepted, persist)
+            ).rejects.toBe(failure);
+            expect(persist).toHaveBeenCalledTimes(1);
+            expect(component.playlist).toEqual(current);
+            expect(component.playlistDetails).toBe(form);
+            expect(component.connectionTest).toBe(connectionTest);
+            expect(form.value).toEqual(
+                expect.objectContaining({
+                    serverUrl: current.serverUrl,
+                    username: current.username,
+                    password: current.password,
+                    userAgent: current.userAgent ?? '',
+                    xtreamContentTypes: ['movie', 'live'],
+                })
+            );
+            expect(form.pristine).toBe(true);
+            expect(dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({ persist: false, playlist: current })
+            );
+            expect(sqliteUpdate).not.toHaveBeenCalled();
+            expect(close).not.toHaveBeenCalled();
         }
     );
 

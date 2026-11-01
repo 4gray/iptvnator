@@ -73,6 +73,7 @@ type XtreamDatabasePlaylistUpdate = {
     name?: string;
     username?: string;
     password?: string;
+    userAgent?: string;
     serverUrl?: string;
     lastUpdated?: string;
     xtreamContentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
@@ -409,6 +410,7 @@ export class DatabaseService {
         title?: string;
         username?: string;
         password?: string;
+        userAgent?: string;
         serverUrl?: string;
         updateDate?: number;
         xtreamContentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
@@ -425,9 +427,10 @@ export class DatabaseService {
             }
             const updates: XtreamDatabasePlaylistUpdate = {};
             if (playlist.title) updates.name = playlist.title;
-            if (playlist.username) updates.username = playlist.username;
-            if (playlist.password) updates.password = playlist.password;
-            if (playlist.serverUrl) updates.serverUrl = playlist.serverUrl;
+            for (const key of ['username', 'password', 'serverUrl'] as const)
+                if (playlist[key]) updates[key] = playlist[key];
+            if (playlist.userAgent !== undefined)
+                updates.userAgent = playlist.userAgent;
             if (playlist.xtreamContentTypes !== undefined)
                 updates.xtreamContentTypes = playlist.xtreamContentTypes;
             if (playlist.updateDate !== undefined)

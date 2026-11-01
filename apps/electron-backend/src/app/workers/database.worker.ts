@@ -87,6 +87,11 @@ import {
     upsertAppPlaylists,
 } from '../database/operations/playlist.operations';
 import { setPlaylistServerTimezone } from '../database/operations/playlist-server-timezone.operations';
+import { checkXtreamCatalogConnection } from '../database/operations/xtream-catalog-state';
+import type {
+    XtreamCatalogStateCondition,
+    XtreamContentType,
+} from '@iptvnator/shared/interfaces';
 import {
     addRecentItem,
     clearPlaylistRecentItems,
@@ -853,9 +858,25 @@ async function executeRequest(
             return getAppState(db, payload.key);
         }
 
+        case 'DB_CHECK_XTREAM_CATALOG_CONNECTION': {
+            const payload = message.payload as {
+                condition: XtreamCatalogStateCondition;
+            };
+            return checkXtreamCatalogConnection(db, payload.condition);
+        }
+
         case 'DB_SET_APP_STATE': {
-            const payload = message.payload as { key: string; value: string };
-            return setAppState(db, payload.key, payload.value);
+            const payload = message.payload as {
+                key: string;
+                value: string;
+                condition?: XtreamCatalogStateCondition;
+            };
+            return setAppState(
+                db,
+                payload.key,
+                payload.value,
+                payload.condition
+            );
         }
 
         case 'DB_GET_TMDB_METADATA': {
@@ -980,7 +1001,7 @@ async function executeRequest(
             const payload = message.payload as {
                 playlistId: string;
                 operationId?: string;
-                contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
+                contentTypes?: XtreamContentType[];
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);

@@ -111,7 +111,8 @@ test('crash after recovery acknowledgment cannot resurrect removed dormant histo
             type Handler = (
                 event: Electron.IpcMainInvokeEvent,
                 key: string,
-                value: string
+                value: string,
+                ...rest: unknown[]
             ) => Promise<unknown>;
             const handlers = (
                 ipcMain as typeof ipcMain & {
@@ -121,19 +122,25 @@ test('crash after recovery acknowledgment cannot resurrect removed dormant histo
             const original = handlers.get('DB_SET_APP_STATE');
             if (!original) throw new Error('Missing app-state handler');
             ipcMain.removeHandler('DB_SET_APP_STATE');
-            ipcMain.handle('DB_SET_APP_STATE', async (event, key, value) => {
-                const result = await original(event, key, value);
-                if (key === `xtream-history-recovery:${id}` && value === '') {
-                    (
-                        globalThis as typeof globalThis & {
-                            recoveryAcknowledged?: boolean;
-                        }
-                    ).recoveryAcknowledged = true;
-                    // Keep the caller from consuming pending JSON before SIGKILL.
-                    return new Promise(() => undefined);
+            ipcMain.handle(
+                'DB_SET_APP_STATE',
+                async (event, key, value, ...rest) => {
+                    const result = await original(event, key, value, ...rest);
+                    if (
+                        key === `xtream-history-recovery:${id}` &&
+                        value === ''
+                    ) {
+                        (
+                            globalThis as typeof globalThis & {
+                                recoveryAcknowledged?: boolean;
+                            }
+                        ).recoveryAcknowledged = true;
+                        // Keep the caller from consuming pending JSON before SIGKILL.
+                        return new Promise(() => undefined);
+                    }
+                    return result;
                 }
-                return result;
-            });
+            );
         }, seeded.id);
         await page.goto(pathToFileURL(packagedRendererIndexPath).href);
         await openSources(page);

@@ -533,6 +533,7 @@ export class PlaylistInfoComponent {
                         title: playlist.title,
                         username: playlist.username,
                         password: playlist.password,
+                        userAgent: playlist.userAgent ?? '',
                         serverUrl: playlist.serverUrl,
                         xtreamContentTypes: playlist.xtreamContentTypes,
                     });
@@ -555,20 +556,49 @@ export class PlaylistInfoComponent {
                 // Accepted metadata stays authoritative after a cache failure.
                 // A parked snapshot keeps its selected types for retry imports.
                 if (savedMetadata) {
-                    const saved = savedMetadata;
+                    let saved: PlaylistMeta | null = savedMetadata;
                     if (persistShared) {
-                        this.playlist = {
-                            ...this.playlist,
-                            sourceSyncBase: saved.sourceSyncBase,
-                            sourceSyncRevision: saved.sourceSyncRevision,
-                        };
+                        try {
+                            saved = await firstValueFrom(
+                                this.playlistsService.getPlaylistById(
+                                    this.playlist._id
+                                )
+                            );
+                        } catch {
+                            // A failed read cannot authorize rolling back a
+                            // newer shared projection. Preserve the scan error.
+                            saved = null;
+                        }
+                        if (saved) {
+                            // Metadata was already accepted. Rebase the form
+                            // too, including when a storage error hid a late
+                            // connection change; a second Save must not revert it.
+                            this.playlist = {
+                                ...this.playlist,
+                                ...saved,
+                                userAgent: saved.userAgent,
+                                referrer: saved.referrer,
+                                origin: saved.origin,
+                                xtreamContentTypes: saved.xtreamContentTypes,
+                            };
+                            this.playlistDetails.patchValue({
+                                ...saved,
+                                userAgent: saved.userAgent ?? '',
+                                xtreamContentTypes:
+                                    normalizeXtreamContentTypes(
+                                        saved.xtreamContentTypes
+                                    ),
+                            });
+                            this.playlistDetails.markAsPristine();
+                        }
                     }
-                    this.store.dispatch(
-                        PlaylistActions.updatePlaylistMeta({
-                            playlist: saved,
-                            ...(persistShared ? { persist: false } : {}),
-                        })
-                    );
+                    if (saved)
+                        this.store.dispatch(
+                            PlaylistActions.updatePlaylistMeta({
+                                playlist: saved,
+                                ...(persistShared ? { persist: false } : {}),
+                            })
+                        );
                 }
                 throw error;
             }

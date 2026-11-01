@@ -6,11 +6,16 @@ import {
     XtreamContentType,
     XTREAM_REQUEST,
     XTREAM_CONTENT_TYPES,
+    xtreamHistoryRecoveryKey,
 } from '@iptvnator/shared/interfaces';
 import { DataService } from './data.service';
 import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
+import {
+    XtreamCatalogCommitService,
+    XtreamCatalogConnectionChangedError,
+} from './xtream-catalog-commit.service';
 import {
     XtreamPendingRestoreService,
     type XtreamPendingRestoreSnapshot,
@@ -52,6 +57,7 @@ export class XtreamSelectedCatalogRefreshService {
     private readonly pending = inject(XtreamPendingRestoreService);
     private readonly deferred = inject(XtreamDeferredCatalogRestoreService);
     private readonly activity = inject(SourceActivityService);
+    private readonly commit = inject(XtreamCatalogCommitService);
     private readonly progressState =
         signal<XtreamSelectedCatalogProgress | null>(null);
     readonly progress = this.progressState.asReadonly();
@@ -73,6 +79,7 @@ export class XtreamSelectedCatalogRefreshService {
         }
         const release = this.activity.begin([playlist._id]);
         const incomplete = new Set<XtreamContentType>();
+        const replaced = new Set<XtreamContentType>();
         let snapshot: XtreamPendingRestoreSnapshot | null = null;
         let historyPrepared = false;
         let replacementStarted = false;
@@ -130,9 +137,7 @@ export class XtreamSelectedCatalogRefreshService {
             // catalog until the authoritative edit is accepted.
             const accepted = await beforeReplace?.();
             if (accepted && !this.sameConnection(playlist, accepted)) {
-                throw new Error(
-                    'The source connection changed during the scan. Reopen its editor and retry.'
-                );
+                throw new XtreamCatalogConnectionChangedError();
             }
             replacementStarted = true;
             const invalidated = await this.db.deleteXtreamPlaylistContent(
@@ -146,7 +151,10 @@ export class XtreamSelectedCatalogRefreshService {
             // Only a completed native invalidation authorizes cleanup here.
             // Interrupted deletion keeps its idle status + pending recovery;
             // bootstrap clears it, while a failed preflight keeps healthy rows.
-            for (const type of types) incomplete.add(type);
+            for (const type of types) {
+                incomplete.add(type);
+                replaced.add(type);
+            }
             for (const { type, categories, content } of catalogs) {
                 // Deletion resets existing status keys to idle; re-arm before
                 // any native batch can commit without renderer cleanup.
@@ -184,16 +192,11 @@ export class XtreamSelectedCatalogRefreshService {
                 );
                 if (content.length > 0 && count === 0)
                     throw new Error('Saving the refreshed catalog failed.');
-                if (
-                    !(await this.db.setXtreamImportStatus(
-                        playlist._id,
-                        type,
-                        'completed'
-                    ))
-                )
-                    throw new Error(
-                        'Could not persist catalog completion status.'
-                    );
+                await this.commit.setState(
+                    playlist,
+                    `xtream-import-status:${playlist._id}:${type}`,
+                    'completed'
+                );
                 incomplete.delete(type);
             }
             publish(null, 'restoring');
@@ -211,13 +214,34 @@ export class XtreamSelectedCatalogRefreshService {
                         this.deferred,
                         playlist._id,
                         prepared.snapshot,
-                        available
+                        available,
+                        () =>
+                            this.commit.setState(
+                                playlist,
+                                xtreamHistoryRecoveryKey(playlist._id),
+                                ''
+                            )
                     );
                 }
             );
             if (result === 'consume-failed')
                 throw new Error('Could not finish source restore.');
         } catch (error) {
+            let connectionChanged =
+                error instanceof XtreamCatalogConnectionChangedError;
+            if (!connectionChanged && replaced.size) {
+                try {
+                    await this.commit.assertCurrent(playlist);
+                } catch (checkError) {
+                    connectionChanged =
+                        checkError instanceof
+                        XtreamCatalogConnectionChangedError;
+                }
+            }
+            if (connectionChanged) {
+                incomplete.clear();
+                replaced.forEach((type) => incomplete.add(type));
+            }
             if (
                 !replacementStarted &&
                 snapshot &&
