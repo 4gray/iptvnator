@@ -9,6 +9,9 @@ import {
     DEFAULT_PASSWORD,
 } from './xtream-series-playback.fixture';
 
+// Route mocks must stay authoritative across reloads of the production PWA.
+test.use({ serviceWorkers: 'block' });
+
 test('@tmdb-match corrects an Xtream movie through its route menu', async ({
     page,
     request,

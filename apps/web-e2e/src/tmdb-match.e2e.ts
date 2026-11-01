@@ -14,6 +14,9 @@ const selectedPoster = '/synthetic-alpha.svg';
 const otherPoster = '/synthetic-beta.svg';
 const title = 'Синтетический сериал Альфа (8 серий)';
 
+// Route mocks must stay authoritative across reloads of the production PWA.
+test.use({ serviceWorkers: 'block' });
+
 test('@tmdb-match persists a manual series match, restores provider metadata and automatic matching', async ({
     page,
 }) => {
