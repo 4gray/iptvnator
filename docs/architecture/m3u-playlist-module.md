@@ -199,6 +199,8 @@ open dialog and resets for a new import or Clear.
 enabling them. An absent flag keeps the legacy default-on behavior. Refresh,
 local source projection and backup/restore preserve this preference, including
 when a new EPG address appears. Explicitly enabled manual sources still work.
+Restoring over an existing playlist retains its manual EPG selections and
+disabled source markers before applying the imported preference.
 The preference belongs to local playlist state, like manual and disabled EPG
 selections, rather than the portable `SourceDefinition` connection.
 
@@ -1039,7 +1041,9 @@ playlist”, manual-only URLs are “Added manually”, and older rows without e
 record use “Saved source”. Do not infer detection from enabled URLs. The detected
 summary counts the intersection of normalized enabled and detected URLs, excluding
 manual-only sources, and describes current enablement rather than initial automatic
-selection. A collapsed list exposes detected remote URLs that are not enabled;
+selection. A collapsed list exposes detected remote URLs that are not enabled.
+Its rows mount only while open, initially 25 at a time; Load more reveals the
+next batch and moves focus to its first action. Closing resets the batch limit;
 enabling one applies immediately, records the explicit manual selection and removes
 only that URL's disabled marker. Global EPG membership is a separate visible status;
 adding a URL to global settings does not remove it from the playlist.

@@ -357,7 +357,10 @@
                                     <input matInput [value]="epgUrl" readonly />
                                     <mat-hint class="playlist-epg-source-meta">
                                         <span>{{
-                                            epg.originKey(epgUrl) | translate
+                                            (enabled
+                                                ? epg.originKey(epgUrl)
+                                                : 'SETTINGS.PLAYLIST_EPG_FROM_PLAYLIST'
+                                            ) | translate
                                         }}</span>
                                         <span role="status">
                                             @if (epg.isGlobal(epgUrl)) {
@@ -459,8 +462,13 @@
                         }
                         @if (epg.hiddenDetectedCount > 0) {
                             <details
+                                #availableEpg
                                 class="app-dialog-disclosure playlist-epg-available"
                                 data-test-id="playlist-epg-available"
+                                [open]="epg.availableOpen()"
+                                (toggle)="
+                                    epg.toggleAvailable(availableEpg.open)
+                                "
                             >
                                 <summary>
                                     {{
@@ -471,20 +479,42 @@
                                                   }
                                     }}
                                 </summary>
-                                <div class="app-dialog-disclosure__fields">
-                                    @for (
-                                        epgUrl of epg.hiddenDetectedUrls;
-                                        track epgUrl
-                                    ) {
-                                        <ng-container
-                                            [ngTemplateOutlet]="epgSourceRow"
-                                            [ngTemplateOutletContext]="{
-                                                $implicit: epgUrl,
-                                                enabled: false,
-                                            }"
-                                        />
-                                    }
-                                </div>
+                                @if (epg.availableOpen()) {
+                                    <div class="app-dialog-disclosure__fields">
+                                        @for (
+                                            epgUrl of epg.visibleAvailableUrls;
+                                            track epgUrl
+                                        ) {
+                                            <ng-container
+                                                [ngTemplateOutlet]="
+                                                    epgSourceRow
+                                                "
+                                                [ngTemplateOutletContext]="{
+                                                    $implicit: epgUrl,
+                                                    enabled: false,
+                                                }"
+                                            />
+                                        }
+                                        @if (epg.hasMoreAvailable) {
+                                            <button
+                                                mat-button
+                                                class="app-dialog__ghost"
+                                                type="button"
+                                                data-test-id="playlist-epg-show-more"
+                                                (click)="
+                                                    epg.showMoreAvailable(
+                                                        epgSources
+                                                    )
+                                                "
+                                            >
+                                                {{
+                                                    'CHANNELS.LOAD_MORE'
+                                                        | translate
+                                                }}
+                                            </button>
+                                        }
+                                    </div>
+                                }
                             </details>
                         }
                         <div

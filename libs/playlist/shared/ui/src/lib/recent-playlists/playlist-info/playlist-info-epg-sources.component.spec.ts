@@ -99,6 +99,51 @@ describe('PlaylistInfoComponent playlist EPG source rows', () => {
         disabledEpgUrls: [removeUrl],
     };
 
+    it('mounts a large detected catalog only when opened and reveals it in batches', () => {
+        const urls = Array.from(
+            { length: 600 },
+            (_, i) => `https://guide.example.test/${i}.xml`
+        );
+        const fixture = render({
+            ...playlist,
+            epgUrls: [],
+            detectedEpgUrls: urls,
+        });
+        const host = fixture.nativeElement as HTMLElement;
+        const rows = () =>
+            host.querySelectorAll('[data-epg-source-state="available"]');
+        expect(rows()).toHaveLength(0);
+        const details = host.querySelector<HTMLDetailsElement>(
+            '[data-test-id="playlist-epg-available"]'
+        )!;
+        details.open = true;
+        details.dispatchEvent(new Event('toggle'));
+        fixture.detectChanges();
+        expect(rows()).toHaveLength(25);
+        const showMore = host.querySelector<HTMLButtonElement>(
+            '[data-test-id="playlist-epg-show-more"]'
+        )!;
+        showMore.click();
+        fixture.detectChanges();
+        expect(rows()).toHaveLength(50);
+        fixture.componentInstance.epg.enableDetected(urls[49]);
+        fixture.detectChanges();
+        expect(
+            host.querySelector<HTMLInputElement>(
+                '[data-epg-source-state="enabled"] input'
+            )?.value
+        ).toBe(urls[49]);
+        expect(rows()).toHaveLength(50);
+        details.open = false;
+        details.dispatchEvent(new Event('toggle'));
+        fixture.detectChanges();
+        expect(rows()).toHaveLength(0);
+        details.open = true;
+        details.dispatchEvent(new Event('toggle'));
+        fixture.detectChanges();
+        expect(rows()).toHaveLength(25);
+    });
+
     it('counts only enabled detected sources and preserves known provenance', () => {
         const component = render(mixed).componentInstance;
         expect(component.epg.enabledDetectedCount).toBe(1);

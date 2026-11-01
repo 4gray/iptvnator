@@ -1,4 +1,4 @@
-import { afterNextRender, inject, Injector } from '@angular/core';
+import { afterNextRender, inject, Injector, signal } from '@angular/core';
 import { UntypedFormArray } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
@@ -25,6 +25,8 @@ export class PlaylistEpgSourceEditor {
     private readonly translate = inject(TranslateService);
     private readonly store = inject(Store);
     private readonly injector = inject(Injector);
+    readonly availableOpen = signal(false);
+    private readonly availableLimit = signal(25);
 
     constructor(
         private readonly readPlaylist: () => Playlist & { id: string },
@@ -66,6 +68,25 @@ export class PlaylistEpgSourceEditor {
 
     get hiddenDetectedCount(): number {
         return this.hiddenDetectedUrls.length;
+    }
+
+    get visibleAvailableUrls(): string[] {
+        return this.hiddenDetectedUrls.slice(0, this.availableLimit());
+    }
+
+    get hasMoreAvailable(): boolean {
+        return this.hiddenDetectedCount > this.availableLimit();
+    }
+
+    toggleAvailable(open: boolean): void {
+        this.availableOpen.set(open);
+        if (!open) this.availableLimit.set(25);
+    }
+
+    showMoreAvailable(container?: HTMLElement): void {
+        const firstNewUrl = this.hiddenDetectedUrls[this.availableLimit()];
+        this.availableLimit.update((limit) => limit + 25);
+        this.focusSourceAction(container, firstNewUrl, true);
     }
 
     originKey(url: string): string {
@@ -321,14 +342,20 @@ export class PlaylistEpgSourceEditor {
         this.inputs.at(0).reset('');
     }
 
-    private focusSourceAction(container?: HTMLElement, url?: string): void {
+    private focusSourceAction(
+        container?: HTMLElement,
+        url?: string,
+        includeAvailable = false
+    ): void {
         if (!container?.isConnected) return;
         afterNextRender(
             () => {
                 if (!container.isConnected) return;
                 const rows = Array.from(
                     container.querySelectorAll<HTMLElement>(
-                        '[data-epg-source-state="enabled"]'
+                        includeAvailable
+                            ? '[data-epg-source-url]'
+                            : '[data-epg-source-state="enabled"]'
                     )
                 );
                 const row = rows.find(

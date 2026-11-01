@@ -467,9 +467,9 @@ test('Xtream edit blocks malformed connection fields and saves supported inputs 
 
 const availableEpg = 'https://guide.example.test/other-region.xml.gz';
 
-async function seedEpgProvenance(page: Page) {
+async function seedEpgProvenance(page: Page, catalog?: string[]) {
     await page.evaluate(
-        async ({ originalEpg, newEpg, availableEpg }) => {
+        async ({ originalEpg, newEpg, availableEpg, catalog }) => {
             await new Promise<void>((resolve, reject) => {
                 const request = indexedDB.open('iptvnator');
                 request.onsuccess = () => {
@@ -480,10 +480,14 @@ async function seedEpgProvenance(page: Page) {
                     read.onsuccess = () =>
                         store.put({
                             ...read.result,
-                            epgUrls: [originalEpg, newEpg],
-                            detectedEpgUrls: [originalEpg, availableEpg],
-                            manualEpgUrls: [newEpg],
-                            disabledEpgUrls: [availableEpg],
+                            epgUrls: catalog ? [] : [originalEpg, newEpg],
+                            detectedEpgUrls: catalog ?? [
+                                originalEpg,
+                                availableEpg,
+                            ],
+                            manualEpgUrls: catalog ? [] : [newEpg],
+                            disabledEpgUrls: catalog ? [] : [availableEpg],
+                            ...(catalog ? { autoImportEpg: false } : {}),
                         });
                     tx.oncomplete = () => {
                         db.close();
@@ -497,7 +501,7 @@ async function seedEpgProvenance(page: Page) {
                 request.onerror = () => reject(request.error);
             });
         },
-        { originalEpg, newEpg, availableEpg }
+        { originalEpg, newEpg, availableEpg, catalog }
     );
     await page.reload();
     await expect(page.locator('app-source-row')).toHaveCount(3);
@@ -507,6 +511,62 @@ function enabledEpgRow(dialog: Locator, url: string) {
     return dialog.locator(
         `[data-epg-source-state="enabled"][data-epg-source-url="${url}"]`
     );
+}
+
+for (const theme of ['light', 'dark']) {
+    test(`large EPG catalogs mount in batches and preserve candidate selections (${theme})`, async ({
+        page,
+    }, testInfo) => {
+        const catalog = Array.from(
+            { length: 600 },
+            (_, index) => `https://guide.example.test/catalog/${index}.xml`
+        );
+        await seedEpgProvenance(page, catalog);
+        let dialog = await openEditor(page, titles[0]);
+        await page.evaluate(
+            (dark) => document.body.classList.toggle('dark-theme', dark),
+            theme === 'dark'
+        );
+        const available = dialog.getByTestId('playlist-epg-available');
+        const rows = dialog.locator('[data-epg-source-state="available"]');
+        await expect(rows).toHaveCount(0);
+        await available.locator('summary').click();
+        await expect(rows).toHaveCount(25);
+        await dialog.getByTestId('playlist-epg-show-more').click();
+        await expect(rows).toHaveCount(50);
+        await expect(rows.nth(25).getByRole('button')).toBeFocused();
+        await rows.nth(49).getByRole('button').click();
+        await expect(enabledEpgRow(dialog, catalog[49])).toHaveCount(1);
+        await expect(rows).toHaveCount(50);
+        await available.locator('summary').click();
+        await expect(rows).toHaveCount(0);
+        await available.locator('summary').click();
+        await expect(rows).toHaveCount(25);
+        await page.setViewportSize({ width: 390, height: 500 });
+        await expect
+            .poll(() =>
+                dialog.evaluate(
+                    (node) => node.scrollWidth <= node.clientWidth + 1
+                )
+            )
+            .toBe(true);
+        await available.locator('summary').scrollIntoViewIfNeeded();
+        await page.screenshot({
+            path: testInfo.outputPath(`epg-large-${theme}.png`),
+        });
+        await dialog
+            .getByRole('button', { name: 'Close', exact: true })
+            .click();
+        await page.reload();
+        dialog = await openEditor(page, titles[0]);
+        await expect(
+            dialog.locator('[data-epg-source-state="available"]')
+        ).toHaveCount(0);
+        await expect(enabledEpgRow(dialog, catalog[49])).toHaveCount(1);
+        await expect(
+            dialog.getByTestId('playlist-epg-detected-count')
+        ).toHaveText('From playlist: 1 of 600 enabled.');
+    });
 }
 
 test('EPG provenance and global settings scope remain clear after reload', async ({
