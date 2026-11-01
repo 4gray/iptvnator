@@ -4,6 +4,85 @@ import type { ActivitySyncClient } from '@iptvnator/services/activity-sync';
 import { ActivityPositionAdapter } from './activity-position-adapter';
 
 describe('activity projection local preservation', () => {
+    it('carries Stalker episode resets into series reads and the durable local mirror', async () => {
+        const legacy: PlaybackPositionData = {
+            contentType: 'episode',
+            contentXtreamId: 501,
+            seriesXtreamId: 100,
+            seasonNumber: 1,
+            episodeNumber: 2,
+            positionSeconds: 95,
+            durationSeconds: 100,
+        };
+        const reset: PlaybackPositionData = {
+            ...legacy,
+            contentXtreamId: 1001,
+            positionSeconds: 0,
+            durationSeconds: undefined,
+            watched: false,
+            activityIdentity: {
+                provider: 'stalker',
+                kind: 'episode',
+                mode: 'lazy',
+                seriesId: '100',
+                id: 'synthetic-episode',
+                seasonKey: '1',
+                episodeNumber: 2,
+            },
+        };
+        const client = {
+            positions: async () => [
+                { position: reset, reset: true, conflict: false },
+            ],
+        } as unknown as ActivitySyncClient;
+        const rows = new Map([[legacy.contentXtreamId, legacy]]);
+        const raw = {
+            getAllPlaybackPositions: async () => [...rows.values()],
+            savePlaybackPosition: async (
+                _source: string,
+                position: PlaybackPositionData
+            ) => {
+                rows.set(position.contentXtreamId, position);
+            },
+            clearPlaybackPosition: async (_source: string, id: number) => {
+                rows.delete(id);
+            },
+        } as unknown as IXtreamDataSource;
+        const adapter = new ActivityPositionAdapter(client);
+        const series = await adapter.invoke(raw, 'getSeriesPlaybackPositions', [
+            'synthetic-source',
+            100,
+        ]);
+        expect(series).toEqual([
+            legacy,
+            expect.objectContaining({
+                contentXtreamId: 1001,
+                positionSeconds: 0,
+                watched: false,
+            }),
+        ]);
+        const strict = {
+            save: jest.fn(async () => {
+                throw new Error('Synthetic mirror failure');
+            }),
+            clear: jest.fn(),
+        };
+        await expect(
+            new ActivityPositionAdapter(client, strict).keepLocal(
+                raw,
+                'synthetic-source'
+            )
+        ).rejects.toThrow('Synthetic mirror failure');
+        expect(rows.has(1001)).toBe(false);
+        expect(rows.get(501)).toEqual(legacy);
+        expect(strict.clear).not.toHaveBeenCalled();
+        await adapter.keepLocal(raw, 'synthetic-source');
+        expect(rows.get(1001)).toEqual(
+            expect.objectContaining({ positionSeconds: 0, watched: false })
+        );
+        expect(rows.get(501)).toEqual(legacy);
+    });
+
     it('routes an explicit watched action through shared projection instead of the local mirror', async () => {
         let shared: PlaybackPositionData = {
             contentType: 'vod',

@@ -937,6 +937,8 @@ generation cannot send an older queue until the user chooses to send it or keep
 it local. A pending import keeps its local projection even when the conflicting
 server state is a reset, so disabling or keeping the queue local preserves it.
 Queue actions use the current source incarnation and leave retired records parked.
+Stalker episode resets keep exact zero rows in series reads and local mirrors;
+compatible legacy aliases cannot promote old progress over that reset.
 
 The implementation uses narrow entry points, outside the eager main barrels:
 
@@ -974,8 +976,11 @@ standalone startup keeps the optional client outside the initial bundle. Players
 ignore transient pre-seek ticks until the initial resume position is reached,
 then accept deliberate rewinds. The same guard filters the emitted time updates
 before legacy episode writers receive them, so those writers cannot upload a
-transient pre-seek position. Durable local snapshots get a fresh save
-timestamp for offline episode ordering and retain the reducer's watched state.
+transient pre-seek position. If an explicit launch cannot commit its source
+context, its later checkpoints stay on the local persistence path, including
+when connectivity returns. A new explicit launch may acquire shared ownership.
+Durable local snapshots get a fresh save timestamp for offline episode ordering
+and retain the reducer's watched state.
 Refresh on focus/online and a visible-page five-second poll deliver changes;
 local invalidation refreshes open detail views and position caches, including
 Dashboard Continue Watching and the Stalker catalog.

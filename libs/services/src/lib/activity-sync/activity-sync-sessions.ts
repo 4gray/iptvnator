@@ -79,11 +79,13 @@ export function beginActivity(
         )
             this.delivery.start();
         else this.delivery.settled(operationId);
+        this.localSessions.delete(sessionId);
         this.options.changed();
         void this.flush();
         return { address, generation };
     })();
     void begin.catch(() => {
+        this.localSessions.add(sessionId);
         this.delivery.settled(operationId);
         if (this.sessions.get(sessionId) === begin)
             this.sessions.delete(sessionId);
@@ -96,7 +98,14 @@ export async function saveActivity(
     this: ActivitySyncClient,
     sourceId: string,
     position: PlaybackPositionData
-): Promise<void> {
+): Promise<'local-only' | void> {
+    // Failed explicit launches have no shared owner. Keep the adapter's local
+    // fallback active until another explicit launch commits ownership.
+    if (
+        position.activitySessionId &&
+        this.localSessions.has(position.activitySessionId)
+    )
+        return 'local-only';
     if (
         position.activitySessionId &&
         this.retiredSessions.has(position.activitySessionId)

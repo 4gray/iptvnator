@@ -1708,6 +1708,9 @@ series' positions and mapped episodes are available:
 - On the next position write, IPTVnator persists the scoped row through the
   strict, failure-propagating persistence boundary before removing a confirmed
   legacy row. If the scoped write fails, the legacy row remains intact.
+- Shared activity resets remain exact zero-position rows in series reads and
+  when mirrored to local storage. They take precedence over compatible legacy
+  progress; the guarded alias remains available for normal migration cleanup.
 - This is an on-read/on-write compatibility path, not a database schema
   migration or a bulk rewrite of saved positions.
 

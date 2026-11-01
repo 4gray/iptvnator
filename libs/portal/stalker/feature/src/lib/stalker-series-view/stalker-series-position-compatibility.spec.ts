@@ -75,6 +75,32 @@ function reconcile(
 }
 
 describe('stalker series position compatibility', () => {
+    it('keeps an exact zero reset ahead of watched legacy progress for guarded cleanup', () => {
+        const episode = createEpisode({ legacyTrackingId: LEGACY_TRACKING_ID });
+        const reset = createPosition({
+            positionSeconds: 0,
+            durationSeconds: undefined,
+            watched: false,
+        });
+        const legacy = createPosition({
+            contentXtreamId: LEGACY_TRACKING_ID,
+            positionSeconds: 120,
+        });
+        const result = reconcile([episode], [legacy, reset]);
+        expect(result.positionsByTrackingId.get(SCOPED_TRACKING_ID)).toEqual(
+            reset
+        );
+        expect(
+            result.legacyPositionByTrackingId.get(SCOPED_TRACKING_ID)
+        ).toEqual(legacy);
+        // A subsequent ordinary scoped write may clean up that proven alias.
+        expect(
+            reconcile([episode], [reset]).positionsByTrackingId.get(
+                SCOPED_TRACKING_ID
+            )?.positionSeconds
+        ).toBe(0);
+    });
+
     it('retains pre-correction legacy progress only for the original provider season', () => {
         const episode = {
             ...createEpisode({

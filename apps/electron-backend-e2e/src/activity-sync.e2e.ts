@@ -457,6 +457,34 @@ for (const provider of ['xtream', 'stalker'] as const)
             await expect(
                 page.locator('[data-testid="episode-watched-toggle"]').first()
             ).toHaveAttribute('aria-pressed', 'false', { timeout: 15000 });
+            if (provider === 'stalker') {
+                // Disabling mirrors the zero barrier through real SQLite IPC.
+                await openSettings(desktop.mainWindow);
+                await openSettingsSection(desktop.mainWindow, 'server');
+                await desktop.mainWindow
+                    .getByTestId('activity-sync-enabled')
+                    .getByRole('checkbox')
+                    .uncheck();
+                await expect(
+                    desktop.mainWindow.getByTestId('activity-sync-state')
+                ).toContainText('Activity stays on this device');
+                const positions = await desktop.mainWindow.evaluate(
+                    (id) => window.electron!.dbGetAllPlaybackPositions(id),
+                    sourceId
+                );
+                expect(
+                    positions.filter((item) => item.contentType === 'episode')
+                ).toEqual([expect.objectContaining({ positionSeconds: 0 })]);
+                await closeElectronApp(desktop);
+                desktop = undefined;
+                desktop = await launchElectronApp(directory);
+                await series(desktop.mainWindow, provider, seriesFixture);
+                await expect(
+                    desktop.mainWindow
+                        .locator('[data-testid="episode-watched-toggle"]')
+                        .first()
+                ).toHaveAttribute('aria-pressed', 'false');
+            }
         } finally {
             if (desktop) await closeElectronApp(desktop);
             await context.close();

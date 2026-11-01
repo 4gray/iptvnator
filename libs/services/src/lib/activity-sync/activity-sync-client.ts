@@ -53,6 +53,7 @@ export class ActivitySyncClient {
     >();
     readonly delivery = new ActivityDeliveryCoordinator(this);
     readonly retiredSessions = new Set<string>();
+    readonly localSessions = new Set<string>();
     private flushing?: Promise<void>;
     constructor(
         readonly store: ActivityLocalStore,
@@ -135,7 +136,7 @@ export class ActivitySyncClient {
     async save(
         sourceId: string,
         position: PlaybackPositionData
-    ): Promise<void> {
+    ): Promise<'local-only' | void> {
         return saveActivity.call(this, sourceId, position);
     }
 

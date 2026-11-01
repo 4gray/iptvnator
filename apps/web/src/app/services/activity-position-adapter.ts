@@ -39,8 +39,9 @@ export class ActivityPositionAdapter {
                         raw.savePlaybackPosition(sourceId, position));
                     continue;
                 }
+                let delivery: 'local-only' | void;
                 try {
-                    await this.client.save(sourceId, position);
+                    delivery = await this.client.save(sourceId, position);
                 } catch (error) {
                     // A new source may never have received its portable incarnation before going offline.
                     const local = { ...position };
@@ -49,6 +50,11 @@ export class ActivityPositionAdapter {
                     await (this.strict?.save(sourceId, local) ??
                         raw.savePlaybackPosition(sourceId, local));
                     throw error;
+                }
+                if (delivery === 'local-only') {
+                    const local = localActivityPosition(position);
+                    await (this.strict?.save(sourceId, local) ??
+                        raw.savePlaybackPosition(sourceId, local));
                 }
             }
             return;
@@ -113,7 +119,11 @@ export class ActivityPositionAdapter {
             }
             return;
         }
-        const positions = await this.all(raw, sourceId);
+        const positions = await this.all(
+            raw,
+            sourceId,
+            method === 'getSeriesPlaybackPositions'
+        );
         if (method === 'getPlaybackPosition')
             return (
                 positions.find(
@@ -142,25 +152,33 @@ export class ActivityPositionAdapter {
 
     async all(
         raw: IXtreamDataSource,
-        sourceId: string
+        sourceId: string,
+        includeSeriesResets = false
     ): Promise<PlaybackPositionData[]> {
         return this.project(
             sourceId,
-            await raw.getAllPlaybackPositions(sourceId)
+            await raw.getAllPlaybackPositions(sourceId),
+            includeSeriesResets
         );
     }
 
     async project(
         sourceId: string,
-        local: PlaybackPositionData[]
+        local: PlaybackPositionData[],
+        includeSeriesResets = false
     ): Promise<PlaybackPositionData[]> {
         const positions = new Map(
             local.map((p) => [`${p.contentType}:${p.contentXtreamId}`, p])
         );
         for (const item of await this.client.positions(sourceId)) {
             const key = `${item.position.contentType}:${item.position.contentXtreamId}`;
-            if (item.reset) positions.delete(key);
-            else positions.set(key, item.position);
+            if (item.reset) {
+                positions.delete(key);
+                // An exact zero row blocks guarded legacy aliases from promoting
+                // old Stalker episode progress back into the series view.
+                if (includeSeriesResets && isStalkerEpisode(item.position))
+                    positions.set(key, resetPosition(item.position));
+            } else positions.set(key, item.position);
         }
         return [...positions.values()];
     }
@@ -175,7 +193,11 @@ export class ActivityPositionAdapter {
     async keepLocal(raw: IXtreamDataSource, sourceId: string): Promise<void> {
         for (const item of await this.client.positions(sourceId)) {
             const position = item.position;
-            if (item.reset)
+            if (item.reset && isStalkerEpisode(position)) {
+                const reset = localActivityPosition(resetPosition(position));
+                await (this.strict?.save(sourceId, reset) ??
+                    raw.savePlaybackPosition(sourceId, reset));
+            } else if (item.reset)
                 await (this.strict?.clear(
                     sourceId,
                     position.contentXtreamId,
@@ -211,4 +233,20 @@ function localActivityPosition(
         local.durationSeconds = duration;
     }
     return local;
+}
+
+function isStalkerEpisode(position: PlaybackPositionData): boolean {
+    return (
+        position.activityIdentity?.provider === 'stalker' &&
+        position.contentType === 'episode'
+    );
+}
+
+function resetPosition(position: PlaybackPositionData): PlaybackPositionData {
+    return {
+        ...position,
+        positionSeconds: 0,
+        durationSeconds: undefined,
+        watched: false,
+    };
 }

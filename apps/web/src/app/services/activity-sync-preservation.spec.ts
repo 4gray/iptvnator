@@ -52,6 +52,7 @@ function fixture() {
         },
     };
     let remote = emptyActivityState();
+    let offline = false;
     const client = new ActivitySyncClient(store, {
         instanceId: address.instanceId,
         deviceId: 'synthetic-device',
@@ -60,6 +61,14 @@ function fixture() {
         status: () => undefined,
         changed: () => undefined,
         request: async (input) => {
+            if (offline) throw new Error('Synthetic offline transport');
+            if (input.operation === 'activity-context')
+                return { status: 200, body: context };
+            if (input.operation === 'activity-list')
+                return {
+                    status: 200,
+                    body: { entries: [{ address, state: remote }] },
+                };
             if (
                 input.activity?.address.sourceIncarnation !==
                 context.sourceIncarnation
@@ -106,6 +115,9 @@ function fixture() {
         adapter,
         position,
         saved,
+        setOffline: (value: boolean) => {
+            offline = value;
+        },
         setRemote: (operation: ActivityOperation) => {
             remote = applyActivityOperation(remote, operation).state;
             return remote;
@@ -118,6 +130,54 @@ describe('keeping pending activity local', () => {
         localStorage.clear();
         await prepareSourceConnection();
     });
+    it('continues saving locally after an uncached offline launch and recovery', async () => {
+        const f = fixture();
+        f.client.contexts.clear();
+        f.setOffline(true);
+        const position = {
+            ...f.position,
+            activitySessionId: 'synthetic-offline-launch',
+        };
+        await expect(
+            f.client.begin(f.address.sourceId, position)
+        ).rejects.toThrow();
+        await expect(
+            f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                position,
+            ])
+        ).resolves.toBeUndefined();
+        expect(f.saved[f.saved.length - 1]).toEqual(
+            expect.objectContaining({
+                positionSeconds: 20,
+            })
+        );
+        expect(f.saved[f.saved.length - 1]).not.toHaveProperty(
+            'activitySessionId'
+        );
+        f.setOffline(false);
+        await f.client.refresh(f.address.sourceId);
+        await expect(
+            f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                { ...position, positionSeconds: 35 },
+            ])
+        ).resolves.toBeUndefined();
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(35);
+        expect((await f.store.read(f.address))?.state.owner).toBeNull();
+        expect(await f.store.pending()).toHaveLength(0);
+        await f.client.begin(f.address.sourceId, position);
+        await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+            f.address.sourceId,
+            { ...position, positionSeconds: 45 },
+        ]);
+        await f.client.flush();
+        expect(
+            (await f.store.read(f.address))?.state.resume?.positionSeconds
+        ).toBe(45);
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(35);
+    });
+
     it.each([false, true])(
         'preserves an imported position over a synchronized reset (watched: %s)',
         async (watched) => {
