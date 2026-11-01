@@ -158,16 +158,19 @@ for (const heldPhase of [
                 .locator('mat-dialog-actions')
                 .getByRole('button', { name: 'Save', exact: true })
                 .click();
+            // The barrier is reached only after both large native saves commit.
             await expect
-                .poll(() =>
-                    app.electronApp.evaluate(
-                        () =>
-                            !!(
-                                globalThis as typeof globalThis & {
-                                    releaseLateConnection?: () => void;
-                                }
-                            ).releaseLateConnection
-                    )
+                .poll(
+                    () =>
+                        app.electronApp.evaluate(
+                            () =>
+                                !!(
+                                    globalThis as typeof globalThis & {
+                                        releaseLateConnection?: () => void;
+                                    }
+                                ).releaseLateConnection
+                        ),
+                    { timeout: 60000 }
                 )
                 .toBe(true);
             expect(
@@ -222,9 +225,10 @@ for (const heldPhase of [
                     }
                 ).releaseLateConnection!()
             );
+            // A rejected connection clears both replaced 20k-row catalogs.
             await expect(
                 dialog.locator('.workspace-loading-overlay')
-            ).not.toBeVisible();
+            ).not.toBeVisible({ timeout: 60000 });
             const after = await page.evaluate(
                 async ({ id, pendingKey }) => ({
                     counts: await Promise.all(

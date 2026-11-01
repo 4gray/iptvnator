@@ -44,9 +44,10 @@ for (const retained of [false, true])
                 password: 'performance',
                 contentTypes: retained ? ['live', 'movie'] : ['live'],
             });
+            // Setup imports the large synthetic Live/optional Movie catalogs.
             await expect(
                 page.locator('.workspace-loading-overlay')
-            ).not.toBeVisible();
+            ).not.toBeVisible({ timeout: 60000 });
             await openSources(page);
             const id = await page.evaluate(
                 async (title) =>
@@ -58,14 +59,16 @@ for (const retained of [false, true])
             let rememberedMovie: number | undefined;
             if (retained) {
                 await expect
-                    .poll(() =>
-                        page.evaluate(
-                            (id) =>
-                                window.electron.dbGetAppState(
-                                    `xtream-import-status:${id}:movie`
-                                ),
-                            id
-                        )
+                    .poll(
+                        () =>
+                            page.evaluate(
+                                (id) =>
+                                    window.electron.dbGetAppState(
+                                        `xtream-import-status:${id}:movie`
+                                    ),
+                                id
+                            ),
+                        { timeout: 60000 }
                     )
                     .toBe('completed');
                 rememberedMovie = await page.evaluate(async (id) => {
@@ -147,8 +150,11 @@ for (const retained of [false, true])
                 .getByRole('button', { name: 'Save', exact: true })
                 .click();
             try {
+                // Provider category loading precedes this held stream response.
                 await expect
-                    .poll(() => previous.actions.includes('get_vod_streams'))
+                    .poll(() => previous.actions.includes('get_vod_streams'), {
+                        timeout: 60000,
+                    })
                     .toBe(true);
                 await expect(
                     dialog.locator('.workspace-loading-overlay')
@@ -156,9 +162,10 @@ for (const retained of [false, true])
             } finally {
                 releaseScan();
             }
+            // Retained-cache rejection may delete 20k native rows before settling.
             await expect(
                 dialog.locator('.workspace-loading-overlay')
-            ).not.toBeVisible();
+            ).not.toBeVisible({ timeout: 60000 });
             await expect(
                 dialog.getByRole('button', { name: 'Close', exact: true })
             ).toBeEnabled();
@@ -218,14 +225,16 @@ for (const retained of [false, true])
                 .locator('.source-row__name')
                 .click();
             await expect
-                .poll(() =>
-                    page.evaluate(
-                        (id) =>
-                            window.electron.dbGetAppState(
-                                `xtream-import-status:${id}:movie`
-                            ),
-                        id
-                    )
+                .poll(
+                    () =>
+                        page.evaluate(
+                            (id) =>
+                                window.electron.dbGetAppState(
+                                    `xtream-import-status:${id}:movie`
+                                ),
+                            id
+                        ),
+                    { timeout: 60000 }
                 )
                 .toBe('completed');
             expect(current.actions).toContain('get_vod_streams');
