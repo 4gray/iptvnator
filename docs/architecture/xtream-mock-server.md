@@ -226,6 +226,35 @@ scenarios, transports, actions, categories, occurrences, and delays
 (`0..5000` ms) use closed validation. Duplicate IDs/matches and already-past
 occurrences fail closed.
 
+### Normal-mode test isolation
+
+`POST /reset?username=<u>&password=<p>` evicts only that credential tuple:
+portal data (including EPG), VOD details, eagerly/lazily cached series details,
+and the account's stream-drop bookkeeping. Both parameters must be non-empty
+single strings; incomplete, empty, or repeated identities return `400` without
+clearing anything. Cache keys encode credential tuples, so colons and common
+prefixes cannot make two accounts share entries. Stream-drop state includes
+both credentials and episode ID; a reset detaches pending cut callbacks so
+they cannot repopulate the new account state.
+
+Web specs use scoped resets. The PWA source consumers use
+`apps/web-e2e/src/pwa-mock.fixture.ts`: each test receives a unique
+`pwa-<32 lowercase hex digits>:pass1` account, mapped to the existing
+`user1:pass1` scenario and seed. Setup and teardown reset only its resources;
+teardown closes the browser context before releasing them. Existing serial
+Xtream suites retain their scenario credentials and read-only catalogs, but
+scope setup resets to those credentials rather than clearing unrelated
+accounts. Browser local/IndexedDB storage remains per context. The separate
+server-storage suite keeps its existing per-run backend directory and serial
+library lifecycle; this fixture never resets that backend.
+
+`pwa-mock-isolation.e2e.ts` runs two parallel scenarios with deliberately
+overlapping session lifetimes and an awaited scoped reset inside each journey.
+It verifies the other Stalker session/favorite survives. The mock unit suite
+additionally pins all three Xtream cache identities and same-episode stream
+refusals across a concurrent reset/read. These deterministic regressions prove
+isolation; they do not establish that shared resets caused a past flaky run.
+
 The legacy unauthenticated `POST /reset` remains available in normal mode. It
 returns `410` while the control plane is enabled, preventing cache invalidation
 that would leave the controller's prepared manifest stale. Performance runs

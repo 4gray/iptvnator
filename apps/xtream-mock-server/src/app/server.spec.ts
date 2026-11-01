@@ -2,11 +2,17 @@ import { statSync } from 'node:fs';
 import { connect } from 'node:net';
 import { join } from 'node:path';
 import express from 'express';
-import { resetAll } from './data-store.js';
+import {
+    getPortalData,
+    getVodDetails,
+    getSeriesInfo,
+    resetAll,
+} from './data-store.js';
 import {
     DROPPING_EPISODE_CUT_RATIO,
     DROPPING_EPISODE_REFUSE_MS,
     resetDroppingEpisodes,
+    streamDroppingEpisode,
 } from './dropping-episode.js';
 import { LONG_PROGRAMME_TITLE } from './scenarios.js';
 import {
@@ -85,6 +91,146 @@ describe('Xtream mock server factory', () => {
         resetAll();
         resetDroppingEpisodes();
         jest.restoreAllMocks();
+    });
+
+    it('scoped HTTP reset preserves another active account and every detail cache', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        const accounts = [
+            ['minimal', 'minimal'],
+            ['minimal', 'minimal:other'],
+        ];
+        const snapshots = accounts.map(([username, password]) => {
+            const portal = getPortalData(username, password);
+            const vodId = portal.vodStreams[0].stream_id;
+            const seriesId = portal.seriesItems[0].series_id;
+            return {
+                portal,
+                vodId,
+                seriesId,
+                vod: getVodDetails(username, password, vodId),
+                series: getSeriesInfo(username, password, seriesId),
+            };
+        });
+        try {
+            // Both accounts are already active. Reset A while B continues its journey.
+            const [reset, read] = await Promise.all([
+                fetch(
+                    `${running.origin}/reset?username=minimal&password=minimal`,
+                    { method: 'POST' }
+                ),
+                fetch(
+                    `${running.origin}/player_api.php?username=minimal&password=minimal%3Aother&action=get_vod_streams`
+                ),
+            ]);
+            expect(reset.status).toBe(200);
+            expect(read.status).toBe(200);
+            const [a, b] = snapshots;
+            expect(
+                getPortalData(...(accounts[1] as [string, string])) === b.portal
+            ).toBe(true);
+            expect(
+                getVodDetails(...(accounts[1] as [string, string]), b.vodId) ===
+                    b.vod
+            ).toBe(true);
+            expect(
+                getSeriesInfo(
+                    ...(accounts[1] as [string, string]),
+                    b.seriesId
+                ) === b.series
+            ).toBe(true);
+            expect(
+                getPortalData(...(accounts[0] as [string, string])) === a.portal
+            ).toBe(false);
+            expect(
+                getVodDetails(...(accounts[0] as [string, string]), a.vodId) ===
+                    a.vod
+            ).toBe(false);
+            expect(
+                getSeriesInfo(
+                    ...(accounts[0] as [string, string]),
+                    a.seriesId
+                ) === a.series
+            ).toBe(false);
+        } finally {
+            await running.close();
+        }
+    });
+
+    it('rejects incomplete, empty and repeated reset credentials without clearing state', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        const portal = getPortalData('minimal', 'minimal');
+        try {
+            for (const query of [
+                'username=minimal',
+                'password=minimal',
+                'username=&password=minimal',
+                'username=minimal&password=',
+                'username=minimal&username=other&password=minimal',
+            ]) {
+                expect(
+                    (
+                        await fetch(`${running.origin}/reset?${query}`, {
+                            method: 'POST',
+                        })
+                    ).status
+                ).toBe(400);
+                expect(getPortalData('minimal', 'minimal') === portal).toBe(
+                    true
+                );
+            }
+            expect(
+                (await fetch(`${running.origin}/reset`, { method: 'POST' }))
+                    .status
+            ).toBe(200);
+            expect(getPortalData('minimal', 'minimal') === portal).toBe(false);
+        } finally {
+            await running.close();
+        }
+    });
+
+    it('keeps delimiter-bearing credential tuples distinct', () => {
+        const a = getPortalData('synthetic:account', 'secret');
+        const b = getPortalData('synthetic', 'account:secret');
+        expect(a === b).toBe(false);
+        const id = a.vodStreams[0].stream_id;
+        expect(getVodDetails('synthetic:account', 'secret', id)).not.toBe(
+            getVodDetails('synthetic', 'account:secret', id)
+        );
+    });
+
+    it('scoped reset rearms only the owning account stream and preserves concurrent refusals', async () => {
+        const app = createXtreamMockApp({ host: '127.0.0.1', port: 0 });
+        // Exercise identical episode IDs for different credential tuples.
+        app.get('/probe/:username/:password/:streamId', streamDroppingEpisode);
+        const running = await startLoopbackServer(app);
+        const a = `${running.origin}/probe/synthetic/one/80000.mkv`;
+        const b = `${running.origin}/probe/synthetic/two/80000.mkv`;
+        jest.spyOn(Date, 'now').mockReturnValue(123_000);
+        try {
+            const cuts = await Promise.all(
+                [a, b].map(async (url) => readDroppingBody(await fetch(url)))
+            );
+            expect(cuts.map((cut) => cut.complete)).toEqual([false, false]);
+            const [reset, retry] = await Promise.all([
+                fetch(
+                    `${running.origin}/reset?username=synthetic&password=one`,
+                    { method: 'POST' }
+                ),
+                fetch(b, { headers: { range: `bytes=${droppingCut}-` } }),
+            ]);
+            expect(reset.status).toBe(200);
+            expect(retry.status).toBe(403);
+            expect((await fetch(b)).status).toBe(403);
+            expect((await readDroppingBody(await fetch(a))).complete).toBe(
+                false
+            );
+        } finally {
+            await running.close();
+        }
     });
 
     it('serves the synthetic manifest-success/segment-failure and TS alternatives locally', async () => {

@@ -1,11 +1,10 @@
 import type { Locator, Page } from '@playwright/test';
 import { setInputValue } from './e2e-helpers';
-import { expect, test } from './fixtures';
+import { expect, test } from './pwa-mock.fixture';
 import {
     XTREAM_MOCK_SERVER,
     addStalkerPortal,
     interceptPwaProviderRequests,
-    resetPwaMockServers,
 } from './sources-pwa.helpers';
 
 /**
@@ -13,8 +12,7 @@ import {
  * masked password with a show/hide toggle, a URL error of their own and the
  * single "Add playlist" submit. Credentials are the Xtream mock's fixtures.
  */
-test.beforeEach(async ({ page, request }) => {
-    await resetPwaMockServers(request);
+test.beforeEach(async ({ page }) => {
     await interceptPwaProviderRequests(page);
     await page.goto('/');
 });
@@ -43,6 +41,7 @@ async function expectPasswordToggle(dialog: Locator): Promise<void> {
 
 test('@sources @pwa adds an Xtream source through the dialog', async ({
     page,
+    pwaMocks,
 }) => {
     const dialog = await openMethod(page, /Xtream credentials/i);
     const serverUrl = dialog.locator('#serverUrl');
@@ -64,7 +63,7 @@ test('@sources @pwa adds an Xtream source through the dialog', async ({
     );
     await setInputValue(serverUrl, XTREAM_MOCK_SERVER);
     await expect(dialog.locator('mat-error')).toHaveCount(0);
-    await setInputValue(dialog.locator('#username'), 'user1');
+    await setInputValue(dialog.locator('#username'), pwaMocks.username);
     await setInputValue(dialog.locator('#password'), 'pass1');
     await expectPasswordToggle(dialog);
     await expect(dialog.locator('#password')).toHaveValue('pass1');
@@ -236,6 +235,7 @@ test('@sources @pwa preserves a failed M3U draft and discards cancelled response
 
 test('@sources @pwa Stalker cancel ignores late discovery', async ({
     page,
+    pwaMocks,
 }) => {
     let resolve!: () => void;
     await page.route('**/localhost:3000/stalker**', async (route) => {
@@ -255,7 +255,7 @@ test('@sources @pwa Stalker cancel ignores late discovery', async ({
     await dialog
         .locator('#portalUrl')
         .fill('https://fixture.example/portal.php');
-    await dialog.locator('#macAddress').fill('00:1A:79:5F:00:02');
+    await dialog.locator('#macAddress').fill(pwaMocks.macAddress);
     await dialog
         .getByRole('button', { name: 'Add playlist', exact: true })
         .click();
@@ -272,8 +272,9 @@ test('@sources @pwa Stalker cancel ignores late discovery', async ({
 
 test('@sources @pwa retries a failed Stalker category in place', async ({
     page,
+    pwaMocks,
 }) => {
-    await addStalkerPortal(page, 'Recovery portal');
+    await addStalkerPortal(page, 'Recovery portal', pwaMocks);
     const categories = page.locator('.category-item');
     await expect(categories.nth(2)).toBeVisible();
     let failing = true;

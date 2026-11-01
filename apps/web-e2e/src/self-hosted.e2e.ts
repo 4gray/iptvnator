@@ -114,7 +114,7 @@ function expectRequestsUseTargetId(requests: string[], path: string): void {
 }
 
 test.beforeEach(async ({ page, request }) => {
-    await postWithRetry(request, `${XTREAM_MOCK_SERVER}/reset`);
+    await postWithRetry(request, `${XTREAM_MOCK_SERVER}/reset?username=user1&password=pass1`);
     // Scope the Stalker reset to the MAC this file uses: a global reset would
     // wipe the sessions of stalker.e2e.ts running in a parallel worker.
     await postWithRetry(
