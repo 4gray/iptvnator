@@ -411,6 +411,10 @@ types survive a failure in another type or in user-state replay. An existing
 pending restore blocks a new edit without persisting any of that rejected edit's
 metadata; recovery publication belongs only to metadata confirmed by the current
 scan's `beforeReplace` callback.
+Bootstrap also clears leftover failed/cancelled type caches before reading or
+reimporting categories. If cleanup still fails, retry stops before provider or
+save work, retaining pending history. Completed warm caches keep their existing
+read path; cold category-import code is loaded only when needed.
 
 Fresh desktop backup restores separate dormant catalog-dependent history and
 hidden choices from the active import snapshot. Enabled types initialize normally;

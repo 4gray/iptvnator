@@ -310,6 +310,9 @@ ordinary startup does not need the editor's network and recovery orchestration.
 storage outside that barrel. The Electron data source loads it through a local
 dynamic-import wrapper only for restoration or source cleanup; startup services
 load it only when explicitly clearing history or sources.
+The Electron data source also loads its project-local `xtream-category-import`
+helper only for cold category fills or failed-cache cleanup. Completed cache reads
+return before that import, preserving the warm path's startup work and IPC count.
 
 `@iptvnator/services/source-sync/connection` and
 `@iptvnator/services/source-sync/profile-user-data` expose the bootstrap helpers

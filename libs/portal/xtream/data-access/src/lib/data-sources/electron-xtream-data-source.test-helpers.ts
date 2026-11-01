@@ -25,6 +25,7 @@ export const credentials: XtreamCredentials = {
 export function createDbServiceMock() {
     return {
         getXtreamImportStatus: jest.fn().mockResolvedValue('idle'),
+        clearXtreamImportCache: jest.fn().mockResolvedValue(true),
         getPlaylistById: jest.fn().mockResolvedValue(null),
         createPlaylist: jest.fn().mockResolvedValue(undefined),
         updateXtreamPlaylistDetails: jest.fn().mockResolvedValue(undefined),

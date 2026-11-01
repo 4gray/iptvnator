@@ -226,6 +226,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // phase so the sync overlay never shows a phaseless card.
         options?.onPhaseChange?.('loading-cached');
         const importStatus = await this.getImportStatus(playlistId, importType);
+        if (importStatus === 'failed' || importStatus === 'cancelled') {
+            const { clearIncompleteCatalog } = await import(
+                './xtream-category-import'
+            );
+            await clearIncompleteCatalog(this.dbService, playlistId, importType);
+        }
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
         const cached = await this.dbService.getXtreamCategories(
@@ -243,57 +249,22 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             return cached;
         }
 
-        // Fetch from API and cache
-        options?.onPhaseChange?.('loading-categories');
-        const remoteData = await this.apiService.getCategories(
+        const { loadRemoteCategories } = await import(
+            './xtream-category-import'
+        );
+        return loadRemoteCategories(
+            {
+                db: this.dbService,
+                api: this.apiService,
+                pending: this.pendingRestoreService,
+                locks: this.parentalLock,
+            },
+            playlistId,
             credentials,
             type,
-            {
-                sessionId: options?.sessionId,
-            }
+            dbType,
+            options
         );
-
-        if (remoteData && Array.isArray(remoteData) && remoteData.length > 0) {
-            // Check if there are saved hidden categories to restore
-            const hiddenCategoryXtreamIds = this.getHiddenCategoryXtreamIds(
-                playlistId,
-                dbType
-            );
-
-            options?.onPhaseChange?.('saving-categories');
-            await this.dbService.saveXtreamCategories(
-                playlistId,
-                remoteData,
-                dbType,
-                hiddenCategoryXtreamIds,
-                // Locks live in the renderer's store; the fresh rows get the
-                // SQLite mirror stamped on insert so a refresh keeps them.
-                this.parentalLock.lockedXtreamIds(playlistId, dbType)
-            );
-        }
-
-        // Return from cache (now populated)
-        return this.dbService.getXtreamCategories(playlistId, dbType);
-    }
-
-    /**
-     * Get hidden category xtreamIds from localStorage for a specific playlist and type
-     * Used to restore visibility preferences after playlist refresh
-     */
-    private getHiddenCategoryXtreamIds(
-        playlistId: string,
-        type: 'live' | 'movies' | 'series'
-    ): number[] | undefined {
-        const restoreData = this.pendingRestoreService.get(playlistId);
-        const hiddenCategories = restoreData?.hiddenCategories;
-
-        if (!hiddenCategories || hiddenCategories.length === 0) {
-            return undefined;
-        }
-
-        return hiddenCategories
-            .filter((category) => category.categoryType === type)
-            .map((category) => category.xtreamId);
     }
 
     async getAllCategories(
