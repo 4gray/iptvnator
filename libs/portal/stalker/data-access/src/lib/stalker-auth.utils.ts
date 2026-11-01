@@ -1,7 +1,6 @@
 import {
     extractStalkerAuthFailureBody,
-    hashStalkerProtocolValue,
-    STALKER_HASH_ALGORITHM,
+    loadStalkerProtocolHash,
 } from '@iptvnator/shared/interfaces';
 import { StalkerPortalError } from './stalker-portal-error';
 
@@ -12,6 +11,8 @@ import { StalkerPortalError } from './stalker-portal-error';
 export async function generatePrehash(macAddress: string): Promise<string> {
     // Use MAC address with colons, uppercase - this is what most clients use
     const str = macAddress.toUpperCase();
+    const { hashStalkerProtocolValue, STALKER_HASH_ALGORITHM } =
+        await loadStalkerProtocolHash();
     return hashStalkerProtocolValue(str, STALKER_HASH_ALGORITHM.SHA1);
 }
 

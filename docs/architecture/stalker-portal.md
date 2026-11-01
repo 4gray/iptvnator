@@ -225,6 +225,11 @@ Web Crypto; when `crypto.subtle` is absent, the helper lazily imports the same
 algorithms from `@noble/hashes`. Both paths return identical uppercase hex.
 An available native digest failure still propagates. This does not alter
 persisted identities, generate IDs automatically, or provide HTTP encryption.
+Prehash generation loads the helper through `loadStalkerProtocolHash()` in
+shared interfaces only when authentication starts. Device-ID derivation loads it
+only after validating a MAC. Eager identity normalization and auth-service
+construction therefore do not load hashing during startup. The helper checks
+`crypto` without `globalThis` to retain the TV client's Chromium 68 support.
 
 The playlist-info Edit dialog compares URL, MAC, username/password, serial,
 device IDs and signatures as one connection identity. A metadata-only edit
