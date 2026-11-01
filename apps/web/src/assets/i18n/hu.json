@@ -2168,7 +2168,7 @@
     },
     "STARTUP": {
         "CHECK_UPDATES": "Frissítések keresése",
-        "SETTINGS_LIMITED": "A mentett forrásokat használó műveletek a könyvtár betöltéséig nem érhetők el. A többi beállítás továbbra is elérhető.",
+        "SETTINGS_LIMITED": "A mentett forrásokat igénylő műveletek a médiatár betöltéséig nem használhatók. A többi beállítás továbbra is elérhető.",
         "PREPARING": "A médiatár előkészítése",
         "PREPARING_DETAIL": "Források betöltése és a műsorújság ellenőrzése. Nagy médiatár esetén a művelet hosszabb ideig tarthat.",
         "FAILED": "Nem sikerült betölteni a forrásokat",
