@@ -208,6 +208,9 @@ An old archive without EPG headers or override fields also retains existing
 enabled guide addresses whose provenance was never recorded.
 The preference belongs to local playlist state, like manual and disabled EPG
 selections, rather than the portable `SourceDefinition` connection.
+If the source server deduplicates an import to a canonical ID that is not yet
+cached locally, its first projection inherits this import's local EPG choice
+and selection. An existing local canonical row retains its device preferences.
 
 ## Xtream suggestion during URL import
 

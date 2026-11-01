@@ -15,6 +15,7 @@ import {
     verifyConcurrentSourceProjection,
 } from './source-projection-pwa.helpers';
 import { verifyDelayedBrowserSourceRefresh } from './source-refresh-pwa.helpers';
+import { verifyCanonicalM3uEpgOptOut } from './m3u-epg-import-server.helpers';
 import { expect, test } from './fixtures';
 import {
     addM3uUrlPlaylist,
@@ -38,6 +39,13 @@ test.describe('server storage @self-hosted @persistence', () => {
             `${STORAGE_BACKEND_URL}/v1/playlists`
         );
         expect(response.ok()).toBe(true);
+    });
+
+    test('keeps M3U EPG opt-out when a sibling supplies the canonical source ID', async ({
+        browser,
+        request,
+    }) => {
+        await verifyCanonicalM3uEpgOptOut(browser, request);
     });
 
     for (const ending of ['complete', 'close', 'reject'] as const) {

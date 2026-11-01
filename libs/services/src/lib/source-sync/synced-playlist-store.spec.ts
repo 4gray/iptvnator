@@ -564,6 +564,72 @@ describe('source synchronization with local activity', () => {
         expect(draft._id).toBe('draft');
         expect(rows.has('draft')).toBe(false);
     });
+    it.each(['m3u-url', 'm3u-text'] as const)(
+        'keeps EPG opt-out when an imported %s receives a new canonical ID',
+        async (kind) => {
+            const { local, rows } = setup();
+            rows.clear();
+            const guide = 'https://guide.example.test/detected.xml';
+            const rawM3u = `#EXTM3U x-tvg-url="${guide}"`;
+            const canonical: SourceDefinition = {
+                id: 'canonical',
+                title: 'Synthetic canonical source',
+                kind,
+                ...(kind === 'm3u-url'
+                    ? { url: 'https://provider.example.test/list.m3u' }
+                    : { rawM3u }),
+            };
+            const draft = Object.freeze({
+                ...applySourceDefinition({ ...canonical, id: 'draft' }),
+                playlist: { header: { raw: rawM3u }, items: [] },
+                count: 0,
+                autoImportEpg: false,
+                detectedEpgUrls: [guide],
+                epgUrls: [],
+            });
+            const request = jest.fn(async () => ({
+                status: 200,
+                body: canonical,
+                etag: '"1"',
+            }));
+            const data = {
+                fetchPlaylistDefinition: jest.fn().mockResolvedValue({
+                    playlist: draft.playlist,
+                    count: 0,
+                    detectedEpgUrls: [guide],
+                    epgUrls: [guide],
+                }),
+            } as unknown as DataService;
+            const store = new SyncedPlaylistStore(
+                local,
+                request,
+                (definition, current) =>
+                    materializeSource(definition, current, data)
+            );
+            const saved = await store.dbUpsertAppPlaylist(draft);
+            expect(saved.playlist).toMatchObject({
+                _id: 'canonical',
+                autoImportEpg: false,
+                detectedEpgUrls: [guide],
+                epgUrls: [],
+            });
+            expect(rows.get('canonical')).toMatchObject({
+                autoImportEpg: false,
+                detectedEpgUrls: [guide],
+                epgUrls: [],
+            });
+            expect(rows.has('draft')).toBe(false);
+            expect(draft._id).toBe('draft');
+            expect(JSON.stringify(request.mock.calls)).not.toContain(
+                'autoImportEpg'
+            );
+            await store.project(canonical, '"1"');
+            expect(rows.get('canonical')).toMatchObject({
+                autoImportEpg: false,
+                epgUrls: [],
+            });
+        }
+    );
     it('keeps favorite/history writes local', async () => {
         const { store, request, rows } = setup();
         await store.dbUpsertAppPlaylist({

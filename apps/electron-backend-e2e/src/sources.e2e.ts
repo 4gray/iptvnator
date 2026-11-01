@@ -51,6 +51,8 @@ const stalkerSourceName = 'Bravo Stalker Portal';
 const editableLocalSourceDisplayName = 'editable-local-source';
 const deletableLocalSourceDisplayName = 'deletable-local-source';
 const refreshLocalSourceDisplayName = 'refresh-local-source';
+const editedXtreamUrl = xtreamMockServer.replace('localhost', '127.0.0.1');
+const editedStalkerUrl = `${stalkerMockServer.replace('localhost', '127.0.0.1')}/portal.php`;
 
 test.describe('Electron Sources View', () => {
     test('detects HTTP on Test connection and persists it for refresh, EPG and playback', async ({
@@ -409,7 +411,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await updateSourceDialog(dialog, {
                 password: 'pass1',
-                serverUrl: xtreamMockServer,
+                serverUrl: editedXtreamUrl,
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
@@ -421,7 +423,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await updateSourceDialog(dialog, {
                 macAddress: '00:1A:79:00:00:99',
-                portalUrl: `${stalkerMockServer}/portal.php`,
+                portalUrl: editedStalkerUrl,
                 title: 'Edited Stalker Source',
             });
             await saveSourceDialog(app.mainWindow, dialog);
@@ -445,7 +447,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 password: 'pass1',
-                serverUrl: xtreamMockServer,
+                serverUrl: editedXtreamUrl,
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
@@ -459,7 +461,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 macAddress: '00:1A:79:00:00:99',
-                portalUrl: `${stalkerMockServer}/portal.php`,
+                portalUrl: editedStalkerUrl,
                 title: 'Edited Stalker Source',
             });
             await dialog
@@ -491,7 +493,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 password: 'pass1',
-                serverUrl: xtreamMockServer,
+                serverUrl: editedXtreamUrl,
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
@@ -505,7 +507,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 macAddress: '00:1A:79:00:00:99',
-                portalUrl: `${stalkerMockServer}/portal.php`,
+                portalUrl: editedStalkerUrl,
                 title: 'Edited Stalker Source',
             });
         } finally {

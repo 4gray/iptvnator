@@ -65,10 +65,11 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
     /** Called inside exclusive(), including the inventory refresh. */
     async project(
         source: SourceDefinition,
-        revision: string
+        revision: string,
+        initial?: Playlist
     ): Promise<Playlist> {
         const current = await this.local.dbGetAppPlaylist(source.id);
-        const next = await this.materialize(source, current ?? undefined);
+        const next = await this.materialize(source, current ?? initial);
         next.sourceSyncBase = source;
         next.sourceSyncRevision = revision;
         const merge = (latest: Playlist | null) => {
@@ -143,7 +144,13 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                 accepted = response.body as SourceDefinition;
                 revision = response.etag;
                 if (accepted.id !== playlist._id) {
-                    const canonical = await this.project(accepted, revision!);
+                    // A server can reuse another client's ID. Seed a new local
+                    // projection with this import's device-only EPG choices.
+                    const canonical = await this.project(
+                        accepted,
+                        revision!,
+                        applySourceDefinition(accepted, playlist)
+                    );
                     const merge = (latest: Playlist | null) => ({
                         ...(latest ?? canonical),
                         favorites: mergeActivity(
