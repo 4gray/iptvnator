@@ -11,9 +11,8 @@ import {
 import { activityEnabled } from './activity-consent';
 
 export function activityDataSourceFactory(): IXtreamDataSource {
-    const raw = xtreamDataSourceFactory();
     const injector = inject(EnvironmentInjector);
-    return new Proxy(raw, {
+    return new Proxy(xtreamDataSourceFactory(), {
         get(target, key) {
             const value = Reflect.get(target, key);
             if (typeof value !== 'function') return value;
@@ -22,7 +21,7 @@ export function activityDataSourceFactory(): IXtreamDataSource {
             return async (...args: unknown[]) => {
                 if (!activityEnabled()) return local(...args);
                 const service = await loadActivityRuntime(injector);
-                return service.invoke(raw, String(key), args);
+                return service.invoke(target, String(key), args);
             };
         },
     }) as IXtreamDataSource;
@@ -38,7 +37,7 @@ export function activityEventsFactory() {
         },
         begin: async (
             info: PlayerContentInfo,
-            startTime = 0,
+            startTime?: number,
             title?: string
         ) => {
             if (!activityEnabled()) return;

@@ -1652,6 +1652,9 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 - The previous season/episode hash remains available only as a compatibility
   alias in `legacyTrackingId`. The scoped ID is the in-memory episode key, and
   new playback positions always use it.
+- The open catalog observes shared-activity invalidation and reloads its position
+  maps. Subscriptions end with the facade; superseded reads, cleared playlists
+  and destroyed facades cannot repopulate those maps.
 - Quick-start actions preserve both their translation key and interpolation
   parameters when adapted for the Stalker CTA. Dropping `labelParams` exposes
   the raw `{{episode}}` placeholder.

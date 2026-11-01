@@ -56,7 +56,8 @@ async function movie(
     page: Page,
     name: string,
     previousPath?: string,
-    provider = 'xtream'
+    provider = 'xtream',
+    selectItem = true
 ) {
     await openSources(page);
     await sourceRowByTitle(page, name).getByText(name, { exact: true }).click();
@@ -85,13 +86,15 @@ async function movie(
             (await cards.first().getAttribute('aria-label'))!
         );
     const title = selectedTitles.get(key)!;
-    await cards
+    const card = cards
         .and(page.getByRole('button', { name: title, exact: true }))
-        .first()
-        .click();
+        .first();
+    if (!selectItem) return card;
+    await card.click();
     await expect(
         page.locator('[data-testid="vod-primary-action"]')
     ).toBeVisible();
+    return card;
 }
 
 async function series(
@@ -262,10 +265,41 @@ for (const provider of ['xtream', 'stalker'] as const)
                 .toBeGreaterThan(targetSeconds);
             await openSettings(native);
             await movie(native, 'Shared activity', path, provider);
+            const catalogCard =
+                provider === 'stalker'
+                    ? await movie(
+                          page,
+                          'Shared activity',
+                          path,
+                          provider,
+                          false
+                      )
+                    : undefined;
+            const continuing = page.getByTestId(
+                'dashboard-continue-watching-rail-card'
+            );
+            if (provider === 'xtream') {
+                await page
+                    .getByRole('link', { name: 'Dashboard', exact: true })
+                    .and(page.locator('[href="/workspace/dashboard"]'))
+                    .click();
+                await expect(continuing).toHaveCount(1);
+            } else {
+                await expect(
+                    catalogCard!.locator('app-watched-badge .watched-badge')
+                ).toHaveCount(0);
+            }
             await native.locator('[data-testid="vod-watched-toggle"]').click();
             await expect
                 .poll(async () => (await rows())[0]?.state.watched)
                 .toBe(true);
+            if (provider === 'xtream') {
+                await expect(continuing).toHaveCount(0, { timeout: 15000 });
+            } else {
+                await expect(
+                    catalogCard!.locator('app-watched-badge .watched-badge')
+                ).toBeVisible({ timeout: 15000 });
+            }
             await movie(page, 'Shared activity', path, provider);
             await expect(
                 page.locator('[data-testid="vod-watched-toggle"]')

@@ -253,9 +253,11 @@ all, and none inside the hero.
        during the end credits finishes a title, as does "Mark watched". That
        command clears inherited player session metadata and carries explicit
        `mark-watched` intent through the shared playback-position boundary, so
-       consented activity reaches the server. A series stays while it has
-       something to continue: once its newest
-       episode is watched, or is an extra (season 0),
+       consented activity reaches the server. Shared-activity invalidation
+       reloads the cached positions so an open Continue Watching rail reflects
+       progress and watched changes from another device. A series stays while
+       it has something to continue: once its newest episode is watched, or is
+       an extra (season 0),
        `DashboardSeriesEpisodesService` fetches its episode list
        (`get_series_info`, two lookups at a time) and
        `resolveDashboardSeriesContinuation` applies

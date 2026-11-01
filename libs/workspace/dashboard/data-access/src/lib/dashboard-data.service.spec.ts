@@ -1,3 +1,4 @@
+import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
@@ -1647,6 +1648,44 @@ describe('DashboardDataService', () => {
                     password: 'cw-pass',
                 },
             ]);
+        });
+
+        it('updates the open Continue Watching view on shared activity and removes its listener on destruction', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    1,
+                    'Synthetic fixture film A',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+            ]);
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                vodPosition(101, 20, 100),
+            ]);
+            await loadDashboard();
+            expect(titles()).toEqual(['Synthetic fixture film A']);
+            const refresh = jest.spyOn(service, 'reloadPlaybackPositions');
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                vodPosition(101, 100, 100),
+            ]);
+            announceActivityChange();
+            expect(refresh).toHaveBeenCalledTimes(1);
+            await refresh.mock.results[0].value;
+            expect(titles()).toEqual([]);
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                vodPosition(101, 30, 100),
+            ]);
+            announceActivityChange();
+            await refresh.mock.results[1].value;
+            expect(titles()).toEqual(['Synthetic fixture film A']);
+            const calls =
+                playbackPositionsMock.getAllPlaybackPositions.mock.calls.length;
+            TestBed.resetTestingModule();
+            announceActivityChange();
+            expect(
+                playbackPositionsMock.getAllPlaybackPositions
+            ).toHaveBeenCalledTimes(calls);
         });
 
         it('does not request continuation episodes for retained unavailable history', async () => {

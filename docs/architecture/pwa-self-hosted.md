@@ -970,10 +970,13 @@ and on teardown; existing native position reports retain session metadata.
 The consented activity runtime starts from the lazy source-server initializer;
 standalone startup keeps the optional client outside the initial bundle. Players
 ignore transient pre-seek ticks until the initial resume position is reached,
-then accept deliberate rewinds. Durable local snapshots get a fresh save timestamp
-for offline episode ordering and retain the reducer's watched state. Refresh on focus/online and a visible-page
-five-second poll deliver changes; local invalidation refreshes open detail views
-and position caches.
+then accept deliberate rewinds. Durable local snapshots get a fresh save
+timestamp for offline episode ordering and retain the reducer's watched state.
+Refresh on focus/online and a visible-page five-second poll deliver changes;
+local invalidation refreshes open detail views and position caches, including
+Dashboard Continue Watching and the Stalker catalog.
+Consumers remove their listeners on destruction; catalog reads reject superseded
+responses and rows belonging to a cleared playlist.
 
 An address contains the instance, shared activity scope, source ID, source
 incarnation and a typed provider identity. Episode identities include their

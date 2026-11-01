@@ -1,4 +1,5 @@
-import { Injectable, Provider, computed, inject } from '@angular/core';
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
+import { DestroyRef, Injectable, Provider, computed, inject } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import {
     buildStalkerSelectedVodItem,
@@ -112,6 +113,13 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
             origin: playlist.origin,
         };
     });
+
+    constructor() {
+        inject(DestroyRef).onDestroy(observeActivityChanges(() => {
+            const id = this.playlist()?.id;
+            if (id) void this.refreshPositions(id).catch(() => undefined);
+        }));
+    }
 
     initialize(categoryId?: string | null): void {
         this.clearSelectedItem();
