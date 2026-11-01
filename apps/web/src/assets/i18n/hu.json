@@ -2347,6 +2347,7 @@
         "IMPORT_HINT": "Bekapcsoláskor a szerver adatai letöltődnek, és az új műveletek elküldésre kerülnek. A korábbi helyi adatokhoz külön importálás kell.",
         "LOCAL_HINT": "A kedvencek, előzmények és EPG-beállítások helyiek maradnak. A kikapcsolás megőrzi az eszköz és a szerver adatait.",
         "STATE_disabled": "A tevékenység ezen az eszközön marad",
+        "STATE_disabling": "A megtekintési adatok mentése az eszközre. A szinkronizálás szünetel.",
         "STATE_initializing": "Közös tevékenység betöltése…",
         "STATE_ready": "Tevékenység szinkronizálva",
         "STATE_pending": "Küldésre váró módosítások",

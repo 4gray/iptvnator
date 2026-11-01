@@ -477,20 +477,39 @@ for (const provider of ['xtream', 'stalker'] as const)
                 page.locator('[data-testid="episode-watched-toggle"]').first()
             ).toHaveAttribute('aria-pressed', 'false', { timeout: 15000 });
             if (provider === 'stalker') {
-                // Disabling mirrors the zero barrier through real SQLite IPC.
+                // Recover an interrupted disable on startup, using real SQLite IPC.
                 await openSettings(desktop.mainWindow);
                 await openSettingsSection(desktop.mainWindow, 'server');
-                await desktop.mainWindow
-                    .getByTestId('activity-sync-enabled')
-                    .getByRole('checkbox')
-                    .uncheck();
+                await desktop.mainWindow.evaluate((id) => {
+                    const key = `iptvnator-server:${id}:activity-consent-v1`;
+                    const consent = JSON.parse(localStorage.getItem(key)!);
+                    localStorage.setItem(
+                        key,
+                        JSON.stringify({ ...consent, enabled: 2 })
+                    );
+                }, instanceId);
+                await closeElectronApp(desktop);
+                desktop = undefined;
+                desktop = await launchElectronApp(directory);
+                await openSettings(desktop.mainWindow);
+                await openSettingsSection(desktop.mainWindow, 'server');
                 await expect(
                     desktop.mainWindow.getByTestId('activity-sync-state')
-                ).toContainText('Activity stays on this device');
+                ).toContainText('Activity stays on this device', {
+                    timeout: 15000,
+                });
                 const positions = await desktop.mainWindow.evaluate(
                     (id) => window.electron!.dbGetAllPlaybackPositions(id),
                     sourceId
                 );
+                expect(
+                    positions.some(
+                        (item) =>
+                            item.contentType === 'vod' &&
+                            item.contentXtreamId !== 987654 &&
+                            item.positionSeconds === item.durationSeconds
+                    )
+                ).toBe(true);
                 expect(
                     positions.filter((item) => item.contentType === 'episode')
                 ).toEqual([expect.objectContaining({ positionSeconds: 0 })]);

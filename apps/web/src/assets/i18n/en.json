@@ -2347,6 +2347,7 @@
         "IMPORT_HINT": "Enabling receives server activity and sends new actions. Previous local activity is uploaded only through the separate import below.",
         "LOCAL_HINT": "Favorites, recently viewed and EPG settings remain local. Disabling keeps activity on this device and the server.",
         "STATE_disabled": "Activity stays on this device",
+        "STATE_disabling": "Saving activity locally. Synchronization is paused.",
         "STATE_initializing": "Loading shared activity…",
         "STATE_ready": "Activity is synchronized",
         "STATE_pending": "Changes are waiting to be sent",

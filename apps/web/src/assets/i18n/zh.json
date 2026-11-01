@@ -2347,6 +2347,7 @@
         "IMPORT_HINT": "启用后接收服务器数据并发送新操作。以前的本地活动仅通过单独的导入操作上传。",
         "LOCAL_HINT": "收藏、历史记录和 EPG 设置保留在本地。禁用不会删除设备或服务器上的数据。",
         "STATE_disabled": "活动保留在此设备上",
+        "STATE_disabling": "正在将观看记录保存到本机。同步已暂停。",
         "STATE_initializing": "正在加载共享活动…",
         "STATE_ready": "活动已同步",
         "STATE_pending": "更改等待发送",

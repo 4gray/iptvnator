@@ -10,7 +10,9 @@ export function activityEnabled(): boolean {
         const key = activityConsentKey();
         return (
             !!key &&
-            JSON.parse(localStorage.getItem(key) ?? 'null')?.enabled === true
+            [true, 2].includes(
+                JSON.parse(localStorage.getItem(key) ?? 'null')?.enabled
+            )
         );
     } catch {
         return false;

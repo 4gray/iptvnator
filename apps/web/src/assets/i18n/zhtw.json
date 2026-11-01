@@ -2347,6 +2347,7 @@
         "IMPORT_HINT": "啟用後接收伺服器資料並傳送新操作。先前的本機活動僅透過單獨的匯入操作上傳。",
         "LOCAL_HINT": "收藏、歷史記錄和 EPG 設定保留在本機。停用不會刪除裝置或伺服器上的資料。",
         "STATE_disabled": "活動保留在此裝置上",
+        "STATE_disabling": "正在將觀看紀錄儲存至本機。同步已暫停。",
         "STATE_initializing": "正在載入共用活動…",
         "STATE_ready": "活動已同步",
         "STATE_pending": "變更等待傳送",

@@ -2,9 +2,28 @@ import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import type { ActivitySyncClient } from '@iptvnator/services/activity-sync';
 import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
+import {
+    isStalkerEpisode,
+    localActivityPosition,
+    resetPosition,
+} from './activity-local-position';
+
+const positionMethods = new Set([
+    'savePlaybackPosition',
+    'getPlaybackPosition',
+    'getSeriesPlaybackPositions',
+    'getAllPlaybackPositions',
+    'getRecentPlaybackPositions',
+    'clearPlaybackPosition',
+    'savePlaybackPositionsBatch',
+    'clearPlaybackPositionsBatch',
+]);
 
 /** Compose the selected local data source with activity; catalog/favorites remain owned by raw. */
 export class ActivityPositionAdapter {
+    static handles(method: string): boolean {
+        return positionMethods.has(method);
+    }
     private readonly seenLocalSessions = new Set<string>();
     constructor(
         private readonly client: ActivitySyncClient,
@@ -22,7 +41,8 @@ export class ActivityPositionAdapter {
     async invoke(
         raw: IXtreamDataSource,
         method: string,
-        args: unknown[]
+        args: unknown[],
+        localOnly = false
     ): Promise<unknown> {
         const sourceId = args[0] as string;
         if (
@@ -33,6 +53,10 @@ export class ActivityPositionAdapter {
                 method === 'savePlaybackPosition' ? [args[1]] : args[1]
             ) as PlaybackPositionData[];
             for (const position of positions) {
+                if (localOnly) {
+                    await this.saveLocalOnly(raw, sourceId, position);
+                    continue;
+                }
                 // Compatibility migrations and restores are local writes, never consent to upload.
                 if (
                     !position.activitySessionId &&
@@ -123,6 +147,29 @@ export class ActivityPositionAdapter {
                 );
                 if (aliases.length > 1 || shared.length > 1)
                     throw new Error('Activity identity ambiguous');
+                if (localOnly) {
+                    const target = position ?? shared[0]?.position;
+                    if (target && isStalkerEpisode(target))
+                        await this.saveLocalOnly(
+                            raw,
+                            sourceId,
+                            resetPosition(target)
+                        );
+                    else {
+                        this.localOnly.mark(sourceId, item);
+                        await (this.strict?.clear(
+                            sourceId,
+                            item.contentXtreamId,
+                            item.contentType
+                        ) ??
+                            raw.clearPlaybackPosition(
+                                sourceId,
+                                item.contentXtreamId,
+                                item.contentType
+                            ));
+                    }
+                    continue;
+                }
                 try {
                     await this.client.reset(sourceId, position ?? item);
                 } catch (error) {
@@ -213,11 +260,15 @@ export class ActivityPositionAdapter {
         );
         for (const item of await this.client.positions(sourceId)) {
             const key = `${item.position.contentType}:${item.position.contentXtreamId}`;
-            if (
-                this.localOnly.has(sourceId, item.position) &&
-                positions.has(key)
-            )
+            if (this.localOnly.has(sourceId, item.position)) {
+                if (
+                    !positions.has(key) &&
+                    includeSeriesResets &&
+                    isStalkerEpisode(item.position)
+                )
+                    positions.set(key, resetPosition(item.position));
                 continue;
+            }
             if (item.reset) {
                 positions.delete(key);
                 // An exact zero row blocks guarded legacy aliases from promoting
@@ -266,38 +317,4 @@ export class ActivityPositionAdapter {
             }
         }
     }
-}
-
-/** Legacy playback writers encode watched state through progress, not a column. */
-function localActivityPosition(
-    position: PlaybackPositionData
-): PlaybackPositionData {
-    const local = { ...position };
-    delete local.activitySessionId;
-    delete local.activityAction;
-    if (local.watched) {
-        const duration =
-            Number.isFinite(local.durationSeconds) && local.durationSeconds! > 0
-                ? local.durationSeconds!
-                : 1;
-        local.positionSeconds = duration;
-        local.durationSeconds = duration;
-    }
-    return local;
-}
-
-function isStalkerEpisode(position: PlaybackPositionData): boolean {
-    return (
-        position.activityIdentity?.provider === 'stalker' &&
-        position.contentType === 'episode'
-    );
-}
-
-function resetPosition(position: PlaybackPositionData): PlaybackPositionData {
-    return {
-        ...position,
-        positionSeconds: 0,
-        durationSeconds: undefined,
-        watched: false,
-    };
 }

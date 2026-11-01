@@ -931,7 +931,13 @@ entries and sources before explicit import; existing server entries become
 conflicts rather than being overwritten. Episodes without a verified provider
 identity stay local. Open the series to register its aliases, then retry import.
 Disabling retains local and remote data, mirrors the current projection into
-local playback storage and parks pending intent. Native mirror writes require a
+local playback storage and parks pending intent. It first persists a pending
+opt-out and pauses delivery while keeping shared reads active. Only acknowledged
+local writes complete the disabled state. Failed writes or an interrupted app
+restart retry the mirror on startup, focus, online and the visible-page timer;
+new playback changes during this pause stay local and take precedence over the
+mirror. Consent changes are serialized within the runtime, and stale completion
+cannot overwrite another window's newer consent or a different profile. Native mirror writes require a
 confirmed acknowledgement before pending intent can be discarded. A new consent
 generation cannot send an older queue until the user chooses to send it or keep
 it local. A pending import keeps its local projection even when the conflicting
@@ -961,6 +967,13 @@ A persisted source fingerprint determines its incarnation; password rotation
 retains it, while a new account/endpoint or deletion/recreation retires it.
 Pending operations never move automatically to another incarnation or instance.
 
+The local consent reader accepts the original boolean records and normalizes
+`enabled: 2` as a retryable pending disable: projection remains enabled but the
+client has no delivery consent. This compact value fits in the existing record
+when storage is full; final persistence failure keeps the retryable pause. The
+settings show that activity is being saved locally while synchronization is
+paused. The local value never travels to the NAS.
+
 PWA delivery uses the verified source HTTP client and a separate versioned
 IndexedDB database per instance. Electron uses the same verified native source
 transport and `DB_ACTIVITY_LOCAL` IPC; only the database worker owns SQLite.
@@ -986,7 +999,9 @@ contain only source/type/tracking keys and local session tokens, use independent
 storage entries and never
 travel to the server. A committed explicit launch, watched/reset action, import
 or conflict choice can clear the corresponding flag; keeping a parked queue local
-retains it. Superseded fallback callbacks cannot reclaim a cleared flag. A new
+retains it. A protected missing raw row is an authoritative local reset, not
+permission to restore the server row. Series reads retain a zero Stalker row so
+legacy aliases cannot promote cleared progress. Superseded fallback callbacks cannot reclaim a cleared flag. A new
 explicit launch may acquire shared ownership.
 Durable local snapshots get a fresh save timestamp for offline episode ordering
 and retain the reducer's watched state.

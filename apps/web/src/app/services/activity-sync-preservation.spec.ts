@@ -335,6 +335,80 @@ describe('keeping pending activity local', () => {
         }
     );
 
+    it('keeps a parked reset local even when its raw position was deleted', async () => {
+        localStorage.setItem(
+            'iptvnator:source-server',
+            JSON.stringify({
+                apiUrl: 'http://synthetic.invalid/api',
+                instanceId: 'synthetic-nas',
+            })
+        );
+        await prepareSourceConnection();
+        localStorage.setItem(
+            'iptvnator-server:synthetic-nas:activity-consent-v1',
+            JSON.stringify({
+                enabled: true,
+                generation: 'current-consent',
+                deviceId: 'synthetic-device',
+            })
+        );
+        const f = fixture();
+        f.setRemote({
+            kind: 'begin',
+            operationId: 'synthetic-begin',
+            expectedRevision: 0,
+            deviceId: 'other-device',
+            sessionId: 'synthetic-session',
+        });
+        const remote = f.setRemote({
+            kind: 'checkpoint',
+            operationId: 'synthetic-checkpoint',
+            generation: 1,
+            deviceId: 'other-device',
+            sessionId: 'synthetic-session',
+            sequence: 1,
+            resume: { positionSeconds: 95, durationSeconds: 100 },
+        });
+        const operation: ActivityOperation = {
+            kind: 'reset',
+            operationId: 'synthetic-reset',
+            expectedRevision: remote.revision,
+            deviceId: 'synthetic-device',
+        };
+        await f.store.mutate(f.address, () => ({
+            state: applyActivityOperation(remote, operation).state,
+            position: { ...f.position, positionSeconds: 0 },
+            pending: [
+                {
+                    address: f.address,
+                    operation,
+                    consentGeneration: 'previous-consent',
+                },
+            ],
+        }));
+        const runtime = Object.create(
+            ActivitySyncRuntime.prototype
+        ) as ActivitySyncRuntime;
+        Object.assign(runtime, {
+            client: f.client,
+            adapter: f.adapter,
+            raw: f.raw,
+            sourceIds: async () => [f.address.sourceId],
+            summary: async () => undefined,
+            busy: signal(false),
+            error: signal(false),
+        });
+        await runtime.parked(false);
+        expect(runtime.error()).toBe(false);
+        expect(f.saved).toHaveLength(0);
+        expect(await f.adapter.all(f.raw, f.address.sourceId)).toHaveLength(0);
+        await f.adapter.keepLocal(f.raw, f.address.sourceId);
+        expect(f.saved).toHaveLength(0);
+        expect(
+            (await f.store.read(f.address))?.state.resume?.positionSeconds
+        ).toBe(95);
+    });
+
     it.each([false, true])(
         'ignores retired incarnations when handling the current queue (send: %s)',
         async (send) => {

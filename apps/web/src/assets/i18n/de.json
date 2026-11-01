@@ -2347,6 +2347,7 @@
         "IMPORT_HINT": "Beim Aktivieren werden Serverdaten geladen und neue Aktionen gesendet. Alte lokale Daten werden nur über den separaten Import hochgeladen.",
         "LOCAL_HINT": "Favoriten, Verlauf und EPG-Einstellungen bleiben lokal. Beim Deaktivieren bleiben Geräte- und Serverdaten erhalten.",
         "STATE_disabled": "Aktivität bleibt auf diesem Gerät",
+        "STATE_disabling": "Aktivität wird lokal gespeichert. Die Synchronisierung ist pausiert.",
         "STATE_initializing": "Gemeinsame Aktivität wird geladen…",
         "STATE_ready": "Aktivität synchronisiert",
         "STATE_pending": "Änderungen warten auf Übertragung",

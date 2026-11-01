@@ -2347,6 +2347,7 @@
         "IMPORT_HINT": "Włączenie pobiera dane serwera i wysyła nowe działania. Starsze dane lokalne są wysyłane tylko przez osobny import.",
         "LOCAL_HINT": "Ulubione, historia i ustawienia EPG pozostają lokalne. Wyłączenie zachowuje dane urządzenia i serwera.",
         "STATE_disabled": "Aktywność pozostaje na tym urządzeniu",
+        "STATE_disabling": "Zapisywanie aktywności na tym urządzeniu. Synchronizacja jest wstrzymana.",
         "STATE_initializing": "Wczytywanie wspólnej aktywności…",
         "STATE_ready": "Aktywność zsynchronizowana",
         "STATE_pending": "Zmiany oczekują na wysłanie",

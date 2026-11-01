@@ -2347,6 +2347,7 @@
         "IMPORT_HINT": "Ativar recebe os dados do servidor e envia novas ações. Os dados locais anteriores só são enviados por uma importação separada.",
         "LOCAL_HINT": "Favoritos, histórico e configurações de EPG ficam locais. Desativar mantém os dados no dispositivo e no servidor.",
         "STATE_disabled": "A atividade fica neste dispositivo",
+        "STATE_disabling": "Salvando a atividade neste dispositivo. A sincronização está pausada.",
         "STATE_initializing": "Carregando atividade compartilhada…",
         "STATE_ready": "Atividade sincronizada",
         "STATE_pending": "Alterações aguardando envio",

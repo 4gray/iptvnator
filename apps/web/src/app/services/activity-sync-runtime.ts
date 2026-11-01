@@ -1,10 +1,7 @@
 import { createActivityRuntimeClient } from './activity-runtime-client';
-import {
-    readActivityConsent,
-    type ActivityConsent,
-} from './activity-consent-state';
+import { readActivityConsent } from './activity-consent-state';
+import { changeActivityConsent } from './activity-consent-transition';
 import { announceActivityChange } from '@iptvnator/services/activity-changes';
-import { createRandomId } from '@iptvnator/shared/interfaces';
 import {
     DestroyRef,
     Injectable,
@@ -18,13 +15,9 @@ import {
     RuntimeCapabilitiesService,
     PlaybackPositionRuntimeBridgeService,
 } from '@iptvnator/services';
-import {
-    SourceSyncService,
-    requestSourceServer,
-} from '@iptvnator/services/source-sync';
+import { SourceSyncService } from '@iptvnator/services/source-sync';
 import { ActivitySyncClient } from '@iptvnator/services/activity-sync';
 import {
-    ACTIVITY_SYNC_CAPABILITY,
     type ActivityAddress,
     type ActivityLocalRecord,
 } from '@iptvnator/shared/interfaces/activity-sync';
@@ -36,10 +29,16 @@ import {
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
-    ServerInstanceInfo,
 } from '@iptvnator/shared/interfaces';
-import { activityConsentKey, activityEnabled } from './activity-consent';
+import { activityEnabled } from './activity-consent';
 import { ActivityPositionAdapter } from './activity-position-adapter';
+import {
+    handleParkedActivity,
+    previewLocalActivity,
+    importLocalActivity,
+    readActivitySummary,
+    type ActivityImportPreview,
+} from './activity-sync-settings';
 
 @Injectable({ providedIn: 'root' })
 export class ActivitySyncRuntime {
@@ -57,12 +56,16 @@ export class ActivitySyncRuntime {
     private adapter?: ActivityPositionAdapter;
     private timer?: ReturnType<typeof setInterval>;
     private refreshing?: Promise<void>;
+    private consentChange?: Promise<void>;
+    private changingTo?: boolean;
+    private readonly deliveryPaused = signal(false);
     readonly enabled = signal(activityEnabled());
     readonly state = signal('disabled');
     readonly stateKey = computed(
         () =>
             ({
                 disabled: 'ACTIVITY_SYNC.STATE_disabled',
+                disabling: 'ACTIVITY_SYNC.STATE_disabling',
                 initializing: 'ACTIVITY_SYNC.STATE_initializing',
                 ready: 'ACTIVITY_SYNC.STATE_ready',
                 pending: 'ACTIVITY_SYNC.STATE_pending',
@@ -104,73 +107,69 @@ export class ActivitySyncRuntime {
     async start(): Promise<void> {
         if (!this.enabled()) return;
         this.ensureClient();
-        if (!this.timer)
-            this.timer = setInterval(() => {
-                if (!document.hidden) void this.refresh();
-            }, 5000);
+        this.ensureTimer();
         await this.refresh();
     }
 
     async setEnabled(enabled: boolean): Promise<void> {
-        this.busy.set(true);
-        this.error.set(false);
+        if (this.consentChange) {
+            const target = this.changingTo;
+            await this.consentChange;
+            if (enabled !== target) await this.setEnabled(enabled);
+            return;
+        }
+        if (enabled === this.enabled() && !this.isDisabling()) return;
+        this.changingTo = enabled;
+        const change = Promise.resolve().then(() =>
+            changeActivityConsent(
+                {
+                    enabled: this.enabled,
+                    busy: this.busy,
+                    error: this.error,
+                    state: this.state,
+                    supportsStorage: this.capabilities.supportsActivityStorage,
+                    instanceId: this.client?.options.instanceId,
+                    refreshSources: () => this.sources.refresh(),
+                    client: () => this.ensureClient(),
+                    mirror: async () => {
+                        for (const sourceId of await this.sourceIds())
+                            await this.adapter!.keepLocal(this.raw, sourceId);
+                    },
+                    pause: (value) => this.deliveryPaused.set(value),
+                    stopTimer: () => {
+                        clearInterval(this.timer);
+                        this.timer = undefined;
+                    },
+                },
+                enabled
+            )
+        );
+        this.consentChange = change;
         try {
-            const key = activityConsentKey();
-            if (!key) throw new Error('No activity profile');
-            let previous: ActivityConsent | null;
-            try {
-                previous = readActivityConsent();
-            } catch {
-                previous = null;
-            }
-            if (enabled) {
-                if (!this.capabilities.supportsActivityStorage)
-                    throw new Error('Activity storage unavailable');
-                await this.sources.refresh();
-                const response = await requestSourceServer({
-                    operation: 'instance',
-                });
-                if (
-                    !(
-                        response.body as ServerInstanceInfo
-                    )?.capabilities?.includes(ACTIVITY_SYNC_CAPABILITY)
-                ) {
-                    this.state.set('incompatible');
-                    throw new Error('Activity server incompatible');
-                }
-            } else if (this.client) {
-                // Stop delivery first. Local mirror failure must remain visible/retryable.
-                localStorage.setItem(
-                    key,
-                    JSON.stringify({ ...previous, enabled: false })
-                );
-                this.enabled.set(false);
-                clearInterval(this.timer);
-                this.timer = undefined;
-                await this.client.stopDelivery();
-                for (const sourceId of await this.sourceIds())
-                    await this.adapter?.keepLocal(this.raw, sourceId);
-            }
-            localStorage.setItem(
-                key,
-                JSON.stringify({
-                    enabled,
-                    generation: createRandomId(),
-                    deviceId: previous?.deviceId ?? createRandomId(),
-                })
-            );
-            this.enabled.set(enabled);
-            this.state.set(enabled ? 'initializing' : 'disabled');
-            if (enabled) await this.start();
-        } catch {
-            this.error.set(true);
+            await change;
         } finally {
-            this.busy.set(false);
+            this.consentChange = undefined;
+        }
+        if (enabled && this.enabled()) await this.start();
+        else if (this.enabled()) this.ensureTimer();
+    }
+
+    private isDisabling(): boolean {
+        try {
+            return this.deliveryPaused() || !!readActivityConsent()?.disabling;
+        } catch {
+            return true;
         }
     }
 
+    private ensureTimer(): void {
+        this.timer ??= setInterval(() => {
+            if (!document.hidden) void this.refresh();
+        }, 5000);
+    }
+
     async begin(position: PlayerContentInfo, startTime = 0): Promise<void> {
-        if (!this.enabled()) return;
+        if (!this.enabled() || this.isDisabling()) return;
         try {
             await this.ensureClient().begin(position.playlistId!, {
                 ...position,
@@ -185,10 +184,12 @@ export class ActivitySyncRuntime {
         if (!activityEnabled()) return;
         try {
             this.ensureClient();
-            await this.adapter!.invoke(this.raw, 'savePlaybackPosition', [
-                position.playlistId!,
-                position,
-            ]);
+            await this.adapter!.invoke(
+                this.raw,
+                'savePlaybackPosition',
+                [position.playlistId!, position],
+                this.isDisabling()
+            );
         } catch {
             this.state.set('offline');
         }
@@ -203,21 +204,16 @@ export class ActivitySyncRuntime {
         method: string,
         args: unknown[]
     ): Promise<unknown> {
-        const methods = new Set([
-            'savePlaybackPosition',
-            'getPlaybackPosition',
-            'getSeriesPlaybackPositions',
-            'getAllPlaybackPositions',
-            'getRecentPlaybackPositions',
-            'clearPlaybackPosition',
-            'savePlaybackPositionsBatch',
-            'clearPlaybackPositionsBatch',
-        ]);
-        if (!activityEnabled() || !methods.has(method))
+        if (!activityEnabled() || !ActivityPositionAdapter.handles(method))
             return Reflect.get(raw, method).apply(raw, args);
         this.ensureClient();
         try {
-            return await this.adapter!.invoke(raw, method, args);
+            return await this.adapter!.invoke(
+                raw,
+                method,
+                args,
+                this.isDisabling()
+            );
         } catch (error) {
             this.state.set('offline');
             throw error;
@@ -243,36 +239,14 @@ export class ActivitySyncRuntime {
             const client = this.ensureClient();
             const generation = readActivityConsent()?.generation;
             if (!generation) return;
-            for (const sourceId of await this.sourceIds()) {
-                if (!send) await this.adapter?.keepLocal(this.raw, sourceId);
-                for (const { address, record } of await client.store.entries(
-                    sourceId
-                )) {
-                    if (
-                        !record.pending.length ||
-                        address.sourceIncarnation !==
-                            client.contexts.get(sourceId)?.sourceIncarnation
-                    )
-                        continue;
-                    if (!send) {
-                        if (record.position)
-                            this.adapter?.protectLocal(
-                                sourceId,
-                                record.position
-                            );
-                        await client.resolve(address, false, true);
-                    } else
-                        await client.store.mutate(address, (current) => ({
-                            ...current!,
-                            pending: current!.pending.map((p) => ({
-                                ...p,
-                                consentGeneration: generation,
-                                deliveryLease: undefined,
-                            })),
-                        }));
-                }
-            }
-            await client.flush();
+            await handleParkedActivity(
+                client,
+                this.adapter!,
+                this.raw,
+                await this.sourceIds(),
+                send,
+                generation
+            );
             await this.summary();
         });
     }
@@ -297,32 +271,15 @@ export class ActivitySyncRuntime {
         return this.adapter!.exportPositions(sourceId, local);
     }
 
-    async previewImport(): Promise<
-        { sourceId: string; items: PlaybackPositionData[] }[]
-    > {
-        const preview = [];
-        for (const sourceId of await this.sourceIds()) {
-            const items = await this.raw.getAllPlaybackPositions(sourceId);
-            preview.push({ sourceId, items });
-        }
-        return preview;
+    async previewImport(): Promise<ActivityImportPreview> {
+        return previewLocalActivity(this.raw, await this.sourceIds());
     }
 
-    async importPositions(
-        preview: { sourceId: string; items: PlaybackPositionData[] }[]
-    ): Promise<number> {
-        let unresolved = 0;
-        for (const source of preview)
-            for (const position of source.items) {
-                try {
-                    await this.ensureClient().importPosition(
-                        source.sourceId,
-                        position
-                    );
-                } catch {
-                    unresolved++;
-                }
-            }
+    async importPositions(preview: ActivityImportPreview): Promise<number> {
+        const unresolved = await importLocalActivity(
+            this.ensureClient(),
+            preview
+        );
         await this.summary();
         return unresolved;
     }
@@ -334,15 +291,17 @@ export class ActivitySyncRuntime {
                 this.positionsBridge,
                 {
                     changed: () => {
-                        void this.summary().catch(() =>
-                            this.state.set('offline')
-                        );
+                        void this.summary().catch(() => {
+                            if (!this.isDisabling()) this.state.set('offline');
+                        });
                         announceActivityChange();
                     },
                     status: (value) => {
-                        if (this.enabled()) this.state.set(value);
+                        if (this.enabled() && !this.isDisabling())
+                            this.state.set(value);
                     },
-                }
+                },
+                () => this.deliveryPaused()
             );
             this.client = created.client;
             this.adapter = created.adapter;
@@ -352,6 +311,10 @@ export class ActivitySyncRuntime {
 
     private async refreshSources(): Promise<void> {
         try {
+            if (this.isDisabling()) {
+                await this.setEnabled(false);
+                return;
+            }
             const client = this.ensureClient();
             const sourceIds = await this.sourceIds();
             for (const cached of client.contexts.keys())
@@ -360,7 +323,7 @@ export class ActivitySyncRuntime {
             await this.summary();
             announceActivityChange();
         } catch {
-            this.state.set('offline');
+            if (this.enabled()) this.state.set('offline');
         }
     }
 
@@ -372,37 +335,15 @@ export class ActivitySyncRuntime {
 
     private async summary(): Promise<void> {
         if (!this.client) return;
-        const entries = (
-            await Promise.all(
-                (await this.sourceIds()).map((id) =>
-                    this.client!.store.entries(id)
-                )
-            )
-        )
-            .reduce((all, group) => all.concat(group), [])
-            .filter(
-                (entry) =>
-                    entry.address.sourceIncarnation ===
-                    this.client!.contexts.get(entry.address.sourceId)
-                        ?.sourceIncarnation
-            );
-        this.pending.set(
-            entries.reduce(
-                (count, entry) => count + entry.record.pending.length,
-                0
-            )
+        const summary = await readActivitySummary(
+            this.client,
+            await this.sourceIds()
         );
-        this.conflicts.set(
-            entries.filter(
-                (entry) =>
-                    !!entry.record.conflict &&
-                    entry.address.sourceIncarnation ===
-                        this.client!.contexts.get(entry.address.sourceId)
-                            ?.sourceIncarnation
-            )
-        );
+        this.pending.set(summary.pending);
+        this.conflicts.set(summary.conflicts);
         if (
             this.enabled() &&
+            !this.isDisabling() &&
             !this.pending() &&
             !this.conflicts().length &&
             this.state() !== 'offline'

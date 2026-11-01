@@ -31,6 +31,7 @@ describe('activity projection local preservation', () => {
             },
         };
         const client = {
+            aliases: new Map(),
             positions: async () => [
                 { position: reset, reset: true, conflict: false },
             ],
@@ -81,6 +82,15 @@ describe('activity projection local preservation', () => {
             expect.objectContaining({ positionSeconds: 0, watched: false })
         );
         expect(rows.get(501)).toEqual(legacy);
+        await adapter.invoke(
+            raw,
+            'clearPlaybackPosition',
+            ['synthetic-source', 1001, 'episode'],
+            true
+        );
+        expect(rows.get(1001)).toEqual(
+            expect.objectContaining({ positionSeconds: 0, watched: false })
+        );
     });
 
     it('routes an explicit watched action through shared projection instead of the local mirror', async () => {

@@ -2347,6 +2347,7 @@
         "IMPORT_HINT": "Inschakelen ontvangt servergegevens en verstuurt nieuwe acties. Eerdere lokale gegevens worden alleen via een aparte import verstuurd.",
         "LOCAL_HINT": "Favorieten, geschiedenis en EPG-instellingen blijven lokaal. Uitschakelen bewaart de gegevens op het apparaat en de server.",
         "STATE_disabled": "Activiteit blijft op dit apparaat",
+        "STATE_disabling": "Activiteit wordt op dit apparaat opgeslagen. Synchronisatie is gepauzeerd.",
         "STATE_initializing": "Gedeelde activiteit laden…",
         "STATE_ready": "Activiteit gesynchroniseerd",
         "STATE_pending": "Wijzigingen wachten op verzending",

@@ -252,3 +252,98 @@ test('@settings @ui connected activity controls keep clear status, spacing and r
         });
     }
 });
+
+test('@settings @ui keeps an interrupted disable understandable and retryable', async ({
+    page,
+}, testInfo) => {
+    await page.route(`${server}/api/v1/**`, async (route) => {
+        const headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers':
+                'Authorization, X-IPTVnator-Instance-Id',
+            ETag: '"disable-fixture"',
+        };
+        await route.fulfill({
+            status: route.request().method() === 'OPTIONS' ? 204 : 200,
+            headers,
+            json: route.request().url().endsWith('/instance')
+                ? {
+                      service: 'iptvnator',
+                      apiVersion: 1,
+                      storage: 'server',
+                      instanceId: 'disable-fixture',
+                      auth: 'none',
+                      capabilities: ['sources-v1', 'activity-v1'],
+                  }
+                : { entries: [] },
+        });
+    });
+    await page.addInitScript(() => {
+        Reflect.set(window, '__activityDisableBlocked', true);
+        const set = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (key, value) {
+            if (
+                key.endsWith(':activity-consent-v1') &&
+                JSON.parse(value).enabled === false &&
+                Reflect.get(window, '__activityDisableBlocked')
+            )
+                throw new DOMException(
+                    'Synthetic storage failure',
+                    'QuotaExceededError'
+                );
+            set.call(this, key, value);
+        };
+    });
+    await page.reload();
+    await page.getByTestId('source-server-url').fill(server);
+    await page.getByTestId('source-server-connect').click();
+    await expect(page.getByTestId('source-server-state')).toHaveText(
+        'Connected'
+    );
+    const checkbox = page
+        .getByTestId('activity-sync-enabled')
+        .getByRole('checkbox');
+    await checkbox.check();
+    await expect(page.getByTestId('activity-sync-state')).toHaveText(
+        'Activity is synchronized'
+    );
+    await checkbox.click();
+    await expect(checkbox).toBeChecked();
+    const status = page.getByTestId('activity-sync-state');
+    await expect(status).toHaveText(
+        'Saving activity locally. Synchronization is paused.'
+    );
+    await expect(page.getByTestId('activity-import-preview')).toBeDisabled();
+    await expect(page.getByTestId('activity-sync-refresh')).toBeEnabled();
+    for (const dark of [true, false]) {
+        await applyUiTheme(page, dark);
+        await page
+            .getByTestId('activity-sync-settings')
+            .screenshot({
+                path: testInfo.outputPath(
+                    `disable-paused-${dark ? 'dark' : 'light'}.png`
+                ),
+            });
+    }
+    for (const language of ['de', 'ar'] as const) {
+        await selectUiLanguage(page, language);
+        await page.goto('/workspace/settings/server');
+        await page.setViewportSize({ width: 390, height: 844 });
+        await status.scrollIntoViewIfNeeded();
+        await expect(checkbox).toBeChecked();
+        await expect(
+            page.getByTestId('activity-import-preview')
+        ).toBeDisabled();
+        expect(
+            await page.evaluate(() => document.documentElement.scrollWidth)
+        ).toBeLessThanOrEqual(390);
+        await page.screenshot({
+            path: testInfo.outputPath(`disable-paused-mobile-${language}.png`),
+        });
+    }
+    await page.evaluate(() =>
+        Reflect.set(window, '__activityDisableBlocked', false)
+    );
+    await page.getByTestId('activity-sync-refresh').click();
+    await expect(checkbox).not.toBeChecked();
+});

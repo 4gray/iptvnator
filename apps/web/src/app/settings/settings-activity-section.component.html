@@ -46,7 +46,11 @@
                         mat-stroked-button
                         type="button"
                         (click)="previewImport()"
-                        [disabled]="busy() || activity.busy()"
+                        [disabled]="
+                            busy() ||
+                            activity.busy() ||
+                            activity.state() === 'disabling'
+                        "
                         data-test-id="activity-import-preview"
                     >
                         <mat-icon aria-hidden="true">upload</mat-icon>
@@ -65,7 +69,11 @@
                             mat-button
                             type="button"
                             (click)="parked(true)"
-                            [disabled]="busy() || activity.busy()"
+                            [disabled]="
+                                busy() ||
+                                activity.busy() ||
+                                activity.state() === 'disabling'
+                            "
                         >
                             {{ 'ACTIVITY_SYNC.SEND_PENDING' | translate }}
                         </button>
@@ -73,7 +81,11 @@
                             mat-button
                             type="button"
                             (click)="parked(false)"
-                            [disabled]="busy() || activity.busy()"
+                            [disabled]="
+                                busy() ||
+                                activity.busy() ||
+                                activity.state() === 'disabling'
+                            "
                         >
                             {{ 'ACTIVITY_SYNC.KEEP_PENDING_LOCAL' | translate }}
                         </button>
@@ -118,7 +130,11 @@
                                 type="button"
                                 (click)="resolve(conflict.address, false)"
                                 data-test-id="activity-keep-server"
-                                [disabled]="busy() || activity.busy()"
+                                [disabled]="
+                                    busy() ||
+                                    activity.busy() ||
+                                    activity.state() === 'disabling'
+                                "
                             >
                                 {{ 'ACTIVITY_SYNC.KEEP_SERVER' | translate }}
                             </button>
@@ -127,7 +143,11 @@
                                 type="button"
                                 (click)="resolve(conflict.address, true)"
                                 data-test-id="activity-use-local"
-                                [disabled]="busy() || activity.busy()"
+                                [disabled]="
+                                    busy() ||
+                                    activity.busy() ||
+                                    activity.state() === 'disabling'
+                                "
                             >
                                 {{ 'ACTIVITY_SYNC.USE_LOCAL' | translate }}
                             </button>
@@ -160,7 +180,12 @@
                             mat-flat-button
                             type="button"
                             (click)="importPositions()"
-                            [disabled]="busy() || activity.busy() || !count()"
+                            [disabled]="
+                                busy() ||
+                                activity.busy() ||
+                                !count() ||
+                                activity.state() === 'disabling'
+                            "
                             data-test-id="activity-import-confirm"
                         >
                             {{ 'SETTINGS.IMPORT_DATA' | translate }}

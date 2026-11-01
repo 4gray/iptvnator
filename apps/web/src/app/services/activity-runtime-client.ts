@@ -19,7 +19,8 @@ import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
 export function createActivityRuntimeClient(
     capabilities: RuntimeCapabilitiesService,
     positionsBridge: PlaybackPositionRuntimeBridgeService,
-    events: Pick<ActivityClientOptions, 'changed' | 'status'>
+    events: Pick<ActivityClientOptions, 'changed' | 'status'>,
+    paused: () => boolean = () => false
 ) {
     const instanceId = sourceConnection()?.instanceId;
     const consent = readActivityConsent();
@@ -56,7 +57,9 @@ export function createActivityRuntimeClient(
         contexts,
         consent: () => {
             const value = readActivityConsent();
-            return value?.enabled ? value.generation : null;
+            return value?.enabled && !value.disabling && !paused()
+                ? value.generation
+                : null;
         },
         request: requestSourceServer,
         remember: (value) =>
