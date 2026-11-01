@@ -8,7 +8,10 @@ import {
     type XtreamContentType,
 } from '@iptvnator/shared/interfaces';
 import type { DatabaseService } from './database-electron.service';
-import type { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
+import type {
+    XtreamDeferredCatalogRestoreService,
+    DeferredCatalogSnapshot,
+} from './xtream-deferred-catalog-restore.service';
 import type { PlaybackPositionService } from './playback-position.service';
 
 export async function readCatalogHistoryRecovery(
@@ -46,6 +49,36 @@ export async function clearCatalogHistoryRecovery(
 ): Promise<void> {
     if (!(await db.setAppState(xtreamHistoryRecoveryKey(playlistId), '')))
         throw new Error('Could not finish catalog history recovery.');
+}
+
+/** A replay can restore retained rows even when their unfinished catalog is disabled. */
+export async function completeCatalogHistoryRecovery(
+    db: Pick<
+        DatabaseService,
+        'getRecentItemsOrThrow' | 'readAppState' | 'setAppState'
+    >,
+    deferred: XtreamDeferredCatalogRestoreService,
+    playlistId: string,
+    snapshot: DeferredCatalogSnapshot,
+    available: readonly XtreamContentType[]
+): Promise<void> {
+    // Read live rows first, then the journal: a concurrent removal is covered
+    // either by the row we saw or by its later native tombstone.
+    const current = await db.getRecentItemsOrThrow(playlistId);
+    const journal = await readCatalogHistoryRecovery(db, playlistId);
+    if (!journal) throw new Error('Catalog history recovery is unavailable.');
+    deferred.complete(playlistId, snapshot, available, {
+        identities: [
+            ...current.map((row) => ({
+                contentType: row.type as XtreamContentType,
+                xtreamId: row.xtream_id,
+            })),
+            ...(journal.removed ?? []),
+        ],
+        cleared: journal.cleared,
+    });
+    // This native acknowledgment flushes the resolved DOM archive first.
+    await clearCatalogHistoryRecovery(db, playlistId);
 }
 
 /** Upgrade older pending scans before bootstrap replaces their failed catalogs. */

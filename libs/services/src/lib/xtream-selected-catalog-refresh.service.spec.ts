@@ -44,7 +44,8 @@ describe('edit-time Xtream catalog refresh', () => {
         | 'getXtreamImportStatus'
         | 'getAllXtreamCategories'
         | 'clearXtreamImportCache'
-        | 'setAppState',
+        | 'setAppState'
+        | 'readAppState',
         jest.Mock
     >;
     let pending: Record<string, jest.Mock>;
@@ -65,11 +66,19 @@ describe('edit-time Xtream catalog refresh', () => {
                 'getAllXtreamCategories',
                 'clearXtreamImportCache',
                 'setAppState',
+                'readAppState',
             ].map((name) => [name, jest.fn().mockResolvedValue(undefined)])
         ) as typeof db;
         db.deleteXtreamPlaylistContent.mockResolvedValue(saved);
         db.clearXtreamImportCache.mockResolvedValue(true);
-        db.setAppState.mockResolvedValue(true);
+        const appState = new Map<string, string>();
+        db.setAppState.mockImplementation(async (key, value) => {
+            appState.set(key, value);
+            return true;
+        });
+        db.readAppState.mockImplementation(async (key) => ({
+            value: appState.get(key) ?? null,
+        }));
         db.setXtreamImportStatus.mockResolvedValue(true);
         db.getAllXtreamCategories.mockResolvedValue([]);
         db.getXtreamImportStatus.mockResolvedValue('completed');

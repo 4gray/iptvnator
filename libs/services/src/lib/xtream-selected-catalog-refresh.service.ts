@@ -19,6 +19,7 @@ import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-r
 import {
     beginCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
+    completeCatalogHistoryRecovery,
     captureCatalogCacheRecoveryState,
 } from './xtream-catalog-history-recovery';
 
@@ -200,12 +201,13 @@ export class XtreamSelectedCatalogRefreshService {
                         [],
                         state.recentlyViewed
                     );
-                    this.deferred.complete(
+                    await completeCatalogHistoryRecovery(
+                        this.db,
+                        this.deferred,
                         playlist._id,
                         prepared.snapshot,
                         available
                     );
-                    await clearCatalogHistoryRecovery(this.db, playlist._id);
                 }
             );
             if (result === 'consume-failed')

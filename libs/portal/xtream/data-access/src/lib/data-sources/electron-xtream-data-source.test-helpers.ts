@@ -53,6 +53,7 @@ export function createDbServiceMock() {
         removeFromFavorites: jest.fn().mockResolvedValue(undefined),
         isFavorite: jest.fn().mockResolvedValue(false),
         getRecentItems: jest.fn().mockResolvedValue([]),
+        getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
         addRecentItem: jest.fn().mockResolvedValue(undefined),
         removeRecentItem: jest.fn().mockResolvedValue(undefined),
         clearPlaylistRecentItems: jest.fn().mockResolvedValue(undefined),

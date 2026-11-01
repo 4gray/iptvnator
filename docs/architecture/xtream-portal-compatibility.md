@@ -393,7 +393,12 @@ replacement does not delete positions, so retry must retain current progress,
 new entries and explicit removals, including those from untouched catalogs.
 Explicit backup import clears that policy and keeps authoritative replacement.
 Cache recovery also registers `xtream-history-recovery:<playlistId>` in the
-profile's SQLite `app_state` before deleting content. The worker captures live
+profile's SQLite `app_state` before deleting content. Before acknowledging
+recovery, both bootstrap and edit-time refresh consume dormant history copies
+whose identities exist in current native history or in its removal tombstones.
+The live-row read precedes the journal read so concurrent removals are covered.
+Unavailable identities and hidden-category choices remain parked; generation
+ownership still protects a newer archive. The worker captures live
 history atomically with registration, then journals watch updates, individual
 and batch removals, and source/global history clears in their write transactions.
 Replay reads that journal in one transaction, so later user actions win over

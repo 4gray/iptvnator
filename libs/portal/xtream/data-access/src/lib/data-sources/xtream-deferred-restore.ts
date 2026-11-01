@@ -20,6 +20,7 @@ import {
     beginCatalogHistoryRecovery,
     readCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
+    completeCatalogHistoryRecovery,
 } from '@iptvnator/services/xtream-catalog-restore';
 import type { XtreamOperationOptions } from './xtream-data-source.interface';
 
@@ -117,9 +118,15 @@ export async function restoreElectronUserData(
                 `Restoring the pinned sources for "${playlistId}" failed.`
             );
     }
-    deferred.complete(playlistId, prepared.snapshot, available);
     if (restoreState.preservePlaybackPositions)
-        await clearCatalogHistoryRecovery(services.db, playlistId);
+        await completeCatalogHistoryRecovery(
+            services.db,
+            deferred,
+            playlistId,
+            prepared.snapshot,
+            available
+        );
+    else deferred.complete(playlistId, prepared.snapshot, available);
 }
 
 /** Native registration owns live history; pending JSON never overwrites newer actions. */

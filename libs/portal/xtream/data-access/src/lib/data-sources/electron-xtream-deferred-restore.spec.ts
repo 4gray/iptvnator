@@ -296,3 +296,49 @@ it('retries a failed explicit-backup journal reset before applying any archive h
         dbService.restoreXtreamUserData.mock.invocationCallOrder[0]
     );
 });
+
+it('consumes replayed history for retained rows of an unfinished disabled catalog without losing absent rows', async () => {
+    const { dataSource, dbService } = setupElectronXtreamDataSource();
+    const deferred = TestBed.inject(XtreamDeferredCatalogRestoreService);
+    dbService.getPlaylistById.mockResolvedValue({
+        id: 'p',
+        xtreamContentTypes: ['live'],
+    });
+    dbService.hasXtreamContent.mockResolvedValue(true);
+    dbService.getXtreamImportStatus.mockImplementation(async (_id, type) =>
+        type === 'movie' ? 'idle' : 'completed'
+    );
+    const missing = {
+        contentType: 'movie' as const,
+        xtreamId: 21,
+        viewedAt: 'missing',
+    };
+    const state: XtreamPendingRestoreState = {
+        ...archive,
+        recentlyViewed: [...archive.recentlyViewed, missing],
+        preservePlaybackPositions: true,
+    };
+    deferred.prepare('p', state, []);
+    const snapshot = deferred.getSnapshot('p');
+    dbService.readAppState.mockResolvedValue({
+        value: JSON.stringify({
+            version: 1,
+            contentTypes: ['live', 'movie', 'series'],
+            recentlyViewed: state.recentlyViewed,
+        }),
+    });
+    dbService.getRecentItemsOrThrow.mockResolvedValue([
+        { type: 'movie', xtream_id: 20, viewed_at: '2026-01-02' },
+    ]);
+    await dataSource.restoreUserData('p', {
+        ...state,
+        catalogSnapshot: snapshot,
+    });
+    const dormant = deferred.getSnapshot('p').state;
+    expect(dormant.recentlyViewed).toEqual([missing]);
+    expect(dormant.hiddenCategories).toEqual(archive.hiddenCategories);
+    expect(
+        deferred.forExport('p', { hiddenCategories: [], recentlyViewed: [] })
+            .recentlyViewed
+    ).toEqual([missing]);
+});

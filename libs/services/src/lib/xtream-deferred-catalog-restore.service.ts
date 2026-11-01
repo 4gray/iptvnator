@@ -176,15 +176,30 @@ export class XtreamDeferredCatalogRestoreService {
     complete(
         playlistId: string,
         snapshot: DeferredCatalogSnapshot,
-        available: readonly XtreamContentType[]
+        available: readonly XtreamContentType[],
+        consumedHistory?: {
+            identities: readonly {
+                contentType: XtreamContentType;
+                xtreamId: number;
+            }[];
+            cleared?: boolean;
+        }
     ): void {
         const current = this.read(playlistId);
         if (current.key !== snapshot.key || current.raw !== snapshot.raw)
             return;
-        this.write(playlistId, {
-            ...snapshot.state,
-            ...this.filterCatalogs(snapshot.state, available, false),
-        });
+        const remaining = this.filterCatalogs(snapshot.state, available, false);
+        const consumed = new Set(
+            consumedHistory?.identities.map(
+                (row) => `${row.contentType}:${row.xtreamId}`
+            )
+        );
+        remaining.recentlyViewed = consumedHistory?.cleared
+            ? []
+            : remaining.recentlyViewed.filter(
+                  (row) => !consumed.has(`${row.contentType}:${row.xtreamId}`)
+              );
+        this.write(playlistId, { ...snapshot.state, ...remaining });
     }
 
     forExport(
@@ -279,6 +294,7 @@ export {
     exportCatalogRecoveryState,
     beginCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
+    completeCatalogHistoryRecovery,
     readCatalogHistoryRecovery,
 } from './xtream-catalog-history-recovery';
 

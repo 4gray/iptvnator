@@ -3,6 +3,7 @@ import {
     prepareLegacyCatalogHistoryRecovery,
     captureCatalogCacheRecoveryState,
     clearCatalogHistoryRecovery,
+    completeCatalogHistoryRecovery,
     exportCatalogRecoveryState,
     readCatalogHistoryRecovery,
 } from './xtream-catalog-history-recovery';
@@ -271,3 +272,97 @@ it.each(['failed', 'cancelled', 'idle'])(
         );
     }
 );
+
+it('consumes native replay identities and later tombstones before acknowledgment while retaining absent history and hidden flags', async () => {
+    const db = setup();
+    const deferred = new XtreamDeferredCatalogRestoreService();
+    const state = {
+        ...legacyState(),
+        recentlyViewed: [42, 43, 44].map((xtreamId) => ({
+            contentType: 'movie' as const,
+            xtreamId,
+            viewedAt: 'saved',
+        })),
+        hiddenCategories: [{ categoryType: 'movies' as const, xtreamId: 2 }],
+    };
+    deferred.prepare('p', state, []);
+    const snapshot = deferred.getSnapshot('p');
+    db.getRecentItemsOrThrow.mockImplementation(async () => {
+        // A removal after the live-row read must also consume its dormant copy.
+        db.readAppState.mockResolvedValue({
+            value: JSON.stringify({
+                ...journal,
+                removed: [{ contentType: 'movie', xtreamId: 43 }],
+            }),
+        });
+        return [{ type: 'movie', xtream_id: 42 }];
+    });
+    db.setAppState.mockImplementation(async (_key, value) => {
+        expect(value).toBe('');
+        expect(
+            deferred
+                .getSnapshot('p')
+                .state.recentlyViewed.map((row) => row.xtreamId)
+        ).toEqual([44]);
+        return true;
+    });
+    await completeCatalogHistoryRecovery(db, deferred, 'p', snapshot, ['live']);
+    expect(deferred.getSnapshot('p').state.hiddenCategories).toEqual(
+        state.hiddenCategories
+    );
+    expect(db.getRecentItemsOrThrow).toHaveBeenCalledWith('p');
+});
+
+it('consumes all dormant history for a native clear without discarding hidden flags', async () => {
+    const db = setup();
+    db.readAppState.mockResolvedValue({
+        value: JSON.stringify({ ...journal, cleared: true }),
+    });
+    const deferred = new XtreamDeferredCatalogRestoreService();
+    deferred.prepare(
+        'p',
+        {
+            ...legacyState(),
+            hiddenCategories: [{ categoryType: 'movies', xtreamId: 2 }],
+        },
+        []
+    );
+    await completeCatalogHistoryRecovery(
+        db,
+        deferred,
+        'p',
+        deferred.getSnapshot('p'),
+        []
+    );
+    expect(deferred.getSnapshot('p').state.recentlyViewed).toEqual([]);
+    expect(deferred.getSnapshot('p').state.hiddenCategories).toEqual([
+        { categoryType: 'movies', xtreamId: 2 },
+    ]);
+});
+
+it('retains native recovery if live history or deferred completion cannot be saved', async () => {
+    const db = setup();
+    const deferred = new XtreamDeferredCatalogRestoreService();
+    deferred.prepare('p', legacyState(), []);
+    const snapshot = deferred.getSnapshot('p');
+    db.getRecentItemsOrThrow.mockRejectedValueOnce(
+        new Error('history unavailable')
+    );
+    await expect(
+        completeCatalogHistoryRecovery(db, deferred, 'p', snapshot, ['live'])
+    ).rejects.toThrow('history unavailable');
+    expect(deferred.getSnapshot('p').raw).toBe(snapshot.raw);
+    expect(db.setAppState).not.toHaveBeenCalled();
+    jest.spyOn(deferred, 'complete').mockImplementationOnce(() => {
+        throw new Error('archive unavailable');
+    });
+    await expect(
+        completeCatalogHistoryRecovery(db, deferred, 'p', snapshot, ['live'])
+    ).rejects.toThrow('archive unavailable');
+    expect(db.setAppState).not.toHaveBeenCalled();
+    db.readAppState.mockResolvedValue({ value: null });
+    await expect(
+        completeCatalogHistoryRecovery(db, deferred, 'p', snapshot, ['live'])
+    ).rejects.toThrow('Catalog history recovery is unavailable');
+    expect(db.setAppState).not.toHaveBeenCalled();
+});
