@@ -5,7 +5,7 @@ import {
     XTREAM_CATEGORY_VISIBILITY_PREFIX,
     xtreamCategoryVisibilityKey,
     type XtreamCategoryVisibility,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/xtream-category-visibility';
 import type { AppDatabase } from '../database.types';
 
 type VisibilityDatabase = Pick<

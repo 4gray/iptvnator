@@ -4,7 +4,7 @@ import type {
     XtreamPlaylistBackupEntry,
     XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
-import { xtreamCategoryVisibilityKey } from '@iptvnator/shared/interfaces';
+import { xtreamCategoryVisibilityKey } from '@iptvnator/shared/interfaces/xtream-category-visibility';
 import { createPlaylistBackupService } from './playlist-backup.service.test-helpers';
 import { createXtreamManifest } from './playlist-backup.xtream-fixtures';
 import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';

@@ -7,7 +7,6 @@ import {
     XtreamHistoryRecovery,
     XtreamBackupRecentlyViewedItem,
     createRandomId,
-    type XtreamCategoryVisibility,
 } from '@iptvnator/shared/interfaces';
 
 const prefix = 'xtream-catalog-restore-';
@@ -233,8 +232,7 @@ export class XtreamDeferredCatalogRestoreService {
         > & {
             currentCategories?: XtreamPendingRestoreState['hiddenCategories'];
             snapshot?: XtreamPendingRestoreState['catalogSnapshot'];
-        },
-        explicitVisibility: XtreamCategoryVisibility['categories'] = []
+        }
     ): CatalogState {
         const snapshot = this.read(playlistId);
         const stored = snapshot.state;
@@ -257,7 +255,7 @@ export class XtreamDeferredCatalogRestoreService {
             ).recentlyViewed,
         };
         const currentIds = new Set(
-            [...(recovery?.currentCategories ?? []), ...explicitVisibility].map(
+            recovery?.currentCategories?.map(
                 (row) => `${row.categoryType}:${row.xtreamId}`
             )
         );
@@ -274,20 +272,7 @@ export class XtreamDeferredCatalogRestoreService {
                               removed.xtreamId === row.xtreamId
                       )
               );
-        const hidden = merge(
-            current.hiddenCategories.map((row) => ({ ...row, hidden: true })),
-            explicitVisibility,
-            (row) => `${row.categoryType}:${row.xtreamId}`
-        )
-            .filter((row) => row.hidden)
-            .map(({ categoryType, xtreamId }) => ({
-                categoryType,
-                xtreamId,
-            }));
-        return this.combined(remaining, {
-            ...current,
-            hiddenCategories: hidden,
-        });
+        return this.combined(remaining, current);
     }
 
     getSnapshot(playlistId: string): DeferredCatalogSnapshot {

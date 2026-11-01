@@ -398,6 +398,11 @@ barrel reachable. `renderer.initialBytes` in
 module is eager, build with `pnpm nx build web --stats-json` and follow the
 static imports in `dist/apps/web/stats.json` from `apps/web/src/main.ts`.
 
+The Xtream category visibility ledger uses
+`@iptvnator/shared/interfaces/xtream-category-visibility` for its runtime key and
+parser. The main shared-interface barrel exports only its type, keeping this
+backup/recovery code out of the initial renderer graph.
+
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency
 paths to `dist/` during `@nx/js:tsc` builds.

@@ -561,7 +561,7 @@ export class DatabaseService {
             const result = await window.electron.dbUpdateCategoryVisibility(
                 categoryIds,
                 hidden,
-                ...(explicit === undefined ? [] : [explicit])
+                explicit
             );
             return (
                 result.success &&

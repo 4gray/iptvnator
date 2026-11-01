@@ -189,6 +189,9 @@
             "@iptvnator/shared/interfaces/xtream-restore-state": [
                 "libs/shared/interfaces/src/lib/xtream-restore-state.util.ts"
             ],
+            "@iptvnator/shared/interfaces/xtream-category-visibility": [
+                "libs/shared/interfaces/src/lib/xtream-category-visibility.ts"
+            ],
             "@iptvnator/shared/interfaces/ipc-commands": [
                 "libs/shared/interfaces/src/lib/ipc-commands.ts"
             ],

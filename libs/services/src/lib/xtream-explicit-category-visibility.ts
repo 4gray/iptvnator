@@ -1,10 +1,36 @@
 import {
     parseXtreamCategoryVisibility,
     xtreamCategoryVisibilityKey,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/xtream-category-visibility';
 import type { DatabaseService } from './database-electron.service';
 import type { DeferredCatalogSnapshot } from './xtream-deferred-catalog-restore.service';
-import type { XtreamBackupHiddenCategory } from '@iptvnator/shared/interfaces';
+import type {
+    XtreamBackupHiddenCategory,
+    XtreamCategoryVisibility,
+    XtreamPendingRestoreState,
+} from '@iptvnator/shared/interfaces';
+
+/** Apply native choices after dormant/current export data has been combined. */
+export function reconcileExplicitCatalogVisibilityForExport(
+    state: Pick<
+        XtreamPendingRestoreState,
+        'hiddenCategories' | 'recentlyViewed'
+    >,
+    choices: XtreamCategoryVisibility['categories']
+) {
+    const flags = new Map(
+        [
+            ...state.hiddenCategories.map((row) => ({ ...row, hidden: true })),
+            ...choices,
+        ].map((row) => [`${row.categoryType}:${row.xtreamId}`, row])
+    );
+    return {
+        ...state,
+        hiddenCategories: Array.from(flags.values())
+            .filter((row) => row.hidden)
+            .map(({ categoryType, xtreamId }) => ({ categoryType, xtreamId })),
+    };
+}
 
 export function explicitCategoryVisibilityForReplay(
     snapshot: DeferredCatalogSnapshot,

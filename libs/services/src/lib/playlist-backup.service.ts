@@ -454,15 +454,16 @@ export class PlaylistBackupService {
             this.readSourcePinsForExport(playlist._id),
         ]);
 
-        const { readExplicitCatalogVisibility } =
-            await import('./xtream-explicit-category-visibility');
+        const {
+            readExplicitCatalogVisibility,
+            reconcileExplicitCatalogVisibilityForExport,
+        } = await import('./xtream-explicit-category-visibility');
         const explicitVisibility = await readExplicitCatalogVisibility(
             this.databaseService,
             playlist._id
         );
-        const catalogState = this.deferredRestore.forExport(
-            playlist._id,
-            {
+        const catalogState = reconcileExplicitCatalogVisibilityForExport(
+            this.deferredRestore.forExport(playlist._id, {
                 hiddenCategories: [
                     ...this.mapHiddenCategories(liveCategories, 'live'),
                     ...this.mapHiddenCategories(movieCategories, 'movies'),
@@ -473,9 +474,7 @@ export class PlaylistBackupService {
                     contentType: item.type as XtreamBackupContentType,
                     viewedAt: item.viewed_at ?? new Date().toISOString(),
                 })),
-            },
-            undefined,
-            undefined,
+            }),
             explicitVisibility
         );
         return {

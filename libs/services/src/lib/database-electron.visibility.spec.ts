@@ -46,7 +46,7 @@ it.each([
             service.updateCategoryVisibility([22], false, explicit)
         ).resolves.toBe(expected);
         expect(write.mock.calls).toEqual([
-            explicit ? [[22], false, true] : [[22], false],
+            explicit ? [[22], false, true] : [[22], false, undefined],
         ]);
     }
 );

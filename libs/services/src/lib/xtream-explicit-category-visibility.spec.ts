@@ -1,6 +1,7 @@
 import {
     clearExplicitCatalogVisibility,
     readExplicitCatalogVisibility,
+    reconcileExplicitCatalogVisibilityForExport,
 } from './xtream-explicit-category-visibility';
 import {
     captureCatalogCacheRecoveryState,
@@ -10,6 +11,36 @@ import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-r
 
 beforeEach(() => localStorage.clear());
 afterEach(() => localStorage.clear());
+
+it('reconciles combined export flags by typed identity without changing history or the original state', () => {
+    const state = {
+        hiddenCategories: [
+            { categoryType: 'movies' as const, xtreamId: 2 },
+            { categoryType: 'movies' as const, xtreamId: 9 },
+            { categoryType: 'live' as const, xtreamId: 2 },
+        ],
+        recentlyViewed: [
+            {
+                contentType: 'movie' as const,
+                xtreamId: 2,
+                viewedAt: 'synthetic',
+            },
+        ],
+    };
+    const exported = reconcileExplicitCatalogVisibilityForExport(state, [
+        { categoryType: 'movies', xtreamId: 2, hidden: false },
+        { categoryType: 'movies', xtreamId: 4, hidden: true },
+        { categoryType: 'series', xtreamId: 2, hidden: true },
+    ]);
+    expect(exported.hiddenCategories).toEqual([
+        { categoryType: 'movies', xtreamId: 9 },
+        { categoryType: 'live', xtreamId: 2 },
+        { categoryType: 'movies', xtreamId: 4 },
+        { categoryType: 'series', xtreamId: 2 },
+    ]);
+    expect(exported.recentlyViewed).toBe(state.recentlyViewed);
+    expect(state.hiddenCategories).toHaveLength(3);
+});
 
 it('reads explicit visibility strictly and keeps rejected reset failures visible', async () => {
     const db = {
