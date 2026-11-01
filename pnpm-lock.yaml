@@ -119,6 +119,9 @@ importers:
       '@ngx-pwa/local-storage':
         specifier: 22.0.0
         version: 22.0.0(@angular/common@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2)
+      '@noble/hashes':
+        specifier: 2.3.0
+        version: 2.3.0
       '@yangkghjh/videojs-aspect-ratio-panel':
         specifier: 0.0.1
         version: 0.0.1

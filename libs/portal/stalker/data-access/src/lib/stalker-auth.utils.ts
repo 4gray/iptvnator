@@ -1,17 +1,8 @@
-import { extractStalkerAuthFailureBody } from '@iptvnator/shared/interfaces';
+import {
+    extractStalkerAuthFailureBody,
+    loadStalkerProtocolHash,
+} from '@iptvnator/shared/interfaces';
 import { StalkerPortalError } from './stalker-portal-error';
-
-/**
- * SHA1 hash using native Web Crypto API
- * Produces correct 40-character hex hash matching real Stalker clients
- */
-async function sha1(str: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(str);
-    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 /**
  * Generates SHA1 prehash from MAC address
@@ -20,7 +11,9 @@ async function sha1(str: string): Promise<string> {
 export async function generatePrehash(macAddress: string): Promise<string> {
     // Use MAC address with colons, uppercase - this is what most clients use
     const str = macAddress.toUpperCase();
-    return (await sha1(str)).toUpperCase();
+    const { hashStalkerProtocolValue, STALKER_HASH_ALGORITHM } =
+        await loadStalkerProtocolHash();
+    return hashStalkerProtocolValue(str, STALKER_HASH_ALGORITHM.SHA1);
 }
 
 /**
