@@ -1,4 +1,5 @@
-import { useNotice } from './use-notice';
+import { createSourceSwitcher } from './source-selection';
+import { useNotice, connectionNotice } from './use-notice';
 import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
@@ -18,6 +19,11 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const { error, errorRetry, errorRetryLabel, setError, clearError } =
         useNotice();
     const [connectionFailed, setConnectionFailed] = useState(false);
+    const reportConnection = connectionNotice(
+        { setError, clearError },
+        setConnectionFailed,
+        retryConnection
+    );
     const [retry, setRetry] = useState(0);
     const [selected, setSelected] = useState<Media>();
     const [playing, setPlaying] = useState<Media>();
@@ -27,7 +33,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const failedResolution = useRef<{
         item: Media;
         category: string;
-        origin: string;
+        origin: NavigationOrigin;
     }>();
     const { stack, visit } = useRouteHistory(route, setRoute);
     const playerOrigin = usePlaybackOrigin();
@@ -91,11 +97,6 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         pendingScroll,
         data.catalogSort
     );
-    function reportConnection(message: string) {
-        setConnectionFailed(!!message);
-        if (message) setError(message, retryConnection, 'Retry connection');
-        else clearError('Retry connection');
-    }
     function retryConnection() {
         recovery.resetReconnect();
         setRetry((n) => n + 1);
@@ -175,12 +176,13 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     async function play(
         item: Media,
         category = route.category,
-        origin = focusKey(),
+        origin: string | NavigationOrigin = focusKey(),
         signal?: AbortSignal
     ) {
         if (!ready || item.sourceId !== data.activeId || signal?.aborted)
             return false;
-        const originAtStart = playerOrigin.capture(origin);
+        const originAtStart =
+            typeof origin === 'string' ? playerOrigin.capture(origin) : origin;
         playback.current.cancel();
         failedResolution.current = undefined;
         if (playing?.id === item.id && item.kind === 'live') {
@@ -219,7 +221,11 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             return lane.owns(job);
         } catch {
             if (lane.owns(job)) {
-                failedResolution.current = { item, category, origin };
+                failedResolution.current = {
+                    item,
+                    category,
+                    origin: originAtStart,
+                };
                 setError(
                     'Playback could not be resolved. Check the source and retry.',
                     retryPlayback,
@@ -319,20 +325,13 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             );
         }
     }
-    async function switchSource(activeId: string) {
-        stop();
-        try {
-            await update((d) => ({ ...d, activeId }));
-            clearError('Retry source selection');
-            navigate('home');
-        } catch {
-            setError(
-                'Source selection was not saved.',
-                () => void switchSource(activeId),
-                'Retry source selection'
-            );
-        }
-    }
+    const switchSource = createSourceSwitcher({
+        stop,
+        update,
+        selected: () => navigate('home'),
+        clearError,
+        setError,
+    });
     async function saveSource(source: Source, address: string) {
         try {
             if (!(await backend.connect(address))) return;
@@ -362,6 +361,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         library,
         guideClient: ready ? provider.current : undefined,
         retryPlayback,
+        retryConnection,
         playbackOrigin: playerOrigin.current,
         restoreKey: pendingFocus.current,
         restoreScroll: pendingScroll.current,

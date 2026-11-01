@@ -1,3 +1,5 @@
+import { useHomeActions } from './use-home-actions';
+import { HomeSourceStatus } from './home-source-status';
 import { LiveOverlay, useLiveOverlay } from './live-overlay';
 import { useLiveBrowse } from './use-live-browse';
 import { useHomeFeature } from './use-home-feature';
@@ -42,6 +44,7 @@ export function TvApp() {
     const tv = useTv(video);
     const detailSeason = useDetailSeason(tv.route);
     const seriesDetails = useSeriesDetails(tv);
+    const homeActions = useHomeActions(tv, seriesDetails);
     useSeriesContext(tv);
     const browse = useLiveBrowse(tv);
     const overlay = useLiveOverlay(tv, browse);
@@ -140,7 +143,10 @@ export function TvApp() {
                         <button
                             data-focus={`nav:${view}`}
                             aria-current={r.view === view ? 'page' : undefined}
-                            onClick={() => tv.navigate(view)}
+                            onClick={() => {
+                                homeActions.leave();
+                                tv.navigate(view);
+                            }}
                         >
                             <span class="nav-icon" aria-hidden="true">
                                 <TvIcon name={view} />
@@ -169,6 +175,7 @@ export function TvApp() {
             >
                 {cinematic ? <Backdrop item={metadata.item} /> : null}
                 <PageHeader tv={tv} />
+                <HomeSourceStatus actions={homeActions} />
                 {metadata.failed ? (
                     <div class="metadata-notice" role="status">
                         TMDB is unavailable. Showing provider information.
@@ -184,7 +191,12 @@ export function TvApp() {
                             </button>
                         ) : null}
                         <button onClick={() => tv.setError('')}>Dismiss</button>
-                        <button onClick={() => tv.navigate('sources')}>
+                        <button
+                            onClick={() => {
+                                homeActions.leave();
+                                tv.navigate('sources');
+                            }}
+                        >
                             Edit sources
                         </button>
                     </div>
@@ -201,8 +213,8 @@ export function TvApp() {
                     <Home
                         tv={display}
                         feature={{ ...feature, item: metadata.item }}
-                        openSeries={seriesDetails.open}
-                        detailsBusy={seriesDetails.busy}
+                        actions={homeActions}
+                        detailsBusy={seriesDetails.busy || homeActions.pending}
                     />
                 ) : r.view === 'sources' ? (
                     <Sources tv={tv} />

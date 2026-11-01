@@ -450,8 +450,15 @@ repair also updates retained positions without changing seconds or timestamps.
 Parent snapshots retain provider fields needed to reopen regular, embedded and
 lazy series, but exclude cached Xtream episode lists and nested parent snapshots.
 
-Home features up to three recently watched, unfinished titles from the active
-source. A series contributes its latest watched episode; a completed latest
+Home features up to three recently watched, unfinished titles across all TV
+sources. Its saved-title and favorite-channel rails also combine sources, and
+cards and the featured title show the source name. Each saved-title rail previews
+the twelve most recently saved entries; favorite channels remain capped at eight.
+Home focus keys include the rail identity, so copies of a title in different rails
+restore to the initiating placement. Catalog preview rails remain
+explicitly labeled with the selected source; full catalogs stay source-scoped.
+The source picker belongs to catalog/detail/settings screens, while Home displays
+All sources. A series contributes its latest watched episode; a completed latest
 episode does not revive older unfinished episodes. Unknown-duration positions
 remain resumable. The Continue watching rail retains up to eight titles using
 the same grouping. Previous/Next controls wrap on OK or pointer click; there is
@@ -476,11 +483,33 @@ a successful retry retains the original navigation focus and scroll.
 Playback captures its actual initiating control and main scroll position before
 resolution; returning from series details restores
 the hero Continue watching button or resume card that started it.
-Selection survives detail/player Back; source changes and relaunch start at the
-latest unfinished title. With no unfinished history, the first catalog movie
+Selection survives detail/player Back and source activation; relaunch starts at
+the latest unfinished title. With no unfinished history, a saved title or first catalog movie
 (or first available item) remains the featured fallback. Artwork-only parent
 fallbacks and optional TMDB enrichment never replace saved playback commands.
 The hero's title/progress/actions remain usable while metadata loads or fails.
+
+Opening or resuming a Home item activates its exact source before using the
+existing detail/playback paths. Activation waits for the matching provider's
+readiness and preserves the initiating Home control and scroll. A newer Home
+selection queues behind any source save that has already started, even after
+its previous intent is cancelled. Playback waits for the latest source write and
+matching provider readiness instead of trusting a briefly stale active source.
+A newer Home action, navigation away, Back/Cancel, changed source configuration or backend,
+and a 40-second deadline retire the pending intent; late connection completion
+cannot launch it. Failed activation offers Retry Home title. Retained activity
+whose source is no longer available remains visible with an unavailable-source
+label and a recovery message, without borrowing another source's provider.
+Explicit local source removal still removes that source's viewing data.
+Global history is local TV activity, without cross-device synchronization or
+parallel connections to every provider.
+Playback-resolution retries retain the full originating control and scroll,
+including when source activation has reset the visible Home position.
+New Home actions, Cancel and Back also retire an unfinished series-details
+lookup or save before it can navigate. Its retry callback is scoped to that
+request. Background connection notices preserve an existing foreground recovery
+action, so automatic reconnects cannot replace Retry Home title with a generic
+connection retry.
 
 Home and details share a backdrop beginning at the top of the content viewport,
 behind the header. Left and bottom gradients keep text readable and fade into

@@ -114,8 +114,8 @@ test('home features three unfinished titles with manual wrap, remote focus, deta
     await expect(page.locator('.resume-card')).toHaveCount(4);
     await addSource(page, 'm3u');
     await nav(page, 'Home');
-    await expect(page.locator('[data-focus="hero-resume"]')).toHaveCount(0);
-    await expect(page.locator('.resume-card')).toHaveCount(0);
+    await expect(page.locator('[data-focus="hero-resume"]')).toHaveCount(1);
+    await expect(page.locator('.resume-card')).toHaveCount(4);
 });
 
 for (const provider of ['xtream', 'stalker'] as const)
@@ -421,6 +421,7 @@ test('a retained series-details retry cannot reopen the previous source', async 
     await watch(page, 13, true);
     await addSource(page, 'm3u');
     await nav(page, 'Home');
+    await nav(page, 'Movies');
     const sources = page.getByLabel('Active source', { exact: true });
     await chooseTv(page, 'Active source', { label: 'TV xtream · XTREAM' });
     await expect(page.locator('[data-focus="hero-resume"]')).toBeVisible();
@@ -462,6 +463,7 @@ test('a retained series-details retry cannot reopen the previous source', async 
     await expect(page.locator('[data-focus="hero-resume"]')).toBeFocused();
     await failDetails();
     const retained = await retry.elementHandle();
+    await nav(page, 'Movies');
     await chooseTv(page, 'Active source', { label: 'TV m3u · M3U' });
     await expect(page.locator('.loading')).toBeHidden();
     await expect(page.locator('.hero')).toBeVisible();
@@ -475,7 +477,9 @@ test('a retained series-details retry cannot reopen the previous source', async 
                 )
             )
     );
+    await nav(page, 'Movies');
     await expect(sources).toContainText('TV m3u');
+    await nav(page, 'Home');
     await expect(page.locator('.hero')).toBeVisible();
     await expect(page.locator('.detail-hero')).toHaveCount(0);
     await expect(retry).toHaveCount(0);

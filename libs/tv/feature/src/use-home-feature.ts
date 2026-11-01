@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import {
     continueWatching,
     seriesForEpisode,
@@ -8,7 +8,7 @@ import {
 import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import type { TvModel } from './use-tv';
 
-/** The selection survives detail/player return; another source starts at its latest title. */
+/** Global selection survives source activation and detail/player return. */
 export function useHomeFeature(tv: TvModel) {
     const history = useMemo(
         () =>
@@ -27,21 +27,20 @@ export function useHomeFeature(tv: TvModel) {
         [tv.data.history, tv.data.activeId, tv.home, tv.data.favorites]
     );
     const slides = history.slice(0, 3);
-    const [selection, setSelection] = useState({ sourceId: '', id: '' });
-    useEffect(
-        () => setSelection({ sourceId: tv.data.activeId, id: '' }),
-        [tv.data.activeId]
+    const [selection, setSelection] = useState('');
+    const index = Math.max(
+        0,
+        slides.findIndex((p) => p.item.id === selection)
     );
-    const index =
-        selection.sourceId === tv.data.activeId
-            ? Math.max(
-                  0,
-                  slides.findIndex((p) => p.item.id === selection.id)
-              )
-            : 0;
     const progress = slides[index];
     const original =
-        progress?.item ?? tv.home.find((m) => m.kind === 'movie') ?? tv.home[0];
+        progress?.item ??
+        tv.data.favorites.find(
+            (m) => m.kind === 'movie' || m.kind === 'series'
+        ) ??
+        tv.data.favorites[0] ??
+        tv.home.find((m) => m.kind === 'movie') ??
+        tv.home[0];
     const parent =
         original &&
         seriesForEpisode(original, [...tv.home, ...tv.data.favorites]);
@@ -69,8 +68,7 @@ export function useHomeFeature(tv: TvModel) {
         count: slides.length,
         select: (next: number) => {
             const slide = slides[(next + slides.length) % slides.length];
-            if (slide)
-                setSelection({ sourceId: tv.data.activeId, id: slide.item.id });
+            if (slide) setSelection(slide.item.id);
         },
     };
 }
