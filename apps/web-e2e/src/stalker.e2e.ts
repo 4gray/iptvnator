@@ -990,6 +990,32 @@ test.describe('@stalker full portal authentication', () => {
         test.setTimeout(90_000);
     });
 
+    test('imports and reopens a full portal without SubtleCrypto on LAN HTTP', async ({
+        page,
+    }, testInfo) => {
+        // localhost is trustworthy even over HTTP. Remove only the API that
+        // Chrome omits on a real NAS/LAN HTTP origin, including after reload.
+        await page.addInitScript(() => {
+            Object.defineProperty(window.crypto, 'subtle', {
+                configurable: true,
+                value: undefined,
+            });
+        });
+        await page.reload();
+        expect(await page.evaluate(() => typeof crypto.subtle)).toBe('undefined');
+        const requests = recordPortalRequests(page);
+        const mac = getStatefulAuthMacs(testInfo).authenticatedFlow;
+
+        await addFullStalkerPortal(page, { mac });
+        await expect(page.locator('.category-item').first()).toBeVisible();
+        expect(requests.some((entry) => entry.action === 'handshake')).toBe(true);
+        expect(requests.some((entry) => entry.action === 'get_profile')).toBe(true);
+
+        await page.reload();
+        await expect(page.locator('.category-item').first()).toBeVisible();
+        expect(await page.evaluate(() => typeof crypto.subtle)).toBe('undefined');
+    });
+
     test('handshakes and authenticates before loading content', async ({
         page,
     }, testInfo) => {
