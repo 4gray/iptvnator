@@ -995,9 +995,18 @@ context, its later checkpoints stay on the local persistence path, including
 when connectivity returns. Per-position local-only flags in the selected instance's
 renderer storage keep those raw rows ahead of downloaded server projections and
 out of disable-time mirroring, including after renderer recreation. The flags
-contain only source/type/tracking keys and local session tokens, use independent
-storage entries and never
-travel to the server. A committed explicit launch, watched/reset action, import
+are bound to the verified source incarnation. The first verified context binds
+previously unbound fallback data; subsequent account/endpoint changes retire the
+old ownership, including after restart. Bootstrap bindings persist before the
+new context cache is published. Development flags without verified identity are
+not applied to a verified source.
+
+Before a raw fallback write, a minimal position snapshot is saved locally without
+titles or stream addresses. A failed raw write keeps this snapshot readable and
+retryable. Raw writes are ordered per item; acknowledgements remove only their
+own snapshot, and disabling drains writes and replays remaining snapshots before
+completing. Acknowledged snapshots become ownership flags again so later ordinary
+local writes can advance normally. These records never travel to the server. A committed explicit launch, watched/reset action, import
 or conflict choice can clear the corresponding flag; keeping a parked queue local
 retains it. A protected missing raw row is an authoritative local reset, not
 permission to restore the server row. Series reads retain a zero Stalker row so

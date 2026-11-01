@@ -58,7 +58,10 @@ export class ActivitySyncClient {
     >();
     readonly delivery = new ActivityDeliveryCoordinator(this);
     readonly retiredSessions = new Set<string>();
-    readonly localSessions = new Set<string>();
+    readonly localSessions = new Map<
+        string,
+        { sourceId: string; incarnation?: string }
+    >();
     private flushing?: Promise<void>;
     constructor(
         readonly store: ActivityLocalStore,
@@ -66,6 +69,28 @@ export class ActivitySyncClient {
     ) {
         for (const context of options.contexts ?? [])
             this.contexts.set(context.sourceId, context);
+    }
+
+    acceptContext(context: ActivitySourceContext): void {
+        const previous = this.contexts.get(context.sourceId);
+        for (const [id, session] of this.localSessions) {
+            if (session.sourceId !== context.sourceId) continue;
+            if (
+                session.incarnation &&
+                session.incarnation !== context.sourceIncarnation
+            ) {
+                this.localSessions.delete(id);
+                this.retiredSessions.add(id);
+            } else session.incarnation = context.sourceIncarnation;
+        }
+        if (
+            previous &&
+            previous.sourceIncarnation !== context.sourceIncarnation
+        )
+            for (const [key, alias] of this.aliases)
+                if (alias.playlistId === context.sourceId)
+                    this.aliases.delete(key);
+        this.contexts.set(context.sourceId, context);
     }
 
     register(sourceId: string, positions: PlaybackPositionData[]): void {
@@ -91,7 +116,7 @@ export class ActivitySyncClient {
                 operation: 'activity-context',
                 id: sourceId,
             })) as ActivitySourceContext;
-            this.contexts.set(sourceId, context);
+            this.acceptContext(context);
             this.options.remember?.([...this.contexts.values()]);
         }
         const id = String(position.contentXtreamId);
@@ -159,7 +184,7 @@ export class ActivitySyncClient {
                 operation: 'activity-context',
                 id: sourceId,
             })) as ActivitySourceContext;
-            this.contexts.set(sourceId, context);
+            this.acceptContext(context);
             this.options.remember?.([...this.contexts.values()]);
             let cursor: string | undefined;
             const seen = new Set<string>();

@@ -171,6 +171,45 @@ async function launch(
 }
 
 describe('activity sync clients', () => {
+    it('retires a failed local launch after its verified source account changes', async () => {
+        const h = harness();
+        const a = h.client('a');
+        a.value.contexts.clear();
+        h.offline(true);
+        await expect(
+            a.value.begin('source', movie('failed'))
+        ).rejects.toThrow();
+        expect(await a.value.save('source', movie('failed'))).toBe(
+            'local-only'
+        );
+        a.value.acceptContext(context);
+        expect(await a.value.save('source', movie('failed'))).toBe(
+            'local-only'
+        );
+        a.value.acceptContext({ ...context, sourceIncarnation: 'replacement' });
+        expect(await a.value.save('source', movie('failed'))).toBeUndefined();
+        expect(a.value.retiredSessions.has('failed')).toBe(true);
+        expect(await a.store.pending()).toEqual([]);
+    });
+
+    it('ignores old shared checkpoints and aliases after source replacement', async () => {
+        const h = harness();
+        const a = h.client('a');
+        await launch(a, movie('old'));
+        await a.value.flush();
+        a.value.register('source', [
+            {
+                ...movie('old'),
+                activityIdentity: { provider: 'xtream', kind: 'vod', id: '42' },
+            },
+        ]);
+        a.value.acceptContext({ ...context, sourceIncarnation: 'replacement' });
+        expect(a.value.aliases.size).toBe(0);
+        await a.value.save('source', movie('old', 65));
+        expect(await a.store.pending()).toEqual([]);
+        expect(a.value.retiredSessions.has('old')).toBe(true);
+    });
+
     it.each(['regular', 'embedded', 'lazy'] as const)(
         'preserves scoped metadata on a first Stalker %s reset before other clients open the series',
         async (mode) => {

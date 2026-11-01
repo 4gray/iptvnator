@@ -24,9 +24,11 @@ export function beginActivity(
         return Promise.reject(new Error('Activity session missing'));
     const existing = this.sessions.get(sessionId);
     if (existing) return existing;
+    let incarnation = this.contexts.get(sourceId)?.sourceIncarnation;
     const operationId = createRandomId();
     const begin = (async () => {
         const address = await this.address(sourceId, position);
+        incarnation = address.sourceIncarnation;
         let generation = 0;
         const consentGeneration = this.consent();
         this.delivery.begins.set(operationId, consentGeneration);
@@ -87,7 +89,7 @@ export function beginActivity(
         return { address, generation };
     })();
     void begin.catch(() => {
-        this.localSessions.add(sessionId);
+        this.localSessions.set(sessionId, { sourceId, incarnation });
         this.delivery.settled(operationId);
         if (this.sessions.get(sessionId) === begin)
             this.sessions.delete(sessionId);
@@ -101,6 +103,19 @@ export async function saveActivity(
     sourceId: string,
     position: PlaybackPositionData
 ): Promise<'local-only' | void> {
+    const failed = position.activitySessionId
+        ? this.localSessions.get(position.activitySessionId)
+        : undefined;
+    const currentScope = this.contexts.get(sourceId)?.sourceIncarnation;
+    if (
+        failed?.incarnation &&
+        currentScope &&
+        failed.incarnation !== currentScope
+    ) {
+        this.localSessions.delete(position.activitySessionId!);
+        this.retiredSessions.add(position.activitySessionId!);
+        return;
+    }
     // Failed explicit launches have no shared owner. Keep the adapter's local
     // fallback active until another explicit launch commits ownership.
     if (
@@ -132,6 +147,15 @@ export async function saveActivity(
             this.retiredSessions.add(sessionId);
             return;
         }
+    }
+    if (
+        sessionId &&
+        session &&
+        session.address.sourceIncarnation !==
+            this.contexts.get(sourceId)?.sourceIncarnation
+    ) {
+        this.retiredSessions.add(sessionId);
+        return;
     }
     const operationId = createRandomId();
     const consentGeneration = this.consent();

@@ -176,7 +176,7 @@ export class ActivitySyncRuntime {
                 positionSeconds: startTime,
             });
         } catch {
-            this.state.set('offline');
+            this.reportStorageFailure();
         }
     }
 
@@ -191,7 +191,7 @@ export class ActivitySyncRuntime {
                 this.isDisabling()
             );
         } catch {
-            this.state.set('offline');
+            this.reportStorageFailure();
         }
     }
 
@@ -215,7 +215,7 @@ export class ActivitySyncRuntime {
                 this.isDisabling()
             );
         } catch (error) {
-            this.state.set('offline');
+            this.reportStorageFailure();
             throw error;
         }
     }
@@ -323,8 +323,14 @@ export class ActivitySyncRuntime {
             await this.summary();
             announceActivityChange();
         } catch {
-            if (this.enabled()) this.state.set('offline');
+            if (this.enabled()) this.reportStorageFailure();
         }
+    }
+
+    private reportStorageFailure(): void {
+        const paused = this.isDisabling();
+        this.state.set(paused ? 'disabling' : 'offline');
+        if (paused) this.error.set(true);
     }
 
     private async sourceIds(): Promise<string[]> {

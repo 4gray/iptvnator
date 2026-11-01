@@ -48,7 +48,12 @@ export function createActivityRuntimeClient(
               window.electron!.activityLocalRequest!(request)
           )
         : new IndexedDbActivityLocalStore(instanceId);
-    const localOnly = new ActivityLocalOnlyPositions(instanceId, localStorage);
+    const localOnly = new ActivityLocalOnlyPositions(
+        instanceId,
+        localStorage,
+        (sourceId) => client?.contexts.get(sourceId)?.sourceIncarnation,
+        contexts
+    );
     const client = new ActivitySyncClient(store, {
         committed: (sourceId, position, kind) =>
             localOnly.committed(sourceId, position, kind),
@@ -62,8 +67,10 @@ export function createActivityRuntimeClient(
                 : null;
         },
         request: requestSourceServer,
-        remember: (value) =>
-            localStorage.setItem(contextKey, JSON.stringify(value)),
+        remember: (value) => {
+            localOnly.rememberSources(value);
+            localStorage.setItem(contextKey, JSON.stringify(value));
+        },
         ...events,
     });
     const adapter = new ActivityPositionAdapter(

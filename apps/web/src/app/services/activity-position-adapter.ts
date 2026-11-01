@@ -1,7 +1,11 @@
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import type { ActivitySyncClient } from '@iptvnator/services/activity-sync';
-import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
+import {
+    ActivityLocalOnlyPositions,
+    type LocalActivitySnapshot,
+} from './activity-local-only-positions';
+import { ActivityLocalWriteQueue } from './activity-local-write-queue';
 import {
     isStalkerEpisode,
     localActivityPosition,
@@ -24,6 +28,7 @@ export class ActivityPositionAdapter {
     static handles(method: string): boolean {
         return positionMethods.has(method);
     }
+    private readonly localWrites = new ActivityLocalWriteQueue();
     private readonly seenLocalSessions = new Set<string>();
     constructor(
         private readonly client: ActivitySyncClient,
@@ -229,13 +234,27 @@ export class ActivityPositionAdapter {
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<void> {
-        // Mark first: a failed flag write must never leave unprotected fallback data.
-        this.localOnly.mark(sourceId, position);
+        const local = localActivityPosition(position);
+        const snapshot = this.localOnly.stage(
+            sourceId,
+            local,
+            position.activitySessionId
+        );
         if (position.activitySessionId)
             this.seenLocalSessions.add(position.activitySessionId);
-        const local = localActivityPosition(position);
-        await (this.strict?.save(sourceId, local) ??
-            raw.savePlaybackPosition(sourceId, local));
+        await this.persistLocal(raw, sourceId, snapshot);
+    }
+
+    private persistLocal(
+        raw: IXtreamDataSource,
+        sourceId: string,
+        snapshot: LocalActivitySnapshot
+    ): Promise<void> {
+        return this.localWrites.run(sourceId, snapshot.position, async () => {
+            await (this.strict?.save(sourceId, snapshot.position) ??
+                raw.savePlaybackPosition(sourceId, snapshot.position));
+            this.localOnly.complete(sourceId, snapshot);
+        });
     }
 
     async all(
@@ -258,6 +277,10 @@ export class ActivityPositionAdapter {
         const positions = new Map(
             local.map((p) => [`${p.contentType}:${p.contentXtreamId}`, p])
         );
+        for (const snapshot of this.localOnly.snapshots(sourceId)) {
+            const key = `${snapshot.position.contentType}:${snapshot.position.contentXtreamId}`;
+            positions.set(key, { ...positions.get(key), ...snapshot.position });
+        }
         for (const item of await this.client.positions(sourceId)) {
             const key = `${item.position.contentType}:${item.position.contentXtreamId}`;
             if (this.localOnly.has(sourceId, item.position)) {
@@ -292,29 +315,37 @@ export class ActivityPositionAdapter {
     }
 
     async keepLocal(raw: IXtreamDataSource, sourceId: string): Promise<void> {
-        for (const item of await this.client.positions(sourceId)) {
-            const position = item.position;
-            if (this.localOnly.has(sourceId, position)) continue;
-            if (item.reset && isStalkerEpisode(position)) {
-                const reset = localActivityPosition(resetPosition(position));
-                await (this.strict?.save(sourceId, reset) ??
-                    raw.savePlaybackPosition(sourceId, reset));
-            } else if (item.reset)
-                await (this.strict?.clear(
-                    sourceId,
-                    position.contentXtreamId,
-                    position.contentType
-                ) ??
-                    raw.clearPlaybackPosition(
+        do {
+            await this.localWrites.wait(sourceId);
+            for (const snapshot of this.localOnly.snapshots(sourceId))
+                await this.persistLocal(raw, sourceId, snapshot);
+            for (const item of await this.client.positions(sourceId)) {
+                const position = item.position;
+                if (this.localOnly.has(sourceId, position)) continue;
+                if (item.reset && isStalkerEpisode(position)) {
+                    const reset = localActivityPosition(
+                        resetPosition(position)
+                    );
+                    await (this.strict?.save(sourceId, reset) ??
+                        raw.savePlaybackPosition(sourceId, reset));
+                } else if (item.reset)
+                    await (this.strict?.clear(
                         sourceId,
                         position.contentXtreamId,
                         position.contentType
-                    ));
-            else {
-                const local = localActivityPosition(position);
-                await (this.strict?.save(sourceId, local) ??
-                    raw.savePlaybackPosition(sourceId, local));
+                    ) ??
+                        raw.clearPlaybackPosition(
+                            sourceId,
+                            position.contentXtreamId,
+                            position.contentType
+                        ));
+                else {
+                    const local = localActivityPosition(position);
+                    await (this.strict?.save(sourceId, local) ??
+                        raw.savePlaybackPosition(sourceId, local));
+                }
             }
-        }
+            await this.localWrites.wait(sourceId);
+        } while (this.localOnly.snapshots(sourceId).length);
     }
 }

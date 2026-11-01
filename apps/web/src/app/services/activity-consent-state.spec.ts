@@ -11,6 +11,11 @@ import {
 } from './activity-consent-state';
 import { createActivityRuntimeClient } from './activity-runtime-client';
 const key = 'iptvnator-server:synthetic-nas:activity-consent-v1';
+const position = {
+    contentType: 'vod' as const,
+    contentXtreamId: 42,
+    positionSeconds: 10,
+};
 const original = {
     enabled: true,
     generation: 'synthetic-consent',
@@ -74,6 +79,63 @@ describe('activity consent persistence', () => {
         writeActivityConsent(key, { ...original, disabling: true });
         expect(activityEnabled()).toBe(true);
         expect(makeClient().options.consent()).toBeNull();
+    });
+    it('keeps replacement-source progress above retired local ownership through the actual factory', async () => {
+        const contextKey =
+            'iptvnator-server:synthetic-nas:activity-contexts-v1';
+        const context = {
+            sourceId: 'synthetic-source',
+            provider: 'xtream' as const,
+            sourceIncarnation: 'original',
+        };
+        localStorage.setItem(contextKey, JSON.stringify([context]));
+        const make = () =>
+            createActivityRuntimeClient(
+                {
+                    supportsActivityStorage: true,
+                    isElectron: true,
+                    supportsXtreamSqliteDataSource: false,
+                } as RuntimeCapabilitiesService,
+                {} as PlaybackPositionRuntimeBridgeService,
+                { changed: () => undefined, status: () => undefined }
+            );
+        const created = make();
+        let point = { ...position, positionSeconds: 65, durationSeconds: 100 };
+        const raw = {
+            savePlaybackPosition: async (_id: string, value: typeof point) => {
+                point = value;
+            },
+            getAllPlaybackPositions: async () => [point],
+        } as unknown as import('@iptvnator/portal/xtream/data-access').IXtreamDataSource;
+        created.client.localSessions.set('synthetic-failed-session', {
+            sourceId: context.sourceId,
+            incarnation: context.sourceIncarnation,
+        });
+        await created.adapter.invoke(raw, 'savePlaybackPosition', [
+            'synthetic-source',
+            { ...point, activitySessionId: 'synthetic-failed-session' },
+        ]);
+        const replacement = { ...context, sourceIncarnation: 'replacement' };
+        created.client.acceptContext(replacement);
+        created.client.options.remember!([replacement]);
+        const remote = {
+            position: { ...point, positionSeconds: 30 },
+            reset: false,
+            conflict: false,
+        };
+        jest.spyOn(created.client, 'positions').mockResolvedValue([remote]);
+        expect(
+            (await created.adapter.all(raw, context.sourceId))[0]
+                .positionSeconds
+        ).toBe(30);
+        const reopened = make();
+        jest.spyOn(reopened.client, 'positions').mockResolvedValue([remote]);
+        expect(
+            (await reopened.adapter.all(raw, context.sourceId))[0]
+                .positionSeconds
+        ).toBe(30);
+        await reopened.adapter.keepLocal(raw, context.sourceId);
+        expect(point.positionSeconds).toBe(30);
     });
     it.each([1, 'true', null, '2'])(
         'rejects invalid consent values (%s)',

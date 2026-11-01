@@ -211,6 +211,67 @@ describe('retryable activity disable transition', () => {
             expect(f.request).not.toHaveBeenCalled();
         }
     );
+    it('keeps a new local checkpoint durable when its raw write fails, then copies it after restart', async () => {
+        const f = fixture('native');
+        const { runtime } = f.makeRuntime();
+        await runtime.setEnabled(false);
+        await expect(
+            runtime.invoke(f.raw, 'savePlaybackPosition', [
+                f.sourceId,
+                {
+                    ...f.position,
+                    positionSeconds: 65,
+                    activitySessionId: 'synthetic-local-session',
+                },
+            ])
+        ).rejects.toThrow('Synthetic storage failure');
+        expect(f.rows()[0].positionSeconds).toBe(10);
+        expect(
+            await runtime.invoke(f.raw, 'getPlaybackPosition', [
+                f.sourceId,
+                42,
+                'vod',
+            ])
+        ).toMatchObject({ positionSeconds: 65 });
+        jest.clearAllTimers();
+        f.recover();
+        const reopened = f.makeRuntime().runtime;
+        await reopened.start();
+        expect(reopened.enabled()).toBe(false);
+        expect(f.rows()[0].positionSeconds).toBe(65);
+        expect(f.request).not.toHaveBeenCalled();
+    });
+    it('waits for in-flight local writes before completing opt-out', async () => {
+        const f = fixture('native');
+        const { runtime } = f.makeRuntime();
+        await runtime.setEnabled(false);
+        f.recover();
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const save = f.save.getMockImplementation()!;
+        f.save.mockImplementationOnce(async (...args) => {
+            await held;
+            await save(...args);
+        });
+        const writing = runtime.invoke(f.raw, 'savePlaybackPosition', [
+            f.sourceId,
+            {
+                ...f.position,
+                positionSeconds: 65,
+                activitySessionId: 'synthetic-local-session',
+            },
+        ]);
+        const disabling = runtime.setEnabled(false);
+        await jest.advanceTimersByTimeAsync(0);
+        expect(runtime.enabled()).toBe(true);
+        expect(f.rows()[0].positionSeconds).toBe(10);
+        release();
+        await Promise.all([writing, disabling]);
+        expect(runtime.enabled()).toBe(false);
+        expect(f.rows()[0].positionSeconds).toBe(65);
+    });
     it('retries final consent persistence without hiding the shared projection', async () => {
         const f = fixture('native');
         f.recover();
