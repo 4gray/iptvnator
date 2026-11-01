@@ -288,6 +288,15 @@ for (const provider of ['xtream', 'stalker'] as const)
                 await expect(
                     catalogCard!.locator('app-watched-badge .watched-badge')
                 ).toHaveCount(0);
+                await page
+                    .getByRole('button', { name: 'Refine', exact: true })
+                    .click();
+                await page
+                    .getByRole('menuitemcheckbox', {
+                        name: 'Hide watched',
+                        exact: true,
+                    })
+                    .click();
             }
             await native.locator('[data-testid="vod-watched-toggle"]').click();
             await expect
@@ -296,6 +305,16 @@ for (const provider of ['xtream', 'stalker'] as const)
             if (provider === 'xtream') {
                 await expect(continuing).toHaveCount(0, { timeout: 15000 });
             } else {
+                await expect(catalogCard!).toHaveCount(0, { timeout: 15000 });
+                await page
+                    .getByRole('button', { name: 'Refine', exact: true })
+                    .click();
+                await page
+                    .getByRole('menuitemcheckbox', {
+                        name: 'Hide watched',
+                        exact: true,
+                    })
+                    .click();
                 await expect(
                     catalogCard!.locator('app-watched-badge .watched-badge')
                 ).toBeVisible({ timeout: 15000 });

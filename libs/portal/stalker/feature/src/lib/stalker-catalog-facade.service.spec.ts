@@ -130,10 +130,19 @@ describe('StalkerCatalogFacadeService', () => {
         });
     });
 
-    it('refreshes an open catalog after shared activity and unsubscribes on destruction', async () => {
+    it('refreshes an open filtered catalog after shared activity and unsubscribes on destruction', async () => {
+        const catalog = [{ id: '17359', name: 'Synthetic catalog item' }];
+        (
+            stalkerStoreMock['getPaginatedContent'] as ReturnType<
+                typeof signal<typeof catalog>
+            >
+        ).set(catalog);
         const service = TestBed.inject(StalkerCatalogFacadeService);
         TestBed.tick();
         await Promise.resolve();
+        service.hideWatched.setEnabled(true);
+        expect(service.hideWatched.enabled()).toBe(true);
+        expect(service.paginatedContent()).toEqual(catalog);
         const refresh = jest.spyOn(service, 'refreshPositions');
         playbackPositions.getAllPlaybackPositions.mockResolvedValue([
             {
@@ -150,12 +159,14 @@ describe('StalkerCatalogFacadeService', () => {
             progress: 100,
             watchState: 'watched',
         });
+        expect(service.paginatedContent()).toEqual([]);
         playbackPositions.getAllPlaybackPositions.mockResolvedValue([]);
         announceActivityChange();
         await refresh.mock.results[1].value;
         expect(service.getItemProgress({ id: '17359' }).watchState).toBe(
             'unwatched'
         );
+        expect(service.paginatedContent()).toEqual(catalog);
         const calls =
             playbackPositions.getAllPlaybackPositions.mock.calls.length;
         TestBed.resetTestingModule();
