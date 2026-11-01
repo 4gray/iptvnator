@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 
 export interface RemoteControlStatus {
     portal: 'm3u' | 'xtream' | 'stalker' | 'unknown';
@@ -73,7 +73,10 @@ export class RemoteControlService {
 
     async getStatus(): Promise<RemoteControlStatus> {
         return await firstValueFrom(
-            this.http.get<RemoteControlStatus>(`${this.apiBaseUrl}/status`)
+            // Cancel stalled requests so the component can release its polling guard.
+            this.http
+                .get<RemoteControlStatus>(`${this.apiBaseUrl}/status`)
+                .pipe(timeout(10_000))
         );
     }
 }

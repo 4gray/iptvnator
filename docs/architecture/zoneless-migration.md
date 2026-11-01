@@ -331,7 +331,9 @@ PR was machine load.
 The separate remote-control root and component use OnPush. Async status and
 command completions explicitly mark the view. A command invalidates older status
 requests; interval polling skips pending commands and status requests, and late
-completions after destruction are ignored. Deferred DOM tests exercise these
+completions after destruction are ignored. Status requests time out after ten
+seconds and unsubscribe from HTTP, allowing the next poll to recover. Deferred
+DOM tests exercise these
 boundaries without forced change detection after responses. The standalone
 remote-control app still loads Zone; removing its bootstrap polyfill is a separate
 step from this pilot.

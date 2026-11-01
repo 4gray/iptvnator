@@ -259,6 +259,23 @@ describe('RemoteControlComponent asynchronous rendering', () => {
         await settle();
     });
 
+    it('resumes polling after a status request rejects', async () => {
+        await loadInitial();
+        const stalled = deferred<RemoteControlStatus>();
+        const recovered = deferred<RemoteControlStatus>();
+        service.getStatus
+            .mockReturnValueOnce(stalled.promise)
+            .mockReturnValueOnce(recovered.promise);
+        poll();
+        stalled.reject(new Error('Status request timed out'));
+        await settle();
+        poll();
+        expect(service.getStatus).toHaveBeenCalledTimes(3);
+        recovered.resolve(status('Recovered channel'));
+        await settle();
+        expect(text('.now-card__channel')).toBe('Recovered channel');
+    });
+
     it('clears the interval and ignores a status response after destruction', async () => {
         fixture.destroy();
         initial.resolve(status('Too late'));
