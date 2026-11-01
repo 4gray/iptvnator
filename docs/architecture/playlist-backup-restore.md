@@ -95,15 +95,18 @@ category choices without an available catalog are parked separately under
 `xtream-catalog-restore-<playlistId>`. This dormant record does not keep the source
 in an active/failed import state. Re-export merges it with the current complete
 history and category choices without consuming it. Re-enabling types merges their
-parked data into the cache-refresh snapshot and consumes only the applied types;
-it never replays old favorite removals, positions or source pins. Existing cached
+parked data into the cache-refresh snapshot and consumes only the history
+identities and category choices actually applied; it never replays old favorite
+removals, positions or source pins. Existing cached
 catalogs can accept their data even when their import selection is disabled.
 Explicit native history replay returns the typed identities it actually restored,
 including retained rows in an unfinished disabled catalog. Both immediate and
 pending archive restoration consume those identities from dormant history before
 flushing DOM storage. Missing identities and unavailable category choices remain
-parked. Missing or malformed replay evidence fails without consuming the pending
-archive, so later watches and removals cannot leave a stale dormant duplicate.
+parked, including missing identities within an otherwise completed catalog.
+Preparation retains them before replay; a catalog being available is not proof
+that any individual item or category was applied. Missing or malformed replay
+evidence fails without consuming the pending archive, so later watches and removals cannot leave a stale dormant duplicate.
 A new explicit archive has fresh receipt ownership and replaces older deferred
 choices. Explicit history clearing and source deletion clear corresponding dormant
 data. Storage failures retain the original active restore for retry rather than

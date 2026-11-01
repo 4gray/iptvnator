@@ -206,6 +206,10 @@ it.each([{ selection: ['live'] }, { selection: [] }])(
             { contentType: 'live', xtreamId: 10, viewedAt: 'live' },
             { contentType: 'movie', xtreamId: 20, viewedAt: 'movie' },
         ];
+        inner.databaseService.restoreXtreamUserData.mockResolvedValue({
+            success: true,
+            resolvedHistory: [{ contentType: 'live', xtreamId: 10 }],
+        });
         await inner.restoreXtreamEntry('xtream-1', entry);
         expect(inner.pendingRestoreService.getOrThrow('xtream-1')).toBeNull();
         expect(

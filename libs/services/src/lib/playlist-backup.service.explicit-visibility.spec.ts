@@ -163,3 +163,20 @@ it('keeps a fresh archive pending and authoritative when old visibility cannot b
     expect(exported.userState.hiddenCategories).toEqual([]);
     expect(db.updateCategoryVisibility).not.toHaveBeenCalled();
 });
+
+it('consumes only categories actually restored from an immediate explicit archive', async () => {
+    const { inner, category } = setup();
+    const entry = createXtreamManifest([])
+        .playlists[0] as XtreamPlaylistBackupEntry;
+    entry.xtreamContentTypes = [];
+    entry.userState.hiddenCategories = [2, 9].map((xtreamId) => ({
+        categoryType: 'movies',
+        xtreamId,
+    }));
+    await inner.restoreXtreamEntry(source._id, entry);
+    expect(category.hidden).toBe(true);
+    expect(
+        new XtreamDeferredCatalogRestoreService().getSnapshot(source._id).state
+            .hiddenCategories
+    ).toEqual([{ categoryType: 'movies', xtreamId: 9 }]);
+});

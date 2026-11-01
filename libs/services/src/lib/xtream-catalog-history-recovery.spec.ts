@@ -293,12 +293,14 @@ it('consumes native replay identities and later tombstones before acknowledgment
     const snapshot = deferred.getSnapshot('p');
     db.getRecentItemsOrThrow.mockImplementation(async () => {
         // A removal after the live-row read must also consume its dormant copy.
-        db.readAppState.mockResolvedValue({
-            value: JSON.stringify({
-                ...journal,
-                removed: [{ contentType: 'movie', xtreamId: 43 }],
-            }),
-        });
+        db.readAppState.mockImplementation(async (key) => ({
+            value: key.startsWith('xtream-category-visibility:')
+                ? null
+                : JSON.stringify({
+                      ...journal,
+                      removed: [{ contentType: 'movie', xtreamId: 43 }],
+                  }),
+        }));
         return [{ type: 'movie', xtream_id: 42 }];
     });
     db.setAppState.mockImplementation(async (_key, value) => {
@@ -319,9 +321,11 @@ it('consumes native replay identities and later tombstones before acknowledgment
 
 it('consumes all dormant history for a native clear without discarding hidden flags', async () => {
     const db = setup();
-    db.readAppState.mockResolvedValue({
-        value: JSON.stringify({ ...journal, cleared: true }),
-    });
+    db.readAppState.mockImplementation(async (key) => ({
+        value: key.startsWith('xtream-category-visibility:')
+            ? null
+            : JSON.stringify({ ...journal, cleared: true }),
+    }));
     const deferred = new XtreamDeferredCatalogRestoreService();
     deferred.prepare(
         'p',
@@ -390,13 +394,15 @@ it('retains authoritative post-clear history for missing rows instead of erasing
         },
         []
     );
-    db.readAppState.mockResolvedValue({
-        value: JSON.stringify({
-            ...journal,
-            recentlyViewed: watched,
-            cleared: true,
-        }),
-    });
+    db.readAppState.mockImplementation(async (key) => ({
+        value: key.startsWith('xtream-category-visibility:')
+            ? null
+            : JSON.stringify({
+                  ...journal,
+                  recentlyViewed: watched,
+                  cleared: true,
+              }),
+    }));
     await completeCatalogHistoryRecovery(
         db,
         deferred,
@@ -408,4 +414,33 @@ it('retains authoritative post-clear history for missing rows instead of erasing
     expect(deferred.getSnapshot('p').state.hiddenCategories).toEqual([
         { categoryType: 'movies', xtreamId: 2 },
     ]);
+});
+
+it('consumes only actual authoritative categories after cache replay, keeping absent same-type choices', async () => {
+    const db = setup();
+    const deferred = new XtreamDeferredCatalogRestoreService();
+    const state = {
+        ...legacyState(),
+        recentlyViewed: [],
+        hiddenCategories: [2, 9].map((xtreamId) => ({
+            categoryType: 'movies' as const,
+            xtreamId,
+        })),
+    };
+    const prepared = deferred.prepare('p', state, ['movie']);
+    db.getAllXtreamCategories.mockImplementation(async (_id, type) =>
+        type === 'movies'
+            ? [{ type: 'movies', xtream_id: 2, hidden: true }]
+            : []
+    );
+    await completeCatalogHistoryRecovery(db, deferred, 'p', prepared.snapshot, [
+        'movie',
+    ]);
+    expect(deferred.getSnapshot('p').state.hiddenCategories).toEqual([
+        { categoryType: 'movies', xtreamId: 9 },
+    ]);
+    expect(db.setAppState).toHaveBeenLastCalledWith(
+        'xtream-history-recovery:p',
+        ''
+    );
 });

@@ -104,16 +104,17 @@ export async function restoreElectronUserData(
         available
     );
     restoreState = prepared.state;
-    if (!restoreState.preservePlaybackPositions)
-        await restoreCategoryVisibility(
-            services.db,
-            playlistId,
-            categories,
-            explicitCategoryVisibilityForReplay(
-                prepared.snapshot,
-                archiveVisibility
-            )
-        );
+    const appliedCategories = !restoreState.preservePlaybackPositions
+        ? await restoreCategoryVisibility(
+              services.db,
+              playlistId,
+              categories,
+              explicitCategoryVisibilityForReplay(
+                  prepared.snapshot,
+                  archiveVisibility
+              )
+          )
+        : [];
     await services.restoreFavorites(playlistId, restoreState);
     const restored = await services.db.restoreXtreamUserData(
         playlistId,
@@ -162,7 +163,8 @@ export async function restoreElectronUserData(
             playlistId,
             prepared.snapshot,
             available,
-            restored
+            restored,
+            appliedCategories
         );
 }
 
@@ -218,7 +220,8 @@ export async function restoreCategoryVisibility(
     playlistId: string,
     categoriesByType: XCategoryFromDb[][],
     hiddenCategories: XtreamPendingRestoreState['hiddenCategories']
-): Promise<void> {
+) {
+    const applied: XtreamPendingRestoreState['hiddenCategories'] = [];
     for (const categories of categoriesByType) {
         if (categories.length === 0) {
             continue;
@@ -251,7 +254,14 @@ export async function restoreCategoryVisibility(
                 `Restoring category visibility for "${playlistId}" failed.`
             );
         }
+        applied.push(
+            ...categories.map((row) => ({
+                categoryType: row.type,
+                xtreamId: row.xtream_id,
+            }))
+        );
     }
+    return applied;
 }
 
 /** Legacy cache-snapshot API is cold work too; keep its existing semantics. */

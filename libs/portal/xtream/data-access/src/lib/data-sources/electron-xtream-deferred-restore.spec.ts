@@ -119,17 +119,25 @@ it('uses the live native journal instead of stale pending or already-owned defer
     deferred.prepare('p', archive, []);
     const snapshot = deferred.getSnapshot('p');
     const current = [{ contentType: 'live', xtreamId: 11, viewedAt: 'new' }];
-    dbService.readAppState.mockResolvedValue({
-        value: JSON.stringify({
-            version: 1,
-            contentTypes: ['live', 'movie', 'series'],
-            recentlyViewed: current,
-            removed: [
-                { contentType: 'live', xtreamId: 10 },
-                { contentType: 'movie', xtreamId: 20 },
-            ],
-        }),
-    });
+    dbService.readAppState.mockImplementation(async (key) => ({
+        value: key.startsWith('xtream-category-visibility:')
+            ? null
+            : JSON.stringify({
+                  version: 1,
+                  contentTypes: ['live', 'movie', 'series'],
+                  recentlyViewed: current,
+                  removed: [
+                      { contentType: 'live', xtreamId: 10 },
+                      { contentType: 'movie', xtreamId: 20 },
+                  ],
+              }),
+    }));
+    dbService.getRecentItemsOrThrow.mockResolvedValue(
+        current.map((row) => ({
+            type: row.contentType,
+            xtream_id: row.xtreamId,
+        }))
+    );
     await dataSource.restoreUserData('p', {
         ...archive,
         preservePlaybackPositions: true,
@@ -156,13 +164,15 @@ it('leaves a newer dormant record untouched when it arrives during native recove
     const deferred = TestBed.inject(XtreamDeferredCatalogRestoreService);
     deferred.prepare('p', archive, []);
     const original = deferred.getSnapshot('p');
-    dbService.readAppState.mockResolvedValue({
-        value: JSON.stringify({
-            version: 1,
-            contentTypes: ['movie'],
-            recentlyViewed: [],
-        }),
-    });
+    dbService.readAppState.mockImplementation(async (key) => ({
+        value: key.startsWith('xtream-category-visibility:')
+            ? null
+            : JSON.stringify({
+                  version: 1,
+                  contentTypes: ['movie'],
+                  recentlyViewed: [],
+              }),
+    }));
     dbService.setAppState.mockImplementation(async (_key, value) => {
         if (value)
             localStorage.setItem(
@@ -235,6 +245,13 @@ it.each([false, true])(
         dbService.hasXtreamContent.mockImplementation(
             async (_id, type) => type === 'movie' && cached
         );
+        dbService.restoreXtreamUserData.mockResolvedValue({
+            success: true,
+            resolvedHistory: (cached
+                ? archive.recentlyViewed
+                : archive.recentlyViewed.slice(0, 1)
+            ).map(({ contentType, xtreamId }) => ({ contentType, xtreamId })),
+        });
         await dataSource.restoreUserData('p', archive);
         expect(dbService.restoreXtreamUserData).toHaveBeenLastCalledWith(
             'p',
@@ -280,6 +297,12 @@ it.each([false, true])(
                     },
                 ],
             };
+            dbService.restoreXtreamUserData.mockResolvedValue({
+                success: true,
+                resolvedHistory: archive.recentlyViewed.map(
+                    ({ contentType, xtreamId }) => ({ contentType, xtreamId })
+                ),
+            });
             await dataSource.restoreUserData('p', current);
             expect(dbService.restoreXtreamUserData).toHaveBeenLastCalledWith(
                 'p',
@@ -326,13 +349,21 @@ it('upgrades older cache recovery before importing and keeps retained-catalog hi
         { contentType: 'live' as const, xtreamId: 11, viewedAt: 'new' },
         archive.recentlyViewed[1],
     ];
-    dbService.readAppState.mockResolvedValue({
-        value: JSON.stringify({
-            version: 1,
-            contentTypes: ['live', 'movie', 'series'],
-            recentlyViewed: current,
-        }),
-    });
+    dbService.readAppState.mockImplementation(async (key) => ({
+        value: key.startsWith('xtream-category-visibility:')
+            ? null
+            : JSON.stringify({
+                  version: 1,
+                  contentTypes: ['live', 'movie', 'series'],
+                  recentlyViewed: current,
+              }),
+    }));
+    dbService.getRecentItemsOrThrow.mockResolvedValue(
+        current.map((row) => ({
+            type: row.contentType,
+            xtream_id: row.xtreamId,
+        }))
+    );
     dbService.getXtreamImportStatus.mockResolvedValue('completed');
     await dataSource.restoreUserData('p', legacy);
     expect(dbService.restoreXtreamUserData).toHaveBeenLastCalledWith(
@@ -399,14 +430,17 @@ it('consumes replayed history for retained rows of an unfinished disabled catalo
     };
     deferred.prepare('p', state, []);
     const snapshot = deferred.getSnapshot('p');
-    dbService.readAppState.mockResolvedValue({
-        value: JSON.stringify({
-            version: 1,
-            contentTypes: ['live', 'movie', 'series'],
-            recentlyViewed: state.recentlyViewed,
-        }),
-    });
+    dbService.readAppState.mockImplementation(async (key) => ({
+        value: key.startsWith('xtream-category-visibility:')
+            ? null
+            : JSON.stringify({
+                  version: 1,
+                  contentTypes: ['live', 'movie', 'series'],
+                  recentlyViewed: state.recentlyViewed,
+              }),
+    }));
     dbService.getRecentItemsOrThrow.mockResolvedValue([
+        { type: 'live', xtream_id: 10, viewed_at: '2026-01-01' },
         { type: 'movie', xtream_id: 20, viewed_at: '2026-01-02' },
     ]);
     await dataSource.restoreUserData('p', {
@@ -437,14 +471,16 @@ it('parks a new watch after clearing history when its disabled catalog loses tha
     };
     deferred.prepare('p', archive, []);
     const snapshot = deferred.getSnapshot('p');
-    dbService.readAppState.mockResolvedValue({
-        value: JSON.stringify({
-            version: 1,
-            contentTypes: ['live', 'movie', 'series'],
-            cleared: true,
-            recentlyViewed: [watched],
-        }),
-    });
+    dbService.readAppState.mockImplementation(async (key) => ({
+        value: key.startsWith('xtream-category-visibility:')
+            ? null
+            : JSON.stringify({
+                  version: 1,
+                  contentTypes: ['live', 'movie', 'series'],
+                  cleared: true,
+                  recentlyViewed: [watched],
+              }),
+    }));
     await dataSource.restoreUserData('p', {
         ...archive,
         preservePlaybackPositions: true,
@@ -458,4 +494,33 @@ it('parks a new watch after clearing history when its disabled catalog loses tha
         'xtream-history-recovery:p',
         ''
     );
+});
+
+it('consumes only categories actually restored during pending explicit archive replay', async () => {
+    const { dataSource, dbService } = setupElectronXtreamDataSource();
+    dbService.getPlaylistById.mockResolvedValue({
+        id: 'p',
+        xtreamContentTypes: [],
+    });
+    dbService.getXtreamImportStatus.mockResolvedValue('idle');
+    dbService.getAllXtreamCategories.mockImplementation(async (_id, type) =>
+        type === 'movies'
+            ? [{ id: 22, type: 'movies', xtream_id: 2, hidden: false }]
+            : []
+    );
+    await dataSource.restoreUserData('p', {
+        ...archive,
+        hiddenCategories: [2, 9].map((xtreamId) => ({
+            categoryType: 'movies',
+            xtreamId,
+        })),
+    });
+    expect(dbService.updateCategoryVisibility).toHaveBeenLastCalledWith(
+        [22],
+        true
+    );
+    expect(
+        TestBed.inject(XtreamDeferredCatalogRestoreService).getSnapshot('p')
+            .state.hiddenCategories
+    ).toEqual([{ categoryType: 'movies', xtreamId: 9 }]);
 });

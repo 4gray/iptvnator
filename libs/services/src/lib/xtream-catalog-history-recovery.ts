@@ -56,7 +56,11 @@ export async function clearCatalogHistoryRecovery(
 export async function completeCatalogHistoryRecovery(
     db: Pick<
         DatabaseService,
-        'getRecentItemsOrThrow' | 'readAppState' | 'setAppState'
+        | 'getRecentItemsOrThrow'
+        | 'readAppState'
+        | 'setAppState'
+        | 'getAllXtreamCategories'
+        | 'getXtreamImportStatus'
     >,
     deferred: XtreamDeferredCatalogRestoreService,
     playlistId: string,
@@ -70,17 +74,26 @@ export async function completeCatalogHistoryRecovery(
     const current = await db.getRecentItemsOrThrow(playlistId);
     const journal = await readCatalogHistoryRecovery(db, playlistId);
     if (!journal) throw new Error('Catalog history recovery is unavailable.');
-    deferred.complete(playlistId, snapshot, available, {
-        identities: [
-            ...current.map((row) => ({
-                contentType: row.type as XtreamContentType,
-                xtreamId: row.xtream_id,
-            })),
-            ...(journal.removed ?? []),
-            ...(journal.resolved ?? []),
-        ],
-        afterClearHistory: journal.cleared ? journal.recentlyViewed : undefined,
-    });
+    const visibility = await readCatalogRecoveryVisibility(db, playlistId);
+    deferred.complete(
+        playlistId,
+        snapshot,
+        available,
+        {
+            identities: [
+                ...current.map((row) => ({
+                    contentType: row.type as XtreamContentType,
+                    xtreamId: row.xtream_id,
+                })),
+                ...(journal.removed ?? []),
+                ...(journal.resolved ?? []),
+            ],
+            afterClearHistory: journal.cleared
+                ? journal.recentlyViewed
+                : undefined,
+        },
+        visibility.currentCategories
+    );
     // This native acknowledgment flushes the resolved DOM archive first.
     if (acknowledge) await acknowledge();
     else await clearCatalogHistoryRecovery(db, playlistId);
@@ -107,7 +120,8 @@ export async function completeExplicitCatalogHistoryRestore(
     playlistId: string,
     snapshot: DeferredCatalogSnapshot,
     available: readonly XtreamContentType[],
-    result: unknown
+    result: unknown,
+    appliedCategories: XtreamBackupHiddenCategory[] = []
 ): Promise<void> {
     const proof = result as {
         success?: unknown;
@@ -127,9 +141,15 @@ export async function completeExplicitCatalogHistoryRestore(
         throw new Error('Native history restoration proof is unavailable.');
     const current = deferred.getSnapshot(playlistId);
     if (current.key !== snapshot.key || current.raw !== snapshot.raw) return;
-    deferred.complete(playlistId, snapshot, available, {
-        identities: proof.resolvedHistory,
-    });
+    deferred.complete(
+        playlistId,
+        snapshot,
+        available,
+        {
+            identities: proof.resolvedHistory,
+        },
+        appliedCategories
+    );
     // Flush consumed DOM copies before accepting explicit restoration, including
     // archives without a native journal. A newer archive keeps its own state.
     await clearCatalogHistoryRecovery(db, playlistId);
@@ -272,7 +292,14 @@ export async function captureCatalogCacheRecoveryState(
         preservePlaybackPositions: true,
         hiddenCategories: visibility.hiddenCategories,
     };
-    const prepared = deferred.prepare(playlistId, state, available, true);
+    const prepared = deferred.prepare(
+        playlistId,
+        state,
+        available,
+        true,
+        false,
+        visibility.currentCategories
+    );
     return {
         snapshot: prepared.snapshot,
         archivedHistory: prepared.snapshot.state.recentlyViewed,

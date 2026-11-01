@@ -125,13 +125,14 @@ export class XtreamDeferredCatalogRestoreService {
         };
     }
 
-    /** Park unavailable types BEFORE the caller applies/consumes its full restore. */
+    /** Retain every unresolved identity BEFORE the caller applies its restore. */
     prepare(
         playlistId: string,
         state: XtreamPendingRestoreState,
         available: readonly XtreamContentType[],
         currentIsResolved = false,
-        historyIsResolved = false
+        historyIsResolved = false,
+        currentCategories: CatalogState['hiddenCategories'] = []
     ): { state: XtreamPendingRestoreState; snapshot: DeferredCatalogSnapshot } {
         const stored = this.read(playlistId).state;
         // An explicit new backup is authoritative, unlike a cache refresh/retry.
@@ -140,6 +141,11 @@ export class XtreamDeferredCatalogRestoreService {
             state.favoritesRestoreId !== stored.favoritesRestoreId
                 ? empty()
                 : stored;
+        const authoritativeCategories = new Set(
+            currentCategories.map(
+                (row) => `${row.categoryType}:${row.xtreamId}`
+            )
+        );
         const parked: XtreamPendingRestoreState = {
             ...empty(),
             ...(state.favoritesRestoreId || previous.favoritesRestoreId
@@ -150,18 +156,24 @@ export class XtreamDeferredCatalogRestoreService {
                   }
                 : {}),
             ...this.combined(
-                previous,
-                currentIsResolved
-                    ? empty()
-                    : this.filterCatalogs(state, available, false)
+                {
+                    ...previous,
+                    hiddenCategories: previous.hiddenCategories.filter(
+                        (row) =>
+                            !authoritativeCategories.has(
+                                `${row.categoryType}:${row.xtreamId}`
+                            )
+                    ),
+                },
+                {
+                    hiddenCategories: state.hiddenCategories,
+                    recentlyViewed: currentIsResolved
+                        ? []
+                        : state.recentlyViewed,
+                }
             ),
         };
-        if (historyIsResolved)
-            parked.recentlyViewed = this.filterCatalogs(
-                state,
-                available,
-                false
-            ).recentlyViewed;
+        if (historyIsResolved) parked.recentlyViewed = state.recentlyViewed;
         this.write(playlistId, parked);
         const ready = this.combined(
             this.filterCatalogs(parked, available),
@@ -177,19 +189,30 @@ export class XtreamDeferredCatalogRestoreService {
     complete(
         playlistId: string,
         snapshot: DeferredCatalogSnapshot,
-        available: readonly XtreamContentType[],
+        _available: readonly XtreamContentType[],
         consumedHistory?: {
             identities: readonly {
                 contentType: XtreamContentType;
                 xtreamId: number;
             }[];
             afterClearHistory?: readonly XtreamBackupRecentlyViewedItem[];
-        }
+        },
+        consumedCategories: CatalogState['hiddenCategories'] = []
     ): void {
         const current = this.read(playlistId);
         if (current.key !== snapshot.key || current.raw !== snapshot.raw)
             return;
-        const remaining = this.filterCatalogs(snapshot.state, available, false);
+        const categories = new Set(
+            consumedCategories.map(
+                (row) => `${row.categoryType}:${row.xtreamId}`
+            )
+        );
+        const remaining = {
+            hiddenCategories: snapshot.state.hiddenCategories.filter(
+                (row) => !categories.has(`${row.categoryType}:${row.xtreamId}`)
+            ),
+            recentlyViewed: snapshot.state.recentlyViewed,
+        };
         const consumed = new Set(
             consumedHistory?.identities.map(
                 (row) => `${row.contentType}:${row.xtreamId}`
@@ -248,11 +271,7 @@ export class XtreamDeferredCatalogRestoreService {
                 : stored;
         const remaining = {
             ...parked,
-            recentlyViewed: this.filterCatalogs(
-                parked,
-                recovery?.contentTypes ?? [],
-                false
-            ).recentlyViewed,
+            recentlyViewed: parked.recentlyViewed,
         };
         const currentIds = new Set(
             recovery?.currentCategories?.map(

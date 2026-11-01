@@ -3,6 +3,4 @@ type: fix
 area: xtream
 ---
 
-Changed Xtream connections retry with the current provider when cache cleanup cannot start. Explicit category visibility changes survive interrupted catalog recovery, backup export and re-enabling a disabled catalog.
-
-Movie detail recovery loads when opening an item, keeping it outside the initial app download.
+Changed Xtream connections retry with the current provider when cache cleanup cannot start. Missing catalog history and hidden-category choices stay available for later recovery and backup export, and explicit visibility edits survive interrupted recovery. Movie detail recovery loads on demand, keeping it outside the initial app download.

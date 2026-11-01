@@ -60,6 +60,8 @@ it('does not resurrect retained history rewatched between live and journal reads
         }
     };
     const db = {
+        getAllXtreamCategories: jest.fn().mockResolvedValue([]),
+        getXtreamImportStatus: jest.fn().mockResolvedValue('idle'),
         getRecentItemsOrThrow: jest.fn(async () => {
             trace.push('read-live');
             return nativeHistory.map((row) => ({
@@ -74,7 +76,9 @@ it('does not resurrect retained history rewatched between live and journal reads
                 viewed_at: row.viewedAt,
             }));
         }),
-        readAppState: jest.fn(async () => {
+        readAppState: jest.fn(async (key: string) => {
+            if (key.startsWith('xtream-category-visibility:'))
+                return { value: null };
             // These are separate native IPC requests. A watch can commit after
             // DB_GET_RECENT_ITEMS and before DB_GET_APP_STATE is dispatched.
             watchRetained();

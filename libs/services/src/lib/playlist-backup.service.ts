@@ -1193,7 +1193,7 @@ export class PlaylistBackupService {
         state = prepared.state;
         const { explicitCategoryVisibilityForReplay } =
             await import('./xtream-explicit-category-visibility');
-        await this.restoreXtreamCategoryVisibility(
+        const appliedCategories = await this.restoreXtreamCategoryVisibility(
             playlistId,
             explicitCategoryVisibilityForReplay(
                 prepared.snapshot,
@@ -1252,20 +1252,22 @@ export class PlaylistBackupService {
             playlistId,
             prepared.snapshot,
             available,
-            restored
+            restored,
+            appliedCategories
         );
     }
 
     private async restoreXtreamCategoryVisibility(
         playlistId: string,
         hiddenCategories: XtreamBackupHiddenCategory[]
-    ): Promise<void> {
+    ): Promise<XtreamBackupHiddenCategory[]> {
         const categoriesByType = await Promise.all([
             this.databaseService.getAllXtreamCategories(playlistId, 'live'),
             this.databaseService.getAllXtreamCategories(playlistId, 'movies'),
             this.databaseService.getAllXtreamCategories(playlistId, 'series'),
         ]);
 
+        const applied: XtreamBackupHiddenCategory[] = [];
         for (const categories of categoriesByType) {
             if (categories.length === 0) {
                 continue;
@@ -1303,7 +1305,14 @@ export class PlaylistBackupService {
                     );
                 }
             }
+            applied.push(
+                ...categories.map((row) => ({
+                    categoryType: row.type,
+                    xtreamId: row.xtream_id,
+                }))
+            );
         }
+        return applied;
     }
 
     // Parental locks are written only when the playlist has some: an archive

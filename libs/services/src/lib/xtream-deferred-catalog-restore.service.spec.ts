@@ -36,7 +36,7 @@ describe('dormant catalog restore', () => {
         localStorage.clear();
     });
 
-    it('does not export native-owned or explicitly removed history and retains hidden choices until applied', () => {
+    it('omits explicitly removed history while retaining unproven identities and hidden choices', () => {
         service.prepare('p', archive(), []);
         const snapshot = service.getSnapshot('p');
         const current = {
@@ -51,7 +51,7 @@ describe('dormant catalog restore', () => {
             removed: [{ contentType: 'live', xtreamId: 10 }],
         });
         expect(exported.recentlyViewed.map((row) => row.xtreamId)).toEqual([
-            30, 11,
+            20, 30, 11,
         ]);
         expect(exported.hiddenCategories).toEqual(archive().hiddenCategories);
         expect(
@@ -105,7 +105,9 @@ describe('dormant catalog restore', () => {
         expect(first.state.playbackPositions).toEqual(
             original.playbackPositions
         );
-        service.complete('p', first.snapshot, ['live']);
+        service.complete('p', first.snapshot, ['live'], {
+            identities: [original.recentlyViewed[0]],
+        });
         service = new XtreamDeferredCatalogRestoreService();
         expect(service.forExport('p', empty()).recentlyViewed).toEqual(
             original.recentlyViewed.slice(1)
@@ -136,7 +138,13 @@ describe('dormant catalog restore', () => {
         );
         expect(movie.state.favorites).toEqual([]);
         expect(movie.state.sourcePins).toEqual([]);
-        service.complete('p', movie.snapshot, ['live', 'movie']);
+        service.complete(
+            'p',
+            movie.snapshot,
+            ['live', 'movie'],
+            { identities: [original.recentlyViewed[1]] },
+            [original.hiddenCategories[0]]
+        );
         expect(service.forExport('p', empty()).recentlyViewed).toEqual([
             original.recentlyViewed[2],
         ]);
@@ -148,7 +156,13 @@ describe('dormant catalog restore', () => {
         expect(series.state.hiddenCategories).toEqual([
             original.hiddenCategories[1],
         ]);
-        service.complete('p', series.snapshot, ['live', 'movie', 'series']);
+        service.complete(
+            'p',
+            series.snapshot,
+            ['live', 'movie', 'series'],
+            { identities: [original.recentlyViewed[2]] },
+            [original.hiddenCategories[1]]
+        );
         expect(service.forExport('p', empty())).toEqual({
             hiddenCategories: [],
             recentlyViewed: [],
@@ -275,7 +289,9 @@ it('replaces owned dormant history with the journal, retaining unavailable curre
     expect(prepared.state.recentlyViewed).toEqual(
         current.recentlyViewed.slice(0, 1)
     );
-    service.complete('p', prepared.snapshot, ['live']);
+    service.complete('p', prepared.snapshot, ['live'], {
+        identities: current.recentlyViewed.slice(0, 1),
+    });
     expect(service.forExport('p', empty()).recentlyViewed).toEqual(
         current.recentlyViewed.slice(1)
     );
