@@ -5,7 +5,7 @@ export function HomeSourceStatus({
 }) {
     return actions.pending ? (
         <div class="home-source-pending" role="status">
-            Opening the title’s source…{' '}
+            Opening the title…{' '}
             <button onClick={actions.cancel}>Cancel opening title</button>
         </div>
     ) : null;
