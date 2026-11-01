@@ -137,6 +137,61 @@ describe('keeping pending activity local', () => {
         localStorage.clear();
         await prepareSourceConnection();
     });
+    it.each([false, true])(
+        'durably clears an unbound offline fallback and retires its old checkpoints (retry: %s)',
+        async (failedClear) => {
+            const f = fixture();
+            f.client.contexts.clear();
+            f.setOffline(true);
+            const position = {
+                ...f.position,
+                activitySessionId: 'synthetic-unbound',
+            };
+            await expect(
+                f.client.begin(f.address.sourceId, position)
+            ).rejects.toThrow();
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                position,
+            ]);
+            if (failedClear)
+                (
+                    f.raw.clearPlaybackPosition as jest.Mock
+                ).mockRejectedValueOnce(
+                    new Error('Synthetic local clear failure')
+                );
+            const clearing = f.adapter.invoke(f.raw, 'clearPlaybackPosition', [
+                f.address.sourceId,
+                42,
+                'vod',
+            ]);
+            if (failedClear) {
+                await expect(clearing).rejects.toThrow(
+                    'Synthetic local clear failure'
+                );
+                expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual(
+                    []
+                );
+                const reopened = new ActivityPositionAdapter(
+                    f.client,
+                    undefined,
+                    new ActivityLocalOnlyPositions(
+                        'synthetic-nas',
+                        localStorage
+                    )
+                );
+                await reopened.keepLocal(f.raw, f.address.sourceId);
+            } else await expect(clearing).resolves.toBeUndefined();
+            expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual([]);
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                { ...position, positionSeconds: 65 },
+            ]);
+            expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual([]);
+            expect(await f.store.pending()).toEqual([]);
+        }
+    );
+
     it('continues saving locally after an uncached offline launch and recovery', async () => {
         const f = fixture();
         f.setRemote({

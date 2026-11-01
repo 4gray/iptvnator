@@ -130,6 +130,9 @@ an asynchronous lookup needs them. Matching rules, lookup keys and client cache
 lifetimes remain unchanged; the optional matcher stays off the startup graph.
 The public pure matching entry is `@iptvnator/shared/tmdb/matcher`; eager shared
 and services barrels retain only the lightweight title helpers and matcher types.
+The season facade is resolved through the existing injector only on the first
+season lookup, preserving its singleton/cache behavior while keeping season
+response handling off the startup path.
 
 ## Match Confidence
 

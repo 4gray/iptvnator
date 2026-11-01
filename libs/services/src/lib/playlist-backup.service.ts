@@ -1,6 +1,7 @@
+import { localBackupPosition } from './playlist-backup-playback-position';
 import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
 import {
-    projectXtreamBackupPositions,
+    projectBackupPositions,
     type BackupPositionProjector,
 } from './playlist-backup-position-projection';
 import {
@@ -218,6 +219,12 @@ export class PlaylistBackupService {
                     existingIds
                 );
                 let isMerge = existingMatch != null;
+                if (
+                    entry.portalType === 'stalker' &&
+                    entry.userState.playbackPositions !== undefined &&
+                    this.runtime.supportsXtreamSqliteDataSource
+                )
+                    this.playbackPositionService.assertSupportsAtomicReplacement();
                 const nextPlaylist = await this.buildImportedPlaylist(
                     entry,
                     targetId,
@@ -245,6 +252,24 @@ export class PlaylistBackupService {
 
                 if (entry.portalType === 'xtream') {
                     await this.restoreXtreamEntry(targetId, entry);
+                }
+                if (
+                    entry.portalType === 'stalker' &&
+                    entry.userState.playbackPositions !== undefined
+                ) {
+                    const positions = entry.userState.playbackPositions.map(
+                        (position) => localBackupPosition(position, targetId)
+                    );
+                    if (this.runtime.supportsXtreamSqliteDataSource)
+                        await this.playbackPositionService.replaceAllPlaybackPositions(
+                            targetId,
+                            positions
+                        );
+                    else
+                        await this.pwaXtream.replacePlaybackPositions(
+                            targetId,
+                            positions
+                        );
                 }
 
                 // Last: a failed Xtream restore above must leave the
@@ -279,7 +304,7 @@ export class PlaylistBackupService {
             case 'xtream':
                 return this.buildXtreamEntry(playlist, projectPositions);
             case 'stalker':
-                return this.buildStalkerEntry(playlist);
+                return this.buildStalkerEntry(playlist, projectPositions);
             case 'm3u':
             default:
                 return this.buildM3uEntry(playlist);
@@ -437,7 +462,7 @@ export class PlaylistBackupService {
         // An unavailable pin store is no opinion, never an authoritative [].
         // Same choice as XTREAM_DATA_SOURCE: user state lives where it reads.
         if (!this.runtime.supportsXtreamSqliteDataSource)
-            return projectXtreamBackupPositions(
+            return projectBackupPositions(
                 this.pwaXtream.exportInto(entry),
                 projectPositions
             );
@@ -490,7 +515,7 @@ export class PlaylistBackupService {
             }),
             explicitVisibility
         );
-        return projectXtreamBackupPositions(
+        return projectBackupPositions(
             {
                 ...entry,
                 userState: {
@@ -542,8 +567,11 @@ export class PlaylistBackupService {
         }));
     }
 
-    private buildStalkerEntry(playlist: Playlist): StalkerPlaylistBackupEntry {
-        return {
+    private async buildStalkerEntry(
+        playlist: Playlist,
+        projectPositions?: BackupPositionProjector
+    ): Promise<StalkerPlaylistBackupEntry> {
+        const entry: StalkerPlaylistBackupEntry = {
             portalType: 'stalker',
             exportedId: playlist._id,
             title: playlist.title,
@@ -582,12 +610,18 @@ export class PlaylistBackupService {
             },
             userState: {
                 ...this.optionalLockedStalkerCategories(playlist._id),
+                playbackPositions: this.runtime.supportsXtreamSqliteDataSource
+                    ? await this.playbackPositionService.getAllPlaybackPositionsOrThrow(
+                          playlist._id
+                      )
+                    : this.pwaXtream.getPlaybackPositions(playlist._id),
                 favorites: this.extractStalkerItems(playlist.favorites),
                 recentlyViewed: this.extractStalkerItems(
                     playlist.recentlyViewed
                 ),
             },
         };
+        return projectBackupPositions(entry, projectPositions);
     }
 
     private buildSettingsPayload(): PlaylistBackupSettings | undefined {

@@ -168,33 +168,26 @@ export class ActivityPositionAdapter {
                     const target = position ??
                         shared[0]?.position ??
                         aliases[0] ?? { ...item, positionSeconds: 0 };
-                    await this.saveLocalOnly(
-                        raw,
-                        sourceId,
-                        resetPosition(target),
-                        !isStalkerEpisode(target)
-                    );
+                    await this.resetLocal(raw, sourceId, target);
                     continue;
                 }
                 try {
                     await this.client.reset(sourceId, position ?? item);
                 } catch (error) {
-                    // Legacy Stalker aliases have no portable identity; cleanup stays local.
+                    // An unbound source cannot send a portable reset while offline.
                     if (
-                        !(error instanceof Error) ||
-                        error.message !== 'Activity identity unavailable'
+                        this.client.contexts.has(sourceId) &&
+                        (!(error instanceof Error) ||
+                            error.message !== 'Activity identity unavailable')
                     )
                         throw error;
-                    await (this.strict?.clear(
+                    await this.resetLocal(
+                        raw,
                         sourceId,
-                        item.contentXtreamId,
-                        item.contentType
-                    ) ??
-                        raw.clearPlaybackPosition(
-                            sourceId,
-                            item.contentXtreamId,
-                            item.contentType
-                        ));
+                        position ??
+                            shared[0]?.position ??
+                            aliases[0] ?? { ...item, positionSeconds: 0 }
+                    );
                 }
             }
             return;
@@ -232,6 +225,29 @@ export class ActivityPositionAdapter {
 
     supersede(method: string, args: unknown[]): void {
         this.writeFence.supersede(method, args);
+    }
+
+    private async resetLocal(
+        raw: IXtreamDataSource,
+        sourceId: string,
+        position: PlaybackPositionData
+    ): Promise<void> {
+        for (const sessionId of this.seenLocalSessions)
+            if (
+                this.localOnly.owns(sourceId, {
+                    ...position,
+                    activitySessionId: sessionId,
+                })
+            ) {
+                this.client.localSessions.delete(sessionId);
+                this.client.retiredSessions.add(sessionId);
+            }
+        await this.saveLocalOnly(
+            raw,
+            sourceId,
+            resetPosition(position),
+            !isStalkerEpisode(position)
+        );
     }
 
     private async saveLocalOnly(

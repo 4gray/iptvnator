@@ -189,7 +189,7 @@ Explicitly excluded:
 ### Stalker
 
 Stalker backups export connection metadata plus playlist-scoped favorites/recent
-state.
+state and playback positions.
 
 - Exported connection fields:
     - `portalUrl`
@@ -204,6 +204,14 @@ state.
 - Exported user state:
     - favorites snapshots
     - recently viewed snapshots
+    - optional `playbackPositions`, including shared activity and exact episode reset barriers
+
+The settings projector overlays shared activity on strictly read local positions.
+Restore atomically replaces the local position collection and remaps the source
+ID; it never uploads the archive as shared activity. Historical v1 archives with
+no `playbackPositions` field leave local positions untouched. An explicit empty
+array clears them. Invalid collections fail validation before playlist writes.
+A failed native or browser position read fails export.
 
 Explicitly excluded — session state, as opposed to the connection definition:
 

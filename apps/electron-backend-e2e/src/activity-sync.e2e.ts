@@ -323,7 +323,7 @@ for (const provider of ['xtream', 'stalker'] as const)
             await expect(
                 page.locator('[data-testid="vod-watched-toggle"]')
             ).toHaveAttribute('aria-pressed', 'true', { timeout: 15000 });
-            if (provider === 'xtream') {
+            {
                 await openSettings(page);
                 await openSettingsSection(page, 'backup');
                 const downloaded = page.waitForEvent('download');
@@ -337,9 +337,13 @@ for (const provider of ['xtream', 'stalker'] as const)
                 const entry = backup.playlists.find(
                     (entry) => entry.exportedId === sourceId
                 );
-                if (entry?.portalType !== 'xtream')
-                    throw new Error('Xtream backup entry missing');
-                const positions = entry.userState.playbackPositions;
+                if (
+                    entry?.portalType !== 'xtream' &&
+                    entry?.portalType !== 'stalker'
+                )
+                    throw new Error('Activity backup entry missing');
+                expect(entry.portalType).toBe(provider);
+                const positions = entry.userState.playbackPositions ?? [];
                 expect(positions).toEqual(
                     expect.arrayContaining([
                         expect.objectContaining({ watched: true }),

@@ -1022,7 +1022,9 @@ Before a raw fallback write, a minimal position snapshot is saved locally withou
 titles or stream addresses. A failed raw write keeps this snapshot readable and
 retryable. Raw writes are ordered per item; acknowledgements remove only their
 own snapshot, and disabling drains writes and replays remaining snapshots before
-completing. Local clears retain an explicit deletion intent in this journal and
+completing. An unbound source also uses this durable local-clear path when its context cannot
+be fetched; the reset retires its fallback player session before clearing storage.
+Local clears retain an explicit deletion intent in this journal and
 use the same per-item queue, so a failed deletion retries after restart and an
 older save cannot complete after it. Pending deletions hide the old raw point
 until the main store acknowledges removal. Acknowledged snapshots become ownership flags again so later ordinary
