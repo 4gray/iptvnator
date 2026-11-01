@@ -9,6 +9,7 @@ import {
 export async function recordCatalogRequests() {
     const actions: string[] = [];
     const userAgents = new Map<string, string>();
+    const responses = new Map<string, unknown>();
     let heldAction: string | null = null;
     let failedAction: string | null = null;
     let heldResponse: Promise<void> = Promise.resolve();
@@ -34,6 +35,13 @@ export async function recordCatalogRequests() {
                 return;
             }
             if (action === heldAction) await heldResponse;
+            if (action && responses.has(action)) {
+                response.writeHead(200, {
+                    'Content-Type': 'application/json',
+                });
+                response.end(JSON.stringify(responses.get(action)));
+                return;
+            }
             const upstream = await fetch(url);
             response.writeHead(upstream.status, {
                 'Content-Type': 'application/json',
@@ -52,6 +60,9 @@ export async function recordCatalogRequests() {
     return {
         actions,
         userAgents,
+        respond(action: string, body: unknown) {
+            responses.set(action, body);
+        },
         fail(action: string) {
             failedAction = action;
             return () => {
