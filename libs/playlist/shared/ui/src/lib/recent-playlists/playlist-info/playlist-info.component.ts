@@ -1,6 +1,4 @@
-import { XtreamSelectedCatalogRefreshService } from '@iptvnator/services/xtream-catalog-refresh';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Router } from '@angular/router';
 import {
     Component,
     DestroyRef,
@@ -28,38 +26,22 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
-import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { PlaylistActions } from '@iptvnator/m3u-state';
 import { firstValueFrom } from 'rxjs';
 import {
     createXtreamConnectionTestState,
-    DatabaseService,
     PlaylistsService,
     PlaylistStorageBackend,
     RuntimeCapabilitiesService,
-    SourceActivityService,
 } from '@iptvnator/services';
 import {
     normalizeStalkerIdentityValue,
     normalizeStalkerMacAddress,
     normalizeXtreamContentTypes,
-    newlyEnabledXtreamTypes,
-    getXtreamContentRoute,
     Playlist,
     PlaylistMeta,
-    PlaylistMetaUpdate,
 } from '@iptvnator/shared/interfaces';
 import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
-import {
-    hasStalkerConnectionChanged,
-    omitStalkerConnection,
-    normalizePlaylistConnectionMeta,
-} from './stalker-playlist-edit.utils';
-import {
-    STALKER_PLAYLIST_CONNECTION_EDITOR,
-    STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
-} from './stalker-playlist-connection-editor.token';
 import { RevealDetailsDirective } from '@iptvnator/ui/components/reveal-details';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import {
@@ -72,6 +54,7 @@ import {
 import { createPlaylistDetailsForm } from './playlist-info-form';
 import { PlaylistEpgSourceEditor } from './playlist-epg-source-editor';
 import { PlaylistInfoFileActions } from './playlist-info-file-actions';
+import { PlaylistInfoSaver } from './playlist-info-saver';
 import { XtreamSelectionProgressComponent } from '../../xtream-selection-progress.component';
 
 @Component({
@@ -105,15 +88,10 @@ export class PlaylistInfoComponent {
     private formBuilder = inject(UntypedFormBuilder);
     private playlistsService = inject(PlaylistsService);
     private readonly playlistStorage = inject(PlaylistStorageBackend);
-    private store = inject(Store);
-    private databaseService = inject(DatabaseService);
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly stalkerConnectionEditor = inject(
-        STALKER_PLAYLIST_CONNECTION_EDITOR
-    );
     private dialogRef = inject(MatDialogRef<PlaylistInfoComponent>, {
         optional: true,
     });
@@ -217,6 +195,11 @@ export class PlaylistInfoComponent {
         () => this.playlist,
         () => this.playlistDetails.get('url')?.value
     );
+    private readonly saver = new PlaylistInfoSaver(
+        this,
+        () => this.stalkerPlaylistHydration,
+        () => this.dialogClosing
+    );
     private readonly injector = inject(Injector);
     connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
 
@@ -273,200 +256,8 @@ export class PlaylistInfoComponent {
         );
     }
 
-    async saveChanges(playlist: PlaylistMeta): Promise<void> {
-        if (this.isSaving() || this.connectionTest.testing()) {
-            return;
-        }
-
-        this.isSaving.set(true);
-        if (this.dialogRef) {
-            this.dialogRef.disableClose = true;
-        }
-        try {
-            if (this.epg.hasPendingRemovals) await this.epg.waitForRemovals();
-            let submittedPlaylist = playlist;
-            if (this.isHydratingStalkerPlaylist()) {
-                await this.stalkerPlaylistHydration;
-                submittedPlaylist = this.playlistDetails.value as PlaylistMeta;
-            }
-            if (
-                this.stalkerPlaylistHydrationFailed() ||
-                this.playlistDetails.invalid
-            ) {
-                return;
-            }
-
-            let resolvedStalkerConnection = false;
-            let resolvedStalkerSessionPatch:
-                PlaylistMetaUpdate['stalkerSessionPatch'] | undefined;
-            let preserveCurrentMetadata = false;
-            let normalizedPlaylist: PlaylistMetaUpdate =
-                normalizePlaylistConnectionMeta(
-                    this.epg.prepareSave(submittedPlaylist),
-                    this.playlist
-                );
-            const sharedSource = this.playlistStorage.kind() === 'server';
-            if (sharedSource)
-                normalizedPlaylist = {
-                    ...normalizedPlaylist,
-                    sourceSyncBase: this.playlist.sourceSyncBase,
-                    sourceSyncRevision: this.playlist.sourceSyncRevision,
-                };
-            if (this.playlist.portalUrl) {
-                if (
-                    hasStalkerConnectionChanged(
-                        this.playlist,
-                        normalizedPlaylist
-                    )
-                ) {
-                    const result =
-                        await this.stalkerConnectionEditor.resolveConnection(
-                            normalizedPlaylist,
-                            this.playlist
-                        );
-                    if (
-                        result.status !==
-                        STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED
-                    ) {
-                        this.snackBar.open(
-                            result.message,
-                            this.translate.instant('CLOSE'),
-                            { duration: 8000 }
-                        );
-                        return;
-                    }
-                    normalizedPlaylist = result.playlist;
-                    resolvedStalkerSessionPatch =
-                        result.playlist.stalkerSessionPatch;
-                    resolvedStalkerConnection = true;
-                    preserveCurrentMetadata =
-                        this.dialogClosing || this.destroyRef.destroyed;
-                } else {
-                    normalizedPlaylist =
-                        omitStalkerConnection(normalizedPlaylist);
-                }
-            }
-            const isXtream =
-                !this.playlist.portalUrl &&
-                this.playlist.username &&
-                this.playlist.password &&
-                this.playlist.serverUrl;
-
-            let sharedXtreamPersisted = false;
-            if (isXtream && this.runtime.supportsXtreamSqliteDataSource) {
-                normalizedPlaylist = await this.updateXtreamPlaylist(
-                    normalizedPlaylist,
-                    sharedSource
-                        ? async () => {
-                              const saved = await firstValueFrom(
-                                  this.playlistsService.updatePlaylistMeta(
-                                      normalizedPlaylist
-                                  )
-                              );
-                              sharedXtreamPersisted = true;
-                              return saved;
-                          }
-                        : undefined
-                );
-            }
-
-            if (resolvedStalkerConnection) {
-                normalizedPlaylist = preserveCurrentMetadata
-                    ? await this.stalkerConnectionEditor.applyResolvedConnection(
-                          normalizedPlaylist,
-                          { preserveCurrentMetadata: true }
-                      )
-                    : await this.stalkerConnectionEditor.applyResolvedConnection(
-                          normalizedPlaylist
-                      );
-                normalizedPlaylist = {
-                    ...normalizedPlaylist,
-                    stalkerSessionPatch: resolvedStalkerSessionPatch,
-                };
-            }
-
-            if (sharedSource && !sharedXtreamPersisted) {
-                normalizedPlaylist = await firstValueFrom(
-                    resolvedStalkerConnection
-                        ? this.playlistsService.getPlaylistById(
-                              this.playlist._id
-                          )
-                        : this.playlistsService.updatePlaylistMeta(
-                              normalizedPlaylist
-                          )
-                );
-            }
-
-            // Awaited owners publish accepted state without another write.
-            // The metadata effect still reconciles saved EPG source changes.
-            this.store.dispatch(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: normalizedPlaylist,
-                    ...(resolvedStalkerConnection || sharedSource
-                        ? { persist: false }
-                        : {}),
-                })
-            );
-
-            // Save already authorized this connection change, and a full
-            // portal's completed get_profile may have pinned the submitted
-            // serial/device identity remotely. Navigation cannot recall that
-            // request, so the resolved identity/session is persisted above
-            // even when the dialog disappears. Only view-side completion is
-            // suppressed after destruction/close animation begins.
-            if (this.dialogClosing || this.destroyRef.destroyed) {
-                return;
-            }
-
-            this.snackBar.open(
-                this.translate.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                ),
-                this.translate.instant('CLOSE'),
-                { duration: 3000 }
-            );
-            this.dialogRef?.close();
-            const target =
-                isXtream && this.runtime.supportsXtreamSqliteDataSource
-                    ? getXtreamContentRoute(
-                          newlyEnabledXtreamTypes(
-                              this.playlist.xtreamContentTypes,
-                              normalizedPlaylist.xtreamContentTypes
-                          )
-                      )
-                    : null;
-            if (target) {
-                await this.injector
-                    .get(Router)
-                    .navigate([
-                        '/workspace',
-                        'xtreams',
-                        this.playlist._id,
-                        target,
-                    ]);
-            }
-        } catch (error) {
-            console.error('Error updating playlist:', error);
-            const sourceError =
-                error instanceof Error
-                    ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0]
-                    : undefined;
-            this.snackBar.open(
-                this.translate.instant(
-                    sourceError ?? 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
-                ),
-                this.translate.instant('CLOSE'),
-                {
-                    duration: 3000,
-                }
-            );
-        } finally {
-            if (this.dialogRef) {
-                this.dialogRef.disableClose = false;
-            }
-            this.isRefreshingSelectedCatalogs.set(false);
-            this.isSaving.set(false);
-        }
+    saveChanges(playlist: PlaylistMeta): Promise<void> {
+        return this.saver.saveChanges(playlist);
     }
 
     /**
@@ -510,103 +301,11 @@ export class PlaylistInfoComponent {
         }
     }
 
-    async updateXtreamPlaylist(
+    updateXtreamPlaylist(
         playlist: PlaylistMeta,
         persistShared?: () => Promise<PlaylistMeta>
     ): Promise<PlaylistMeta> {
-        if (
-            this.injector.get(SourceActivityService).isBusy(this.playlist._id)
-        ) {
-            throw new Error(
-                'Wait for the source import or refresh to finish before editing it.'
-            );
-        }
-        const newlyEnabled = newlyEnabledXtreamTypes(
-            this.playlist.xtreamContentTypes,
-            playlist.xtreamContentTypes
-        );
-        const persist =
-            persistShared ??
-            (async () => {
-                const saved =
-                    await this.databaseService.updateXtreamPlaylistDetails({
-                        id: this.playlist._id,
-                        title: playlist.title,
-                        username: playlist.username,
-                        password: playlist.password,
-                        userAgent: playlist.userAgent ?? '',
-                        serverUrl: playlist.serverUrl,
-                        xtreamContentTypes: playlist.xtreamContentTypes,
-                    });
-                if (!saved)
-                    throw new Error('Failed to update playlist in database');
-                return playlist;
-            });
-        let savedMetadata: PlaylistMeta | undefined;
-        const persistOnce = async () => (savedMetadata ??= await persist());
-
-        if (newlyEnabled.length) {
-            this.isRefreshingSelectedCatalogs.set(true);
-            try {
-                await this.injector
-                    .get(XtreamSelectedCatalogRefreshService)
-                    .refresh(playlist, newlyEnabled, async () => {
-                        return persistOnce();
-                    });
-            } catch (error) {
-                // Accepted metadata stays authoritative after a cache failure.
-                // A parked snapshot keeps its selected types for retry imports.
-                if (savedMetadata) {
-                    let saved: PlaylistMeta | null = savedMetadata;
-                    if (persistShared) {
-                        try {
-                            saved = await firstValueFrom(
-                                this.playlistsService.getPlaylistById(
-                                    this.playlist._id
-                                )
-                            );
-                        } catch {
-                            // A failed read cannot authorize rolling back a
-                            // newer shared projection. Preserve the scan error.
-                            saved = null;
-                        }
-                        if (saved) {
-                            // Metadata was already accepted. Rebase the form
-                            // too, including when a storage error hid a late
-                            // connection change; a second Save must not revert it.
-                            this.playlist = {
-                                ...this.playlist,
-                                ...saved,
-                                userAgent: saved.userAgent,
-                                referrer: saved.referrer,
-                                origin: saved.origin,
-                                xtreamContentTypes: saved.xtreamContentTypes,
-                            };
-                            this.playlistDetails.patchValue({
-                                ...saved,
-                                userAgent: saved.userAgent ?? '',
-                                xtreamContentTypes:
-                                    normalizeXtreamContentTypes(
-                                        saved.xtreamContentTypes
-                                    ),
-                            });
-                            this.playlistDetails.markAsPristine();
-                        }
-                    }
-                    if (saved)
-                        this.store.dispatch(
-                            PlaylistActions.updatePlaylistMeta({
-                                playlist: saved,
-                                ...(persistShared ? { persist: false } : {}),
-                            })
-                        );
-                }
-                throw error;
-            }
-        }
-        // The metadata action below updates PlaylistContextFacade; the routed
-        // Xtream session observes connection changes and bootstraps fresh state.
-        return persistOnce();
+        return this.saver.updateXtreamPlaylist(playlist, persistShared);
     }
 
     exportPlaylist(): Promise<void> {
