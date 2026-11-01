@@ -1045,6 +1045,10 @@ control captures the keyboard: Space and Enter activate it again, and
 `ControlsShortcuts` yields to any interactive element in the key's path, so
 after a click on the fullscreen button Space left fullscreen instead of
 pausing and the seek, volume, and mute keys did nothing.
+Dialog and alertdialog ancestors also retain playback keys: their focused
+reading regions use Space and arrows for scrolling, without pausing, seeking
+or changing the volume of a mounted background player. Escape keeps its
+existing popover-dismissal path and remains available to the dialog.
 `ControlsSurface.wasPointerClick` attributes the click by its `pointerType`
 (non-empty for a pointer; empty for Enter/Space activation and
 `element.click()`), and a legacy `MouseEvent` click by a recent press inside

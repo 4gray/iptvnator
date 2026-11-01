@@ -3,9 +3,16 @@ import {
     addXtreamPortal,
     interceptXtreamRequests,
     MOCK_SERVER,
+    playFirstSeriesEpisode,
+    rewriteSeriesEpisodesToMp4,
+    routeEpisodeClip,
+    selectWebPlayer,
 } from './xtream-series-playback.fixture';
 import { applyUiTheme, rasterTextContrast } from './ui-consistency.fixture';
 import type { Locator } from '@playwright/test';
+import { configureMockProviderBackend } from './provider-target-route';
+
+test.use({ serviceWorkers: 'block' });
 
 /** Hide only the label during sampling, retaining the pill's painted tint. */
 async function chipTextContrast(pill: Locator): Promise<number> {
@@ -26,6 +33,7 @@ async function chipTextContrast(pill: Locator): Promise<number> {
 
 test.beforeEach(async ({ page }) => {
     await page.route('https://**', (route) => route.abort());
+    await configureMockProviderBackend(page);
     await interceptXtreamRequests(page);
     await page.goto('/');
 });
@@ -178,4 +186,55 @@ test('a long programme remains keyboard-scrollable with reachable actions on a p
     });
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
+});
+
+test('focused account and shortcut regions keep playback keys away from a mounted player', async ({
+    page,
+    request,
+}) => {
+    test.setTimeout(120_000);
+    await routeEpisodeClip(page);
+    await rewriteSeriesEpisodesToMp4(page);
+    await selectWebPlayer(page, 'HTML5 video player');
+    const { video } = await playFirstSeriesEpisode(page, request);
+    await expect
+        .poll(() =>
+            video.evaluate((element: HTMLVideoElement) => element.readyState)
+        )
+        .toBeGreaterThanOrEqual(2);
+    await video.evaluate((element: HTMLVideoElement) => element.pause());
+    const volume = await video.evaluate(
+        (element: HTMLVideoElement) => element.volume
+    );
+    await page.setViewportSize({ width: 1024, height: 520 });
+
+    for (const kind of ['account', 'shortcuts']) {
+        await page.locator('body').focus();
+        if (kind === 'account') {
+            await page.keyboard.press(
+                process.platform === 'darwin' ? 'Meta+k' : 'Control+k'
+            );
+            const palette = page.locator('app-workspace-command-palette');
+            await palette.locator('input[type="search"]').fill('account');
+            await palette
+                .getByRole('button', { name: /Account info/i })
+                .click();
+        } else {
+            await page.keyboard.press('?');
+        }
+        const dialog = page.getByRole('dialog');
+        const region = dialog.getByRole('region');
+        await expect(region).toBeFocused();
+        for (const key of ['ArrowDown', ' ', 'k', 'm']) {
+            await page.keyboard.press(key);
+            await expect(video).toHaveJSProperty('volume', volume);
+            await expect(video).toHaveJSProperty('paused', true);
+        }
+        await page.keyboard.press('PageDown');
+        await expect
+            .poll(() => region.evaluate((element) => element.scrollTop))
+            .toBeGreaterThan(0);
+        await page.keyboard.press('Escape');
+        await expect(dialog).toBeHidden();
+    }
 });
