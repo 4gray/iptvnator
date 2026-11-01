@@ -201,6 +201,9 @@ export const playlistReducers = [
                         ...(p.serverUrl != null
                             ? { serverUrl: p.serverUrl }
                             : {}),
+                        ...(p.xtreamContentTypes !== undefined
+                            ? { xtreamContentTypes: p.xtreamContentTypes }
+                            : {}),
                         ...(p.username != null ? { username: p.username } : {}),
                         ...(p.password != null ? { password: p.password } : {}),
                         ...(p.macAddress != null

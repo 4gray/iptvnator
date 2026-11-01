@@ -8,14 +8,23 @@ import { requestWorkerWithEvents } from './worker-events.utils';
 
 ipcMain.handle(
     'DB_DELETE_XTREAM_CONTENT',
-    async (event, playlistId: string, operationId?: string) => {
+    async (
+        event,
+        playlistId: string,
+        operationId?: string,
+        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[]
+    ) => {
         try {
+            // Recovery is parked in DOM storage before this destructive IPC.
+            // Flush Chromium's pending disk writes before native chunks commit.
+            event.sender.session.flushStorageData();
             return await requestWorkerWithEvents(
                 event,
                 'DB_DELETE_XTREAM_CONTENT',
                 {
                     playlistId,
                     operationId,
+                    contentTypes,
                 }
             );
         } catch (error) {

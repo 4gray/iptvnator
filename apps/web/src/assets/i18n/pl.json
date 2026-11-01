@@ -234,6 +234,8 @@
             "LABEL": "Wklej listę odtwarzania m3u(8) jako tekst"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "Treści do wczytania",
+            "CONTENT_TO_LOAD_HINT": "Importowane i odświeżane są tylko wybrane typy. Odznacz wszystkie, aby zatrzymać wczytywanie katalogów; zapisane elementy i pobrane pliki zostaną zachowane.",
             "TITLE": "Tytuł listy odtwarzania",
             "SERVER_URL": "URL serwera",
             "USERNAME": "Nazwa użytkownika",

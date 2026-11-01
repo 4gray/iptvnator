@@ -234,6 +234,8 @@
             "LABEL": "Füge m3u(8)-Wiedergabeliste hier als Text ein"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "Zu ladende Inhalte",
+            "CONTENT_TO_LOAD_HINT": "Nur ausgewählte Typen werden importiert und aktualisiert. Ohne Auswahl werden keine Kataloge geladen; gespeicherte Einträge und Downloads bleiben erhalten.",
             "TITLE": "Playlist Titel",
             "SERVER_URL": "Server URL",
             "USERNAME": "Nutzername",

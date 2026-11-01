@@ -234,6 +234,8 @@
             "LABEL": "Inserte la playlist m3u(8) como texto"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "Contenido que cargar",
+            "CONTENT_TO_LOAD_HINT": "Solo se importan y actualizan los tipos seleccionados. Sin selección no se cargan catálogos; los elementos guardados y las descargas se conservan.",
             "TITLE": "Título de la lista",
             "SERVER_URL": "URL del servidor",
             "USERNAME": "Nombre de usuario",

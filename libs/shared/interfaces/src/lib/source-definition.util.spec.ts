@@ -172,6 +172,19 @@ describe('portable source definitions', () => {
             validateSource({ ...source, stalkerToken: 'session' })
         ).toThrow();
     });
+    it('keeps desktop catalog choices local when shared source definitions change', () => {
+        const local = { ...row, xtreamContentTypes: ['live' as const] };
+        const source = sourceFromPlaylist(local);
+        expect(source).not.toHaveProperty('xtreamContentTypes');
+        expect(() =>
+            validateSource({ ...source, xtreamContentTypes: ['movie'] })
+        ).toThrow('Invalid source field');
+        expect(
+            applySourceDefinition({ ...source, title: 'Remote title' }, local)
+                .xtreamContentTypes
+        ).toEqual(['live']);
+    });
+
     it('merges source changes without replacing local activity', () => {
         const source = {
             ...sourceFromPlaylist(row),

@@ -147,6 +147,12 @@
             "@iptvnator/services/lazy-snack-bar": [
                 "libs/services/src/lib/lazy-snack-bar/lazy-snack-bar.ts"
             ],
+            "@iptvnator/services/xtream-catalog-refresh": [
+                "libs/services/src/lib/xtream-selected-catalog-refresh.service.ts"
+            ],
+            "@iptvnator/services/xtream-catalog-restore": [
+                "libs/services/src/lib/xtream-deferred-catalog-restore.service.ts"
+            ],
             "@iptvnator/services/playlist-backup": [
                 "libs/services/src/lib/playlist-backup.service.ts"
             ],
@@ -182,6 +188,9 @@
             ],
             "@iptvnator/shared/interfaces/xtream-restore-state": [
                 "libs/shared/interfaces/src/lib/xtream-restore-state.util.ts"
+            ],
+            "@iptvnator/shared/interfaces/xtream-category-visibility": [
+                "libs/shared/interfaces/src/lib/xtream-category-visibility.ts"
             ],
             "@iptvnator/shared/interfaces/ipc-commands": [
                 "libs/shared/interfaces/src/lib/ipc-commands.ts"

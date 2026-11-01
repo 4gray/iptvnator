@@ -83,6 +83,10 @@ async function buildWorker() {
                 sourcemap: isPerformance || !isProduction,
                 minify: isProduction || isPerformance,
                 alias: {
+                    '@iptvnator/shared/interfaces/xtream-category-visibility': path.join(
+                        __dirname,
+                        '../../libs/shared/interfaces/src/lib/xtream-category-visibility.ts'
+                    ),
                     '@iptvnator/shared/interfaces': path.join(
                         __dirname,
                         '../../libs/shared/interfaces/src/index.ts'

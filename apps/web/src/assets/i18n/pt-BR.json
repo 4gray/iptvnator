@@ -234,6 +234,8 @@
             "LABEL": "Inserir lista de reprodução m3u(8) como texto"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "Conteúdo a carregar",
+            "CONTENT_TO_LOAD_HINT": "Somente os tipos selecionados são importados e atualizados. Desmarque todos para pausar o carregamento dos catálogos; os itens salvos e os downloads são mantidos.",
             "TITLE": "Título da lista de reprodução",
             "SERVER_URL": "URL do servidor",
             "USERNAME": "Nome de usuário",

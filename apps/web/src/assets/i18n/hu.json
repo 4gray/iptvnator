@@ -234,6 +234,8 @@
             "LABEL": "M3U/M3U8-lejátszási lista beillesztése szövegként"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "Betöltendő tartalom",
+            "CONTENT_TO_LOAD_HINT": "Csak a kijelölt típusok importálódnak és frissülnek. A kijelölések törlésével leáll a katalógusok betöltése; a mentett elemek és letöltések megmaradnak.",
             "TITLE": "Lejátszási lista címe",
             "SERVER_URL": "Kiszolgáló URL-címe",
             "USERNAME": "Felhasználónév",

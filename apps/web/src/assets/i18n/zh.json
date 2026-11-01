@@ -234,6 +234,8 @@
             "LABEL": "从文本导入播放列表(m3u, m3u8)"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "要加载的内容",
+            "CONTENT_TO_LOAD_HINT": "仅导入和刷新选中的类型。取消全部选择可暂停目录加载；已保存的项目和下载文件会保留。",
             "TITLE": "播放列表标题",
             "SERVER_URL": "服务器 URL",
             "USERNAME": "用户名",

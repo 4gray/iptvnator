@@ -98,5 +98,6 @@ export function toUnifiedFavoriteChannel(
         contentId: item.contentId,
         favoriteId: item.favoriteId,
         catalogStatus: item.catalogStatus,
+        catalogDisabled: item.catalogDisabled,
     };
 }

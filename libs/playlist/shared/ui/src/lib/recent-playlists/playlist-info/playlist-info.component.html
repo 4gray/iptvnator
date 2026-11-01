@@ -1,3 +1,6 @@
+@if (isRefreshingSelectedCatalogs()) {
+    <app-xtream-selection-progress />
+} @else {
 <form
     [formGroup]="playlistDetails"
     (ngSubmit)="saveChanges(playlistDetails.value)"
@@ -167,6 +170,23 @@
                             />
                         </div>
                     </details>
+                }
+                @if (
+                    playlist.serverUrl &&
+                    !playlist.portalUrl &&
+                    supportsXtreamSelection
+                ) {
+                    <app-xtream-content-selection
+                        [selected]="
+                            playlistDetails.controls['xtreamContentTypes'].value
+                        "
+                        (selectedChange)="
+                            playlistDetails.controls[
+                                'xtreamContentTypes'
+                            ].setValue($event);
+                            playlistDetails.markAsDirty()
+                        "
+                    />
                 }
                 @if (playlist.serverUrl) {
                     <mat-form-field class="w-full">
@@ -683,3 +703,4 @@
         </app-dialog-shell>
     </fieldset>
 </form>
+}

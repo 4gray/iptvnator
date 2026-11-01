@@ -184,6 +184,74 @@ describe('PlaylistBackupService export → import round-trip', () => {
 
     // The browser build applies an import at once (see the PWA Xtream spec),
     // so only the desktop leaves one pending while its catalog downloads.
+    it.each<{ selection: NonNullable<Playlist['xtreamContentTypes']> }>([
+        { selection: [] },
+        { selection: ['live'] },
+        { selection: ['movie', 'series'] },
+    ])(
+        'round-trips desktop content selection %p, including no catalogs',
+        async ({ selection }) => {
+            const state = seedState();
+            state.playlists.find(
+                (playlist) => playlist._id === 'xtream-1'
+            )!.xtreamContentTypes = [...selection];
+            const service = createPlaylistBackupService(
+                createStatefulBackupCollaborators(state)
+            );
+            const backup = await service.exportBackup();
+            expect(
+                (
+                    backup.manifest.playlists.find(
+                        (entry) => entry.portalType === 'xtream'
+                    ) as XtreamPlaylistBackupEntry
+                ).xtreamContentTypes
+            ).toEqual(selection);
+            state.playlists.find(
+                (playlist) => playlist._id === 'xtream-1'
+            )!.xtreamContentTypes = undefined;
+            expect((await service.importBackup(backup.json)).failed).toBe(0);
+            expect(
+                state.playlists.find((playlist) => playlist._id === 'xtream-1')
+                    ?.xtreamContentTypes
+            ).toEqual(selection);
+        }
+    );
+
+    it('exports current playback positions during cache-only recovery without exporting its internal flag', async () => {
+        const state = seedState();
+        const collaborators = createStatefulBackupCollaborators(state);
+        collaborators.pendingRestoreService.set('xtream-1', {
+            hiddenCategories: [],
+            favorites: [],
+            recentlyViewed: [],
+            playbackPositions: [...state.playbackPositions],
+            preservePlaybackPositions: true,
+        });
+        state.playbackPositions = [
+            { contentXtreamId: 501, contentType: 'vod', positionSeconds: 222 },
+            {
+                contentXtreamId: 777,
+                contentType: 'episode',
+                positionSeconds: 31,
+            },
+        ];
+        const service = createPlaylistBackupService(collaborators);
+        const exported = await service.exportBackup();
+        const userState = xtreamEntry(exported.manifest).userState;
+        expect(userState.playbackPositions).toEqual(state.playbackPositions);
+        expect(userState).not.toHaveProperty('preservePlaybackPositions');
+        const positions = [...state.playbackPositions];
+        const imported = JSON.parse(exported.json) as PlaylistBackupManifestV1;
+        Object.assign(xtreamEntry(imported).userState, {
+            preservePlaybackPositions: true,
+        });
+        state.playbackPositions = [];
+        expect(
+            (await service.importBackup(JSON.stringify(imported))).failed
+        ).toBe(0);
+        expect(state.playbackPositions).toEqual(positions);
+    });
+
     it('preserves a fresh pending import on re-export', async () => {
         const state = seedState();
         state.xtreamFavorites.push({

@@ -23,8 +23,17 @@ export const credentials: XtreamCredentials = {
 };
 
 export function createDbServiceMock() {
+    const appState = new Map<string, string>();
     return {
+        readAppState: jest.fn(async (key: string) => ({
+            value: appState.get(key) ?? null,
+        })),
+        setAppState: jest.fn(async (key: string, value: string) => {
+            appState.set(key, value);
+            return true;
+        }),
         getXtreamImportStatus: jest.fn().mockResolvedValue('idle'),
+        clearXtreamImportCache: jest.fn().mockResolvedValue(true),
         getPlaylistById: jest.fn().mockResolvedValue(null),
         createPlaylist: jest.fn().mockResolvedValue(undefined),
         updateXtreamPlaylistDetails: jest.fn().mockResolvedValue(undefined),
@@ -44,6 +53,7 @@ export function createDbServiceMock() {
         removeFromFavorites: jest.fn().mockResolvedValue(undefined),
         isFavorite: jest.fn().mockResolvedValue(false),
         getRecentItems: jest.fn().mockResolvedValue([]),
+        getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
         addRecentItem: jest.fn().mockResolvedValue(undefined),
         removeRecentItem: jest.fn().mockResolvedValue(undefined),
         clearPlaylistRecentItems: jest.fn().mockResolvedValue(undefined),
@@ -56,7 +66,10 @@ export function createDbServiceMock() {
             recentlyViewed: [],
         }),
         restoreXtreamFavoriteSnapshots: jest.fn().mockResolvedValue(undefined),
-        restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
+        restoreXtreamUserData: jest.fn().mockResolvedValue({
+            success: true,
+            resolvedHistory: [],
+        }),
     };
 }
 

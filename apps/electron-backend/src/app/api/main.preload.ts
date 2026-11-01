@@ -3,6 +3,7 @@ import type {
     ElectronBridgeFavoriteReorderUpdate,
     XtreamFavoriteRemovalRef,
     XtreamBackupFavoriteItem,
+    XtreamCatalogStateCondition,
 } from '@iptvnator/shared/interfaces';
 import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
@@ -851,8 +852,17 @@ const electronApi: ElectronBridgeApi = {
     ) => ipcRenderer.invoke('DB_UPDATE_PLAYLIST', playlistId, updates),
     dbDeletePlaylist: (playlistId: string, operationId?: string) =>
         ipcRenderer.invoke('DB_DELETE_PLAYLIST', playlistId, operationId),
-    dbDeleteXtreamContent: (playlistId: string, operationId?: string) =>
-        ipcRenderer.invoke('DB_DELETE_XTREAM_CONTENT', playlistId, operationId),
+    dbDeleteXtreamContent: (
+        playlistId: string,
+        operationId?: string,
+        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_DELETE_XTREAM_CONTENT',
+            playlistId,
+            operationId,
+            ...(contentTypes === undefined ? [] : [contentTypes])
+        ),
     dbRestoreXtreamFavorites: (
         playlistId: string,
         favorites: XtreamBackupFavoriteItem[],
@@ -898,11 +908,16 @@ const electronApi: ElectronBridgeApi = {
         ),
     dbGetAllCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_GET_ALL_CATEGORIES', playlistId, type),
-    dbUpdateCategoryVisibility: (categoryIds: number[], hidden: boolean) =>
+    dbUpdateCategoryVisibility: (
+        categoryIds: number[],
+        hidden: boolean,
+        explicit?: boolean
+    ) =>
         ipcRenderer.invoke(
             'DB_UPDATE_CATEGORY_VISIBILITY',
             categoryIds,
-            hidden
+            hidden,
+            ...(explicit === undefined ? [] : [explicit])
         ),
     dbSetCategoryLocks: (
         playlistId: string,
@@ -1017,8 +1032,12 @@ const electronApi: ElectronBridgeApi = {
         updates: ElectronBridgeFavoriteReorderUpdate[]
     ) => ipcRenderer.invoke('DB_REORDER_GLOBAL_FAVORITES', updates),
     // Recently viewed (playlist-specific)
-    dbGetRecentItems: (playlistId: string) =>
-        ipcRenderer.invoke('DB_GET_RECENT_ITEMS', playlistId),
+    dbGetRecentItems: (playlistId: string, options?: { all?: boolean }) =>
+        ipcRenderer.invoke(
+            'DB_GET_RECENT_ITEMS',
+            playlistId,
+            ...(options ? [options] : [])
+        ),
     dbAddRecentItem: (
         contentId: number,
         playlistId: string,
@@ -1064,8 +1083,19 @@ const electronApi: ElectronBridgeApi = {
     dbCancelOperation: (operationId: string) =>
         ipcRenderer.invoke('DB_CANCEL_OPERATION', operationId),
     dbGetAppState: (key: string) => ipcRenderer.invoke('DB_GET_APP_STATE', key),
-    dbSetAppState: (key: string, value: string) =>
-        ipcRenderer.invoke('DB_SET_APP_STATE', key, value),
+    dbCheckXtreamCatalogConnection: (condition: XtreamCatalogStateCondition) =>
+        ipcRenderer.invoke('DB_CHECK_XTREAM_CATALOG_CONNECTION', condition),
+    dbSetAppState: (
+        key: string,
+        value: string,
+        condition?: XtreamCatalogStateCondition
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SET_APP_STATE',
+            key,
+            value,
+            ...(condition === undefined ? [] : [condition])
+        ),
     // TMDB metadata cache
     dbGetTmdbMetadata: (
         mediaType: TmdbCacheMediaType,

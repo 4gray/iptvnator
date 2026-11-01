@@ -2,9 +2,9 @@ import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 
 type ElectronBridgeMethodName = Extract<
     {
-        [K in keyof ElectronBridgeApi]: NonNullable<ElectronBridgeApi[K]> extends (
-            ...args: never[]
-        ) => unknown
+        [K in keyof ElectronBridgeApi]: NonNullable<
+            ElectronBridgeApi[K]
+        > extends (...args: never[]) => unknown
             ? K
             : never;
     }[keyof ElectronBridgeApi],
@@ -64,7 +64,12 @@ const vodSourcePin = {
 };
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
-    { method: 'sourceSyncLocalSources', args: [], channel: 'DB_GET_STANDALONE_SOURCES', forwardedArgs: [] },
+    {
+        method: 'sourceSyncLocalSources',
+        args: [],
+        channel: 'DB_GET_STANDALONE_SOURCES',
+        forwardedArgs: [],
+    },
     {
         method: 'dbCreatePlaylist',
         args: [playlist],
@@ -380,10 +385,54 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: ['workspace:last-route'],
     },
     {
+        method: 'dbCheckXtreamCatalogConnection',
+        args: [
+            {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        ],
+        channel: 'DB_CHECK_XTREAM_CATALOG_CONNECTION',
+        forwardedArgs: [
+            {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        ],
+    },
+    {
         method: 'dbSetAppState',
         args: ['workspace:last-route', '/workspace'],
         channel: 'DB_SET_APP_STATE',
         forwardedArgs: ['workspace:last-route', '/workspace'],
+    },
+    {
+        method: 'dbSetAppState',
+        args: [
+            'xtream-import-status:p:movie',
+            'completed',
+            {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        ],
+        channel: 'DB_SET_APP_STATE',
+        forwardedArgs: [
+            'xtream-import-status:p:movie',
+            'completed',
+            {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        ],
     },
     {
         method: 'dbSavePlaybackPosition',

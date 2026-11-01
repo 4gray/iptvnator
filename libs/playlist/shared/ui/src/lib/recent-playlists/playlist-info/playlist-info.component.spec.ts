@@ -280,43 +280,6 @@ describe('PlaylistInfoComponent', () => {
         );
     });
 
-    it('normalizes edited Xtream playlist details before updating the Electron database', async () => {
-        const xtreamPlaylist = {
-            ...playlist,
-            title: 'Old Xtream',
-            serverUrl: 'http://old.example:8080',
-            username: 'old-user',
-            password: 'old-pass',
-            url: undefined,
-        } as Playlist & { id: string };
-        runtime.supportsXtreamSqliteDataSource = true;
-        databaseService.updateXtreamPlaylistDetails.mockResolvedValue(true);
-        TestBed.overrideProvider(MAT_DIALOG_DATA, {
-            useValue: xtreamPlaylist,
-        });
-        createComponent();
-
-        await component.saveChanges({
-            ...metaBase,
-            _id: 'playlist-1',
-            title: 'Updated Xtream',
-            serverUrl:
-                ' http://new.example:8080/get.php?username=ignored&password=ignored&type=m3u_plus&output=ts ',
-            username: ' new-user ',
-            password: ' new-pass ',
-        });
-
-        expect(
-            databaseService.updateXtreamPlaylistDetails
-        ).toHaveBeenCalledWith({
-            id: 'playlist-1',
-            title: 'Updated Xtream',
-            serverUrl: 'http://new.example:8080',
-            username: 'new-user',
-            password: 'new-pass',
-        });
-    });
-
     it('uses the Electron save dialog when desktop file saving is available', async () => {
         runtime.isElectron = true;
         runtime.supportsDesktopFileSave = true;

@@ -303,6 +303,23 @@ context panel use, out of that barrel for the same reason, and
 22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
 barrel.
 
+`@iptvnator/services/xtream-catalog-refresh` keeps the edit-time catalog scanner
+with the lazy source editor. Do not re-export it from the eager services barrel;
+ordinary startup does not need the editor's network and recovery orchestration.
+`@iptvnator/services/xtream-catalog-restore` similarly exposes dormant restore
+storage outside that barrel. The Electron data source loads it through a local
+dynamic-import wrapper only for restoration or source cleanup; startup services
+load it only when explicitly clearing history or sources. Ordinary Refresh uses
+a project-local `xtream-refresh-recovery` wrapper for the same cold boundary.
+The Electron data source also loads its project-local `xtream-category-import`
+helper only for cold category fills or failed-cache cleanup. Completed cache reads
+return before that import, preserving the warm path's startup work and IPC count.
+Shared catalog availability checks stay outside the eager services barrel in
+`xtream-catalog-availability`, reused by explicit offline restore and route replay.
+Full user-state replay also stays in the local `xtream-deferred-restore` module;
+the data source delegates to it only when restoring a backup or failed import,
+or when the legacy cache-snapshot API is explicitly invoked.
+
 `@iptvnator/services/source-sync/connection` and
 `@iptvnator/services/source-sync/profile-user-data` expose the bootstrap helpers
 without the injectable synchronization service. The server initializer loads
@@ -380,6 +397,16 @@ barrel reachable. `renderer.initialBytes` in
 [performance journeys](performance-journeys.md) guards the result; to see why a
 module is eager, build with `pnpm nx build web --stats-json` and follow the
 static imports in `dist/apps/web/stats.json` from `apps/web/src/main.ts`.
+
+The Xtream category visibility ledger uses
+`@iptvnator/shared/interfaces/xtream-category-visibility` for its runtime key and
+parser. The main shared-interface barrel exports only its type, keeping this
+backup/recovery code out of the initial renderer graph.
+
+The root Xtream store keeps its lightweight detail-request generation guard
+separate from sparse VOD reconstruction. It loads the reconstruction module after
+the detail response and rechecks the guard before publishing or recovering data,
+so opening a source does not load movie-detail recovery code.
 
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency

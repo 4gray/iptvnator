@@ -5,6 +5,7 @@ import {
     inject,
     Injectable,
     Provider,
+    untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, NavigationStart, Router } from '@angular/router';
@@ -214,6 +215,18 @@ export class XtreamWorkspaceRouteSession {
     }
 
     private async syncRouteContext(): Promise<void> {
+        const url = this.router.url;
+        const targetId = getXtreamRouteTarget(url).playlistId;
+        // Shared metadata can publish during an edit-time scan. Keep our own
+        // cleanup hold, but wait before resetting the store or reading a cache
+        // whose importing marker still belongs to that live scan.
+        if (targetId && untracked(() => this.activity.isBusy(targetId, 1))) {
+            const { waitForSourceIdle } =
+                await import('./xtream-route-activity-idle');
+            await waitForSourceIdle(this.activity, targetId, 1);
+        }
+        if (this.destroyRef.destroyed || this.router.url !== url) return;
+        // Read the latest playlist after waiting; navigation queues a new pass.
         const routeContext = this.playlistContext.syncFromUrl(this.router.url);
         const playlistId =
             routeContext.provider === 'xtreams'
