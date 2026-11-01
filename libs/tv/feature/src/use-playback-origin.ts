@@ -1,6 +1,13 @@
 import { useRef } from 'preact/hooks';
 import { restoreFocus } from '@iptvnator/tv/ui';
+import type { Media } from '@iptvnator/tv/util';
 import { navigationOrigin, type NavigationOrigin } from './use-route-history';
+
+export interface FailedPlayback {
+    item: Media;
+    category: string;
+    origin: NavigationOrigin;
+}
 
 /** Capture before asynchronous resolution; fullscreen hides the original scroll pane. */
 export function usePlaybackOrigin() {

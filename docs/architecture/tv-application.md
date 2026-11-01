@@ -477,8 +477,10 @@ episode does not revive older unfinished episodes. Unknown-duration positions
 remain resumable. The Continue watching rail retains up to eight titles using
 the same grouping. Previous/Next controls wrap on OK or pointer click; there is
 no automatic rotation or playback on focus. Changing the featured title cancels
-pending Home activation and series details before updating the visible selection;
-late responses cannot open or play the abandoned title. Continue watching resolves the
+pending Home activation, series details and playback-address resolution before
+updating the visible selection. Home owns resolution retries too; changing title
+retires the previous recovery action. Late responses cannot open or play the
+abandoned title. Continue watching resolves the
 original saved media identity, while Details opens the parent series and episode
 list for an episode. The feature uses the series title, artwork and description;
 episode coordinates and title remain secondary progress information. A saved

@@ -29,6 +29,7 @@ interface HomeRequest {
     source: string;
     backend: string;
     activated: boolean;
+    generation: number;
 }
 
 /** Only a deliberate Home action may activate another source and launch a title. */
@@ -43,6 +44,11 @@ export function useHomeActions(
     const [pending, setPending] = useState<HomeRequest>();
     const request = useRef<HomeRequest>();
     const details = useRef<HomeRequest>();
+    const playback = useRef<{
+        job: HomeRequest;
+        controller: AbortController;
+    }>();
+    const generation = useRef(0);
     const sourceSave = useRef<{ done: boolean }>();
     const [, flushSourceSave] = useState(0);
     const latest = useRef({ tv, series });
@@ -55,6 +61,23 @@ export function useHomeActions(
             restoreFocus(job.origin.focus, 'nav:home', job.origin.scroll);
     };
     const abortIntent = (restore = false) => {
+        generation.current++;
+        const playing = playback.current;
+        playback.current = undefined;
+        playing?.controller.abort();
+        if (playing) latest.current.tv.stop();
+        if (
+            ['Retry Home title', 'Retry series details'].includes(
+                latest.current.tv.errorRetryLabel ?? ''
+            )
+        )
+            latest.current.tv.setError('');
+        if (restore && playing)
+            restoreFocus(
+                playing.job.origin.focus,
+                'hero',
+                playing.job.origin.scroll
+            );
         const detail = details.current;
         latest.current.series.cancel();
         details.current = undefined;
@@ -64,9 +87,23 @@ export function useHomeActions(
     };
     const perform = (job: HomeRequest) => {
         const current = latest.current;
-        if (job.intent === 'play')
-            void current.tv.play(job.item, '', job.origin);
-        else if (job.item.kind === 'episode') {
+        if (job.intent === 'play') {
+            const owned = { job, controller: new AbortController() };
+            playback.current = owned;
+            setPending(job);
+            void current.tv
+                .play(job.item, '', job.origin, owned.controller.signal, () => {
+                    if (generation.current === job.generation)
+                        start(job.item, 'play', job.origin);
+                })
+                .then((started) => {
+                    if (playback.current !== owned) return;
+                    // A failed resolution retains ownership of its Retry notice
+                    // until the user retries, changes title or leaves Home.
+                    if (started) playback.current = undefined;
+                    setPending(undefined);
+                });
+        } else if (job.item.kind === 'episode') {
             details.current = job;
             void current.series.open(job.item, job.origin).finally(() => {
                 if (details.current === job) details.current = undefined;
@@ -78,7 +115,10 @@ export function useHomeActions(
         cancel(true);
         latest.current.tv.setError(
             'This source could not be opened. Check its connection and retry.',
-            () => start(job.item, job.intent, job.origin),
+            () => {
+                if (generation.current === job.generation)
+                    start(job.item, job.intent, job.origin);
+            },
             'Retry Home title'
         );
     };
@@ -108,6 +148,7 @@ export function useHomeActions(
                 current.data.backendToken,
             ]),
             activated: false,
+            generation: generation.current,
         };
         if (
             item.sourceId === current.data.activeId &&
@@ -189,7 +230,11 @@ export function useHomeActions(
             if (job) fail(job);
         }, 40000);
         const back = (event: KeyboardEvent) => {
-            if (!request.current && !details.current) return;
+            if (
+                latest.current.tv.fullscreen ||
+                (!request.current && !details.current && !playback.current)
+            )
+                return;
             if (
                 event.keyCode !== 461 &&
                 !['Escape', 'BrowserBack', 'Backspace'].includes(event.key)
@@ -213,6 +258,9 @@ export function useHomeActions(
     useEffect(
         () => () => {
             request.current = undefined;
+            const playing = playback.current;
+            playback.current = undefined;
+            playing?.controller.abort();
         },
         []
     );
