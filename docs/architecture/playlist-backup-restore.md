@@ -116,6 +116,13 @@ conditional per-source cleanup so newer sources in another tab remain untouched.
 A failed pending-storage, recent-history or playback-position read fails export.
 An unreadable collection must never be serialized as a successful empty collection.
 
+Edit-time cache recovery uses an internal `preservePlaybackPositions: true`
+policy because catalog replacement leaves position rows intact. Retry keeps the
+current rows, including progress, additions and removals made after a failure.
+Export during that recovery reads current positions rather than the parked
+snapshot. The policy is excluded from archives and cleared on explicit backup
+import, which still restores the archive's authoritative positions.
+
 Explicitly excluded:
 
 - cached categories/content rows

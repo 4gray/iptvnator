@@ -764,10 +764,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             options
         );
 
-        await this.playbackService.replaceAllPlaybackPositions(
-            playlistId,
-            restoreState.playbackPositions
-        );
+        if (!restoreState.preservePlaybackPositions)
+            await this.playbackService.replaceAllPlaybackPositions(
+                playlistId,
+                restoreState.playbackPositions
+            );
 
         // The fresh-import path lands here rather than in the backup service:
         // a new playlist has no content yet when the archive is read, so its

@@ -2,7 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { DataService } from './data.service';
 import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
-import { PlaybackPositionService } from './playback-position.service';
 import { SourceActivityService } from './source-activity.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import { XtreamSelectedCatalogRefreshService } from './xtream-selected-catalog-refresh.service';
@@ -86,14 +85,6 @@ describe('edit-time Xtream catalog refresh', () => {
                     useValue: { lockedXtreamIds: () => [] },
                 },
                 {
-                    provide: PlaybackPositionService,
-                    useValue: {
-                        getAllPlaybackPositionsOrThrow: jest
-                            .fn()
-                            .mockResolvedValue([]),
-                    },
-                },
-                {
                     provide: SourceActivityService,
                     useValue: { isBusy: () => false, begin: () => release },
                 },
@@ -111,6 +102,10 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(db.deleteXtreamPlaylistContent).toHaveBeenCalledWith('p', {
             contentTypes: ['movie'],
         });
+        expect(pending['set']).toHaveBeenCalledWith(
+            'p',
+            expect.objectContaining({ preservePlaybackPositions: true })
+        );
         expect(db.setXtreamImportStatus).toHaveBeenCalledWith(
             'p',
             'movie',

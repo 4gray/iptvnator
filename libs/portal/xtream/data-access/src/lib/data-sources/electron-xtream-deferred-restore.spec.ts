@@ -19,6 +19,15 @@ const archive: XtreamPendingRestoreState = {
 beforeEach(() => localStorage.clear());
 afterEach(() => localStorage.clear());
 
+it('keeps current playback positions when retrying cache-only recovery', async () => {
+    const { dataSource, playbackService } = setupElectronXtreamDataSource();
+    await dataSource.restoreUserData('p', {
+        ...archive,
+        preservePlaybackPositions: true,
+    });
+    expect(playbackService.replaceAllPlaybackPositions).not.toHaveBeenCalled();
+});
+
 it('keeps an all-disabled restore dormant without dropping history or positions', async () => {
     const { dataSource, dbService, playbackService } =
         setupElectronXtreamDataSource();

@@ -255,6 +255,25 @@ describe('normalizeXtreamPendingRestoreState', () => {
         });
     });
 
+    it('retains the internal cache-recovery position policy through normalization', () => {
+        const state = normalizeXtreamPendingRestoreState({
+            preservePlaybackPositions: true,
+        });
+        expect(state).toMatchObject({ preservePlaybackPositions: true });
+        expect(
+            normalizeXtreamPendingRestoreState(
+                JSON.parse(JSON.stringify(state))
+            )
+        ).toEqual(state);
+        for (const invalid of [false, 'true', 1, null]) {
+            expect(
+                normalizeXtreamPendingRestoreState({
+                    preservePlaybackPositions: invalid,
+                })
+            ).not.toHaveProperty('preservePlaybackPositions');
+        }
+    });
+
     it('falls back to empty arrays for missing or non-array fields', () => {
         expect(
             normalizeXtreamPendingRestoreState({

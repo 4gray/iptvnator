@@ -11,7 +11,6 @@ import {
 import { DataService } from './data.service';
 import { DatabaseService, XCategoryFromDb } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
-import { PlaybackPositionService } from './playback-position.service';
 import { SourceActivityService } from './source-activity.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
@@ -42,7 +41,6 @@ export class XtreamSelectedCatalogRefreshService {
     private readonly data = inject(DataService);
     private readonly db = inject(DatabaseService);
     private readonly locks = inject(ParentalLockService);
-    private readonly positions = inject(PlaybackPositionService);
     private readonly pending = inject(XtreamPendingRestoreService);
     private readonly deferred = inject(XtreamDeferredCatalogRestoreService);
     private readonly activity = inject(SourceActivityService);
@@ -100,19 +98,18 @@ export class XtreamSelectedCatalogRefreshService {
             await beforeReplace?.();
             publish(null, 'preparing');
             // Park user state BEFORE deletion so storage failure cannot erase history.
-            const [playbackPositions, recent, categoriesByType] =
-                await Promise.all([
-                    this.positions.getAllPlaybackPositionsOrThrow(playlist._id),
-                    this.db.getRecentItemsOrThrow(playlist._id),
-                    Promise.all(
-                        (['live', 'movies', 'series'] as const).map((type) =>
-                            this.db.getAllXtreamCategories(playlist._id, type)
-                        )
-                    ),
-                ]);
+            const [recent, categoriesByType] = await Promise.all([
+                this.db.getRecentItemsOrThrow(playlist._id),
+                Promise.all(
+                    (['live', 'movies', 'series'] as const).map((type) =>
+                        this.db.getAllXtreamCategories(playlist._id, type)
+                    )
+                ),
+            ]);
             let saved: XtreamPendingRestoreState = {
                 favorites: [],
-                playbackPositions,
+                playbackPositions: [],
+                preservePlaybackPositions: true,
                 hiddenCategories: ([] as XCategoryFromDb[])
                     .concat(...categoriesByType)
                     .filter((category) => category.hidden)

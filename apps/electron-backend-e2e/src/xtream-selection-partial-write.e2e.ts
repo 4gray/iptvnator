@@ -122,6 +122,21 @@ for (const failCleanup of [false, true])
                     ),
                 { id, xtreamId: Number(target.stream_id) }
             );
+            await page.evaluate(
+                async ({ id, xtreamId }) => {
+                    await window.electron.dbSavePlaybackPosition(id, {
+                        contentXtreamId: xtreamId,
+                        contentType: 'vod',
+                        positionSeconds: 9,
+                    });
+                    await window.electron.dbSavePlaybackPosition(id, {
+                        contentXtreamId: 9999991,
+                        contentType: 'vod',
+                        positionSeconds: 79,
+                    });
+                },
+                { id, xtreamId: Number(target.stream_id) }
+            );
             await faultAndCount(app, dataDir, id, true, failCleanup);
             const dialog = await openSourceEditor(page, title);
             expect(catalogActions(recorder.actions)).toEqual([]);
@@ -158,6 +173,29 @@ for (const failCleanup of [false, true])
             // Disarm the fault before asserting, including on the red regression run.
             expect(await faultAndCount(app, dataDir, id, false)).toBe(
                 failCleanup ? 5000 : 0
+            );
+            // Playback can continue from saved items before import is retried.
+            // Use the real playback persistence IPC, including another catalog
+            // and an explicit removal after the recovery snapshot was parked.
+            await page.evaluate(
+                async ({ id, xtreamId }) => {
+                    await window.electron.dbSavePlaybackPosition(id, {
+                        contentXtreamId: xtreamId,
+                        contentType: 'vod',
+                        positionSeconds: 22,
+                    });
+                    await window.electron.dbSavePlaybackPosition(id, {
+                        contentXtreamId: 9999992,
+                        contentType: 'episode',
+                        positionSeconds: 31,
+                    });
+                    await window.electron.dbClearPlaybackPosition(
+                        id,
+                        9999991,
+                        'vod'
+                    );
+                },
+                { id, xtreamId: Number(target.stream_id) }
             );
             app = await restartElectronApp(app, dataDir);
             page = app.mainWindow;
@@ -201,6 +239,25 @@ for (const failCleanup of [false, true])
                     { id, xtreamId: Number(target.stream_id) }
                 )
             ).toBe(true);
+            const positions = await page.evaluate(
+                (id) => window.electron.dbGetAllPlaybackPositions(id),
+                id
+            );
+            expect(positions).toHaveLength(2);
+            expect(positions).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        contentXtreamId: Number(target.stream_id),
+                        contentType: 'vod',
+                        positionSeconds: 22,
+                    }),
+                    expect.objectContaining({
+                        contentXtreamId: 9999992,
+                        contentType: 'episode',
+                        positionSeconds: 31,
+                    }),
+                ])
+            );
         } finally {
             await closeElectronApp(app);
             await recorder.close();

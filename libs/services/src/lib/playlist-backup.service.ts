@@ -387,7 +387,11 @@ export class PlaylistBackupService {
                     hiddenCategories: pending.hiddenCategories,
                     favorites,
                     recentlyViewed: pending.recentlyViewed,
-                    playbackPositions: pending.playbackPositions,
+                    playbackPositions: pending.preservePlaybackPositions
+                        ? await this.playbackPositionService.getAllPlaybackPositionsOrThrow(
+                              playlist._id
+                          )
+                        : pending.playbackPositions,
                     ...this.optionalLockedXtreamCategories(playlist._id),
                     ...(sourcePins ? { sourcePins } : {}),
                 },
@@ -1043,6 +1047,7 @@ export class PlaylistBackupService {
         // A deliberate re-import is a fresh user action. Do not accept an archive's
         // internal receipt or confuse it with a retry of an older parked import.
         restoreState.favoritesRestoreId = createRandomId();
+        delete restoreState.preservePlaybackPositions;
 
         // Preserve an older unfinished import before parking the incoming backup.
         // Canonical favorites are additive; legacy-only ones need the same protection.

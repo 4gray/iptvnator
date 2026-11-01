@@ -14,6 +14,8 @@ export interface XtreamPendingRestoreState {
     favorites: XtreamBackupFavoriteItem[];
     recentlyViewed: XtreamBackupRecentlyViewedItem[];
     playbackPositions: PlaybackPositionData[];
+    /** Internal cache recovery leaves live positions authoritative; never exported. */
+    preservePlaybackPositions?: true;
     /**
      * Optional: absent from archives and persisted entries written before
      * multi-source existed. The normalizer preserves that absence so restore
@@ -40,6 +42,7 @@ interface RestoreStateCandidate {
     favorites?: unknown;
     recentlyViewed?: unknown;
     playbackPositions?: unknown;
+    preservePlaybackPositions?: unknown;
     sourcePins?: unknown;
     favoritesRestoreId?: unknown;
 }
@@ -156,6 +159,9 @@ export function normalizeXtreamPendingRestoreState(
         playbackPositions: toArray(candidate.playbackPositions).filter(
             (item): item is PlaybackPositionData => isRecord(item)
         ),
+        ...(candidate.preservePlaybackPositions === true
+            ? { preservePlaybackPositions: true as const }
+            : {}),
         // Absent stays ABSENT. Materializing `[]` here would make an older
         // archive — which says nothing about pins — look like one that says
         // "there are none", and restore would clear the user's pins.
