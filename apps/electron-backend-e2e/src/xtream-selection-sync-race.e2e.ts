@@ -47,15 +47,19 @@ test('connected active-source sync waits for an edit-time catalog save before bo
                 )!._id,
             title
         );
+        // Initial synthetic catalog import uses the shared 60-second setup
+        // budget even when other native test workers share the host.
         await expect
-            .poll(() =>
-                page.evaluate(
-                    (id) =>
-                        window.electron.dbGetAppState(
-                            `xtream-import-status:${id}:live`
-                        ),
-                    id
-                )
+            .poll(
+                () =>
+                    page.evaluate(
+                        (id) =>
+                            window.electron.dbGetAppState(
+                                `xtream-import-status:${id}:live`
+                            ),
+                        id
+                    ),
+                { timeout: 60000 }
             )
             .toBe('completed');
         await expect(

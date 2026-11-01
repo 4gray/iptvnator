@@ -55,20 +55,25 @@ for (const heldPhase of [
                     )!._id,
                 title
             );
+            // This setup imports every large synthetic catalog. Use the same
+            // readiness budget as retry below, including on a busy test host.
             await expect
-                .poll(() =>
-                    page.evaluate(async (id) => {
-                        const statuses = await Promise.all(
-                            ['live', 'movie', 'series'].map((type) =>
-                                window.electron.dbGetAppState(
-                                    `xtream-import-status:${id}:${type}`
-                                )
-                            )
-                        );
-                        return statuses.every((value) => value === 'completed');
-                    }, id)
+                .poll(
+                    () =>
+                        page.evaluate(
+                            (id) =>
+                                Promise.all(
+                                    ['live', 'movie', 'series'].map((type) =>
+                                        window.electron.dbGetAppState(
+                                            `xtream-import-status:${id}:${type}`
+                                        )
+                                    )
+                                ),
+                            id
+                        ),
+                    { timeout: 60000 }
                 )
-                .toBe(true);
+                .toEqual(['completed', 'completed', 'completed']);
             await expect(
                 page.locator('.workspace-loading-overlay')
             ).not.toBeVisible();
