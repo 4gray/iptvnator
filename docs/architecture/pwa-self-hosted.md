@@ -1012,7 +1012,10 @@ Before a raw fallback write, a minimal position snapshot is saved locally withou
 titles or stream addresses. A failed raw write keeps this snapshot readable and
 retryable. Raw writes are ordered per item; acknowledgements remove only their
 own snapshot, and disabling drains writes and replays remaining snapshots before
-completing. Acknowledged snapshots become ownership flags again so later ordinary
+completing. Local clears retain an explicit deletion intent in this journal and
+use the same per-item queue, so a failed deletion retries after restart and an
+older save cannot complete after it. Pending deletions hide the old raw point
+until the main store acknowledges removal. Acknowledged snapshots become ownership flags again so later ordinary
 local writes can advance normally. These records never travel to the server. A committed explicit launch, watched/reset action, import
 or conflict choice can clear the corresponding flag; keeping a parked queue local
 retains it. A protected missing raw row is an authoritative local reset, not

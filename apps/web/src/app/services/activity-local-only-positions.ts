@@ -18,10 +18,12 @@ interface Ownership {
     sessionId: string;
     token?: string;
     position?: PlaybackPositionData;
+    clearing?: boolean;
 }
 export interface LocalActivitySnapshot {
     token: string;
     position: PlaybackPositionData;
+    clearing?: boolean;
 }
 
 /** Scope-bound local ownership; an unacknowledged raw write retains its durable point. */
@@ -104,7 +106,9 @@ export class ActivityLocalOnlyPositions {
         if (
             record.version !== 2 ||
             (record.scope !== null && typeof record.scope !== 'string') ||
-            typeof record.sessionId !== 'string'
+            typeof record.sessionId !== 'string' ||
+            (record.clearing !== undefined &&
+                typeof record.clearing !== 'boolean')
         )
             throw new Error('Local activity ownership unavailable');
         const bound = record.scope ?? this.firstScopes.get(sourceId) ?? null;
@@ -153,7 +157,8 @@ export class ActivityLocalOnlyPositions {
     stage(
         sourceId: string,
         position: PlaybackPositionData,
-        sessionId?: string
+        sessionId?: string,
+        clearing = false
     ): LocalActivitySnapshot {
         this.validate(position);
         const token = createRandomId();
@@ -176,8 +181,13 @@ export class ActivityLocalOnlyPositions {
             sessionId: sessionId ?? '',
             token,
             position: snapshot,
+            ...(clearing ? { clearing: true } : {}),
         });
-        return { token, position: snapshot };
+        return {
+            token,
+            position: snapshot,
+            ...(clearing ? { clearing: true } : {}),
+        };
     }
     complete(sourceId: string, snapshot: LocalActivitySnapshot): void {
         const current = this.read(
@@ -202,7 +212,11 @@ export class ActivityLocalOnlyPositions {
             if (!key?.startsWith(prefix)) continue;
             const record = this.read(sourceId, key);
             if (record?.position && record.token)
-                result.push({ token: record.token, position: record.position });
+                result.push({
+                    token: record.token,
+                    position: record.position,
+                    ...(record.clearing ? { clearing: true } : {}),
+                });
         }
         return result;
     }

@@ -153,26 +153,15 @@ export class ActivityPositionAdapter {
                 if (aliases.length > 1 || shared.length > 1)
                     throw new Error('Activity identity ambiguous');
                 if (localOnly) {
-                    const target = position ?? shared[0]?.position;
-                    if (target && isStalkerEpisode(target))
-                        await this.saveLocalOnly(
-                            raw,
-                            sourceId,
-                            resetPosition(target)
-                        );
-                    else {
-                        this.localOnly.mark(sourceId, item);
-                        await (this.strict?.clear(
-                            sourceId,
-                            item.contentXtreamId,
-                            item.contentType
-                        ) ??
-                            raw.clearPlaybackPosition(
-                                sourceId,
-                                item.contentXtreamId,
-                                item.contentType
-                            ));
-                    }
+                    const target = position ??
+                        shared[0]?.position ??
+                        aliases[0] ?? { ...item, positionSeconds: 0 };
+                    await this.saveLocalOnly(
+                        raw,
+                        sourceId,
+                        resetPosition(target),
+                        !isStalkerEpisode(target)
+                    );
                     continue;
                 }
                 try {
@@ -232,13 +221,15 @@ export class ActivityPositionAdapter {
     private async saveLocalOnly(
         raw: IXtreamDataSource,
         sourceId: string,
-        position: PlaybackPositionData
+        position: PlaybackPositionData,
+        clearing = false
     ): Promise<void> {
         const local = localActivityPosition(position);
         const snapshot = this.localOnly.stage(
             sourceId,
             local,
-            position.activitySessionId
+            position.activitySessionId,
+            clearing
         );
         if (position.activitySessionId)
             this.seenLocalSessions.add(position.activitySessionId);
@@ -252,8 +243,21 @@ export class ActivityPositionAdapter {
         snapshot: LocalActivitySnapshot
     ): Promise<void> {
         return this.localWrites.run(sourceId, snapshot.position, async () => {
-            await (this.strict?.save(sourceId, snapshot.position) ??
-                raw.savePlaybackPosition(sourceId, snapshot.position));
+            if (snapshot.clearing) {
+                const { contentXtreamId, contentType } = snapshot.position;
+                await (this.strict?.clear(
+                    sourceId,
+                    contentXtreamId,
+                    contentType
+                ) ??
+                    raw.clearPlaybackPosition(
+                        sourceId,
+                        contentXtreamId,
+                        contentType
+                    ));
+            } else
+                await (this.strict?.save(sourceId, snapshot.position) ??
+                    raw.savePlaybackPosition(sourceId, snapshot.position));
             this.localOnly.complete(sourceId, snapshot);
         });
     }
@@ -280,7 +284,12 @@ export class ActivityPositionAdapter {
         );
         for (const snapshot of this.localOnly.snapshots(sourceId)) {
             const key = `${snapshot.position.contentType}:${snapshot.position.contentXtreamId}`;
-            positions.set(key, { ...positions.get(key), ...snapshot.position });
+            if (snapshot.clearing) positions.delete(key);
+            else
+                positions.set(key, {
+                    ...positions.get(key),
+                    ...snapshot.position,
+                });
         }
         for (const item of await this.client.positions(sourceId)) {
             const key = `${item.position.contentType}:${item.position.contentXtreamId}`;

@@ -283,6 +283,85 @@ describe('retryable activity disable transition', () => {
         expect(f.rows()[0].positionSeconds).toBe(65);
         expect(f.request).not.toHaveBeenCalled();
     });
+    it.each(['native', 'browser'] as const)(
+        'retries a failed %s local clear after restart',
+        async (mode) => {
+            const f = fixture(mode);
+            const { runtime } = f.makeRuntime();
+            await runtime.setEnabled(false);
+            jest.spyOn(f.raw, 'clearPlaybackPosition').mockRejectedValueOnce(
+                new Error('Synthetic clear failure')
+            );
+            await expect(
+                runtime.invoke(f.raw, 'clearPlaybackPosition', [
+                    f.sourceId,
+                    42,
+                    'vod',
+                ])
+            ).rejects.toThrow('Synthetic clear failure');
+            expect(
+                await runtime.invoke(f.raw, 'getPlaybackPosition', [
+                    f.sourceId,
+                    42,
+                    'vod',
+                ])
+            ).toBeNull();
+            expect(f.rows()).toHaveLength(1);
+            jest.clearAllTimers();
+            f.recover();
+            const reopened = f.makeRuntime().runtime;
+            await reopened.start();
+            expect(reopened.enabled()).toBe(false);
+            expect(f.rows()).toEqual([]);
+            expect(f.request).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each(['native', 'browser'] as const)(
+        'orders a %s clear after an older pending local save',
+        async (mode) => {
+            const f = fixture(mode);
+            const { runtime } = f.makeRuntime();
+            await runtime.setEnabled(false);
+            f.recover();
+            let release!: () => void;
+            let started!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const entered = new Promise<void>((resolve) => {
+                started = resolve;
+            });
+            const save = f.save.getMockImplementation()!;
+            f.save.mockImplementationOnce(async (...args) => {
+                started();
+                await held;
+                await save(...args);
+            });
+            const writing = runtime.invoke(f.raw, 'savePlaybackPosition', [
+                f.sourceId,
+                {
+                    ...f.position,
+                    positionSeconds: 65,
+                    activitySessionId: 'synthetic-local-session',
+                },
+            ]);
+            await entered;
+            const clearing = runtime.invoke(f.raw, 'clearPlaybackPosition', [
+                f.sourceId,
+                42,
+                'vod',
+            ]);
+            for (let i = 0; i < 30; i++) await Promise.resolve();
+            release();
+            await Promise.all([writing, clearing]);
+            await runtime.setEnabled(false);
+            expect(runtime.enabled()).toBe(false);
+            expect(f.rows()).toEqual([]);
+            expect(f.request).not.toHaveBeenCalled();
+        }
+    );
+
     it('waits for in-flight local writes before completing opt-out', async () => {
         const f = fixture('native');
         const { runtime } = f.makeRuntime();
