@@ -255,3 +255,8 @@ mat-card {
 .grid-list__tail--error button {
     @include controls.secondary-button;
 }
+
+.grid-filter-clear,
+.grid-list__tail button {
+    app-region: no-drag;
+}

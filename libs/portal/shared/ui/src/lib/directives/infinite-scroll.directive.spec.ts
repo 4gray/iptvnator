@@ -12,6 +12,7 @@ import { InfiniteScrollDirective } from './infinite-scroll.directive';
         [infiniteItemCount]="itemCount()"
         [infiniteResetKey]="resetKey()"
         (infiniteLoadMore)="onLoadMore()"
+        (infiniteAutoFillStalled)="stalls = stalls + 1"
     ></div>`,
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [InfiniteScrollDirective],
@@ -22,6 +23,7 @@ class TestHostComponent {
     readonly itemCount = signal(0);
     readonly resetKey = signal('a');
     loads = 0;
+    stalls = 0;
 
     onLoadMore(): void {
         this.loads += 1;
@@ -175,6 +177,7 @@ describe('InfiniteScrollDirective', () => {
         }
 
         expect(host.loads).toBe(3);
+        expect(host.stalls).toBeGreaterThan(0);
     });
 
     it('resets the stall guard when the reset key changes', () => {

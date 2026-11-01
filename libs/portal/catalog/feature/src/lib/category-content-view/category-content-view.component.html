@@ -62,6 +62,24 @@
                                 <mat-icon iconPositionEnd>close</mat-icon>
                             </button>
                         }
+                        @if (hideWatched.active()) {
+                            <button
+                                type="button"
+                                mat-button
+                                class="refinement-chip hide-watched-chip"
+                                (click)="hideWatched.set(false)"
+                                [attr.aria-label]="
+                                    'WORKSPACE.REFINE_HIDE_WATCHED_CLEAR'
+                                        | translate
+                                "
+                            >
+                                <mat-icon>visibility_off</mat-icon>
+                                <span class="refinement-chip-label">{{
+                                    'WORKSPACE.REFINE_HIDE_WATCHED' | translate
+                                }}</span>
+                                <mat-icon iconPositionEnd>close</mat-icon>
+                            </button>
+                        }
                         @if (watchFilter.active()) {
                             <button
                                 type="button"
@@ -189,6 +207,24 @@
                                 </button>
                             </div>
                         }
+                        @if (hideWatched.supported()) {
+                            <button
+                                mat-menu-item
+                                role="menuitemcheckbox"
+                                [attr.aria-checked]="hideWatched.active()"
+                                [disabled]="!hideWatched.ready()"
+                                (click)="hideWatched.set(!hideWatched.active())"
+                            >
+                                <mat-icon>{{
+                                    hideWatched.active()
+                                        ? 'check_box'
+                                        : 'check_box_outline_blank'
+                                }}</mat-icon>
+                                <span>{{
+                                    'WORKSPACE.REFINE_HIDE_WATCHED' | translate
+                                }}</span>
+                            </button>
+                        }
                         @if (watchFilter.canFilter()) {
                             @if (canSortContent() && !canFilterByRating()) {
                                 <div
@@ -286,6 +322,24 @@
                     </mat-menu>
                 }
             </div>
+            @if (hideWatched.error()) {
+                <div class="catalog-progress-notice" role="alert">
+                    <span>{{
+                        'WORKSPACE.REFINE_HIDE_WATCHED_ERROR' | translate
+                    }}</span>
+                    <button
+                        type="button"
+                        mat-button
+                        (click)="hideWatched.retry()"
+                    >
+                        {{ 'RETRY' | translate }}
+                    </button>
+                </div>
+            } @else if (hideWatched.supported() && hideWatched.loading()) {
+                <div class="catalog-progress-notice" role="status">
+                    {{ 'WORKSPACE.REFINE_WATCH_LOADING' | translate }}
+                </div>
+            }
             @if (contentError()) {
                 <section class="catalog-load-error" role="alert">
                     <app-playlist-error-view
@@ -361,11 +415,19 @@
                     [infiniteHasMore]="infiniteHasMore()"
                     [infiniteAppending]="infiniteAppending()"
                     [infiniteItemCount]="contentWithProgress().length"
-                    [infiniteResetKey]="gridResetKey()"
+                    [infiniteResetKey]="
+                        gridResetKey() + hideWatched.resumeVersion()
+                    "
                     (infiniteLoadMore)="onLoadMore()"
+                    (infiniteAutoFillStalled)="hideWatched.pause()"
                     [isLoading]="isPaginatedContentLoading()"
                     [isAppending]="infiniteAppending()"
                     [appendError]="infiniteAppendError()"
+                    [refinementActive]="hideWatched.active()"
+                    [sourceHasMore]="sourceHasMore()"
+                    [loadMorePaused]="hideWatched.paused()"
+                    (continueLoading)="hideWatched.continueLoading()"
+                    (clearRefinement)="hideWatched.set(false)"
                     (retryLoadMore)="onRetryAppend()"
                     [items]="contentWithProgress()"
                     (itemClicked)="onItemClick($event)"

@@ -311,7 +311,10 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
                 playlistId,
                 position
             ),
-        onSaved: (position) => this.vodPosition.position.set(position),
+        onSaved: (position) => {
+            this.vodPosition.position.set(position);
+            this.catalog.applyPlaybackPosition(position);
+        },
     });
 
     handleInlineTimeUpdate(event: {
