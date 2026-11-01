@@ -42,7 +42,7 @@ describe('playlistReducers', () => {
             ).toBe(state);
         }
     );
-    it('drops removed source metadata while retaining only the parsed payload', () => {
+    it('drops removed source metadata without duplicating the active channel payload', () => {
         const before = {
             _id: 'shared',
             title: 'Before',
@@ -53,7 +53,11 @@ describe('playlistReducers', () => {
         } as Playlist;
         const state = {
             ...initialState,
-            playlists: playlistsAdapter.addOne(before, initialState.playlists),
+            channels: before.playlist.items,
+            playlists: {
+                ...playlistsAdapter.addOne(before, initialState.playlists),
+                selectedId: before._id,
+            },
         };
         const incoming = {
             _id: 'shared',
@@ -69,11 +73,30 @@ describe('playlistReducers', () => {
                 authoritative: true,
             })
         );
-        expect(next.playlists.entities['shared']).toEqual({
-            ...incoming,
-            playlist: before.playlist,
-        });
+        expect(next.playlists.entities['shared']).toEqual(incoming);
+        expect(next.channels).toBe(state.channels);
+        expect(next.playlists.selectedId).toBe(before._id);
     });
+    it('does not recreate a removed source after delayed shared hydration', () => {
+        const playlist = {
+            _id: 'removed-source',
+            title: 'Synthetic removed source',
+            count: 1,
+            importDate: '',
+            lastUsage: '',
+            playlist: { items: [{ name: 'Synthetic channel' }] },
+        } as Playlist;
+        const next = reducer(
+            initialState,
+            PlaylistActions.hydrateSharedPlaylist({
+                playlistId: playlist._id,
+                playlist,
+            })
+        );
+        expect(next.playlists).toBe(initialState.playlists);
+        expect(next.channels).toBe(initialState.channels);
+    });
+
     it('rehydrates an open shared M3U with the latest parsed channels', () => {
         const playlist = {
             _id: 'shared',
@@ -108,12 +131,14 @@ describe('playlistReducers', () => {
         expect(next.channels).toEqual(updated.playlist.items);
         expect(
             (next.playlists.entities[playlist._id] as Playlist)?.playlist
-        ).toEqual(updated.playlist);
+        ).toBeUndefined();
+        expect(next.playlists.entities[playlist._id]?.title).toBe('After');
+        expect(updated.playlist.items).toEqual([{ name: 'New channel' }]);
         expect(next.playlists.entities[playlist._id]?.favorites).toEqual([
             'local-favorite',
         ]);
     });
-    it('applies remote renames and deletions while preserving the retained active payload', () => {
+    it('applies remote renames and deletions without retaining a second payload', () => {
         const kept = {
             _id: 'keep',
             title: 'Before',
@@ -138,9 +163,9 @@ describe('playlistReducers', () => {
             })
         );
         expect(next.playlists.entities['keep']?.title).toBe('After');
-        expect((next.playlists.entities['keep'] as Playlist)?.playlist).toEqual(
-            kept.playlist
-        );
+        expect(
+            (next.playlists.entities['keep'] as Playlist)?.playlist
+        ).toBeUndefined();
         expect(next.playlists.entities['removed']).toBeUndefined();
     });
     it('keeps explicit empty Xtream selections in metadata and retains them on unrelated edits', () => {
@@ -636,7 +661,11 @@ describe('playlistReducers', () => {
             many,
             PlaylistActions.updateManyPlaylists({ playlists: [full] })
         );
-        expect(payloadOf(updatedMany)).toEqual([undefined, undefined, undefined]);
+        expect(payloadOf(updatedMany)).toEqual([
+            undefined,
+            undefined,
+            undefined,
+        ]);
         // The action payload itself is left intact for the effects that persist it.
         expect(full.playlist.items).toEqual([channel]);
     });

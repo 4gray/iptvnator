@@ -126,6 +126,41 @@ describe('GridListComponent row windowing', () => {
         expect(host.classList).not.toContain('grid-list--windowed');
     });
 
+    it('keeps filtered-result recovery controls when the TV window becomes empty', async () => {
+        await create(movies(200));
+        await scrollTo(GRID_OFFSET + 20 * PITCH);
+        const resume = jest.fn();
+        const clear = jest.fn();
+        fixture.componentInstance.continueLoading.subscribe(resume);
+        fixture.componentInstance.clearRefinement.subscribe(clear);
+        fixture.componentRef.setInput('items', []);
+        fixture.componentRef.setInput('refinementActive', true);
+        fixture.componentRef.setInput('sourceHasMore', true);
+        fixture.componentRef.setInput('loadMorePaused', true);
+        await render();
+
+        expect(cards()).toHaveLength(0);
+        expect(grid().style.paddingTop).toBe('0px');
+        expect(grid().style.paddingBottom).toBe('0px');
+        expect(host.textContent).toContain(
+            'WORKSPACE.REFINE_HIDE_WATCHED_PARTIAL'
+        );
+        host.querySelector<HTMLButtonElement>(
+            '.grid-list__tail button'
+        )!.click();
+        host.querySelector<HTMLButtonElement>('.grid-filter-clear')!.click();
+        expect(resume).toHaveBeenCalledTimes(1);
+        expect(clear).toHaveBeenCalledTimes(1);
+
+        fixture.componentRef.setInput('sourceHasMore', false);
+        fixture.componentRef.setInput('loadMorePaused', false);
+        await render();
+        expect(host.textContent).toContain(
+            'WORKSPACE.REFINE_HIDE_WATCHED_EMPTY'
+        );
+        expect(host.querySelector('.grid-list__tail')).toBeNull();
+    });
+
     it('renders only the rows around the viewport in the TV shell', async () => {
         await create(movies(200));
 
