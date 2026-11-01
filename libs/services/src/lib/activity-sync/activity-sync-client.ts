@@ -1,4 +1,17 @@
-import { ActivityActionFence } from './activity-action-fence';
+import {
+    commitActivity,
+    type FailedActivitySession,
+} from './activity-sync-committed';
+import {
+    readActivityContext,
+    activityContextVersion,
+    activityConsentMatches,
+    type ActivityContextVersion,
+} from './activity-sync-context';
+import {
+    ActivityActionFence,
+    ActivitySupersededError,
+} from './activity-action-fence';
 import { ActivityMutationBarrier } from './activity-mutation-barrier';
 import { ActivityDeliveryCoordinator } from './activity-delivery-coordinator';
 import { createRandomId } from '@iptvnator/shared/interfaces';
@@ -59,6 +72,10 @@ export interface ActivityClientOptions {
 
 /** All network work is secondary to the durable local mutation. */
 export class ActivitySyncClient {
+    readonly consentMatches = activityConsentMatches.bind(this);
+    readonly committed = commitActivity.bind(this);
+    readonly readContext = readActivityContext.bind(this);
+    readonly contextVersions = new Map<string, ActivityContextVersion>();
     readonly actions = new ActivityActionFence();
     readonly contexts = new Map<string, ActivitySourceContext>();
     readonly aliases = new Map<string, PlaybackPositionData>();
@@ -68,10 +85,7 @@ export class ActivitySyncClient {
     >();
     readonly delivery = new ActivityDeliveryCoordinator(this);
     readonly retiredSessions = new Set<string>();
-    readonly localSessions = new Map<
-        string,
-        { sourceId: string; incarnation?: string }
-    >();
+    readonly localSessions = new Map<string, FailedActivitySession>();
     private flushing?: Promise<void>;
     private readonly mutations = new ActivityMutationBarrier();
     readonly store: ActivityLocalStore;
@@ -90,7 +104,15 @@ export class ActivitySyncClient {
             this.contexts.set(context.sourceId, context);
     }
 
-    acceptContext(context: ActivitySourceContext): void {
+    forgetContext(sourceId: string): void {
+        const version = activityContextVersion(this, sourceId);
+        version.accepted = ++version.next;
+        this.contexts.delete(sourceId);
+    }
+
+    acceptContext(context: ActivitySourceContext, sequence?: number): void {
+        const version = activityContextVersion(this, context.sourceId);
+        version.accepted = sequence ?? ++version.next;
         const previous = this.contexts.get(context.sourceId);
         for (const [id, session] of this.localSessions) {
             if (session.sourceId !== context.sourceId) continue;
@@ -131,16 +153,7 @@ export class ActivitySyncClient {
         currentAction?: () => boolean
     ): Promise<ActivityAddress> {
         let context = this.contexts.get(sourceId);
-        if (!context) {
-            context = (await this.request({
-                operation: 'activity-context',
-                id: sourceId,
-            })) as ActivitySourceContext;
-            if (currentAction && !currentAction())
-                throw new Error('Activity launch superseded');
-            this.acceptContext(context);
-            this.options.remember?.([...this.contexts.values()]);
-        }
+        if (!context) context = await this.readContext(sourceId, currentAction);
         const id = String(position.contentXtreamId);
         let content: ActivityContentIdentity | undefined =
             position.activityIdentity;
@@ -208,12 +221,7 @@ export class ActivitySyncClient {
     async refresh(sourceId: string): Promise<void> {
         if (!this.options.consent()) return;
         try {
-            const context = (await this.request({
-                operation: 'activity-context',
-                id: sourceId,
-            })) as ActivitySourceContext;
-            this.acceptContext(context);
-            this.options.remember?.([...this.contexts.values()]);
+            const context = await this.readContext(sourceId);
             let cursor: string | undefined;
             const seen = new Set<string>();
             do {
@@ -255,7 +263,8 @@ export class ActivitySyncClient {
             } while (cursor);
             this.options.changed();
             await this.flush();
-        } catch {
+        } catch (error) {
+            if (error instanceof ActivitySupersededError) return;
             this.options.status('offline');
         }
     }
@@ -279,7 +288,8 @@ export class ActivitySyncClient {
             position,
             currentAction
         ).catch((error) => {
-            if (currentAction()) throw error;
+            if (currentAction() && !(error instanceof ActivitySupersededError))
+                throw error;
         });
         if (!address) return;
         const watched =
@@ -316,10 +326,14 @@ export class ActivitySyncClient {
                 };
             })
             .catch((error) => {
-                if (currentAction()) throw error;
+                if (
+                    currentAction() &&
+                    !(error instanceof ActivitySupersededError)
+                )
+                    throw error;
             });
         if (currentAction() && this.consentMatches(consentGeneration))
-            this.options.committed?.(sourceId, position, 'command');
+            this.committed(sourceId, position, 'command');
         this.options.changed();
         await this.flush();
     }
@@ -381,16 +395,6 @@ export class ActivitySyncClient {
                 activityIdentityKey(address.content),
             ])
         );
-    }
-    consentMatches(generation?: string): boolean {
-        try {
-            return (
-                generation !== undefined &&
-                this.options.consent() === generation
-            );
-        } catch {
-            return false;
-        }
     }
     consent(): string {
         const consent = this.options.consent();

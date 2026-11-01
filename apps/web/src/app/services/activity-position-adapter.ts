@@ -69,6 +69,13 @@ export class ActivityPositionAdapter {
                         await this.saveLocalOnly(raw, sourceId, position);
                         continue;
                     }
+                    if (
+                        position.activitySessionId &&
+                        this.client.retiredSessions.has(
+                            position.activitySessionId
+                        )
+                    )
+                        continue;
                     // Compatibility migrations and restores are local writes, never consent to upload.
                     if (
                         !position.activitySessionId &&

@@ -2,6 +2,8 @@ import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import type { ActivityAddress } from '@iptvnator/shared/interfaces/activity-sync';
 import { activityIdentityKey } from './activity-projection';
 
+export class ActivitySupersededError extends Error {}
+
 /** Explicit actions supersede older launches, including their failure fallback. */
 export class ActivityActionFence {
     private readonly current = new Map<string, object>();
@@ -10,6 +12,23 @@ export class ActivityActionFence {
         sourceId: string,
         position: Partial<PlaybackPositionData>
     ): () => boolean {
+        return this.advance(this.keys(sourceId, position));
+    }
+
+    watch(
+        sourceId: string,
+        position: Partial<PlaybackPositionData>
+    ): () => boolean {
+        const keys = this.keys(sourceId, position);
+        const tokens = keys.map((key) => this.current.get(key));
+        return () =>
+            keys.every((key, index) => this.current.get(key) === tokens[index]);
+    }
+
+    private keys(
+        sourceId: string,
+        position: Partial<PlaybackPositionData>
+    ): string[] {
         const keys = [
             JSON.stringify([
                 'raw',
@@ -26,7 +45,7 @@ export class ActivityActionFence {
                     activityIdentityKey(position.activityIdentity),
                 ])
             );
-        return this.advance(keys);
+        return keys;
     }
 
     address(

@@ -19,7 +19,10 @@ import {
     PlaybackPositionRuntimeBridgeService,
 } from '@iptvnator/services';
 import { SourceSyncService } from '@iptvnator/services/source-sync';
-import { ActivitySyncClient } from '@iptvnator/services/activity-sync';
+import {
+    ActivitySyncClient,
+    ActivitySupersededError,
+} from '@iptvnator/services/activity-sync';
 import {
     type ActivityAddress,
     type ActivityLocalRecord,
@@ -192,8 +195,9 @@ export class ActivitySyncRuntime {
                 ...position,
                 positionSeconds: startTime,
             });
-        } catch {
-            this.reportStorageFailure();
+        } catch (error) {
+            if (!(error instanceof ActivitySupersededError))
+                this.reportStorageFailure();
         }
     }
 
@@ -337,7 +341,7 @@ export class ActivitySyncRuntime {
             const client = this.ensureClient();
             const sourceIds = await this.sourceIds();
             for (const cached of client.contexts.keys())
-                if (!sourceIds.includes(cached)) client.contexts.delete(cached);
+                if (!sourceIds.includes(cached)) client.forgetContext(cached);
             for (const sourceId of sourceIds) await client.refresh(sourceId);
             await this.summary();
             announceActivityChange();

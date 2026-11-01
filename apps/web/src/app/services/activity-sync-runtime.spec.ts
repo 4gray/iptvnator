@@ -12,7 +12,10 @@ import {
     PwaXtreamDataSource,
     type IXtreamDataSource,
 } from '@iptvnator/portal/xtream/data-access';
-import type { ActivitySyncClient } from '@iptvnator/services/activity-sync';
+import {
+    ActivitySupersededError,
+    type ActivitySyncClient,
+} from '@iptvnator/services/activity-sync';
 import {
     emptyActivityState,
     type ActivityAddress,
@@ -118,6 +121,9 @@ function fixture() {
         flush: jest.fn(async () => undefined),
         stopDelivery: jest.fn(async () => undefined),
     } as unknown as ActivitySyncClient;
+    client.forgetContext = (id) => {
+        client.contexts.delete(id);
+    };
     const adapter = {
         invoke: jest.fn(
             async (
@@ -398,6 +404,22 @@ describe('activity runtime lifecycle and settings orchestration', () => {
         );
         expect(f.runtime.state()).toBe('disabling');
         expect(f.runtime.error()).toBe(true);
+    });
+
+    it('keeps a healthy connection status when an older launch is superseded', async () => {
+        const f = fixture();
+        f.activate();
+        f.runtime.state.set('ready');
+        f.begin.mockRejectedValueOnce(
+            new ActivitySupersededError('Activity launch superseded')
+        );
+        await f.runtime.begin({
+            ...position,
+            playlistId: address.sourceId,
+            activitySessionId: 'synthetic-superseded',
+        });
+        expect(f.runtime.state()).toBe('ready');
+        expect(f.runtime.error()).toBe(false);
     });
 
     it('summarizes conflicts, retries failed choices and keeps parked changes local unless explicitly sent', async () => {

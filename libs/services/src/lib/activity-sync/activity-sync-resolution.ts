@@ -199,17 +199,9 @@ export async function resolveActivity(
     }
     if (!preserveLocal && active) {
         if (previousPosition)
-            this.options.committed?.(
-                address.sourceId,
-                previousPosition,
-                'command'
-            );
+            this.committed(address.sourceId, previousPosition, 'command');
         if (committed.position)
-            this.options.committed?.(
-                address.sourceId,
-                committed.position,
-                'command'
-            );
+            this.committed(address.sourceId, committed.position, 'command');
     }
     this.options.changed();
     await this.flush();

@@ -1,3 +1,4 @@
+import { ActivitySupersededError } from './activity-action-fence';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import {
@@ -34,12 +35,14 @@ export function beginActivity(
         const address = await this.address(sourceId, position, currentAction);
         incarnation = address.sourceIncarnation;
         let generation = 0;
-        if (!currentAction()) throw new Error('Activity launch superseded');
+        if (!currentAction())
+            throw new ActivitySupersededError('Activity launch superseded');
         if (!this.consentMatches(consentGeneration))
             throw new Error('Activity consent changed');
         this.delivery.begins.set(operationId, consentGeneration);
         const committed = await this.store.mutate(address, (current) => {
-            if (!currentAction()) throw new Error('Activity launch superseded');
+            if (!currentAction())
+                throw new ActivitySupersededError('Activity launch superseded');
             if (!this.consentMatches(consentGeneration))
                 throw new Error('Activity consent changed');
             const state = current?.state ?? emptyActivityState();
@@ -97,17 +100,29 @@ export function beginActivity(
         if (active) {
             this.localSessions.delete(sessionId);
             this.retiredSessions.delete(sessionId);
-            this.options.committed?.(sourceId, position, 'begin');
+            this.committed(sourceId, position, 'begin');
         }
         this.options.changed();
         void this.flush();
         return { address, generation };
     })().catch((error) => {
-        const superseded = !currentAction();
+        const superseded =
+            !currentAction() || error instanceof ActivitySupersededError;
         const obsolete = superseded || !this.consentMatches(launchConsent);
         if (superseded) this.retiredSessions.add(sessionId);
         if (obsolete) this.localSessions.delete(sessionId);
-        else this.localSessions.set(sessionId, { sourceId, incarnation });
+        else
+            this.localSessions.set(sessionId, {
+                sourceId,
+                incarnation,
+                position: {
+                    contentType: position.contentType,
+                    contentXtreamId: position.contentXtreamId,
+                    ...(position.activityIdentity
+                        ? { activityIdentity: { ...position.activityIdentity } }
+                        : {}),
+                },
+            });
         this.delivery.settled(operationId);
         if (this.sessions.get(sessionId) === begin)
             this.sessions.delete(sessionId);
@@ -130,7 +145,7 @@ export async function saveActivity(
     position: PlaybackPositionData
 ): Promise<'local-only' | void> {
     const currentAction = position.activitySessionId
-        ? () => true
+        ? this.actions.watch(sourceId, position)
         : this.actions.position(sourceId, position);
     const failed = position.activitySessionId
         ? this.localSessions.get(position.activitySessionId)
@@ -167,7 +182,17 @@ export async function saveActivity(
         throw error;
     }
     const address =
-        session?.address ?? (await this.address(sourceId, position));
+        session?.address ??
+        (await this.address(sourceId, position, currentAction).catch(
+            (error) => {
+                if (
+                    currentAction() &&
+                    !(error instanceof ActivitySupersededError)
+                )
+                    throw error;
+            }
+        ));
+    if (!address) return;
     if (sessionId && !session) {
         // External players may outlive the renderer. A checkpoint can recover
         // durable ownership, but only an explicit launch may acquire it.
@@ -198,7 +223,8 @@ export async function saveActivity(
     let committed: ActivityLocalRecord;
     try {
         committed = await this.store.mutate(address, (current) => {
-            if (!currentAction()) throw new Error('Activity action superseded');
+            if (!currentAction())
+                throw new ActivitySupersededError('Activity action superseded');
             const state = current?.state ?? emptyActivityState();
             if (
                 session &&
@@ -284,11 +310,7 @@ export async function saveActivity(
     );
     const localOnly = persisted && this.options.consent() !== consentGeneration;
     if (persisted && !localOnly)
-        this.options.committed?.(
-            sourceId,
-            position,
-            session ? 'checkpoint' : 'command'
-        );
+        this.committed(sourceId, position, session ? 'checkpoint' : 'command');
     this.options.changed();
     // Another window may finish opt-out while this local commit is in flight.
     if (localOnly) return 'local-only';
@@ -304,13 +326,15 @@ export async function resetActivity(
     const consentGeneration = this.consent();
     const address = await this.address(sourceId, position, currentAction).catch(
         (error) => {
-            if (currentAction()) throw error;
+            if (currentAction() && !(error instanceof ActivitySupersededError))
+                throw error;
         }
     );
     if (!address) return;
     const committed = await this.store
         .mutate(address, (current) => {
-            if (!currentAction()) throw new Error('Activity action superseded');
+            if (!currentAction())
+                throw new ActivitySupersededError('Activity action superseded');
             const state = current?.state ?? emptyActivityState();
             const operation: ActivityOperation = {
                 kind: 'reset',
@@ -341,13 +365,14 @@ export async function resetActivity(
             };
         })
         .catch((error) => {
-            if (currentAction()) throw error;
+            if (currentAction() && !(error instanceof ActivitySupersededError))
+                throw error;
         });
     if (!committed) return;
     if (currentAction() && this.consentMatches(consentGeneration)) {
-        this.options.committed?.(sourceId, position, 'command');
+        this.committed(sourceId, position, 'command');
         if (committed.position)
-            this.options.committed?.(sourceId, committed.position, 'command');
+            this.committed(sourceId, committed.position, 'command');
     }
     this.options.changed();
     void this.flush();

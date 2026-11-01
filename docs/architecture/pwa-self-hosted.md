@@ -1020,7 +1020,11 @@ compare-and-swap attempt checks the explicit-action fence again, including
 watched/reset, import and conflict resolution mutations. Reset/import context
 lookups also reject obsolete responses before updating the source cache. Command acknowledgements
 clear local ownership only while their action and consent are still current.
-A reset retires a failed launch even before its first local checkpoint.
+Confirmed commands retire failed fallback owners by content identity even before
+their first local checkpoint. A local conflict choice may reacquire its own player
+session. Context reads retain their request order: older replies may reuse the
+same incarnation, but cannot replace a newer accepted incarnation or recreate a
+removed source. Superseded work settles without changing connection status.
 Transferring fallback ownership to a new launch retains any unfinished raw snapshot
 and its acknowledgement token until the raw writer succeeds.
 A delayed shared-save completion may fall back locally only while its original
