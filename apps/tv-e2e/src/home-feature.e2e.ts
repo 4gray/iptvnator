@@ -500,7 +500,9 @@ test('Home retains saved series-wide artwork without using episode stills and pr
     await page.route('https://artwork.test/**', (route) =>
         route.fulfill({
             contentType: 'image/svg+xml',
-            body: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="170"><rect width="300" height="170" fill="#37544b"/></svg>',
+            body: route.request().url().includes('poster')
+                ? '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450"><rect width="300" height="450" fill="#37544b"/><rect x="8" y="8" width="284" height="434" fill="none" stroke="#cbd9d0" stroke-width="8"/></svg>'
+                : '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="170"><rect width="300" height="170" fill="#37544b"/></svg>',
         })
     );
     await page.route('**/xtream?**', async (route) => {
@@ -548,6 +550,22 @@ test('Home retains saved series-wide artwork without using episode stills and pr
         'src',
         poster
     );
+    const cover = page.locator('.resume-art').first();
+    const box = await cover.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width / box!.height).toBeCloseTo(2 / 3, 2);
+    await expect(cover.locator('img')).toHaveCSS('object-fit', 'contain');
+    const cardBox = await page.locator('.resume-card').first().boundingBox();
+    const actionBox = await page
+        .locator('.resume-action')
+        .first()
+        .boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(actionBox).not.toBeNull();
+    expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(
+        cardBox!.y + cardBox!.height
+    );
+    await page.screenshot({ path: test.info().outputPath('series-cover.png') });
     await page.evaluate(
         (still) =>
             new Promise<void>((resolve, reject) => {
@@ -589,6 +607,10 @@ test('Home retains saved series-wide artwork without using episode stills and pr
         episodeStill
     );
     await page.reload();
+    await expect(page.locator('.resume-card img').first()).toHaveAttribute(
+        'src',
+        poster
+    );
     await expect(page.locator('.page-backdrop img')).toHaveAttribute(
         'src',
         savedWide
