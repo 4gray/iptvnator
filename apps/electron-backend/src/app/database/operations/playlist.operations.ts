@@ -116,7 +116,9 @@ export async function createPlaylist(
     // A server profile receives complete source rows through projection.
     // A delayed portal-session fallback must never recreate a removed row.
     if (/^[a-f0-9]{64}$/.test(process.env.IPTVNATOR_SOURCE_PROFILE ?? '')) {
-        const existing = await db.select({ id: schema.playlists.id }).from(schema.playlists)
+        const existing = await db
+            .select({ id: schema.playlists.id })
+            .from(schema.playlists)
             .where(eq(schema.playlists.id, playlist.id));
         if (!existing.length) throw new Error('Shared source no longer exists');
         return { success: true };
@@ -241,6 +243,7 @@ export async function getAppPlaylistMetas(db: AppDatabase) {
             detectedEpgUrls: schema.playlists.detectedEpgUrls,
             manualEpgUrls: schema.playlists.manualEpgUrls,
             disabledEpgUrls: schema.playlists.disabledEpgUrls,
+            autoImportEpg: schema.playlists.autoImportEpg,
             autoRefresh: schema.playlists.autoRefresh,
             macAddress: schema.playlists.macAddress,
             url: schema.playlists.url,

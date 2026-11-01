@@ -262,6 +262,7 @@ describe('PlaylistsService', () => {
                     _id: 'playlist-meta',
                     title: 'Metadata Playlist',
                     count: 2,
+                    epgUrls: ['https://guide.example.test/legacy.xml'],
                     favorites: ['channel-1'],
                     playlist: {
                         items: [{ id: 'channel-1' }],
@@ -289,11 +290,13 @@ describe('PlaylistsService', () => {
         expect(playlists).toEqual([
             expect.objectContaining({
                 _id: 'playlist-meta',
+                epgUrls: ['https://guide.example.test/legacy.xml'],
                 title: 'Metadata Playlist',
                 favorites: ['channel-1'],
             }),
         ]);
         expect(playlists[0]).not.toHaveProperty('playlist');
+        expect(playlists[0]).not.toHaveProperty('detectedEpgUrls');
     });
 
     it('normalizes partial SQLite playlists when loading by id', async () => {
@@ -301,6 +304,7 @@ describe('PlaylistsService', () => {
             dbGetAppPlaylist: jest.fn(async () => ({
                 id: 42,
                 count: '3',
+                epgUrls: ['https://guide.example.test/legacy.xml'],
                 url: 'https://example.com/list.m3u',
                 autoRefresh: '',
             })),
@@ -326,6 +330,8 @@ describe('PlaylistsService', () => {
                 _id: '42',
                 title: '',
                 count: 3,
+                epgUrls: ['https://guide.example.test/legacy.xml'],
+                detectedEpgUrls: [],
                 favorites: [],
                 recentlyViewed: [],
                 autoRefresh: false,

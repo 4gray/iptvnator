@@ -52,6 +52,10 @@ async function openChannelDetailsNarrow(
     );
     await expect(dialog.locator('.app-dialog__close')).toBeVisible();
     await expect(dialog.locator('.app-dialog__header')).toBeVisible();
+    await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
+        'transform',
+        'none'
+    );
     return dialog;
 }
 
@@ -77,6 +81,12 @@ async function openAccountInfoDialog(
     await expect(dialog.locator('.account-stat').first()).toBeVisible({
         timeout: 20_000,
     });
+    // Bounding boxes include the opening scale, but scrollbar widths and
+    // computed padding do not. Measure after the surface reaches full size.
+    await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
+        'transform',
+        'none'
+    );
     return dialog;
 }
 
@@ -193,6 +203,17 @@ test.describe('Dialog shell', () => {
             await addXtreamPortal(page);
             await waitForXtreamWorkspaceReady(page);
             await page.setViewportSize({ width: 560, height: 760 });
+            // Exercise classic scrollbar geometry even on overlay-scrollbar
+            // hosts, and make the opening transition observable on fast CPUs.
+            await page.addStyleTag({
+                content: `
+                    .mat-mdc-dialog-surface {
+                        transition-duration: 600ms !important;
+                    }
+                    mat-dialog-content { scrollbar-gutter: stable; }
+                    mat-dialog-content::-webkit-scrollbar { width: 16px; }
+                `,
+            });
             const dialog = await openAccountInfoDialog(page);
             await expect(dialog.locator('.app-dialog__title')).toBeVisible();
             await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(

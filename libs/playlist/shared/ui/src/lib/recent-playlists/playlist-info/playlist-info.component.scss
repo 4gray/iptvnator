@@ -1,0 +1,125 @@
+.playlist-info-fields {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+// The shell renders the body; this wrapper lays the fields out.
+.playlist-info-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+// Room for the first field's floating label under the header.
+.playlist-info-body > mat-form-field:first-child {
+    margin-top: 6px;
+}
+
+.playlist-info-body mat-checkbox {
+    margin-top: 4px;
+}
+
+.playlist-info-body p {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+.playlist-info-body p.stalker-device-id-warning {
+    color: var(--mat-sys-error);
+}
+
+.playlist-epg-sources {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid
+        var(--app-widget-header-border, var(--mat-sys-outline-variant));
+    border-radius: 8px;
+    background: var(--mat-sys-surface-container-low);
+}
+
+.playlist-epg-sources__header {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.playlist-epg-sources__header mat-icon {
+    color: var(--mat-sys-primary);
+}
+
+.playlist-epg-sources__header > div {
+    min-width: 0;
+}
+
+.playlist-epg-sources__title {
+    margin: 0 0 2px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.playlist-epg-source-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+
+    > mat-form-field {
+        min-width: 0;
+    }
+}
+
+.playlist-epg-source-row__actions {
+    display: flex;
+    align-self: start;
+    justify-content: flex-end;
+    gap: 8px;
+    // Material's 48px touch targets extend 4px past the 40px icon buttons.
+    padding: 4px;
+}
+
+.playlist-epg-source-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    span:empty {
+        display: none;
+    }
+}
+
+.playlist-epg-available {
+    min-width: 0;
+
+    .playlist-epg-source-row__actions button {
+        max-width: 100%;
+        min-height: 40px;
+        height: auto;
+        white-space: normal;
+    }
+}
+
+.playlist-epg-source-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.playlist-epg-source-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+    .playlist-epg-source-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

@@ -48,6 +48,8 @@ export interface Playlist {
     manualEpgUrls?: string[];
     /** Detected playlist EPG source URLs explicitly disabled by the user. */
     disabledEpgUrls?: string[];
+    /** Auto-enable newly detected M3U EPG sources. Absent means enabled; manual selections remain explicit. */
+    autoImportEpg?: boolean;
     autoRefresh: boolean;
     updateDate?: number;
     updateState?: PlaylistUpdateState;

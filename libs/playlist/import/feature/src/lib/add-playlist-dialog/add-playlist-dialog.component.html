@@ -58,6 +58,7 @@
             @switch (playlistType()) {
                 @case ('file') {
                     <app-file-upload
+                        [autoImportEpg]="autoImportEpg()"
                         (fileRejected)="rejectFile($event)"
                         (imported)="onFileImported()"
                         (closeDialog)="closeDialog()"
@@ -89,6 +90,24 @@
                         (candidateSelected)="onCandidateSelected($event)"
                     />
                 }
+            }
+            @if (isM3uImport()) {
+                <div class="apd-epg-option">
+                    <mat-checkbox
+                        [checked]="autoImportEpg()"
+                        (change)="autoImportEpg.set($event.checked)"
+                        [disabled]="
+                            urlImport.pending() || !!fileUpload()?.isImporting()
+                        "
+                        aria-describedby="apd-epg-option-hint"
+                        data-test-id="m3u-import-epg"
+                    >
+                        {{ 'HOME.ADD_PLAYLIST.IMPORT_EPG' | translate }}
+                    </mat-checkbox>
+                    <p id="apd-epg-option-hint">
+                        {{ 'HOME.ADD_PLAYLIST.IMPORT_EPG_HINT' | translate }}
+                    </p>
+                </div>
             }
         </div>
         <div appDialogFooterStart>

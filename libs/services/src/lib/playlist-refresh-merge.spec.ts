@@ -42,3 +42,24 @@ describe('canonical playlist refresh merge', () => {
         });
     });
 });
+
+it('preserves EPG opt-out across refreshed headers while retaining manual sources', () => {
+    const before = {
+        _id: 'm3u',
+        url: 'https://provider.test/list',
+        autoImportEpg: false,
+        manualEpgUrls: ['https://epg.test/manual.xml'],
+        disabledEpgUrls: ['https://epg.test/disabled.xml'],
+    } as Playlist;
+    const refreshed = {
+        ...before,
+        autoImportEpg: undefined,
+        detectedEpgUrls: ['https://epg.test/new.xml'],
+        epgUrls: ['https://epg.test/new.xml'],
+    } as Playlist;
+    expect(mergeRefreshedPlaylist(before, refreshed, 'm3u')).toMatchObject({
+        autoImportEpg: false,
+        detectedEpgUrls: ['https://epg.test/new.xml'],
+        epgUrls: ['https://epg.test/manual.xml'],
+    });
+});

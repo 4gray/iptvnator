@@ -188,6 +188,30 @@ There is intentionally **no URL validation** (upstream removed it in 0.15.0): an
 
 The behavioral contract is guarded by `apps/web/src/app/iptv-playlist-parser.contract.spec.ts` (jest maps the module to the real parser source) and by the fork's own test suite.
 
+## EPG choice during M3U import
+
+The M3U URL, file and text forms share a default-on EPG checkbox. It only
+controls sources declared in the imported M3U; entering a URL does not trigger
+a metadata or EPG request. The choice survives import-method switches in the
+open dialog and resets for a new import or Clear.
+
+`Playlist.autoImportEpg: false` retains detected addresses as candidates without
+enabling them. An absent flag keeps the legacy default-on behavior. Refresh,
+local source projection and backup/restore preserve this preference, including
+when a new EPG address appears. Explicitly enabled manual sources still work.
+New backups write an explicit boolean plus enabled, manual and disabled EPG
+sets, so a fresh installation restores all choices, including unknown origins.
+Restore applies those saved overrides before the imported preference; empty
+arrays clear previous overrides. Legacy archives that omit a field retain that
+field from the existing playlist when merged.
+An old archive without EPG headers or override fields also retains existing
+enabled guide addresses whose provenance was never recorded.
+The preference belongs to local playlist state, like manual and disabled EPG
+selections, rather than the portable `SourceDefinition` connection.
+If the source server deduplicates an import to a canonical ID that is not yet
+cached locally, its first projection inherits this import's local EPG choice
+and selection. An existing local canonical row retains its device preferences.
+
 ## Xtream suggestion during URL import
 
 The URL form locally recognizes known Xtream API/download endpoints carrying
@@ -1011,8 +1035,33 @@ import and lookup. Two additional lists preserve user edits:
 
 - `Playlist.manualEpgUrls` stores URLs the user explicitly added for this
   playlist, including detected catalog URLs the user manually enabled.
-- `Playlist.disabledEpgUrls` stores detected URLs the user removed from this
+- `Playlist.disabledEpgUrls` stores source URLs the user removed from this
   playlist so playlist refreshes do not silently re-enable them.
+
+The playlist editor's main Save includes valid new EPG rows in the same metadata
+update as the title and other fields. Draft form controls are never persisted;
+blank rows do not change the stored source set. A failed shared-server save keeps
+the draft available for retry. The separate Save EPG sources action still applies
+only EPG changes immediately; Close does not undo it or an applied source removal.
+Both Save actions wait for pending EPG removals before assembling their source
+state. Main Save prevents new source mutations while it waits and persists, so
+late cleanup cannot overwrite a newly added EPG row.
+
+The editor labels saved rows by recorded provenance: detected URLs are “From
+playlist”, manual-only URLs are “Added manually”, and older rows without either
+record use “Saved source”. Do not infer detection from enabled URLs. SQLite
+metadata and source projections preserve that distinction, including
+legacy rows with only an enabled set. Unknown-origin enabled guides survive
+metadata edits and delayed source writes without being marked as detected.
+Removing one records an exclusion, so a later header parse cannot re-enable it.
+The detected summary counts the intersection of normalized enabled and detected URLs, excluding
+manual-only sources, and describes current enablement rather than initial automatic
+selection. A collapsed list exposes detected remote URLs that are not enabled.
+Its rows mount only while open, initially 25 at a time; Load more reveals the
+next batch and moves focus to its first action. Closing resets the batch limit;
+enabling one applies immediately, records the explicit manual selection and removes
+only that URL's disabled marker. Global EPG membership is a separate visible status;
+adding a URL to global settings does not remove it from the playlist.
 
 - Up to five detected URLs are enabled automatically.
 - Larger header lists are treated as provider catalogs. The importer keeps all
@@ -1043,6 +1092,9 @@ These URLs are playlist-scoped by default:
   EPG fetches only after the playlist persistence call succeeds, and metadata
   updates that do not include any EPG source fields do not evaluate the fetch
   plan.
+  An awaited shared-server save publishes metadata with `persist: false`; it
+  still evaluates EPG changes after that successful save without another write
+  or cancellation of an unrelated pending metadata write.
 - The Electron EPG database stores `source_url` on imported programs so current
   program lookups can ask for the active playlist's EPG sources first. Existing
   databases backfill this column from `epg_channels.source_url` once, in bounded

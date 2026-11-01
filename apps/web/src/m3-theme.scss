@@ -383,7 +383,8 @@ html {
     // resolve inside .dark-theme instead of being inherited as light values.
     // The resting and hover outlines keep the theme's outline roles: the app
     // hairline tokens fall far under the 3:1 boundary contrast a field needs.
-    // Labels use the body token, which clears 4.5:1 in both themes.
+    // The secondary text token clears 4.5:1 on the raised field fill too.
+    // Focus uses the text accent: the selection fill blue is too light in light mode.
     // Text sizes stay on the theme defaults: this theme leaves the floated
     // label's size token undeclared, so it inherits the field's text size and
     // scales it to 75%; a 13px field would float a 10px label.
@@ -392,9 +393,9 @@ html {
             (
                 outlined-focus-outline-color: var(--app-selection-color),
                 outlined-container-shape: 10px,
-                outlined-label-text-color: var(--app-body-color),
-                outlined-hover-label-text-color: var(--app-body-color),
-                outlined-focus-label-text-color: var(--app-selection-color),
+                outlined-label-text-color: var(--app-muted-color),
+                outlined-hover-label-text-color: var(--app-muted-color),
+                outlined-focus-label-text-color: var(--app-selection-text-color),
                 outlined-input-text-color: var(--app-heading-color),
                 outlined-caret-color: var(--app-selection-color),
             )

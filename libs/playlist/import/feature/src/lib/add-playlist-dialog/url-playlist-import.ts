@@ -1,6 +1,7 @@
 import { DestroyRef, inject, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PlaylistActions } from '@iptvnator/m3u-state';
+import { applyPlaylistEpgImportPreference } from '@iptvnator/shared/m3u-utils';
 import { DataService, type PlaylistImportRecovery } from '@iptvnator/services';
 import {
     measureRendererPerformancePhase,
@@ -8,6 +9,7 @@ import {
 } from '@iptvnator/shared/logging';
 
 export interface UrlPlaylistDraft {
+    autoImportEpg?: boolean;
     playlistUrl: string;
     playlistName?: string;
     userAgent?: string;
@@ -43,11 +45,15 @@ export function createUrlPlaylistImport() {
         errorCode.set(null);
         recovery.set(null);
         try {
-            const playlist = await data.fetchPlaylistDefinition(
+            const fetched = await data.fetchPlaylistDefinition(
                 draft.playlistUrl.trim(),
                 draft.userAgent?.trim() || undefined
             );
             if (!current()) return;
+            const playlist = applyPlaylistEpgImportPreference(
+                fetched,
+                draft.autoImportEpg
+            );
             const title = draft.playlistName?.trim();
             measureRendererPerformancePhase(
                 RENDERER_PERFORMANCE_PHASE.M3U_IMPORT_DISPATCH,

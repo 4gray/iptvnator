@@ -21,7 +21,11 @@ export function mergeRefreshedPlaylist(
         !playlistRefreshMatchesSource(currentPlaylist, updatedPlaylist)
     )
         return currentPlaylist;
+    const autoImportEpg = currentPlaylist
+        ? currentPlaylist.autoImportEpg
+        : updatedPlaylist.autoImportEpg;
     const epgSourceState = resolvePlaylistEpgSourceState({
+        autoImportEpg,
         detectedEpgUrls:
             updatedPlaylist.detectedEpgUrls ?? currentPlaylist?.detectedEpgUrls,
         enabledEpgUrls: updatedPlaylist.epgUrls ?? currentPlaylist?.epgUrls,
@@ -49,6 +53,7 @@ export function mergeRefreshedPlaylist(
                   position: currentPlaylist.position,
               }
             : {}),
+        ...(autoImportEpg !== undefined ? { autoImportEpg } : {}),
         epgUrls: epgSourceState.epgUrls,
         detectedEpgUrls: epgSourceState.detectedEpgUrls,
         manualEpgUrls: epgSourceState.manualEpgUrls,

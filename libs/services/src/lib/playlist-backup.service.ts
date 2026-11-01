@@ -1,3 +1,4 @@
+import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
 import {
     hasValidBackupEntryData,
     hasValidBackupSettings,
@@ -290,6 +291,10 @@ export class PlaylistBackupService {
             exportedId: playlist._id,
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
+            autoImportEpg: playlist.autoImportEpg !== false,
+            epgUrls: this.uniqueStrings(playlist.epgUrls ?? []),
+            manualEpgUrls: this.uniqueStrings(playlist.manualEpgUrls ?? []),
+            disabledEpgUrls: this.uniqueStrings(playlist.disabledEpgUrls ?? []),
             position: playlist.position,
             source: {
                 kind: this.resolveM3uSourceKind(playlist),
@@ -846,11 +851,32 @@ export class PlaylistBackupService {
                 entry.source.rawM3u,
                 entry.title
             );
+        const autoImportEpg = entry.autoImportEpg ?? existing?.autoImportEpg;
         const now = new Date().toISOString();
 
         return {
             ...existing,
             ...parsedPlaylist,
+            ...resolvePlaylistEpgSourceState({
+                autoImportEpg,
+                detectedEpgUrls: parsedPlaylist.detectedEpgUrls,
+                enabledEpgUrls:
+                    entry.epgUrls ??
+                    parsedPlaylist.epgUrls ??
+                    (entry.manualEpgUrls === undefined &&
+                    entry.disabledEpgUrls === undefined
+                        ? existing?.epgUrls
+                        : undefined),
+                manualEpgUrls:
+                    entry.manualEpgUrls ??
+                    existing?.manualEpgUrls ??
+                    parsedPlaylist.manualEpgUrls,
+                disabledEpgUrls:
+                    entry.disabledEpgUrls ??
+                    existing?.disabledEpgUrls ??
+                    parsedPlaylist.disabledEpgUrls,
+            }),
+            ...(autoImportEpg !== undefined ? { autoImportEpg } : {}),
             _id: playlistId,
             title: entry.title,
             filename: entry.title,

@@ -42,6 +42,7 @@ export const playlists = sqliteTable('playlists', {
     detectedEpgUrls: text('detected_epg_urls'),
     manualEpgUrls: text('manual_epg_urls'),
     disabledEpgUrls: text('disabled_epg_urls'),
+    autoImportEpg: integer('auto_import_epg', { mode: 'boolean' }),
     autoRefresh: integer('autoRefresh', { mode: 'boolean' }).default(false),
     macAddress: text('macAddress'),
     url: text('url'),

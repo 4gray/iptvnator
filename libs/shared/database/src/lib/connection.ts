@@ -373,6 +373,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE playlists ADD COLUMN detected_epg_urls TEXT`,
     `ALTER TABLE playlists ADD COLUMN manual_epg_urls TEXT`,
     `ALTER TABLE playlists ADD COLUMN disabled_epg_urls TEXT`,
+    // Nullable: older sources keep default-on without rewriting their data.
+    `ALTER TABLE playlists ADD COLUMN auto_import_epg INTEGER`,
     // v1.2.0 -> v1.3.0: Add position column to favorites for global favorites ordering
     `ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0`,
     `ALTER TABLE favorites ADD COLUMN identity_conflict INTEGER NOT NULL DEFAULT 0`,

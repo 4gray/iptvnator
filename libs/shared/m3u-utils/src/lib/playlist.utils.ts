@@ -82,6 +82,7 @@ export interface M3uEpgUrlSelection {
 }
 
 export interface PlaylistEpgSourceStateInput {
+    autoImportEpg?: boolean;
     detectedEpgUrls?: string[];
     enabledEpgUrls?: string[];
     manualEpgUrls?: string[];
@@ -127,6 +128,7 @@ export function resolvePlaylistEpgSourceState(
     ]).filter(
         (url) =>
             !disabledSet.has(url) &&
+            (input.autoImportEpg !== false || manualSet.has(url)) &&
             (isRemoteEpgSourceUrl(url) || manualSet.has(url))
     );
 

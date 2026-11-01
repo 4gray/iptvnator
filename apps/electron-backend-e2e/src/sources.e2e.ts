@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import {
     xtreamMockServer,
+    stalkerMockServer,
     addStalkerPortal,
     addXtreamPortal,
     closeElectronApp,
@@ -50,6 +51,8 @@ const stalkerSourceName = 'Bravo Stalker Portal';
 const editableLocalSourceDisplayName = 'editable-local-source';
 const deletableLocalSourceDisplayName = 'deletable-local-source';
 const refreshLocalSourceDisplayName = 'refresh-local-source';
+const editedXtreamUrl = xtreamMockServer.replace('localhost', '127.0.0.1');
+const editedStalkerUrl = `${stalkerMockServer.replace('localhost', '127.0.0.1')}/portal.php`;
 
 test.describe('Electron Sources View', () => {
     test('detects HTTP on Test connection and persists it for refresh, EPG and playback', async ({
@@ -97,14 +100,18 @@ test.describe('Electron Sources View', () => {
             await openSources(page);
             dialog = await openSourceEditor(page, title);
             await dialog.locator('[formControlName="password"]').fill('');
-            await dialog
-                .getByRole('button', {
+            await dialog.locator('[formControlName="password"]').blur();
+            await expect(
+                dialog.getByRole('button', {
                     name: 'Test HTTPS and HTTP',
                     exact: true,
                 })
-                .click();
-            await expect(dialog.getByRole('status')).toContainText(
-                'Enter a username and password'
+            ).toBeDisabled();
+            await expect(
+                dialog.getByRole('button', { name: 'Save', exact: true })
+            ).toBeDisabled();
+            await expect(dialog.locator('mat-error')).toHaveText(
+                'Enter a password.'
             );
             await dialog
                 .locator('[formControlName="password"]')
@@ -404,7 +411,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await updateSourceDialog(dialog, {
                 password: 'pass1',
-                serverUrl: 'http://127.0.0.1:3211',
+                serverUrl: editedXtreamUrl,
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
@@ -416,7 +423,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await updateSourceDialog(dialog, {
                 macAddress: '00:1A:79:00:00:99',
-                portalUrl: 'http://127.0.0.1:3210/portal.php',
+                portalUrl: editedStalkerUrl,
                 title: 'Edited Stalker Source',
             });
             await saveSourceDialog(app.mainWindow, dialog);
@@ -440,7 +447,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 password: 'pass1',
-                serverUrl: 'http://127.0.0.1:3211',
+                serverUrl: editedXtreamUrl,
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
@@ -454,7 +461,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 macAddress: '00:1A:79:00:00:99',
-                portalUrl: 'http://127.0.0.1:3210/portal.php',
+                portalUrl: editedStalkerUrl,
                 title: 'Edited Stalker Source',
             });
             await dialog
@@ -486,7 +493,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 password: 'pass1',
-                serverUrl: 'http://127.0.0.1:3211',
+                serverUrl: editedXtreamUrl,
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
@@ -500,7 +507,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 macAddress: '00:1A:79:00:00:99',
-                portalUrl: 'http://127.0.0.1:3210/portal.php',
+                portalUrl: editedStalkerUrl,
                 title: 'Edited Stalker Source',
             });
         } finally {

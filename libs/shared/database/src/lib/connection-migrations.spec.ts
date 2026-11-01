@@ -523,6 +523,7 @@ describe('ensurePlaylistsPayloadLast', () => {
         'detected_epg_urls',
         'manual_epg_urls',
         'disabled_epg_urls',
+        'auto_import_epg',
         'autoRefresh',
         'macAddress',
         'url',

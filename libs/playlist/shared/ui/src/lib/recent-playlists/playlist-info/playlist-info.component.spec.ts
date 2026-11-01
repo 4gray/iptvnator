@@ -365,7 +365,7 @@ describe('PlaylistInfoComponent', () => {
         });
         createComponent();
 
-        expect(component.playlistEpgUrls).toEqual([
+        expect(component.epg.urls).toEqual([
             'https://playlist.example.com/guide.xml',
             'https://playlist.example.com/backup.xml',
         ]);
@@ -386,21 +386,19 @@ describe('PlaylistInfoComponent', () => {
         });
         createComponent();
 
-        expect(component.playlistDetectedEpgUrls).toEqual([
+        expect(component.epg.detectedUrls).toEqual([
             'https://playlist.example.com/ua.xml',
             'https://playlist.example.com/de.xml',
             'https://playlist.example.com/us.xml',
             'https://playlist.example.com/fr.xml',
         ]);
-        expect(component.hiddenDetectedPlaylistEpgSourceCount).toBe(3);
+        expect(component.epg.hiddenDetectedCount).toBe(3);
     });
 
     it('refreshes a detected playlist EPG source through the runtime bridge', async () => {
         createComponent();
 
-        await component.refreshPlaylistEpgSource(
-            ' https://playlist.example.com/guide.xml '
-        );
+        await component.epg.refresh(' https://playlist.example.com/guide.xml ');
 
         expect(epgBridge.forceFetchEpg).toHaveBeenCalledWith(
             'https://playlist.example.com/guide.xml',
@@ -426,7 +424,7 @@ describe('PlaylistInfoComponent', () => {
         });
         createComponent();
 
-        await component.addPlaylistEpgSourceToSettings(
+        await component.epg.addToSettings(
             'https://new-playlist.example.com/guide.xml'
         );
 
@@ -438,7 +436,7 @@ describe('PlaylistInfoComponent', () => {
             ],
         });
         expect(snackBar.open).toHaveBeenCalledWith(
-            'SETTINGS.ADD_EPG_SOURCE',
+            'SETTINGS.PLAYLIST_EPG_ADDED_GLOBAL',
             'CLOSE',
             { duration: 3000 }
         );
@@ -450,7 +448,7 @@ describe('PlaylistInfoComponent', () => {
         });
         createComponent();
 
-        await component.addPlaylistEpgSourceToSettings(
+        await component.epg.addToSettings(
             ' https://playlist.example.com/guide.xml '
         );
 
@@ -475,9 +473,7 @@ describe('PlaylistInfoComponent', () => {
         });
         createComponent();
 
-        await component.removePlaylistEpgSource(
-            'https://playlist.example.com/remove.xml'
-        );
+        await component.epg.remove('https://playlist.example.com/remove.xml');
 
         expect(epgBridge.clearEpgDataForSource).toHaveBeenCalledWith(
             'https://playlist.example.com/remove.xml'
@@ -529,7 +525,7 @@ describe('PlaylistInfoComponent', () => {
             });
             createComponent();
 
-            await component.removePlaylistEpgSource(
+            await component.epg.remove(
                 'https://playlist.example.com/remove.xml'
             );
 
@@ -559,15 +555,15 @@ describe('PlaylistInfoComponent', () => {
         });
         createComponent();
 
-        component.playlistEpgSourceInputs
+        component.epg.inputs
             .at(0)
             .setValue(' https://playlist.example.com/new.xml ');
-        component.addPlaylistEpgSourceInput();
-        component.playlistEpgSourceInputs
+        component.epg.addInput();
+        component.epg.inputs
             .at(1)
             .setValue('https://playlist.example.com/manual.xml');
 
-        component.savePlaylistEpgSources();
+        component.epg.save();
 
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({
@@ -586,24 +582,24 @@ describe('PlaylistInfoComponent', () => {
                 }),
             })
         );
-        expect(component.playlistEpgSourceInputs.length).toBe(1);
-        expect(component.playlistEpgSourceInputs.at(0).value).toBe('');
+        expect(component.epg.inputs.length).toBe(1);
+        expect(component.epg.inputs.at(0).value).toBe('');
     });
 
     it('fills a playlist-local EPG source input from the native file picker', async () => {
         createComponent();
-        const input = component.playlistEpgSourceInputs.at(0);
-        await component.browsePlaylistEpgSourceInput(0);
+        const input = component.epg.inputs.at(0);
+        await component.epg.browseInput(0);
         expect(input.value).toBe('');
 
         epgBridge.pickEpgFile.mockResolvedValue('/home/user/epg/guide.xml.gz');
-        await component.browsePlaylistEpgSourceInput(0);
+        await component.epg.browseInput(0);
         expect(input.value).toBe('/home/user/epg/guide.xml.gz');
         expect(input.valid).toBe(true);
         expect(input.dirty).toBe(true);
 
         epgBridge.supportsFilePicker = false;
-        await component.browsePlaylistEpgSourceInput(0);
+        await component.epg.browseInput(0);
         expect(epgBridge.pickEpgFile).toHaveBeenCalledTimes(2);
     });
 
@@ -611,8 +607,8 @@ describe('PlaylistInfoComponent', () => {
         createComponent();
         fixture.detectChanges();
 
-        component.playlistEpgSourceInputs.at(0).setValue('not a url');
-        component.savePlaylistEpgSources();
+        component.epg.inputs.at(0).setValue('not a url');
+        component.epg.save();
         fixture.detectChanges();
 
         expect(store.dispatch).not.toHaveBeenCalled();

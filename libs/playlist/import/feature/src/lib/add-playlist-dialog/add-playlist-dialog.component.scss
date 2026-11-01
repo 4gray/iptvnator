@@ -132,3 +132,13 @@
     line-height: 1.5;
     text-align: left;
 }
+
+.apd-epg-option {
+    margin-top: 12px;
+    p {
+        margin: 4px 0 0;
+        color: var(--apd-muted);
+        font-size: 12.5px;
+        line-height: 1.45;
+    }
+}
