@@ -254,6 +254,16 @@ An asset no rule claims is reported as a `NOTE:` and does **not** fail the run:
 a new build target should surface for a human to notice, not block a release
 until the rules catch up.
 
+## Linux CI package installation
+
+The Linux packaging dependency step replaces the runner's Ubuntu `mirror+file`
+source with the official HTTPS archive, preserving suites, components and signing
+keys. This avoids returning to a stalled Azure mirror during index downloads.
+APT requests use a 30-second timeout and one retry. The update must succeed for
+every source (`--error-on=any`) before installation starts; update and install
+have independent five- and ten-minute process limits with a ten-second kill
+grace period. Packaging and test gates remain unchanged.
+
 ## AppImage external-manager metadata
 
 `electron-builder.json` scopes `X-AppImage-Name`, `X-AppImage-Homepage` and
