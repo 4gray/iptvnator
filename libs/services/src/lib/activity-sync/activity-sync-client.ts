@@ -1,3 +1,4 @@
+import { ActivityActionFence } from './activity-action-fence';
 import { ActivityMutationBarrier } from './activity-mutation-barrier';
 import { ActivityDeliveryCoordinator } from './activity-delivery-coordinator';
 import { createRandomId } from '@iptvnator/shared/interfaces';
@@ -58,6 +59,7 @@ export interface ActivityClientOptions {
 
 /** All network work is secondary to the durable local mutation. */
 export class ActivitySyncClient {
+    readonly actions = new ActivityActionFence();
     readonly contexts = new Map<string, ActivitySourceContext>();
     readonly aliases = new Map<string, PlaybackPositionData>();
     readonly sessions = new Map<
@@ -125,7 +127,8 @@ export class ActivitySyncClient {
 
     async address(
         sourceId: string,
-        position: Partial<PlaybackPositionData>
+        position: Partial<PlaybackPositionData>,
+        currentAction?: () => boolean
     ): Promise<ActivityAddress> {
         let context = this.contexts.get(sourceId);
         if (!context) {
@@ -133,6 +136,8 @@ export class ActivitySyncClient {
                 operation: 'activity-context',
                 id: sourceId,
             })) as ActivitySourceContext;
+            if (currentAction && !currentAction())
+                throw new Error('Activity launch superseded');
             this.acceptContext(context);
             this.options.remember?.([...this.contexts.values()]);
         }
@@ -186,6 +191,8 @@ export class ActivitySyncClient {
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<'local-only' | void> {
+        if (!position.activitySessionId)
+            this.actions.position(sourceId, position);
         return this.mutations.track(
             saveActivity.call(this, sourceId, position)
         );
@@ -195,6 +202,7 @@ export class ActivitySyncClient {
         sourceId: string,
         position: Partial<PlaybackPositionData>
     ): Promise<void> {
+        this.actions.position(sourceId, position);
         return this.mutations.track(
             resetActivity.call(this, sourceId, position)
         );
@@ -260,6 +268,7 @@ export class ActivitySyncClient {
         useLocal: boolean,
         preserveLocal = false
     ): Promise<void> {
+        this.actions.address(address, this.alias(address));
         return resolveActivity.call(this, address, useLocal, preserveLocal);
     }
 
@@ -267,6 +276,7 @@ export class ActivitySyncClient {
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<void> {
+        this.actions.position(sourceId, position);
         const address = await this.address(sourceId, position);
         const watched =
             position.watched === true ||

@@ -24,15 +24,17 @@ export function beginActivity(
         return Promise.reject(new Error('Activity session missing'));
     const existing = this.sessions.get(sessionId);
     if (existing) return existing;
+    const currentAction = this.actions.position(sourceId, position);
     let incarnation = this.contexts.get(sourceId)?.sourceIncarnation;
     const operationId = createRandomId();
     let launchConsent: string | undefined;
     const begin = (async () => {
         const consentGeneration = this.consent();
         launchConsent = consentGeneration;
-        const address = await this.address(sourceId, position);
+        const address = await this.address(sourceId, position, currentAction);
         incarnation = address.sourceIncarnation;
         let generation = 0;
+        if (!currentAction()) throw new Error('Activity launch superseded');
         if (!matchesConsent(this, consentGeneration))
             throw new Error('Activity consent changed');
         this.delivery.begins.set(operationId, consentGeneration);
@@ -76,7 +78,9 @@ export function beginActivity(
                 ],
             };
         });
-        const active = matchesConsent(this, consentGeneration);
+        const active =
+            matchesConsent(this, consentGeneration) && currentAction();
+        if (!currentAction()) this.retiredSessions.add(sessionId);
         if (
             active &&
             committed.pending.some(
@@ -96,13 +100,21 @@ export function beginActivity(
         void this.flush();
         return { address, generation };
     })().catch((error) => {
-        const obsolete = !matchesConsent(this, launchConsent);
+        const superseded = !currentAction();
+        const obsolete = superseded || !matchesConsent(this, launchConsent);
+        if (superseded) this.retiredSessions.add(sessionId);
         if (obsolete) this.localSessions.delete(sessionId);
         else this.localSessions.set(sessionId, { sourceId, incarnation });
         this.delivery.settled(operationId);
         if (this.sessions.get(sessionId) === begin)
             this.sessions.delete(sessionId);
-        this.options.failedLaunch?.(sourceId, position, incarnation, obsolete);
+        if (!superseded)
+            this.options.failedLaunch?.(
+                sourceId,
+                position,
+                incarnation,
+                obsolete
+            );
         throw error;
     });
     this.sessions.set(sessionId, begin);

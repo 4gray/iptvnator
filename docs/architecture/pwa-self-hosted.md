@@ -1011,8 +1011,11 @@ Opt-out drains local shared mutations already started in the renderer before
 mirroring. A checkpoint committed after another window pauses consent also
 returns through the local persistence path, preserving that acknowledged point.
 A launch completing after consent pauses cannot clear newer local ownership.
-A superseded launch failure also preserves an existing local snapshot or reset;
+A failure after consent changes preserves an existing local snapshot or reset;
 its callback creates fallback ownership only when no newer local record exists.
+An explicit begin, watched/reset action, import or conflict resolution supersedes
+older launches for the same item. Their delayed context responses and failures
+cannot reclaim fallback ownership or accept an obsolete source context.
 Transferring fallback ownership to a new launch retains any unfinished raw snapshot
 and its acknowledgement token until the raw writer succeeds.
 A delayed shared-save completion may fall back locally only while its original

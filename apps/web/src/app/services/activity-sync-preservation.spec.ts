@@ -61,6 +61,10 @@ function fixture() {
     const client = new ActivitySyncClient(store, {
         committed: (sourceId, position, kind) =>
             localOnly.committed(sourceId, position, kind),
+        failedLaunch: (sourceId, position, _incarnation, preserveLocal) => {
+            if (!preserveLocal || !localOnly.has(sourceId, position))
+                localOnly.mark(sourceId, position);
+        },
         instanceId: address.instanceId,
         deviceId: 'synthetic-device',
         contexts: [context],
@@ -137,6 +141,121 @@ describe('keeping pending activity local', () => {
         localStorage.clear();
         await prepareSourceConnection();
     });
+    it.each(
+        (
+            ['begin', 'reset', 'mark-watched', 'import', 'resolve'] as const
+        ).flatMap((action) =>
+            [false, true].map((succeeds) => ({ action, succeeds }))
+        )
+    )(
+        'ignores an old context response after a newer $action action (success: $succeeds)',
+        async ({ action, succeeds }) => {
+            const f = fixture();
+            f.saved.push({ ...f.position, positionSeconds: 10 });
+            if (action === 'resolve') {
+                f.setRemote({
+                    kind: 'begin',
+                    operationId: 'synthetic-remote-begin',
+                    deviceId: 'synthetic-other',
+                    expectedRevision: 0,
+                    sessionId: 'synthetic-remote',
+                });
+                f.setRemote({
+                    kind: 'checkpoint',
+                    operationId: 'synthetic-remote-point',
+                    deviceId: 'synthetic-other',
+                    generation: 1,
+                    sessionId: 'synthetic-remote',
+                    sequence: 1,
+                    resume: { positionSeconds: 30, durationSeconds: 100 },
+                });
+                await f.client.importPosition(f.address.sourceId, {
+                    ...f.position,
+                    positionSeconds: 80,
+                });
+            }
+            f.client.contexts.clear();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            jest.spyOn(f.client.options, 'request').mockImplementationOnce(
+                async () => {
+                    entered();
+                    await held;
+                    if (succeeds)
+                        return {
+                            status: 200,
+                            body: {
+                                sourceId: f.address.sourceId,
+                                sourceIncarnation: f.address.sourceIncarnation,
+                                provider: 'xtream',
+                            },
+                        };
+                    throw new Error('Synthetic old context failure');
+                }
+            );
+            const older = f.client.begin(f.address.sourceId, {
+                ...f.position,
+                activitySessionId: 'synthetic-older',
+            });
+            await started;
+            if (action === 'begin') {
+                const next = {
+                    ...f.position,
+                    positionSeconds: 80,
+                    activitySessionId: 'synthetic-newer',
+                };
+                await f.client.begin(f.address.sourceId, next);
+                await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                    f.address.sourceId,
+                    next,
+                ]);
+            } else if (action === 'reset')
+                await f.client.reset(f.address.sourceId, f.position);
+            else if (action === 'mark-watched')
+                await f.client.save(f.address.sourceId, {
+                    ...f.position,
+                    watched: true,
+                    activityAction: 'mark-watched',
+                });
+            else if (action === 'import')
+                await f.client.importPosition(f.address.sourceId, {
+                    ...f.position,
+                    positionSeconds: 80,
+                });
+            else await f.client.resolve(f.address, true);
+            await f.client.flush();
+            release();
+            await expect(older).rejects.toThrow(
+                succeeds
+                    ? 'Activity launch superseded'
+                    : 'Synthetic old context failure'
+            );
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                {
+                    ...f.position,
+                    positionSeconds: 65,
+                    activitySessionId: 'synthetic-older',
+                },
+            ]);
+            const projected = await f.adapter.all(f.raw, f.address.sourceId);
+            if (action === 'reset') expect(projected).toEqual([]);
+            else
+                expect(projected[0]).toMatchObject(
+                    action === 'mark-watched'
+                        ? { watched: true }
+                        : { positionSeconds: 80 }
+                );
+            expect(f.client.retiredSessions.has('synthetic-older')).toBe(true);
+        }
+    );
+
     it.each([false, true])(
         'durably clears an unbound offline fallback and retires its old checkpoints (retry: %s)',
         async (failedClear) => {
