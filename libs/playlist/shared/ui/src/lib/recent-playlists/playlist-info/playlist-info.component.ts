@@ -5,6 +5,7 @@ import {
     Component,
     DestroyRef,
     inject,
+    Injector,
     runInInjectionContext,
     signal,
     ChangeDetectionStrategy,
