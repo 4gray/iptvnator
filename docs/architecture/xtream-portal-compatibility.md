@@ -424,6 +424,14 @@ The Xtream import form may extract `username` and `password` from full
 `get.php` or `player_api.php` URLs, but stored playlist metadata should keep
 the normalized `serverUrl` plus trimmed credentials.
 
+The playlist editor validates Xtream server URLs with that same normalizer and
+requires nonblank username/password fields. Inline errors identify each invalid
+field; Save and Test are disabled until the connection input is valid. These
+validators apply only to Xtream: M3U metadata and optional Stalker credentials
+keep their own rules. Saving valid edits or changing a title never requires a
+successful network test. Stored sources with missing credentials still show both
+credential inputs so the user can repair them.
+
 ### Explicit protocol discovery
 
 Add and Edit source share `XtreamConnectionTestService` and form-owned

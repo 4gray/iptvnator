@@ -137,6 +137,7 @@ describe('shared source editor', () => {
         );
     });
     it('awaits a shared edit using the revision captured when its dialog opened', async () => {
+        component.epg.inputs.at(0).setValue('https://epg.test/new.xml');
         const saving = component.saveChanges({
             ...opened,
             title: 'Shared edit',
@@ -145,6 +146,8 @@ describe('shared source editor', () => {
             expect.objectContaining({
                 sourceSyncRevision: '"opened"',
                 title: 'Shared edit',
+                epgUrls: ['https://epg.test/new.xml'],
+                manualEpgUrls: ['https://epg.test/new.xml'],
             })
         );
         expect(close).not.toHaveBeenCalled();
@@ -170,6 +173,7 @@ describe('shared source editor', () => {
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);
         try {
+            component.epg.inputs.at(0).setValue('https://epg.test/retry.xml');
             const saving = component.saveChanges({
                 ...opened,
                 title: 'Stale edit',
@@ -178,6 +182,10 @@ describe('shared source editor', () => {
             await saving;
             expect(close).not.toHaveBeenCalled();
             expect(dispatch).not.toHaveBeenCalled();
+            expect(component.epg.inputs.at(0).value).toBe(
+                'https://epg.test/retry.xml'
+            );
+            expect(component.epg.urls).toEqual([]);
             expect(open).toHaveBeenCalledWith('SOURCE_SYNC.CONFLICT', 'CLOSE', {
                 duration: 3000,
             });

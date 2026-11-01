@@ -22,6 +22,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     EmptyStateComponent,
     PlaylistInfoComponent,
+    playlistInfoDialogConfig,
     PlaylistRefreshActionService,
 } from '@iptvnator/playlist/shared/ui';
 import {
@@ -219,14 +220,18 @@ export class WorkspaceDashboardRailsComponent {
         this.liveEpg.enrich(this.recentLiveCards())
     );
 
-    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() => {
-        this.languageTick();
-        return this.data
-            .globalFavoriteItems()
-            .filter((item) => item.type === 'movie' || item.type === 'series')
-            .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toFavoriteCard(item));
-    });
+    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(
+        () => {
+            this.languageTick();
+            return this.data
+                .globalFavoriteItems()
+                .filter(
+                    (item) => item.type === 'movie' || item.type === 'series'
+                )
+                .slice(0, RAIL_ITEM_LIMIT)
+                .map((item) => this.toFavoriteCard(item));
+        }
+    );
 
     readonly continueWatchingSeeAllState = computed(() =>
         buildDashboardRailSeeAllState(this.continueWatchingBaseCards())
@@ -387,7 +392,10 @@ export class WorkspaceDashboardRailsComponent {
                 this.playlistRefreshAction.refresh(playlist);
                 break;
             case 'playlist-info':
-                this.dialog.open(PlaylistInfoComponent, { data: playlist });
+                this.dialog.open(
+                    PlaylistInfoComponent,
+                    playlistInfoDialogConfig(playlist)
+                );
                 break;
             case 'account-info':
                 this.openAccountInfo(playlist);

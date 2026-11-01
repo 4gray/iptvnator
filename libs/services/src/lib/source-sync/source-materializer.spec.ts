@@ -154,6 +154,19 @@ describe('source projection into a local runtime', () => {
                 fetchPlaylistDefinition,
             } as unknown as DataService);
             expect(fresh.epgUrls).toEqual(detected);
+
+            const optedOut = await materializeSource(
+                source,
+                {
+                    ...current,
+                    autoImportEpg: false,
+                    disabledEpgUrls: [],
+                },
+                { fetchPlaylistDefinition } as unknown as DataService
+            );
+            expect(optedOut.autoImportEpg).toBe(false);
+            expect(optedOut.detectedEpgUrls).toEqual(detected);
+            expect(optedOut.epgUrls).toEqual(current.manualEpgUrls);
         }
     );
 });

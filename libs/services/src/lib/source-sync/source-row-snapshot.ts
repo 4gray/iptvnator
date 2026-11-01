@@ -71,6 +71,7 @@ export function preserveUnchangedDeviceFields(
         'favorites',
         'recentlyViewed',
         'autoRefresh',
+        'autoImportEpg',
         'position',
         'hiddenGroupTitles',
         'manualEpgUrls',
@@ -87,6 +88,7 @@ export function preserveUnchangedDeviceFields(
     return Object.assign(
         result,
         resolvePlaylistEpgSourceState({
+            autoImportEpg: result.autoImportEpg,
             detectedEpgUrls: detected,
             enabledEpgUrls: result.epgUrls?.filter((url) =>
                 detected?.includes(url)

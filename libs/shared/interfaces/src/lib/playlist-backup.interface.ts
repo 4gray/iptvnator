@@ -25,6 +25,7 @@ export interface PlaylistBackupBaseEntry {
 
 export interface M3uPlaylistBackupEntry extends PlaylistBackupBaseEntry {
     portalType: 'm3u';
+    autoImportEpg?: boolean;
     source: {
         kind: M3uBackupSourceKind;
         rawM3u: string;

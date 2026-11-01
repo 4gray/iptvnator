@@ -1,3 +1,4 @@
+import { applyPlaylistEpgImportPreference } from '@iptvnator/shared/m3u-utils';
 import {
     hasValidBackupEntryData,
     hasValidBackupSettings,
@@ -290,6 +291,9 @@ export class PlaylistBackupService {
             exportedId: playlist._id,
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
+            ...(playlist.autoImportEpg === false
+                ? { autoImportEpg: false }
+                : {}),
             position: playlist.position,
             source: {
                 kind: this.resolveM3uSourceKind(playlist),
@@ -846,11 +850,18 @@ export class PlaylistBackupService {
                 entry.source.rawM3u,
                 entry.title
             );
+        const imported = applyPlaylistEpgImportPreference(
+            parsedPlaylist,
+            entry.autoImportEpg ?? existing?.autoImportEpg
+        );
         const now = new Date().toISOString();
 
         return {
             ...existing,
-            ...parsedPlaylist,
+            ...imported,
+            ...(entry.autoImportEpg !== undefined
+                ? { autoImportEpg: entry.autoImportEpg }
+                : {}),
             _id: playlistId,
             title: entry.title,
             filename: entry.title,

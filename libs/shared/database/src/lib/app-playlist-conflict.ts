@@ -34,6 +34,7 @@ const REPLACEABLE_COLUMNS = [
     'detectedEpgUrls',
     'manualEpgUrls',
     'disabledEpgUrls',
+    'autoImportEpg',
     'macAddress',
     'url',
     'portalUrl',

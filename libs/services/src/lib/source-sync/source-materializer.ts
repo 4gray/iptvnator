@@ -84,6 +84,7 @@ export async function materializeSource(
 
 function projectEpgSources(parsed: Partial<Playlist>, current: Playlist) {
     return resolvePlaylistEpgSourceState({
+        autoImportEpg: current.autoImportEpg,
         detectedEpgUrls: parsed.detectedEpgUrls,
         enabledEpgUrls: parsed.epgUrls,
         manualEpgUrls: current.manualEpgUrls,

@@ -43,6 +43,7 @@ import {
 import { PlaylistMeta, PlaylistSourceKind } from '@iptvnator/shared/interfaces';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
+import { playlistInfoDialogConfig } from '../recent-playlists/playlist-info/playlist-info-dialog';
 import { SourceRemovalService } from '../source-removal/source-removal.service';
 import { SourceRowComponent } from '../source-row/source-row.component';
 import { XtreamRefreshFlowService } from '../xtream-refresh-flow.service';
@@ -316,7 +317,10 @@ export class PlaylistSwitcherPanelComponent {
 
     openInfo(playlist: PlaylistMeta): void {
         this.close();
-        this.dialog.open(PlaylistInfoComponent, { data: playlist });
+        this.dialog.open(
+            PlaylistInfoComponent,
+            playlistInfoDialogConfig(playlist)
+        );
     }
 
     openAccountInfo(playlist: PlaylistMeta): void {

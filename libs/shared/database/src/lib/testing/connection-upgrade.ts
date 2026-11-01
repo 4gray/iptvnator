@@ -242,9 +242,27 @@ async function main() {
     for (let startup = 0; startup < 2; startup++) {
         try {
             await initDatabase();
-            const sqlite = new Database(databasePath, { readonly: true });
+            const sqlite = new Database(databasePath);
             try {
                 verifyCurrentSchema(sqlite);
+                const policy = sqlite
+                    .prepare(
+                        "SELECT auto_import_epg AS value FROM playlists WHERE id = 'saved'"
+                    )
+                    .get() as { value: number | null } | undefined;
+                if (policy) {
+                    assert.equal(
+                        policy.value,
+                        startup === 0 || process.argv[2] === 'fresh' ? null : 0,
+                        'EPG preference survives upgrade and repeated startup'
+                    );
+                    if (startup === 0 && process.argv[2] !== 'fresh')
+                        sqlite
+                            .prepare(
+                                "UPDATE playlists SET auto_import_epg = 0 WHERE id = 'saved'"
+                            )
+                            .run();
+                }
                 assert.equal(
                     (
                         sqlite.pragma('table_info(playlists)') as {

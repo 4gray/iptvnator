@@ -48,6 +48,11 @@ its worker. Disconnecting returns to the retained standalone database.
 
 ## Upgrade Compatibility And Migrations
 
+M3U automatic EPG import uses nullable `playlists.auto_import_epg`: NULL keeps
+the historical default-on behavior, and 0 records an import opt-out. It is
+projected by metadata reads without loading the playlist payload. The additive
+migration runs before the canonical payload-last rebuild and is safe to repeat.
+
 Users may skip releases. The application must apply every required migration in
 dependency order when opening an older database, preserving user data without
 requiring intermediate application installations or a database reset. This is

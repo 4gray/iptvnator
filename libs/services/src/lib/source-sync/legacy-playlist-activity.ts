@@ -59,6 +59,7 @@ export async function migrateLegacyPlaylistActivity(
             title: row.title ?? '',
             count: 0,
             autoRefresh: !!row.autoRefresh,
+            autoImportEpg: row.autoImportEpg,
             importDate: row.importDate ?? new Date().toISOString(),
             lastUsage: row.lastUsage ?? '',
             favorites: row.favorites ?? [],

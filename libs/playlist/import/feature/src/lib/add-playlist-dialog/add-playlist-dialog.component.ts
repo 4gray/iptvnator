@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationStart, Router } from '@angular/router';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
@@ -81,6 +82,7 @@ const METHOD_BY_CANDIDATE_KIND: Record<
         DialogShellComponent,
         FileUploadComponent,
         MatButtonModule,
+        MatCheckboxModule,
         MatDialogModule,
         MatIcon,
         StalkerPortalImportComponent,
@@ -120,6 +122,10 @@ export class AddPlaylistDialogComponent {
     });
 
     readonly method = signal<PlaylistType>('url');
+    readonly autoImportEpg = signal(true);
+    readonly isM3uImport = computed(() =>
+        ['url', 'file', 'text'].includes(this.method())
+    );
     readonly canReturnToM3u = signal(false);
     readonly urlImport = createUrlPlaylistImport();
     private readonly urlFeedback =
@@ -369,7 +375,7 @@ export class AddPlaylistDialogComponent {
         const draft = form.getRawValue();
         form.disable();
         await this.urlImport.submit(
-            draft,
+            { ...draft, autoImportEpg: this.autoImportEpg() },
             () => this.closeDialog(),
             () => {
                 void this.submitUrlPlaylist();
@@ -386,6 +392,7 @@ export class AddPlaylistDialogComponent {
         this.store.dispatch(
             PlaylistActions.parsePlaylist({
                 uploadType: 'TEXT',
+                ...(this.autoImportEpg() ? {} : { autoImportEpg: false }),
                 playlist,
                 title: this.translateService.instant('HOME.IMPORTED_AS_TEXT'),
             })
@@ -395,6 +402,7 @@ export class AddPlaylistDialogComponent {
 
     clearCurrentForm(): void {
         this.urlImport.clearError();
+        if (this.isM3uImport()) this.autoImportEpg.set(true);
         switch (this.playlistType()) {
             case 'url':
                 this.urlUpload()?.clearForm();

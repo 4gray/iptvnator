@@ -59,7 +59,9 @@ describe('PlaylistFileImportService', () => {
             text: jest.fn().mockResolvedValue('#EXTM3U'),
         } as unknown as File;
         window.electron = {
-            getPathForFile: jest.fn().mockReturnValue('/tmp/dropped-source.m3u'),
+            getPathForFile: jest
+                .fn()
+                .mockReturnValue('/tmp/dropped-source.m3u'),
         } as unknown as typeof window.electron;
 
         const result = await service.importFile(file);
@@ -103,6 +105,42 @@ describe('PlaylistFileImportService', () => {
         });
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.addPlaylist({ playlist })
+        );
+    });
+
+    it('applies opt-out to native file imports without losing detected sources', async () => {
+        const playlist = {
+            _id: 'native',
+            title: 'Native',
+            epgUrls: ['https://epg.test/guide.xml'],
+            detectedEpgUrls: ['https://epg.test/guide.xml'],
+        } as Playlist;
+        window.electron = {
+            openPlaylistFromFile: jest.fn().mockResolvedValue(playlist),
+        } as unknown as typeof window.electron;
+        await service.importFromNativeDialog(false);
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.addPlaylist({
+                playlist: expect.objectContaining({
+                    autoImportEpg: false,
+                    epgUrls: [],
+                    detectedEpgUrls: playlist.detectedEpgUrls,
+                }),
+            })
+        );
+    });
+
+    it('carries opt-out through the browser file parser action', async () => {
+        const file = {
+            name: 'test.m3u',
+            text: jest.fn().mockResolvedValue('#EXTM3U'),
+        } as unknown as File;
+        await service.importFile(file, false);
+        expect(store.dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                autoImportEpg: false,
+                uploadType: 'FILE',
+            })
         );
     });
 

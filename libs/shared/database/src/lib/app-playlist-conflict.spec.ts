@@ -25,6 +25,7 @@ const CLEARED_COLUMNS = {
     detectedEpgUrls: null,
     manualEpgUrls: null,
     disabledEpgUrls: null,
+    autoImportEpg: null,
     macAddress: null,
     portalUrl: null,
     count: null,

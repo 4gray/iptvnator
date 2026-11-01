@@ -3,6 +3,7 @@ import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
+    applyPlaylistEpgImportPreference,
     isDashChannel,
     isDashStreamUrl,
     normalizeEpgUrls,
@@ -382,12 +383,19 @@ export class PlaylistEffects {
             ofType(PlaylistActions.parsePlaylist),
             mergeMap((action) =>
                 from(
-                    this.playlistsService.handlePlaylistParsing(
-                        action.uploadType,
-                        action.playlist,
-                        action.title,
-                        action.path
-                    )
+                    this.playlistsService
+                        .handlePlaylistParsing(
+                            action.uploadType,
+                            action.playlist,
+                            action.title,
+                            action.path
+                        )
+                        .then((playlist) =>
+                            applyPlaylistEpgImportPreference(
+                                playlist,
+                                action.autoImportEpg
+                            )
+                        )
                 )
             ),
             map((playlist) =>

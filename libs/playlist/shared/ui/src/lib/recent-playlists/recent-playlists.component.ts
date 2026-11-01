@@ -50,6 +50,7 @@ import { SourceRemovalService } from '../source-removal/source-removal.service';
 import { SourceRowComponent } from '../source-row/source-row.component';
 import { EmptyStateComponent } from './empty-state/empty-state.component';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
+import { playlistInfoDialogConfig } from './playlist-info/playlist-info-dialog';
 import { SourceListRefreshService } from './source-list-refresh.service';
 
 /**
@@ -207,7 +208,10 @@ export class RecentPlaylistsComponent {
     }
 
     edit(playlist: PlaylistMeta): void {
-        this.dialog.open(PlaylistInfoComponent, { data: playlist });
+        this.dialog.open(
+            PlaylistInfoComponent,
+            playlistInfoDialogConfig(playlist)
+        );
     }
 
     /** Deletes with Undo; the active source hands over to its neighbour. */

@@ -34,6 +34,11 @@ export function hasValidBackupEntryData(entry: unknown): boolean {
             !Number.isFinite(entry['position']))
     )
         return false;
+    if (
+        entry['autoImportEpg'] !== undefined &&
+        typeof entry['autoImportEpg'] !== 'boolean'
+    )
+        return false;
     if (!isRecord(entry['userState'])) return false;
     const state = entry['userState'];
     const metadata =

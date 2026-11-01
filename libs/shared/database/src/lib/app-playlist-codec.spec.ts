@@ -49,6 +49,17 @@ describe('app playlist codec', () => {
         },
     };
 
+    it('round-trips explicit EPG opt-out without reading the payload', () => {
+        const row = storedRow(rowOf({ ...m3uDocument, autoImportEpg: false }));
+        expect(parseAppPlaylist(row)['autoImportEpg']).toBe(false);
+        expect(
+            parseAppPlaylist({ ...row, payload: null })['autoImportEpg']
+        ).toBe(false);
+        expect(
+            parseAppPlaylist(storedRow(rowOf(m3uDocument)))['autoImportEpg']
+        ).toBeUndefined();
+    });
+
     it('round-trips an M3U document through a stored row', () => {
         const row = rowOf(m3uDocument);
 

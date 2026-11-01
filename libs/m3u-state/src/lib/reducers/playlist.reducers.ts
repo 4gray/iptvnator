@@ -84,7 +84,10 @@ export const playlistReducers = [
                 !playlistRefreshMatchesSource(currentPlaylist, action.playlist)
             )
                 return state;
+            const autoImportEpg =
+                currentPlaylist?.autoImportEpg ?? action.playlist.autoImportEpg;
             const epgSourceState = resolvePlaylistEpgSourceState({
+                autoImportEpg,
                 detectedEpgUrls:
                     action.playlist.detectedEpgUrls ??
                     currentPlaylist?.detectedEpgUrls,
@@ -110,6 +113,9 @@ export const playlistReducers = [
                         id: action.playlistId,
                         changes: {
                             ...action.playlist,
+                            ...(autoImportEpg !== undefined
+                                ? { autoImportEpg }
+                                : {}),
                             _id: action.playlistId,
                             updateDate: Date.now(),
                             count: action.playlist.playlist.items.length,

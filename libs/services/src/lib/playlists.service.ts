@@ -777,6 +777,7 @@ export class PlaylistsService {
         updatedPlaylist: PlaylistMetaUpdate
     ): Playlist {
         const epgSourceState = resolvePlaylistEpgSourceState({
+            autoImportEpg: playlist.autoImportEpg,
             detectedEpgUrls:
                 updatedPlaylist.detectedEpgUrls ?? playlist.detectedEpgUrls,
             enabledEpgUrls: updatedPlaylist.epgUrls ?? playlist.epgUrls,

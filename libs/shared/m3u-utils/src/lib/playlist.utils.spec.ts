@@ -394,3 +394,28 @@ describe('playlist utils', () => {
         ).toEqual(['https://playlist.example.com/local.xml']);
     });
 });
+
+describe('playlist EPG opt-out', () => {
+    it('keeps detected links but enables only explicit manual choices', () => {
+        expect(
+            resolvePlaylistEpgSourceState({
+                autoImportEpg: false,
+                detectedEpgUrls: [
+                    'https://epg.test/auto.xml',
+                    'https://epg.test/new.xml',
+                ],
+                enabledEpgUrls: [
+                    'https://epg.test/auto.xml',
+                    'https://epg.test/new.xml',
+                ],
+                manualEpgUrls: ['https://epg.test/manual.xml'],
+            })
+        ).toMatchObject({
+            detectedEpgUrls: [
+                'https://epg.test/auto.xml',
+                'https://epg.test/new.xml',
+            ],
+            epgUrls: ['https://epg.test/manual.xml'],
+        });
+    });
+});
