@@ -16,7 +16,7 @@ type TmdbCacheEntry = Parameters<
 >[0];
 const buildDetailsLookupKey = (id: number) => `id:${id}|v2`;
 const buildSearchLookupKey = (title: string, year: number | null) =>
-    `title:${title.toLowerCase()}|year:${year ?? ''}|v4`;
+    `title:${title.toLowerCase()}|year:${year ?? ''}|v5`;
 
 interface CatalogItem {
     name: string;
@@ -95,6 +95,10 @@ export function cinematicCacheRows(
         backdrop_path: null,
         credits: { cast: [], crew: [] },
         videos: { results: [] },
+        recommendations: { results: [] },
+        ...(mediaType === 'movie'
+            ? { release_dates: { results: [] } }
+            : { content_ratings: { results: [] } }),
         seasons: (details.seasons ?? []).map((season) => ({
             ...season,
             poster_path: null,

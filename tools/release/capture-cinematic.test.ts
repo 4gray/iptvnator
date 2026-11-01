@@ -64,8 +64,8 @@ describe('cinematic capture isolation', () => {
         });
         for (const key of [
             'id:72000|v2',
-            'title:synthetic roof crew|year:|v4',
-            'title:synthetic roof crew|year:2025|v4',
+            'title:synthetic roof crew|year:|v5',
+            'title:synthetic roof crew|year:2025|v5',
             'id:72000|season:1',
         ]) {
             assert.ok(
@@ -85,6 +85,25 @@ describe('cinematic capture isolation', () => {
         const season = JSON.parse(rows.at(-1)?.payload ?? '{}');
         assert.equal(season.episodes[0].name, 'Synthetic Dawn Shift');
         assert.equal(season.episodes[0].still_path, null);
+    });
+
+    it('marks the classification capability as cached for movies and series', () => {
+        for (const mediaType of ['movie', 'tv'] as const) {
+            const [row] = cinematicCacheRows(mediaType, 62000, {
+                info: {
+                    name: 'Synthetic Test Production',
+                    plot: 'An original fictional synopsis.',
+                    genre: 'Drama',
+                    rating: 8,
+                    releasedate: '2026-01-01',
+                },
+            });
+            const payload = JSON.parse(row.payload ?? '{}');
+            const classification =
+                mediaType === 'movie' ? 'release_dates' : 'content_ratings';
+            assert.deepEqual(payload[classification], { results: [] });
+            assert.deepEqual(payload.recommendations, { results: [] });
+        }
     });
 
     it('uses only known setup actions and both themes in the cinematic manifest', () => {

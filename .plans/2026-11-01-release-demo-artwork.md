@@ -87,3 +87,14 @@ and README are preserved.
 an app or calling an image API; `--split vertical` supports a straight 50/50
 variant. Six composition/CLI tests cover source fidelity, equal area, dimensions
 and invalid arguments. The result was inspected at its original 1600×1100 size.
+
+## Pull request integration refresh
+
+Rebased onto `origin/master` at `90c4938a1` and reinstalled with its required
+Node 24.22.1. The capture driver now explicitly selects a category after import;
+the offline fixture follows search-cache v5 and marks classification capability
+as cached, so the new metadata reader never upgrades it over the network.
+The complete eight-frame Electron capture passes on the new base with 209
+distinct local requests and unchanged personal-data guards. Eight cinematic
+fixture tests, the other 236 release-tool tests, 100 mock tests and seven shared
+fixture tests pass. Existing committed screenshots and previews are preserved.

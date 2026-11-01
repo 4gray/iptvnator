@@ -53,6 +53,8 @@ The preset reads `tools/release/screenshots.cinematic.manifest.json`, uses a
 1600×1100 viewport, pauses the real hero carousel and selects its slide by
 accessible name. It expands detail synopses through their normal More button
 and waits for fonts, image decoding and transitions before saving PNGs.
+After source import, navigation explicitly selects the synthetic movie category;
+the app no longer assumes a category is selected on the first visit.
 Outputs are in `apps/website/public/blog/v0-25/screenshots/`:
 
 - `dashboard-{dark,light}.png`
@@ -78,6 +80,12 @@ from the verified local mock. Its image paths are null, so the provider's
 committed local artwork supplies every image. Named episodes and plots for
 all eighteen Skyline Sentinels episodes live in
 `apps/xtream-mock-server/src/app/generators/marketing-stories.ts`.
+
+The tool's versioned cache keys follow the application's metadata wire contract.
+When that contract changes, update the fixture and validate the full Electron
+capture: the hero requires the seeded synopsis, so a stale cache key fails it.
+Classification and recommendation fields are explicitly cached as empty local
+results, preventing a legacy-cache upgrade from attempting a metadata request.
 
 Regular captures require enrichment disabled and an empty key. Only the
 explicit `--cinematic` preset accepts the fixed invalid
