@@ -4,9 +4,11 @@ export function ResumeCard({
     progress,
     poster,
     play,
+    sourceName,
 }: {
     progress: Progress;
     poster?: string;
+    sourceName?: string;
     play: (item: Media) => void;
 }) {
     const { item, seconds, duration } = progress;
@@ -41,6 +43,9 @@ export function ResumeCard({
                 <strong>{mediaTitle(item)}</strong>
                 {item.kind === 'episode' ? (
                     <span class="muted">{item.title}</span>
+                ) : null}
+                {sourceName ? (
+                    <span class="home-source-name">{sourceName}</span>
                 ) : null}
                 <span class="resume-position">
                     {item.season ? `S${item.season} · E${item.episode} · ` : ''}
