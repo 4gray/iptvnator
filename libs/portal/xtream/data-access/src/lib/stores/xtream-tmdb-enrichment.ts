@@ -169,7 +169,7 @@ export async function enrichSerialSelectionWithTmdb<
 
     const selected = isCurrent() as unknown as XtreamSerieDetails | null;
     const info = selected?.info;
-    if (!info || Array.isArray(info) || !info.name) {
+    if (!info || Array.isArray(info)) {
         return;
     }
 
@@ -198,8 +198,14 @@ export async function enrichSerialSelectionWithTmdb<
             );
         });
 
+    if (
+        !info.name?.trim() &&
+        (!matchIdentity || matches?.read(matchIdentity)?.mode !== 'manual')
+    )
+        return;
+
     const details = await enrichment.enrichTv({
-        title: info.name,
+        title: info.name ?? '',
         year: extractYear(info.releaseDate, info.name),
         ...(matchIdentity ? { matchIdentity } : {}),
     });

@@ -71,6 +71,51 @@ const serialItem = {
 };
 
 describe('manual TMDB selection refresh', () => {
+    it.each(['', '   '])(
+        'applies explicit series matches when the provider title is blank: %s',
+        async (name) => {
+            const raw = { ...serialItem, info: { ...serialItem.info, name } };
+            const store = {
+                ...createStore(raw),
+                currentPlaylist: () => ({ id: 'blank-title-source' }),
+            };
+            const matches = new TmdbMatchService();
+            const identity = {
+                provider: 'xtream' as const,
+                playlistId: 'blank-title-source',
+                mediaType: 'tv' as const,
+                itemId: '7',
+            };
+            const enrichment = createEnrichment({
+                matches,
+                enrichTv: jest
+                    .fn()
+                    .mockResolvedValue({ id: 999, overview: 'Chosen plot' }),
+            });
+            await enrichSerialSelectionWithTmdb(store, enrichment, '7');
+            expect(enrichment.enrichTv).not.toHaveBeenCalled();
+            await matches.save(identity, {
+                mode: 'manual',
+                tmdbId: 999,
+                title: 'Chosen show',
+            });
+            expect(store.selectedItem()?.['info']).toEqual(
+                expect.objectContaining({
+                    tmdb_id: 999,
+                    plot: 'Chosen plot',
+                })
+            );
+            store.replaceItem(raw);
+            await enrichSerialSelectionWithTmdb(store, enrichment, '7');
+            expect(store.selectedItem()?.['info']).toEqual(
+                expect.objectContaining({ tmdb_id: 999 })
+            );
+            await matches.save(identity, null);
+            expect(store.selectedItem()?.['info']).toEqual(raw.info);
+            expect(enrichment.enrichTv).toHaveBeenCalledTimes(2);
+        }
+    );
+
     it('replaces movie metadata, restores the provider and re-enables automatic lookup', async () => {
         const store = {
             ...createStore(vodItem),
