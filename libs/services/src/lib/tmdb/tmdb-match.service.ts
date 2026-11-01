@@ -7,6 +7,8 @@ export interface TmdbMatchIdentity {
     playlistId: string;
     mediaType: TmdbMediaType;
     itemId: string;
+    /** Stalker catalogs can reuse IDs; omitted values retain the VOD key. */
+    catalog?: 'vod' | 'series';
 }
 
 export interface TmdbMatchContext {
@@ -26,6 +28,9 @@ export function tmdbMatchKey(identity: TmdbMatchIdentity): string {
             identity.playlistId,
             identity.mediaType,
             identity.itemId,
+            ...(identity.provider === 'stalker' && identity.catalog === 'series'
+                ? ['series']
+                : []),
         ])
     );
 }

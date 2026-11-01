@@ -1,6 +1,7 @@
 import {
     TmdbMatchService,
     type TmdbEnrichmentService,
+    type TmdbSelectionQuery,
 } from '@iptvnator/services';
 import type { StalkerVodSource } from '../models';
 import { enrichStalkerSelectionWithTmdb } from './stalker-tmdb-enrichment';
@@ -25,24 +26,25 @@ const original = {
 
 afterEach(() => localStorage.clear());
 
-function fixture() {
+function fixture(name = original.name) {
     let selected: StalkerVodSource = {
         id: '42',
         is_series: true,
-        info: original,
+        info: { ...original, name },
     };
     let playlistId = 'source';
+    let catalog = 'vod';
     const matches = new TmdbMatchService();
     const store = {
         selectedItem: () => selected,
         currentPlaylist: () => ({ _id: playlistId }),
-        selectedContentType: () => 'vod',
+        selectedContentType: () => catalog,
     };
     const apply = jest.fn((next: StalkerVodSource) => {
         selected = next;
     });
-    const enrichTv = jest.fn(async () => {
-        const choice = matches.read(identity);
+    const enrichTv = jest.fn(async (query?: TmdbSelectionQuery) => {
+        const choice = matches.read(query?.matchIdentity ?? identity);
         return choice?.mode === 'provider'
             ? null
             : {
@@ -68,6 +70,9 @@ function fixture() {
         switchSource: () => {
             playlistId = 'other';
         },
+        switchCatalog: () => {
+            catalog = 'series';
+        },
         run: () =>
             enrichStalkerSelectionWithTmdb(
                 store,
@@ -78,6 +83,53 @@ function fixture() {
             ),
     };
 }
+
+it.each(['Unknown', '', '   '])(
+    'applies explicit choices to a placeholder provider title: %s',
+    async (name) => {
+        const context = fixture(name);
+        await context.run();
+        expect(context.enrichTv).not.toHaveBeenCalled();
+        await context.matches.save(identity, {
+            mode: 'manual',
+            tmdbId: 318158,
+            title: 'Красота',
+        });
+        expect(context.store.selectedItem().info?.tmdb_id).toBe(318158);
+        expect(context.store.selectedItem().info?.description).toBe(
+            'Chosen plot'
+        );
+        await context.run();
+        expect(context.store.selectedItem().info?.tmdb_id).toBe(318158);
+        await context.matches.save(identity, { mode: 'provider' });
+        expect(context.store.selectedItem().info?.description).toBe(
+            'Provider plot'
+        );
+    }
+);
+
+it('separates regular and VOD series that reuse a provider ID', async () => {
+    const context = fixture();
+    await context.run();
+    await context.matches.save(identity, {
+        mode: 'manual',
+        tmdbId: 318158,
+        title: 'Красота',
+    });
+    context.switchCatalog();
+    await context.run();
+    expect(context.store.selectedItem().info?.description).toBe(
+        'Automatic plot'
+    );
+    await context.matches.save(
+        { ...identity, catalog: 'series' },
+        { mode: 'provider' }
+    );
+    expect(context.store.selectedItem().info?.description).toBe(
+        'Provider plot'
+    );
+    expect(context.matches.read(identity)?.mode).toBe('manual');
+});
 
 it('restores original Stalker metadata and preserves it through enriched snapshots', async () => {
     const context = fixture();

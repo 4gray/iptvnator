@@ -231,6 +231,7 @@ export class VodDetailsComponent {
         return {
             identity: {
                 provider: item.type,
+                ...(item.type === 'stalker' ? { catalog: 'vod' as const } : {}),
                 playlistId: item.playlistId,
                 mediaType:
                     item.type === 'stalker' &&

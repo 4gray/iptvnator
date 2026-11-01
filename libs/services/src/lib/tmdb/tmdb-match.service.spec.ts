@@ -24,8 +24,15 @@ it('persists a choice across service recreation and scopes it by source, provide
         { ...identity, provider: 'xtream' as const },
         { ...identity, mediaType: 'movie' as const },
         { ...identity, itemId: '43' },
+        { ...identity, catalog: 'series' as const },
     ])
         expect(matches.read(other)).toBeNull();
+});
+
+it('retains existing VOD choice keys when the catalog is explicit', async () => {
+    const matches = new TmdbMatchService();
+    await matches.save(identity, choice);
+    expect(matches.read({ ...identity, catalog: 'vod' })).toEqual(choice);
 });
 
 it('persists provider-only and removes only this choice when automatic matching is restored', async () => {

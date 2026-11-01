@@ -239,6 +239,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         return {
             identity: {
                 provider: 'stalker',
+                catalog:
+                    this.stalkerStore.selectedContentType() === 'series'
+                        ? 'series'
+                        : 'vod',
                 playlistId,
                 mediaType: 'tv',
                 itemId: String(item.id),

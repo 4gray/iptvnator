@@ -34,6 +34,7 @@ test('@tmdb-match corrects an Xtream movie through its route menu', async ({
         const response = await route.fetch({ url: url.toString() });
         const body = await response.json();
         body.payload.info.plot = providerPlot;
+        body.payload.info.description = providerPlot;
         await route.fulfill({ response, json: body });
     });
     const manualPlot = 'The movie selected manually in TMDB.';

@@ -139,6 +139,22 @@ describe('StalkerSeriesViewComponent', () => {
         expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
     });
 
+    it('scopes correction identities to the current Stalker catalog', async () => {
+        currentPlaylist.set({ _id: 'source' });
+        selectedItem.set({ id: '42', info: { name: 'Series' } });
+        for (const catalog of ['series', 'vod'] as const) {
+            selectedContentType.set(catalog);
+            await stabilize();
+            expect(fixture.componentInstance.tmdbMatch()?.identity).toEqual({
+                provider: 'stalker',
+                playlistId: 'source',
+                mediaType: 'tv',
+                itemId: '42',
+                catalog,
+            });
+        }
+    });
+
     it('keeps provider episodes playable while hiding download presentation', async () => {
         fixture.componentRef.setInput('providerOnly', true);
 

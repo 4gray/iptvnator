@@ -408,6 +408,7 @@ describe('VodDetailsComponent offline playback', () => {
         fixture.detectChanges();
         expect(fixture.componentInstance.tmdbMatch()?.identity).toEqual({
             provider: 'stalker',
+            catalog: 'vod',
             playlistId: 'stalker-1',
             mediaType: 'tv',
             itemId: '42',

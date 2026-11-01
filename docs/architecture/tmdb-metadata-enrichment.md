@@ -232,7 +232,9 @@ and Cancel/Escape never writes a choice.
 
 `TmdbMatchService` stores each choice in a separate local Web Storage key:
 `iptvnator:tmdb-match:v1:` plus a JSON tuple of provider, playlist ID, TMDB media
-type and provider item ID. IDs from different sources and movie/series IDs cannot
+type and provider item ID. Regular Stalker series append a `series` catalog
+discriminator; embedded/lazy VOD series retain the VOD key so existing choices
+survive. IDs from different sources, media types and Stalker catalogs cannot
 collide. Choices are local to this installation/browser origin, outside the TMDB
 cache and playlist backup format. Clearing the metadata cache leaves them intact.
 Storage failures leave the dialog open and do not change the visible selection.
@@ -240,6 +242,7 @@ Storage failures leave the dialog open and do not change the visible selection.
 - **Choose in TMDB:** validate the chosen ID's details, then persist that ID.
   `getDetailsForMatch` honors opt-in, localization and the normal details cache,
   bypassing automatic title/year corroboration for this explicit user decision.
+  Placeholder or missing provider titles do not prevent an explicit match.
   A failed manual lookup keeps provider metadata; it never guesses another ID.
 - **Provider data:** persist a provider-only verdict, restore original editorial
   fields and skip show/movie TMDB lookup for this item.
@@ -253,13 +256,15 @@ preserves it, so reopening can undo the enrichment. Historical enriched snapshot
 written before this field existed have no recoverable original metadata until
 the portal supplies a fresh item. Xtream restores the original provider episode
 map and resets its season metadata status/overviews/posters when changing a
-series match. Stalker's season overlays are already keyed by TMDB ID.
+series match. Provider-only choices also skip lazy season enrichment, including
+when the provider supplied a TMDB ID. Stalker's season overlays are already keyed by TMDB ID.
 Per-item revisions and source/selection guards reject responses started under
 an older choice. Menus do not expose this action for live/radio or the TV app.
 
 Regression coverage includes `tmdb-match.service.spec.ts`,
 `stalker-tmdb-enrichment.spec.ts`, `xtream-tmdb-enrichment.spec.ts`,
-`tmdb-match-dialog.component.spec.ts` and `apps/web-e2e/src/tmdb-match.e2e.ts`.
+`tmdb-match-dialog.component.spec.ts`, `apps/web-e2e/src/tmdb-match.e2e.ts` and
+`apps/web-e2e/src/xtream-tmdb-match.e2e.ts`.
 
 ## Age classifications in movie and series details
 

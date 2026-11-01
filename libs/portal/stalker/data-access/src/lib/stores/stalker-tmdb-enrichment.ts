@@ -45,19 +45,23 @@ export async function enrichStalkerSelectionWithTmdb(
     mediaType: TmdbMediaType,
     applyEnrichedItem: (enriched: StalkerVodSource) => void
 ): Promise<void> {
-    const info = (item.info?.tmdb_provider_info ?? item.info) as
-        Partial<StalkerVodInfo> | null | undefined;
-    const title = info?.name?.trim();
-    if (!title || title === 'Unknown') {
-        return;
-    }
+    const info = (item.info?.tmdb_provider_info ??
+        item.info ??
+        {}) as Partial<StalkerVodInfo>;
+    const title = info?.name?.trim() ?? '';
 
     const itemId = firstNonBlankStalkerIdText(item.id, item.stream_id);
     const playlistId = store.currentPlaylist?.()?._id;
     const contentType = store.selectedContentType?.();
     const matchIdentity: TmdbMatchIdentity | undefined =
         playlistId && itemId
-            ? { provider: 'stalker', playlistId, mediaType, itemId }
+            ? {
+                  provider: 'stalker',
+                  playlistId,
+                  mediaType,
+                  itemId,
+                  catalog: contentType === 'series' ? 'series' : 'vod',
+              }
             : undefined;
     const matches = enrichment.matches;
     const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
@@ -119,6 +123,12 @@ export async function enrichStalkerSelectionWithTmdb(
     )
         return;
 
+    if (
+        (!title || title === 'Unknown') &&
+        (!matchIdentity || matches?.read(matchIdentity)?.mode !== 'manual')
+    )
+        return;
+
     const query = {
         title,
         originalTitle: info?.o_name,
@@ -137,8 +147,7 @@ export async function enrichStalkerSelectionWithTmdb(
     if (!mergers) return;
 
     const current = isCurrent();
-    const currentInfo = current?.info as StalkerVodInfo | null | undefined;
-    if (!current || !currentInfo?.name) {
+    if (!current) {
         return;
     }
 
