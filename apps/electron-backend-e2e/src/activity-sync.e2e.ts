@@ -1,3 +1,4 @@
+import type { PlaylistBackupManifestV1 } from '@iptvnator/shared/interfaces';
 import {
     fetchXtreamVodFixture,
     getXtreamTitle,
@@ -5,7 +6,7 @@ import {
     fetchStalkerCategoryFixture,
 } from './portal-mock-fixtures';
 import { test, expect, type Page } from '@playwright/test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startSourceSyncServer } from './source-sync-test-server';
@@ -269,6 +270,34 @@ for (const provider of ['xtream', 'stalker'] as const)
             await expect(
                 page.locator('[data-testid="vod-watched-toggle"]')
             ).toHaveAttribute('aria-pressed', 'true', { timeout: 15000 });
+            if (provider === 'xtream') {
+                await openSettings(page);
+                await openSettingsSection(page, 'backup');
+                const downloaded = page.waitForEvent('download');
+                await page
+                    .getByRole('button', { name: 'Export', exact: true })
+                    .click();
+                const filePath = await (await downloaded).path();
+                const backup = JSON.parse(
+                    readFileSync(filePath!, 'utf8')
+                ) as PlaylistBackupManifestV1;
+                const entry = backup.playlists.find(
+                    (entry) => entry.exportedId === sourceId
+                );
+                if (entry?.portalType !== 'xtream')
+                    throw new Error('Xtream backup entry missing');
+                const positions = entry.userState.playbackPositions;
+                expect(positions).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({ watched: true }),
+                    ])
+                );
+                const watched = positions.find((position) => position.watched)!;
+                expect(watched.positionSeconds).toBe(watched.durationSeconds);
+                expect(watched.activitySessionId).toBeUndefined();
+                expect(watched.activityAction).toBeUndefined();
+                await movie(page, 'Shared activity', path, provider);
+            }
             await page.locator('[data-testid="vod-watched-toggle"]').click();
             await expect
                 .poll(async () => (await rows())[0]?.state)

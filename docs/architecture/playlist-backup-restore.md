@@ -86,6 +86,14 @@ is unavailable. Re-export neither applies nor consumes the pending snapshot,
 so it also works before the portal has been opened and in browser runtimes.
 Parental category locks still come from the current lock store.
 
+The settings facade supplies an export-only position projector when viewing
+activity is enabled. Normal Xtream exports overlay the durable shared projection
+on the strictly read local positions, including pending offline progress and reset
+barriers. Watched marks are encoded as complete legacy progress so either runtime
+can restore them; player session IDs and action markers are omitted. A pending
+restore snapshot remains authoritative and bypasses the projector. Projection
+failures fail export. Restore writes remain local and do not acquire sync consent.
+
 A failed pending-storage, recent-history or playback-position read fails export.
 An unreadable collection must never be serialized as a successful empty collection.
 

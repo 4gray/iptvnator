@@ -1,7 +1,10 @@
+import { activityEnabled } from '../services/activity-consent';
+import { loadActivityRuntime } from '../services/activity-sync.providers';
 import {
     afterNextRender,
     computed,
     DestroyRef,
+    EnvironmentInjector,
     inject,
     Injectable,
     Injector,
@@ -25,6 +28,7 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 
 @Injectable()
 export class SettingsBackupFacade {
+    private readonly environment = inject(EnvironmentInjector);
     private readonly playlistBackupService = inject(PlaylistBackupService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
@@ -53,7 +57,14 @@ export class SettingsBackupFacade {
         this.isExportingData.set(true);
         try {
             await waitForUiFeedbackFrame();
-            const backup = await this.playlistBackupService.exportBackup();
+            const backup = await this.playlistBackupService.exportBackup(
+                async (sourceId, local) =>
+                    activityEnabled()
+                        ? (
+                              await loadActivityRuntime(this.environment)
+                          ).exportPositions(sourceId, local)
+                        : local
+            );
 
             if (this.runtime.supportsDesktopFileSave && window.electron) {
                 const savePath = await window.electron.saveFileDialog(

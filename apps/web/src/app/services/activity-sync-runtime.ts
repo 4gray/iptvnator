@@ -276,6 +276,14 @@ export class ActivitySyncRuntime {
         }
     }
 
+    async exportPositions(
+        sourceId: string,
+        local: PlaybackPositionData[]
+    ): Promise<PlaybackPositionData[]> {
+        this.ensureClient();
+        return this.adapter!.exportPositions(sourceId, local);
+    }
+
     async previewImport(): Promise<
         { sourceId: string; items: PlaybackPositionData[] }[]
     > {

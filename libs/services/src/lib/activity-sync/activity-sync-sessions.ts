@@ -45,7 +45,11 @@ export function beginActivity(
             return {
                 ...current,
                 state: result.state,
-                position: { ...position, watched: result.state.watched },
+                position: {
+                    ...position,
+                    watched: result.state.watched,
+                    updatedAt: new Date().toISOString(),
+                },
                 pending: [
                     ...(current?.pending ?? []),
                     {
@@ -146,7 +150,11 @@ export async function saveActivity(
         return {
             ...current,
             state: result.state,
-            position,
+            position: {
+                ...position,
+                watched: result.state.watched,
+                updatedAt: new Date().toISOString(),
+            },
             pending: [
                 ...(current?.pending ?? []),
                 { address, consentGeneration: this.consent(), operation },

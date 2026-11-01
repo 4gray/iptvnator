@@ -970,7 +970,8 @@ and on teardown; existing native position reports retain session metadata.
 The consented activity runtime starts from the lazy source-server initializer;
 standalone startup keeps the optional client outside the initial bundle. Players
 ignore transient pre-seek ticks until the initial resume position is reached,
-then accept deliberate rewinds. Refresh on focus/online and a visible-page
+then accept deliberate rewinds. Durable local snapshots get a fresh save timestamp
+for offline episode ordering and retain the reducer's watched state. Refresh on focus/online and a visible-page
 five-second poll deliver changes; local invalidation refreshes open detail views
 and position caches.
 

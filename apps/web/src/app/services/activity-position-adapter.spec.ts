@@ -41,6 +41,63 @@ describe('activity projection local preservation', () => {
         ]);
     });
 
+    it('exports shared progress and reset barriers as portable legacy-compatible positions', async () => {
+        const shared = {
+            contentType: 'vod' as const,
+            contentXtreamId: 1,
+            positionSeconds: 20,
+            durationSeconds: 100,
+            watched: true,
+            activitySessionId: 'device-session',
+            activityAction: 'mark-watched' as const,
+        };
+        const client = {
+            positions: async () => [
+                { position: shared, reset: false },
+                { position: { ...shared, contentXtreamId: 2 }, reset: true },
+                {
+                    position: {
+                        ...shared,
+                        contentXtreamId: 3,
+                        durationSeconds: undefined,
+                    },
+                    reset: false,
+                },
+            ],
+        } as unknown as ActivitySyncClient;
+        const local = [
+            { ...shared, positionSeconds: 5, watched: false },
+            { ...shared, contentXtreamId: 2 },
+            {
+                contentType: 'vod' as const,
+                contentXtreamId: 9,
+                positionSeconds: 7,
+            },
+        ];
+        const result = await new ActivityPositionAdapter(
+            client
+        ).exportPositions('source', local);
+        expect(result).toEqual([
+            expect.objectContaining({
+                contentXtreamId: 1,
+                positionSeconds: 100,
+                durationSeconds: 100,
+                watched: true,
+            }),
+            expect.objectContaining({ contentXtreamId: 9, positionSeconds: 7 }),
+            expect.objectContaining({
+                contentXtreamId: 3,
+                positionSeconds: 1,
+                durationSeconds: 1,
+                watched: true,
+            }),
+        ]);
+        expect(
+            result.every((p) => !p.activitySessionId && !p.activityAction)
+        ).toBe(true);
+        expect(local[0].positionSeconds).toBe(5);
+    });
+
     it.each([false, true])(
         'propagates strict %s mirror failure instead of accepting a silent raw acknowledgement',
         async (reset) => {

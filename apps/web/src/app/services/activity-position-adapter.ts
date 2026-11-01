@@ -144,7 +144,16 @@ export class ActivityPositionAdapter {
         raw: IXtreamDataSource,
         sourceId: string
     ): Promise<PlaybackPositionData[]> {
-        const local = await raw.getAllPlaybackPositions(sourceId);
+        return this.project(
+            sourceId,
+            await raw.getAllPlaybackPositions(sourceId)
+        );
+    }
+
+    async project(
+        sourceId: string,
+        local: PlaybackPositionData[]
+    ): Promise<PlaybackPositionData[]> {
         const positions = new Map(
             local.map((p) => [`${p.contentType}:${p.contentXtreamId}`, p])
         );
@@ -154,6 +163,13 @@ export class ActivityPositionAdapter {
             else positions.set(key, item.position);
         }
         return [...positions.values()];
+    }
+
+    async exportPositions(
+        sourceId: string,
+        local: PlaybackPositionData[]
+    ): Promise<PlaybackPositionData[]> {
+        return (await this.project(sourceId, local)).map(localActivityPosition);
     }
 
     async keepLocal(raw: IXtreamDataSource, sourceId: string): Promise<void> {
@@ -171,20 +187,28 @@ export class ActivityPositionAdapter {
                         position.contentType
                     ));
             else {
-                const duration =
-                    position.durationSeconds && position.durationSeconds > 0
-                        ? position.durationSeconds
-                        : 1;
-                const local = position.watched
-                    ? {
-                          ...position,
-                          positionSeconds: duration,
-                          durationSeconds: duration,
-                      }
-                    : position;
+                const local = localActivityPosition(position);
                 await (this.strict?.save(sourceId, local) ??
                     raw.savePlaybackPosition(sourceId, local));
             }
         }
     }
+}
+
+/** Legacy playback writers encode watched state through progress, not a column. */
+function localActivityPosition(
+    position: PlaybackPositionData
+): PlaybackPositionData {
+    const local = { ...position };
+    delete local.activitySessionId;
+    delete local.activityAction;
+    if (local.watched) {
+        const duration =
+            Number.isFinite(local.durationSeconds) && local.durationSeconds! > 0
+                ? local.durationSeconds!
+                : 1;
+        local.positionSeconds = duration;
+        local.durationSeconds = duration;
+    }
+    return local;
 }

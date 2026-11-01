@@ -1,4 +1,8 @@
 import {
+    projectXtreamBackupPositions,
+    type BackupPositionProjector,
+} from './playlist-backup-position-projection';
+import {
     hasValidBackupEntryData,
     hasValidBackupSettings,
 } from './playlist-backup-validation';
@@ -86,7 +90,9 @@ export class PlaylistBackupService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private backupImportTail?: Promise<void>;
 
-    async exportBackup(): Promise<PlaylistBackupExportPayload> {
+    async exportBackup(
+        projectPositions?: BackupPositionProjector
+    ): Promise<PlaylistBackupExportPayload> {
         // Locks are written only when present, and an absent field means
         // "no opinion" on restore — so an export must never run against an
         // empty in-memory store that merely has not loaded, or could not.
@@ -104,7 +110,9 @@ export class PlaylistBackupService {
         );
         const settings = this.buildSettingsPayload();
         const playlistEntries = await Promise.all(
-            playlists.map((playlist) => this.buildPlaylistEntry(playlist))
+            playlists.map((playlist) =>
+                this.buildPlaylistEntry(playlist, projectPositions)
+            )
         );
         const exportedAt = new Date().toISOString();
         const manifest: PlaylistBackupManifestV1 = {
@@ -254,13 +262,14 @@ export class PlaylistBackupService {
     }
 
     private async buildPlaylistEntry(
-        playlist: Playlist
+        playlist: Playlist,
+        projectPositions?: BackupPositionProjector
     ): Promise<PlaylistBackupEntry> {
         const portalType = this.getPlaylistPortalType(playlist);
 
         switch (portalType) {
             case 'xtream':
-                return this.buildXtreamEntry(playlist);
+                return this.buildXtreamEntry(playlist, projectPositions);
             case 'stalker':
                 return this.buildStalkerEntry(playlist);
             case 'm3u':
@@ -320,7 +329,8 @@ export class PlaylistBackupService {
     }
 
     private async buildXtreamEntry(
-        playlist: Playlist
+        playlist: Playlist,
+        projectPositions?: BackupPositionProjector
     ): Promise<XtreamPlaylistBackupEntry> {
         const entry: XtreamPlaylistBackupEntry = {
             portalType: 'xtream',
@@ -381,7 +391,10 @@ export class PlaylistBackupService {
         // An unavailable pin store is no opinion, never an authoritative [].
         // Same choice as XTREAM_DATA_SOURCE: user state lives where it reads.
         if (!this.runtime.supportsXtreamSqliteDataSource)
-            return this.pwaXtream.exportInto(entry);
+            return projectXtreamBackupPositions(
+                this.pwaXtream.exportInto(entry),
+                projectPositions
+            );
 
         const [
             liveCategories,
@@ -408,35 +421,38 @@ export class PlaylistBackupService {
             this.readSourcePinsForExport(playlist._id),
         ]);
 
-        return {
-            ...entry,
-            userState: {
-                hiddenCategories: [
-                    ...this.mapHiddenCategories(liveCategories, 'live'),
-                    ...this.mapHiddenCategories(movieCategories, 'movies'),
-                    ...this.mapHiddenCategories(seriesCategories, 'series'),
-                ],
-                ...this.optionalLockedXtreamCategories(playlist._id),
-                favorites: favorites.map(toXtreamBackupFavorite),
-                recentlyViewed: recent.map((item) => ({
-                    xtreamId: item.xtream_id,
-                    contentType: item.type as XtreamBackupContentType,
-                    viewedAt: item.viewed_at ?? new Date().toISOString(),
-                })),
-                playbackPositions: playbackPositions.map((item) => ({
-                    ...item,
-                })),
-                // Carried under the playlist they point AT, so a restore that
-                // does not include that portal cannot resurrect a preference
-                // for something the archive never had.
-                //
-                // Present ONLY when this runtime can actually read them. The
-                // collection is authoritative on restore, so stating `[]`
-                // where the answer is "could not look" turns the archive into
-                // an instruction to delete.
-                ...(sourcePins ? { sourcePins } : {}),
+        return projectXtreamBackupPositions(
+            {
+                ...entry,
+                userState: {
+                    hiddenCategories: [
+                        ...this.mapHiddenCategories(liveCategories, 'live'),
+                        ...this.mapHiddenCategories(movieCategories, 'movies'),
+                        ...this.mapHiddenCategories(seriesCategories, 'series'),
+                    ],
+                    ...this.optionalLockedXtreamCategories(playlist._id),
+                    favorites: favorites.map(toXtreamBackupFavorite),
+                    recentlyViewed: recent.map((item) => ({
+                        xtreamId: item.xtream_id,
+                        contentType: item.type as XtreamBackupContentType,
+                        viewedAt: item.viewed_at ?? new Date().toISOString(),
+                    })),
+                    playbackPositions: playbackPositions.map((item) => ({
+                        ...item,
+                    })),
+                    // Carried under the playlist they point AT, so a restore that
+                    // does not include that portal cannot resurrect a preference
+                    // for something the archive never had.
+                    //
+                    // Present ONLY when this runtime can actually read them. The
+                    // collection is authoritative on restore, so stating `[]`
+                    // where the answer is "could not look" turns the archive into
+                    // an instruction to delete.
+                    ...(sourcePins ? { sourcePins } : {}),
+                },
             },
-        };
+            projectPositions
+        );
     }
 
     /**

@@ -220,6 +220,27 @@ describe('activity sync clients', () => {
         expect(await a.store.entries('source')).toHaveLength(0);
     });
 
+    it('timestamps offline saves and retains an already watched local projection', async () => {
+        const h = harness();
+        const a = h.client('a');
+        h.offline(true);
+        const before = Date.now();
+        await launch(a, {
+            ...movie('offline', 95),
+            watched: false,
+            updatedAt: '2001-01-01T00:00:00.000Z',
+        });
+        await a.value.save('source', {
+            ...movie('offline', 30),
+            watched: false,
+        });
+        const position = (await a.value.positions('source'))[0].position;
+        expect(Date.parse(position.updatedAt!)).toBeGreaterThanOrEqual(before);
+        expect(Date.parse(position.updatedAt!)).toBeLessThanOrEqual(Date.now());
+        expect(position.watched).toBe(true);
+        expect(h.states.size).toBe(0);
+        expect((await a.store.pending()).length).toBeGreaterThan(0);
+    });
     it('sends no requests without consent and imports no existing local data', async () => {
         const h = harness();
         const a = h.client('a');
