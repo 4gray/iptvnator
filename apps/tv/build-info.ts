@@ -14,14 +14,7 @@ export function tvBuildIdentity(root = process.cwd()) {
             }).trim();
         return {
             revision: git(['rev-parse', 'HEAD']),
-            modified: !!git([
-                'status',
-                '--porcelain',
-                '--',
-                'apps/tv',
-                'libs/tv',
-                'package.json',
-            ]),
+            modified: !!git(['status', '--porcelain']),
         };
     } catch {
         return { revision: undefined, modified: false };
