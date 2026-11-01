@@ -1245,7 +1245,11 @@ Startup synchronizes the native preference in the existing source-reconciliation
 IPC before reconciling source data, including when a renderer reopens over a
 reused native worker. Its acknowledgement avoids a separate enable command.
 Actual changes still synchronize the worker; overlapping updates use the latest
-acknowledgement and failures retry.
+acknowledgement and failures retry. Completed settings writes also retire older
+EPG activation continuations, so delayed source reconciliation cannot re-enable EPG
+after a newer saved opt-out; failed writes do not retire the committed change.
+Reconciliation after a native acknowledgement uses the latest committed source
+URLs, so an older save cannot restore obsolete ownership.
 Suspension clears session fetch markers after writers drain, so a source that
 becomes stale while disabled can refresh on resumption; fresh stored data still
 skips downloading through the ordinary freshness check.

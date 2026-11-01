@@ -87,6 +87,100 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(preferences.enabled()).toBe(true);
     });
 
+    it.each([false, true])(
+        'uses the latest committed EPG save after an earlier enable finishes (later write fails: %s)',
+        async (failNewWrite) => {
+            storedSettings = { epgEnabled: false };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            const preferences = injector.get(EpgPreferencesService);
+            let releaseReconciliation!: () => void;
+            let reconciliationStarted!: () => void;
+            const started = new Promise<void>((resolve) => {
+                reconciliationStarted = resolve;
+            });
+            const barrier = new Promise<void>((resolve) => {
+                releaseReconciliation = resolve;
+            });
+            jest.spyOn(
+                injector.get(EpgSourceSettingsService),
+                'synchronize'
+            ).mockImplementation(() => {
+                reconciliationStarted();
+                return barrier;
+            });
+            const enabling = store.updateSettings({ epgEnabled: true });
+            await started;
+            expect(preferences.enabled()).toBe(false);
+            if (failNewWrite) {
+                const failedWrite = new Subject<void>();
+                storage.set.mockReturnValueOnce(failedWrite);
+                const disabling = store.updateSettings({ epgEnabled: false });
+                failedWrite.error(new Error('Synthetic write failure'));
+                await expect(disabling).rejects.toThrow(
+                    'Synthetic write failure'
+                );
+            } else {
+                await store.updateSettings({ epgEnabled: false });
+            }
+            releaseReconciliation();
+            await enabling;
+            expect(store.getSettings().epgEnabled).toBe(failNewWrite);
+            expect(preferences.enabled()).toBe(failNewWrite);
+            const load = jest.fn().mockResolvedValue(['synthetic programme']);
+            await preferences.run(load, []);
+            expect(load).toHaveBeenCalledTimes(failNewWrite ? 1 : 0);
+        }
+    );
+
+    it('reconciles the latest committed sources after an older native opt-out acknowledgement', async () => {
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        const originalBridge = window.electron;
+        let releaseDisable!: () => void;
+        let disableStarted!: () => void;
+        const started = new Promise<void>((resolve) => {
+            disableStarted = resolve;
+        });
+        const barrier = new Promise<void>((resolve) => {
+            releaseDisable = resolve;
+        });
+        window.electron = {
+            ...originalBridge,
+            setEpgEnabled: jest.fn((enabled: boolean) => {
+                if (enabled) return Promise.resolve();
+                disableStarted();
+                return barrier;
+            }),
+        } as typeof window.electron;
+        const reconcile = jest
+            .spyOn(injector.get(EpgSourceSettingsService), 'synchronize')
+            .mockResolvedValue(undefined);
+        try {
+            const disabling = store.updateSettings({
+                epgEnabled: false,
+                epgUrl: ['https://example.org/earlier-guide.xml'],
+            });
+            await started;
+            await store.updateSettings({
+                epgEnabled: true,
+                epgUrl: ['https://example.org/latest-guide.xml'],
+            });
+            releaseDisable();
+            await disabling;
+            expect(reconcile).toHaveBeenLastCalledWith([
+                'https://example.org/latest-guide.xml',
+            ]);
+            expect(store.epgUrl()).toEqual([
+                'https://example.org/latest-guide.xml',
+            ]);
+            expect(injector.get(EpgPreferencesService).enabled()).toBe(true);
+        } finally {
+            releaseDisable();
+            window.electron = originalBridge;
+        }
+    });
+
     it('keeps the committed EPG preference when persistence fails', async () => {
         const store = injector.get(SettingsStore);
         await store.loadSettings();

@@ -69,6 +69,8 @@ export const SettingsStore = signalStore(
         const epgSources = inject(EpgSourceSettingsService);
         const epgPreferences = inject(EpgPreferencesService);
         let settingsLoadPromise: Promise<void> | undefined;
+        let epgSaveRevision = 0;
+        let committedEpgUrls: Settings['epgUrl'];
 
         return {
             loadSettings() {
@@ -202,6 +204,9 @@ export const SettingsStore = signalStore(
                     });
                     throw error;
                 }
+                // Failed writes cannot retire an earlier committed preference.
+                const epgSave = ++epgSaveRevision;
+                committedEpgUrls = completeSettings.epgUrl;
                 const enableEpg = completeSettings.epgEnabled !== false;
                 const wasEpgEnabled = epgPreferences.enabled();
                 if (!enableEpg) await epgPreferences.apply(false);
@@ -210,9 +215,11 @@ export const SettingsStore = signalStore(
                     options.retryEpgCleanup ||
                     (enableEpg && !wasEpgEnabled)
                 ) {
-                    await epgSources.synchronize(completeSettings.epgUrl);
+                    // A native acknowledgement may arrive after a newer save.
+                    await epgSources.synchronize(committedEpgUrls);
                 }
-                if (enableEpg) await epgPreferences.apply(true);
+                if (enableEpg && epgSave === epgSaveRevision)
+                    await epgPreferences.apply(true);
             },
 
             getSettings() {
