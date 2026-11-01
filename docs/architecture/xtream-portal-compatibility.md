@@ -446,6 +446,8 @@ still belongs to that attempt.
 Edit-time replacement persists an unfinished status before deletion and re-arms
 it before native saves. The deletion IPC flushes the sender session’s DOM storage
 before native work, so an immediate process exit cannot drop the parked snapshot.
+A failed/false completion-status write keeps the type unfinished and recovery
+pending; it must not acknowledge the journal or snapshot.
 Startup clears leftover `importing` caches, including
 `idle` caches with a pending cache-recovery record after interrupted deletion.
 Bootstrap also clears leftover failed/cancelled type caches before reading or

@@ -292,6 +292,22 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(release).toHaveBeenCalled();
     });
 
+    it('retains recovery and clears unfinished rows when completion status is not persisted', async () => {
+        db.setXtreamImportStatus.mockImplementation(
+            async (_id, _type, status) => status !== 'completed'
+        );
+        await expect(service.refresh(playlist, ['movie'])).rejects.toThrow(
+            'completion status'
+        );
+        expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+        expect(db.restoreXtreamUserData).not.toHaveBeenCalled();
+        expect(db.clearXtreamImportCache).toHaveBeenCalledWith('p', 'movie');
+        expect(db.setAppState).not.toHaveBeenCalledWith(
+            'xtream-history-recovery:p',
+            ''
+        );
+    });
+
     it('clears only unfinished types after a committed batch fails and keeps recovery parked', async () => {
         data.sendIpcEvent.mockResolvedValue({
             payload: [{ stream_id: 1, category_id: 1 }],

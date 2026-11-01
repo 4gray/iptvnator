@@ -22,10 +22,14 @@ async function faultAndCount(
     dataDir: string,
     id: string,
     enabled: boolean,
-    failCleanup = false
+    failCleanup = false,
+    failCompletion = false
 ) {
     return app.electronApp.evaluate(
-        (_electron, { dependency, file, id, enabled, failCleanup }) => {
+        (
+            _electron,
+            { dependency, file, id, enabled, failCleanup, failCompletion }
+        ) => {
             const Database = process
                 .getBuiltinModule('module')
                 .createRequire(dependency)(dependency);
@@ -33,12 +37,18 @@ async function faultAndCount(
             try {
                 db.exec('DROP TRIGGER IF EXISTS test_fail_movie_second_batch');
                 db.exec('DROP TRIGGER IF EXISTS test_fail_movie_cleanup');
+                db.exec('DROP TRIGGER IF EXISTS test_fail_movie_completion');
                 if (enabled) {
                     db.prepare(
                         'UPDATE recently_viewed SET viewed_at = ? WHERE playlist_id = ?'
                     ).run('2026-01-01 00:00:00', id);
                     const literal = id.replaceAll("'", "''");
-                    db.exec(`CREATE TRIGGER test_fail_movie_second_batch BEFORE INSERT ON content
+                    if (failCompletion)
+                        db.exec(`CREATE TRIGGER test_fail_movie_completion BEFORE INSERT ON app_state
+                        WHEN NEW.key = 'xtream-import-status:${literal}:movie' AND NEW.value = 'completed'
+                        BEGIN SELECT RAISE(ABORT, 'simulated completion status failure'); END`);
+                    else
+                        db.exec(`CREATE TRIGGER test_fail_movie_second_batch BEFORE INSERT ON content
                     WHEN (SELECT playlist_id FROM categories WHERE id = NEW.category_id) = '${literal}' AND NEW.type = 'movie'
                     AND (SELECT count(*) FROM content c JOIN categories g ON c.category_id = g.id WHERE g.playlist_id = '${literal}' AND c.type = 'movie') >= 5000
                     BEGIN SELECT RAISE(ABORT, 'simulated second transaction failure'); END`);
@@ -62,16 +72,18 @@ async function faultAndCount(
             id,
             enabled,
             failCleanup,
+            failCompletion,
         }
     );
 }
 
-for (const { failCleanup, legacy } of [
-    { failCleanup: false, legacy: false },
-    { failCleanup: true, legacy: false },
-    { failCleanup: false, legacy: true },
+for (const { failCleanup, legacy, failCompletion } of [
+    { failCleanup: false, legacy: false, failCompletion: false },
+    { failCleanup: true, legacy: false, failCompletion: false },
+    { failCleanup: false, legacy: true, failCompletion: false },
+    { failCleanup: false, legacy: false, failCompletion: true },
 ])
-    test(`interrupted catalog writes restore the full catalog and history (cleanup=${failCleanup}, legacy=${legacy})`, async ({
+    test(`interrupted catalog writes restore the full catalog and history (cleanup=${failCleanup}, legacy=${legacy}, completion=${failCompletion})`, async ({
         dataDir,
         request,
     }) => {
@@ -220,7 +232,14 @@ for (const { failCleanup, legacy } of [
                 },
                 { id, xtreamId: Number(target.stream_id) }
             );
-            await faultAndCount(app, dataDir, id, true, failCleanup);
+            await faultAndCount(
+                app,
+                dataDir,
+                id,
+                true,
+                failCleanup,
+                failCompletion
+            );
             const dialog = await openSourceEditor(page, title);
             expect(catalogActions(recorder.actions)).toEqual([]);
             recorder.actions.length = 0;

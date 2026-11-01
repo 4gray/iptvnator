@@ -173,11 +173,16 @@ export class XtreamSelectedCatalogRefreshService {
                 );
                 if (content.length > 0 && count === 0)
                     throw new Error('Saving the refreshed catalog failed.');
-                await this.db.setXtreamImportStatus(
-                    playlist._id,
-                    type,
-                    'completed'
-                );
+                if (
+                    !(await this.db.setXtreamImportStatus(
+                        playlist._id,
+                        type,
+                        'completed'
+                    ))
+                )
+                    throw new Error(
+                        'Could not persist catalog completion status.'
+                    );
                 incomplete.delete(type);
             }
             publish(null, 'restoring');
