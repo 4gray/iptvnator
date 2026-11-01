@@ -94,6 +94,8 @@ export interface ActivityPendingOperation {
     address: ActivityAddress;
     consentGeneration: string;
     operation: ActivityOperation;
+    /** Ephemeral local delivery ownership; never sent to the server. */
+    deliveryLease?: { owner: string; expiresAt: number };
 }
 
 /** The local projection and pending operations must be committed together. */

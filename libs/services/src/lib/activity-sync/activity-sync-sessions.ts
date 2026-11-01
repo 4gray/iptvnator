@@ -4,9 +4,8 @@ import {
     applyActivityOperation,
     emptyActivityState,
     type ActivityAddress,
-    type ActivityApplyResult,
+    type ActivityLocalRecord,
     type ActivityOperation,
-    type ActivityState,
 } from '@iptvnator/shared/interfaces/activity-sync';
 import type { ActivitySyncClient } from './activity-sync-client';
 import {
@@ -25,21 +24,29 @@ export function beginActivity(
         return Promise.reject(new Error('Activity session missing'));
     const existing = this.sessions.get(sessionId);
     if (existing) return existing;
+    const operationId = createRandomId();
     const begin = (async () => {
         const address = await this.address(sourceId, position);
         let generation = 0;
-        await this.store.mutate(address, (current) => {
+        const consentGeneration = this.consent();
+        this.delivery.begins.set(operationId, consentGeneration);
+        const committed = await this.store.mutate(address, (current) => {
             const state = current?.state ?? emptyActivityState();
             const operation: ActivityOperation = {
                 kind: 'begin',
-                operationId: createRandomId(),
+                operationId,
                 deviceId: this.options.deviceId,
                 expectedRevision: state.revision,
                 sessionId,
                 positionMetadata: metadata(position),
             };
-            if (!current?.pending.length)
-                this.freshBegins.add(operation.operationId);
+            const fresh =
+                !current?.conflict &&
+                (current?.pending ?? []).every(
+                    (intent) =>
+                        intent.consentGeneration === consentGeneration &&
+                        this.delivery.live(intent)
+                );
             const result = applyActivityOperation(state, operation);
             generation = result.state.generation;
             return {
@@ -54,17 +61,30 @@ export function beginActivity(
                     ...(current?.pending ?? []),
                     {
                         address,
-                        consentGeneration: this.consent(),
+                        consentGeneration,
                         operation,
+                        ...(fresh
+                            ? { deliveryLease: this.delivery.lease() }
+                            : {}),
                     },
                 ],
             };
         });
+        if (
+            committed.pending.some(
+                (intent) =>
+                    intent.operation.operationId === operationId &&
+                    intent.deliveryLease?.owner === this.delivery.owner
+            )
+        )
+            this.delivery.start();
+        else this.delivery.settled(operationId);
         this.options.changed();
         void this.flush();
         return { address, generation };
     })();
     void begin.catch(() => {
+        this.delivery.settled(operationId);
         if (this.sessions.get(sessionId) === begin)
             this.sessions.delete(sessionId);
     });
@@ -101,67 +121,90 @@ export async function saveActivity(
             return;
         }
     }
-    await this.store.mutate(address, (current) => {
-        const state = current?.state ?? emptyActivityState();
-        if (
-            session &&
-            (this.retiredSessions.has(position.activitySessionId!) ||
-                (state.generation > session.generation &&
-                    state.owner?.sessionId !== position.activitySessionId))
-        ) {
-            this.retiredSessions.add(position.activitySessionId!);
-            return current!;
-        }
-        const operation: ActivityOperation = session
-            ? {
-                  kind: 'checkpoint',
-                  operationId: createRandomId(),
-                  deviceId: this.options.deviceId,
-                  generation:
-                      state.owner?.deviceId === this.options.deviceId &&
-                      state.owner?.sessionId === position.activitySessionId
-                          ? state.generation
-                          : session.generation,
-                  sessionId: position.activitySessionId!,
-                  sequence:
-                      Math.max(
-                          state.owner?.sequence ?? 0,
-                          ...(current?.pending ?? []).map((p) =>
-                              p.operation.kind === 'checkpoint' &&
-                              p.operation.sessionId ===
-                                  position.activitySessionId
-                                  ? p.operation.sequence
-                                  : 0
-                          )
-                      ) + 1,
-                  resume: activityResume(position),
-                  positionMetadata: metadata(position),
-              }
-            : {
-                  kind: 'mark-watched',
-                  operationId: createRandomId(),
-                  deviceId: this.options.deviceId,
-                  expectedRevision: state.revision,
-                  positionMetadata: metadata(position),
-              };
-        if (operation.kind === 'checkpoint')
-            this.freshCheckpoints.add(operation.operationId);
-        const result = applyActivityOperation(state, operation);
-        return {
-            ...current,
-            state: result.state,
-            position: {
-                ...position,
-                watched: result.state.watched,
-                updatedAt: new Date().toISOString(),
-            },
-            pending: [
-                ...(current?.pending ?? []),
-                { address, consentGeneration: this.consent(), operation },
-            ],
-            ...(result.status === 'conflict' ? { conflict: state } : {}),
-        };
-    });
+    const operationId = createRandomId();
+    const consentGeneration = this.consent();
+    if (session) this.delivery.checkpoints.set(operationId, consentGeneration);
+    let committed: ActivityLocalRecord;
+    try {
+        committed = await this.store.mutate(address, (current) => {
+            const state = current?.state ?? emptyActivityState();
+            if (
+                session &&
+                (this.retiredSessions.has(position.activitySessionId!) ||
+                    (state.generation > session.generation &&
+                        state.owner?.sessionId !== position.activitySessionId))
+            ) {
+                this.retiredSessions.add(position.activitySessionId!);
+                return current!;
+            }
+            const operation: ActivityOperation = session
+                ? {
+                      kind: 'checkpoint',
+                      operationId,
+                      deviceId: this.options.deviceId,
+                      generation:
+                          state.owner?.deviceId === this.options.deviceId &&
+                          state.owner?.sessionId === position.activitySessionId
+                              ? state.generation
+                              : session.generation,
+                      sessionId: position.activitySessionId!,
+                      sequence:
+                          Math.max(
+                              state.owner?.sequence ?? 0,
+                              ...(current?.pending ?? []).map((p) =>
+                                  p.operation.kind === 'checkpoint' &&
+                                  p.operation.sessionId ===
+                                      position.activitySessionId
+                                      ? p.operation.sequence
+                                      : 0
+                              )
+                          ) + 1,
+                      resume: activityResume(position),
+                      positionMetadata: metadata(position),
+                  }
+                : {
+                      kind: 'mark-watched',
+                      operationId,
+                      deviceId: this.options.deviceId,
+                      expectedRevision: state.revision,
+                      positionMetadata: metadata(position),
+                  };
+            const result = applyActivityOperation(state, operation);
+            return {
+                ...current,
+                state: result.state,
+                position: {
+                    ...position,
+                    watched: result.state.watched,
+                    updatedAt: new Date().toISOString(),
+                },
+                pending: [
+                    ...(current?.pending ?? []),
+                    {
+                        address,
+                        consentGeneration,
+                        operation,
+                        ...(session && !current?.conflict
+                            ? { deliveryLease: this.delivery.lease() }
+                            : {}),
+                    },
+                ],
+                ...(result.status === 'conflict' ? { conflict: state } : {}),
+            };
+        });
+    } catch (error) {
+        this.delivery.settled(operationId);
+        throw error;
+    }
+    if (
+        committed.pending.some(
+            (intent) =>
+                intent.operation.operationId === operationId &&
+                intent.deliveryLease?.owner === this.delivery.owner
+        )
+    )
+        this.delivery.start();
+    else this.delivery.settled(operationId);
     this.options.changed();
     void this.flush();
 }

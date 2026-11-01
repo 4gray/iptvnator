@@ -970,7 +970,9 @@ and on teardown; existing native position reports retain session metadata.
 The consented activity runtime starts from the lazy source-server initializer;
 standalone startup keeps the optional client outside the initial bundle. Players
 ignore transient pre-seek ticks until the initial resume position is reached,
-then accept deliberate rewinds. Durable local snapshots get a fresh save
+then accept deliberate rewinds. The same guard filters the emitted time updates
+before legacy episode writers receive them, so those writers cannot upload a
+transient pre-seek position. Durable local snapshots get a fresh save
 timestamp for offline episode ordering and retain the reducer's watched state.
 Refresh on focus/online and a visible-page five-second poll deliver changes;
 local invalidation refreshes open detail views and position caches, including
@@ -1014,7 +1016,17 @@ Both local stores commit a projection and its ordered pending operations in one
 transaction. They bind reads and writes to their instance and expose indexed
 pending-intent discovery for restart recovery. Each intent retains its original
 address and consent generation. The sender filters consent and pauses
-parked generations; recovering an intent does not authorize uploading it.
+parked generations; recovering an intent does not authorize uploading it. Fresh
+operations also carry a local-only delivery lease owned by their originating
+client. Live holders renew it every five seconds; it expires after fifteen
+seconds without renewal. Each sender claims the queue head transactionally, and
+response handling checks the current lease rather than a request-time snapshot.
+Sibling tabs wait for live holders. Expired/released claims are recoverable, but
+never grant permission to rebase an offline intent. Disabling consent stops
+renewal and releases held claims; explicitly sending a parked generation drops
+old leases. These fields are not sent to the NAS and require neither Web Locks
+nor schema changes.
+
 Acknowledgements must remove only the confirmed operation inside `mutate`,
 preserving a sibling tab's later intents. Mutators are synchronous and must not
 perform network I/O. The IndexedDB store uses its own versioned database and

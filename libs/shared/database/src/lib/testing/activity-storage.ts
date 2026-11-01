@@ -118,6 +118,7 @@ async function main() {
             address,
             consentGeneration: 'consent-1',
             operation: begin,
+            deliveryLease: { owner: 'synthetic-origin', expiresAt: Date.now() + 15_000 },
         };
         await local.mutate(address, (current) =>
             appendActivityIntent(current, emptyActivityState(), pending)

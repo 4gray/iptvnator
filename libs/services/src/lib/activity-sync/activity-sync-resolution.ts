@@ -27,8 +27,12 @@ export async function resolveActivity(
     const consentGeneration = this.consent();
     let session: { id: string; generation: number } | undefined;
     let discardedSessions: string[] = [];
+    let discardedOperations: string[] = [];
     await this.store.mutate(address, (current) => {
         discardedSessions = [];
+        discardedOperations =
+            current?.pending.map((intent) => intent.operation.operationId) ??
+            [];
         if (!current)
             return {
                 state: remote,
@@ -144,6 +148,7 @@ export async function resolveActivity(
             })),
         };
     });
+    for (const id of discardedOperations) this.delivery.settled(id);
     for (const id of discardedSessions) this.retiredSessions.add(id);
     if (session)
         this.sessions.set(

@@ -124,7 +124,10 @@ function harness(provider: 'xtream' | 'stalker' = 'xtream') {
         }
         return { status: 200, body: structuredClone(result) };
     });
-    function client(deviceId: string, store = new MemoryActivityStore()) {
+    function client(
+        deviceId: string,
+        store: ActivityLocalStore = new MemoryActivityStore()
+    ) {
         let consent: string | null = 'consent';
         const status = jest.fn();
         const value = new ActivitySyncClient(store, {
@@ -240,6 +243,160 @@ describe('activity sync clients', () => {
         expect(position.watched).toBe(true);
         expect(h.states.size).toBe(0);
         expect((await a.store.pending()).length).toBeGreaterThan(0);
+    });
+    it('lets the originating tab rebase its fresh online begin before a sibling can send it', async () => {
+        const h = harness();
+        const a = h.client('same-device');
+        const sibling = h.client('same-device', a.store);
+        const remote = h.client('other-device');
+        await launch(remote, movie('remote', 30));
+        await remote.value.flush();
+        const held = jest.spyOn(a.value, 'flush').mockResolvedValue(undefined);
+        await launch(a, movie('new-online', 40));
+        await sibling.value.flush();
+        expect(
+            (await a.store.entries('source'))[0].record.conflict
+        ).toBeUndefined();
+        held.mockRestore();
+        await a.value.flush();
+        expect([...h.states.values()][0]).toMatchObject({
+            owner: { sessionId: 'new-online' },
+            resume: { positionSeconds: 40 },
+        });
+        expect(await a.store.pending()).toHaveLength(0);
+    });
+    it('lets the originating tab retire a superseded live checkpoint instead of creating a sibling conflict', async () => {
+        const h = harness();
+        const a = h.client('same-device');
+        const sibling = h.client('same-device', a.store);
+        const remote = h.client('other-device');
+        await launch(a, movie('old-live', 20));
+        await a.value.flush();
+        await launch(remote, movie('remote', 30));
+        await remote.value.flush();
+        const held = jest.spyOn(a.value, 'flush').mockResolvedValue(undefined);
+        await a.value.save('source', movie('old-live', 70));
+        await sibling.value.flush();
+        expect(
+            (await a.store.entries('source'))[0].record.conflict
+        ).toBeUndefined();
+        held.mockRestore();
+        await a.value.flush();
+        expect(await a.store.pending()).toHaveLength(0);
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(30);
+    });
+    it('recovers an expired originating-tab lease as offline intent without rebasing it automatically', async () => {
+        const h = harness();
+        const a = h.client('same-device');
+        const sibling = h.client('same-device', a.store);
+        const remote = h.client('other-device');
+        const held = jest.spyOn(a.value, 'flush').mockResolvedValue(undefined);
+        await launch(a, movie('abandoned', 70));
+        await launch(remote, movie('remote', 30));
+        await remote.value.flush();
+        const clock = jest
+            .spyOn(Date, 'now')
+            .mockReturnValue(Date.now() + 60_000);
+        try {
+            await sibling.value.flush();
+        } finally {
+            clock.mockRestore();
+            held.mockRestore();
+        }
+        expect(
+            (await a.store.entries('source'))[0].record.conflict
+        ).toBeDefined();
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(30);
+        await a.value.flush();
+    });
+    it('renews a fresh tab lease while its request is slow', async () => {
+        const h = harness();
+        const a = h.client('same-device');
+        const sibling = h.client('same-device', a.store);
+        const remote = h.client('other-device');
+        await launch(remote, movie('remote', 30));
+        await remote.value.flush();
+        const send = h.request.getMockImplementation()!;
+        let release!: () => void;
+        const blocked = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        let held = false;
+        h.request.mockImplementation(async (input) => {
+            if (
+                !held &&
+                input.operation === 'activity-apply' &&
+                input.activity?.operation?.deviceId === 'same-device'
+            ) {
+                held = true;
+                await blocked;
+            }
+            return send(input);
+        });
+        jest.useFakeTimers();
+        try {
+            await launch(a, movie('slow-online', 40));
+            await jest.advanceTimersByTimeAsync(20_000);
+            await sibling.value.flush();
+            expect(
+                (await a.store.entries('source'))[0].record.conflict
+            ).toBeUndefined();
+        } finally {
+            release();
+            await a.value.flush();
+            jest.useRealTimers();
+        }
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(40);
+        expect(await a.store.pending()).toHaveLength(0);
+    });
+    it('claims delivery against the current store when the list snapshot contains an expired lease', async () => {
+        const h = harness();
+        const a = h.client('same-device');
+        const remote = h.client('other-device');
+        await launch(remote, movie('remote', 30));
+        await remote.value.flush();
+        const held = jest.spyOn(a.value, 'flush').mockResolvedValue(undefined);
+        await launch(a, movie('new-online', 40));
+        const stale = structuredClone(await a.store.entries('source'));
+        for (const entry of stale)
+            for (const pending of entry.record.pending)
+                if (pending.deliveryLease)
+                    pending.deliveryLease.expiresAt = Date.now() - 1;
+        const store: ActivityLocalStore = {
+            entries: async () => stale,
+            read: a.store.read.bind(a.store),
+            pending: a.store.pending.bind(a.store),
+            mutate: a.store.mutate.bind(a.store),
+        };
+        await h.client('same-device', store).value.flush();
+        expect(
+            (await a.store.entries('source'))[0].record.conflict
+        ).toBeUndefined();
+        held.mockRestore();
+        await a.value.flush();
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(40);
+    });
+    it('keeps a newer explicit online launch fresh behind its prior live checkpoint', async () => {
+        const h = harness();
+        const a = h.client('a');
+        const remote = h.client('b');
+        await launch(a, movie('old-live', 20));
+        await a.value.flush();
+        const held = jest.spyOn(a.value, 'flush').mockResolvedValue(undefined);
+        await a.value.save('source', movie('old-live', 70));
+        await launch(a, movie('new-online', 40));
+        await launch(remote, movie('remote', 30));
+        await remote.value.flush();
+        held.mockRestore();
+        await a.value.flush();
+        expect(
+            (await a.store.entries('source'))[0].record.conflict
+        ).toBeUndefined();
+        expect([...h.states.values()][0]).toMatchObject({
+            owner: { sessionId: 'new-online' },
+            resume: { positionSeconds: 40 },
+        });
+        expect(await a.store.pending()).toHaveLength(0);
     });
     it('sends no requests without consent and imports no existing local data', async () => {
         const h = harness();

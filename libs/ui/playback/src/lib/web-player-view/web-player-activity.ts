@@ -34,13 +34,14 @@ export class WebPlayerActivity {
     record(
         playback: ResolvedPortalPlayback | null,
         event: PlayerTimeUpdate
-    ): void {
+    ): boolean {
         const info = playback?.contentInfo;
-        if (!info?.activitySessionId || !this.activity?.active()) return;
+        if (!info?.activitySessionId || !this.activity?.active()) return true;
         if (!this.resumeSettled) {
             const start = playback?.startTime ?? 0;
             const reachable = !(event.duration > 0) || start < event.duration;
-            if (reachable && start > 0 && event.currentTime < start - 5) return;
+            if (reachable && start > 0 && event.currentTime < start - 5)
+                return false;
             this.resumeSettled = true;
         }
         this.last = {
@@ -51,6 +52,7 @@ export class WebPlayerActivity {
         this.latest = this.last;
         if (Date.now() - this.savedAt >= 5000 || event.playing === false)
             this.flush();
+        return true;
     }
     finish(): void {
         const duration = this.latest?.durationSeconds;

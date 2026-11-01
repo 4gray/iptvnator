@@ -24,6 +24,14 @@ export function assertActivityLocalRecord(
             throw new Error('Activity outbox address mismatch');
         }
         assertActivityToken(pending.consentGeneration);
+        if (pending.deliveryLease !== undefined) {
+            assertActivityToken(pending.deliveryLease.owner);
+            if (
+                !Number.isSafeInteger(pending.deliveryLease.expiresAt) ||
+                pending.deliveryLease.expiresAt < 0
+            )
+                throw new Error('Invalid activity delivery lease');
+        }
         assertActivityToken(pending.operation.operationId);
         assertActivityToken(pending.operation.deviceId);
         const id = JSON.stringify([

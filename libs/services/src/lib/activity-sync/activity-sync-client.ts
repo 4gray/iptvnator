@@ -1,3 +1,4 @@
+import { ActivityDeliveryCoordinator } from './activity-delivery-coordinator';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import { beginActivity } from './activity-sync-sessions';
 import { saveActivity } from './activity-sync-sessions';
@@ -50,8 +51,7 @@ export class ActivitySyncClient {
         string,
         Promise<{ address: ActivityAddress; generation: number }>
     >();
-    readonly freshBegins = new Set<string>();
-    readonly freshCheckpoints = new Set<string>();
+    readonly delivery = new ActivityDeliveryCoordinator(this);
     readonly retiredSessions = new Set<string>();
     private flushing?: Promise<void>;
     constructor(
@@ -271,6 +271,10 @@ export class ActivitySyncClient {
                     !record.state.owner,
                 conflict: !!record.conflict,
             }));
+    }
+
+    stopDelivery(): Promise<void> {
+        return this.delivery.release();
     }
 
     flush(): Promise<void> {

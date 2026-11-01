@@ -147,6 +147,7 @@ export class ActivitySyncRuntime {
                 this.enabled.set(false);
                 clearInterval(this.timer);
                 this.timer = undefined;
+                await this.client.stopDelivery();
                 for (const sourceId of await this.sourceIds())
                     await this.adapter?.keepLocal(this.raw, sourceId);
             }
@@ -255,6 +256,7 @@ export class ActivitySyncRuntime {
                             pending: current!.pending.map((p) => ({
                                 ...p,
                                 consentGeneration: generation,
+                                deliveryLease: undefined,
                             })),
                         }));
                 }
