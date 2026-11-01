@@ -178,6 +178,51 @@ describe('StalkerCatalogFacadeService', () => {
         expect(stalkerStoreMock.setSearchPhrase).toHaveBeenCalledWith('matrix');
     });
 
+    it.each([true, false])(
+        'reloads persisted watch changes on catalog re-entry (initially watched: %s)',
+        async (initiallyWatched) => {
+            const watched: PlaybackPositionData = {
+                playlistId: playlist._id,
+                contentType: 'vod',
+                contentXtreamId: 42,
+                positionSeconds: 100,
+                durationSeconds: 100,
+            };
+            const items = [{ id: '42' }];
+            stalkerStoreMock['getPaginatedContent'] = signal(items);
+            playbackPositions.getAllPlaybackPositions.mockResolvedValue(
+                initiallyWatched ? [watched] : []
+            );
+            const service = TestBed.inject(StalkerCatalogFacadeService);
+            TestBed.tick();
+            await Promise.resolve();
+            TestBed.tick();
+            service.hideWatched.setEnabled(true);
+            expect(service.paginatedContent()).toEqual(
+                initiallyWatched ? [] : items
+            );
+
+            // Favorites/Recent save to persistence without a catalog event.
+            playbackPositions.getAllPlaybackPositions.mockResolvedValue(
+                initiallyWatched ? [] : [watched]
+            );
+            service.initialize('5');
+            await Promise.resolve();
+            TestBed.tick();
+            expect(service.paginatedContent()).toEqual(
+                initiallyWatched ? items : []
+            );
+            expect(service.hideWatched.enabled()).toBe(true);
+            expect(
+                playbackPositions.getAllPlaybackPositions
+            ).toHaveBeenCalledTimes(2);
+            expect(
+                stalkerStoreMock['setSelectedCategory']
+            ).toHaveBeenCalledWith('5');
+            expect(stalkerStoreMock['nextPage']).not.toHaveBeenCalled();
+        }
+    );
+
     it.each([true, 1, '1'] as const)(
         'normalizes supported is_series flag %p when selecting an item',
         (isSeries) => {

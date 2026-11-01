@@ -320,3 +320,14 @@ app-grid-list {
     .mat-mdc-menu-panel.refine-root-menu:not(.mat-menu-panel-exit-animation) {
     animation: none;
 }
+
+.catalog-progress-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    color: var(--app-muted-color);
+    button {
+        app-region: no-drag;
+    }
+}

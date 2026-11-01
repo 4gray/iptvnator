@@ -26,8 +26,10 @@ import {
     PORTAL_CATALOG_FACADE,
     PortalCatalogSortMode,
     PortalWatchStateFilter,
+    PortalCatalogHideWatched,
 } from '@iptvnator/portal/shared/util';
 import { CategoryContentViewComponent } from './category-content-view.component';
+import { registerHideWatchedCases } from './testing/category-hide-watched.cases';
 
 @Component({
     selector: 'app-grid-list',
@@ -36,6 +38,11 @@ import { CategoryContentViewComponent } from './category-content-view.component'
     template: '',
 })
 class MockGridListComponent {
+    readonly refinementActive = input(false);
+    readonly sourceHasMore = input(false);
+    readonly loadMorePaused = input(false);
+    readonly continueLoading = output<void>();
+    readonly clearRefinement = output<void>();
     readonly isLoading = input<boolean>();
     readonly isAppending = input<boolean>();
     readonly appendError = input<boolean>();
@@ -104,6 +111,7 @@ describe('CategoryContentViewComponent', () => {
         retryContent: jest.fn(),
         contentSortMode,
         supportsRatingSort: true,
+        hideWatched: undefined as PortalCatalogHideWatched | undefined,
         supportsWatchStateFilter: false,
         watchStateFilter,
         watchFilterLoadState,
@@ -137,6 +145,7 @@ describe('CategoryContentViewComponent', () => {
     };
 
     beforeEach(async () => {
+        catalog.hideWatched = undefined;
         routeReady.set(true);
         catalog.contentType.set('vod');
         catalog.supportsWatchStateFilter = false;
@@ -1277,6 +1286,13 @@ describe('CategoryContentViewComponent', () => {
 
             expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
         });
+    });
+    registerHideWatchedCases({
+        getFixture: () => fixture,
+        catalog,
+        isPaginatedContentLoading,
+        categoryItemCount,
+        hasMore,
     });
 });
 

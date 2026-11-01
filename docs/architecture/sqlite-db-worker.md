@@ -486,6 +486,17 @@ connections are opened unchanged. See
 The preload bridge keeps the existing database methods but adds scoped worker
 events.
 
+Preload subscriptions forward renderer payloads without exposing the privileged
+Electron IPC event. Each returned unsubscribe function removes only its own
+listener. The legacy import-progress cleanup removes its registered progress
+listeners while retaining modern `onDbOperationEvent` observers on the shared
+channel, including across repeated cleanup and resubscription.
+
+`apps/electron-backend/src/app/api/main.preload.lifecycle.spec.ts` verifies
+subscription ownership, payload-only callbacks, legacy progress filtering,
+preservation of failed results and IPC rejections, and independent cancellation
+acknowledgement/import settlement, with renderer tracing both on and off.
+
 ### Important preload APIs
 
 1. `onDbOperationEvent(callback)`

@@ -227,9 +227,7 @@ describe('GridListComponent', () => {
         // The icon is aria-hidden — the status must also exist as
         // visually-hidden text for assistive technology.
         const srText = badge.query(By.css('.visually-hidden'));
-        expect(srText.nativeElement.textContent).toContain(
-            'CATCHUP_AVAILABLE'
-        );
+        expect(srText.nativeElement.textContent).toContain('CATCHUP_AVAILABLE');
     });
 
     it('hides the catch-up badge for live cards without a playable archive', () => {
@@ -332,9 +330,7 @@ describe('GridListComponent with strip country prefix enabled', () => {
     });
 
     it('keeps VOD titles untouched', () => {
-        fixture.componentRef.setInput('items', [
-            { title: 'US | Some Movie' },
-        ]);
+        fixture.componentRef.setInput('items', [{ title: 'US | Some Movie' }]);
         fixture.componentRef.setInput('type', 'vod');
 
         fixture.detectChanges();
@@ -389,9 +385,7 @@ describe('GridListComponent posters-only wall', () => {
             'grid-list--posters-only'
         );
         expect(fixture.debugElement.query(By.css('.title'))).toBeNull();
-        expect(overlay().nativeElement.textContent.trim()).toBe(
-            'Blade Runner'
-        );
+        expect(overlay().nativeElement.textContent.trim()).toBe('Blade Runner');
         expect(overlay().nativeElement.classList).not.toContain(
             'cover-title-overlay--pinned'
         );
@@ -555,5 +549,32 @@ describe('GridListComponent keyboard access', () => {
 
         expect(clicked).toHaveBeenCalledTimes(2);
         expect(space.defaultPrevented).toBe(true);
+    });
+    it('distinguishes paused partial results from exhausted filtered results and emits recovery actions', () => {
+        fixture.componentRef.setInput('items', []);
+        fixture.componentRef.setInput('refinementActive', true);
+        fixture.componentRef.setInput('sourceHasMore', true);
+        fixture.componentRef.setInput('loadMorePaused', true);
+        const resume = jest.fn();
+        const clear = jest.fn();
+        fixture.componentInstance.continueLoading.subscribe(resume);
+        fixture.componentInstance.clearRefinement.subscribe(clear);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain(
+            'WORKSPACE.REFINE_HIDE_WATCHED_PARTIAL'
+        );
+        fixture.nativeElement.querySelector('.grid-list__tail button').click();
+        fixture.nativeElement.querySelector('.grid-filter-clear').click();
+        expect(resume).toHaveBeenCalledTimes(1);
+        expect(clear).toHaveBeenCalledTimes(1);
+        fixture.componentRef.setInput('sourceHasMore', false);
+        fixture.componentRef.setInput('loadMorePaused', false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain(
+            'WORKSPACE.REFINE_HIDE_WATCHED_EMPTY'
+        );
+        expect(
+            fixture.nativeElement.querySelector('.grid-list__tail')
+        ).toBeNull();
     });
 });

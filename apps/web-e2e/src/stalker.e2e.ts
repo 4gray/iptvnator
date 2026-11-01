@@ -1441,6 +1441,7 @@ test('@stalker @epg PWA keeps failed background guides off the snackbar', async 
     });
     await addStalkerPortal(page);
     await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await page.waitForURL(/stalker.*itv/);
     await page.locator('.category-item').nth(1).click();
     const channels = page.locator(
         'app-stalker-live-stream-layout [data-test-id="channel-item"]'

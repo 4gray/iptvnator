@@ -49,6 +49,8 @@ import {
 } from './catalog-sort-options';
 
 import { createCatalogWatchFilter } from './catalog-watch-filter';
+import { createCatalogHideWatched } from './catalog-hide-watched';
+import { createCatalogItemSubtitle } from './catalog-item-subtitle';
 
 interface CategoryContentItem {
     id?: number | string;
@@ -94,6 +96,10 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         CategoryContentItem
     >;
 
+    readonly hideWatched = createCatalogHideWatched(
+        this.catalog,
+        this.hostElement.nativeElement
+    );
     readonly watchFilter = createCatalogWatchFilter(
         this.catalog,
         this.hostElement.nativeElement
@@ -107,7 +113,10 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly selectedItem = this.catalog.selectedItem;
     readonly contentSortMode = this.catalog.contentSortMode;
     readonly isPaginatedContentLoading = this.catalog.isPaginatedContentLoading;
-    readonly infiniteHasMore = this.catalog.hasMore;
+    readonly sourceHasMore = this.catalog.hasMore;
+    readonly infiniteHasMore = computed(
+        () => this.sourceHasMore() && !this.hideWatched.paused()
+    );
     readonly infiniteAppending = this.catalog.isAppending;
     readonly infiniteAppendError = this.catalog.appendError;
     readonly contentError = computed(
@@ -119,32 +128,11 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly isCatalogLoadingSubtitle = computed(() =>
         this.isPaginatedContentLoading()
     );
-    /** Key and params; the template pipe re-renders once translations load. */
-    readonly categoryItemSubtitle = computed(() => {
-        if (this.contentError()) {
-            return { key: 'PORTALS.CATALOG_LOAD_ERROR.TITLE', params: {} };
-        }
-        if (this.watchFilter.blocked()) {
-            return {
-                key: this.watchFilter.error()
-                    ? 'WORKSPACE.REFINE_WATCH_ERROR_TITLE'
-                    : 'WORKSPACE.REFINE_WATCH_LOADING',
-                params: {},
-            };
-        }
-        if (this.isCatalogLoadingSubtitle()) {
-            return { key: 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING', params: {} };
-        }
-
-        const count = this.categoryItemCount();
-        return {
-            key:
-                count === 1
-                    ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
-                    : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER',
-            params: { count },
-        };
-    });
+    readonly categoryItemSubtitle = createCatalogItemSubtitle(
+        this.catalog,
+        this.watchFilter,
+        this.hideWatched
+    );
     readonly canSortContent = computed(() => this.contentSortMode() !== null);
     readonly supportsRatingSort = computed(
         () => this.catalog.supportsRatingSort === true
@@ -162,12 +150,14 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         () =>
             this.canSortContent() ||
             this.canFilterByRating() ||
-            this.watchFilter.canFilter()
+            this.watchFilter.canFilter() ||
+            this.hideWatched.supported()
     );
     readonly activeRefinementCount = computed(
         () =>
             Number(this.minRating() !== null) +
-            Number(this.watchFilter.active())
+            Number(this.watchFilter.active()) +
+            Number(this.hideWatched.active())
     );
     readonly sortOptions = computed(() =>
         CATALOG_SORT_OPTIONS.filter(
@@ -221,6 +211,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.contentSortMode() ?? '',
             String(this.minRating() ?? ''),
             this.watchFilter.value() ?? '',
+            this.hideWatched.active(),
         ].join('|');
     });
     private previousGridResetKey: string | null = null;

@@ -180,42 +180,61 @@ test.describe('Electron Catalog Sorting', () => {
         }
     });
 
-    test('does not expose local sorting controls on Stalker category routes', async ({
+    test('offers Stalker movie watch refinement without local catalog sorting', async ({
         dataDir,
         request,
     }) => {
         await resetMockServers(request, ['stalker']);
         const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
 
         try {
-            await addStalkerPortal(app.mainWindow);
-            await waitForStalkerCatalog(app.mainWindow);
+            await addStalkerPortal(page);
+            await waitForStalkerCatalog(page);
 
+            const refine = page.getByRole('button', {
+                name: 'Refine',
+                exact: true,
+            });
+            await expect(refine).toBeVisible();
             await expect(
-                app.mainWindow.getByRole('button', {
-                    name: 'Refine',
+                page.getByRole('button', { name: 'Sort channels' })
+            ).toHaveCount(0);
+            await refine.click();
+            const checkbox = page.getByRole('menuitemcheckbox', {
+                name: 'Hide watched',
+                exact: true,
+            });
+            await expect(checkbox).toBeEnabled();
+            await expect(checkbox).toHaveAttribute('aria-checked', 'false');
+            await expect(page.getByRole('menuitemradio')).toHaveCount(0);
+            await expect(
+                page.locator('.refine-rating-trigger, .refine-watch-trigger')
+            ).toHaveCount(0);
+            await checkbox.click();
+            await expect(
+                page.getByRole('button', {
+                    name: 'Clear hide watched filter',
                     exact: true,
                 })
-            ).toHaveCount(0);
-            await expect(
-                app.mainWindow.getByRole('button', { name: 'Sort channels' })
-            ).toHaveCount(0);
+            ).toBeVisible();
 
-            await openWorkspaceSection(app.mainWindow, 'Movies');
+            await openWorkspaceSection(page, 'Series');
+            await expectPathname(page, /\/series$/);
+            await expect(refine).toHaveCount(0);
+
+            await openWorkspaceSection(page, 'Movies');
+            await expectPathname(page, /\/vod$/);
+            await expect(refine).toBeVisible();
             await expect(
-                app.mainWindow.getByRole('button', {
-                    name: 'Refine',
+                page.getByRole('button', {
+                    name: 'Clear hide watched filter',
                     exact: true,
                 })
-            ).toHaveCount(0);
-
-            await openWorkspaceSection(app.mainWindow, 'Series');
-            await expect(
-                app.mainWindow.getByRole('button', {
-                    name: 'Refine',
-                    exact: true,
-                })
-            ).toHaveCount(0);
+            ).toBeVisible();
+            await refine.click();
+            await expect(checkbox).toHaveAttribute('aria-checked', 'true');
+            await expect(page.getByRole('menuitemradio')).toHaveCount(0);
         } finally {
             await closeElectronApp(app);
         }
