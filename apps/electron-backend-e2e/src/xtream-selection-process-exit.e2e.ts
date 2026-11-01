@@ -10,6 +10,7 @@ import {
     xtreamMockServer,
 } from './electron-test-fixtures';
 import { recordCatalogRequests } from './xtream-selection.e2e-support';
+import { terminateElectronProcess } from './electron-process-termination';
 
 test('process exit during selective catalog save retries every committed chunk and keeps history', async ({
     dataDir,
@@ -148,7 +149,7 @@ test('process exit during selective catalog save retries every committed chunk a
         const exited = new Promise<void>((resolve) =>
             child.once('exit', () => resolve())
         );
-        child.kill('SIGKILL');
+        terminateElectronProcess(child, 'SIGKILL');
         await exited;
         await closeElectronApp(app);
         app = await launchElectronApp(dataDir);
