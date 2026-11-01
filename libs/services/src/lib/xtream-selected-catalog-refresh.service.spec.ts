@@ -136,7 +136,7 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(release).toHaveBeenCalled();
     });
 
-    it('durably marks replacement before deletion and every catalog write', async () => {
+    it('durably marks each invalidated catalog before any replacement write', async () => {
         await service.refresh(playlist, ['movie']);
         const marks = db.setXtreamImportStatus.mock.calls
             .map((call, index) => ({
@@ -144,16 +144,39 @@ describe('edit-time Xtream catalog refresh', () => {
                 order: db.setXtreamImportStatus.mock.invocationCallOrder[index],
             }))
             .filter(({ call }) => call[2] === 'importing');
-        expect(marks).toHaveLength(2);
+        expect(marks).toHaveLength(1);
+        expect(marks[0].order).toBeGreaterThan(
+            db.deleteXtreamPlaylistContent.mock.invocationCallOrder[0]
+        );
         expect(marks[0].order).toBeLessThan(
-            db.deleteXtreamPlaylistContent.mock.invocationCallOrder[0]
-        );
-        expect(marks[1].order).toBeGreaterThan(
-            db.deleteXtreamPlaylistContent.mock.invocationCallOrder[0]
-        );
-        expect(marks[1].order).toBeLessThan(
             db.saveXtreamCategories.mock.invocationCallOrder[0]
         );
+    });
+
+    it('leaves healthy caches untouched when native deletion preparation fails', async () => {
+        db.deleteXtreamPlaylistContent.mockRejectedValue(
+            new Error('could not begin deletion')
+        );
+        await expect(service.refresh(playlist, ['movie'])).rejects.toThrow(
+            'could not begin deletion'
+        );
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+        expect(db.setXtreamImportStatus).not.toHaveBeenCalled();
+        expect(db.saveXtreamCategories).not.toHaveBeenCalled();
+        expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+    });
+
+    it('does not authorize cleanup when native invalidation returns false', async () => {
+        db.deleteXtreamPlaylistContent.mockResolvedValue({
+            ...saved,
+            success: false,
+        });
+        await expect(service.refresh(playlist, ['movie'])).rejects.toThrow(
+            'invalidate catalog'
+        );
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+        expect(db.setXtreamImportStatus).not.toHaveBeenCalled();
+        expect(pending['applyAndConsume']).not.toHaveBeenCalled();
     });
 
     it('does not mutate retained state when the metadata save is rejected after fetching', async () => {

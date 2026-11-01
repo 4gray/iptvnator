@@ -129,13 +129,18 @@ export class XtreamSelectedCatalogRefreshService {
             // catalog until the authoritative edit is accepted.
             await beforeReplace?.();
             replacementStarted = true;
-            for (const type of types) {
-                incomplete.add(type);
-                await this.markUnfinished(playlist._id, type);
-            }
-            await this.db.deleteXtreamPlaylistContent(playlist._id, {
-                contentTypes: types,
-            });
+            const invalidated = await this.db.deleteXtreamPlaylistContent(
+                playlist._id,
+                {
+                    contentTypes: types,
+                }
+            );
+            if (!invalidated.success)
+                throw new Error('Could not invalidate catalog cache.');
+            // Only a completed native invalidation authorizes cleanup here.
+            // Interrupted deletion keeps its idle status + pending recovery;
+            // bootstrap clears it, while a failed preflight keeps healthy rows.
+            for (const type of types) incomplete.add(type);
             for (const { type, categories, content } of catalogs) {
                 // Deletion resets existing status keys to idle; re-arm before
                 // any native batch can commit without renderer cleanup.

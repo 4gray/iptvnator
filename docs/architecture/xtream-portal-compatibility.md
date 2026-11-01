@@ -443,8 +443,10 @@ types survive a failure in another type or in user-state replay. An existing
 pending restore blocks a new edit before metadata persistence. Recovery prepared
 for a rejected `beforeReplace` callback is removed only if its pending revision
 still belongs to that attempt.
-Edit-time replacement persists an unfinished status before deletion and re-arms
-it before native saves. The deletion IPC flushes the sender session’s DOM storage
+Native deletion resets existing statuses to `idle` before deleting any rows.
+Edit-time cleanup owns types only after native invalidation succeeds and persists
+`importing` before replacement saves; failed deletion preparation keeps healthy
+rows intact. Interrupted deletion retains pending recovery for bootstrap cleanup. The deletion IPC flushes the sender session’s DOM storage
 before native work, so an immediate process exit cannot drop the parked snapshot.
 A failed/false completion-status write keeps the type unfinished and recovery
 pending; it must not acknowledge the journal or snapshot.
