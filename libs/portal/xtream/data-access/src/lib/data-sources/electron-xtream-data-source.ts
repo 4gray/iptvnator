@@ -567,8 +567,18 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         xtreamId: number,
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
-        identity?: ContentMetadataPatch
+        identity?: ContentMetadataPatch,
+        categoryId?: number
     ): Promise<XtreamContentItem | null> {
+        if (categoryId !== undefined) {
+            return this.dbService.getContentByXtreamId(
+                xtreamId,
+                playlistId,
+                contentType,
+                identity,
+                categoryId
+            );
+        }
         return this.dbService.getContentByXtreamId(
             xtreamId,
             playlistId,

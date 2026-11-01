@@ -6,6 +6,7 @@ export const NAVIGATION_PORTAL_ART = `data:image/svg+xml,${encodeURIComponent(
 export function navigationPortalResponse(params: URLSearchParams): unknown {
     const source = params.get('username') === 'synthetic-b' ? 'B' : 'A';
     const action = params.get('action');
+    const duplicates = params.get('username') === 'synthetic-duplicates';
     const movie = (index: number) => ({
         num: index,
         stream_id: 20000 + index,
@@ -34,15 +35,42 @@ export function navigationPortalResponse(params: URLSearchParams): unknown {
         case 'get_live_categories':
             return [];
         case 'get_vod_categories':
-            return [{ category_id: '201', category_name: 'Synthetic Films' }];
+            return [
+                { category_id: '201', category_name: 'Synthetic Films' },
+                ...(duplicates
+                    ? [
+                          {
+                              category_id: '202',
+                              category_name: 'Synthetic Duplicate Films',
+                          },
+                      ]
+                    : []),
+            ];
         case 'get_series_categories':
-            return [{ category_id: '301', category_name: 'Synthetic Series' }];
+            return [
+                { category_id: '301', category_name: 'Synthetic Series' },
+                ...(duplicates
+                    ? [
+                          {
+                              category_id: '302',
+                              category_name: 'Synthetic Duplicate Series',
+                          },
+                      ]
+                    : []),
+            ];
         case 'get_live_streams':
             return [];
         case 'get_vod_streams':
-            return [movie(1), movie(2)];
+            return [
+                movie(1),
+                movie(2),
+                ...(duplicates ? [{ ...movie(1), category_id: '202' }] : []),
+            ];
         case 'get_series':
-            return [series];
+            return [
+                series,
+                ...(duplicates ? [{ ...series, category_id: '302' }] : []),
+            ];
         case 'get_vod_info': {
             const item = movie(Number(params.get('vod_id') ?? '20001') - 20000);
             return {

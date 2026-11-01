@@ -100,7 +100,10 @@ handler as the header Back.
   history return behavior; the active source store does not choose the parent.
   On the SQLite runtime, the owning typed content row supplies the local
   category ID: a cross-portal link can carry a provider category ID that
-  differs from, or collides with, a SQLite row ID. An unavailable item lookup
+  differs from, or collides with, a SQLite row ID. A category-qualified typed
+  lookup first verifies the route's local category, preserving it when the
+  same provider ID occurs in several categories. Only a missing membership
+  triggers category recovery. An unavailable item lookup
   returns to the catalog section root instead of guessing the category.
 - Stalker uses an inline/store-state detail model.
 - Detail pages themselves are two-state (browse ↔ watch) inside

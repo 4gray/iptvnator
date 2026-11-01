@@ -44,7 +44,11 @@ test.afterAll(async () => {
 });
 
 for (const kind of ['vod', 'series'] as const) {
-    for (const categoryIdentity of ['catalog', 'provider'] as const) {
+    for (const categoryIdentity of [
+        'catalog',
+        'provider',
+        'duplicate',
+    ] as const) {
         test(`@electron @xtream reloaded ${kind} detail with ${categoryIdentity} category ID returns to its owning category`, async ({
             dataDir,
         }) => {
@@ -54,7 +58,10 @@ for (const kind of ['vod', 'series'] as const) {
                 await addXtreamPortal(page, {
                     serverUrl,
                     name: 'Synthetic Source A',
-                    username: 'synthetic-a',
+                    username:
+                        categoryIdentity === 'duplicate'
+                            ? 'synthetic-duplicates'
+                            : 'synthetic-a',
                     password: 'synthetic-only',
                 });
                 await waitForXtreamWorkspaceReady(page);
@@ -68,18 +75,42 @@ for (const kind of ['vod', 'series'] as const) {
                     page.locator('app-portal-detail-shell h1')
                 ).toBeVisible();
                 const detail = page.url();
-                const parent = detail.slice(0, detail.lastIndexOf('/'));
-                if (categoryIdentity === 'provider') {
-                    await page.evaluate(
-                        (categoryId) => {
-                            const url = new URL(location.href);
-                            const segments = url.pathname.split('/');
-                            segments[segments.length - 2] = categoryId;
-                            url.pathname = segments.join('/');
-                            history.replaceState(history.state, '', url);
-                        },
-                        kind === 'vod' ? '201' : '301'
-                    );
+                let parent = detail.slice(0, detail.lastIndexOf('/'));
+                if (categoryIdentity !== 'catalog') {
+                    let categoryId = kind === 'vod' ? '201' : '301';
+                    if (categoryIdentity === 'duplicate') {
+                        const playlistId = /xtreams\/([^/]+)/.exec(detail)?.[1];
+                        if (!playlistId)
+                            throw new Error('Synthetic source missing');
+                        const categories = await page.evaluate(
+                            async ({ playlistId, kind }) => {
+                                const rows = await window.electron.dbGetContent(
+                                    playlistId,
+                                    kind === 'vod' ? 'movie' : 'series'
+                                );
+                                return rows
+                                    .filter(
+                                        (row) =>
+                                            row.xtream_id ===
+                                            (kind === 'vod' ? 20001 : 30001)
+                                    )
+                                    .map((row) => row.category_id);
+                            },
+                            { playlistId, kind }
+                        );
+                        expect(categories).toHaveLength(2);
+                        categoryId = String(categories[1]);
+                        parent =
+                            parent.slice(0, parent.lastIndexOf('/') + 1) +
+                            categoryId;
+                    }
+                    await page.evaluate((categoryId) => {
+                        const url = new URL(location.href);
+                        const segments = url.pathname.split('/');
+                        segments[segments.length - 2] = categoryId;
+                        url.pathname = segments.join('/');
+                        history.replaceState(history.state, '', url);
+                    }, categoryId);
                 }
                 await reloadFromMainProcess(app);
                 await expectRendererReloadedOnRoute(

@@ -72,13 +72,32 @@ export function injectXtreamDetailNavigation(
                     );
                     if (Number.isFinite(itemId) && itemId > 0) {
                         try {
-                            const item = await injector
-                                .get(XTREAM_DATA_SOURCE)
-                                .getContentByXtreamId(
+                            const dataSource = injector.get(XTREAM_DATA_SOURCE);
+                            const contentType =
+                                mediaType === 'movie' ? 'movie' : 'series';
+                            const routeCategoryId = Number(
+                                route.snapshot.params['categoryId']
+                            );
+                            // A typed provider ID may occur in several categories.
+                            // Preserve the route's category only after proving membership.
+                            const routeItem =
+                                Number.isSafeInteger(routeCategoryId) &&
+                                routeCategoryId > 0
+                                    ? await dataSource.getContentByXtreamId(
+                                          itemId,
+                                          parent[2],
+                                          contentType,
+                                          undefined,
+                                          routeCategoryId
+                                      )
+                                    : null;
+                            const item =
+                                routeItem ??
+                                (await dataSource.getContentByXtreamId(
                                     itemId,
                                     parent[2],
-                                    mediaType === 'movie' ? 'movie' : 'series'
-                                );
+                                    contentType
+                                ));
                             categoryId = item?.category_id;
                         } catch {
                             // An unavailable row still has a safe catalog root.

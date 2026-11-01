@@ -115,7 +115,11 @@ describe('injectXtreamDetailNavigation', () => {
                 categoryId: '201',
                 [key]: '20001',
             };
-            getContentByXtreamId.mockResolvedValue({ category_id: 7 });
+            getContentByXtreamId.mockImplementation((...args) =>
+                Promise.resolve(
+                    args[4] === undefined ? { category_id: 7 } : null
+                )
+            );
 
             create(type).back();
 
@@ -126,6 +130,34 @@ describe('injectXtreamDetailNavigation', () => {
                 20001,
                 'route-source',
                 contentType
+            );
+        }
+    );
+
+    it.each(['movie', 'tv'] as const)(
+        'preserves the verified %s route category for duplicate provider IDs',
+        async (type) => {
+            runtime.supportsXtreamSqliteDataSource = true;
+            const key = type === 'movie' ? 'vodId' : 'serialId';
+            route.snapshot.params = {
+                id: 'route-source',
+                categoryId: '8',
+                [key]: '42',
+            };
+            getContentByXtreamId.mockResolvedValue({ category_id: 8 });
+
+            create(type).back();
+
+            expect(await back.mock.calls[0][0]()).toBe(
+                `/workspace/xtreams/route-source/${type === 'movie' ? 'vod' : 'series'}/8`
+            );
+            expect(getContentByXtreamId).toHaveBeenCalledTimes(1);
+            expect(getContentByXtreamId).toHaveBeenCalledWith(
+                42,
+                'route-source',
+                type === 'movie' ? 'movie' : 'series',
+                undefined,
+                8
             );
         }
     );

@@ -713,6 +713,11 @@ internal row ID consistently. Import completion reconciles links and saved
 metadata; detail enrichment also updates the snapshot. Known identity conflicts
 remain unresolved. See [Xtream compatibility](./xtream-portal-compatibility.md#durable-electron-favorites).
 
+The lookup also accepts an optional local `categoryId` restriction, independent
+of TMDB/year evidence. Cold detail Back uses it to verify route membership before
+recovering another category; duplicate typed provider IDs retain their original
+category context. Omitting the selector preserves existing lookup behavior.
+
 `DB_RESTORE_XTREAM_FAVORITES` materializes pending/backup snapshots without an
 online catalog. Inserts and their replay receipt share one synchronous worker
 transaction, so retry after removal does not resurrect an item. Explicit backup

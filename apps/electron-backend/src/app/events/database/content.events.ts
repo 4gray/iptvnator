@@ -81,12 +81,14 @@ handleWorkerRequest(
         xtreamId: number,
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
-        identity?: ContentMetadataPatch
+        identity?: ContentMetadataPatch,
+        categoryId?: number
     ) => ({
         xtreamId,
         playlistId,
         contentType,
         ...(identity ? { identity } : {}),
+        ...(categoryId !== undefined ? { categoryId } : {}),
     })
 );
 
