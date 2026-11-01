@@ -27,13 +27,15 @@ export class PlaylistEpgSourceEditor {
     private readonly injector = inject(Injector);
     readonly availableOpen = signal(false);
     private readonly availableLimit = signal(25);
+    private readonly pendingRemovals = new Set<Promise<void>>();
 
     constructor(
         private readonly readPlaylist: () => Playlist & { id: string },
         private readonly writePlaylist: (
             playlist: Playlist & { id: string }
         ) => void,
-        private readonly readInputs: () => UntypedFormArray
+        private readonly readInputs: () => UntypedFormArray,
+        private readonly isSaving: () => boolean = () => false
     ) {}
 
     private get playlist() {
@@ -98,6 +100,7 @@ export class PlaylistEpgSourceEditor {
     }
 
     enableDetected(url: string, container?: HTMLElement): void {
+        if (this.isSaving()) return;
         if (!this.hiddenDetectedUrls.includes(url)) return;
         this.applyPlaylistEpgSourceState(
             resolvePlaylistEpgSourceState({
@@ -178,7 +181,25 @@ export class PlaylistEpgSourceEditor {
         ).includes(normalizedUrl);
     }
 
-    async remove(url: string, container?: HTMLElement): Promise<void> {
+    get hasPendingRemovals(): boolean {
+        return this.pendingRemovals.size > 0;
+    }
+
+    async waitForRemovals(): Promise<void> {
+        await Promise.all([...this.pendingRemovals]);
+    }
+
+    remove(url: string, container?: HTMLElement): Promise<void> {
+        if (this.isSaving()) return Promise.resolve();
+        const task = this.removeSource(url, container);
+        this.pendingRemovals.add(task);
+        return task.finally(() => this.pendingRemovals.delete(task));
+    }
+
+    private async removeSource(
+        url: string,
+        container?: HTMLElement
+    ): Promise<void> {
         const epgUrl = url.trim();
         if (!epgUrl) {
             return;
@@ -261,7 +282,10 @@ export class PlaylistEpgSourceEditor {
         this.inputs.removeAt(index);
     }
 
-    save(): void {
+    async save(): Promise<void> {
+        if (this.isSaving()) return;
+        if (this.hasPendingRemovals) await this.waitForRemovals();
+        if (this.isSaving()) return;
         if (this.inputs.invalid) {
             this.inputs.markAllAsTouched();
             return;

@@ -1035,6 +1035,9 @@ update as the title and other fields. Draft form controls are never persisted;
 blank rows do not change the stored source set. A failed shared-server save keeps
 the draft available for retry. The separate Save EPG sources action still applies
 only EPG changes immediately; Close does not undo it or an applied source removal.
+Both Save actions wait for pending EPG removals before assembling their source
+state. Main Save prevents new source mutations while it waits and persists, so
+late cleanup cannot overwrite a newly added EPG row.
 
 The editor labels saved rows by recorded provenance: detected URLs are “From
 playlist”, manual-only URLs are “Added manually”, and older rows without either
@@ -1077,6 +1080,9 @@ These URLs are playlist-scoped by default:
   EPG fetches only after the playlist persistence call succeeds, and metadata
   updates that do not include any EPG source fields do not evaluate the fetch
   plan.
+  An awaited shared-server save publishes metadata with `persist: false`; it
+  still evaluates EPG changes after that successful save without another write
+  or cancellation of an unrelated pending metadata write.
 - The Electron EPG database stores `source_url` on imported programs so current
   program lookups can ask for the active playlist's EPG sources first. Existing
   databases backfill this column from `epg_channels.source_url` once, in bounded

@@ -194,7 +194,8 @@ export class PlaylistInfoComponent {
         () =>
             this.playlistDetails.get(
                 'playlistEpgSourceInputs'
-            ) as UntypedFormArray
+            ) as UntypedFormArray,
+        () => this.isSaving()
     );
     private readonly fileActions = new PlaylistInfoFileActions(
         () => this.playlist,
@@ -260,6 +261,7 @@ export class PlaylistInfoComponent {
             this.dialogRef.disableClose = true;
         }
         try {
+            if (this.epg.hasPendingRemovals) await this.epg.waitForRemovals();
             let submittedPlaylist = playlist;
             if (this.isHydratingStalkerPlaylist()) {
                 await this.stalkerPlaylistHydration;
@@ -363,9 +365,8 @@ export class PlaylistInfoComponent {
                 );
             }
 
-            // Resolved Stalker edits cross an awaited, atomic persistence
-            // boundary above. Their action updates NgRx only; every other
-            // metadata edit keeps the effect-owned persistence path.
+            // Awaited owners publish accepted state without another write.
+            // The metadata effect still reconciles saved EPG source changes.
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
                     playlist: normalizedPlaylist,

@@ -13,6 +13,104 @@ import {
 } from './electron-test-fixtures';
 import { applyTheme } from './theme-contrast';
 
+test('@electron @epg main Save waits for pending source cleanup without losing a new source', async ({
+    dataDir,
+}) => {
+    const servers = await Promise.all(
+        [0, 1, 2].map(() =>
+            createMutableTextServer('<tv></tv>', {
+                contentType: 'application/xml',
+                resourcePath: '/guide.xml',
+            })
+        )
+    );
+    const [keep, removed, added] = servers.map((server) => server.resourceUrl);
+    const app = await launchElectronApp(dataDir);
+    const page = app.mainWindow;
+    try {
+        const file = join(dataDir, 'synthetic-epg-race.m3u');
+        writeFileSync(
+            file,
+            buildM3uContent([
+                {
+                    name: 'Synthetic channel',
+                    url: 'https://media.example.test/live',
+                },
+            ]).replace('#EXTM3U', `#EXTM3U x-tvg-url="${keep},${removed}"`)
+        );
+        await importM3uPlaylistFromNativeDialog(app, file);
+        await openSources(page);
+        const dialog = await openSourceEditor(page, 'synthetic-epg-race');
+        await app.electronApp.evaluate(({ ipcMain }) => {
+            const barrier = ipcMain as typeof ipcMain & {
+                releaseTestEpgClear?: () => void;
+            };
+            ipcMain.removeHandler('EPG_CLEAR_SOURCE');
+            ipcMain.handle(
+                'EPG_CLEAR_SOURCE',
+                () =>
+                    new Promise((resolve) => {
+                        barrier.releaseTestEpgClear = () =>
+                            resolve({ success: true });
+                    })
+            );
+        });
+        await dialog
+            .locator(
+                `[data-epg-source-state="enabled"][data-epg-source-url="${removed}"]`
+            )
+            .getByRole('button', {
+                name: 'Remove from this playlist',
+                exact: true,
+            })
+            .click();
+        await expect
+            .poll(() =>
+                app.electronApp.evaluate(({ ipcMain }) =>
+                    Boolean(
+                        (
+                            ipcMain as typeof ipcMain & {
+                                releaseTestEpgClear?: () => void;
+                            }
+                        ).releaseTestEpgClear
+                    )
+                )
+            )
+            .toBe(true);
+        await dialog.locator('.playlist-epg-source-form input').fill(added);
+        const save = dialog.locator('button[type="submit"]');
+        await save.click();
+        await expect(save).toBeDisabled();
+        await expect(save).toHaveText('Saving playlist…');
+        await app.electronApp.evaluate(({ ipcMain }) =>
+            (
+                ipcMain as typeof ipcMain & { releaseTestEpgClear?: () => void }
+            ).releaseTestEpgClear?.()
+        );
+        await expect(dialog).toBeHidden();
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    async () =>
+                        (await window.electron.dbGetAppPlaylists()).find(
+                            (p) => p.title === 'synthetic-epg-race'
+                        )?.epgUrls
+                )
+            )
+            .toEqual([keep, added]);
+        const stored = await page.evaluate(async () =>
+            (await window.electron.dbGetAppPlaylists()).find(
+                (p) => p.title === 'synthetic-epg-race'
+            )
+        );
+        expect(stored?.manualEpgUrls).toEqual([added]);
+        expect(stored?.disabledEpgUrls).toEqual([removed]);
+    } finally {
+        await closeElectronApp(app);
+        await Promise.all(servers.map((server) => server.close()));
+    }
+});
+
 test('@electron @epg playlist EPG saving names its independent scope', async ({
     dataDir,
 }) => {

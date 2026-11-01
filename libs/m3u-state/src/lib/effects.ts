@@ -468,6 +468,14 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
+                tap((action) => {
+                    if (
+                        action.persist === false &&
+                        this.hasPlaylistScopedEpgSourceChange(action.playlist)
+                    ) {
+                        this.fetchPlaylistScopedEpg(action.playlist);
+                    }
+                }),
                 filter((action) => action.persist !== false),
                 switchMap((action) =>
                     this.playlistsService

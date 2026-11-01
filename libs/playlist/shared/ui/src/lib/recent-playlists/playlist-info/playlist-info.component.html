@@ -416,6 +416,7 @@
                                         <button
                                             mat-icon-button
                                             type="button"
+                                            [disabled]="isSaving()"
                                             [matTooltip]="
                                                 'SETTINGS.PLAYLIST_EPG_REMOVE'
                                                     | translate
@@ -435,6 +436,7 @@
                                             mat-button
                                             class="app-dialog__ghost"
                                             type="button"
+                                            [disabled]="isSaving()"
                                             (click)="
                                                 epg.enableDetected(
                                                     epgUrl,
@@ -596,6 +598,7 @@
                                     mat-button
                                     class="app-dialog__ghost"
                                     type="button"
+                                    [disabled]="isSaving()"
                                     (click)="epg.addInput()"
                                     data-test-id="add-playlist-epg-source"
                                 >
@@ -609,6 +612,7 @@
                                     mat-flat-button
                                     class="app-dialog__secondary"
                                     type="button"
+                                    [disabled]="isSaving()"
                                     (click)="epg.save()"
                                 >
                                     <mat-icon>playlist_add</mat-icon>
@@ -670,7 +674,7 @@
                 >
                     {{
                         (isSaving()
-                            ? 'HOME.STALKER_PORTAL.VALIDATING'
+                            ? 'HOME.PLAYLISTS.REFRESH_SAVING'
                             : 'HOME.PLAYLISTS.INFO_DIALOG.SAVE'
                         ) | translate
                     }}

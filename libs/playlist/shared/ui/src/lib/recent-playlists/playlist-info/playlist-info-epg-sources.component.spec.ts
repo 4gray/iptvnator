@@ -250,6 +250,53 @@ describe('PlaylistInfoComponent playlist EPG source rows', () => {
         expect(renderedSources()).toEqual([keepUrl]);
     });
 
+    it.each(['main', 'epg-only'])(
+        'waits for pending removals before the %s Save and retains the new source',
+        async (kind) => {
+            const fixture = render();
+            const component = fixture.componentInstance;
+            let finishCleanup!: () => void;
+            const clear = TestBed.inject(EpgRuntimeBridgeService)
+                .clearEpgDataForSource as jest.Mock;
+            clear.mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finishCleanup = resolve;
+                    })
+            );
+            const pending = component.epg.remove(removeUrl);
+            const guide = 'https://guide.example.test/added-during-cleanup.xml';
+            component.epg.inputs.at(0).setValue(guide);
+            const dispatch = TestBed.inject(Store).dispatch as jest.Mock;
+            const saving =
+                kind === 'main'
+                    ? component.saveChanges(component.playlistDetails.value)
+                    : component.epg.save();
+            expect(dispatch).not.toHaveBeenCalled();
+            if (kind === 'main') {
+                fixture.detectChanges();
+                const removeButtons = (
+                    fixture.nativeElement as HTMLElement
+                ).querySelectorAll<HTMLButtonElement>(
+                    'button[aria-label="SETTINGS.PLAYLIST_EPG_REMOVE"]'
+                );
+                expect(
+                    Array.from(removeButtons).every((button) => button.disabled)
+                ).toBe(true);
+                await component.epg.remove(keepUrl);
+                expect(clear).toHaveBeenCalledTimes(1);
+            }
+            finishCleanup();
+            await pending;
+            await saving;
+            expect(dispatch.mock.calls.at(-1)?.[0].playlist).toMatchObject({
+                epgUrls: [keepUrl, guide],
+                manualEpgUrls: [guide],
+                disabledEpgUrls: [removeUrl],
+            });
+        }
+    );
+
     it('finishes an authorized removal without focusing a closed dialog', async () => {
         const fixture = render();
         const section = (
