@@ -201,6 +201,12 @@ The merged report is written to `coverage/merged/` as HTML, LCOV, Cobertura,
 and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 `unit` flag and keeps the HTML report as a GitHub artifact.
 
+Passing the local coverage health checks does not guarantee that Codecov's
+`patch` check passes: it separately evaluates changed code, including partially
+covered branches, against the target reported for the current PR head. Inspect
+the affected files in the coverage report and add scenario coverage for missing
+paths before pushing; the overall project percentage alone is insufficient.
+
 Codecov uploads require the repository upload token in the GitHub Actions
 repository secret `CODECOV_TOKEN`. The workflow passes that secret to the
 uploader and fails on upload errors; it only uploads after the complete Tier A

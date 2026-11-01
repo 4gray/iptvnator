@@ -9,6 +9,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { VodMoreMenuComponent } from './vod-more-menu.component';
 import type { VodMoreMenuSection } from './vod-more-menu.model';
+import { LazyMatDialog } from '../lazy-dialog/lazy-mat-dialog';
+import { dialogSize } from '../dialog-shell/dialog-size';
 
 const SECTIONS: VodMoreMenuSection[] = [
     {
@@ -26,11 +28,19 @@ const SECTIONS: VodMoreMenuSection[] = [
 describe('VodMoreMenuComponent', () => {
     let fixture: ComponentFixture<VodMoreMenuComponent>;
     let overlay: HTMLElement;
+    let openDialog: jest.Mock;
+    let resolveDialog: jest.Mock;
 
     beforeEach(async () => {
+        openDialog = jest.fn();
+        resolveDialog = jest.fn().mockResolvedValue({ open: openDialog });
         await TestBed.configureTestingModule({
             imports: [VodMoreMenuComponent, TranslateModule.forRoot()],
             providers: [
+                {
+                    provide: LazyMatDialog,
+                    useValue: { resolve: resolveDialog },
+                },
                 {
                     provide: TmdbRuntimeService,
                     useValue: { isEnabled: () => true },
@@ -130,6 +140,73 @@ describe('VodMoreMenuComponent', () => {
             overlay.querySelector('[data-test-id="tmdb-match-menu"]')
         ).toBeNull();
     });
+
+    it('opens the correction dialog lazily with the displayed item and closes the menu', async () => {
+        const context = {
+            title: 'Synthetic Movie Alpha',
+            identity: {
+                provider: 'stalker',
+                playlistId: 'synthetic-source',
+                mediaType: 'movie',
+                itemId: '42',
+            },
+        };
+        fixture.componentRef.setInput('tmdbMatch', context);
+        fixture.detectChanges();
+        const selected = jest.fn();
+        fixture.componentInstance.selected.subscribe(selected);
+        const opened = new Promise<void>((resolve) =>
+            openDialog.mockImplementation(() => resolve())
+        );
+        trigger().click();
+        fixture.detectChanges();
+        overlay
+            .querySelector<HTMLButtonElement>(
+                '[data-test-id="tmdb-match-menu"]'
+            )!
+            .click();
+        await opened;
+        fixture.detectChanges();
+        const component =
+            await import('../tmdb-match-dialog/tmdb-match-dialog.component');
+        expect(openDialog).toHaveBeenCalledWith(
+            component.TmdbMatchDialogComponent,
+            {
+                ...dialogSize('lg'),
+                data: context,
+                autoFocus: 'input',
+            }
+        );
+        expect(overlay.querySelector('[role="menu"]')).toBeNull();
+        expect(selected).not.toHaveBeenCalled();
+    });
+
+    it.each(['missing item', 'disabled TMDB'])(
+        'ignores a stale correction action with %s',
+        (reason) => {
+            if (reason === 'disabled TMDB') {
+                fixture.componentRef.setInput('tmdbMatch', {
+                    title: 'Synthetic Movie Alpha',
+                    identity: {
+                        provider: 'stalker',
+                        playlistId: 'synthetic-source',
+                        mediaType: 'movie',
+                        itemId: '42',
+                    },
+                });
+                jest.spyOn(
+                    TestBed.inject(TmdbRuntimeService),
+                    'isEnabled'
+                ).mockReturnValue(false);
+            }
+            fixture.componentInstance.select({
+                id: 'tmdb-match',
+                labelKey: 'TMDB_MATCH.MENU',
+            });
+            expect(resolveDialog).not.toHaveBeenCalled();
+            expect(openDialog).not.toHaveBeenCalled();
+        }
+    );
 
     it('moves focus with the arrow keys and closes on Escape', () => {
         trigger().click();
