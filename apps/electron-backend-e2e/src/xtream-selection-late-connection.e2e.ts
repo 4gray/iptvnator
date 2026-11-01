@@ -12,7 +12,10 @@ import {
     test,
 } from './electron-test-fixtures';
 import { startSourceSyncServer } from './source-sync-test-server';
-import { recordCatalogRequests } from './xtream-selection.e2e-support';
+import {
+    recordCatalogRequests,
+    waitForNativeXtreamSource,
+} from './xtream-selection.e2e-support';
 
 for (const heldPhase of [
     'series-save',
@@ -48,13 +51,7 @@ for (const heldPhase of [
                 password: 'performance',
                 contentTypes: ['live', 'movie', 'series'],
             });
-            const id = await page.evaluate(
-                async (title) =>
-                    (await window.electron.dbGetAppPlaylists()).find(
-                        (row) => row.title === title
-                    )!._id,
-                title
-            );
+            const id = await waitForNativeXtreamSource(page, title);
             // This setup imports every large synthetic catalog. Use the same
             // readiness budget as retry below, including on a busy test host.
             await expect

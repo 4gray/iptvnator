@@ -12,6 +12,7 @@ import { startSourceSyncServer } from './source-sync-test-server';
 import {
     catalogActions,
     recordCatalogRequests,
+    waitForNativeXtreamSource,
 } from './xtream-selection.e2e-support';
 
 test('connected active-source sync waits for an edit-time catalog save before bootstrap', async ({
@@ -40,13 +41,7 @@ test('connected active-source sync waits for an edit-time catalog save before bo
             password: 'performance',
             contentTypes: ['live'],
         });
-        const id = await page.evaluate(
-            async (title) =>
-                (await window.electron.dbGetAppPlaylists()).find(
-                    (row) => row.title === title
-                )!._id,
-            title
-        );
+        const id = await waitForNativeXtreamSource(page, title);
         // Initial synthetic catalog import uses the shared 60-second setup
         // budget even when other native test workers share the host.
         await expect

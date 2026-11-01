@@ -1,9 +1,32 @@
 import { createServer } from 'node:http';
 import { join } from 'node:path';
+import type { Page } from '@playwright/test';
 import {
+    expect,
     xtreamMockServer,
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
+
+/** Shared-source acceptance precedes its asynchronous native projection. */
+export async function waitForNativeXtreamSource(page: Page, title: string) {
+    let id = '';
+    await expect
+        .poll(
+            async () => {
+                id = await page.evaluate(
+                    async (title) =>
+                        (await window.electron.dbGetAppPlaylists()).find(
+                            (row) => row.title === title
+                        )?._id ?? '',
+                    title
+                );
+                return id.length > 0;
+            },
+            { timeout: 60000 }
+        )
+        .toBe(true);
+    return id;
+}
 
 /** Observe real main-process API requests without recording credentials. */
 export async function recordCatalogRequests() {

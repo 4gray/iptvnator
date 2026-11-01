@@ -12,7 +12,10 @@ import {
     test,
 } from './electron-test-fixtures';
 import { startSourceSyncServer } from './source-sync-test-server';
-import { recordCatalogRequests } from './xtream-selection.e2e-support';
+import {
+    recordCatalogRequests,
+    waitForNativeXtreamSource,
+} from './xtream-selection.e2e-support';
 
 for (const retained of [false, true])
     test(`a catalog-only edit cannot install arrays fetched with a superseded shared connection (retained=${retained})`, async ({
@@ -49,13 +52,7 @@ for (const retained of [false, true])
                 page.locator('.workspace-loading-overlay')
             ).not.toBeVisible({ timeout: 60000 });
             await openSources(page);
-            const id = await page.evaluate(
-                async (title) =>
-                    (await window.electron.dbGetAppPlaylists()).find(
-                        (row) => row.title === title
-                    )!._id,
-                title
-            );
+            const id = await waitForNativeXtreamSource(page, title);
             let rememberedMovie: number | undefined;
             if (retained) {
                 await expect
