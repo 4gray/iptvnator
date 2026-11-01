@@ -142,6 +142,17 @@ Older cache-only pending records migrate their unfinished-type history into the
 journal before import or re-export; completed retained types keep current rows.
 Cache replay is atomic and keeps the journal until
 deferred state completes, so retry cannot undo intervening history actions.
+Before acknowledgment, unresolved journal history is parked too, including live
+watches captured during registration whose provider items disappeared. Cache
+receipts retain their original scoped key and generation, including an initial
+null generation, even when no dormant rows remain. Replay or acknowledgment
+failure therefore does not turn the same recovery into a foreign archive.
+Each DOM write has a fresh private revision, so history clearing invalidates
+held journal replies without changing ownership or allowing an identical later
+write to match an older snapshot. Capture creates an empty receipt before native
+registration so global history clearing also covers an active empty recovery.
+A new explicit archive always has a fresh durable generation, including an empty
+archive; source deletion removes receipts. These markers are excluded from exports.
 Cache-pending exports reconcile hidden flags by current category identity too:
 live visibility wins for present categories, while absent categories retain
 their parked choices.
@@ -155,8 +166,9 @@ backup clears older overrides after parking its pending state and passing
 preflight; retry repeats that reset. Permanent source deletion clears the ledger,
 while cache invalidation preserves it.
 An existing selective source can restore offline when every selected catalog is
-complete. Apply hidden flags only to selected or completed retained catalogs;
-apply history to exact native identities and leave missing state dormant instead of requiring all three
+complete. Explicit restoration applies hidden flags to actual retained category
+rows, including unfinished disabled catalogs. History uses exact native identities,
+and absent items or categories remain dormant instead of requiring all three
 catalogs or consuming their parked data. An explicit empty selection needs no
 catalog cache for independent playback-position/source-pin restoration.
 

@@ -192,7 +192,14 @@ export async function prepareUserDataRestore(
         const current = await readCatalogHistoryRecovery(db, playlistId);
         if (!current)
             throw new Error('Catalog history recovery is unavailable.');
-        state = { ...state, recentlyViewed: current.recentlyViewed };
+        state = {
+            ...state,
+            recentlyViewed: current.recentlyViewed,
+            catalogSnapshot: owned ?? {
+                key: original.key,
+                generation: original.generation,
+            },
+        };
         const latest = deferred.getSnapshot(playlistId);
         if (!owns || latest.key !== original.key || latest.raw !== original.raw)
             return {

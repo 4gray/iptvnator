@@ -72,12 +72,30 @@ export async function completeCatalogHistoryRecovery(
     // a remove/rewatch between these reads, even if the later watch erased its
     // tombstone. Missing catalog rows stay outside that proof for later retry.
     const current = await db.getRecentItemsOrThrow(playlistId);
+    const visibility = await readCatalogRecoveryVisibility(db, playlistId);
+    // Read mutation evidence last: Clear/Remove may run during visibility IPC.
     const journal = await readCatalogHistoryRecovery(db, playlistId);
     if (!journal) throw new Error('Catalog history recovery is unavailable.');
-    const visibility = await readCatalogRecoveryVisibility(db, playlistId);
+    const latest = deferred.getSnapshot(playlistId);
+    if (latest.key !== snapshot.key || latest.raw !== snapshot.raw) return;
+    // Registration also captures live watches absent from the replacement.
+    // Park its complete current history before the journal's final flush.
+    const parked = deferred.prepare(
+        playlistId,
+        {
+            ...snapshot.state,
+            preservePlaybackPositions: true,
+            recentlyViewed: journal.recentlyViewed,
+            catalogSnapshot: snapshot.state.catalogSnapshot ?? {
+                key: snapshot.key,
+                generation: snapshot.generation,
+            },
+        },
+        available
+    );
     deferred.complete(
         playlistId,
-        snapshot,
+        parked.snapshot,
         available,
         {
             identities: [
@@ -285,11 +303,13 @@ export async function captureCatalogCacheRecoveryState(
     available: readonly XtreamContentType[]
 ) {
     const visibility = await readCatalogRecoveryVisibility(db, playlistId);
+    const owner = deferred.getSnapshot(playlistId);
     const state: XtreamPendingRestoreState = {
         favorites: [],
         playbackPositions: [],
         recentlyViewed: [],
         preservePlaybackPositions: true,
+        catalogSnapshot: { key: owner.key, generation: owner.generation },
         hiddenCategories: visibility.hiddenCategories,
     };
     const prepared = deferred.prepare(

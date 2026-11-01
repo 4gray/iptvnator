@@ -324,7 +324,7 @@ it('consumes all dormant history for a native clear without discarding hidden fl
     db.readAppState.mockImplementation(async (key) => ({
         value: key.startsWith('xtream-category-visibility:')
             ? null
-            : JSON.stringify({ ...journal, cleared: true }),
+            : JSON.stringify({ ...journal, recentlyViewed: [], cleared: true }),
     }));
     const deferred = new XtreamDeferredCatalogRestoreService();
     deferred.prepare(

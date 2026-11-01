@@ -56,7 +56,11 @@ export class XtreamDeferredCatalogRestoreService {
             generation:
                 typeof parsed.generation === 'string'
                     ? parsed.generation
-                    : 'legacy',
+                    : parsed.generation === null &&
+                        parsed.catalogSnapshot?.key === key &&
+                        parsed.catalogSnapshot?.generation === null
+                      ? null
+                      : 'legacy',
             state: normalizeXtreamPendingRestoreState(parsed),
         };
     }
@@ -64,19 +68,29 @@ export class XtreamDeferredCatalogRestoreService {
     private write(playlistId: string, state: XtreamPendingRestoreState): void {
         const key = sourceProfileStorageKey(prefix + playlistId);
         const hasData =
-            state.hiddenCategories.length || state.recentlyViewed.length;
+            state.hiddenCategories.length ||
+            state.recentlyViewed.length ||
+            state.catalogSnapshot ||
+            state.favoritesRestoreId;
         const previousRaw = localStorage.getItem(key);
         if (!hasData && !previousRaw) return;
         const previous =
             hasData && previousRaw ? JSON.parse(previousRaw) : null;
         const generation = hasData
-            ? previous?.favoritesRestoreId === state.favoritesRestoreId &&
-              typeof previous?.generation === 'string'
-                ? previous.generation
-                : createRandomId()
+            ? state.catalogSnapshot?.key === key
+                ? state.catalogSnapshot.generation
+                : previous?.favoritesRestoreId === state.favoritesRestoreId &&
+                    typeof previous?.generation === 'string'
+                  ? previous.generation
+                  : createRandomId()
             : null;
         const encoded = hasData
-            ? JSON.stringify({ version: 1, generation, ...state })
+            ? JSON.stringify({
+                  version: 1,
+                  generation,
+                  revision: createRandomId(),
+                  ...state,
+              })
             : '';
         localStorage.setItem(key, encoded);
         if (localStorage.getItem(key) !== encoded)
@@ -148,6 +162,9 @@ export class XtreamDeferredCatalogRestoreService {
         );
         const parked: XtreamPendingRestoreState = {
             ...empty(),
+            ...(state.preservePlaybackPositions && state.catalogSnapshot
+                ? { catalogSnapshot: state.catalogSnapshot }
+                : {}),
             ...(state.favoritesRestoreId || previous.favoritesRestoreId
                 ? {
                       favoritesRestoreId:
@@ -269,10 +286,7 @@ export class XtreamDeferredCatalogRestoreService {
             restoreId && restoreId !== stored.favoritesRestoreId
                 ? empty()
                 : stored;
-        const remaining = {
-            ...parked,
-            recentlyViewed: parked.recentlyViewed,
-        };
+        const remaining = { ...parked };
         const currentIds = new Set(
             recovery?.currentCategories?.map(
                 (row) => `${row.categoryType}:${row.xtreamId}`
@@ -321,8 +335,17 @@ export class XtreamDeferredCatalogRestoreService {
 
     /** Explicit history clearing must not resurrect dormant history later. */
     clearHistory(playlistId?: string): void {
-        for (const id of this.ids(playlistId))
-            this.write(id, { ...this.read(id).state, recentlyViewed: [] });
+        for (const id of this.ids(playlistId)) {
+            const snapshot = this.read(id);
+            this.write(id, {
+                ...snapshot.state,
+                catalogSnapshot: snapshot.state.catalogSnapshot ?? {
+                    key: snapshot.key,
+                    generation: snapshot.generation,
+                },
+                recentlyViewed: [],
+            });
+        }
     }
 }
 
