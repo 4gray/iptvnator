@@ -26,6 +26,8 @@ export interface PlaylistBackupBaseEntry {
 export interface M3uPlaylistBackupEntry extends PlaylistBackupBaseEntry {
     portalType: 'm3u';
     autoImportEpg?: boolean;
+    /** Enabled sources may have unknown origin in legacy playlists. */
+    epgUrls?: string[];
     /** Absent in legacy archives; retain local overrides when merging those. */
     manualEpgUrls?: string[];
     disabledEpgUrls?: string[];

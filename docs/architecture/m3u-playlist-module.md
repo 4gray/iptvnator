@@ -199,8 +199,8 @@ open dialog and resets for a new import or Clear.
 enabling them. An absent flag keeps the legacy default-on behavior. Refresh,
 local source projection and backup/restore preserve this preference, including
 when a new EPG address appears. Explicitly enabled manual sources still work.
-New backups write an explicit boolean and both manual EPG selections and
-disabled source markers, so a fresh installation restores explicit choices too.
+New backups write an explicit boolean plus enabled, manual and disabled EPG
+sets, so a fresh installation restores all choices, including unknown origins.
 Restore applies those saved overrides before the imported preference; empty
 arrays clear previous overrides. Legacy archives that omit a field retain that
 field from the existing playlist when merged.

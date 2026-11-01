@@ -4,6 +4,57 @@ import { createPlaylistBackupService } from './playlist-backup.service.test-help
 import { hasValidBackupEntryData } from './playlist-backup-validation';
 
 describe('M3U backup EPG import preference', () => {
+    it.each([false, true])(
+        'round-trips unknown-origin enabled guides without inferring provenance (merge: %s)',
+        async (merge) => {
+            const guide = 'https://guide.example.test/unknown-origin.xml';
+            const source = {
+                _id: 'synthetic-unknown-guide',
+                title: 'Synthetic unknown guide',
+                url: 'https://provider.example.test/unknown.m3u',
+                count: 0,
+                importDate: '',
+                lastUsage: '',
+                autoRefresh: false,
+                favorites: [],
+                epgUrls: [guide],
+            } as Playlist;
+            const exported = await createPlaylistBackupService({
+                playlistsService: {
+                    getAllData: () => of([source]),
+                    getRawPlaylistById: () => of('#EXTM3U'),
+                },
+            }).exportBackup();
+            const restorePlaylist = jest.fn((value: Playlist) => of(value));
+            const summary = await createPlaylistBackupService({
+                playlistsService: {
+                    getAllData: () => of(merge ? [source] : []),
+                    restorePlaylist,
+                    handlePlaylistParsing: async () => ({
+                        ...source,
+                        epgUrls: undefined,
+                        detectedEpgUrls: [],
+                    }),
+                },
+            }).importBackup(JSON.stringify(exported.manifest));
+            expect(summary.failed).toBe(0);
+            expect(summary.imported).toBe(merge ? 0 : 1);
+            expect(summary.merged).toBe(merge ? 1 : 0);
+            expect(restorePlaylist).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    epgUrls: [guide],
+                    detectedEpgUrls: [],
+                    manualEpgUrls: [],
+                })
+            );
+            expect(exported.manifest.playlists[0]).toMatchObject({
+                epgUrls: [guide],
+                manualEpgUrls: [],
+                disabledEpgUrls: [],
+            });
+        }
+    );
+
     it.each([undefined, { manualEpgUrls: [], disabledEpgUrls: [] }])(
         'retains legacy enabled guides only when the archive omits EPG overrides: %s',
         async (overrides) => {
@@ -105,7 +156,11 @@ describe('M3U backup EPG import preference', () => {
                 manualEpgUrls: [selected, manual],
                 disabledEpgUrls: [disabled],
             });
-            for (const field of ['manualEpgUrls', 'disabledEpgUrls']) {
+            for (const field of [
+                'epgUrls',
+                'manualEpgUrls',
+                'disabledEpgUrls',
+            ]) {
                 for (const invalid of [null, 'not-a-list', [42]]) {
                     expect(
                         hasValidBackupEntryData({ ...entry, [field]: invalid })

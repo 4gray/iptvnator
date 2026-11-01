@@ -249,6 +249,41 @@ test('@critical @persistence @settings @pwa damaged and unsupported files preser
     }
 });
 
+test('@persistence @pwa backup keeps unknown-origin enabled guides through export, merge and reload', async ({
+    page,
+}) => {
+    const guide = 'https://guide.example.test/unknown-origin.xml';
+    await importJson(page, {
+        ...archive,
+        playlists: [
+            {
+                ...archive.playlists[0],
+                title: 'Synthetic unknown-origin backup',
+                epgUrls: [guide],
+                manualEpgUrls: [],
+                disabledEpgUrls: [],
+                source: {
+                    kind: 'text',
+                    rawM3u: '#EXTM3U\n#EXTINF:-1,Synthetic channel\nhttps://example.test/live',
+                },
+            },
+        ],
+    });
+    await expect(result(page)).toContainText('1 imported');
+    const exported = await exportJson(page);
+    expect(exported.playlists[0]).toMatchObject({
+        epgUrls: [guide],
+        manualEpgUrls: [],
+        disabledEpgUrls: [],
+    });
+    expect(exported.playlists[0].source.rawM3u).not.toContain(guide);
+    await importJson(page, exported);
+    await expect(result(page)).toContainText('1 merged');
+    await page.reload();
+    await expect(page.locator('#backup')).toBeVisible();
+    expect(await exportJson(page)).toEqual(exported);
+});
+
 test('@settings @pwa cancelled chooser and a slow file read release busy and prevent conflicting actions', async ({
     page,
     browserName,

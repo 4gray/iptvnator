@@ -292,6 +292,7 @@ export class PlaylistBackupService {
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
             autoImportEpg: playlist.autoImportEpg !== false,
+            epgUrls: this.uniqueStrings(playlist.epgUrls ?? []),
             manualEpgUrls: this.uniqueStrings(playlist.manualEpgUrls ?? []),
             disabledEpgUrls: this.uniqueStrings(playlist.disabledEpgUrls ?? []),
             position: playlist.position,
@@ -860,6 +861,7 @@ export class PlaylistBackupService {
                 autoImportEpg,
                 detectedEpgUrls: parsedPlaylist.detectedEpgUrls,
                 enabledEpgUrls:
+                    entry.epgUrls ??
                     parsedPlaylist.epgUrls ??
                     (entry.manualEpgUrls === undefined &&
                     entry.disabledEpgUrls === undefined
