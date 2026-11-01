@@ -67,6 +67,7 @@ export function createActivityRuntimeClient(
                 localOnly.mark(sourceId, position);
         },
         instanceId,
+        profileActive: () => sourceConnection()?.instanceId === instanceId,
         deviceId: consent.deviceId,
         contexts,
         consent: () => {

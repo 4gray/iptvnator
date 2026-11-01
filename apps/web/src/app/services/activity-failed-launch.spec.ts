@@ -88,6 +88,71 @@ describe('failed launches superseded before their first checkpoint', () => {
         }
     );
 
+    it('does not clear raw data after its server profile becomes inactive', async () => {
+        const f = fixture();
+        let active = true;
+        f.client.options.profileActive = () => active;
+        jest.spyOn(f.raw, 'getAllPlaybackPositions').mockImplementationOnce(
+            async () => {
+                active = false;
+                return [f.position];
+            }
+        );
+        const clear = jest.spyOn(f.raw, 'clearPlaybackPosition');
+        await f.adapter.invoke(
+            f.raw,
+            'clearPlaybackPosition',
+            [f.address.sourceId, 42, 'vod'],
+            true
+        );
+        expect(clear).not.toHaveBeenCalled();
+    });
+
+    it('does not let a delayed reset supersede a newer explicit launch', async () => {
+        const f = fixture();
+        const older = { ...f.position, activitySessionId: 'synthetic-older' };
+        await f.client.begin(f.address.sourceId, older);
+        await f.client.save(f.address.sourceId, older);
+        let release!: () => void;
+        let entered!: () => void;
+        const waiting = new Promise<void>((resolve) => {
+            entered = resolve;
+        });
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        jest.spyOn(f.raw, 'getAllPlaybackPositions').mockImplementationOnce(
+            async () => {
+                entered();
+                await held;
+                return [];
+            }
+        );
+        const reset = f.adapter.invoke(f.raw, 'clearPlaybackPosition', [
+            f.address.sourceId,
+            42,
+            'vod',
+        ]);
+        await waiting;
+        const newer = {
+            ...f.position,
+            positionSeconds: 80,
+            activitySessionId: 'synthetic-newer',
+        };
+        await f.client.begin(f.address.sourceId, newer);
+        await f.client.save(f.address.sourceId, newer);
+        release();
+        await reset;
+        await f.client.save(f.address.sourceId, {
+            ...newer,
+            positionSeconds: 85,
+        });
+        expect(
+            (await f.client.positions(f.address.sourceId))[0].position
+                .positionSeconds
+        ).toBe(85);
+    });
+
     it('leaves a failed launch for another item retryable', async () => {
         const f = fixture();
         const first = { ...f.position, activitySessionId: 'synthetic-first' };

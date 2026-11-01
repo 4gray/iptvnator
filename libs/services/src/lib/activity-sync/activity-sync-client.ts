@@ -49,6 +49,7 @@ export interface ActivityClientOptions {
     instanceId: string;
     deviceId: string;
     consent(): string | null;
+    profileActive?(): boolean;
     request(value: SourceServerRequest): Promise<SourceServerResponse>;
     changed(): void;
     committed?(
@@ -211,10 +212,11 @@ export class ActivitySyncClient {
 
     async reset(
         sourceId: string,
-        position: Partial<PlaybackPositionData>
-    ): Promise<void> {
+        position: Partial<PlaybackPositionData>,
+        currentAction?: () => boolean
+    ): Promise<'local-only' | void> {
         return this.mutations.track(
-            resetActivity.call(this, sourceId, position)
+            resetActivity.call(this, sourceId, position, currentAction)
         );
     }
 

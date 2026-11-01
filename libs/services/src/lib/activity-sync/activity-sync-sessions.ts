@@ -320,17 +320,22 @@ export async function saveActivity(
 export async function resetActivity(
     this: ActivitySyncClient,
     sourceId: string,
-    position: Partial<PlaybackPositionData>
-): Promise<void> {
-    const currentAction = this.actions.position(sourceId, position);
-    const consentGeneration = this.consent();
+    position: Partial<PlaybackPositionData>,
+    capturedAction?: () => boolean
+): Promise<'local-only' | void> {
+    const currentAction =
+        capturedAction ?? this.actions.position(sourceId, position);
+    if (!currentAction() || this.options.profileActive?.() === false) return;
+    const consentGeneration = this.options.consent();
+    if (!consentGeneration) return 'local-only';
     const address = await this.address(sourceId, position, currentAction).catch(
         (error) => {
             if (currentAction() && !(error instanceof ActivitySupersededError))
                 throw error;
         }
     );
-    if (!address) return;
+    if (!address || !currentAction()) return;
+    if (!this.consentMatches(consentGeneration)) return 'local-only';
     const committed = await this.store
         .mutate(address, (current) => {
             if (!currentAction())
@@ -375,5 +380,7 @@ export async function resetActivity(
             this.committed(sourceId, committed.position, 'command');
     }
     this.options.changed();
+    if (!currentAction()) return;
+    if (!this.consentMatches(consentGeneration)) return 'local-only';
     void this.flush();
 }

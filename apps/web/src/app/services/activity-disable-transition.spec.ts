@@ -183,6 +183,49 @@ describe('retryable activity disable transition', () => {
         localStorage.clear();
         await prepareSourceConnection();
     });
+    it.each([false, true])(
+        'keeps a delayed reset local after sibling opt-out (newer local write: %s)',
+        async (newerLocal) => {
+            const f = fixture('native');
+            f.recover();
+            const first = f.makeRuntime();
+            const sibling = f.makeRuntime();
+            let release!: () => void;
+            let entered!: () => void;
+            const waiting = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const mutate = first.client.store.mutate.bind(first.client.store);
+            jest.spyOn(first.client.store, 'mutate').mockImplementationOnce(
+                async (...args) => {
+                    entered();
+                    await held;
+                    return mutate(...args);
+                }
+            );
+            const reset = first.runtime.invoke(f.raw, 'clearPlaybackPosition', [
+                f.sourceId,
+                42,
+                'vod',
+            ]);
+            await waiting;
+            await sibling.runtime.setEnabled(false);
+            if (newerLocal)
+                await first.runtime.invoke(f.raw, 'savePlaybackPosition', [
+                    f.sourceId,
+                    { ...f.position, positionSeconds: 75 },
+                ]);
+            release();
+            await reset;
+            expect(f.rows().map((row) => row.positionSeconds)).toEqual(
+                newerLocal ? [75] : []
+            );
+        }
+    );
+
     it('reconciles a superseded pause after consent reads recover', async () => {
         const f = fixture('native');
         f.recover();
@@ -385,7 +428,9 @@ describe('retryable activity disable transition', () => {
                 );
             else if (beforeCommit)
                 await expect(beginning).rejects.toThrow(
-                    'Activity consent changed'
+                    reset
+                        ? 'Activity launch superseded'
+                        : 'Activity consent changed'
                 );
             else await beginning;
             await disabling;

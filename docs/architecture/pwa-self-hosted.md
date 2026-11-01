@@ -1020,6 +1020,11 @@ compare-and-swap attempt checks the explicit-action fence again, including
 watched/reset, import and conflict resolution mutations. Reset/import context
 lookups also reject obsolete responses before updating the source cache. Command acknowledgements
 clear local ownership only while their action and consent are still current.
+Reset invocation captures its per-item action before reading local positions. If a
+sibling finishes opt-out before the reset commits, its guarded local-clear result
+updates the raw store without replacing a newer local action. A server-profile
+change cancels that fallback. Sibling opt-out also stops polling and clears the
+previous ready status.
 Confirmed commands retire failed fallback owners by content identity even before
 their first local checkpoint. A local conflict choice may reacquire its own player
 session. Context reads retain their request order: older replies may reuse the

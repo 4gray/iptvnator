@@ -290,6 +290,34 @@ describe('activity runtime lifecycle and settings orchestration', () => {
         expect(jest.getTimerCount()).toBe(0);
     });
 
+    it('stops polling and clears ready status when a sibling disables consent', async () => {
+        localStorage.setItem(
+            consentKey,
+            JSON.stringify({
+                enabled: true,
+                generation: 'synthetic-consent',
+                deviceId: 'synthetic-device',
+            })
+        );
+        const f = fixture();
+        jest.runAllTicks();
+        await f.runtime.refresh();
+        expect(f.runtime.state()).toBe('ready');
+        expect(jest.getTimerCount()).toBeGreaterThan(0);
+        localStorage.setItem(
+            consentKey,
+            JSON.stringify({
+                enabled: false,
+                generation: 'synthetic-consent',
+                deviceId: 'synthetic-device',
+            })
+        );
+        window.dispatchEvent(new Event('storage'));
+        expect(f.runtime.enabled()).toBe(false);
+        expect(f.runtime.state()).toBe('disabled');
+        expect(jest.getTimerCount()).toBe(0);
+    });
+
     it('enables only after server capability approval and previews local activity without importing it', async () => {
         const f = fixture();
         await f.runtime.setEnabled(true);

@@ -95,6 +95,11 @@ export class ActivitySyncRuntime {
             this.enabled.set(activityEnabled());
             if (this.enabled())
                 void this.start().catch(() => this.state.set('offline'));
+            else {
+                this.state.set('disabled');
+                clearInterval(this.timer);
+                this.timer = undefined;
+            }
         };
         window.addEventListener('online', refresh);
         window.addEventListener('focus', refresh);

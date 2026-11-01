@@ -1,3 +1,4 @@
+import { clearActivityPositions } from './activity-position-clear';
 import { ActivityPositionWriteFence } from './activity-position-write-fence';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
@@ -137,67 +138,18 @@ export class ActivityPositionAdapter {
             method === 'clearPlaybackPosition' ||
             method === 'clearPlaybackPositionsBatch'
         ) {
-            const items =
-                method === 'clearPlaybackPosition'
-                    ? [
-                          {
-                              contentXtreamId: args[1] as number,
-                              contentType: args[2] as 'vod' | 'episode',
-                          },
-                      ]
-                    : (args[1] as {
-                          contentXtreamId: number;
-                          contentType: 'vod' | 'episode';
-                      }[]);
-            this.supersede(method, args);
-            const current = await this.all(raw, sourceId);
-            for (const item of items) {
-                const position = current.find(
-                    (p) =>
-                        p.contentType === item.contentType &&
-                        p.contentXtreamId === item.contentXtreamId
-                );
-                const aliases = [...this.client.aliases.values()].filter(
-                    (candidate) =>
-                        candidate.playlistId === sourceId &&
-                        candidate.contentType === item.contentType &&
-                        candidate.contentXtreamId === item.contentXtreamId
-                );
-                const shared = (await this.client.positions(sourceId)).filter(
-                    (candidate) =>
-                        candidate.position.contentType === item.contentType &&
-                        candidate.position.contentXtreamId ===
-                            item.contentXtreamId
-                );
-                if (aliases.length > 1 || shared.length > 1)
-                    throw new Error('Activity identity ambiguous');
-                if (localOnly) {
-                    const target = position ??
-                        shared[0]?.position ??
-                        aliases[0] ?? { ...item, positionSeconds: 0 };
-                    await this.resetLocal(raw, sourceId, target);
-                    continue;
+            return clearActivityPositions(
+                this.client,
+                method,
+                args,
+                localOnly,
+                {
+                    all: () => this.all(raw, sourceId),
+                    local: (position) =>
+                        this.resetLocal(raw, sourceId, position),
+                    start: (item) => this.writeFence.start(sourceId, item),
                 }
-                try {
-                    await this.client.reset(sourceId, position ?? item);
-                } catch (error) {
-                    // An unbound source cannot send a portable reset while offline.
-                    if (
-                        this.client.contexts.has(sourceId) &&
-                        (!(error instanceof Error) ||
-                            error.message !== 'Activity identity unavailable')
-                    )
-                        throw error;
-                    await this.resetLocal(
-                        raw,
-                        sourceId,
-                        position ??
-                            shared[0]?.position ??
-                            aliases[0] ?? { ...item, positionSeconds: 0 }
-                    );
-                }
-            }
-            return;
+            );
         }
         const positions = await this.all(
             raw,

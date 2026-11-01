@@ -31,6 +31,7 @@ describe('activity projection local preservation', () => {
             },
         };
         const client = {
+            actions: { position: () => () => true },
             options: { changed: () => undefined },
             aliases: new Map(),
             localSessions: new Map(),
@@ -128,6 +129,7 @@ describe('activity projection local preservation', () => {
                 aliases: new Map(),
                 localSessions: new Map(),
                 retiredSessions: new Set(),
+                actions: { position: () => () => true },
                 options: { changed: () => undefined },
                 positions: async () => [],
                 save: jest.fn(async () => {
