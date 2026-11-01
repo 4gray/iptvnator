@@ -26,11 +26,15 @@ export function beginActivity(
     if (existing) return existing;
     let incarnation = this.contexts.get(sourceId)?.sourceIncarnation;
     const operationId = createRandomId();
+    let launchConsent: string | undefined;
     const begin = (async () => {
+        const consentGeneration = this.consent();
+        launchConsent = consentGeneration;
         const address = await this.address(sourceId, position);
         incarnation = address.sourceIncarnation;
         let generation = 0;
-        const consentGeneration = this.consent();
+        if (!matchesConsent(this, consentGeneration))
+            throw new Error('Activity consent changed');
         this.delivery.begins.set(operationId, consentGeneration);
         const committed = await this.store.mutate(address, (current) => {
             const state = current?.state ?? emptyActivityState();
@@ -72,7 +76,9 @@ export function beginActivity(
                 ],
             };
         });
+        const active = matchesConsent(this, consentGeneration);
         if (
+            active &&
             committed.pending.some(
                 (intent) =>
                     intent.operation.operationId === operationId &&
@@ -81,22 +87,39 @@ export function beginActivity(
         )
             this.delivery.start();
         else this.delivery.settled(operationId);
-        this.localSessions.delete(sessionId);
-        this.retiredSessions.delete(sessionId);
-        this.options.committed?.(sourceId, position, 'begin');
+        if (active) {
+            this.localSessions.delete(sessionId);
+            this.retiredSessions.delete(sessionId);
+            this.options.committed?.(sourceId, position, 'begin');
+        }
         this.options.changed();
         void this.flush();
         return { address, generation };
     })().catch((error) => {
-        this.localSessions.set(sessionId, { sourceId, incarnation });
+        const obsolete = !matchesConsent(this, launchConsent);
+        if (obsolete) this.localSessions.delete(sessionId);
+        else this.localSessions.set(sessionId, { sourceId, incarnation });
         this.delivery.settled(operationId);
         if (this.sessions.get(sessionId) === begin)
             this.sessions.delete(sessionId);
-        this.options.failedLaunch?.(sourceId, position, incarnation);
+        this.options.failedLaunch?.(sourceId, position, incarnation, obsolete);
         throw error;
     });
     this.sessions.set(sessionId, begin);
     return begin;
+}
+
+function matchesConsent(
+    client: ActivitySyncClient,
+    generation?: string
+): boolean {
+    try {
+        return (
+            generation !== undefined && client.options.consent() === generation
+        );
+    } catch {
+        return false;
+    }
 }
 
 export async function saveActivity(

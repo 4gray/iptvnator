@@ -1010,6 +1010,11 @@ not applied to a verified source.
 Opt-out drains local shared mutations already started in the renderer before
 mirroring. A checkpoint committed after another window pauses consent also
 returns through the local persistence path, preserving that acknowledged point.
+A launch completing after consent pauses cannot clear newer local ownership.
+A superseded launch failure also preserves an existing local snapshot or reset;
+its callback creates fallback ownership only when no newer local record exists.
+Transferring fallback ownership to a new launch retains any unfinished raw snapshot
+and its acknowledgement token until the raw writer succeeds.
 A delayed shared-save completion may fall back locally only while its original
 write is still the latest invocation for that item; later checkpoints or resets
 supersede it before awaiting storage. The data-source proxy keeps an already loaded
@@ -1108,7 +1113,9 @@ queue requires an explicit local/server choice; reconnect never silently elects
 an old session. Resolving a conflict retires discarded local sessions, including
 when keeping a local reset or watched mark, so their later ticks cannot recreate
 the conflict. Keeping local playback preserves its chosen session for subsequent
-checkpoints. Reset/unwatch clears both progress and watched state in this MVP.
+checkpoints. If chosen local playback is unwatched, resolution clears a competing
+server watched mark before reacquiring ownership and resuming checkpoints.
+Reset/unwatch clears both progress and watched state in this MVP.
 
 ## Service factory and build bases
 

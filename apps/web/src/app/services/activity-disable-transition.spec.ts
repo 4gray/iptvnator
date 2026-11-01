@@ -94,6 +94,10 @@ function fixture(mode: 'native' | 'browser', watched = false) {
         const client = new ActivitySyncClient(store, {
             committed: (sourceId, position, kind) =>
                 localOnly.committed(sourceId, position, kind),
+            failedLaunch: (sourceId, position, _incarnation, preserveLocal) => {
+                if (!preserveLocal || !localOnly.has(sourceId, position))
+                    localOnly.mark(sourceId, position);
+            },
             instanceId: 'synthetic-nas',
             deviceId: 'synthetic-device',
             contexts: [
@@ -303,6 +307,80 @@ describe('retryable activity disable transition', () => {
                 expect(
                     localOnly.snapshots(f.sourceId)[0].position.positionSeconds
                 ).toBe(75);
+        }
+    );
+
+    it.each([
+        { reset: false, failedBegin: false, failedWrite: false },
+        { reset: true, failedBegin: false, failedWrite: false },
+        { reset: false, failedBegin: false, failedWrite: true },
+        { reset: false, failedBegin: true, failedWrite: true },
+    ])(
+        'preserves newer local actions while an older launch finishes during opt-out (%o)',
+        async ({ reset, failedBegin, failedWrite }) => {
+            const f = fixture('native');
+            f.recover();
+            const { runtime, client, localOnly } = f.makeRuntime();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const mutate = client.store.mutate.bind(client.store);
+            jest.spyOn(client.store, 'mutate').mockImplementationOnce(
+                async (address, update) => {
+                    entered();
+                    await held;
+                    if (failedBegin)
+                        throw new Error('Synthetic launch storage failure');
+                    return mutate(address, update);
+                }
+            );
+            const beginning = client.begin(f.sourceId, {
+                ...f.position,
+                positionSeconds: 0,
+                activitySessionId: 'synthetic-pending-launch',
+            });
+            await started;
+            const disabling = runtime.setEnabled(false);
+            for (let i = 0; i < 30; i++) await Promise.resolve();
+            if (failedWrite)
+                f.save.mockRejectedValueOnce(
+                    new Error('Synthetic newer storage failure')
+                );
+            const writing = reset
+                ? runtime.invoke(f.raw, 'clearPlaybackPosition', [
+                      f.sourceId,
+                      42,
+                      'vod',
+                  ])
+                : runtime.invoke(f.raw, 'savePlaybackPosition', [
+                      f.sourceId,
+                      {
+                          ...f.position,
+                          positionSeconds: 75,
+                          activitySessionId: 'synthetic-pending-launch',
+                      },
+                  ]);
+            if (failedWrite)
+                await expect(writing).rejects.toThrow(
+                    'Synthetic newer storage failure'
+                );
+            else await writing;
+            release();
+            if (failedBegin)
+                await expect(beginning).rejects.toThrow(
+                    'Synthetic launch storage failure'
+                );
+            else await beginning;
+            await disabling;
+            expect(runtime.enabled()).toBe(false);
+            expect(localOnly.snapshots(f.sourceId)).toEqual([]);
+            if (reset) expect(f.rows()).toEqual([]);
+            else expect(f.rows()[0].positionSeconds).toBe(75);
         }
     );
 

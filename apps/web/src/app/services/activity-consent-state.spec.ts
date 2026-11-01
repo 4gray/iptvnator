@@ -1,3 +1,4 @@
+import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import { signal } from '@angular/core';
 import type {
     RuntimeCapabilitiesService,
@@ -58,6 +59,50 @@ describe('activity consent persistence', () => {
             disabling: false,
         });
     });
+    it('keeps a newer durable snapshot when an obsolete launch failure reaches the actual runtime callback', async () => {
+        const { client, adapter } = createActivityRuntimeClient(
+            {
+                supportsActivityStorage: true,
+                isElectron: true,
+                supportsXtreamSqliteDataSource: false,
+            } as RuntimeCapabilitiesService,
+            {} as PlaybackPositionRuntimeBridgeService,
+            { changed: () => undefined, status: () => undefined },
+            signal(false)
+        );
+        jest.spyOn(client, 'positions').mockResolvedValue([]);
+        const raw = {
+            getAllPlaybackPositions: async () => [],
+            savePlaybackPosition: async () => {
+                throw new Error('Synthetic pending write');
+            },
+        } as unknown as IXtreamDataSource;
+        await expect(
+            adapter.invoke(
+                raw,
+                'savePlaybackPosition',
+                [
+                    'synthetic-source',
+                    {
+                        ...position,
+                        positionSeconds: 75,
+                        activitySessionId: 'synthetic-newer-session',
+                    },
+                ],
+                true
+            )
+        ).rejects.toThrow('Synthetic pending write');
+        client.options.failedLaunch?.(
+            'synthetic-source',
+            { ...position, activitySessionId: 'synthetic-older-session' },
+            undefined,
+            true
+        );
+        expect(await adapter.all(raw, 'synthetic-source')).toEqual([
+            expect.objectContaining({ positionSeconds: 75 }),
+        ]);
+    });
+
     it('pauses the actual runtime client without bypassing shared reads', () => {
         const paused = signal(false);
         const makeClient = () =>

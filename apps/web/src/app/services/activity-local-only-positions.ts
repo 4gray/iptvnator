@@ -148,10 +148,18 @@ export class ActivityLocalOnlyPositions {
             this.clear(sourceId, position);
     }
     mark(sourceId: string, position: PositionKey): void {
+        const pending = this.read(sourceId, this.key(sourceId, position));
         this.write(sourceId, position, {
             version: 2,
             scope: this.scope(sourceId),
             sessionId: position.activitySessionId ?? '',
+            ...(pending?.position
+                ? {
+                      position: pending.position,
+                      token: pending.token,
+                      ...(pending.clearing ? { clearing: true } : {}),
+                  }
+                : {}),
         });
     }
     stage(

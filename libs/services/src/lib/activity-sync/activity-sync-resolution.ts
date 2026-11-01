@@ -102,11 +102,23 @@ export async function resolveActivity(
                 positionMetadata: metadata(position),
             });
         else {
+            let baseline = remote;
+            if (remote.watched && !localWatched) {
+                const reset: ActivityOperation = {
+                    kind: 'reset',
+                    operationId: createRandomId(),
+                    deviceId: this.options.deviceId,
+                    expectedRevision: remote.revision,
+                    positionMetadata: metadata(position),
+                };
+                operations.push(reset);
+                baseline = applyActivityOperation(remote, reset).state;
+            }
             const sessionId = position.activitySessionId ?? createRandomId();
             operations.push({
                 ...base,
                 kind: 'begin',
-                expectedRevision: remote.revision,
+                expectedRevision: baseline.revision,
                 sessionId,
                 positionMetadata: metadata(position),
             });
@@ -114,7 +126,7 @@ export async function resolveActivity(
                 operationId: createRandomId(),
                 deviceId: this.options.deviceId,
                 kind: 'checkpoint',
-                generation: remote.generation + 1,
+                generation: baseline.generation + 1,
                 sessionId,
                 sequence: 1,
                 resume: activityResume(position),
@@ -132,9 +144,9 @@ export async function resolveActivity(
                     kind: 'mark-watched',
                     operationId: createRandomId(),
                     deviceId: this.options.deviceId,
-                    expectedRevision: remote.revision + 2,
+                    expectedRevision: baseline.revision + 2,
                 });
-            session = { id: sessionId, generation: remote.generation + 1 };
+            session = { id: sessionId, generation: baseline.generation + 1 };
         }
         let state = remote;
         for (const operation of operations)

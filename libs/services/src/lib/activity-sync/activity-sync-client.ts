@@ -45,10 +45,12 @@ export interface ActivityClientOptions {
     status(
         value: 'ready' | 'offline' | 'conflict' | 'pending' | 'incompatible'
     ): void;
+    /** An obsolete failure preserves a newer local record instead of replacing its ownership. */
     failedLaunch?(
         sourceId: string,
         position: PlaybackPositionData,
-        incarnation?: string
+        incarnation?: string,
+        preserveLocal?: boolean
     ): void;
     contexts?: ActivitySourceContext[];
     remember?(contexts: ActivitySourceContext[]): void;

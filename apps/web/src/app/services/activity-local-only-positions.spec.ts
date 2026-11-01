@@ -145,6 +145,25 @@ describe('durable local-only position ownership', () => {
         expect(reopened.snapshots('source-a')).toHaveLength(0);
         expect(reopened.has('source-a', input)).toBe(true);
     });
+    it('retains an unfinished raw snapshot while transferring fallback ownership to a new launch', () => {
+        const store = new ActivityLocalOnlyPositions(
+            'synthetic-nas',
+            localStorage
+        );
+        const pending = store.stage(
+            'source-a',
+            { ...position, positionSeconds: 65 },
+            'synthetic-first'
+        );
+        const next = { ...position, activitySessionId: 'synthetic-next' };
+        store.mark('source-a', next);
+        expect(store.snapshots('source-a')).toEqual([pending]);
+        expect(store.owns('source-a', next)).toBe(true);
+        store.complete('source-a', pending);
+        expect(store.snapshots('source-a')).toEqual([]);
+        expect(store.owns('source-a', next)).toBe(true);
+    });
+
     it('propagates storage failures instead of treating protected data as shared', () => {
         const store = new ActivityLocalOnlyPositions('synthetic-nas', {
             getItem: () => {

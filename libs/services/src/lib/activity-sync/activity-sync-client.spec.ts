@@ -571,6 +571,50 @@ describe('activity sync clients', () => {
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(25);
         expect(await a.store.pending()).toHaveLength(0);
     });
+    it.each([false, true])(
+        'keeps local playback unwatched after an offline reset conflicts with a server watched mark (previously watched: %s)',
+        async (wasWatched) => {
+            const h = harness();
+            const a = h.client('synthetic-a');
+            const b = h.client('synthetic-b');
+            await launch(a, movie('synthetic-original', wasWatched ? 95 : 30));
+            await a.value.flush();
+            await b.value.refresh('source');
+            h.offline(true);
+            await a.value.reset('source', movie('synthetic-original'));
+            await launch(a, movie('synthetic-resumed', 20));
+            await a.value.flush();
+            h.offline(false);
+            await b.value.save('source', {
+                ...movie('synthetic-other'),
+                activitySessionId: undefined,
+                activityAction: 'mark-watched',
+                watched: true,
+            });
+            await b.value.flush();
+            await a.value.flush();
+            const entry = (await a.store.entries('source'))[0];
+            expect(entry.record.conflict).toBeDefined();
+            expect(entry.record.position?.watched).toBe(false);
+            await a.value.resolve(entry.address, true);
+            expect([...h.states.values()][0]).toMatchObject({
+                watched: false,
+                watchedOrigin: null,
+                resume: { positionSeconds: 20 },
+            });
+            expect(
+                (await a.value.positions('source'))[0].position.watched
+            ).toBe(false);
+            await a.value.save('source', movie('synthetic-resumed', 45));
+            await a.value.flush();
+            expect([...h.states.values()][0]).toMatchObject({
+                watched: false,
+                resume: { positionSeconds: 45 },
+            });
+            expect(await a.store.pending()).toEqual([]);
+        }
+    );
+
     it('keeps competing offline progress until an explicit local/server choice', async () => {
         const h = harness();
         const a = h.client('a');
