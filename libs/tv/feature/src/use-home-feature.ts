@@ -9,7 +9,7 @@ import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import type { TvModel } from './use-tv';
 
 /** Global selection survives source activation and detail/player return. */
-export function useHomeFeature(tv: TvModel) {
+export function useHomeFeature(tv: TvModel, beforeSelect: () => void) {
     const history = useMemo(
         () =>
             continueWatching(tv.data).map((progress) => {
@@ -68,7 +68,10 @@ export function useHomeFeature(tv: TvModel) {
         count: slides.length,
         select: (next: number) => {
             const slide = slides[(next + slides.length) % slides.length];
-            if (slide) setSelection(slide.item.id);
+            if (slide && slide.item.id !== progress?.item.id) {
+                beforeSelect();
+                setSelection(slide.item.id);
+            }
         },
     };
 }

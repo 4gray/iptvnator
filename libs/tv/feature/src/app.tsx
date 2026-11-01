@@ -64,7 +64,7 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
         };
     });
     const r = tv.route;
-    const feature = useHomeFeature(tv);
+    const feature = useHomeFeature(tv, homeActions.leave);
     const cinematic = r.view === 'home' || r.view === 'detail';
     const metadata = useMetadata(
         r.view === 'detail'
