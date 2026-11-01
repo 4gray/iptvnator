@@ -2423,7 +2423,10 @@ describe('DashboardDataService', () => {
                     '2026-10-04T09:00:00Z'
                 ),
             ]);
-            let stored = vodPosition(102, 2700, 5400);
+            let stored: PlaybackPositionData = {
+                ...vodPosition(102, 2700, 5400),
+                activitySessionId: 'playing',
+            };
             playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
                 () => Promise.resolve([stored])
             );
@@ -2443,6 +2446,8 @@ describe('DashboardDataService', () => {
                 )
             ).resolves.toBe(true);
 
+            expect(stored.activityAction).toBe('mark-watched');
+            expect(stored.activitySessionId).toBeUndefined();
             expect(titles()).toEqual([]);
         });
     });

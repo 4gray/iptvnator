@@ -159,7 +159,67 @@ function harness(provider: 'xtream' | 'stalker' = 'xtream') {
     };
 }
 
+async function launch(
+    client: ReturnType<ReturnType<typeof harness>['client']>,
+    position: PlaybackPositionData
+) {
+    await client.value.begin('source', position);
+    await client.value.save('source', position);
+}
+
 describe('activity sync clients', () => {
+    it.each([
+        ['reset', false],
+        ['reset', true],
+        ['owner', false],
+        ['owner', true],
+    ] as const)(
+        'does not reclaim a %s from a recreated renderer (fresh cache: %s)',
+        async (change, refresh) => {
+            const h = harness();
+            const a = h.client('a');
+            const b = h.client('b');
+            await launch(a, movie('external', 25));
+            await a.value.flush();
+            await b.value.refresh('source');
+            if (change === 'reset') await b.value.reset('source', movie('b'));
+            else await launch(b, movie('remote', 30));
+            await b.value.flush();
+            const before = structuredClone([...h.states.values()][0]);
+            const reopened = h.client('a', a.store);
+            if (refresh) await reopened.value.refresh('source');
+            await reopened.value.save('source', movie('external', 70));
+            await reopened.value.flush();
+            expect([...h.states.values()][0]).toEqual(before);
+            expect(await a.store.pending()).toHaveLength(0);
+            await launch(reopened, movie('new-explicit-launch', 40));
+            await reopened.value.flush();
+            expect([...h.states.values()][0].resume?.positionSeconds).toBe(40);
+        }
+    );
+    it('recovers an owned durable session without another begin', async () => {
+        const h = harness();
+        const a = h.client('a');
+        await launch(a, movie('external', 25));
+        await a.value.flush();
+        const reopened = h.client('a', a.store);
+        await reopened.value.save('source', movie('external', 50));
+        await reopened.value.flush();
+        expect([...h.states.values()][0]).toMatchObject({
+            generation: 1,
+            owner: { sessionId: 'external' },
+            resume: { positionSeconds: 50 },
+        });
+    });
+    it('does not manufacture a launch for an unknown player callback', async () => {
+        const h = harness();
+        const a = h.client('a');
+        await a.value.save('source', movie('unknown', 70));
+        await a.value.flush();
+        expect(h.states.size).toBe(0);
+        expect(await a.store.entries('source')).toHaveLength(0);
+    });
+
     it('sends no requests without consent and imports no existing local data', async () => {
         const h = harness();
         const a = h.client('a');
@@ -172,7 +232,7 @@ describe('activity sync clients', () => {
         const h = harness();
         const a = h.client('a');
         const b = h.client('b');
-        await a.value.save('source', movie('a', 35));
+        await launch(a, movie('a', 35));
         await a.value.flush();
         await b.value.refresh('source');
         expect(
@@ -193,9 +253,9 @@ describe('activity sync clients', () => {
         const h = harness();
         const a = h.client('a');
         const b = h.client('b');
-        await a.value.save('source', movie('a', 25));
+        await launch(a, movie('a', 25));
         await a.value.flush();
-        await b.value.save('source', movie('b', 50));
+        await launch(b, movie('b', 50));
         await b.value.flush();
         await a.value.save('source', movie('a', 70));
         await a.value.flush();
@@ -209,7 +269,7 @@ describe('activity sync clients', () => {
         const h = harness();
         const a = h.client('a');
         h.loseResponse();
-        await a.value.save('source', movie('a', 25));
+        await launch(a, movie('a', 25));
         await a.value.flush();
         await h.client('a', a.store).value.flush();
         expect([...h.states.values()][0].generation).toBe(1);
@@ -221,10 +281,10 @@ describe('activity sync clients', () => {
         const a = h.client('a');
         const b = h.client('b');
         h.offline(true);
-        await a.value.save('source', movie('a', 65));
+        await launch(a, movie('a', 65));
         await a.value.flush();
         h.offline(false);
-        await b.value.save('source', movie('b', 30));
+        await launch(b, movie('b', 30));
         await b.value.flush();
         await a.value.flush();
         const entry = (await a.store.entries('source'))[0];
@@ -237,7 +297,7 @@ describe('activity sync clients', () => {
         const h = harness();
         const a = h.client('a');
         h.offline(true);
-        await a.value.save('source', movie('a', 25));
+        await launch(a, movie('a', 25));
         await a.value.flush();
         a.consent('new');
         h.offline(false);
@@ -253,11 +313,11 @@ describe('activity sync clients', () => {
             const b = h.client('b');
             h.offline(true);
             for (let index = 1; index <= begins; index++) {
-                await a.value.save('source', movie(`offline-${index}`, 65));
+                await launch(a, movie(`offline-${index}`, 65));
                 await a.value.flush();
             }
             h.offline(false);
-            await b.value.save('source', movie('online', 30));
+            await launch(b, movie('online', 30));
             await b.value.flush();
             await a.value.flush();
             const entry = (await a.store.entries('source'))[0];
@@ -270,7 +330,7 @@ describe('activity sync clients', () => {
                 (await a.store.entries('source'))[0].record.conflict
             ).toBeUndefined();
             expect([...h.states.values()][0].resume?.positionSeconds).toBe(30);
-            await a.value.save('source', movie('explicit-new-session', 40));
+            await launch(a, movie('explicit-new-session', 40));
             await a.value.flush();
             expect([...h.states.values()][0].resume?.positionSeconds).toBe(40);
         }
@@ -295,10 +355,10 @@ describe('activity sync clients', () => {
                 const a = h.client('a');
                 const b = h.client('b');
                 h.offline(true);
-                await a.value.save('source', position);
+                await launch(a, position);
                 await a.value.flush();
                 h.offline(false);
-                await b.value.save('source', movie('online', 30));
+                await launch(b, movie('online', 30));
                 await b.value.flush();
                 await a.value.flush();
                 const entry = (await a.store.entries('source'))[0];
@@ -320,7 +380,7 @@ describe('activity sync clients', () => {
         const h = harness();
         const a = h.client('a');
         const b = h.client('b');
-        await a.value.save('source', movie('a', 25));
+        await launch(a, movie('a', 25));
         await a.value.flush();
         await b.value.refresh('source');
         await b.value.importPosition('source', {
@@ -336,7 +396,7 @@ describe('activity sync clients', () => {
         const h = harness();
         const a = h.client('a');
         const b = h.client('b');
-        await a.value.save('source', movie('a', 20));
+        await launch(a, movie('a', 20));
         await a.value.flush();
         h.offline(true);
         await a.value.save('source', movie('a', 75));
@@ -363,10 +423,10 @@ describe('activity sync clients', () => {
         const a = h.client('a');
         const b = h.client('b');
         h.offline(true);
-        await a.value.save('source', movie('a', 95));
+        await launch(a, movie('a', 95));
         await a.value.flush();
         h.offline(false);
-        await b.value.save('source', movie('b', 30));
+        await launch(b, movie('b', 30));
         await b.value.flush();
         await a.value.flush();
         const entry = (await a.store.entries('source'))[0];
@@ -398,7 +458,7 @@ describe('activity sync clients', () => {
                 contentXtreamId: 111,
                 activityIdentity,
             };
-            await a.value.save('source', episode);
+            await launch(a, episode);
             await a.value.flush();
             b.value.register('source', [
                 { ...episode, contentXtreamId: 222, seriesXtreamId: 888 },
@@ -461,7 +521,7 @@ describe('activity sync clients', () => {
     it('does not let a late player callback block a reset waiting for the server', async () => {
         const h = harness();
         const a = h.client('a');
-        await a.value.save('source', movie('a', 20));
+        await launch(a, movie('a', 20));
         await a.value.flush();
         h.offline(true);
         await a.value.reset('source', movie('a'));

@@ -903,6 +903,8 @@ export class DashboardDataService {
             {
                 ...position,
                 positionSeconds: position.durationSeconds,
+                activitySessionId: undefined,
+                activityAction: 'mark-watched',
                 updatedAt: new Date().toISOString(),
             }
         );

@@ -990,8 +990,11 @@ Completion retains the portal's rounded 90% threshold when duration is
 known. Manual watched state does not manufacture a duration. A checkpoint does
 not silently unmark an already watched item. `reset` clears resume and watched
 and advances the generation, retaining the empty row as a barrier to old ticks.
-Marking watched also retires the old session. A remote ownership change does
-not command a running player to seek or stop.
+Marking watched also retires the old session. Dashboard watched commands carry
+the same explicit activity intent as portal toggles. A remote ownership change does
+not command a running player to seek or stop. A surviving external player can
+recover its durable session after renderer recreation; a checkpoint never
+manufactures a new begin, including when a reset or another owner is cached.
 
 The server SQLite store receives a synchronous authorization callback that must
 verify instance and current source incarnation in the mutation transaction.

@@ -78,11 +78,25 @@ export async function saveActivity(
         this.retiredSessions.has(position.activitySessionId)
     )
         return;
-    const session = position.activitySessionId
-        ? await this.begin(sourceId, position)
-        : null;
+    const sessionId = position.activitySessionId;
+    let session = sessionId ? await this.sessions.get(sessionId) : undefined;
     const address =
         session?.address ?? (await this.address(sourceId, position));
+    if (sessionId && !session) {
+        // External players may outlive the renderer. A checkpoint can recover
+        // durable ownership, but only an explicit launch may acquire it.
+        const state = (await this.store.read(address))?.state;
+        if (
+            state?.owner?.deviceId === this.options.deviceId &&
+            state.owner.sessionId === sessionId
+        ) {
+            session = { address, generation: state.generation };
+            this.sessions.set(sessionId, Promise.resolve(session));
+        } else {
+            this.retiredSessions.add(sessionId);
+            return;
+        }
+    }
     await this.store.mutate(address, (current) => {
         const state = current?.state ?? emptyActivityState();
         if (

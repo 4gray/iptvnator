@@ -250,8 +250,11 @@ all, and none inside the hero.
        `continueWatchingSettled()`. A movie stays until its position reaches
        `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`). The
        threshold is 90%, the Plex/Jellyfin/Emby/Kodi default, so stopping
-       during the end credits finishes a title, as does "Mark watched". A
-       series stays while it has something to continue: once its newest
+       during the end credits finishes a title, as does "Mark watched". That
+       command clears inherited player session metadata and carries explicit
+       `mark-watched` intent through the shared playback-position boundary, so
+       consented activity reaches the server. A series stays while it has
+       something to continue: once its newest
        episode is watched, or is an extra (season 0),
        `DashboardSeriesEpisodesService` fetches its episode list
        (`get_series_info`, two lookups at a time) and
