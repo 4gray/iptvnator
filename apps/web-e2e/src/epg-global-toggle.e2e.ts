@@ -18,7 +18,8 @@ const guideActions = new Set([
 ]);
 
 async function setEpg(page: Page, enabled: boolean): Promise<void> {
-    await page.goto('/workspace/settings/epg');
+    await page.getByRole('link', { name: 'Open settings' }).click();
+    await page.locator('[data-test-id="settings-section-epg"]').click();
     const toggle = page
         .locator('[data-test-id="toggle-epg-enabled"]')
         .getByRole('switch');
