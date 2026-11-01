@@ -1,25 +1,34 @@
 import { execFileSync } from 'node:child_process';
+import { withRuntimeCoverage } from '@iptvnator/shared/testing/runtime-coverage';
 
 describe('activity outbox in real browser IndexedDB', () => {
-    it('serializes two tabs without Web Locks and survives rollback, reload and profile changes', () => {
-        // A child Node process avoids jsdom shims; the adapter itself runs in
-        // two real Chromium pages sharing one origin and IndexedDB connection queue.
-        const result = execFileSync(
-            process.execPath,
-            [
-                '--input-type=module',
-                '-e',
-                `
+    it(
+        'serializes two tabs without Web Locks and survives rollback, reload and profile changes',
+        async () =>
+            withRuntimeCoverage((coverageFile) => {
+                // A child Node process avoids jsdom shims; the adapter itself runs in
+                // two real Chromium pages sharing one origin and IndexedDB connection queue.
+                const result = execFileSync(
+                    process.execPath,
+                    [
+                        '--import',
+                        'tsx',
+                        '--input-type=module',
+                        '-e',
+                        `
             import assert from 'node:assert/strict';
-            import { buildSync } from 'esbuild';
+            import { build } from 'esbuild';
+            import { runtimeCoveragePlugin, writeRuntimeCoverage } from '@iptvnator/shared/testing/runtime-coverage';
             import { chromium } from '@playwright/test';
-            const bundle = buildSync({
+            const bundle = (await build({
                 stdin: {
                     contents: 'import { IndexedDbActivityLocalStore } from "@iptvnator/services/activity-sync"; import { appendActivityIntent, emptyActivityState } from "@iptvnator/shared/interfaces/activity-sync"; window.activityTest = { IndexedDbActivityLocalStore, appendActivityIntent, emptyActivityState };',
                     resolveDir: process.cwd(), loader: 'ts',
                 },
-                bundle: true, write: false, format: 'iife', platform: 'browser', tsconfig: 'tsconfig.base.json',
-            }).outputFiles[0].text;
+                bundle: true, write: false, format: 'iife', platform: 'browser', tsconfig: 'tsconfig.base.json', plugins: [runtimeCoveragePlugin(/indexeddb-activity-local[.]ts$/)],
+            })).outputFiles[0].text;
+            const snapshots = [];
+            const capture = async page => snapshots.push(await page.evaluate(() => globalThis.__coverage__ ?? {}));
             const browser = await chromium.launch({ headless: true });
             try {
                 const context = await browser.newContext();
@@ -73,6 +82,7 @@ describe('activity outbox in real browser IndexedDB', () => {
                 assert.equal(rollback.profileRejected, true);
                 assert.equal(rollback.cloneRejected, true);
                 assert.deepEqual(rollback.after, rollback.before);
+                await capture(pages[0]);
                 await pages[0].reload();
                 await pages[0].addScriptTag({ content: bundle });
                 const reopened = await pages[0].evaluate(async address => {
@@ -90,13 +100,26 @@ describe('activity outbox in real browser IndexedDB', () => {
                 }, address);
                 assert.deepEqual(acknowledged.pending, []);
                 assert.deepEqual(acknowledged.record.state, saved.record.state);
+                for (const page of pages.filter(page => !page.isClosed())) await capture(page);
+                writeRuntimeCoverage(process.env.IPTVNATOR_TEST_COVERAGE_FILE, snapshots);
                 await context.close();
                 process.stdout.write('activity IndexedDB verified');
             } finally { await browser.close(); }
         `,
-            ],
-            { cwd: process.cwd(), encoding: 'utf8', timeout: 60_000 }
-        );
-        expect(result).toBe('activity IndexedDB verified');
-    }, 65_000);
+                    ],
+                    {
+                        cwd: process.cwd(),
+                        encoding: 'utf8',
+                        timeout: 60_000,
+                        env: {
+                            ...process.env,
+                            TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+                            IPTVNATOR_TEST_COVERAGE_FILE: coverageFile,
+                        },
+                    }
+                );
+                expect(result).toBe('activity IndexedDB verified');
+            }),
+        65_000
+    );
 });

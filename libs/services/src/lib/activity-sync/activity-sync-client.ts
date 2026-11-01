@@ -274,7 +274,14 @@ export class ActivitySyncClient {
     ): Promise<void> {
         const currentAction = this.actions.position(sourceId, position);
         const consentGeneration = this.consent();
-        const address = await this.address(sourceId, position);
+        const address = await this.address(
+            sourceId,
+            position,
+            currentAction
+        ).catch((error) => {
+            if (currentAction()) throw error;
+        });
+        if (!address) return;
         const watched =
             position.watched === true ||
             (!!position.durationSeconds &&

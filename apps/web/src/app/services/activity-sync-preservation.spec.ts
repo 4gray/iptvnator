@@ -274,6 +274,66 @@ describe('keeping pending activity local', () => {
         }
     );
 
+    it.each(['reset', 'import'] as const)(
+        'does not cache a stale %s context after a newer source incarnation launches',
+        async (action) => {
+            const f = fixture();
+            f.client.contexts.clear();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            jest.spyOn(f.client.options, 'request').mockImplementationOnce(
+                async () => {
+                    entered();
+                    await held;
+                    return {
+                        status: 200,
+                        body: {
+                            sourceId: f.address.sourceId,
+                            sourceIncarnation: 'synthetic-obsolete-incarnation',
+                            provider: 'xtream',
+                        },
+                    };
+                }
+            );
+            const command =
+                action === 'reset'
+                    ? f.client.reset(f.address.sourceId, f.position)
+                    : f.client.importPosition(f.address.sourceId, f.position);
+            await started;
+            const newer = {
+                ...f.position,
+                positionSeconds: 80,
+                activitySessionId: 'synthetic-current-incarnation',
+            };
+            await f.client.begin(f.address.sourceId, newer);
+            await f.client.save(f.address.sourceId, newer);
+            await f.client.flush();
+            release();
+            await command;
+            expect(
+                f.client.contexts.get(f.address.sourceId)?.sourceIncarnation
+            ).toBe(f.address.sourceIncarnation);
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                { ...newer, positionSeconds: 85 },
+            ]);
+            await f.client.flush();
+            expect(
+                (await f.adapter.all(f.raw, f.address.sourceId))[0]
+                    .positionSeconds
+            ).toBe(85);
+            expect(f.client.retiredSessions.has(newer.activitySessionId)).toBe(
+                false
+            );
+        }
+    );
+
     it('retires a failed launch cleared before its first checkpoint', async () => {
         const f = fixture();
         f.client.contexts.clear();

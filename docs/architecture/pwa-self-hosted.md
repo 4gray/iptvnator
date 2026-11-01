@@ -1017,7 +1017,8 @@ An explicit begin, watched/reset action, import or conflict resolution supersede
 older launches for the same item. Their delayed context responses and failures
 cannot reclaim fallback ownership or accept an obsolete source context. Every
 compare-and-swap attempt checks the explicit-action fence again, including
-watched/reset, import and conflict resolution mutations. Command acknowledgements
+watched/reset, import and conflict resolution mutations. Reset/import context
+lookups also reject obsolete responses before updating the source cache. Command acknowledgements
 clear local ownership only while their action and consent are still current.
 A reset retires a failed launch even before its first local checkpoint.
 Transferring fallback ownership to a new launch retains any unfinished raw snapshot

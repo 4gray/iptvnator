@@ -284,6 +284,11 @@ the lazy workspace shell feature into the initial bundle.
 
 ## Import Aliases and Public APIs
 
+`@iptvnator/shared/testing/runtime-coverage` is a Node-only test entry. It keeps
+Istanbul, esbuild hooks and temporary coverage files out of the browser-safe
+`shared-testing` barrel. Its build target lets buildable database tests consume
+that public entry without weakening dependency boundaries. Runtime code does not import it.
+
 Use scoped aliases from `tsconfig.base.json` and expose public imports through a
 library's `src/index.ts`. Do not introduce legacy bare aliases such as
 `services`, `components`, `shared-interfaces`, or `database`, and avoid deep

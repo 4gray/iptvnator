@@ -1,3 +1,4 @@
+import type { ActivityLocalRequest } from '@iptvnator/shared/interfaces/activity-sync';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import { signal } from '@angular/core';
 import type {
@@ -103,6 +104,120 @@ describe('activity consent persistence', () => {
         ]);
     });
 
+    it('selects the verified desktop IPC store and strict local writers', async () => {
+        const previous = window.electron;
+        const send = jest.fn(async (request: ActivityLocalRequest) =>
+            request.operation === 'read'
+                ? null
+                : request.operation === 'commit'
+                  ? { value: request.value }
+                  : []
+        );
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: { activityLocalRequest: send },
+        });
+        const save = jest.fn(async () => undefined);
+        const clear = jest.fn(async () => undefined);
+        try {
+            const { client, adapter } = createActivityRuntimeClient(
+                {
+                    supportsActivityStorage: true,
+                    isElectron: true,
+                    supportsXtreamSqliteDataSource: true,
+                } as RuntimeCapabilitiesService,
+                {
+                    savePlaybackPositionOrThrow: save,
+                    clearPlaybackPositionOrThrow: clear,
+                } as unknown as PlaybackPositionRuntimeBridgeService,
+                { changed: () => undefined, status: () => undefined }
+            );
+            const address = {
+                instanceId: 'synthetic-nas',
+                scope: 'shared' as const,
+                sourceId: 'synthetic-source',
+                sourceIncarnation: 'synthetic-incarnation',
+                content: {
+                    provider: 'xtream' as const,
+                    kind: 'vod' as const,
+                    id: '42',
+                },
+            };
+            await expect(client.store.read(address)).resolves.toBeNull();
+            await expect(client.store.pending()).resolves.toEqual([]);
+            const raw = {
+                getAllPlaybackPositions: async () => [],
+                savePlaybackPosition: jest.fn(async () => undefined),
+                clearPlaybackPosition: jest.fn(async () => undefined),
+            } as unknown as IXtreamDataSource;
+            await adapter.invoke(
+                raw,
+                'savePlaybackPosition',
+                [address.sourceId, position],
+                true
+            );
+            await adapter.invoke(
+                raw,
+                'clearPlaybackPosition',
+                [address.sourceId, 42, 'vod'],
+                true
+            );
+            expect(save).toHaveBeenCalledWith(
+                address.sourceId,
+                expect.objectContaining({ positionSeconds: 10 })
+            );
+            expect(clear).toHaveBeenCalledWith(address.sourceId, 42, 'vod');
+            expect(raw.savePlaybackPosition).not.toHaveBeenCalled();
+            expect(raw.clearPlaybackPosition).not.toHaveBeenCalled();
+        } finally {
+            Object.defineProperty(window, 'electron', {
+                configurable: true,
+                value: previous,
+            });
+        }
+    });
+
+    it.each([
+        '{',
+        '{}',
+        '[null,{"sourceId":"synthetic-source","sourceIncarnation":"synthetic-incarnation","provider":"unsupported"}]',
+    ])(
+        'recovers an unusable context cache without authorizing a new profile (%s)',
+        (saved) => {
+            localStorage.setItem(
+                'iptvnator-server:synthetic-nas:activity-contexts-v1',
+                saved
+            );
+            const { client } = createActivityRuntimeClient(
+                {
+                    supportsActivityStorage: true,
+                    isElectron: false,
+                    supportsXtreamSqliteDataSource: false,
+                } as RuntimeCapabilitiesService,
+                {} as PlaybackPositionRuntimeBridgeService,
+                { changed: () => undefined, status: () => undefined }
+            );
+            expect(client.contexts.size).toBe(0);
+            expect(client.options.consent()).toBe(original.generation);
+        }
+    );
+
+    it('does not create a store when consent or the runtime storage capability is missing', () => {
+        const create = (supportsActivityStorage: boolean) =>
+            createActivityRuntimeClient(
+                {
+                    supportsActivityStorage,
+                    isElectron: true,
+                    supportsXtreamSqliteDataSource: false,
+                } as RuntimeCapabilitiesService,
+                {} as PlaybackPositionRuntimeBridgeService,
+                { changed: () => undefined, status: () => undefined }
+            );
+        expect(() => create(false)).toThrow('Activity profile unavailable');
+        localStorage.removeItem(key);
+        expect(() => create(true)).toThrow('Activity profile unavailable');
+    });
+
     it('pauses the actual runtime client without bypassing shared reads', () => {
         const paused = signal(false);
         const makeClient = () =>
@@ -151,7 +266,7 @@ describe('activity consent persistence', () => {
                 point = value;
             },
             getAllPlaybackPositions: async () => [point],
-        } as unknown as import('@iptvnator/portal/xtream/data-access').IXtreamDataSource;
+        } as unknown as IXtreamDataSource;
         created.client.localSessions.set('synthetic-failed-session', {
             sourceId: context.sourceId,
             incarnation: context.sourceIncarnation,
@@ -219,7 +334,7 @@ describe('activity consent persistence', () => {
         const save = jest.fn(async () => undefined);
         const raw = {
             savePlaybackPosition: save,
-        } as unknown as import('@iptvnator/portal/xtream/data-access').IXtreamDataSource;
+        } as unknown as IXtreamDataSource;
         await reopened.adapter.invoke(raw, 'savePlaybackPosition', [
             'synthetic-source',
             { ...launch, positionSeconds: 65 },

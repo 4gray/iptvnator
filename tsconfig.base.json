@@ -142,6 +142,9 @@
                 "libs/shared/m3u-utils/src/index.ts"
             ],
             "@iptvnator/shared/testing": ["libs/shared/testing/src/index.ts"],
+            "@iptvnator/shared/testing/runtime-coverage": [
+                "libs/shared/testing/src/lib/runtime-coverage.ts"
+            ],
             "@iptvnator/shared/logging": ["libs/shared/logging/src/index.ts"],
             "@iptvnator/shared/host-health": [
                 "libs/shared/host-health/src/index.ts"

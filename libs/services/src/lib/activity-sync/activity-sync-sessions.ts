@@ -302,7 +302,12 @@ export async function resetActivity(
 ): Promise<void> {
     const currentAction = this.actions.position(sourceId, position);
     const consentGeneration = this.consent();
-    const address = await this.address(sourceId, position);
+    const address = await this.address(sourceId, position, currentAction).catch(
+        (error) => {
+            if (currentAction()) throw error;
+        }
+    );
+    if (!address) return;
     const committed = await this.store
         .mutate(address, (current) => {
             if (!currentAction()) throw new Error('Activity action superseded');

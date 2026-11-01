@@ -1,23 +1,28 @@
 import { execFileSync } from 'node:child_process';
+import { withRuntimeCoverage } from '@iptvnator/shared/testing/runtime-coverage';
 
 describe('activity delivery across real browser tabs', () => {
-    it('preserves live ownership and recovers a closed tab without Web Locks', () => {
-        const result = execFileSync(
-            process.execPath,
-            [
-                '--import',
-                'tsx',
-                '--input-type=module',
-                '-e',
-                `
+    it(
+        'preserves live ownership and recovers a closed tab without Web Locks',
+        async () =>
+            withRuntimeCoverage((coverageFile) => {
+                const result = execFileSync(
+                    process.execPath,
+                    [
+                        '--import',
+                        'tsx',
+                        '--input-type=module',
+                        '-e',
+                        `
             import assert from 'node:assert/strict';
-            import { buildSync } from 'esbuild';
+            import { build } from 'esbuild';
+            import { runtimeCoveragePlugin, writeRuntimeCoverage } from '@iptvnator/shared/testing/runtime-coverage';
             import { chromium } from '@playwright/test';
             import { applyActivityOperation, emptyActivityState } from './libs/shared/interfaces/src/lib/activity-sync/activity-sync.reducer.ts';
-            const bundle = buildSync({ stdin: {
+            const bundle = (await build({ stdin: {
                 contents: 'import { ActivitySyncClient, IndexedDbActivityLocalStore } from "@iptvnator/services/activity-sync"; window.activityTest = { ActivitySyncClient, IndexedDbActivityLocalStore };',
                 resolveDir: process.cwd(), loader: 'ts',
-            }, bundle: true, write: false, format: 'iife', platform: 'browser', tsconfig: 'tsconfig.base.json' }).outputFiles[0].text;
+            }, bundle: true, write: false, format: 'iife', platform: 'browser', tsconfig: 'tsconfig.base.json', plugins: [runtimeCoveragePlugin(/indexeddb-activity-local[.]ts$/)] })).outputFiles[0].text;
             let state = emptyActivityState();
             const receipts = new Map();
             let requests = 0;
@@ -26,6 +31,8 @@ describe('activity delivery across real browser tabs', () => {
                 state = applyActivityOperation(state, { kind: 'checkpoint', deviceId: 'synthetic-remote', operationId: id + '-tick', generation: state.generation, sessionId: id, sequence: 1, resume: { positionSeconds: 30, durationSeconds: 100 } }).state;
             }
             remoteStart('synthetic-remote-first');
+            const snapshots = [];
+            const capture = async page => snapshots.push(await page.evaluate(() => globalThis.__coverage__ ?? {}));
             const browser = await chromium.launch({ headless: true });
             try {
                 const context = await browser.newContext();
@@ -84,6 +91,7 @@ describe('activity delivery across real browser tabs', () => {
                 assert.deepEqual(await pages[1].evaluate(() => window.deliveryTest.store.pending()), []);
                 await enqueue('synthetic-abandoned');
                 remoteStart('synthetic-remote-later');
+                await capture(pages[0]);
                 await pages[0].close();
                 const recovered = await pages[1].evaluate(async () => {
                     const { client, store } = window.deliveryTest;
@@ -96,21 +104,26 @@ describe('activity delivery across real browser tabs', () => {
                 assert.ok(recovered.conflict);
                 assert.equal(state.owner.sessionId, 'synthetic-remote-later');
                 assert.equal(state.resume.positionSeconds, 30);
+                for (const page of pages.filter(page => !page.isClosed())) await capture(page);
+                writeRuntimeCoverage(process.env.IPTVNATOR_TEST_COVERAGE_FILE, snapshots);
                 await context.close();
                 process.stdout.write('synthetic activity delivery verified');
             } finally { await browser.close(); }
         `,
-            ],
-            {
-                cwd: process.cwd(),
-                encoding: 'utf8',
-                timeout: 60_000,
-                env: {
-                    ...process.env,
-                    TSX_TSCONFIG_PATH: 'tsconfig.base.json',
-                },
-            }
-        );
-        expect(result).toBe('synthetic activity delivery verified');
-    }, 65_000);
+                    ],
+                    {
+                        cwd: process.cwd(),
+                        encoding: 'utf8',
+                        timeout: 60_000,
+                        env: {
+                            ...process.env,
+                            TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+                            IPTVNATOR_TEST_COVERAGE_FILE: coverageFile,
+                        },
+                    }
+                );
+                expect(result).toBe('synthetic activity delivery verified');
+            }),
+        65_000
+    );
 });
