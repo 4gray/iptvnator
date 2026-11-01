@@ -557,7 +557,53 @@ describe('activity sync clients', () => {
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(30);
         await a.value.resolve(entry.address, true);
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(65);
+        await a.value.save('source', movie('a', 70));
+        await a.value.flush();
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(70);
     });
+    it.each(['reset', 'mark-watched'] as const)(
+        'keeps a resolved local %s terminal after obsolete offline session callbacks',
+        async (action) => {
+            const h = harness();
+            const a = h.client('a');
+            const b = h.client('b');
+            h.offline(true);
+            await launch(a, movie('synthetic-old-one', 20));
+            await launch(a, movie('synthetic-old-two', 30));
+            if (action === 'reset')
+                await a.value.reset('source', movie('synthetic-old-two'));
+            else
+                await a.value.save('source', {
+                    ...movie('synthetic-old-two'),
+                    activitySessionId: undefined,
+                    activityAction: 'mark-watched',
+                    watched: true,
+                });
+            await a.value.flush();
+            await a.value.stopDelivery();
+            h.offline(false);
+            await launch(b, movie('synthetic-competing', 40));
+            await b.value.flush();
+            await a.value.flush();
+            const entry = (await a.store.entries('source'))[0];
+            expect(entry.record.conflict).toBeDefined();
+            await a.value.resolve(entry.address, true);
+            expect(await a.store.pending()).toEqual([]);
+            const resolved = (await a.store.read(entry.address))!.state;
+            for (const id of ['synthetic-old-one', 'synthetic-old-two']) {
+                await a.value.save('source', movie(id, 80));
+                await a.value.flush();
+            }
+            expect((await a.store.read(entry.address))?.state).toEqual(
+                resolved
+            );
+            expect(
+                (await a.store.read(entry.address))?.conflict
+            ).toBeUndefined();
+            expect(await a.store.pending()).toEqual([]);
+        }
+    );
+
     it('parks old consent generations', async () => {
         const h = harness();
         const a = h.client('a');

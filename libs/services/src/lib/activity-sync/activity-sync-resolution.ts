@@ -42,15 +42,12 @@ export async function resolveActivity(
                 pending: [],
                 position: projectActivity(address, remote, this.alias(address)),
             };
+        for (const { operation } of current.pending)
+            if (operation.kind === 'begin' || operation.kind === 'checkpoint')
+                discardedSessions.push(operation.sessionId);
+        if (current.position?.activitySessionId)
+            discardedSessions.push(current.position.activitySessionId);
         if (!useLocal) {
-            for (const { operation } of current.pending)
-                if (
-                    operation.kind === 'begin' ||
-                    operation.kind === 'checkpoint'
-                )
-                    discardedSessions.push(operation.sessionId);
-            if (current.position?.activitySessionId)
-                discardedSessions.push(current.position.activitySessionId);
             return {
                 state: remote,
                 pending: [],
@@ -102,6 +99,7 @@ export async function resolveActivity(
                 ...base,
                 kind: 'reset',
                 expectedRevision: remote.revision,
+                positionMetadata: metadata(position),
             });
         else {
             const sessionId = position.activitySessionId ?? createRandomId();
@@ -152,12 +150,15 @@ export async function resolveActivity(
         };
     });
     for (const id of discardedOperations) this.delivery.settled(id);
-    for (const id of discardedSessions) this.retiredSessions.add(id);
-    if (session)
+    for (const id of discardedSessions)
+        if (id !== session?.id) this.retiredSessions.add(id);
+    if (session) {
+        this.retiredSessions.delete(session.id);
         this.sessions.set(
             session.id,
             Promise.resolve({ address, generation: session.generation })
         );
+    }
     if (!preserveLocal) {
         if (previousPosition)
             this.options.committed?.(

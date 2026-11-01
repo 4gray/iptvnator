@@ -1096,9 +1096,10 @@ real HTTP, SQLite IPC and decoded media; run it through the source-sync config.
 The latest explicit online begin owns shared resume. Superseded online players
 keep playing and their background checkpoints are retired. A competing offline
 queue requires an explicit local/server choice; reconnect never silently elects
-an old session. Choosing the server also retires the discarded local sessions,
-so their later ticks cannot recreate the resolved conflict. Reset/unwatch clears
-both progress and watched state in this MVP.
+an old session. Resolving a conflict retires discarded local sessions, including
+when keeping a local reset or watched mark, so their later ticks cannot recreate
+the conflict. Keeping local playback preserves its chosen session for subsequent
+checkpoints. Reset/unwatch clears both progress and watched state in this MVP.
 
 ## Service factory and build bases
 
