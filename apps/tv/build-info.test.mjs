@@ -50,6 +50,9 @@ test('TV build metadata follows the manifests and remains usable without Git', (
 
 test('a new revision and local changes invalidate the build identity cache key', (t) => {
     const { root } = fixture(t);
+    mkdirSync(join(root, 'libs/shared/epg'), { recursive: true });
+    const shared = join(root, 'libs/shared/epg/index.ts');
+    writeFileSync(shared, 'export const syntheticSchedule = 1;');
     const git = (...args) =>
         execFileSync(
             'git',
@@ -77,6 +80,9 @@ test('a new revision and local changes invalidate the build identity cache key',
     const next = tvBuildIdentity(root);
     assert.equal(next.modified, false);
     assert.notEqual(next.revision, first.revision);
+    // TV bundles also include shared code outside the TV application/libraries.
+    writeFileSync(shared, 'export const syntheticSchedule = 2;');
+    assert.equal(tvBuildIdentity(root).modified, true);
     const script = fileURLToPath(new URL('./build-info.ts', import.meta.url));
     assert.deepEqual(
         JSON.parse(
@@ -85,6 +91,6 @@ test('a new revision and local changes invalidate the build identity cache key',
                 encoding: 'utf8',
             })
         ),
-        next
+        { ...next, modified: true }
     );
 });

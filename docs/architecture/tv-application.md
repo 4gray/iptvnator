@@ -172,8 +172,9 @@ Settings > About shows the TV package version, ID and publisher from `appinfo.js
 the workspace release, license and project address from package metadata,
 and the build's Git revision, local-change indicator and UTC build time. Vite
 injects these values; the TV runtime never invokes Git or fetches build metadata.
-The build cache includes revision/local-change identity so a cached artifact does
-not claim a different revision. Source archives without Git show revision as
+The build cache includes revision and worktree-wide local-change identity,
+including shared dependencies, so a cached artifact does not claim a different
+revision. Source archives without Git show revision as
 unavailable. Device information is limited to platform, browser engine, viewport
 and system language; credentials and source URLs are not part of About. A static
 panel accepts Right/OK focus, Up/Down scrolling and Left/Back to categories.
