@@ -234,6 +234,10 @@ services:
    and public search actions.
 3. `WorkspaceShellSearchSyncService` owns the search query signals, debounced
    application, provider-store synchronization, and query-param sync.
+   Query-only replacements preserve the current entry's validated
+   `collectionViewState` (content tab and playlist scope), so Back/Forward
+   retain the collection view. Router bookkeeping and one-shot detail
+   handoffs are not copied into the replacement.
 4. `WorkspaceShellHeaderService` owns playlist title/subtitle, account/info
    actions, and refresh action state. It has no clear action: clearing
    recently viewed or favorites belongs to the collection page.

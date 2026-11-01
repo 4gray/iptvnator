@@ -1,4 +1,3 @@
-import { Location } from '@angular/common';
 import type { TmdbMatchContext } from '@iptvnator/services';
 import {
     Component,
@@ -114,7 +113,6 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
     ],
 })
 export class SerialDetailsComponent implements OnDestroy {
-    private readonly location = inject(Location);
     private readonly route = inject(ActivatedRoute);
     private readonly navigation = injectXtreamDetailNavigation('tv');
 
@@ -384,7 +382,7 @@ export class SerialDetailsComponent implements OnDestroy {
 
     goBack(): void {
         this.playback.closeInlinePlayer();
-        this.location.back();
+        this.navigation.back();
     }
 
     showCopyNotification(): void {

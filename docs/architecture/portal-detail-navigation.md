@@ -93,6 +93,11 @@ handler as the header Back.
 ## Summary
 
 - Xtream category browsing uses a route-first detail model.
+- Xtream movie/series detail Back uses `WorkspaceBackNavigationService.back()`.
+  With no same-document predecessor (a direct link or renderer reload), it
+  replaces the detail entry with its route's source, content section and
+  category, preserving query parameters. Collection-owned details keep their
+  history return behavior; the active source store does not choose the parent.
 - Stalker uses an inline/store-state detail model.
 - Detail pages themselves are two-state (browse ↔ watch) inside
   `PortalDetailShellComponent`; entering/leaving watch is a layout state,

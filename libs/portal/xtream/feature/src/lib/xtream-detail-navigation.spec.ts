@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, provideRouter, Router } from '@angular/router';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     CrossPortalSimilarService,
@@ -12,8 +13,11 @@ import {
 } from './xtream-detail-navigation';
 
 describe('injectXtreamDetailNavigation', () => {
-    const route = { snapshot: { params: {} } };
+    const route = {
+        snapshot: { params: {} as Record<string, string>, queryParams: {} },
+    };
     const navigate = jest.fn();
+    const back = jest.fn();
     const buildLink = jest.fn();
     const currentPlaylist = signal<{ id: string } | null>(null);
     const enrichmentEnabled = signal(true);
@@ -26,12 +30,16 @@ describe('injectXtreamDetailNavigation', () => {
 
     beforeEach(() => {
         navigate.mockReset();
+        back.mockReset();
         buildLink.mockReset();
+        route.snapshot.params = {};
+        route.snapshot.queryParams = {};
         currentPlaylist.set({ id: 'xtream-1' });
         enrichmentEnabled.set(true);
         TestBed.configureTestingModule({
             providers: [
-                { provide: Router, useValue: { navigate } },
+                provideRouter([]),
+                { provide: WorkspaceBackNavigationService, useValue: { back } },
                 { provide: ActivatedRoute, useValue: route },
                 { provide: XtreamStore, useValue: { currentPlaylist } },
                 { provide: CrossPortalSimilarService, useValue: { buildLink } },
@@ -41,6 +49,45 @@ describe('injectXtreamDetailNavigation', () => {
                 },
             ],
         });
+        jest.spyOn(TestBed.inject(Router), 'navigate').mockImplementation(
+            navigate
+        );
+    });
+
+    it.each([
+        ['movie', 'vod'],
+        ['tv', 'series'],
+    ] as const)(
+        'resolves the %s Back parent from the route, including its query',
+        (type, section) => {
+            route.snapshot.params = { id: 'route-source', categoryId: '201' };
+            route.snapshot.queryParams = { q: 'Synthetic title' };
+
+            create(type).back();
+
+            expect(back).toHaveBeenCalledTimes(1);
+            expect(back.mock.calls[0][0]()).toBe(
+                `/workspace/xtreams/route-source/${section}/201?q=Synthetic%20title`
+            );
+        }
+    );
+
+    it('uses the catalog root when no category is present', () => {
+        route.snapshot.params = { id: 'route-source' };
+
+        create('movie').back();
+
+        expect(back.mock.calls[0][0]()).toBe(
+            '/workspace/xtreams/route-source/vod'
+        );
+    });
+
+    it('leaves collection details without a portal route to history Back', () => {
+        route.snapshot.params = { categoryId: '201', vodId: '20001' };
+
+        create('movie').back();
+
+        expect(back.mock.calls[0][0]()).toBeNull();
     });
 
     it('opens the actor page of a TMDB-matched cast member', () => {

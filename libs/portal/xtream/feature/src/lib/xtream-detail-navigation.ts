@@ -3,7 +3,9 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
     createDiscoverFacetNavigation,
     type DiscoverFacetNavigation,
+    workspacePortalCommands,
 } from '@iptvnator/portal/shared/util';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     CrossPortalSimilarItem,
@@ -15,6 +17,8 @@ import type { SimilarCatalogItem } from './tmdb-similar.util';
 
 /** Where an Xtream movie or series details page can send the viewer. */
 export interface XtreamDetailNavigation {
+    /** History Back, or the owning catalog when this detail opened the session. */
+    back(): void;
     /** Clickable year/genre/country chips (Discover pages) */
     readonly discover: DiscoverFacetNavigation;
     /** The actor page of a TMDB-matched cast member. */
@@ -36,11 +40,29 @@ export function injectXtreamDetailNavigation(
 ): XtreamDetailNavigation {
     const router = inject(Router);
     const route = inject(ActivatedRoute);
+    const backNavigation = inject(WorkspaceBackNavigationService);
     const xtreamStore = inject(XtreamStore);
     const crossPortalSimilar = inject(CrossPortalSimilarService);
     const tmdbEnrichment = inject(TmdbEnrichmentService);
 
     return {
+        back() {
+            backNavigation.back(() => {
+                const parent = workspacePortalCommands(
+                    route,
+                    'xtreams',
+                    mediaType === 'movie' ? 'vod' : 'series'
+                );
+                if (!parent) return null;
+                const categoryId = route.snapshot.params['categoryId'];
+                if (categoryId) parent.push(String(categoryId));
+                return router.serializeUrl(
+                    router.createUrlTree(parent, {
+                        queryParams: route.snapshot.queryParams,
+                    })
+                );
+            });
+        },
         discover: createDiscoverFacetNavigation(() => {
             const playlistId = xtreamStore.currentPlaylist()?.id;
             // Discover reads its results from TMDB, so a chip must not offer a
