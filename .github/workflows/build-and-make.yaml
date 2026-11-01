@@ -429,8 +429,17 @@ jobs:
             - name: Install Linux system dependencies
               if: matrix.os == 'linux'
               run: |
-                  sudo apt-get update
-                  sudo apt-get install --no-install-recommends -y \
+                  # Avoid the runner mirror transport returning to a stalled Azure mirror.
+                  for source_file in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+                      if [[ -f "${source_file}" ]]; then
+                          sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|https://archive.ubuntu.com/ubuntu|g' "${source_file}"
+                      fi
+                  done
+
+                  apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+                  # Per-request limits alone do not bound a stalled APT acquire process.
+                  sudo timeout --kill-after=10s 5m apt-get "${apt_options[@]}" --error-on=any update
+                  sudo timeout --kill-after=10s 10m apt-get "${apt_options[@]}" install --no-install-recommends -y \
                       appstream \
                       binutils \
                       dbus-daemon \
