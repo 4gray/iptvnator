@@ -340,8 +340,8 @@ export class DatabaseService {
         favorites: XtreamBackupFavoriteItem[],
         recentlyViewed: XtreamBackupRecentlyViewedItem[],
         options?: DbOperationOptions
-    ): Promise<void> {
-        await this.runWithOperationEvents(
+    ): ReturnType<typeof window.electron.dbRestoreXtreamUserData> {
+        return this.runWithOperationEvents(
             'db-restore-xtream-user-data',
             'restore-xtream-user-data',
             (operationId) =>

@@ -98,6 +98,12 @@ history and category choices without consuming it. Re-enabling types merges thei
 parked data into the cache-refresh snapshot and consumes only the applied types;
 it never replays old favorite removals, positions or source pins. Existing cached
 catalogs can accept their data even when their import selection is disabled.
+Explicit native history replay returns the typed identities it actually restored,
+including retained rows in an unfinished disabled catalog. Both immediate and
+pending archive restoration consume those identities from dormant history before
+flushing DOM storage. Missing identities and unavailable category choices remain
+parked. Missing or malformed replay evidence fails without consuming the pending
+archive, so later watches and removals cannot leave a stale dormant duplicate.
 A new explicit archive has fresh receipt ownership and replaces older deferred
 choices. Explicit history clearing and source deletion clear corresponding dormant
 data. Storage failures retain the original active restore for retry rather than
@@ -137,8 +143,8 @@ Cache-pending exports reconcile hidden flags by current category identity too:
 live visibility wins for present categories, while absent categories retain
 their parked choices.
 An existing selective source can restore offline when every selected catalog is
-complete. Apply history/hidden flags only to selected or completed retained
-catalogs; leave unavailable catalog state dormant instead of requiring all three
+complete. Apply hidden flags only to selected or completed retained catalogs;
+apply history to exact native identities and leave missing state dormant instead of requiring all three
 catalogs or consuming their parked data. An explicit empty selection needs no
 catalog cache for independent playback-position/source-pin restoration.
 

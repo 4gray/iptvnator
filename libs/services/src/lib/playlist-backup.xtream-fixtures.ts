@@ -163,7 +163,10 @@ export function createRestoreCollaborators() {
             restoreXtreamFavoriteSnapshots: jest
                 .fn()
                 .mockResolvedValue(undefined),
-            restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
+            restoreXtreamUserData: jest.fn().mockResolvedValue({
+                success: true,
+                resolvedHistory: [],
+            }),
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },
         pendingRestoreService,

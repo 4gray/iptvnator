@@ -1,6 +1,9 @@
 import { reconcileFavoriteIdentity } from './favorite-catalog';
 import { restoreXtreamFavorites } from './favorite-restore';
-import { replayRecoveredHistory } from './xtream-history-recovery';
+import {
+    readHistoryRecovery,
+    replayRecoveredHistory,
+} from './xtream-history-recovery';
 export { restoreXtreamFavorites } from './favorite-restore';
 import { and, eq, inArray } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
@@ -275,19 +278,30 @@ export async function restoreXtreamUserData(
     favorites: XtreamBackupFavoriteItem[],
     recentlyViewed: XtreamBackupRecentlyViewedItem[],
     control?: OperationControl
-): Promise<{ success: boolean }> {
+): Promise<{
+    success: boolean;
+    resolvedHistory: Pick<
+        XtreamBackupRecentlyViewedItem,
+        'contentType' | 'xtreamId'
+    >[];
+}> {
     await restoreXtreamFavorites(db, playlistId, favorites, control);
 
     await checkpointOperation(control);
     const recovered = replayRecoveredHistory(db, playlistId);
     if (recovered !== null) {
+        // Capture the transaction's proof before progress can yield to another
+        // history mutation or acknowledgment. The caller owns these copies even
+        // if the user removes a restored row before the response arrives.
+        const resolvedHistory =
+            readHistoryRecovery(db, playlistId)?.resolved ?? [];
         await reportOperationProgress(control, {
             phase: 'restoring-recently-viewed',
             current: recovered,
             total: recovered,
             increment: recovered,
         });
-        return { success: true };
+        return { success: true, resolvedHistory };
     }
     const contentByIdentity = await getContentIdentityMap(
         db,
@@ -346,5 +360,14 @@ export async function restoreXtreamUserData(
         });
     }
 
-    return { success: true };
+    return {
+        success: true,
+        resolvedHistory: recentlyViewed
+            .filter((item) =>
+                contentByIdentity.has(
+                    toContentIdentityKey(item.contentType, item.xtreamId)
+                )
+            )
+            .map(({ contentType, xtreamId }) => ({ contentType, xtreamId })),
+    };
 }

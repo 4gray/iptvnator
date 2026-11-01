@@ -1102,7 +1102,14 @@ export interface ElectronBridgeApi {
         favorites: XtreamBackupFavoriteItem[],
         recentlyViewed: XtreamBackupRecentlyViewedItem[],
         operationId?: string
-    ) => Promise<ElectronBridgeResult>;
+    ) => Promise<
+        ElectronBridgeResult & {
+            resolvedHistory?: Pick<
+                XtreamBackupRecentlyViewedItem,
+                'contentType' | 'xtreamId'
+            >[];
+        }
+    >;
     dbHasCategories: (playlistId: string, type: string) => Promise<boolean>;
     dbGetCategories: (
         playlistId: string,

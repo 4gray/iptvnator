@@ -19,6 +19,55 @@ const archive: XtreamPendingRestoreState = {
 beforeEach(() => localStorage.clear());
 afterEach(() => localStorage.clear());
 
+it('consumes explicit history restored into an idle disabled catalog while retaining absent identities and flags', async () => {
+    const { dataSource, dbService } = setupElectronXtreamDataSource();
+    dbService.getPlaylistById.mockResolvedValue({
+        id: 'p',
+        xtreamContentTypes: ['live'],
+    });
+    dbService.getXtreamImportStatus.mockImplementation(async (_id, type) =>
+        type === 'movie' ? 'idle' : 'completed'
+    );
+    dbService.hasXtreamContent.mockImplementation(
+        async (_id, type) => type === 'movie'
+    );
+    dbService.restoreXtreamUserData.mockResolvedValue({
+        success: true,
+        resolvedHistory: archive.recentlyViewed.map(
+            ({ contentType, xtreamId }) => ({
+                contentType,
+                xtreamId,
+            })
+        ),
+    });
+    const absent = {
+        contentType: 'movie' as const,
+        xtreamId: 21,
+        viewedAt: 'absent',
+    };
+    const state = {
+        ...archive,
+        recentlyViewed: [...archive.recentlyViewed, absent],
+    };
+    await dataSource.restoreUserData('p', state);
+    expect(dbService.restoreXtreamUserData).toHaveBeenCalledWith(
+        'p',
+        [],
+        expect.arrayContaining(state.recentlyViewed),
+        undefined
+    );
+    expect(dbService.restoreXtreamUserData.mock.calls[0][2]).toHaveLength(3);
+    const deferred = TestBed.inject(XtreamDeferredCatalogRestoreService);
+    expect(
+        deferred.forExport('p', { hiddenCategories: [], recentlyViewed: [] })
+    ).toEqual({
+        hiddenCategories: archive.hiddenCategories,
+        recentlyViewed: [absent],
+    });
+    // Explicit preflight reset, then the post-consumption storage flush.
+    expect(dbService.setAppState).toHaveBeenCalledTimes(2);
+});
+
 it('keeps current playback positions when retrying cache-only recovery', async () => {
     const { dataSource, playbackService, dbService } =
         setupElectronXtreamDataSource();
@@ -127,7 +176,7 @@ it('keeps an all-disabled restore dormant without dropping history or positions'
     expect(dbService.restoreXtreamUserData).toHaveBeenCalledWith(
         'p',
         [],
-        [],
+        archive.recentlyViewed,
         undefined
     );
     expect(
@@ -161,10 +210,11 @@ it.each([false, true])(
         expect(dbService.restoreXtreamUserData).toHaveBeenLastCalledWith(
             'p',
             [],
-            cached
-                ? archive.recentlyViewed
-                : archive.recentlyViewed.slice(0, 1),
+            expect.arrayContaining(archive.recentlyViewed),
             undefined
+        );
+        expect(dbService.restoreXtreamUserData.mock.calls[0][2]).toHaveLength(
+            archive.recentlyViewed.length
         );
         const deferred = TestBed.inject(XtreamDeferredCatalogRestoreService);
         expect(

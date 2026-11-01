@@ -21,6 +21,8 @@ import {
     readCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
     completeCatalogHistoryRecovery,
+    completeExplicitCatalogHistoryRestore,
+    explicitCatalogHistoryForReplay,
 } from '@iptvnator/services/xtream-catalog-restore';
 import type { XtreamOperationOptions } from './xtream-data-source.interface';
 
@@ -52,6 +54,7 @@ export async function restoreElectronUserData(
     options?: XtreamOperationOptions
 ): Promise<void> {
     services.playback.assertSupportsAtomicReplacement();
+    const archiveHistory = restoreState.recentlyViewed;
     const deferred = services.injector.get(XtreamDeferredCatalogRestoreService);
     if (restoreState.preservePlaybackPositions)
         await prepareLegacyCatalogHistoryRecovery(
@@ -91,10 +94,15 @@ export async function restoreElectronUserData(
             restoreState.hiddenCategories
         );
     await services.restoreFavorites(playlistId, restoreState);
-    await services.db.restoreXtreamUserData(
+    const restored = await services.db.restoreXtreamUserData(
         playlistId,
         [],
-        restoreState.recentlyViewed,
+        restoreState.preservePlaybackPositions
+            ? restoreState.recentlyViewed
+            : explicitCatalogHistoryForReplay(
+                  prepared.snapshot,
+                  archiveHistory
+              ),
         options
     );
     if (!restoreState.preservePlaybackPositions)
@@ -126,7 +134,15 @@ export async function restoreElectronUserData(
             prepared.snapshot,
             available
         );
-    else deferred.complete(playlistId, prepared.snapshot, available);
+    else
+        await completeExplicitCatalogHistoryRestore(
+            services.db,
+            deferred,
+            playlistId,
+            prepared.snapshot,
+            available,
+            restored
+        );
 }
 
 /** Native registration owns live history; pending JSON never overwrites newer actions. */

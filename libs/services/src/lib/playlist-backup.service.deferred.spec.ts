@@ -209,8 +209,11 @@ it.each([{ selection: ['live'] }, { selection: [] }])(
         ).toHaveBeenCalledWith(
             'xtream-1',
             [],
-            entry.userState.recentlyViewed.slice(0, 1)
+            expect.arrayContaining(entry.userState.recentlyViewed)
         );
+        expect(
+            inner.databaseService.restoreXtreamUserData.mock.calls[0][2]
+        ).toHaveLength(entry.userState.recentlyViewed.length);
         const parked = new XtreamDeferredCatalogRestoreService().forExport(
             'xtream-1',
             empty()

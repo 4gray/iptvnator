@@ -85,6 +85,55 @@ export async function completeCatalogHistoryRecovery(
     else await clearCatalogHistoryRecovery(db, playlistId);
 }
 
+export function explicitCatalogHistoryForReplay(
+    snapshot: DeferredCatalogSnapshot,
+    incoming: XtreamBackupRecentlyViewedItem[]
+): XtreamBackupRecentlyViewedItem[] {
+    return Array.from(
+        new Map(
+            [...snapshot.state.recentlyViewed, ...incoming].map((row) => [
+                `${row.contentType}:${row.xtreamId}`,
+                row,
+            ])
+        ).values()
+    );
+}
+
+/** Explicit archives replace history; native replay proves which copies now belong to SQLite. */
+export async function completeExplicitCatalogHistoryRestore(
+    db: Pick<DatabaseService, 'setAppState'>,
+    deferred: XtreamDeferredCatalogRestoreService,
+    playlistId: string,
+    snapshot: DeferredCatalogSnapshot,
+    available: readonly XtreamContentType[],
+    result: unknown
+): Promise<void> {
+    const proof = result as {
+        success?: unknown;
+        resolvedHistory?: unknown;
+    } | null;
+    if (
+        proof?.success !== true ||
+        !Array.isArray(proof.resolvedHistory) ||
+        proof.resolvedHistory.some(
+            (row) =>
+                !row ||
+                !XTREAM_CONTENT_TYPES.includes(row.contentType) ||
+                typeof row.xtreamId !== 'number' ||
+                !Number.isFinite(row.xtreamId)
+        )
+    )
+        throw new Error('Native history restoration proof is unavailable.');
+    const current = deferred.getSnapshot(playlistId);
+    if (current.key !== snapshot.key || current.raw !== snapshot.raw) return;
+    deferred.complete(playlistId, snapshot, available, {
+        identities: proof.resolvedHistory,
+    });
+    // Flush consumed DOM copies before accepting explicit restoration, including
+    // archives without a native journal. A newer archive keeps its own state.
+    await clearCatalogHistoryRecovery(db, playlistId);
+}
+
 /** Upgrade older pending scans before bootstrap replaces their failed catalogs. */
 export async function prepareLegacyCatalogHistoryRecovery(
     db: Pick<

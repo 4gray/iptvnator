@@ -315,6 +315,8 @@ export {
     beginCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
     completeCatalogHistoryRecovery,
+    completeExplicitCatalogHistoryRestore,
+    explicitCatalogHistoryForReplay,
     readCatalogHistoryRecovery,
 } from './xtream-catalog-history-recovery';
 

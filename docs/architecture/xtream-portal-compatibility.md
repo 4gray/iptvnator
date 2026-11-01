@@ -499,6 +499,10 @@ renderer’s separate history and journal reads.
 Full-history backups resolve native content identities in bounded batches before
 clearing existing recent history. A lookup failure preserves the previous rows;
 backups larger than SQLite’s parameter limit remain importable.
+Explicit backup replay returns exact typed history identities from the successful
+native operation, including retained rows in disabled unfinished catalogs. Both
+immediate and pending restore paths consume those dormant copies and flush DOM
+storage; missing identities and unavailable hidden flags remain parked.
 Startup clears leftover `importing` caches, including
 `idle` caches with a pending cache-recovery record after interrupted deletion.
 Bootstrap also clears leftover failed/cancelled type caches before reading or

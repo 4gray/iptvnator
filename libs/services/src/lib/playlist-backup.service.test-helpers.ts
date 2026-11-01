@@ -130,7 +130,10 @@ export function createPlaylistBackupService(
             restoreXtreamFavoriteSnapshots: jest
                 .fn()
                 .mockResolvedValue(undefined),
-            restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
+            restoreXtreamUserData: jest.fn().mockResolvedValue({
+                success: true,
+                resolvedHistory: [],
+            }),
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },
         playbackPositionService: {
@@ -347,6 +350,13 @@ export function createStatefulBackupCollaborators(
                     type: item.contentType,
                     viewed_at: item.viewedAt,
                 }));
+                return {
+                    success: true,
+                    resolvedHistory: state.xtreamRecent.map((row) => ({
+                        contentType: row.type,
+                        xtreamId: row.xtream_id,
+                    })),
+                };
             },
         },
         playbackPositionService: {

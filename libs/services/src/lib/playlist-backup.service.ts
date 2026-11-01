@@ -1158,6 +1158,7 @@ export class PlaylistBackupService {
         selected?: XtreamContentType[]
     ): Promise<void> {
         this.playbackPositionService.assertSupportsAtomicReplacement();
+        const archiveHistory = state.recentlyViewed;
         const { resolveAvailableCatalogs } =
             await import('./xtream-catalog-availability');
         const available = await resolveAvailableCatalogs(
@@ -1170,6 +1171,10 @@ export class PlaylistBackupService {
             state,
             available
         );
+        const {
+            completeExplicitCatalogHistoryRestore,
+            explicitCatalogHistoryForReplay,
+        } = await import('./xtream-catalog-history-recovery');
         state = prepared.state;
         await this.restoreXtreamCategoryVisibility(
             playlistId,
@@ -1181,10 +1186,10 @@ export class PlaylistBackupService {
             state.favorites,
             state.favoritesRestoreId
         );
-        await this.databaseService.restoreXtreamUserData(
+        const restored = await this.databaseService.restoreXtreamUserData(
             playlistId,
             [],
-            state.recentlyViewed
+            explicitCatalogHistoryForReplay(prepared.snapshot, archiveHistory)
         );
 
         await this.playbackPositionService.replaceAllPlaybackPositions(
@@ -1197,39 +1202,39 @@ export class PlaylistBackupService {
         // so leaving the current ones would resurrect preferences the archive
         // deliberately does not contain. Absent (an older archive) means "no
         // opinion", and those are left alone.
-        if (!state.sourcePins) {
-            this.deferredRestore.complete(
-                playlistId,
-                prepared.snapshot,
-                available
-            );
-            return;
-        }
-
         // ONE call, not a clear followed by writes. Split up, a write that
         // fails partway leaves the previous pins already deleted and only part
         // of the archive applied — a state belonging to neither, reported as a
         // failure the user has no way to undo. The match key identifies the
         // film and survives untouched; only the playlist has a new id here.
-        const replaced = await this.vodSourcePinService.replaceForPlaylist(
-            playlistId,
-            state.sourcePins.map((pin) => ({
-                matchKey: pin.matchKey,
+        if (state.sourcePins) {
+            const replaced = await this.vodSourcePinService.replaceForPlaylist(
                 playlistId,
-                contentId: pin.contentId,
-                portalType: 'xtream' as const,
-                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
-            }))
-        );
-
-        // Reported rather than thrown, so ignoring it would drop every
-        // preference while the summary claims the import succeeded.
-        if (!replaced) {
-            throw new PlaylistBackupError(
-                `Restoring the pinned sources for "${playlistId}" failed.`
+                state.sourcePins.map((pin) => ({
+                    matchKey: pin.matchKey,
+                    playlistId,
+                    contentId: pin.contentId,
+                    portalType: 'xtream' as const,
+                    ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+                }))
             );
+
+            // Reported rather than thrown, so ignoring it would drop every
+            // preference while the summary claims the import succeeded.
+            if (!replaced) {
+                throw new PlaylistBackupError(
+                    `Restoring the pinned sources for "${playlistId}" failed.`
+                );
+            }
         }
-        this.deferredRestore.complete(playlistId, prepared.snapshot, available);
+        await completeExplicitCatalogHistoryRestore(
+            this.databaseService,
+            this.deferredRestore,
+            playlistId,
+            prepared.snapshot,
+            available,
+            restored
+        );
     }
 
     private async restoreXtreamCategoryVisibility(

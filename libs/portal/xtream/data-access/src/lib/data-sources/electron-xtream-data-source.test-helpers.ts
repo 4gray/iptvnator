@@ -66,7 +66,10 @@ export function createDbServiceMock() {
             recentlyViewed: [],
         }),
         restoreXtreamFavoriteSnapshots: jest.fn().mockResolvedValue(undefined),
-        restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
+        restoreXtreamUserData: jest.fn().mockResolvedValue({
+            success: true,
+            resolvedHistory: [],
+        }),
     };
 }
 
