@@ -9,3 +9,4 @@ if (!root) throw new Error('Missing TV application root');
 render(<TvApp />, root);
 
 import './settings.css';
+import './dialog.css';

@@ -221,10 +221,10 @@ main {
     font-size: 18px;
     white-space: nowrap;
 }
-header select {
+header .tv-select {
     max-width: 360px;
     flex-shrink: 0;
-    font-size: 17px;
+    font-size: 24px;
     background: rgba(11, 16, 15, 0.8);
 }
 .cinematic-page > * {
@@ -601,7 +601,7 @@ header select {
     margin-right: 24px;
 }
 .catalog-filters input,
-.catalog-filters select {
+.catalog-filters .tv-select {
     width: 100%;
 }
 .pager {
@@ -753,7 +753,7 @@ summary {
     align-items: center;
     margin: 0;
 }
-.section-title select {
+.section-title .tv-select {
     margin-left: 20px;
 }
 .episode-grid {
@@ -1074,7 +1074,7 @@ main.live-page {
         margin-left: 190px;
         padding: 28px 35px 30px;
     }
-    header select {
+    header .tv-select {
         max-width: 280px;
     }
     h1 {
@@ -1163,7 +1163,7 @@ main.live-page {
     .page-header {
         align-items: flex-start;
     }
-    header select {
+    header .tv-select {
         max-width: 220px;
     }
     .page-heading h1 {

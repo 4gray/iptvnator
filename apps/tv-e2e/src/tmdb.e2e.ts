@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { addSource, nav, start } from './helpers';
+import { chooseTv, addSource, nav, start } from './helpers';
 
 const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect width="1600" height="900" fill="#275947"/><circle cx="1250" cy="300" r="230" fill="#d6b884"/></svg>';
@@ -71,7 +71,7 @@ test('@tmdb opt-in, key validation, language and relaunch preserve provider iden
         'TMDB key is valid.'
     );
     expect(requests[0].path).toContain('api_key=fake-tv-key');
-    await page.getByLabel('Metadata language').selectOption('de');
+    await chooseTv(page, 'Metadata language', 'de');
     await page.getByRole('button', { name: 'Save TMDB settings' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toContainText(
         'saved'
@@ -100,7 +100,10 @@ test('@tmdb opt-in, key validation, language and relaunch preserve provider iden
     await expect(
         page.getByLabel('TMDB API key or read access token')
     ).toHaveValue('fake-tv-key');
-    await expect(page.getByLabel('Metadata language')).toHaveValue('de');
+    await expect(page.getByLabel('Metadata language')).toHaveAttribute(
+        'data-value',
+        'de'
+    );
     expect(
         requests.some((request) => request.path.includes('language=de-DE'))
     ).toBe(true);

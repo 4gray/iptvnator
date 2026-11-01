@@ -1,3 +1,4 @@
+import { TvSelect } from '@iptvnator/tv/ui';
 import { useLayoutEffect, useState } from 'preact/hooks';
 import type { TvModel } from './use-tv';
 
@@ -98,19 +99,19 @@ export function LibrarySettings({ tv }: { tv: TvModel }) {
                         >
                             <label>
                                 Local source to copy to server
-                                <select
-                                    data-focus="library:source"
-                                    required
+                                <TvSelect
+                                    label="Local source to copy to server"
+                                    focusKey="library:source"
                                     value={sourceId}
-                                    onChange={(event) =>
-                                        setSourceId(event.currentTarget.value)
-                                    }
-                                >
-                                    <option value="">Choose a source</option>
-                                    {local.map((s) => (
-                                        <option value={s.id}>{s.name}</option>
-                                    ))}
-                                </select>
+                                    options={[
+                                        { value: '', label: 'Choose a source' },
+                                        ...local.map((s) => ({
+                                            value: s.id,
+                                            label: s.name,
+                                        })),
+                                    ]}
+                                    onChange={setSourceId}
+                                />
                             </label>
                             <p class="muted">
                                 Copies connection details to this server.

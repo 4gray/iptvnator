@@ -1,3 +1,4 @@
+import { TvSelect } from '@iptvnator/tv/ui';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { checkTmdbKey } from '@iptvnator/tv/data-access';
 import { TvModel } from './use-tv';
@@ -103,14 +104,11 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
                 </label>
                 <label>
                     Metadata language
-                    <select
-                        data-focus="tmdb:language"
+                    <TvSelect
+                        label="Metadata language"
+                        focusKey="tmdb:language"
                         value={language}
-                        onChange={(event) =>
-                            setLanguage(event.currentTarget.value)
-                        }
-                    >
-                        {[
+                        options={[
                             ['en', 'English'],
                             ['ru', 'Русский'],
                             ['de', 'Deutsch'],
@@ -118,10 +116,9 @@ export function TmdbSettings({ tv }: { tv: TvModel }) {
                             ['fr', 'Français'],
                             ['es', 'Español'],
                             ['it', 'Italiano'],
-                        ].map(([value, title]) => (
-                            <option value={value}>{title}</option>
-                        ))}
-                    </select>
+                        ].map(([value, label]) => ({ value, label }))}
+                        onChange={setLanguage}
+                    />
                 </label>
                 <div class="actions">
                     <button
