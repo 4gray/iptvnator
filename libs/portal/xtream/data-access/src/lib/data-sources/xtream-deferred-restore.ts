@@ -1,12 +1,159 @@
-import { XTREAM_CONTENT_TYPES } from '@iptvnator/shared/interfaces';
-import type { DatabaseService, XCategoryFromDb } from '@iptvnator/services';
+import {
+    XTREAM_CONTENT_TYPES,
+    normalizeXtreamContentTypes,
+} from '@iptvnator/shared/interfaces';
+import type { Injector } from '@angular/core';
+import type {
+    DatabaseService,
+    XCategoryFromDb,
+    PlaybackPositionService,
+    VodSourcePinService,
+} from '@iptvnator/services';
 import type {
     XtreamContentType,
     XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
+import {
+    XtreamDeferredCatalogRestoreService,
+    beginCatalogHistoryRecovery,
+    readCatalogHistoryRecovery,
+    clearCatalogHistoryRecovery,
+} from '@iptvnator/services/xtream-catalog-restore';
+import type { XtreamOperationOptions } from './xtream-data-source.interface';
 
 // Local dynamic-import target: keep restoration-only work off the startup path.
 export { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
+export { clearCatalogHistoryRecovery } from '@iptvnator/services/xtream-catalog-restore';
+
+/** Full recovery is cold work; keep it outside the warm-cache data-source module. */
+export async function restoreElectronUserData(
+    services: {
+        db: DatabaseService;
+        playback: PlaybackPositionService;
+        pins: VodSourcePinService;
+        injector: Injector;
+        getPlaylist: (
+            id: string
+        ) => Promise<{ xtreamContentTypes?: XtreamContentType[] } | null>;
+        restoreFavorites: (
+            id: string,
+            state: XtreamPendingRestoreState
+        ) => Promise<void>;
+    },
+    playlistId: string,
+    restoreState: XtreamPendingRestoreState,
+    options?: XtreamOperationOptions
+): Promise<void> {
+    services.playback.assertSupportsAtomicReplacement();
+    const deferred = services.injector.get(XtreamDeferredCatalogRestoreService);
+    const categories = await Promise.all(
+        (['live', 'movies', 'series'] as const).map((type) =>
+            services.db.getAllXtreamCategories(playlistId, type)
+        )
+    );
+    const enabled = normalizeXtreamContentTypes(
+        (await services.getPlaylist(playlistId))?.xtreamContentTypes
+    );
+    const available = await resolveAvailableCatalogs(
+        services.db,
+        playlistId,
+        enabled
+    );
+    const prepared = await prepareUserDataRestore(
+        services.db,
+        deferred,
+        playlistId,
+        restoreState,
+        available
+    );
+    restoreState = prepared.state;
+    if (!restoreState.preservePlaybackPositions)
+        await restoreCategoryVisibility(
+            services.db,
+            playlistId,
+            categories,
+            available,
+            restoreState.hiddenCategories
+        );
+    await services.restoreFavorites(playlistId, restoreState);
+    await services.db.restoreXtreamUserData(
+        playlistId,
+        [],
+        restoreState.recentlyViewed,
+        options
+    );
+    if (!restoreState.preservePlaybackPositions)
+        await services.playback.replaceAllPlaybackPositions(
+            playlistId,
+            restoreState.playbackPositions
+        );
+    if (restoreState.sourcePins) {
+        const replaced = await services.pins.replaceForPlaylist(
+            playlistId,
+            restoreState.sourcePins.map((pin) => ({
+                matchKey: pin.matchKey,
+                playlistId,
+                contentId: pin.contentId,
+                portalType: 'xtream' as const,
+                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+            }))
+        );
+        if (!replaced)
+            throw new Error(
+                `Restoring the pinned sources for "${playlistId}" failed.`
+            );
+    }
+    deferred.complete(playlistId, prepared.snapshot, available);
+    if (restoreState.preservePlaybackPositions)
+        await clearCatalogHistoryRecovery(services.db, playlistId);
+}
+
+/** Native registration owns live history; pending JSON never overwrites newer actions. */
+export async function prepareUserDataRestore(
+    db: DatabaseService,
+    deferred: XtreamDeferredCatalogRestoreService,
+    playlistId: string,
+    state: XtreamPendingRestoreState,
+    available: readonly XtreamContentType[]
+) {
+    if (state.preservePlaybackPositions) {
+        const original = deferred.getSnapshot(playlistId);
+        const owned = state.catalogSnapshot;
+        const owns =
+            !!owned &&
+            owned.key === original.key &&
+            owned.generation === original.generation;
+        await beginCatalogHistoryRecovery(
+            db,
+            playlistId,
+            [...XTREAM_CONTENT_TYPES],
+            owns ? original.state.recentlyViewed : []
+        );
+        const current = await readCatalogHistoryRecovery(db, playlistId);
+        if (!current)
+            throw new Error('Catalog history recovery is unavailable.');
+        state = { ...state, recentlyViewed: current.recentlyViewed };
+        const latest = deferred.getSnapshot(playlistId);
+        if (!owns || latest.key !== original.key || latest.raw !== original.raw)
+            return {
+                state: {
+                    ...state,
+                    recentlyViewed: state.recentlyViewed.filter((row) =>
+                        available.includes(row.contentType)
+                    ),
+                },
+                // Never consume a record this import did not capture.
+                snapshot: { key: '', raw: null, generation: null, state },
+            };
+    }
+    return deferred.prepare(
+        playlistId,
+        state,
+        available,
+        false,
+        !!state.preservePlaybackPositions
+    );
+}
 
 export async function restoreCategoryVisibility(
     db: Pick<DatabaseService, 'updateCategoryVisibility'>,

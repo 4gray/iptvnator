@@ -2,6 +2,11 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import { persistContentMetadataIfMissing } from './content-metadata.operations';
+import {
+    clearRecoveredHistory,
+    recordRecoveredHistory,
+    removeRecoveredHistory,
+} from './xtream-history-recovery';
 
 export async function getRecentlyViewed(db: AppDatabase) {
     return db
@@ -44,7 +49,10 @@ export async function getRecentlyViewed(db: AppDatabase) {
 export async function clearRecentlyViewed(
     db: AppDatabase
 ): Promise<{ success: boolean }> {
-    await db.delete(schema.recentlyViewed);
+    db.transaction((tx) => {
+        tx.delete(schema.recentlyViewed).run();
+        clearRecoveredHistory(tx);
+    });
     return { success: true };
 }
 
@@ -88,33 +96,39 @@ export async function addRecentItem(
     playlistId: string,
     options?: { backdropUrl?: string }
 ): Promise<{ success: boolean }> {
-    const existing = await db
-        .select()
-        .from(schema.recentlyViewed)
-        .where(
-            and(
-                eq(schema.recentlyViewed.contentId, contentId),
-                eq(schema.recentlyViewed.playlistId, playlistId)
-            )
-        )
-        .limit(1);
-
-    if (existing.length > 0) {
-        await db
-            .update(schema.recentlyViewed)
-            .set({ viewedAt: sql`CURRENT_TIMESTAMP` })
+    db.transaction((tx) => {
+        const existing = tx
+            .select()
+            .from(schema.recentlyViewed)
             .where(
                 and(
                     eq(schema.recentlyViewed.contentId, contentId),
                     eq(schema.recentlyViewed.playlistId, playlistId)
                 )
-            );
-    } else {
-        await db.insert(schema.recentlyViewed).values({
-            contentId,
-            playlistId,
-        });
-    }
+            )
+            .limit(1)
+            .all();
+
+        if (existing.length > 0) {
+            tx.update(schema.recentlyViewed)
+                .set({ viewedAt: sql`CURRENT_TIMESTAMP` })
+                .where(
+                    and(
+                        eq(schema.recentlyViewed.contentId, contentId),
+                        eq(schema.recentlyViewed.playlistId, playlistId)
+                    )
+                )
+                .run();
+        } else {
+            tx.insert(schema.recentlyViewed)
+                .values({
+                    contentId,
+                    playlistId,
+                })
+                .run();
+        }
+        recordRecoveredHistory(tx, playlistId, contentId);
+    });
 
     await persistContentMetadataIfMissing(db, contentId, {
         backdropUrl: options?.backdropUrl,
@@ -127,23 +141,29 @@ export async function clearPlaylistRecentItems(
     db: AppDatabase,
     playlistId: string
 ): Promise<{ success: boolean }> {
-    const contentIds = await db
-        .select({ id: schema.content.id })
-        .from(schema.content)
-        .innerJoin(
-            schema.categories,
-            eq(schema.content.categoryId, schema.categories.id)
-        )
-        .where(eq(schema.categories.playlistId, playlistId));
-
-    if (contentIds.length > 0) {
-        await db.delete(schema.recentlyViewed).where(
-            inArray(
-                schema.recentlyViewed.contentId,
-                contentIds.map((content) => content.id)
+    db.transaction((tx) => {
+        const contentIds = tx
+            .select({ id: schema.content.id })
+            .from(schema.content)
+            .innerJoin(
+                schema.categories,
+                eq(schema.content.categoryId, schema.categories.id)
             )
-        );
-    }
+            .where(eq(schema.categories.playlistId, playlistId))
+            .all();
+
+        if (contentIds.length > 0) {
+            tx.delete(schema.recentlyViewed)
+                .where(
+                    inArray(
+                        schema.recentlyViewed.contentId,
+                        contentIds.map((content) => content.id)
+                    )
+                )
+                .run();
+        }
+        clearRecoveredHistory(tx, playlistId);
+    });
 
     return { success: true };
 }
@@ -153,14 +173,17 @@ export async function removeRecentItem(
     contentId: number,
     playlistId: string
 ): Promise<{ success: boolean }> {
-    await db
-        .delete(schema.recentlyViewed)
-        .where(
-            and(
-                eq(schema.recentlyViewed.contentId, contentId),
-                eq(schema.recentlyViewed.playlistId, playlistId)
+    db.transaction((tx) => {
+        removeRecoveredHistory(tx, [{ contentId, playlistId }]);
+        tx.delete(schema.recentlyViewed)
+            .where(
+                and(
+                    eq(schema.recentlyViewed.contentId, contentId),
+                    eq(schema.recentlyViewed.playlistId, playlistId)
+                )
             )
-        );
+            .run();
+    });
 
     return { success: true };
 }
@@ -189,7 +212,8 @@ export async function removeRecentItemsBatch(
         )
         .prepare();
 
-    await db.transaction(() => {
+    await db.transaction((tx) => {
+        removeRecoveredHistory(tx, items);
         for (const { contentId, playlistId } of items) {
             // .run() (synchronous), NOT .execute(): the better-sqlite3
             // driver's .execute() defers the write to a resolved promise

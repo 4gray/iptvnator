@@ -36,6 +36,65 @@ describe('dormant catalog restore', () => {
         localStorage.clear();
     });
 
+    it('does not export native-owned or explicitly removed history and retains hidden choices until applied', () => {
+        service.prepare('p', archive(), []);
+        const snapshot = service.getSnapshot('p');
+        const current = {
+            ...empty(),
+            recentlyViewed: [
+                { contentType: 'live' as const, xtreamId: 11, viewedAt: 'new' },
+            ],
+        };
+        const exported = service.forExport('p', current, undefined, {
+            snapshot,
+            contentTypes: ['movie'],
+            removed: [{ contentType: 'live', xtreamId: 10 }],
+        });
+        expect(exported.recentlyViewed.map((row) => row.xtreamId)).toEqual([
+            30, 11,
+        ]);
+        expect(exported.hiddenCategories).toEqual(archive().hiddenCategories);
+        expect(
+            service.forExport('p', empty(), undefined, {
+                snapshot,
+                contentTypes: [],
+                currentCategories: [{ categoryType: 'movies', xtreamId: 2 }],
+            }).hiddenCategories
+        ).toEqual([{ categoryType: 'series', xtreamId: 3 }]);
+        expect(
+            service.forExport('p', current, undefined, {
+                snapshot,
+                contentTypes: [],
+                cleared: true,
+            }).recentlyViewed
+        ).toEqual(current.recentlyViewed);
+        expect(
+            service
+                .forExport('p', empty())
+                .recentlyViewed.map((row) => row.xtreamId)
+        ).toEqual([10, 20, 30]);
+        expect(service.forExport('p', empty()).hiddenCategories).toEqual(
+            archive().hiddenCategories
+        );
+        localStorage.setItem(
+            snapshot.key,
+            JSON.stringify({
+                version: 1,
+                ...empty(),
+                recentlyViewed: [
+                    { contentType: 'movie', xtreamId: 99, viewedAt: 'new' },
+                ],
+            })
+        );
+        expect(
+            service.forExport('p', empty(), undefined, {
+                snapshot,
+                contentTypes: ['movie'],
+                cleared: true,
+            }).recentlyViewed
+        ).toEqual([{ contentType: 'movie', xtreamId: 99, viewedAt: 'new' }]);
+    });
+
     it('parks unavailable history/hidden choices durably without replaying global user state later', () => {
         const original = archive();
         const first = service.prepare('p', original, ['live']);
@@ -191,4 +250,34 @@ describe('dormant catalog restore', () => {
         expect(service.forExport('q', empty()).hiddenCategories).toEqual([]);
         expect(localStorage.getItem('other-setting')).toBe('kept');
     });
+});
+
+it('replaces owned dormant history with the journal, retaining unavailable current entries', () => {
+    localStorage.clear();
+    const service = new XtreamDeferredCatalogRestoreService();
+    service.prepare('p', archive(), []);
+    const current = {
+        ...empty(),
+        recentlyViewed: [
+            {
+                contentType: 'live' as const,
+                xtreamId: 900,
+                viewedAt: 'new-live',
+            },
+            {
+                contentType: 'series' as const,
+                xtreamId: 901,
+                viewedAt: 'new-series',
+            },
+        ],
+    };
+    const prepared = service.prepare('p', current, ['live'], false, true);
+    expect(prepared.state.recentlyViewed).toEqual(
+        current.recentlyViewed.slice(0, 1)
+    );
+    service.complete('p', prepared.snapshot, ['live']);
+    expect(service.forExport('p', empty()).recentlyViewed).toEqual(
+        current.recentlyViewed.slice(1)
+    );
+    localStorage.clear();
 });

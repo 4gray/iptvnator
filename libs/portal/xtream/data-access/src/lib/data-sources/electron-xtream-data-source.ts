@@ -227,10 +227,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         options?.onPhaseChange?.('loading-cached');
         const importStatus = await this.getImportStatus(playlistId, importType);
         if (importStatus === 'failed' || importStatus === 'cancelled') {
-            const { clearIncompleteCatalog } = await import(
-                './xtream-category-import'
+            const { clearIncompleteCatalog } =
+                await import('./xtream-category-import');
+            await clearIncompleteCatalog(
+                this.dbService,
+                playlistId,
+                importType
             );
-            await clearIncompleteCatalog(this.dbService, playlistId, importType);
         }
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
@@ -249,9 +252,8 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             return cached;
         }
 
-        const { loadRemoteCategories } = await import(
-            './xtream-category-import'
-        );
+        const { loadRemoteCategories } =
+            await import('./xtream-category-import');
         return loadRemoteCategories(
             {
                 db: this.dbService,
@@ -719,85 +721,21 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         restoreState: XtreamPendingRestoreState,
         options?: XtreamOperationOptions
     ): Promise<void> {
-        this.playbackService.assertSupportsAtomicReplacement();
-        const {
-            XtreamDeferredCatalogRestoreService,
-            restoreCategoryVisibility,
-            resolveAvailableCatalogs,
-        } = await import('./xtream-deferred-restore');
-        const deferredRestore = this.injector.get(
-            XtreamDeferredCatalogRestoreService
-        );
-        const categoriesByType = await Promise.all([
-            this.dbService.getAllXtreamCategories(playlistId, 'live'),
-            this.dbService.getAllXtreamCategories(playlistId, 'movies'),
-            this.dbService.getAllXtreamCategories(playlistId, 'series'),
-        ]);
-        const enabled = normalizeXtreamContentTypes(
-            (await this.getPlaylist(playlistId))?.xtreamContentTypes
-        );
-        const available = await resolveAvailableCatalogs(
-            this.dbService,
-            playlistId,
-            enabled
-        );
-
-        const prepared = deferredRestore.prepare(
+        const { restoreElectronUserData } =
+            await import('./xtream-deferred-restore');
+        await restoreElectronUserData(
+            {
+                db: this.dbService,
+                playback: this.playbackService,
+                pins: this.vodSourcePinService,
+                injector: this.injector,
+                getPlaylist: (id) => this.getPlaylist(id),
+                restoreFavorites: (id, state) =>
+                    this.restoreFavoriteSnapshots(id, state),
+            },
             playlistId,
             restoreState,
-            available
-        );
-        restoreState = prepared.state;
-        await restoreCategoryVisibility(
-            this.dbService,
-            playlistId,
-            categoriesByType,
-            available,
-            restoreState.hiddenCategories
-        );
-
-        await this.restoreFavoriteSnapshots(playlistId, restoreState);
-        await this.dbService.restoreXtreamUserData(
-            playlistId,
-            [],
-            restoreState.recentlyViewed,
             options
         );
-
-        if (!restoreState.preservePlaybackPositions)
-            await this.playbackService.replaceAllPlaybackPositions(
-                playlistId,
-                restoreState.playbackPositions
-            );
-
-        // The fresh-import path lands here rather than in the backup service:
-        // a new playlist has no content yet when the archive is read, so its
-        // user state is parked and applied once the import finishes.
-        if (!restoreState.sourcePins) {
-            deferredRestore.complete(playlistId, prepared.snapshot, available);
-            return;
-        }
-
-        const pins = restoreState.sourcePins.map((pin) => ({
-            matchKey: pin.matchKey,
-            playlistId,
-            contentId: pin.contentId,
-            portalType: 'xtream' as const,
-            ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
-        }));
-        const replaced = await this.vodSourcePinService.replaceForPlaylist(
-            playlistId,
-            pins
-        );
-
-        // Throwing keeps the pending state for a later retry — the caller only
-        // clears it when this resolves. Dropping it here would lose the
-        // preference with the import still reporting success.
-        if (!replaced) {
-            throw new Error(
-                `Restoring the pinned sources for "${playlistId}" failed.`
-            );
-        }
-        deferredRestore.complete(playlistId, prepared.snapshot, available);
     }
 }

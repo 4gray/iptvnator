@@ -1,5 +1,6 @@
 import { reconcileFavoriteIdentity } from './favorite-catalog';
 import { restoreXtreamFavorites } from './favorite-restore';
+import { replayRecoveredHistory } from './xtream-history-recovery';
 export { restoreXtreamFavorites } from './favorite-restore';
 import { and, eq, inArray } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
@@ -272,6 +273,16 @@ export async function restoreXtreamUserData(
     await restoreXtreamFavorites(db, playlistId, favorites, control);
 
     await checkpointOperation(control);
+    const recovered = replayRecoveredHistory(db, playlistId);
+    if (recovered !== null) {
+        await reportOperationProgress(control, {
+            phase: 'restoring-recently-viewed',
+            current: recovered,
+            total: recovered,
+            increment: recovered,
+        });
+        return { success: true };
+    }
     await db
         .delete(schema.recentlyViewed)
         .where(eq(schema.recentlyViewed.playlistId, playlistId));

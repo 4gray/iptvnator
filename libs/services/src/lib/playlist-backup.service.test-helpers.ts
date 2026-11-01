@@ -119,6 +119,8 @@ export function createPlaylistBackupService(
             updateSettings: jest.fn().mockResolvedValue(undefined),
         },
         databaseService: {
+            readAppState: jest.fn().mockResolvedValue({ value: null }),
+            setAppState: jest.fn().mockResolvedValue(true),
             getAllXtreamCategories: jest.fn().mockResolvedValue([]),
             getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
             getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
@@ -268,6 +270,8 @@ export function createStatefulBackupCollaborators(
             },
         },
         databaseService: {
+            readAppState: async () => ({ value: null }),
+            setAppState: async () => true,
             getAllXtreamCategories: async (
                 playlistId: string,
                 type: 'live' | 'movies' | 'series'

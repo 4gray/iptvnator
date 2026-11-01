@@ -6,6 +6,12 @@ import {
 } from './operations.test-helpers';
 
 jest.mock('drizzle-orm', () => mockDrizzleOrmModule());
+// Journal semantics and transaction atomicity have separate real-SQLite coverage.
+jest.mock('./xtream-history-recovery', () => ({
+    clearRecoveredHistory: jest.fn(),
+    recordRecoveredHistory: jest.fn(),
+    removeRecoveredHistory: jest.fn(),
+}));
 
 jest.mock('./content-metadata.operations', () => ({
     persistContentMetadataIfMissing: jest.fn().mockResolvedValue(undefined),
@@ -123,9 +129,9 @@ describe('recently-viewed.operations', () => {
                 [{ id: 9, contentId: 42, playlistId: 'playlist-1' }],
             ]);
 
-            await expect(
-                addRecentItem(db, 42, 'playlist-1')
-            ).resolves.toEqual({ success: true });
+            await expect(addRecentItem(db, 42, 'playlist-1')).resolves.toEqual({
+                success: true,
+            });
 
             expect(insert).not.toHaveBeenCalled();
             expect(update).toHaveBeenCalledWith(schema.recentlyViewed);
@@ -239,8 +245,12 @@ describe('recently-viewed.operations', () => {
             ).resolves.toEqual({ success: true, count: 2 });
 
             expect(deletePrepare).toHaveBeenCalledTimes(1);
-            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith('contentId');
-            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith('playlistId');
+            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith(
+                'contentId'
+            );
+            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith(
+                'playlistId'
+            );
             expect(transaction).toHaveBeenCalledTimes(1);
             // Regression (issue #1137): the prepared delete must be dispatched
             // with synchronous `.run()`. `.execute()` defers to a promise that

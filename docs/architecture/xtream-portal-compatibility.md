@@ -373,17 +373,28 @@ it, including an explicit empty array.
 
 `XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
 fetching their category/content arrays before deleting their old cache. The editor
-confirms metadata persistence through `beforeReplace` after fetching and before
-parking or replacing any cached state. A rejected save leaves the original cache
-and history intact. An accepted save is reused if later cache work fails, without
-a second authoritative write. Recovery
-reads the complete source history before parking the snapshot, not the ordinary
+prepares durable recovery after fetching, then confirms metadata persistence
+through `beforeReplace` before replacing any cached state. A rejected save cleans
+its prepared recovery and leaves the original cache and history intact. An accepted save is reused if later cache work fails, without
+a second authoritative write. Recovery captures the complete source history in SQLite, not the ordinary
 100-entry browsing projection. The optional `dbGetRecentItems` `{ all: true }`
 request crosses preload/main/worker; ordinary reads remain capped at 100. The
 cache-recovery snapshot sets internal `preservePlaybackPositions: true`: catalog
 replacement does not delete positions, so retry must retain current progress,
 new entries and explicit removals, including those from untouched catalogs.
 Explicit backup import clears that policy and keeps authoritative replacement.
+Cache recovery also registers `xtream-history-recovery:<playlistId>` in the
+profile's SQLite `app_state` before deleting content. The worker captures live
+history atomically with registration, then journals watch updates, individual
+and batch removals, and source/global history clears in their write transactions.
+Replay reads that journal in one transaction, so later user actions win over
+the parked JSON snapshot. Tombstones prevent deferred archive entries from
+undoing removals or clears. Deferred history ownership uses a generation token, so an older import cannot
+consume a newly parked archive. Resolved history replaces the owned deferred
+history before replay; hidden choices remain parked until applied. The journal is acknowledged only
+after deferred completion, and source deletion removes it. Category imports
+already apply the parked hidden flags, so cache retry preserves live visibility
+instead of resetting it like an explicit backup restore.
 The read-only progress signal reports the current type, network/local phase and
 worker save counts. The editor stays modal with its close button hidden and uses
 the same shared `ImportProgressComponent` as the workspace scanning overlay;
@@ -413,9 +424,9 @@ Failed edit-time writes clear only unfinished catalog types and retain their
 pending user-state snapshot. Native save transactions commit in batches, so a
 partially written catalog must be removed before bootstrap can retry it. Completed
 types survive a failure in another type or in user-state replay. An existing
-pending restore blocks a new edit without persisting any of that rejected edit's
-metadata; recovery publication belongs only to metadata confirmed by the current
-scan's `beforeReplace` callback.
+pending restore blocks a new edit before metadata persistence. Recovery prepared
+for a rejected `beforeReplace` callback is removed only if its pending revision
+still belongs to that attempt.
 Bootstrap also clears leftover failed/cancelled type caches before reading or
 reimporting categories. If cleanup still fails, retry stops before provider or
 save work, retaining pending history. Completed warm caches keep their existing

@@ -122,6 +122,16 @@ current rows, including progress, additions and removals made after a failure.
 Export during that recovery reads current positions rather than the parked
 snapshot. The policy is excluded from archives and cleared on explicit backup
 import, which still restores the archive's authoritative positions.
+Its native history journal lives in profile-scoped SQLite `app_state`, using the
+`xtream-history-recovery:` key prefix. Current watch updates and explicit removals
+or clears update that journal in the same transaction as live history. Export
+uses its current history and excludes already-owned or removed dormant entries;
+explicit backup import clears the journal after parking the new archive and
+passing restore preflight. Cache replay is atomic and keeps the journal until
+deferred state completes, so retry cannot undo intervening history actions.
+Cache-pending exports reconcile hidden flags by current category identity too:
+live visibility wins for present categories, while absent categories retain
+their parked choices.
 
 Explicitly excluded:
 

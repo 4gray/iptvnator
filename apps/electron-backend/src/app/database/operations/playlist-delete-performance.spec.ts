@@ -49,11 +49,7 @@ function createDeleteHarness() {
             createSelectStep([{ count: 2 }], 'select:favorites', timeline)
         )
         .mockReturnValueOnce(
-            createSelectStep(
-                [{ count: 1 }],
-                'select:recently-viewed',
-                timeline
-            )
+            createSelectStep([{ count: 1 }], 'select:recently-viewed', timeline)
         )
         .mockReturnValueOnce(
             createSelectStep(
@@ -92,7 +88,17 @@ function createDeleteHarness() {
         timeline.push('delete:playlist');
         return Promise.resolve(undefined);
     });
-    const deletePlaylistRow = jest.fn(() => ({ where: playlistWhere }));
+    const deletePlaylistRow = jest.fn((table: unknown) =>
+        table === schema.appState
+            ? {
+                  where: jest.fn(() => ({
+                      run: jest.fn(() =>
+                          timeline.push('delete:history-recovery')
+                      ),
+                  })),
+              }
+            : { where: playlistWhere }
+    );
 
     return {
         db: {
@@ -160,6 +166,12 @@ describe('playlist delete performance phases', () => {
         expect(writeEnd).toBeGreaterThan(
             harness.timeline.indexOf('progress:deleting-playlist')
         );
+        expect(
+            harness.timeline.indexOf('delete:history-recovery')
+        ).toBeGreaterThan(writeStart);
+        expect(
+            harness.timeline.indexOf('delete:history-recovery')
+        ).toBeLessThan(writeEnd);
         expect(
             harness.timeline
                 .map((entry, index) => ({ entry, index }))

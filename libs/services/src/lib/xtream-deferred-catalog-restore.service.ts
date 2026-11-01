@@ -4,6 +4,8 @@ import {
     normalizeXtreamPendingRestoreState,
     XtreamContentType,
     XtreamPendingRestoreState,
+    XtreamHistoryRecovery,
+    createRandomId,
 } from '@iptvnator/shared/interfaces';
 
 const prefix = 'xtream-catalog-restore-';
@@ -24,6 +26,7 @@ function merge<T>(older: T[], current: T[], key: (item: T) => string): T[] {
 export interface DeferredCatalogSnapshot {
     readonly key: string;
     readonly raw: string | null;
+    readonly generation: string | null;
     readonly state: XtreamPendingRestoreState;
 }
 type CatalogState = Pick<
@@ -37,7 +40,7 @@ export class XtreamDeferredCatalogRestoreService {
     private read(playlistId: string): DeferredCatalogSnapshot {
         const key = sourceProfileStorageKey(prefix + playlistId);
         const raw = localStorage.getItem(key);
-        if (!raw) return { key, raw, state: empty() };
+        if (!raw) return { key, raw, generation: null, state: empty() };
         const parsed = JSON.parse(raw);
         if (
             parsed?.version !== 1 ||
@@ -46,15 +49,34 @@ export class XtreamDeferredCatalogRestoreService {
         ) {
             throw new Error('Deferred catalog restore is unreadable.');
         }
-        return { key, raw, state: normalizeXtreamPendingRestoreState(parsed) };
+        return {
+            key,
+            raw,
+            generation:
+                typeof parsed.generation === 'string'
+                    ? parsed.generation
+                    : 'legacy',
+            state: normalizeXtreamPendingRestoreState(parsed),
+        };
     }
 
     private write(playlistId: string, state: XtreamPendingRestoreState): void {
         const key = sourceProfileStorageKey(prefix + playlistId);
         const hasData =
             state.hiddenCategories.length || state.recentlyViewed.length;
-        const encoded = hasData ? JSON.stringify({ version: 1, ...state }) : '';
-        if (!encoded && !localStorage.getItem(key)) return;
+        const previousRaw = localStorage.getItem(key);
+        if (!hasData && !previousRaw) return;
+        const previous =
+            hasData && previousRaw ? JSON.parse(previousRaw) : null;
+        const generation = hasData
+            ? previous?.favoritesRestoreId === state.favoritesRestoreId &&
+              typeof previous?.generation === 'string'
+                ? previous.generation
+                : createRandomId()
+            : null;
+        const encoded = hasData
+            ? JSON.stringify({ version: 1, generation, ...state })
+            : '';
         localStorage.setItem(key, encoded);
         if (localStorage.getItem(key) !== encoded)
             throw new Error('Could not retain deferred catalog restore.');
@@ -107,7 +129,8 @@ export class XtreamDeferredCatalogRestoreService {
         playlistId: string,
         state: XtreamPendingRestoreState,
         available: readonly XtreamContentType[],
-        currentIsResolved = false
+        currentIsResolved = false,
+        historyIsResolved = false
     ): { state: XtreamPendingRestoreState; snapshot: DeferredCatalogSnapshot } {
         const stored = this.read(playlistId).state;
         // An explicit new backup is authoritative, unlike a cache refresh/retry.
@@ -132,6 +155,12 @@ export class XtreamDeferredCatalogRestoreService {
                     : this.filterCatalogs(state, available, false)
             ),
         };
+        if (historyIsResolved)
+            parked.recentlyViewed = this.filterCatalogs(
+                state,
+                available,
+                false
+            ).recentlyViewed;
         this.write(playlistId, parked);
         const ready = this.combined(
             this.filterCatalogs(parked, available),
@@ -150,7 +179,8 @@ export class XtreamDeferredCatalogRestoreService {
         available: readonly XtreamContentType[]
     ): void {
         const current = this.read(playlistId);
-        if (current.key !== snapshot.key || current.raw !== snapshot.raw) return;
+        if (current.key !== snapshot.key || current.raw !== snapshot.raw)
+            return;
         this.write(playlistId, {
             ...snapshot.state,
             ...this.filterCatalogs(snapshot.state, available, false),
@@ -160,14 +190,58 @@ export class XtreamDeferredCatalogRestoreService {
     forExport(
         playlistId: string,
         current: CatalogState,
-        restoreId?: string
+        restoreId?: string,
+        recovery?: Pick<
+            XtreamHistoryRecovery,
+            'contentTypes' | 'removed' | 'cleared'
+        > & {
+            currentCategories?: XtreamPendingRestoreState['hiddenCategories'];
+            snapshot?: XtreamPendingRestoreState['catalogSnapshot'];
+        }
     ): CatalogState {
-        const stored = this.read(playlistId).state;
+        const snapshot = this.read(playlistId);
+        const stored = snapshot.state;
+        if (
+            !recovery?.snapshot ||
+            recovery.snapshot.key !== snapshot.key ||
+            recovery.snapshot.generation !== snapshot.generation
+        )
+            recovery = undefined;
         const parked =
             restoreId && restoreId !== stored.favoritesRestoreId
                 ? empty()
                 : stored;
-        return this.combined(parked, current);
+        const remaining = {
+            ...parked,
+            recentlyViewed: this.filterCatalogs(
+                parked,
+                recovery?.contentTypes ?? [],
+                false
+            ).recentlyViewed,
+        };
+        const currentIds = new Set(
+            recovery?.currentCategories?.map(
+                (row) => `${row.categoryType}:${row.xtreamId}`
+            )
+        );
+        remaining.hiddenCategories = remaining.hiddenCategories.filter(
+            (row) => !currentIds.has(`${row.categoryType}:${row.xtreamId}`)
+        );
+        remaining.recentlyViewed = recovery?.cleared
+            ? []
+            : remaining.recentlyViewed.filter(
+                  (row) =>
+                      !recovery?.removed?.some(
+                          (removed) =>
+                              removed.contentType === row.contentType &&
+                              removed.xtreamId === row.xtreamId
+                      )
+              );
+        return this.combined(remaining, current);
+    }
+
+    getSnapshot(playlistId: string): DeferredCatalogSnapshot {
+        return this.read(playlistId);
     }
 
     clear(playlistId: string): void {
@@ -181,7 +255,9 @@ export class XtreamDeferredCatalogRestoreService {
             : Array.from({ length: localStorage.length }, (_, index) =>
                   localStorage.key(index)
               )
-                  .filter((key): key is string => !!key?.startsWith(scopedPrefix))
+                  .filter(
+                      (key): key is string => !!key?.startsWith(scopedPrefix)
+                  )
                   .map((key) => key.slice(scopedPrefix.length));
     }
 
@@ -195,3 +271,9 @@ export class XtreamDeferredCatalogRestoreService {
             this.write(id, { ...this.read(id).state, recentlyViewed: [] });
     }
 }
+
+export {
+    beginCatalogHistoryRecovery,
+    clearCatalogHistoryRecovery,
+    readCatalogHistoryRecovery,
+} from './xtream-catalog-history-recovery';

@@ -361,6 +361,17 @@ export class PlaylistBackupService {
         };
         const pending = this.pendingRestoreService.getOrThrow(playlist._id);
         if (pending) {
+            const recovery = pending.preservePlaybackPositions
+                ? await (
+                      await import('./xtream-catalog-history-recovery')
+                  ).exportCatalogRecoveryState(
+                      this.databaseService,
+                      this.playbackPositionService,
+                      playlist._id,
+                      pending.hiddenCategories,
+                      pending.catalogSnapshot
+                  )
+                : null;
             // Other parked user state is authoritative during an import. Favorites
             // already have a durable owner: materialize old parked identities once,
             // then export the current saved records (including explicit removals).
@@ -384,14 +395,14 @@ export class PlaylistBackupService {
             const pendingEntry: XtreamPlaylistBackupEntry = {
                 ...entry,
                 userState: {
-                    hiddenCategories: pending.hiddenCategories,
+                    hiddenCategories:
+                        recovery?.hiddenCategories ?? pending.hiddenCategories,
                     favorites,
-                    recentlyViewed: pending.recentlyViewed,
-                    playbackPositions: pending.preservePlaybackPositions
-                        ? await this.playbackPositionService.getAllPlaybackPositionsOrThrow(
-                              playlist._id
-                          )
-                        : pending.playbackPositions,
+                    recentlyViewed:
+                        recovery?.recentlyViewed ?? pending.recentlyViewed,
+                    playbackPositions:
+                        recovery?.playbackPositions ??
+                        pending.playbackPositions,
                     ...this.optionalLockedXtreamCategories(playlist._id),
                     ...(sourcePins ? { sourcePins } : {}),
                 },
@@ -404,7 +415,8 @@ export class PlaylistBackupService {
                           ...this.deferredRestore.forExport(
                               playlist._id,
                               pendingEntry.userState,
-                              pending.favoritesRestoreId
+                              pending.favoritesRestoreId,
+                              recovery?.historyRecovery
                           ),
                       },
                   }
@@ -1048,6 +1060,7 @@ export class PlaylistBackupService {
         // internal receipt or confuse it with a retry of an older parked import.
         restoreState.favoritesRestoreId = createRandomId();
         delete restoreState.preservePlaybackPositions;
+        delete restoreState.catalogSnapshot;
 
         // Preserve an older unfinished import before parking the incoming backup.
         // Canonical favorites are additive; legacy-only ones need the same protection.
@@ -1078,6 +1091,9 @@ export class PlaylistBackupService {
             if (!previous) {
                 this.playbackPositionService.assertSupportsAtomicReplacement();
             }
+            await (
+                await import('./xtream-catalog-history-recovery')
+            ).clearCatalogHistoryRecovery(this.databaseService, playlistId);
             await this.databaseService.restoreXtreamFavoriteSnapshots(
                 playlistId,
                 restoreState.favorites,

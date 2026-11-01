@@ -274,6 +274,25 @@ describe('normalizeXtreamPendingRestoreState', () => {
         }
     });
 
+    it('preserves internal catalog ownership tokens without copying the deferred archive', () => {
+        for (const generation of [null, 'generation-1']) {
+            const state = normalizeXtreamPendingRestoreState({
+                catalogSnapshot: { key: 'p', generation },
+            });
+            expect(state.catalogSnapshot).toEqual({ key: 'p', generation });
+            expect(normalizeXtreamPendingRestoreState(state)).toEqual(state);
+        }
+        for (const catalogSnapshot of [
+            null,
+            {},
+            { key: 1, generation: null },
+            { key: 'p', generation: 1 },
+        ])
+            expect(
+                normalizeXtreamPendingRestoreState({ catalogSnapshot })
+            ).not.toHaveProperty('catalogSnapshot');
+    });
+
     it('falls back to empty arrays for missing or non-array fields', () => {
         expect(
             normalizeXtreamPendingRestoreState({

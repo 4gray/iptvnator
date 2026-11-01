@@ -1,5 +1,6 @@
 export * from './lib/app-update-channel.util';
 export * from './lib/xtream-content-selection';
+export * from './lib/xtream-history-recovery';
 export * from './lib/channel-drm.interface';
 export * from './lib/channel.interface';
 export * from './lib/channel.model';

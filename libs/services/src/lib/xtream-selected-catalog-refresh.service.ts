@@ -12,8 +12,15 @@ import { DataService } from './data.service';
 import { DatabaseService, XCategoryFromDb } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
-import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
+import {
+    XtreamPendingRestoreService,
+    type XtreamPendingRestoreSnapshot,
+} from './xtream-pending-restore.service';
 import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
+import {
+    beginCatalogHistoryRecovery,
+    clearCatalogHistoryRecovery,
+} from './xtream-catalog-history-recovery';
 
 const actions = {
     live: ['get_live_categories', 'get_live_streams'],
@@ -65,6 +72,9 @@ export class XtreamSelectedCatalogRefreshService {
         }
         const release = this.activity.begin([playlist._id]);
         const incomplete = new Set<XtreamContentType>();
+        let snapshot: XtreamPendingRestoreSnapshot | null = null;
+        let historyPrepared = false;
+        let replacementStarted = false;
         const publish = (
             type: XtreamContentType | null,
             phase: XtreamSelectedCatalogProgress['phase'],
@@ -94,18 +104,13 @@ export class XtreamSelectedCatalogRefreshService {
                 );
                 catalogs.push({ type, categories, content });
             }
-            // Rejected metadata edits must leave the old catalog and user state intact.
-            await beforeReplace?.();
             publish(null, 'preparing');
             // Park user state BEFORE deletion so storage failure cannot erase history.
-            const [recent, categoriesByType] = await Promise.all([
-                this.db.getRecentItemsOrThrow(playlist._id),
-                Promise.all(
-                    (['live', 'movies', 'series'] as const).map((type) =>
-                        this.db.getAllXtreamCategories(playlist._id, type)
-                    )
-                ),
-            ]);
+            const categoriesByType = await Promise.all(
+                (['live', 'movies', 'series'] as const).map((type) =>
+                    this.db.getAllXtreamCategories(playlist._id, type)
+                )
+            );
             let saved: XtreamPendingRestoreState = {
                 favorites: [],
                 playbackPositions: [],
@@ -117,18 +122,10 @@ export class XtreamSelectedCatalogRefreshService {
                         categoryType: category.type,
                         xtreamId: category.xtream_id,
                     })),
-                recentlyViewed: recent
-                    .filter((item) =>
-                        XTREAM_CONTENT_TYPES.some((type) => type === item.type)
-                    )
-                    .map((item) => ({
-                        contentType: item.type as XtreamContentType,
-                        xtreamId: item.xtream_id,
-                        viewedAt: item.viewed_at ?? new Date().toISOString(),
-                    })),
+                recentlyViewed: [],
             };
             // Replay dormant state only for catalogs fetched by this refresh.
-            // All current SQLite snapshot rows already have retained identities.
+            // The worker captures live history atomically before deleting any cache.
             const available = types;
             const prepared = this.deferred.prepare(
                 playlist._id,
@@ -136,13 +133,40 @@ export class XtreamSelectedCatalogRefreshService {
                 available,
                 true
             );
-            saved = prepared.state;
-            if (!this.pending.set(playlist._id, saved)) {
+            saved = {
+                ...prepared.state,
+                recentlyViewed: [],
+                hiddenCategories: Array.from(
+                    new Map(
+                        [
+                            ...prepared.snapshot.state.hiddenCategories,
+                            ...prepared.state.hiddenCategories,
+                        ].map((row) => [
+                            `${row.categoryType}:${row.xtreamId}`,
+                            row,
+                        ])
+                    ).values()
+                ),
+                catalogSnapshot: {
+                    key: prepared.snapshot.key,
+                    generation: prepared.snapshot.generation,
+                },
+            };
+            snapshot = this.pending.set(playlist._id, saved);
+            if (!snapshot) {
                 throw new Error('Could not retain source restore state.');
             }
-            const snapshot = this.pending.getSnapshotOrThrow(playlist._id);
-            if (!snapshot)
-                throw new Error('Source restore state is unavailable.');
+            await beginCatalogHistoryRecovery(
+                this.db,
+                playlist._id,
+                [...XTREAM_CONTENT_TYPES],
+                prepared.snapshot.state.recentlyViewed
+            );
+            historyPrepared = true;
+            // Secure recovery before accepting metadata, but never replace a
+            // catalog until the authoritative edit is accepted.
+            await beforeReplace?.();
+            replacementStarted = true;
             for (const type of types) incomplete.add(type);
             await this.db.deleteXtreamPlaylistContent(playlist._id, {
                 contentTypes: types,
@@ -203,11 +227,23 @@ export class XtreamSelectedCatalogRefreshService {
                         prepared.snapshot,
                         available
                     );
+                    await clearCatalogHistoryRecovery(this.db, playlist._id);
                 }
             );
             if (result === 'consume-failed')
                 throw new Error('Could not finish source restore.');
         } catch (error) {
+            if (
+                !replacementStarted &&
+                snapshot &&
+                this.pending.getSnapshotOrThrow(playlist._id)?.revision ===
+                    snapshot.revision
+            ) {
+                if (historyPrepared)
+                    await clearCatalogHistoryRecovery(this.db, playlist._id);
+                if (!this.pending.clear(playlist._id, snapshot.state))
+                    throw new Error('Could not cancel source recovery.');
+            }
             // Native writes commit in chunks. A retry must not reuse a partial
             // catalog and then consume history for content it never imported.
             let cleanupFailed = false;

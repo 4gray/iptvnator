@@ -150,6 +150,7 @@ export function createRestoreCollaborators() {
             handlePlaylistParsing: jest.fn(),
         },
         databaseService: {
+            setAppState: jest.fn().mockResolvedValue(true),
             getAllXtreamCategories: jest.fn(
                 (_playlistId: string, type: string) =>
                     Promise.resolve(categoryRowsByType[type] ?? [])

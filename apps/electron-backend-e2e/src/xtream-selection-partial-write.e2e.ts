@@ -34,6 +34,9 @@ async function faultAndCount(
                 db.exec('DROP TRIGGER IF EXISTS test_fail_movie_second_batch');
                 db.exec('DROP TRIGGER IF EXISTS test_fail_movie_cleanup');
                 if (enabled) {
+                    db.prepare(
+                        'UPDATE recently_viewed SET viewed_at = ? WHERE playlist_id = ?'
+                    ).run('2026-01-01 00:00:00', id);
                     const literal = id.replaceAll("'", "''");
                     db.exec(`CREATE TRIGGER test_fail_movie_second_batch BEFORE INSERT ON content
                     WHEN (SELECT playlist_id FROM categories WHERE id = NEW.category_id) = '${literal}' AND NEW.type = 'movie'
@@ -102,6 +105,46 @@ for (const failCleanup of [false, true])
                     )!._id,
                 title
             );
+            const retained = await page.evaluate(async (id) => {
+                await window.electron.dbSaveCategories(
+                    id,
+                    [
+                        {
+                            category_id: '900001',
+                            category_name: 'Retained Live',
+                            parent_id: 0,
+                        },
+                    ],
+                    'live'
+                );
+                await window.electron.dbSaveContent(
+                    id,
+                    [881001, 881002, 881003, 881004].map((stream_id) => ({
+                        stream_id,
+                        name: `Retained ${stream_id}`,
+                        category_id: '900001',
+                        stream_type: 'live',
+                    })),
+                    'live'
+                );
+                await window.electron.dbSetAppState(
+                    `xtream-import-status:${id}:live`,
+                    'completed'
+                );
+                const rows = [];
+                for (const xtreamId of [881001, 881002, 881003, 881004]) {
+                    const row = await window.electron.dbGetContentByXtreamId(
+                        xtreamId,
+                        id,
+                        'live'
+                    );
+                    if (!row) throw new Error('Missing retained content');
+                    rows.push(row.id);
+                }
+                for (const contentId of rows.slice(0, 3))
+                    await window.electron.dbAddRecentItem(contentId, id);
+                return rows;
+            }, id);
             await page.evaluate(
                 ({ id, xtreamId }) =>
                     localStorage.setItem(
@@ -174,6 +217,25 @@ for (const failCleanup of [false, true])
             expect(await faultAndCount(app, dataDir, id, false)).toBe(
                 failCleanup ? 5000 : 0
             );
+            await page.evaluate(
+                async ({ id, retained }) => {
+                    await window.electron.dbAddRecentItem(retained[0], id);
+                    await window.electron.dbAddRecentItem(retained[3], id);
+                    await window.electron.dbRemoveRecentItem(retained[1], id);
+                    await window.electron.dbRemoveRecentItemsBatch([
+                        { contentId: retained[2], playlistId: id },
+                    ]);
+                    const [category] = await window.electron.dbGetAllCategories(
+                        id,
+                        'live'
+                    );
+                    await window.electron.dbUpdateCategoryVisibility(
+                        [category.id],
+                        true
+                    );
+                },
+                { id, retained }
+            );
             // Playback can continue from saved items before import is retried.
             // Use the real playback persistence IPC, including another catalog
             // and an explicit removal after the recovery snapshot was parked.
@@ -237,6 +299,25 @@ for (const failCleanup of [false, true])
                             (row) => row.xtream_id === xtreamId
                         ),
                     { id, xtreamId: Number(target.stream_id) }
+                )
+            ).toBe(true);
+            const history = await page.evaluate(
+                (id) => window.electron.dbGetRecentItems(id, { all: true }),
+                id
+            );
+            expect(history.map((row) => row.xtream_id).sort()).toEqual(
+                [881001, 881004, Number(target.stream_id)].sort()
+            );
+            expect(
+                history.find((row) => row.xtream_id === 881001)?.viewed_at
+            ).not.toBe('2026-01-01 00:00:00');
+            expect(
+                await page.evaluate(
+                    async (id) =>
+                        (
+                            await window.electron.dbGetAllCategories(id, 'live')
+                        )[0].hidden,
+                    id
                 )
             ).toBe(true);
             const positions = await page.evaluate(

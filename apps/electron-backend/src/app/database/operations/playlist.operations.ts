@@ -1,7 +1,13 @@
 import { reconcileCompletedFavoriteCatalog } from './favorite-catalog';
+import {
+    beginHistoryRecovery,
+    deleteHistoryRecovery,
+} from './xtream-history-recovery';
 import { eq, sql } from 'drizzle-orm';
 import {
     normalizeXtreamContentTypes,
+    parseXtreamHistoryRecovery,
+    XTREAM_HISTORY_RECOVERY_PREFIX,
     type XtreamContentType,
 } from '@iptvnator/shared/interfaces';
 import * as schema from '@iptvnator/shared/database/schema';
@@ -592,6 +598,7 @@ async function deleteCollectedPlaylistRows(
         increment: 1,
     });
 
+    deleteHistoryRecovery(db, playlistId);
     return countPlaylistDeletionRows(collection) + 1;
 }
 
@@ -645,6 +652,14 @@ export async function setAppState(
     key: string,
     value: string
 ): Promise<{ success: boolean }> {
+    if (value && key.startsWith(XTREAM_HISTORY_RECOVERY_PREFIX)) {
+        beginHistoryRecovery(
+            db,
+            key.slice(XTREAM_HISTORY_RECOVERY_PREFIX.length),
+            parseXtreamHistoryRecovery(value)
+        );
+        return { success: true };
+    }
     const updatedAt = new Date().toISOString();
 
     await db
@@ -713,5 +728,6 @@ export async function deleteAllPlaylists(
         });
     }
 
+    deleteHistoryRecovery(db);
     return { success: true };
 }

@@ -3,9 +3,15 @@ import { DataService } from './data.service';
 import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
-import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
+import {
+    XtreamPendingRestoreService,
+    XtreamPendingRestoreSnapshot,
+} from './xtream-pending-restore.service';
 import { XtreamSelectedCatalogRefreshService } from './xtream-selected-catalog-refresh.service';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    XtreamPendingRestoreState,
+} from '@iptvnator/shared/interfaces';
 
 const playlist = {
     _id: 'p',
@@ -20,7 +26,11 @@ describe('edit-time Xtream catalog refresh', () => {
         favorites: [],
         hiddenCategories: [],
         recentlyViewed: [
-            { contentType: 'live', xtreamId: 42, viewedAt: '2026-01-01' },
+            {
+                contentType: 'live' as const,
+                xtreamId: 42,
+                viewedAt: '2026-01-01',
+            },
         ],
     };
     let data: { sendIpcEvent: jest.Mock };
@@ -32,7 +42,8 @@ describe('edit-time Xtream catalog refresh', () => {
         | 'restoreXtreamUserData'
         | 'getRecentItemsOrThrow'
         | 'getAllXtreamCategories'
-        | 'clearXtreamImportCache',
+        | 'clearXtreamImportCache'
+        | 'setAppState',
         jest.Mock
     >;
     let pending: Record<string, jest.Mock>;
@@ -51,27 +62,33 @@ describe('edit-time Xtream catalog refresh', () => {
                 'getRecentItemsOrThrow',
                 'getAllXtreamCategories',
                 'clearXtreamImportCache',
+                'setAppState',
             ].map((name) => [name, jest.fn().mockResolvedValue(undefined)])
         ) as typeof db;
         db.deleteXtreamPlaylistContent.mockResolvedValue(saved);
         db.clearXtreamImportCache.mockResolvedValue(true);
+        db.setAppState.mockResolvedValue(true);
         db.getAllXtreamCategories.mockResolvedValue([]);
         db.getRecentItemsOrThrow.mockResolvedValue([
             { type: 'live', xtream_id: 42, viewed_at: '2026-01-01' },
         ]);
-        const snapshot = {
+        let snapshot: XtreamPendingRestoreSnapshot = {
             playlistId: 'p',
             revision: 1,
             state: { ...saved, playbackPositions: [] },
         };
         pending = {
             getOrThrow: jest.fn().mockReturnValue(null),
-            set: jest.fn().mockReturnValue(true),
-            getSnapshotOrThrow: jest.fn().mockReturnValue(snapshot),
+            set: jest.fn((_id: string, state: XtreamPendingRestoreState) => {
+                snapshot = { ...snapshot, state };
+                return snapshot;
+            }),
+            clear: jest.fn().mockReturnValue(true),
+            getSnapshotOrThrow: jest.fn(() => snapshot),
             applyAndConsume: jest
                 .fn()
                 .mockImplementation(async (_id, _snapshot, apply) => {
-                    await apply(snapshot.state);
+                    await apply(_snapshot.state);
                     return 'consumed';
                 }),
         };
@@ -111,11 +128,7 @@ describe('edit-time Xtream catalog refresh', () => {
             'movie',
             'completed'
         );
-        expect(db.restoreXtreamUserData).toHaveBeenCalledWith(
-            'p',
-            [],
-            saved.recentlyViewed
-        );
+        expect(db.restoreXtreamUserData).toHaveBeenCalledWith('p', [], []);
         expect(release).toHaveBeenCalled();
     });
 
@@ -130,7 +143,12 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(authorize).toHaveBeenCalledTimes(1);
         expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
         expect(db.saveXtreamContent).not.toHaveBeenCalled();
-        expect(pending['set']).not.toHaveBeenCalled();
+        expect(pending['set']).toHaveBeenCalled();
+        expect(pending['clear']).toHaveBeenCalled();
+        expect(db.setAppState).toHaveBeenLastCalledWith(
+            'xtream-history-recovery:p',
+            ''
+        );
         expect(pending['applyAndConsume']).not.toHaveBeenCalled();
         expect(service.progress()).toBeNull();
         expect(release).toHaveBeenCalledTimes(1);
@@ -152,18 +170,22 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(pending['set']).not.toHaveBeenCalled();
     });
 
-    it('waits for metadata confirmation before parking or replacing catalog state', async () => {
+    it('secures recovery before metadata confirmation and waits for acceptance before replacing catalogs', async () => {
         let confirm!: () => void;
-        const authorize = jest.fn(
-            () =>
-                new Promise<void>((resolve) => {
-                    confirm = resolve;
-                })
-        );
+        let observed!: () => void;
+        const accepting = new Promise<void>((resolve) => {
+            observed = resolve;
+        });
+        const authorize = jest.fn(() => {
+            observed();
+            return new Promise<void>((resolve) => {
+                confirm = resolve;
+            });
+        });
         const refreshing = service.refresh(playlist, ['movie'], authorize);
-        for (let n = 0; n < 6; n++) await Promise.resolve();
+        await accepting;
         expect(authorize).toHaveBeenCalledTimes(1);
-        expect(pending['set']).not.toHaveBeenCalled();
+        expect(pending['set']).toHaveBeenCalled();
         expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
         confirm();
         await refreshing;
@@ -210,15 +232,22 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(service.progress()).toBeNull();
     });
 
-    it('does not delete data when history cannot be read', async () => {
-        db.getRecentItemsOrThrow.mockRejectedValue(
-            new Error('history unreadable')
-        );
+    it('does not delete data when native history recovery cannot be retained', async () => {
+        db.setAppState.mockResolvedValue(false);
         await expect(service.refresh(playlist, ['movie'])).rejects.toThrow(
-            'history unreadable'
+            'Could not retain catalog history recovery.'
         );
-        expect(pending['set']).not.toHaveBeenCalled();
+        expect(pending['set']).toHaveBeenCalled();
         expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+    });
+
+    it('does not accept source metadata before native recovery is secured', async () => {
+        db.setAppState.mockResolvedValue(false);
+        const accept = jest.fn().mockResolvedValue(undefined);
+        await expect(
+            service.refresh(playlist, ['movie'], accept)
+        ).rejects.toThrow();
+        expect(accept).not.toHaveBeenCalled();
     });
 
     it('does not delete data if parking recovery state fails', async () => {

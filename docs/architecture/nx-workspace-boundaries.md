@@ -313,6 +313,8 @@ load it only when explicitly clearing history or sources.
 The Electron data source also loads its project-local `xtream-category-import`
 helper only for cold category fills or failed-cache cleanup. Completed cache reads
 return before that import, preserving the warm path's startup work and IPC count.
+Full user-state replay also stays in the local `xtream-deferred-restore` module;
+the data source delegates to it only when restoring a backup or failed import.
 
 `@iptvnator/services/source-sync/connection` and
 `@iptvnator/services/source-sync/profile-user-data` expose the bootstrap helpers

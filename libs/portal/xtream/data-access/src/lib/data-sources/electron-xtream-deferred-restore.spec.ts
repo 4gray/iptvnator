@@ -20,12 +20,100 @@ beforeEach(() => localStorage.clear());
 afterEach(() => localStorage.clear());
 
 it('keeps current playback positions when retrying cache-only recovery', async () => {
-    const { dataSource, playbackService } = setupElectronXtreamDataSource();
+    const { dataSource, playbackService, dbService } =
+        setupElectronXtreamDataSource();
+    dbService.getAllXtreamCategories.mockImplementation(async (_id, type) =>
+        type === 'live'
+            ? [{ id: 1, type: 'live', xtream_id: 1, hidden: true }]
+            : []
+    );
     await dataSource.restoreUserData('p', {
         ...archive,
         preservePlaybackPositions: true,
     });
     expect(playbackService.replaceAllPlaybackPositions).not.toHaveBeenCalled();
+    expect(dbService.updateCategoryVisibility).not.toHaveBeenCalled();
+});
+
+it('uses the live native journal instead of stale pending or already-owned deferred history', async () => {
+    const { dataSource, dbService } = setupElectronXtreamDataSource();
+    const deferred = TestBed.inject(XtreamDeferredCatalogRestoreService);
+    deferred.prepare('p', archive, []);
+    const snapshot = deferred.getSnapshot('p');
+    const current = [{ contentType: 'live', xtreamId: 11, viewedAt: 'new' }];
+    dbService.readAppState.mockResolvedValue({
+        value: JSON.stringify({
+            version: 1,
+            contentTypes: ['live', 'movie', 'series'],
+            recentlyViewed: current,
+            removed: [
+                { contentType: 'live', xtreamId: 10 },
+                { contentType: 'movie', xtreamId: 20 },
+            ],
+        }),
+    });
+    await dataSource.restoreUserData('p', {
+        ...archive,
+        preservePlaybackPositions: true,
+        catalogSnapshot: { key: snapshot.key, generation: snapshot.generation },
+    });
+    expect(dbService.restoreXtreamUserData).toHaveBeenCalledWith(
+        'p',
+        [],
+        current,
+        undefined
+    );
+    expect(
+        deferred.forExport('p', { hiddenCategories: [], recentlyViewed: [] })
+            .recentlyViewed
+    ).toEqual([]);
+    expect(dbService.setAppState).toHaveBeenLastCalledWith(
+        'xtream-history-recovery:p',
+        ''
+    );
+});
+
+it('leaves a newer dormant record untouched when it arrives during native recovery', async () => {
+    const { dataSource, dbService } = setupElectronXtreamDataSource();
+    const deferred = TestBed.inject(XtreamDeferredCatalogRestoreService);
+    deferred.prepare('p', archive, []);
+    const original = deferred.getSnapshot('p');
+    dbService.readAppState.mockResolvedValue({
+        value: JSON.stringify({
+            version: 1,
+            contentTypes: ['movie'],
+            recentlyViewed: [],
+        }),
+    });
+    dbService.setAppState.mockImplementation(async (_key, value) => {
+        if (value)
+            localStorage.setItem(
+                original.key,
+                JSON.stringify({
+                    version: 1,
+                    favorites: [],
+                    playbackPositions: [],
+                    hiddenCategories: [],
+                    recentlyViewed: [
+                        {
+                            contentType: 'movie',
+                            xtreamId: 99002,
+                            viewedAt: 'new',
+                        },
+                    ],
+                })
+            );
+        return true;
+    });
+    await dataSource.restoreUserData('p', {
+        ...archive,
+        preservePlaybackPositions: true,
+        catalogSnapshot: { key: original.key, generation: original.generation },
+    });
+    expect(
+        deferred.forExport('p', { hiddenCategories: [], recentlyViewed: [] })
+            .recentlyViewed
+    ).toEqual([{ contentType: 'movie', xtreamId: 99002, viewedAt: 'new' }]);
 });
 
 it('keeps an all-disabled restore dormant without dropping history or positions', async () => {
