@@ -155,6 +155,7 @@ test('@critical @persistence @settings @pwa backup round-trip preserves supporte
         if ('connection' in input)
             expect(exported.connection).toEqual(input.connection);
         if (input.portalType === 'm3u') {
+            expect(exported.autoImportEpg).toBe(true);
             expect(exported.source.rawM3u.replace(/\r\n?/g, '\n')).toEqual(
                 input.source?.rawM3u
             );
@@ -168,6 +169,24 @@ test('@critical @persistence @settings @pwa backup round-trip preserves supporte
                 }),
             ]);
     }
+    const optedOut = structuredClone(first);
+    optedOut.playlists.find(
+        (entry: { portalType: string }) => entry.portalType === 'm3u'
+    ).autoImportEpg = false;
+    await importJson(page, optedOut);
+    await expect(result(page)).toContainText('3 merged');
+    expect(
+        (await exportJson(page)).playlists.find(
+            (entry: { portalType: string }) => entry.portalType === 'm3u'
+        ).autoImportEpg
+    ).toBe(false);
+    await importJson(page, first);
+    await expect(result(page)).toContainText('3 merged');
+    expect(
+        (await exportJson(page)).playlists.find(
+            (entry: { portalType: string }) => entry.portalType === 'm3u'
+        ).autoImportEpg
+    ).toBe(true);
     const empty = structuredClone(first);
     for (const entry of empty.playlists) {
         entry.userState.favorites = [];

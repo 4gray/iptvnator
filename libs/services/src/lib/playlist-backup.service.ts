@@ -291,9 +291,7 @@ export class PlaylistBackupService {
             exportedId: playlist._id,
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
-            ...(playlist.autoImportEpg === false
-                ? { autoImportEpg: false }
-                : {}),
+            autoImportEpg: playlist.autoImportEpg !== false,
             position: playlist.position,
             source: {
                 kind: this.resolveM3uSourceKind(playlist),

@@ -3,6 +3,53 @@ import type { Playlist } from '@iptvnator/shared/interfaces';
 import { createPlaylistBackupService } from './playlist-backup.service.test-helpers';
 
 describe('M3U backup EPG import preference', () => {
+    it.each([true, undefined])(
+        'restores exported default-on preference %s over a matching opt-out',
+        async (preference) => {
+            const guide = 'https://guide.example.test/default.xml';
+            const source = {
+                _id: 'synthetic-default-on',
+                title: 'Synthetic default-on playlist',
+                url: 'https://provider.example.test/default.m3u',
+                count: 1,
+                importDate: '',
+                lastUsage: '',
+                autoRefresh: false,
+                favorites: [],
+                autoImportEpg: preference,
+                detectedEpgUrls: [guide],
+                epgUrls: [guide],
+            } as Playlist;
+            const exported = await createPlaylistBackupService({
+                playlistsService: {
+                    getAllData: () => of([source]),
+                    getRawPlaylistById: () =>
+                        of(`#EXTM3U x-tvg-url="${guide}"`),
+                },
+            }).exportBackup();
+            expect(exported.manifest.playlists[0]).toMatchObject({
+                autoImportEpg: true,
+            });
+            const restorePlaylist = jest.fn((value: Playlist) => of(value));
+            const summary = await createPlaylistBackupService({
+                playlistsService: {
+                    getAllData: () =>
+                        of([{ ...source, autoImportEpg: false, epgUrls: [] }]),
+                    handlePlaylistParsing: async () => source,
+                    restorePlaylist,
+                },
+            }).importBackup(JSON.stringify(exported.manifest));
+            expect(summary.failed).toBe(0);
+            expect(summary.merged).toBe(1);
+            expect(restorePlaylist).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    autoImportEpg: true,
+                    epgUrls: [guide],
+                })
+            );
+        }
+    );
+
     it.each([undefined, false, true])(
         'retains explicit local EPG selections when restoring a backup with preference %s',
         async (backupPreference) => {

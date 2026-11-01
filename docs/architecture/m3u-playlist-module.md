@@ -201,6 +201,8 @@ local source projection and backup/restore preserve this preference, including
 when a new EPG address appears. Explicitly enabled manual sources still work.
 Restoring over an existing playlist retains its manual EPG selections and
 disabled source markers before applying the imported preference.
+New backups write an explicit boolean for either choice. Only legacy archives
+omit it; those retain an existing playlist's preference when merged.
 The preference belongs to local playlist state, like manual and disabled EPG
 selections, rather than the portable `SourceDefinition` connection.
 
