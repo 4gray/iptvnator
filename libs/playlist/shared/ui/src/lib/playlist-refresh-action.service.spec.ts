@@ -500,7 +500,11 @@ describe('PlaylistRefreshActionService', () => {
                 key: string,
                 value: string
             ) {
-                executionOrder.push('setItem');
+                executionOrder.push(
+                    key.startsWith('xtream-catalog-restore-')
+                        ? 'parkCatalogState'
+                        : 'setItem'
+                );
                 return originalSetItem.call(this, key, value);
             });
 
@@ -535,6 +539,17 @@ describe('PlaylistRefreshActionService', () => {
                 ([key]) => key === `xtream-restore-${item._id}`
             )?.[1] ?? 'null'
         );
+        const parkedState = JSON.parse(
+            localStorage.getItem(`xtream-catalog-restore-${item._id}`) ?? 'null'
+        );
+        expect(parkedState).toEqual({
+            version: 1,
+            generation: expect.any(String),
+            hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
+            recentlyViewed: [],
+            favorites: [],
+            playbackPositions: [],
+        });
         expect(persistedRestoreState).toEqual({
             hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
             favorites: [],
@@ -543,7 +558,7 @@ describe('PlaylistRefreshActionService', () => {
             preservePlaybackPositions: true,
             catalogSnapshot: {
                 key: `xtream-catalog-restore-${item._id}`,
-                generation: null,
+                generation: parkedState.generation,
             },
         });
         expect(store.dispatch).toHaveBeenCalledWith(
@@ -558,6 +573,7 @@ describe('PlaylistRefreshActionService', () => {
             'vod',
         ]);
         expect(executionOrder).toEqual([
+            'parkCatalogState',
             'setItem',
             'start',
             'dispatch',
