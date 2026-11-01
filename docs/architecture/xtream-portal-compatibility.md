@@ -389,12 +389,22 @@ history atomically with registration, then journals watch updates, individual
 and batch removals, and source/global history clears in their write transactions.
 Replay reads that journal in one transaction, so later user actions win over
 the parked JSON snapshot. Tombstones prevent deferred archive entries from
-undoing removals or clears. Deferred history ownership uses a generation token, so an older import cannot
-consume a newly parked archive. Resolved history replaces the owned deferred
-history before replay; hidden choices remain parked until applied. The journal is acknowledged only
-after deferred completion, and source deletion removes it. Category imports
+undoing removals or clears. Deferred history ownership uses a generation token,
+so an older import cannot consume a newly parked archive. Resolved history replaces the owned deferred
+history before replay; hidden choices remain parked until applied. The journal is
+acknowledged only after deferred completion, and source deletion removes it. Category imports
 already apply the parked hidden flags, so cache retry preserves live visibility
 instead of resetting it like an explicit backup restore.
+Ordinary Refresh prepares the same cache policy and native journal before
+catalog deletion. A pre-existing explicit archive keeps its authoritative state;
+a cache retry retains its current flags and still-dormant owned history.
+Older cache-only pending records without a journal/ownership token are upgraded
+before bootstrap imports (and before export). Only unfinished catalog types seed
+archival history; completed retained catalogs keep their current rows/removals.
+An existing journal is reused so its tombstones remain authoritative. Every
+explicit archive replay retries the journal reset first; a reset failure leaves
+the archive pending and prevents backup history from being replaced by an older
+cache journal.
 The read-only progress signal reports the current type, network/local phase and
 worker save counts. The editor stays modal with its close button hidden and uses
 the same shared `ImportProgressComponent` as the workspace scanning overlay;

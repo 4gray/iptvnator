@@ -1,9 +1,13 @@
 import {
     beginCatalogHistoryRecovery,
+    prepareLegacyCatalogHistoryRecovery,
+    captureCatalogCacheRecoveryState,
     clearCatalogHistoryRecovery,
     exportCatalogRecoveryState,
     readCatalogHistoryRecovery,
 } from './xtream-catalog-history-recovery';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
+import { XtreamPendingRestoreState } from '@iptvnator/shared/interfaces';
 
 const journal = {
     version: 1,
@@ -11,6 +15,7 @@ const journal = {
     recentlyViewed: [{ contentType: 'movie', xtreamId: 42, viewedAt: 'new' }],
 };
 const setup = () => ({
+    getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
     readAppState: jest
         .fn()
         .mockResolvedValue({ value: JSON.stringify(journal) }),
@@ -118,4 +123,111 @@ it('exports live category edits while retaining hidden choices for categories st
         { categoryType: 'movies', xtreamId: 9 },
         { categoryType: 'movies', xtreamId: 3 },
     ]);
+});
+
+const legacyState = (): XtreamPendingRestoreState => ({
+    favorites: [],
+    hiddenCategories: [],
+    playbackPositions: [],
+    preservePlaybackPositions: true,
+    recentlyViewed: [
+        { contentType: 'live', xtreamId: 1, viewedAt: 'old' },
+        { contentType: 'movie', xtreamId: 2, viewedAt: 'pending' },
+    ],
+});
+
+beforeEach(() => localStorage.clear());
+afterEach(() => localStorage.clear());
+
+it('seeds only unfinished older catalogs and deduplicates their pending/archive history', async () => {
+    const db = setup();
+    db.readAppState.mockResolvedValue({ value: null });
+    db.getXtreamImportStatus.mockImplementation(async (_id, type) =>
+        type === 'movie' ? 'failed' : 'completed'
+    );
+    localStorage.setItem(
+        'xtream-catalog-restore-p',
+        JSON.stringify({ version: 1, ...legacyState() })
+    );
+    const result = await prepareLegacyCatalogHistoryRecovery(
+        db,
+        new XtreamDeferredCatalogRestoreService(),
+        'p',
+        legacyState()
+    );
+    expect(result?.generation).toBe('legacy');
+    expect(JSON.parse(db.setAppState.mock.calls[0][1]).recentlyViewed).toEqual(
+        legacyState().recentlyViewed.slice(1)
+    );
+});
+
+it('never claims a newer archive or reseeds a journal that already records removals', async () => {
+    const db = setup();
+    const deferred = new XtreamDeferredCatalogRestoreService();
+    deferred.prepare('p', legacyState(), []);
+    expect(
+        await prepareLegacyCatalogHistoryRecovery(
+            db,
+            deferred,
+            'p',
+            legacyState()
+        )
+    ).toBeUndefined();
+    expect(db.setAppState).not.toHaveBeenCalled();
+    expect(db.getXtreamImportStatus).not.toHaveBeenCalled();
+    const state = {
+        ...legacyState(),
+        catalogSnapshot: { key: 'owned', generation: 'owned' },
+    };
+    await prepareLegacyCatalogHistoryRecovery(db, deferred, 'p', state);
+    expect(db.readAppState).toHaveBeenCalledTimes(1);
+    await prepareLegacyCatalogHistoryRecovery(db, deferred, 'p', {
+        ...legacyState(),
+        preservePlaybackPositions: undefined,
+    });
+    expect(db.readAppState).toHaveBeenCalledTimes(1);
+});
+
+it('fails older recovery before import if the native journal cannot be read', async () => {
+    const db = setup();
+    db.readAppState.mockResolvedValue(null);
+    await expect(
+        prepareLegacyCatalogHistoryRecovery(
+            db,
+            new XtreamDeferredCatalogRestoreService(),
+            'p',
+            legacyState()
+        )
+    ).rejects.toThrow('Could not read');
+    expect(db.setAppState).not.toHaveBeenCalled();
+});
+
+it('captures current visibility instead of resurrecting a parked hidden flag for an existing category', async () => {
+    const db = setup();
+    db.getAllXtreamCategories.mockImplementation(async (_id, type) =>
+        type === 'movies'
+            ? [{ type: 'movies', xtream_id: 2, hidden: false }]
+            : []
+    );
+    const deferred = new XtreamDeferredCatalogRestoreService();
+    deferred.prepare(
+        'p',
+        {
+            ...legacyState(),
+            hiddenCategories: [
+                { categoryType: 'movies', xtreamId: 2 },
+                { categoryType: 'series', xtreamId: 3 },
+            ],
+        },
+        []
+    );
+    const result = await captureCatalogCacheRecoveryState(db, deferred, 'p', [
+        'movie',
+    ]);
+    expect(result.state.hiddenCategories).toEqual([
+        { categoryType: 'series', xtreamId: 3 },
+    ]);
+    expect(result.state.preservePlaybackPositions).toBe(true);
+    expect(result.state.recentlyViewed).toEqual([]);
+    expect(result.archivedHistory).toEqual(legacyState().recentlyViewed);
 });

@@ -1,3 +1,4 @@
+import { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
@@ -79,6 +80,10 @@ describe('XtreamRefreshFlowService', () => {
     let order: string[];
     let databaseService: {
         restoreXtreamFavoriteSnapshots: jest.Mock;
+        readAppState: jest.Mock;
+        setAppState: jest.Mock;
+        getXtreamImportStatus: jest.Mock;
+        getAllXtreamCategories: jest.Mock;
         createOperationId: jest.Mock;
         deleteXtreamPlaylistContent: jest.Mock;
         updateXtreamPlaylistDetails: jest.Mock;
@@ -96,6 +101,10 @@ describe('XtreamRefreshFlowService', () => {
         order = [];
 
         databaseService = {
+            readAppState: jest.fn().mockResolvedValue({ value: null }),
+            setAppState: jest.fn().mockResolvedValue(true),
+            getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
+            getAllXtreamCategories: jest.fn().mockResolvedValue([]),
             restoreXtreamFavoriteSnapshots: jest.fn(() => {
                 order.push('save-favorites');
                 return Promise.resolve();
@@ -158,6 +167,168 @@ describe('XtreamRefreshFlowService', () => {
     afterEach(() => {
         jest.restoreAllMocks();
         localStorage.clear();
+    });
+
+    it('journals ordinary selective refresh before deleting and parks cache-only recovery', async () => {
+        service.confirmAndRefresh(
+            createPlaylistMeta({ xtreamContentTypes: ['movie'] }),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(databaseService.setAppState).toHaveBeenCalledWith(
+            'xtream-history-recovery:playlist-1',
+            expect.any(String)
+        );
+        expect(
+            databaseService.setAppState.mock.invocationCallOrder[0]
+        ).toBeLessThan(
+            databaseService.deleteXtreamPlaylistContent.mock
+                .invocationCallOrder[0]
+        );
+        expect(
+            JSON.parse(localStorage.getItem('xtream-restore-playlist-1')!)
+        ).toEqual(
+            expect.objectContaining({
+                preservePlaybackPositions: true,
+                catalogSnapshot: expect.objectContaining({ generation: null }),
+            })
+        );
+        expect(
+            playbackPositionService.getAllPlaybackPositions
+        ).not.toHaveBeenCalled();
+    });
+
+    it('retains the old catalog if native recovery cannot be registered', async () => {
+        databaseService.setAppState.mockResolvedValue(false);
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        service.confirmAndRefresh(
+            createPlaylistMeta(),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).not.toHaveBeenCalled();
+        expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('retains the old catalog if recovery cannot be parked before deletion', async () => {
+        jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new Error('storage unavailable');
+        });
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        service.confirmAndRefresh(
+            createPlaylistMeta(),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).not.toHaveBeenCalled();
+    });
+
+    it('preserves a pending explicit archive instead of replacing it with a cache snapshot', async () => {
+        const archive = {
+            favorites: [],
+            hiddenCategories: [],
+            recentlyViewed: [
+                { contentType: 'movie', xtreamId: 22, viewedAt: 'archive' },
+            ],
+            playbackPositions: [
+                { contentXtreamId: 22, contentType: 'vod', positionSeconds: 9 },
+            ],
+        };
+        localStorage.setItem(
+            'xtream-restore-playlist-1',
+            JSON.stringify(archive)
+        );
+        service.confirmAndRefresh(
+            createPlaylistMeta(),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(databaseService.setAppState).toHaveBeenCalledWith(
+            'xtream-history-recovery:playlist-1',
+            ''
+        );
+        expect(
+            JSON.parse(localStorage.getItem('xtream-restore-playlist-1')!)
+        ).toEqual(archive);
+    });
+
+    it('retains current visibility when restarting an older cache recovery', async () => {
+        localStorage.setItem(
+            'xtream-restore-playlist-1',
+            JSON.stringify({
+                favorites: [],
+                playbackPositions: [],
+                preservePlaybackPositions: true,
+                hiddenCategories: [{ categoryType: 'live', xtreamId: 1 }],
+                recentlyViewed: [],
+            })
+        );
+        databaseService.getAllXtreamCategories.mockImplementation(
+            async (_id, type) =>
+                type === 'live'
+                    ? [{ type: 'live', xtream_id: 1, hidden: false }]
+                    : []
+        );
+        service.confirmAndRefresh(
+            createPlaylistMeta(),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(
+            JSON.parse(localStorage.getItem('xtream-restore-playlist-1')!)
+                .hiddenCategories
+        ).toEqual([]);
+        expect(databaseService.deleteXtreamPlaylistContent).toHaveBeenCalled();
+    });
+
+    it('registers still-dormant owned history when a pending refresh has no active native journal', async () => {
+        const deferred = new XtreamDeferredCatalogRestoreService();
+        deferred.prepare(
+            'playlist-1',
+            {
+                favorites: [],
+                hiddenCategories: [],
+                playbackPositions: [],
+                recentlyViewed: [
+                    {
+                        contentType: 'series',
+                        xtreamId: 33,
+                        viewedAt: 'dormant',
+                    },
+                ],
+            },
+            []
+        );
+        const snapshot = deferred.getSnapshot('playlist-1');
+        localStorage.setItem(
+            'xtream-restore-playlist-1',
+            JSON.stringify({
+                favorites: [],
+                hiddenCategories: [],
+                playbackPositions: [],
+                recentlyViewed: [],
+                preservePlaybackPositions: true,
+                catalogSnapshot: {
+                    key: snapshot.key,
+                    generation: snapshot.generation,
+                },
+            })
+        );
+        service.confirmAndRefresh(
+            createPlaylistMeta(),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(
+            JSON.parse(databaseService.setAppState.mock.calls[0][1])
+                .recentlyViewed
+        ).toEqual([
+            { contentType: 'series', xtreamId: 33, viewedAt: 'dormant' },
+        ]);
     });
 
     it('converts legacy pending favorites before deleting or replacing the old catalog', async () => {

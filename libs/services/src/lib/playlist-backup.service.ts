@@ -369,7 +369,8 @@ export class PlaylistBackupService {
                       this.playbackPositionService,
                       playlist._id,
                       pending.hiddenCategories,
-                      pending.catalogSnapshot
+                      pending.catalogSnapshot,
+                      { state: pending, deferred: this.deferredRestore }
                   )
                 : null;
             // Other parked user state is authoritative during an import. Favorites

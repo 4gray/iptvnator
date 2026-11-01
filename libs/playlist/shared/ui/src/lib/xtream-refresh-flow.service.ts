@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, Injector, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -9,7 +9,6 @@ import {
     DatabaseService,
     type DbOperationEvent,
     isDbAbortError,
-    PlaybackPositionService,
     resetHostConnectivityGuard,
     SourceActivityService,
     XtreamPendingRestoreService,
@@ -18,6 +17,10 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     PlaylistMeta,
     getXtreamContentRoute,
+    normalizeXtreamContentTypes,
+    XTREAM_CONTENT_TYPES,
+    type XtreamBackupRecentlyViewedItem,
+    type XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import {
     measureRendererPerformancePhase,
@@ -79,7 +82,7 @@ export class XtreamRefreshFlowService {
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
     private readonly dataService = inject(DataService);
-    private readonly playbackPositionService = inject(PlaybackPositionService);
+    private readonly injector = inject(Injector);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
@@ -195,32 +198,92 @@ export class XtreamRefreshFlowService {
                 );
             }
 
-            // Delete content/categories and update the timestamp in parallel —
-            // all three operations are fully independent.
+            const recovery = await import('./xtream-refresh-recovery');
+            const deferred = this.injector.get(
+                recovery.XtreamDeferredCatalogRestoreService
+            );
+            if (pending && !pending.preservePlaybackPositions) {
+                // An unfinished explicit archive keeps its authoritative state.
+                await recovery.clearCatalogHistoryRecovery(
+                    this.databaseService,
+                    item._id
+                );
+            } else {
+                let state: XtreamPendingRestoreState;
+                let archivedHistory: XtreamBackupRecentlyViewedItem[];
+                if (pending) {
+                    const legacy =
+                        await recovery.prepareLegacyCatalogHistoryRecovery(
+                            this.databaseService,
+                            deferred,
+                            item._id,
+                            pending
+                        );
+                    const catalogSnapshot =
+                        pending.catalogSnapshot ??
+                        (legacy
+                            ? {
+                                  key: legacy.key,
+                                  generation: legacy.generation,
+                              }
+                            : undefined);
+                    state = {
+                        ...pending,
+                        recentlyViewed: [],
+                        hiddenCategories: (
+                            await recovery.readCatalogRecoveryVisibility(
+                                this.databaseService,
+                                item._id,
+                                pending.hiddenCategories
+                            )
+                        ).hiddenCategories,
+                        ...(catalogSnapshot ? { catalogSnapshot } : {}),
+                    };
+                    const archive = deferred.getSnapshot(item._id);
+                    const ownsArchive =
+                        pending.catalogSnapshot?.key === archive.key &&
+                        pending.catalogSnapshot.generation ===
+                            archive.generation;
+                    archivedHistory = ownsArchive
+                        ? archive.state.recentlyViewed
+                        : [];
+                } else {
+                    const captured =
+                        await recovery.captureCatalogCacheRecoveryState(
+                            this.databaseService,
+                            deferred,
+                            item._id,
+                            normalizeXtreamContentTypes(item.xtreamContentTypes)
+                        );
+                    state = captured.state;
+                    archivedHistory = captured.archivedHistory;
+                }
+                if (!this.pendingRestoreService.set(item._id, state))
+                    throw new Error(
+                        `Parking pending restore state for "${item._id}" failed.`
+                    );
+                await recovery.beginCatalogHistoryRecovery(
+                    this.databaseService,
+                    item._id,
+                    XTREAM_CONTENT_TYPES,
+                    archivedHistory
+                );
+            }
+
+            // Recovery is durable before deletion. Current positions remain in
+            // their own store; the cache policy never rewinds them on retry.
             const updateDate = Date.now();
-            const [restoreState, playbackPositions] = await Promise.all([
+            await Promise.all([
                 this.databaseService.deleteXtreamPlaylistContent(item._id, {
                     operationId,
                     contentTypes: item.xtreamContentTypes,
                     onEvent: (event) => reporter.report(run, event),
                 }),
-                this.playbackPositionService.getAllPlaybackPositions(item._id),
                 this.databaseService.updateXtreamPlaylistDetails({
                     id: item._id,
                     updateDate,
                 }),
             ]);
-
-            if (
-                !this.pendingRestoreService.set(item._id, {
-                    ...restoreState,
-                    playbackPositions,
-                })
-            ) {
-                throw new Error(
-                    `Parking pending restore state for "${item._id}" failed.`
-                );
-            }
 
             // Update the timestamp in NgRx / IndexedDB
             measureRendererPerformancePhase(

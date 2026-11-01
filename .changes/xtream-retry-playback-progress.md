@@ -3,4 +3,4 @@ type: fix
 area: xtream
 ---
 
-Retrying a failed catalog scan keeps viewing history, playback progress and category visibility changed after the failure, including later additions, removals and history clears. Backups exported while a scan awaits retry include the current state.
+Failed catalog scan retries preserve later history edits, playback progress and category visibility, including history clears. Older pending scans migrate before retry or export. Ordinary Refresh uses the same protection, and explicit backup retries reset stale recovery state before applying the archive. Exports use current state.

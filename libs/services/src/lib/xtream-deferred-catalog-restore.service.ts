@@ -273,6 +273,10 @@ export class XtreamDeferredCatalogRestoreService {
 }
 
 export {
+    prepareLegacyCatalogHistoryRecovery,
+    readCatalogRecoveryVisibility,
+    captureCatalogCacheRecoveryState,
+    exportCatalogRecoveryState,
     beginCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
     readCatalogHistoryRecovery,

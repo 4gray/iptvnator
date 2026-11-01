@@ -10,6 +10,7 @@ export async function recordCatalogRequests() {
     const actions: string[] = [];
     const userAgents = new Map<string, string>();
     let heldAction: string | null = null;
+    let failedAction: string | null = null;
     let heldResponse: Promise<void> = Promise.resolve();
     let releaseResponse: (() => void) | undefined;
     const server = createServer(async (request, response) => {
@@ -23,6 +24,14 @@ export async function recordCatalogRequests() {
             if (action) {
                 actions.push(action);
                 userAgents.set(action, request.headers['user-agent'] ?? '');
+            }
+            if (action === failedAction) {
+                response
+                    .writeHead(503, { 'Content-Type': 'application/json' })
+                    .end(
+                        JSON.stringify({ error: 'simulated catalog failure' })
+                    );
+                return;
             }
             if (action === heldAction) await heldResponse;
             const upstream = await fetch(url);
@@ -43,6 +52,12 @@ export async function recordCatalogRequests() {
     return {
         actions,
         userAgents,
+        fail(action: string) {
+            failedAction = action;
+            return () => {
+                failedAction = null;
+            };
+        },
         hold(action: string) {
             heldAction = action;
             heldResponse = new Promise<void>((resolve) => {

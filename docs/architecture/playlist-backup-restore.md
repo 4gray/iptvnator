@@ -116,7 +116,7 @@ conditional per-source cleanup so newer sources in another tab remain untouched.
 A failed pending-storage, recent-history or playback-position read fails export.
 An unreadable collection must never be serialized as a successful empty collection.
 
-Edit-time cache recovery uses an internal `preservePlaybackPositions: true`
+Edit-time and ordinary Refresh cache recovery use an internal `preservePlaybackPositions: true`
 policy because catalog replacement leaves position rows intact. Retry keeps the
 current rows, including progress, additions and removals made after a failure.
 Export during that recovery reads current positions rather than the parked
@@ -127,7 +127,11 @@ Its native history journal lives in profile-scoped SQLite `app_state`, using the
 or clears update that journal in the same transaction as live history. Export
 uses its current history and excludes already-owned or removed dormant entries;
 explicit backup import clears the journal after parking the new archive and
-passing restore preflight. Cache replay is atomic and keeps the journal until
+passing restore preflight. Pending explicit-archive retries repeat that reset
+before replay, and fail without changing history if it is still unavailable.
+Older cache-only pending records migrate their unfinished-type history into the
+journal before import or re-export; completed retained types keep current rows.
+Cache replay is atomic and keeps the journal until
 deferred state completes, so retry cannot undo intervening history actions.
 Cache-pending exports reconcile hidden flags by current category identity too:
 live visibility wins for present categories, while absent categories retain

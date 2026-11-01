@@ -309,12 +309,14 @@ ordinary startup does not need the editor's network and recovery orchestration.
 `@iptvnator/services/xtream-catalog-restore` similarly exposes dormant restore
 storage outside that barrel. The Electron data source loads it through a local
 dynamic-import wrapper only for restoration or source cleanup; startup services
-load it only when explicitly clearing history or sources.
+load it only when explicitly clearing history or sources. Ordinary Refresh uses
+a project-local `xtream-refresh-recovery` wrapper for the same cold boundary.
 The Electron data source also loads its project-local `xtream-category-import`
 helper only for cold category fills or failed-cache cleanup. Completed cache reads
 return before that import, preserving the warm path's startup work and IPC count.
 Full user-state replay also stays in the local `xtream-deferred-restore` module;
-the data source delegates to it only when restoring a backup or failed import.
+the data source delegates to it only when restoring a backup or failed import,
+or when the legacy cache-snapshot API is explicitly invoked.
 
 `@iptvnator/services/source-sync/connection` and
 `@iptvnator/services/source-sync/profile-user-data` expose the bootstrap helpers

@@ -682,26 +682,17 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async clearPlaylistContent(
         playlistId: string
     ): Promise<XtreamPendingRestoreState> {
-        const playlist = await this.getPlaylist(playlistId);
-        const [result, playbackPositions, sourcePins] = await Promise.all([
-            this.dbService.deleteXtreamPlaylistContent(playlistId, {
-                contentTypes: playlist?.xtreamContentTypes,
-            }),
-            this.playbackService.getAllPlaybackPositions(playlistId),
-            this.vodSourcePinService.listForPlaylist(playlistId),
-        ]);
-
-        return {
-            hiddenCategories: result.hiddenCategories,
-            favorites: result.favorites,
-            recentlyViewed: result.recentlyViewed,
-            playbackPositions,
-            sourcePins: sourcePins.map((pin) => ({
-                matchKey: pin.matchKey,
-                contentId: pin.contentId,
-                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
-            })),
-        };
+        const { clearElectronCatalogCache } =
+            await import('./xtream-deferred-restore');
+        return clearElectronCatalogCache(
+            {
+                db: this.dbService,
+                playback: this.playbackService,
+                pins: this.vodSourcePinService,
+                getPlaylist: (id) => this.getPlaylist(id),
+            },
+            playlistId
+        );
     }
 
     async restoreFavoriteSnapshots(
@@ -709,6 +700,18 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         state: XtreamPendingRestoreState
     ): Promise<void> {
         this.playbackService.assertSupportsAtomicReplacement();
+        if (state.preservePlaybackPositions && !state.catalogSnapshot) {
+            const {
+                prepareLegacyCatalogHistoryRecovery,
+                XtreamDeferredCatalogRestoreService,
+            } = await import('./xtream-deferred-restore');
+            await prepareLegacyCatalogHistoryRecovery(
+                this.dbService,
+                this.injector.get(XtreamDeferredCatalogRestoreService),
+                playlistId,
+                state
+            );
+        }
         await this.dbService.restoreXtreamFavoriteSnapshots(
             playlistId,
             state.favorites,

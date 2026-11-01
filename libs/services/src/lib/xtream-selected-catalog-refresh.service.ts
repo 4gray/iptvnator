@@ -6,10 +6,9 @@ import {
     XtreamContentType,
     XTREAM_REQUEST,
     XTREAM_CONTENT_TYPES,
-    XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import { DataService } from './data.service';
-import { DatabaseService, XCategoryFromDb } from './database-electron.service';
+import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
 import {
@@ -20,6 +19,7 @@ import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-r
 import {
     beginCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
+    captureCatalogCacheRecoveryState,
 } from './xtream-catalog-history-recovery';
 
 const actions = {
@@ -106,52 +106,14 @@ export class XtreamSelectedCatalogRefreshService {
             }
             publish(null, 'preparing');
             // Park user state BEFORE deletion so storage failure cannot erase history.
-            const categoriesByType = await Promise.all(
-                (['live', 'movies', 'series'] as const).map((type) =>
-                    this.db.getAllXtreamCategories(playlist._id, type)
-                )
-            );
-            let saved: XtreamPendingRestoreState = {
-                favorites: [],
-                playbackPositions: [],
-                preservePlaybackPositions: true,
-                hiddenCategories: ([] as XCategoryFromDb[])
-                    .concat(...categoriesByType)
-                    .filter((category) => category.hidden)
-                    .map((category) => ({
-                        categoryType: category.type,
-                        xtreamId: category.xtream_id,
-                    })),
-                recentlyViewed: [],
-            };
-            // Replay dormant state only for catalogs fetched by this refresh.
-            // The worker captures live history atomically before deleting any cache.
             const available = types;
-            const prepared = this.deferred.prepare(
+            const prepared = await captureCatalogCacheRecoveryState(
+                this.db,
+                this.deferred,
                 playlist._id,
-                saved,
-                available,
-                true
+                available
             );
-            saved = {
-                ...prepared.state,
-                recentlyViewed: [],
-                hiddenCategories: Array.from(
-                    new Map(
-                        [
-                            ...prepared.snapshot.state.hiddenCategories,
-                            ...prepared.state.hiddenCategories,
-                        ].map((row) => [
-                            `${row.categoryType}:${row.xtreamId}`,
-                            row,
-                        ])
-                    ).values()
-                ),
-                catalogSnapshot: {
-                    key: prepared.snapshot.key,
-                    generation: prepared.snapshot.generation,
-                },
-            };
+            const saved = prepared.state;
             snapshot = this.pending.set(playlist._id, saved);
             if (!snapshot) {
                 throw new Error('Could not retain source restore state.');
@@ -160,7 +122,7 @@ export class XtreamSelectedCatalogRefreshService {
                 this.db,
                 playlist._id,
                 [...XTREAM_CONTENT_TYPES],
-                prepared.snapshot.state.recentlyViewed
+                prepared.archivedHistory
             );
             historyPrepared = true;
             // Secure recovery before accepting metadata, but never replace a

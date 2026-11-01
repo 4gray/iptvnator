@@ -86,6 +86,10 @@ function createPlaylistMeta(
 describe('SourceListRefreshService', () => {
     let component: SourceListRefreshService;
     let databaseService: {
+        readAppState: jest.Mock;
+        setAppState: jest.Mock;
+        getXtreamImportStatus: jest.Mock;
+        getAllXtreamCategories: jest.Mock;
         cancelOperation: jest.Mock;
         createOperationId: jest.Mock;
         deletePlaylist: jest.Mock;
@@ -123,6 +127,16 @@ describe('SourceListRefreshService', () => {
 
     beforeEach(async () => {
         databaseService = {
+            readAppState: jest.fn().mockResolvedValue({ value: null }),
+            setAppState: jest.fn().mockResolvedValue(true),
+            getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
+            getAllXtreamCategories: jest
+                .fn()
+                .mockImplementation(async (_id, type) =>
+                    type === 'live'
+                        ? [{ xtream_id: 404, type: 'live', hidden: true }]
+                        : []
+                ),
             cancelOperation: jest.fn().mockResolvedValue(true),
             createOperationId: jest.fn((prefix: string) => `${prefix}-op`),
             deletePlaylist: jest.fn(),
@@ -410,18 +424,14 @@ describe('SourceListRefreshService', () => {
         );
         expect(persistedRestoreState).toEqual({
             hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
-            favorites: [
-                { xtreamId: 101, contentType: 'live' },
-                { xtreamId: 202, contentType: 'movie' },
-            ],
-            recentlyViewed: [
-                {
-                    xtreamId: 303,
-                    contentType: 'series',
-                    viewedAt: '2026-04-03T11:15:00.000Z',
-                },
-            ],
+            favorites: [],
+            recentlyViewed: [],
             playbackPositions: [],
+            preservePlaybackPositions: true,
+            catalogSnapshot: {
+                key: `xtream-catalog-restore-${item._id}`,
+                generation: null,
+            },
         });
         expect(router.navigate).toHaveBeenCalledWith([
             '/workspace',

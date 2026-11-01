@@ -8,6 +8,7 @@ import {
     type XtreamContentType,
 } from '@iptvnator/shared/interfaces';
 import type { DatabaseService } from './database-electron.service';
+import type { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import type { PlaybackPositionService } from './playback-position.service';
 
 export async function readCatalogHistoryRecovery(
@@ -47,42 +48,166 @@ export async function clearCatalogHistoryRecovery(
         throw new Error('Could not finish catalog history recovery.');
 }
 
+/** Upgrade older pending scans before bootstrap replaces their failed catalogs. */
+export async function prepareLegacyCatalogHistoryRecovery(
+    db: Pick<
+        DatabaseService,
+        'readAppState' | 'setAppState' | 'getXtreamImportStatus'
+    >,
+    deferred: XtreamDeferredCatalogRestoreService,
+    playlistId: string,
+    state: XtreamPendingRestoreState
+) {
+    if (!state.preservePlaybackPositions || state.catalogSnapshot)
+        return undefined;
+    const snapshot = deferred.getSnapshot(playlistId);
+    const owned =
+        snapshot.generation === null || snapshot.generation === 'legacy';
+    if (!(await readCatalogHistoryRecovery(db, playlistId))) {
+        const missing = new Set(
+            (
+                await Promise.all(
+                    XTREAM_CONTENT_TYPES.map(async (type) =>
+                        (await db.getXtreamImportStatus(playlistId, type)) !==
+                        'completed'
+                            ? type
+                            : null
+                    )
+                )
+            ).filter((type): type is XtreamContentType => type !== null)
+        );
+        // Existing completed catalogs own their current rows/removals. Only the
+        // deleted or unfinished catalogs need the older parked identities.
+        const archived = Array.from(
+            new Map(
+                [
+                    ...(owned ? snapshot.state.recentlyViewed : []),
+                    ...state.recentlyViewed,
+                ]
+                    .filter((row) => missing.has(row.contentType))
+                    .map((row) => [`${row.contentType}:${row.xtreamId}`, row])
+            ).values()
+        );
+        await beginCatalogHistoryRecovery(
+            db,
+            playlistId,
+            XTREAM_CONTENT_TYPES,
+            archived
+        );
+    }
+    return owned ? snapshot : undefined;
+}
+
+/** Current categories own visibility; absent identities keep their parked choice. */
+export async function readCatalogRecoveryVisibility(
+    db: Pick<DatabaseService, 'getAllXtreamCategories'>,
+    playlistId: string,
+    fallback: XtreamBackupHiddenCategory[] = []
+) {
+    const groups = await Promise.all(
+        XTREAM_CONTENT_TYPES.map(async (type) => {
+            const categoryType: XtreamBackupHiddenCategory['categoryType'] =
+                type === 'movie' ? 'movies' : type;
+            return (
+                await db.getAllXtreamCategories(playlistId, categoryType)
+            ).map((row) => ({
+                categoryType,
+                xtreamId: row.xtream_id,
+                hidden: row.hidden,
+            }));
+        })
+    );
+    const currentCategories = ([] as (typeof groups)[number]).concat(...groups);
+    const ids = new Set(
+        currentCategories.map((row) => `${row.categoryType}:${row.xtreamId}`)
+    );
+    return {
+        currentCategories,
+        hiddenCategories: [
+            ...fallback.filter(
+                (row) => !ids.has(`${row.categoryType}:${row.xtreamId}`)
+            ),
+            ...currentCategories
+                .filter((row) => row.hidden)
+                .map(({ categoryType, xtreamId }) => ({
+                    categoryType,
+                    xtreamId,
+                })),
+        ],
+    };
+}
+
+/** Capture catalog flags before either edit-time or ordinary refresh deletes rows. */
+export async function captureCatalogCacheRecoveryState(
+    db: Pick<DatabaseService, 'getAllXtreamCategories'>,
+    deferred: XtreamDeferredCatalogRestoreService,
+    playlistId: string,
+    available: readonly XtreamContentType[]
+) {
+    const visibility = await readCatalogRecoveryVisibility(db, playlistId);
+    const state: XtreamPendingRestoreState = {
+        favorites: [],
+        playbackPositions: [],
+        recentlyViewed: [],
+        preservePlaybackPositions: true,
+        hiddenCategories: visibility.hiddenCategories,
+    };
+    const prepared = deferred.prepare(playlistId, state, available, true);
+    return {
+        snapshot: prepared.snapshot,
+        archivedHistory: prepared.snapshot.state.recentlyViewed,
+        state: {
+            ...prepared.state,
+            recentlyViewed: [],
+            hiddenCategories: [
+                ...prepared.snapshot.state.hiddenCategories.filter(
+                    (row) =>
+                        !visibility.currentCategories.some(
+                            (current) =>
+                                current.categoryType === row.categoryType &&
+                                current.xtreamId === row.xtreamId
+                        )
+                ),
+                ...visibility.hiddenCategories,
+            ],
+            catalogSnapshot: {
+                key: prepared.snapshot.key,
+                generation: prepared.snapshot.generation,
+            },
+        } satisfies XtreamPendingRestoreState,
+    };
+}
+
 export async function exportCatalogRecoveryState(
     db: Pick<
         DatabaseService,
-        'readAppState' | 'getRecentItemsOrThrow' | 'getAllXtreamCategories'
+        | 'readAppState'
+        | 'setAppState'
+        | 'getXtreamImportStatus'
+        | 'getRecentItemsOrThrow'
+        | 'getAllXtreamCategories'
     >,
     positions: Pick<PlaybackPositionService, 'getAllPlaybackPositionsOrThrow'>,
     playlistId: string,
     hiddenFallback: XtreamBackupHiddenCategory[] = [],
-    snapshot?: XtreamPendingRestoreState['catalogSnapshot']
+    snapshot?: XtreamPendingRestoreState['catalogSnapshot'],
+    legacy?: {
+        state: XtreamPendingRestoreState;
+        deferred: XtreamDeferredCatalogRestoreService;
+    }
 ) {
-    const [journal, categories] = await Promise.all([
+    const upgraded = legacy
+        ? await prepareLegacyCatalogHistoryRecovery(
+              db,
+              legacy.deferred,
+              playlistId,
+              legacy.state
+          )
+        : undefined;
+    const [journal, visibility] = await Promise.all([
         readCatalogHistoryRecovery(db, playlistId),
-        Promise.all(
-            XTREAM_CONTENT_TYPES.map(async (type) => {
-                const categoryType: XtreamBackupHiddenCategory['categoryType'] =
-                    type === 'movie' ? 'movies' : type;
-                return (
-                    await db.getAllXtreamCategories(playlistId, categoryType)
-                ).map(
-                    (
-                        row
-                    ): XtreamBackupHiddenCategory & { hidden: boolean } => ({
-                        categoryType,
-                        xtreamId: row.xtream_id,
-                        hidden: row.hidden,
-                    })
-                );
-            })
-        ),
+        readCatalogRecoveryVisibility(db, playlistId, hiddenFallback),
     ]);
-    const currentCategories = ([] as (typeof categories)[number]).concat(
-        ...categories
-    );
-    const currentIds = new Set(
-        currentCategories.map((row) => `${row.categoryType}:${row.xtreamId}`)
-    );
     const recentlyViewed =
         journal?.recentlyViewed ??
         (await db.getRecentItemsOrThrow(playlistId)).map((row) => ({
@@ -94,20 +219,10 @@ export async function exportCatalogRecoveryState(
         recentlyViewed,
         historyRecovery: {
             ...(journal ?? { contentTypes: [] }),
-            currentCategories,
-            snapshot,
+            currentCategories: visibility.currentCategories,
+            snapshot: snapshot ?? upgraded,
         },
-        hiddenCategories: [
-            ...hiddenFallback.filter(
-                (row) => !currentIds.has(`${row.categoryType}:${row.xtreamId}`)
-            ),
-            ...currentCategories
-                .filter((row) => row.hidden)
-                .map(({ categoryType, xtreamId }) => ({
-                    categoryType,
-                    xtreamId,
-                })),
-        ],
+        hiddenCategories: visibility.hiddenCategories,
         playbackPositions:
             await positions.getAllPlaybackPositionsOrThrow(playlistId),
     };

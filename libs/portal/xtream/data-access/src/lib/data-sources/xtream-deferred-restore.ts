@@ -15,6 +15,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import {
     XtreamDeferredCatalogRestoreService,
+    prepareLegacyCatalogHistoryRecovery,
     beginCatalogHistoryRecovery,
     readCatalogHistoryRecovery,
     clearCatalogHistoryRecovery,
@@ -23,7 +24,10 @@ import type { XtreamOperationOptions } from './xtream-data-source.interface';
 
 // Local dynamic-import target: keep restoration-only work off the startup path.
 export { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
-export { clearCatalogHistoryRecovery } from '@iptvnator/services/xtream-catalog-restore';
+export {
+    prepareLegacyCatalogHistoryRecovery,
+    clearCatalogHistoryRecovery,
+} from '@iptvnator/services/xtream-catalog-restore';
 
 /** Full recovery is cold work; keep it outside the warm-cache data-source module. */
 export async function restoreElectronUserData(
@@ -46,6 +50,14 @@ export async function restoreElectronUserData(
 ): Promise<void> {
     services.playback.assertSupportsAtomicReplacement();
     const deferred = services.injector.get(XtreamDeferredCatalogRestoreService);
+    if (restoreState.preservePlaybackPositions)
+        await prepareLegacyCatalogHistoryRecovery(
+            services.db,
+            deferred,
+            playlistId,
+            restoreState
+        );
+    else await clearCatalogHistoryRecovery(services.db, playlistId);
     const categories = await Promise.all(
         (['live', 'movies', 'series'] as const).map((type) =>
             services.db.getAllXtreamCategories(playlistId, type)
@@ -119,15 +131,15 @@ export async function prepareUserDataRestore(
     if (state.preservePlaybackPositions) {
         const original = deferred.getSnapshot(playlistId);
         const owned = state.catalogSnapshot;
-        const owns =
-            !!owned &&
-            owned.key === original.key &&
-            owned.generation === original.generation;
+        const owns = owned
+            ? owned.key === original.key &&
+              owned.generation === original.generation
+            : original.generation === null || original.generation === 'legacy';
         await beginCatalogHistoryRecovery(
             db,
             playlistId,
             [...XTREAM_CONTENT_TYPES],
-            owns ? original.state.recentlyViewed : []
+            owns && owned ? original.state.recentlyViewed : []
         );
         const current = await readCatalogHistoryRecovery(db, playlistId);
         if (!current)
@@ -223,4 +235,38 @@ export async function resolveAvailableCatalogs(
             )
         )
     ).filter((type): type is XtreamContentType => type !== null);
+}
+
+/** Legacy cache-snapshot API is cold work too; keep its existing semantics. */
+export async function clearElectronCatalogCache(
+    services: {
+        db: Pick<DatabaseService, 'deleteXtreamPlaylistContent'>;
+        playback: Pick<PlaybackPositionService, 'getAllPlaybackPositions'>;
+        pins: Pick<VodSourcePinService, 'listForPlaylist'>;
+        getPlaylist: (
+            id: string
+        ) => Promise<{ xtreamContentTypes?: XtreamContentType[] } | null>;
+    },
+    playlistId: string
+): Promise<XtreamPendingRestoreState> {
+    const playlist = await services.getPlaylist(playlistId);
+    const [result, playbackPositions, sourcePins] = await Promise.all([
+        services.db.deleteXtreamPlaylistContent(playlistId, {
+            contentTypes: playlist?.xtreamContentTypes,
+        }),
+        services.playback.getAllPlaybackPositions(playlistId),
+        services.pins.listForPlaylist(playlistId),
+    ]);
+
+    return {
+        hiddenCategories: result.hiddenCategories,
+        favorites: result.favorites,
+        recentlyViewed: result.recentlyViewed,
+        playbackPositions,
+        sourcePins: sourcePins.map((pin) => ({
+            matchKey: pin.matchKey,
+            contentId: pin.contentId,
+            ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+        })),
+    };
 }

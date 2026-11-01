@@ -78,6 +78,10 @@ function createPlaylistMeta(
 describe('PlaylistRefreshActionService', () => {
     let service: PlaylistRefreshActionService;
     let databaseService: {
+        readAppState: jest.Mock;
+        setAppState: jest.Mock;
+        getXtreamImportStatus: jest.Mock;
+        getAllXtreamCategories: jest.Mock;
         createOperationId: jest.Mock;
         deleteXtreamPlaylistContent: jest.Mock;
         updateXtreamPlaylistDetails: jest.Mock;
@@ -121,6 +125,16 @@ describe('PlaylistRefreshActionService', () => {
         localStorage.clear();
 
         databaseService = {
+            readAppState: jest.fn().mockResolvedValue({ value: null }),
+            setAppState: jest.fn().mockResolvedValue(true),
+            getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
+            getAllXtreamCategories: jest
+                .fn()
+                .mockImplementation(async (_id, type) =>
+                    type === 'live'
+                        ? [{ xtream_id: 404, type: 'live', hidden: true }]
+                        : []
+                ),
             createOperationId: jest.fn((prefix: string) => `${prefix}-op`),
             deleteXtreamPlaylistContent: jest.fn().mockResolvedValue({
                 success: true,
@@ -523,24 +537,14 @@ describe('PlaylistRefreshActionService', () => {
         );
         expect(persistedRestoreState).toEqual({
             hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
-            favorites: [
-                {
-                    xtreamId: 101,
-                    contentType: 'live',
-                },
-                {
-                    xtreamId: 202,
-                    contentType: 'movie',
-                },
-            ],
-            recentlyViewed: [
-                {
-                    xtreamId: 303,
-                    contentType: 'series',
-                    viewedAt: '2026-04-04T08:00:00.000Z',
-                },
-            ],
+            favorites: [],
+            recentlyViewed: [],
             playbackPositions: [],
+            preservePlaybackPositions: true,
+            catalogSnapshot: {
+                key: `xtream-catalog-restore-${item._id}`,
+                generation: null,
+            },
         });
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({

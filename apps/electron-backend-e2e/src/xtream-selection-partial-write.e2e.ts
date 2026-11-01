@@ -66,8 +66,12 @@ async function faultAndCount(
     );
 }
 
-for (const failCleanup of [false, true])
-    test(`interrupted catalog writes restore the full catalog and history (cleanup=${failCleanup})`, async ({
+for (const { failCleanup, legacy } of [
+    { failCleanup: false, legacy: false },
+    { failCleanup: true, legacy: false },
+    { failCleanup: false, legacy: true },
+])
+    test(`interrupted catalog writes restore the full catalog and history (cleanup=${failCleanup}, legacy=${legacy})`, async ({
         dataDir,
         request,
     }) => {
@@ -217,6 +221,32 @@ for (const failCleanup of [false, true])
             expect(await faultAndCount(app, dataDir, id, false)).toBe(
                 failCleanup ? 5000 : 0
             );
+            if (legacy) {
+                // Persist the exact older shape: full pending history, no ownership
+                // token and no native journal. Later actions affect SQLite only.
+                await page.evaluate(async (id) => {
+                    const key = `xtream-restore-${id}`;
+                    const state = JSON.parse(localStorage.getItem(key)!);
+                    const journal = JSON.parse(
+                        (await window.electron.dbGetAppState(
+                            `xtream-history-recovery:${id}`
+                        ))!
+                    );
+                    state.recentlyViewed = journal.recentlyViewed;
+                    delete state.catalogSnapshot;
+                    localStorage.setItem(key, JSON.stringify(state));
+                    const deferredKey = `xtream-catalog-restore-${id}`;
+                    const deferred = JSON.parse(
+                        localStorage.getItem(deferredKey)!
+                    );
+                    delete deferred.generation;
+                    localStorage.setItem(deferredKey, JSON.stringify(deferred));
+                    await window.electron.dbSetAppState(
+                        `xtream-history-recovery:${id}`,
+                        ''
+                    );
+                }, id);
+            }
             await page.evaluate(
                 async ({ id, retained }) => {
                     await window.electron.dbAddRecentItem(retained[0], id);

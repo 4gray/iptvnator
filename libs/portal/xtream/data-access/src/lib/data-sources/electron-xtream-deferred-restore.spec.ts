@@ -224,3 +224,75 @@ it.each([false, true])(
         }
     }
 );
+
+it('upgrades older cache recovery before importing and keeps retained-catalog history authoritative', async () => {
+    const { dataSource, dbService } = setupElectronXtreamDataSource();
+    localStorage.setItem(
+        'xtream-catalog-restore-p',
+        JSON.stringify({ version: 1, ...archive })
+    );
+    dbService.getXtreamImportStatus.mockImplementation(async (_id, type) =>
+        type === 'movie' ? 'failed' : 'completed'
+    );
+    const legacy = { ...archive, preservePlaybackPositions: true as const };
+    await dataSource.restoreFavoriteSnapshots('p', legacy);
+    expect(dbService.setAppState).toHaveBeenCalledWith(
+        'xtream-history-recovery:p',
+        expect.any(String)
+    );
+    expect(
+        JSON.parse(dbService.setAppState.mock.calls[0][1]).recentlyViewed
+    ).toEqual(archive.recentlyViewed.slice(1));
+    const current = [
+        { contentType: 'live' as const, xtreamId: 11, viewedAt: 'new' },
+        archive.recentlyViewed[1],
+    ];
+    dbService.readAppState.mockResolvedValue({
+        value: JSON.stringify({
+            version: 1,
+            contentTypes: ['live', 'movie', 'series'],
+            recentlyViewed: current,
+        }),
+    });
+    dbService.getXtreamImportStatus.mockResolvedValue('completed');
+    await dataSource.restoreUserData('p', legacy);
+    expect(dbService.restoreXtreamUserData).toHaveBeenLastCalledWith(
+        'p',
+        [],
+        current,
+        undefined
+    );
+    expect(
+        TestBed.inject(XtreamDeferredCatalogRestoreService).forExport('p', {
+            hiddenCategories: [],
+            recentlyViewed: [],
+        }).recentlyViewed
+    ).toEqual([]);
+});
+
+it('retries a failed explicit-backup journal reset before applying any archive history', async () => {
+    const { dataSource, dbService, playbackService } =
+        setupElectronXtreamDataSource();
+    dbService.setAppState.mockResolvedValueOnce(false);
+    await expect(dataSource.restoreUserData('p', archive)).rejects.toThrow(
+        'Could not finish catalog history recovery'
+    );
+    expect(dbService.restoreXtreamUserData).not.toHaveBeenCalled();
+    expect(dbService.updateCategoryVisibility).not.toHaveBeenCalled();
+    expect(playbackService.replaceAllPlaybackPositions).not.toHaveBeenCalled();
+    await dataSource.restoreUserData('p', archive);
+    expect(dbService.setAppState).toHaveBeenNthCalledWith(
+        2,
+        'xtream-history-recovery:p',
+        ''
+    );
+    expect(dbService.restoreXtreamUserData).toHaveBeenCalledWith(
+        'p',
+        [],
+        archive.recentlyViewed,
+        undefined
+    );
+    expect(dbService.setAppState.mock.invocationCallOrder[1]).toBeLessThan(
+        dbService.restoreXtreamUserData.mock.invocationCallOrder[0]
+    );
+});
