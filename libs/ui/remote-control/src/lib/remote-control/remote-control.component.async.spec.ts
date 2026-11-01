@@ -259,6 +259,24 @@ describe('RemoteControlComponent asynchronous rendering', () => {
         await settle();
     });
 
+    it('resumes polling and enables controls after a command rejects', async () => {
+        await loadInitial();
+        const action = deferred<void>();
+        const recovered = deferred<RemoteControlStatus>();
+        service.channelUp.mockReturnValueOnce(action.promise);
+        button('.touchpad__button--up').click();
+        await settle();
+        action.reject(new Error('Command request timed out'));
+        await settle();
+        expect(button('.touchpad__button--up').disabled).toBe(false);
+        service.getStatus.mockReturnValueOnce(recovered.promise);
+        poll();
+        expect(service.getStatus).toHaveBeenCalledTimes(2);
+        recovered.resolve(status('Recovered channel'));
+        await settle();
+        expect(text('.now-card__channel')).toBe('Recovered channel');
+    });
+
     it('resumes polling after a status request rejects', async () => {
         await loadInitial();
         const stalled = deferred<RemoteControlStatus>();

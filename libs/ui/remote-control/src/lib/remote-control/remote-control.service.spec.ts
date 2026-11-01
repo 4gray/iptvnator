@@ -57,4 +57,35 @@ describe('RemoteControlService status requests', () => {
         flushMicrotasks();
         expect(recovered).toEqual(status);
     }));
+    it.each([
+        ['channelUp', 'channel/up'],
+        ['channelDown', 'channel/down'],
+        ['selectChannelByNumber', 'channel/select-number'],
+        ['volumeUp', 'volume/up'],
+        ['volumeDown', 'volume/down'],
+        ['toggleMute', 'volume/toggle-mute'],
+    ] as const)(
+        'cancels a stalled %s command and permits status recovery',
+        fakeAsync((method, path) => {
+            let failure: unknown;
+            const command =
+                method === 'selectChannelByNumber'
+                    ? service.selectChannelByNumber(7)
+                    : service[method]();
+            void command.catch((error) => (failure = error));
+            const stalled = http.expectOne(`/api/remote-control/${path}`);
+            expect(stalled.request.method).toBe('POST');
+            expect(stalled.request.body).toEqual(
+                method === 'selectChannelByNumber' ? { number: 7 } : {}
+            );
+            tick(10_000);
+            expect(failure).toBeInstanceOf(TimeoutError);
+            expect(stalled.cancelled).toBe(true);
+            let recovered: RemoteControlStatus | undefined;
+            void service.getStatus().then((value) => (recovered = value));
+            http.expectOne('/api/remote-control/status').flush(status);
+            flushMicrotasks();
+            expect(recovered).toEqual(status);
+        })
+    );
 });
