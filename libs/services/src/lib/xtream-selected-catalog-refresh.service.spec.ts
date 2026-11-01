@@ -70,6 +70,7 @@ describe('edit-time Xtream catalog refresh', () => {
         db.deleteXtreamPlaylistContent.mockResolvedValue(saved);
         db.clearXtreamImportCache.mockResolvedValue(true);
         db.setAppState.mockResolvedValue(true);
+        db.setXtreamImportStatus.mockResolvedValue(true);
         db.getAllXtreamCategories.mockResolvedValue([]);
         db.getXtreamImportStatus.mockResolvedValue('completed');
         db.getRecentItemsOrThrow.mockResolvedValue([
@@ -133,6 +134,26 @@ describe('edit-time Xtream catalog refresh', () => {
         );
         expect(db.restoreXtreamUserData).toHaveBeenCalledWith('p', [], []);
         expect(release).toHaveBeenCalled();
+    });
+
+    it('durably marks replacement before deletion and every catalog write', async () => {
+        await service.refresh(playlist, ['movie']);
+        const marks = db.setXtreamImportStatus.mock.calls
+            .map((call, index) => ({
+                call,
+                order: db.setXtreamImportStatus.mock.invocationCallOrder[index],
+            }))
+            .filter(({ call }) => call[2] === 'importing');
+        expect(marks).toHaveLength(2);
+        expect(marks[0].order).toBeLessThan(
+            db.deleteXtreamPlaylistContent.mock.invocationCallOrder[0]
+        );
+        expect(marks[1].order).toBeGreaterThan(
+            db.deleteXtreamPlaylistContent.mock.invocationCallOrder[0]
+        );
+        expect(marks[1].order).toBeLessThan(
+            db.saveXtreamCategories.mock.invocationCallOrder[0]
+        );
     });
 
     it('does not mutate retained state when the metadata save is rejected after fetching', async () => {

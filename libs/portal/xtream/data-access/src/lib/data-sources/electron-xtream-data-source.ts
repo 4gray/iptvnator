@@ -226,7 +226,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // phase so the sync overlay never shows a phaseless card.
         options?.onPhaseChange?.('loading-cached');
         const importStatus = await this.getImportStatus(playlistId, importType);
-        if (importStatus === 'failed' || importStatus === 'cancelled') {
+        if (
+            importStatus !== 'completed' &&
+            (importStatus !== 'idle' ||
+                this.pendingRestoreService.get(playlistId)
+                    ?.preservePlaybackPositions)
+        ) {
             const { clearIncompleteCatalog } =
                 await import('./xtream-category-import');
             await clearIncompleteCatalog(

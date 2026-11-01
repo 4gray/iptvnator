@@ -15,6 +15,7 @@ type MockIpcEvent = {
     sender: {
         isDestroyed: jest.Mock<boolean, []>;
         send: jest.Mock;
+        session: { flushStorageData: jest.Mock };
     };
 };
 
@@ -59,6 +60,7 @@ function createIpcEvent(): MockIpcEvent {
         sender: {
             isDestroyed: jest.fn(() => false),
             send: jest.fn(),
+            session: { flushStorageData: jest.fn() },
         },
     };
 }
@@ -80,6 +82,19 @@ function getLastWorkerRequestCall(): unknown[] {
 }
 
 describe('database worker IPC contract', () => {
+    it('flushes parked DOM recovery before native catalog deletion', async () => {
+        const event = createIpcEvent();
+        await getHandler('DB_DELETE_XTREAM_CONTENT')(
+            event,
+            playlistId,
+            operationId
+        );
+        expect(event.sender.session.flushStorageData).toHaveBeenCalledTimes(1);
+        expect(
+            event.sender.session.flushStorageData.mock.invocationCallOrder[0]
+        ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
+    });
+
     beforeEach(async () => {
         jest.resetModules();
         mockRegisteredHandlers.clear();

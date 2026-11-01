@@ -4,7 +4,7 @@ import {
 } from './electron-xtream-data-source.test-helpers';
 
 describe('unfinished catalog cache recovery', () => {
-    it.each(['failed', 'cancelled'])(
+    it.each(['failed', 'cancelled', 'importing'])(
         'clears %s cache before importing categories again',
         async (status) => {
             const { dataSource, dbService, apiService } =
@@ -25,6 +25,19 @@ describe('unfinished catalog cache recovery', () => {
             );
         }
     );
+
+    it('clears an idle cache left by interrupted deletion when cache recovery is pending', async () => {
+        const { dataSource, dbService, pendingRestoreService } =
+            setupElectronXtreamDataSource();
+        pendingRestoreService.get.mockReturnValue({
+            preservePlaybackPositions: true,
+        });
+        await dataSource.getCategories('p', credentials, 'vod');
+        expect(dbService.clearXtreamImportCache).toHaveBeenCalledWith(
+            'p',
+            'movie'
+        );
+    });
 
     it('blocks retry if partial rows still cannot be removed', async () => {
         const { dataSource, dbService, apiService } =

@@ -443,6 +443,11 @@ types survive a failure in another type or in user-state replay. An existing
 pending restore blocks a new edit before metadata persistence. Recovery prepared
 for a rejected `beforeReplace` callback is removed only if its pending revision
 still belongs to that attempt.
+Edit-time replacement persists an unfinished status before deletion and re-arms
+it before native saves. The deletion IPC flushes the sender session’s DOM storage
+before native work, so an immediate process exit cannot drop the parked snapshot.
+Startup clears leftover `importing` caches, including
+`idle` caches with a pending cache-recovery record after interrupted deletion.
 Bootstrap also clears leftover failed/cancelled type caches before reading or
 reimporting categories. If cleanup still fails, retry stops before provider or
 save work, retaining pending history. Completed warm caches keep their existing

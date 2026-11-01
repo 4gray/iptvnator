@@ -129,11 +129,17 @@ export class XtreamSelectedCatalogRefreshService {
             // catalog until the authoritative edit is accepted.
             await beforeReplace?.();
             replacementStarted = true;
-            for (const type of types) incomplete.add(type);
+            for (const type of types) {
+                incomplete.add(type);
+                await this.markUnfinished(playlist._id, type);
+            }
             await this.db.deleteXtreamPlaylistContent(playlist._id, {
                 contentTypes: types,
             });
             for (const { type, categories, content } of catalogs) {
+                // Deletion resets existing status keys to idle; re-arm before
+                // any native batch can commit without renderer cleanup.
+                await this.markUnfinished(playlist._id, type);
                 const categoryType = type === 'movie' ? 'movies' : type;
                 publish(type, 'saving-categories');
                 await this.db.saveXtreamCategories(
@@ -237,6 +243,20 @@ export class XtreamSelectedCatalogRefreshService {
             this.progressState.set(null);
             release();
         }
+    }
+
+    private async markUnfinished(
+        playlistId: string,
+        type: XtreamContentType
+    ): Promise<void> {
+        if (
+            !(await this.db.setXtreamImportStatus(
+                playlistId,
+                type,
+                'importing'
+            ))
+        )
+            throw new Error('Could not retain unfinished catalog state.');
     }
 
     private async request<T>(
