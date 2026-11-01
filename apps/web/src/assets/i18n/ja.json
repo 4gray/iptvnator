@@ -1936,6 +1936,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "フィルターパネルを切り替え",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "フィルター",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "設定セクションパネルを切り替え",
+            "CLEAR_CATEGORY_FILTER": "カテゴリーフィルターを解除",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "設定セクション",
             "ADD_PLAYLIST_ALL": "プレイリストを追加",
             "ADD_PLAYLIST": "プレイリストを追加",

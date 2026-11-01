@@ -111,6 +111,27 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(input.selectionEnd).toBe('matrix'.length);
     });
 
+    it.each([false, true])(
+        'associates the search label with the input when the category dismiss button is %s',
+        (canClearCategoryScope) => {
+            fixture.componentRef.setInput(
+                'searchScopeLabel',
+                'Live TV / Sports'
+            );
+            fixture.componentRef.setInput(
+                'canClearCategoryScope',
+                canClearCategoryScope
+            );
+            fixture.detectChanges();
+
+            const label: HTMLLabelElement =
+                fixture.nativeElement.querySelector('.search-field');
+            expect(label.control).toBe(
+                fixture.nativeElement.querySelector('input[type="search"]')
+            );
+        }
+    );
+
     it('emits add playlist requests when the toolbar add button is clicked', () => {
         const requested = jest.fn();
         component.addPlaylistRequested.subscribe(requested);
@@ -259,6 +280,69 @@ describe('WorkspaceShellHeaderComponent', () => {
 
         expect(chips).toEqual(['Movies / All Items', 'Loaded channels only']);
     });
+
+    it('renders the whole category scope chip as one dismiss button', () => {
+        fixture.componentRef.setInput(
+            'searchScopeLabel',
+            'Live Streams / Sports'
+        );
+        fixture.componentRef.setInput('canClearCategoryScope', true);
+        fixture.detectChanges();
+
+        const clearBtn: HTMLButtonElement | null =
+            fixture.nativeElement.querySelector(
+                '[data-test-id="workspace-search-scope-clear"]'
+            );
+        expect(clearBtn).not.toBeNull();
+        expect(clearBtn?.tagName).toBe('BUTTON');
+        expect(
+            clearBtn?.querySelector('.search-chip__label')?.textContent
+        ).toBe('Live Streams / Sports');
+        expect(clearBtn?.querySelector('button')).toBeNull();
+    });
+
+    it('keeps the all-items scope non-interactive', () => {
+        fixture.componentRef.setInput('searchScopeLabel', 'Movies / All items');
+        fixture.componentRef.setInput('canClearCategoryScope', false);
+        fixture.detectChanges();
+
+        const chip: HTMLElement = fixture.nativeElement.querySelector(
+            '.search-chip--scope'
+        );
+        expect(chip.tagName).toBe('SPAN');
+        expect(chip.querySelector('button')).toBeNull();
+        expect(chip.hasAttribute('tabindex')).toBe(false);
+    });
+
+    it.each(['.search-chip__label', 'mat-icon'])(
+        'clears the category and focuses search when clicking %s on the chip',
+        (targetSelector) => {
+            const spy = jest.fn();
+            fixture.componentInstance.clearCategoryScopeRequested.subscribe(
+                spy
+            );
+            fixture.componentRef.setInput(
+                'searchScopeLabel',
+                'Live Streams / Sports'
+            );
+            fixture.componentRef.setInput('canClearCategoryScope', true);
+            fixture.detectChanges();
+
+            const clearBtn: HTMLButtonElement =
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="workspace-search-scope-clear"]'
+                );
+            const target = clearBtn.querySelector<HTMLElement>(targetSelector);
+            expect(target).not.toBeNull();
+            target?.click();
+            fixture.detectChanges();
+
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect(document.activeElement).toBe(
+                fixture.nativeElement.querySelector('input[type="search"]')
+            );
+        }
+    );
 
     it('renders the global active download count without duplicating the button name', () => {
         fixture.componentRef.setInput('isElectron', true);

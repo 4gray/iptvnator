@@ -1936,6 +1936,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Filtre panelini aç/kapat",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filtreler",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Ayar bölümleri panelini aç/kapat",
+            "CLEAR_CATEGORY_FILTER": "Kategori filtresini temizle",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Ayar bölümleri",
             "ADD_PLAYLIST_ALL": "Oynatma listesi ekle",
             "ADD_PLAYLIST": "Oynatma listesi ekle",

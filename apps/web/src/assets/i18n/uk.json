@@ -1936,6 +1936,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Перемкнути панель фільтрів",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Фільтри",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Перемкнути панель розділів налаштувань",
+            "CLEAR_CATEGORY_FILTER": "Очистити фільтр категорій",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Розділи налаштувань",
             "ADD_PLAYLIST_ALL": "Додати плейлист (всі плейлисти)",
             "ADD_PLAYLIST": "Додати плейлист",

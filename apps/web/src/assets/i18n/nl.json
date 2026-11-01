@@ -1936,6 +1936,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "Filterpaneel tonen of verbergen",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filters",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Paneel met instellingensecties tonen of verbergen",
+            "CLEAR_CATEGORY_FILTER": "Categoriefilter wissen",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Instellingensecties",
             "ADD_PLAYLIST_ALL": "Afspeellijst toevoegen",
             "ADD_PLAYLIST": "Afspeellijst toevoegen",

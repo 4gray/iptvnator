@@ -116,6 +116,50 @@
         color: var(--mat-sys-on-surface);
     }
 
+    .search-chip--dismissible {
+        padding-inline-end: 6px;
+        gap: 4px;
+        font-family: inherit;
+        cursor: pointer;
+        app-region: no-drag;
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease;
+
+        mat-icon {
+            font-size: 13px;
+            width: 13px;
+            height: 13px;
+            color: inherit;
+        }
+
+        &:hover,
+        &:focus-visible {
+            color: var(--app-on-surface);
+            background: color-mix(
+                in srgb,
+                var(--app-on-surface) 14%,
+                var(--mat-sys-surface-container-high)
+            );
+            border-color: color-mix(
+                in srgb,
+                var(--app-on-surface) 38%,
+                transparent
+            );
+        }
+
+        &:focus-visible {
+            @include focus-ring.focus-ring-declarations($offset: 1px);
+        }
+    }
+
+    .search-chip__label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .search-chip--status {
         color: var(--app-selection-color, var(--mat-sys-primary));
         background: color-mix(

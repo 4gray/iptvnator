@@ -18,6 +18,7 @@ import {
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
 import { ParentalLockService } from '@iptvnator/services';
 import { WorkspaceContextPanelComponent } from './workspace-context-panel.component';
+import { WorkspaceShellSearchSyncService } from '../workspace-shell/services/workspace-shell-search-sync.service';
 
 const translations: Record<string, string> = {
     'WORKSPACE.CONTEXT.MANAGE_CATEGORIES': 'Manage categories',
@@ -36,6 +37,7 @@ const translations: Record<string, string> = {
 
 interface RouteSnapshotStub {
     routeConfig: { path: string } | null;
+    url: { path: string }[];
     paramMap: { has: (param: string) => boolean };
     children: RouteSnapshotStub[];
 }
@@ -47,6 +49,7 @@ function createRouteSnapshot(
 ): RouteSnapshotStub {
     return {
         routeConfig: path ? { path } : null,
+        url: path ? path.split('/').map((segment) => ({ path: segment })) : [],
         paramMap: {
             has: (param: string) => hasCategoryId && param === 'categoryId',
         },
@@ -163,6 +166,10 @@ describe('WorkspaceContextPanelComponent', () => {
         await TestBed.configureTestingModule({
             imports: [WorkspaceContextPanelComponent, NoopAnimationsModule],
             providers: [
+                {
+                    provide: WorkspaceShellSearchSyncService,
+                    useValue: { searchQuery: signal('') },
+                },
                 {
                     provide: TranslateService,
                     useValue: {

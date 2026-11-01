@@ -1936,6 +1936,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "切換篩選面板",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "篩選",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "切換設定區段面板",
+            "CLEAR_CATEGORY_FILTER": "清除分類篩選",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "設定區段",
             "ADD_PLAYLIST_ALL": "新增播放清單",
             "ADD_PLAYLIST": "新增播放清單",

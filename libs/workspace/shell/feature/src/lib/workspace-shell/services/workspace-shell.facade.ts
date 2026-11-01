@@ -131,6 +131,7 @@ export class WorkspaceShellFacade {
     readonly searchPlaceholder = this.search.searchPlaceholder;
     readonly searchScopeLabel = this.search.searchScopeLabel;
     readonly searchStatusLabel = this.search.searchStatusLabel;
+    readonly canClearCategoryScope = this.search.canClearCategoryScope;
     readonly railProviderClass = this.routeState.railProviderClass;
     readonly parentalLockState = computed<'off' | 'locked' | 'unlocked'>(() => {
         if (!this.parentalLock.enabled()) {
@@ -226,6 +227,10 @@ export class WorkspaceShellFacade {
 
     goBack(): void {
         this.backNavigation.goBack();
+    }
+
+    clearCategoryScope(): void {
+        this.search.clearCategoryScope();
     }
 
     navigateToGlobalFavorites(): void {

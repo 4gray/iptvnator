@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { NavigationEnd, Router } from '@angular/router';
+import { NavigationEnd, NavigationExtras, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { EMPTY, of, Subject } from 'rxjs';
@@ -22,6 +22,8 @@ describe('WorkspaceShellSearchSyncService', () => {
     let routeState: WorkspaceShellRouteStateService;
     let events: Subject<NavigationEnd>;
     let searchService: WorkspaceShellSearchService;
+    const xtreamCategoryId = signal<number | null>(null);
+    const stalkerCategoryId = signal<string | null>(null);
     let trigger: 'imperative' | 'popstate';
     let router: {
         url: string;
@@ -48,6 +50,8 @@ describe('WorkspaceShellSearchSyncService', () => {
 
     beforeEach(() => {
         jest.useFakeTimers();
+        xtreamCategoryId.set(null);
+        stalkerCategoryId.set(null);
         events = new Subject<NavigationEnd>();
         trigger = 'imperative';
         router = {
@@ -114,7 +118,11 @@ describe('WorkspaceShellSearchSyncService', () => {
                         setSearchTerm: jest.fn(),
                         setCategorySearchTerm: jest.fn(),
                         getSelectedCategory: signal(null),
-                        selectedCategoryId: signal(null),
+                        selectedCategoryId: xtreamCategoryId,
+                        setSelectedCategory: jest.fn((id: number | null) =>
+                            xtreamCategoryId.set(id)
+                        ),
+                        setSelectedItem: jest.fn(),
                     },
                 },
                 {
@@ -126,6 +134,12 @@ describe('WorkspaceShellSearchSyncService', () => {
                             labelKey: null,
                         }),
                         itvFullListActive: signal(false),
+                        selectedCategoryId: stalkerCategoryId,
+                        setSelectedCategory: jest.fn((id: string) =>
+                            stalkerCategoryId.set(id)
+                        ),
+                        setPage: jest.fn(),
+                        clearSelectedItem: jest.fn(),
                     },
                 },
             ],
@@ -138,6 +152,122 @@ describe('WorkspaceShellSearchSyncService', () => {
 
     afterEach(() => {
         jest.useRealTimers();
+    });
+
+    describe.each([
+        ['xtreams', 'vod'],
+        ['xtreams', 'series'],
+        ['xtreams', 'live'],
+        ['stalker', 'vod'],
+        ['stalker', 'series'],
+    ])('clearing %s %s category scope', (provider, section) => {
+        it.each([
+            ['', 'neo'],
+            ['neo', 'neon'],
+            ['neo', ''],
+        ])(
+            'preserves pending search changes from "%s" to "%s"',
+            (previous, pending) => {
+                navigateTo(
+                    `/workspace/${provider}/pl-1/${section}/7?sort=name&q=${previous}`
+                );
+                Object.defineProperty(router, 'routerState', {
+                    value: {
+                        snapshot: {
+                            root: {
+                                url: [{ path: 'live' }, { path: '7' }],
+                                paramMap: {
+                                    has: (key: string) => key === 'categoryId',
+                                },
+                                children: [],
+                            },
+                        },
+                    },
+                });
+                router.navigate.mockImplementation(
+                    (commands: string[], extras: NavigationExtras) => {
+                        const nextUrl = new URL(router.url, 'http://localhost');
+                        nextUrl.pathname = commands.join('/');
+                        if (extras.queryParamsHandling !== 'preserve') {
+                            Object.entries(extras.queryParams ?? {}).forEach(
+                                ([key, value]) => {
+                                    if (value === null) {
+                                        nextUrl.searchParams.delete(key);
+                                    } else {
+                                        nextUrl.searchParams.set(
+                                            key,
+                                            String(value)
+                                        );
+                                    }
+                                }
+                            );
+                        }
+                        navigateTo(nextUrl.pathname + nextUrl.search);
+                        return Promise.resolve(true);
+                    }
+                );
+                xtreamCategoryId.set(7);
+                stalkerCategoryId.set('7');
+                TestBed.flushEffects();
+                router.navigate.mockClear();
+
+                service.onSearchInput(pending);
+                searchService.clearCategoryScope();
+
+                expect(router.navigate).toHaveBeenCalledWith(
+                    ['/workspace', provider, 'pl-1', section],
+                    expect.objectContaining({
+                        queryParamsHandling: 'merge',
+                        queryParams: { q: pending || null },
+                    })
+                );
+                const query = pending ? `&q=${pending}` : '';
+                expect(router.url).toBe(
+                    `/workspace/${provider}/pl-1/${section}?sort=name${query}`
+                );
+                jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+
+                expect(service.searchQuery()).toBe(pending);
+                expect(service.appliedSearchQuery()).toBe(pending);
+            }
+        );
+    });
+
+    describe.each(['xtreams', 'stalker'])(
+        'retained %s category selection outside category views',
+        (provider) => {
+            it.each(['favorites', 'recent', 'search', 'downloads'])(
+                'cannot clear a category on the %s section',
+                (section) => {
+                    navigateTo(`/workspace/${provider}/pl-1/${section}`);
+                    xtreamCategoryId.set(7);
+                    stalkerCategoryId.set('7');
+
+                    expect(searchService.canClearCategoryScope()).toBe(false);
+                    searchService.clearCategoryScope();
+
+                    expect(xtreamCategoryId()).toBe(7);
+                    expect(stalkerCategoryId()).toBe('7');
+                    expect(router.navigate).not.toHaveBeenCalled();
+                }
+            );
+        }
+    );
+
+    it.each([
+        ['xtreams', 'vod'],
+        ['xtreams', 'series'],
+        ['xtreams', 'live'],
+        ['stalker', 'vod'],
+        ['stalker', 'series'],
+        ['stalker', 'itv'],
+        ['stalker', 'radio'],
+    ])('supports category clearing on %s %s', (provider, section) => {
+        navigateTo(`/workspace/${provider}/pl-1/${section}`);
+        xtreamCategoryId.set(7);
+        stalkerCategoryId.set('7');
+
+        expect(searchService.canClearCategoryScope()).toBe(true);
     });
 
     it('drops a still-debouncing keystroke when a settings result is opened', () => {

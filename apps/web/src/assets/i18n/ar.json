@@ -1936,6 +1936,7 @@
             "CONTEXT_DRAWER_FILTERS_TOGGLE": "تبديل لوحة التصفية",
             "CONTEXT_DRAWER_FILTERS_TOOLTIP": "التصفية",
             "CONTEXT_DRAWER_SETTINGS_TOGGLE": "تبديل لوحة أقسام الإعدادات",
+            "CLEAR_CATEGORY_FILTER": "إزالة تصفية الفئة",
             "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "أقسام الإعدادات",
             "ADD_PLAYLIST_ALL": "إضافة قائمة تشغيل",
             "ADD_PLAYLIST": "إضافة قائمة تشغيل",
