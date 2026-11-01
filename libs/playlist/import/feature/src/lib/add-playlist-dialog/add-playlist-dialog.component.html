@@ -91,7 +91,7 @@
                     />
                 }
             }
-            @if (isM3uImport()) {
+            @if (isM3uImport() && epgEnabled()) {
                 <div class="apd-epg-option">
                     <mat-checkbox
                         [checked]="autoImportEpg()"

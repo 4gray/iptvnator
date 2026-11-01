@@ -194,6 +194,8 @@ The M3U URL, file and text forms share a default-on EPG checkbox. It only
 controls sources declared in the imported M3U; entering a URL does not trigger
 a metadata or EPG request. The choice survives import-method switches in the
 open dialog and resets for a new import or Clear.
+Global EPG opt-out hides this checkbox without changing the source's import
+preference, so re-enabling EPG can use its declared sources normally.
 
 `Playlist.autoImportEpg: false` retains detected addresses as candidates without
 enabling them. An absent flag keeps the legacy default-on behavior. Refresh,
