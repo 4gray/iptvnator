@@ -366,3 +366,42 @@ it('retains native recovery if live history or deferred completion cannot be sav
     ).rejects.toThrow('Catalog history recovery is unavailable');
     expect(db.setAppState).not.toHaveBeenCalled();
 });
+
+it('retains authoritative post-clear history for missing rows instead of erasing new watches', async () => {
+    const db = setup();
+    const deferred = new XtreamDeferredCatalogRestoreService();
+    const watched = [
+        { contentType: 'movie' as const, xtreamId: 2, viewedAt: 'post-clear' },
+        { contentType: 'movie' as const, xtreamId: 5, viewedAt: 'new-watch' },
+    ];
+    deferred.prepare(
+        'p',
+        {
+            ...legacyState(),
+            recentlyViewed: [
+                ...watched.map((row) => ({ ...row, viewedAt: 'older' })),
+                { contentType: 'movie', xtreamId: 3, viewedAt: 'before-clear' },
+            ],
+            hiddenCategories: [{ categoryType: 'movies', xtreamId: 2 }],
+        },
+        []
+    );
+    db.readAppState.mockResolvedValue({
+        value: JSON.stringify({
+            ...journal,
+            recentlyViewed: watched,
+            cleared: true,
+        }),
+    });
+    await completeCatalogHistoryRecovery(
+        db,
+        deferred,
+        'p',
+        deferred.getSnapshot('p'),
+        []
+    );
+    expect(deferred.getSnapshot('p').state.recentlyViewed).toEqual(watched);
+    expect(deferred.getSnapshot('p').state.hiddenCategories).toEqual([
+        { categoryType: 'movies', xtreamId: 2 },
+    ]);
+});

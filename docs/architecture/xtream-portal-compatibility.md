@@ -397,6 +397,8 @@ profile's SQLite `app_state` before deleting content. Before acknowledging
 recovery, both bootstrap and edit-time refresh consume dormant history copies
 whose identities exist in current native history or in its removal tombstones.
 The live-row read precedes the journal read so concurrent removals are covered.
+A sticky native clear marker filters against current post-clear journal entries
+and timestamps; newer watches whose content is missing again remain deferred.
 Unavailable identities and hidden-category choices remain parked; generation
 ownership still protects a newer archive. The worker captures live
 history atomically with registration, then journals watch updates, individual
@@ -410,7 +412,8 @@ acknowledged only after deferred completion, and source deletion removes it. The
 app-state IPC flushes the updated deferred DOM state before clearing a native
 history journal; a flush failure leaves the journal/tombstones intact. Source and
 global history-clear IPCs also flush dormant history changes before native
-clearing, including when no active journal exists. Individual/batch removals
+clearing, including when no active journal exists. Source-scoped native clearing
+uses a content subquery, avoiding one bound parameter per catalog row. Individual/batch removals
 participate in active journal transactions and do not mutate dormant DOM records. Category imports
 already apply the parked hidden flags, so cache retry preserves live visibility
 instead of resetting it like an explicit backup restore. Only completed catalogs

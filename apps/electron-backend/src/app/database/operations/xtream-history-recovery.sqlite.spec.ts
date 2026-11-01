@@ -51,6 +51,13 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         try { await restoreXtreamUserData(db, 'p', [], stale); } catch { rejected = true; }
         const rollback = JSON.stringify(beforeFailure) === JSON.stringify(sqlite.prepare('SELECT * FROM recently_viewed WHERE playlist_id = ? ORDER BY id').all('p'));
         sqlite.exec('DROP TRIGGER test_fail_history');
+        // More content ids than SQLite's bind-variable limit must still clear
+        // only this source, while its recovery journal stays transactional.
+        for (let offset = 0; offset < 40000; offset += 500)
+            db.insert(schema.content).values(Array.from({ length: 500 }, (_, index) => ({
+                id: 100 + offset + index, categoryId: 3, xtreamId: 100000 + offset + index,
+                title: 'Large clear ' + (offset + index), type: 'movie'
+            }))).run();
         await clearPlaylistRecentItems(db, 'p');
         await restoreXtreamUserData(db, 'p', [], stale);
         const cleared = (await getRecentItems(db, 'p', true)).length;

@@ -149,19 +149,13 @@ export async function clearPlaylistRecentItems(
                 schema.categories,
                 eq(schema.content.categoryId, schema.categories.id)
             )
-            .where(eq(schema.categories.playlistId, playlistId))
-            .all();
+            .where(eq(schema.categories.playlistId, playlistId));
 
-        if (contentIds.length > 0) {
-            tx.delete(schema.recentlyViewed)
-                .where(
-                    inArray(
-                        schema.recentlyViewed.contentId,
-                        contentIds.map((content) => content.id)
-                    )
-                )
-                .run();
-        }
+        // Keep the source scope in SQL: large catalogs exceed SQLite's bind
+        // limit when their content ids are materialized into an IN list.
+        tx.delete(schema.recentlyViewed)
+            .where(inArray(schema.recentlyViewed.contentId, contentIds))
+            .run();
         clearRecoveredHistory(tx, playlistId);
     });
 

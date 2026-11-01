@@ -168,7 +168,7 @@ describe('recently-viewed.operations', () => {
         });
 
         it('deletes only entries belonging to the playlist content ids', async () => {
-            const { db, deleteFn, deleteWhere } = createDbMock([
+            const { db, deleteFn, deleteWhere, queries } = createDbMock([
                 [{ id: 11 }, { id: 12 }],
             ]);
 
@@ -183,21 +183,32 @@ describe('recently-viewed.operations', () => {
             expect(deleteFn).toHaveBeenCalledWith(schema.recentlyViewed);
             expect(mockDrizzle.inArray).toHaveBeenCalledWith(
                 schema.recentlyViewed.contentId,
-                [11, 12]
+                queries[0]
             );
             expect(deleteWhere).toHaveBeenCalledWith(
                 expect.objectContaining({ kind: 'inArray' })
             );
         });
 
-        it('skips the delete entirely when the playlist has no content', async () => {
-            const { db, deleteFn } = createDbMock([[]]);
+        it('keeps the delete scoped even when the playlist has no content', async () => {
+            const { db, deleteFn, deleteWhere, queries } = createDbMock([[]]);
 
             await expect(
                 clearPlaylistRecentItems(db, 'playlist-empty')
             ).resolves.toEqual({ success: true });
 
-            expect(deleteFn).not.toHaveBeenCalled();
+            expect(deleteFn).toHaveBeenCalledWith(schema.recentlyViewed);
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
+                schema.categories.playlistId,
+                'playlist-empty'
+            );
+            expect(mockDrizzle.inArray).toHaveBeenCalledWith(
+                schema.recentlyViewed.contentId,
+                queries[0]
+            );
+            expect(deleteWhere).toHaveBeenCalledWith(
+                expect.objectContaining({ kind: 'inArray' })
+            );
         });
 
         it('removes a single entry scoped by content and playlist', async () => {

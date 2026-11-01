@@ -5,6 +5,7 @@ import {
     XtreamContentType,
     XtreamPendingRestoreState,
     XtreamHistoryRecovery,
+    XtreamBackupRecentlyViewedItem,
     createRandomId,
 } from '@iptvnator/shared/interfaces';
 
@@ -182,7 +183,7 @@ export class XtreamDeferredCatalogRestoreService {
                 contentType: XtreamContentType;
                 xtreamId: number;
             }[];
-            cleared?: boolean;
+            afterClearHistory?: readonly XtreamBackupRecentlyViewedItem[];
         }
     ): void {
         const current = this.read(playlistId);
@@ -194,11 +195,30 @@ export class XtreamDeferredCatalogRestoreService {
                 (row) => `${row.contentType}:${row.xtreamId}`
             )
         );
-        remaining.recentlyViewed = consumedHistory?.cleared
-            ? []
-            : remaining.recentlyViewed.filter(
-                  (row) => !consumed.has(`${row.contentType}:${row.xtreamId}`)
-              );
+        // A sticky cleared flag only invalidates pre-clear entries. The native
+        // journal can contain newer watches whose content is missing again.
+        const afterClear = consumedHistory?.afterClearHistory;
+        const afterClearById =
+            afterClear &&
+            new Map(
+                afterClear.map((row) => [
+                    `${row.contentType}:${row.xtreamId}`,
+                    row,
+                ])
+            );
+        remaining.recentlyViewed = remaining.recentlyViewed
+            .filter((row) => {
+                const key = `${row.contentType}:${row.xtreamId}`;
+                return (
+                    !consumed.has(key) &&
+                    (!afterClearById || afterClearById.has(key))
+                );
+            })
+            .map(
+                (row) =>
+                    afterClearById?.get(`${row.contentType}:${row.xtreamId}`) ??
+                    row
+            );
         this.write(playlistId, { ...snapshot.state, ...remaining });
     }
 

@@ -342,3 +342,41 @@ it('consumes replayed history for retained rows of an unfinished disabled catalo
             .recentlyViewed
     ).toEqual([missing]);
 });
+
+it('parks a new watch after clearing history when its disabled catalog loses that row before retry', async () => {
+    const { dataSource, dbService } = setupElectronXtreamDataSource();
+    const deferred = TestBed.inject(XtreamDeferredCatalogRestoreService);
+    dbService.getPlaylistById.mockResolvedValue({
+        id: 'p',
+        xtreamContentTypes: ['live'],
+    });
+    dbService.getXtreamImportStatus.mockResolvedValue('idle');
+    const watched = {
+        contentType: 'movie' as const,
+        xtreamId: 21,
+        viewedAt: '2026-02-01',
+    };
+    deferred.prepare('p', archive, []);
+    const snapshot = deferred.getSnapshot('p');
+    dbService.readAppState.mockResolvedValue({
+        value: JSON.stringify({
+            version: 1,
+            contentTypes: ['live', 'movie', 'series'],
+            cleared: true,
+            recentlyViewed: [watched],
+        }),
+    });
+    await dataSource.restoreUserData('p', {
+        ...archive,
+        preservePlaybackPositions: true,
+        catalogSnapshot: snapshot,
+    });
+    expect(
+        deferred.forExport('p', { recentlyViewed: [], hiddenCategories: [] })
+            .recentlyViewed
+    ).toEqual([watched]);
+    expect(dbService.setAppState).toHaveBeenLastCalledWith(
+        'xtream-history-recovery:p',
+        ''
+    );
+});

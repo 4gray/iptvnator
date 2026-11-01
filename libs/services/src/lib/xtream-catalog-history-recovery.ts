@@ -75,7 +75,7 @@ export async function completeCatalogHistoryRecovery(
             })),
             ...(journal.removed ?? []),
         ],
-        cleared: journal.cleared,
+        afterClearHistory: journal.cleared ? journal.recentlyViewed : undefined,
     });
     // This native acknowledgment flushes the resolved DOM archive first.
     await clearCatalogHistoryRecovery(db, playlistId);
