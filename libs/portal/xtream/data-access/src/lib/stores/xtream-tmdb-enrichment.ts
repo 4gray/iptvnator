@@ -52,7 +52,8 @@ export async function enrichVodSelectionWithTmdb<TItem extends SelectionRecord>(
               itemId: String(vodId),
           }
         : undefined;
-    const matches = enrichment.matches;
+    const matches = matchIdentity ? await enrichment.getMatches?.() : null;
+    if (matchIdentity && !matches) return;
     const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
 
     const isCurrent = (): TItem | null => {
@@ -155,7 +156,8 @@ export async function enrichSerialSelectionWithTmdb<
               itemId: String(serialId),
           }
         : undefined;
-    const matches = enrichment.matches;
+    const matches = matchIdentity ? await enrichment.getMatches?.() : null;
+    if (matchIdentity && !matches) return;
     const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
 
     const isCurrent = (): TItem | null => {
@@ -286,7 +288,8 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
               itemId: String(serialId),
           }
         : undefined;
-    const matches = enrichment.matches;
+    const matches = matchIdentity ? await enrichment.getMatches?.() : null;
+    if (!isCurrentSelection() || (matchIdentity && !matches)) return;
     const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
     const isCurrentChoice = () => {
         if (!matchIdentity) return true;

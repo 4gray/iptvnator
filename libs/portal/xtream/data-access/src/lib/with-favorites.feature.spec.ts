@@ -1,6 +1,6 @@
+import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
 import {
     RuntimeCapabilitiesService,
-    TmdbMatchService,
     type TmdbEnrichmentService,
 } from '@iptvnator/services';
 import {
@@ -115,7 +115,7 @@ describe('withFavorites', () => {
             }));
             const enrichment = {
                 isEnabled: () => true,
-                matches,
+                getMatches: async () => matches,
                 enrichMovie: enrich,
                 enrichTv: enrich,
             } as unknown as TmdbEnrichmentService;

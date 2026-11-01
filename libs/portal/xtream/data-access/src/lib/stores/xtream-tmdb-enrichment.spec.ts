@@ -1,5 +1,8 @@
-import type { TmdbEnrichmentService } from '@iptvnator/services';
-import { TmdbMatchService, type TmdbSelectionQuery } from '@iptvnator/services';
+import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
+import type {
+    TmdbEnrichmentService,
+    TmdbSelectionQuery,
+} from '@iptvnator/services';
 import {
     enrichSerialSeasonWithTmdb,
     enrichSerialSelectionWithTmdb,
@@ -38,8 +41,8 @@ const vodItem = {
     stream_id: '42',
     info: {
         tmdb_id: 603,
-        name: 'The Matrix',
-        o_name: 'The Matrix',
+        name: 'Synthetic Movie Alpha',
+        o_name: 'Synthetic Movie Alpha',
         releasedate: '1999-03-31',
         plot: 'Provider plot',
         cast: '',
@@ -57,7 +60,7 @@ const vodItem = {
 const serialItem = {
     series_id: '7',
     info: {
-        name: 'Dark',
+        name: 'Synthetic Series Alpha',
         plot: 'Provider plot',
         cast: '',
         director: '',
@@ -71,6 +74,53 @@ const serialItem = {
 };
 
 describe('manual TMDB selection refresh', () => {
+    it.each(['movie', 'tv'] as const)(
+        'retains provider %s metadata when saved choices cannot load',
+        async (mediaType) => {
+            const item = mediaType === 'movie' ? vodItem : serialItem;
+            const store = {
+                ...createStore(item),
+                currentPlaylist: () => ({ id: 'synthetic-source' }),
+            };
+            const enrichment = createEnrichment({
+                getMatches: async () => null,
+            });
+            if (mediaType === 'movie')
+                await enrichVodSelectionWithTmdb(store, enrichment, '42');
+            else await enrichSerialSelectionWithTmdb(store, enrichment, '7');
+            expect(store.selectedItem()).toBe(item);
+            expect(enrichment.enrichMovie).not.toHaveBeenCalled();
+            expect(enrichment.enrichTv).not.toHaveBeenCalled();
+        }
+    );
+    it.each(['movie', 'tv'] as const)(
+        'drops an obsolete %s selection while choice storage is loading',
+        async (mediaType) => {
+            const item = mediaType === 'movie' ? vodItem : serialItem;
+            const store = {
+                ...createStore(item),
+                currentPlaylist: () => ({ id: 'synthetic-source' }),
+            };
+            let ready!: (matches: TmdbMatchService) => void;
+            const enrichment = createEnrichment({
+                getMatches: () =>
+                    new Promise((resolve) => {
+                        ready = resolve;
+                    }),
+            });
+            const pending =
+                mediaType === 'movie'
+                    ? enrichVodSelectionWithTmdb(store, enrichment, '42')
+                    : enrichSerialSelectionWithTmdb(store, enrichment, '7');
+            store.replaceItem(null);
+            ready(new TmdbMatchService());
+            await pending;
+            expect(enrichment.enrichMovie).not.toHaveBeenCalled();
+            expect(enrichment.enrichTv).not.toHaveBeenCalled();
+            expect(store.setSelectedItem).not.toHaveBeenCalled();
+        }
+    );
+
     it.each(['', '   '])(
         'applies explicit series matches when the provider title is blank: %s',
         async (name) => {
@@ -87,7 +137,7 @@ describe('manual TMDB selection refresh', () => {
                 itemId: '7',
             };
             const enrichment = createEnrichment({
-                matches,
+                getMatches: async () => matches,
                 enrichTv: jest
                     .fn()
                     .mockResolvedValue({ id: 999, overview: 'Chosen plot' }),
@@ -129,7 +179,7 @@ describe('manual TMDB selection refresh', () => {
             itemId: '42',
         };
         const enrichment = createEnrichment({
-            matches,
+            getMatches: async () => matches,
             enrichMovie: jest.fn(async (query: TmdbSelectionQuery) => {
                 const choice = matches.read(identity);
                 if (choice?.mode === 'provider') return null;
@@ -177,7 +227,9 @@ describe('manual TMDB selection refresh', () => {
             mediaType: 'tv' as const,
             itemId: '7',
         };
-        const enrichment = createEnrichment({ matches });
+        const enrichment = createEnrichment({
+            getMatches: async () => matches,
+        });
         await enrichSerialSelectionWithTmdb(store, enrichment, '7');
         store.setSelectedItem({
             ...store.selectedItem(),
@@ -205,7 +257,7 @@ describe('manual TMDB selection refresh', () => {
         let finish: (details: { id: number; overview: string }) => void = () =>
             undefined;
         const enrichment = createEnrichment({
-            matches,
+            getMatches: async () => matches,
             enrichMovie: jest
                 .fn()
                 .mockImplementationOnce(
@@ -217,6 +269,8 @@ describe('manual TMDB selection refresh', () => {
                 .mockResolvedValue(null),
         });
         const pending = enrichVodSelectionWithTmdb(store, enrichment, '42');
+        await Promise.resolve();
+        expect(enrichment.enrichMovie).toHaveBeenCalledTimes(1);
         await matches.save(identity, { mode: 'provider' });
         finish({ id: 999, overview: 'Late wrong plot' });
         await pending;
@@ -261,8 +315,8 @@ describe('enrichVodSelectionWithTmdb', () => {
 
         expect(enrichment.enrichMovie).toHaveBeenCalledWith({
             tmdbId: 603,
-            title: 'The Matrix',
-            originalTitle: 'The Matrix',
+            title: 'Synthetic Movie Alpha',
+            originalTitle: 'Synthetic Movie Alpha',
             year: 1999,
         });
         expect(store.setSelectedItem).toHaveBeenCalledTimes(1);
@@ -343,7 +397,7 @@ describe('enrichSerialSelectionWithTmdb', () => {
         await enrichSerialSelectionWithTmdb(store, enrichment, '7');
 
         expect(enrichment.enrichTv).toHaveBeenCalledWith({
-            title: 'Dark',
+            title: 'Synthetic Series Alpha',
             year: 2017,
         });
         const updated = store.setSelectedItem.mock.calls[0][0] as {
@@ -373,7 +427,7 @@ describe('enrichSerialSelectionWithTmdb', () => {
                     ...serialItem,
                     info: {
                         ...serialItem.info,
-                        name: 'Series from playlist B',
+                        name: 'Synthetic Series Alpha',
                         plot: 'Playlist B plot',
                     },
                 });
@@ -421,7 +475,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
         async (mode) => {
             const store = {
                 ...createStore(
-                    seasonSliceItem('Dark', {
+                    seasonSliceItem('Synthetic Series Alpha', {
                         '1': [{ episode_num: 1, season: 1 }],
                     })
                 ),
@@ -439,7 +493,9 @@ describe('enrichSerialSeasonWithTmdb', () => {
                     ? { mode }
                     : { mode, tmdbId: 999, title: 'Other show' }
             );
-            const enrichment = createEnrichment({ matches });
+            const enrichment = createEnrichment({
+                getMatches: async () => matches,
+            });
             await enrichSerialSeasonWithTmdb(store, enrichment, '1');
             expect(enrichment.getSeason).not.toHaveBeenCalled();
             expect(store.setSelectedItem).not.toHaveBeenCalled();
@@ -451,7 +507,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
         async (mode) => {
             const store = {
                 ...createStore(
-                    seasonSliceItem('Dark', {
+                    seasonSliceItem('Synthetic Series Alpha', {
                         '1': [{ episode_num: 1, season: 1 }],
                     })
                 ),
@@ -460,7 +516,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
             const matches = new TmdbMatchService();
             let finish!: (value: { overview: string; episodes: [] }) => void;
             const enrichment = createEnrichment({
-                matches,
+                getMatches: async () => matches,
                 getSeason: jest.fn(
                     () =>
                         new Promise((resolve) => {
@@ -469,6 +525,8 @@ describe('enrichSerialSeasonWithTmdb', () => {
                 ),
             });
             const pending = enrichSerialSeasonWithTmdb(store, enrichment, '1');
+            await Promise.resolve();
+            expect(enrichment.getSeason).toHaveBeenCalledTimes(1);
             await matches.save(
                 {
                     provider: 'xtream',
@@ -480,7 +538,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
                     ? null
                     : mode === 'provider'
                       ? { mode }
-                      : { mode, tmdbId: 82856, title: 'Dark' }
+                      : { mode, tmdbId: 82856, title: 'Synthetic Series Alpha' }
             );
             finish({ overview: 'Stale season', episodes: [] });
             await pending;
@@ -490,7 +548,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
 
     it('fetches the title-marked season for a renumbered single-season slice', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian (2 season)', {
+            seasonSliceItem('Synthetic Series Alpha (2 season)', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
@@ -511,7 +569,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
 
     it('keeps provider numbering for multi-season items despite a marker', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian (2 season)', {
+            seasonSliceItem('Synthetic Series Alpha (2 season)', {
                 '1': [{ episode_num: 1, season: 1 }],
                 '2': [{ episode_num: 1, season: 2 }],
             })
@@ -525,7 +583,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
 
     it('keeps provider numbering when the title has no marker', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian', {
+            seasonSliceItem('Synthetic Series Alpha', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
@@ -538,13 +596,13 @@ describe('enrichSerialSeasonWithTmdb', () => {
 
     it('stores the TMDB season overview for the description fallback', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian', {
+            seasonSliceItem('Synthetic Series Alpha', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
         const enrichment = createEnrichment({
             getSeason: jest.fn().mockResolvedValue({
-                overview: 'The Mandalorian and the Child continue.',
+                overview: 'Synthetic Series Alpha and the Child continue.',
                 episodes: [{ episode_number: 1, name: 'The Marshal' }],
             }),
         } as Partial<TmdbEnrichmentService>);
@@ -557,13 +615,13 @@ describe('enrichSerialSeasonWithTmdb', () => {
         };
         expect(updated.episodes['1'][0].title).toBe('The Marshal');
         expect(updated.tmdb_season_overviews).toEqual({
-            '1': 'The Mandalorian and the Child continue.',
+            '1': 'Synthetic Series Alpha and the Child continue.',
         });
     });
 
     it('patches only the overview when TMDB returns no episodes', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian', {
+            seasonSliceItem('Synthetic Series Alpha', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
@@ -588,7 +646,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
 
     it('converges: a repeat cache-served run does not rewrite the selection', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian', {
+            seasonSliceItem('Synthetic Series Alpha', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
@@ -610,7 +668,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
 
     it('stores the TMDB season poster as a full w342 URL beside the overview', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian', {
+            seasonSliceItem('Synthetic Series Alpha', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
@@ -634,7 +692,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
 
     it('patches only the poster when TMDB returns neither episodes nor overview', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian', {
+            seasonSliceItem('Synthetic Series Alpha', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
@@ -666,7 +724,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
 
     it('does not store a season poster when TMDB has none', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian', {
+            seasonSliceItem('Synthetic Series Alpha', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
@@ -688,7 +746,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
 
     it('does not store a blank TMDB season overview', async () => {
         const store = createStore(
-            seasonSliceItem('The Mandalorian', {
+            seasonSliceItem('Synthetic Series Alpha', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
@@ -710,7 +768,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
     it('drops a same-id season result after its playlist becomes stale', async () => {
         let isCurrentPlaylist = true;
         const store = createStore(
-            seasonSliceItem('Series from playlist A', {
+            seasonSliceItem('Synthetic Series Alpha', {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
@@ -718,7 +776,7 @@ describe('enrichSerialSeasonWithTmdb', () => {
             getSeason: jest.fn().mockImplementation(async () => {
                 isCurrentPlaylist = false;
                 store.replaceItem(
-                    seasonSliceItem('Series from playlist B', {
+                    seasonSliceItem('Synthetic Series Alpha', {
                         '1': [{ episode_num: 1, season: 1 }],
                     })
                 );

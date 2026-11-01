@@ -63,7 +63,7 @@ export async function enrichStalkerSelectionWithTmdb(
                   catalog: contentType === 'series' ? 'series' : 'vod',
               }
             : undefined;
-    const matches = enrichment.matches;
+    const matches = matchIdentity ? await enrichment.getMatches?.() : null;
     const version = matchIdentity ? matches?.version(matchIdentity) : undefined;
     const isCurrent = (): StalkerVodSource | null => {
         if (
@@ -84,6 +84,8 @@ export async function enrichStalkerSelectionWithTmdb(
         return sameEntity ? current : null;
     };
 
+    // Loading choice storage may finish after a different selection registered.
+    if (!isCurrent()) return;
     if (matchIdentity && matches) {
         matches.register(store, matchIdentity, async () => {
             // The old request version is intentionally not checked on explicit refresh.
@@ -119,6 +121,7 @@ export async function enrichStalkerSelectionWithTmdb(
     }
     if (
         !enrichment.isEnabled() ||
+        (matchIdentity && !matches) ||
         (matchIdentity && matches?.read(matchIdentity)?.mode === 'provider')
     )
         return;

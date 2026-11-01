@@ -238,6 +238,14 @@ collide. Choices are local to this installation/browser origin, outside the TMDB
 cache and playlist backup format. Clearing the metadata cache leaves them intact.
 Storage failures leave the dialog open and do not change the visible selection.
 
+The choice service is a lazy public entry point, `@iptvnator/services/tmdb-match`;
+the main services barrel exports its types only. `TmdbEnrichmentService.getMatches()`
+loads it for an item-scoped detail request, keeping saved-choice storage off the
+initial renderer graph. Generic automatic queries do not load it. Selection
+helpers recheck ownership after loading before registering refresh callbacks.
+If that chunk cannot load, item-scoped enrichment retains provider data rather
+than guessing over an unavailable saved choice.
+
 - **Choose in TMDB:** validate the chosen ID's details, then persist that ID.
   `getDetailsForMatch` honors opt-in, localization and the normal details cache,
   bypassing automatic title/year corroboration for this explicit user decision.

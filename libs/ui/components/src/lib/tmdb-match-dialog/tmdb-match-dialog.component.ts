@@ -17,7 +17,6 @@ import {
     TmdbApiService,
     TmdbRuntimeService,
     TmdbEnrichmentService,
-    TmdbMatchService,
     tmdbSearchLanguageForTitle,
     tmdbPosterUrl,
     toTmdbLanguage,
@@ -25,6 +24,7 @@ import {
     type TmdbMatchContext,
     type TmdbSearchResult,
 } from '@iptvnator/services';
+import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
 import { cleanTitleForSearch } from '@iptvnator/shared/interfaces';
 import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
 import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';

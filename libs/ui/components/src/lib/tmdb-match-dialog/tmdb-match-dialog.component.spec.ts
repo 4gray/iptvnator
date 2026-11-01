@@ -1,3 +1,4 @@
+import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -5,7 +6,6 @@ import { Language } from '@iptvnator/shared/interfaces';
 import {
     TmdbApiService,
     TmdbRuntimeService,
-    TmdbMatchService,
     TmdbEnrichmentService,
     type TmdbMatchChoice,
     type TmdbMatchContext,

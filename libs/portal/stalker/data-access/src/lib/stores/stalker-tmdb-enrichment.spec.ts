@@ -1,5 +1,5 @@
+import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
 import {
-    TmdbMatchService,
     type TmdbEnrichmentService,
     type TmdbSelectionQuery,
 } from '@iptvnator/services';
@@ -58,7 +58,7 @@ function fixture(name = original.name) {
     });
     const enrichment = {
         isEnabled: () => true,
-        matches,
+        getMatches: async () => matches,
         enrichTv,
     } as unknown as TmdbEnrichmentService;
     return {
@@ -83,6 +83,36 @@ function fixture(name = original.name) {
             ),
     };
 }
+
+it('drops an obsolete selection while choice storage is loading', async () => {
+    const context = fixture();
+    let ready!: (matches: TmdbMatchService) => void;
+    jest.spyOn(context.enrichment, 'getMatches').mockImplementationOnce(
+        () =>
+            new Promise((resolve) => {
+                ready = resolve;
+            })
+    );
+    const register = jest.spyOn(context.matches, 'register');
+    const pending = context.run();
+    context.switchSource();
+    ready(context.matches);
+    await pending;
+    expect(register).not.toHaveBeenCalled();
+    expect(context.enrichTv).not.toHaveBeenCalled();
+    expect(context.apply).not.toHaveBeenCalled();
+});
+
+it('restores provider metadata when saved choice storage is unavailable', async () => {
+    const context = fixture();
+    await context.run();
+    expect(context.store.selectedItem().info?.tmdb_provider_info).toBeDefined();
+    context.enrichTv.mockClear();
+    jest.spyOn(context.enrichment, 'getMatches').mockResolvedValue(null);
+    await context.run();
+    expect(context.enrichTv).not.toHaveBeenCalled();
+    expect(context.store.selectedItem().info).toEqual(original);
+});
 
 it.each(['Unknown', '', '   '])(
     'applies explicit choices to a placeholder provider title: %s',

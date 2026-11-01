@@ -11,7 +11,7 @@ import { TmdbRuntimeService } from './tmdb-runtime.service';
 import { TmdbSeasonService } from './tmdb-season.service';
 import { TmdbTrendingService } from './tmdb-trending.service';
 
-function fixture() {
+function fixture(onResolveMatches = () => undefined) {
     const runtime = {
         isEnabled: jest.fn(() => true),
         apiKey: () => 'fixture-key',
@@ -19,20 +19,16 @@ function fixture() {
         appLanguage: () => 'en',
     };
     const api = {
-        getMovieDetails: jest
-            .fn()
-            .mockResolvedValue({
-                id: 900001,
-                title: 'Synthetic Movie Alpha',
-                release_dates: { results: [] },
-            }),
-        getTvDetails: jest
-            .fn()
-            .mockResolvedValue({
-                id: 900001,
-                name: 'Synthetic Series Alpha',
-                content_ratings: { results: [] },
-            }),
+        getMovieDetails: jest.fn().mockResolvedValue({
+            id: 900001,
+            title: 'Synthetic Movie Alpha',
+            release_dates: { results: [] },
+        }),
+        getTvDetails: jest.fn().mockResolvedValue({
+            id: 900001,
+            name: 'Synthetic Series Alpha',
+            content_ratings: { results: [] },
+        }),
     };
     const resolver = {
         resolveBySearch: jest.fn().mockResolvedValue(900001),
@@ -45,7 +41,13 @@ function fixture() {
             { provide: TmdbApiService, useValue: api },
             { provide: TmdbCacheService, useValue: new TmdbMemoryCache() },
             { provide: TmdbIdResolverService, useValue: resolver },
-            { provide: TmdbMatchService, useValue: matches },
+            {
+                provide: TmdbMatchService,
+                useFactory: () => {
+                    onResolveMatches();
+                    return matches;
+                },
+            },
             ...[
                 TmdbPersonService,
                 TmdbSeasonService,
@@ -58,6 +60,7 @@ function fixture() {
         runtime,
         api,
         resolver,
+        injector,
         matches,
         service: runInInjectionContext(
             injector,
@@ -67,6 +70,56 @@ function fixture() {
 }
 
 afterEach(() => localStorage.clear());
+
+it('leaves item-choice storage unconstructed for ordinary automatic enrichment', async () => {
+    const resolved = jest.fn();
+    const { service, matches, runtime } = fixture(resolved);
+    await service.enrichMovie({ title: 'Synthetic Movie Alpha' });
+    await service.enrichTv({ title: 'Synthetic Series Alpha' });
+    expect(resolved).not.toHaveBeenCalled();
+    runtime.isEnabled.mockReturnValue(false);
+    await service.enrichMovie({
+        title: 'Synthetic Movie Alpha',
+        matchIdentity: {
+            provider: 'xtream',
+            playlistId: 'source',
+            mediaType: 'movie',
+            itemId: '42',
+        },
+    });
+    expect(resolved).not.toHaveBeenCalled();
+    expect(await service.getMatches()).toBe(matches);
+    expect(resolved).toHaveBeenCalledTimes(1);
+});
+
+it('keeps provider data when choice storage cannot load', async () => {
+    const { service, injector, api, resolver } = fixture();
+    jest.spyOn(injector, 'get').mockImplementation(() => {
+        throw new Error('Synthetic unavailable choice module');
+    });
+    const matchIdentity: TmdbMatchIdentity = {
+        provider: 'xtream',
+        playlistId: 'source',
+        mediaType: 'movie',
+        itemId: '42',
+    };
+    expect(await service.getMatches()).toBeNull();
+    expect(
+        await service.enrichMovie({
+            title: 'Synthetic Movie Alpha',
+            matchIdentity,
+        })
+    ).toBeNull();
+    expect(
+        await service.enrichTv({
+            title: 'Synthetic Series Alpha',
+            matchIdentity: { ...matchIdentity, mediaType: 'tv' },
+        })
+    ).toBeNull();
+    expect(api.getMovieDetails).not.toHaveBeenCalled();
+    expect(api.getTvDetails).not.toHaveBeenCalled();
+    expect(resolver.resolveBySearch).not.toHaveBeenCalled();
+});
 
 describe.each(['movie', 'tv'] as const)('saved %s selection', (mediaType) => {
     const identity: TmdbMatchIdentity = {
