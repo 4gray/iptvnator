@@ -292,6 +292,8 @@ export class PlaylistBackupService {
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
             autoImportEpg: playlist.autoImportEpg !== false,
+            manualEpgUrls: this.uniqueStrings(playlist.manualEpgUrls ?? []),
+            disabledEpgUrls: this.uniqueStrings(playlist.disabledEpgUrls ?? []),
             position: playlist.position,
             source: {
                 kind: this.resolveM3uSourceKind(playlist),
@@ -859,9 +861,13 @@ export class PlaylistBackupService {
                 detectedEpgUrls: parsedPlaylist.detectedEpgUrls,
                 enabledEpgUrls: parsedPlaylist.epgUrls,
                 manualEpgUrls:
-                    existing?.manualEpgUrls ?? parsedPlaylist.manualEpgUrls,
+                    entry.manualEpgUrls ??
+                    existing?.manualEpgUrls ??
+                    parsedPlaylist.manualEpgUrls,
                 disabledEpgUrls:
-                    existing?.disabledEpgUrls ?? parsedPlaylist.disabledEpgUrls,
+                    entry.disabledEpgUrls ??
+                    existing?.disabledEpgUrls ??
+                    parsedPlaylist.disabledEpgUrls,
             }),
             ...(autoImportEpg !== undefined ? { autoImportEpg } : {}),
             _id: playlistId,

@@ -81,6 +81,10 @@ export function hasValidBackupEntryData(entry: unknown): boolean {
     switch (entry['portalType']) {
         case 'm3u':
             return (
+                (entry['manualEpgUrls'] === undefined ||
+                    isStringList(entry['manualEpgUrls'])) &&
+                (entry['disabledEpgUrls'] === undefined ||
+                    isStringList(entry['disabledEpgUrls'])) &&
                 isText(metadata['rawM3u']) &&
                 /^\s*#EXTM3U/i.test(metadata['rawM3u']) &&
                 isStringList(state['favorites']) &&

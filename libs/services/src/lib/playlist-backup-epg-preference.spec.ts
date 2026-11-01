@@ -1,8 +1,93 @@
 import { of } from 'rxjs';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import { createPlaylistBackupService } from './playlist-backup.service.test-helpers';
+import { hasValidBackupEntryData } from './playlist-backup-validation';
 
 describe('M3U backup EPG import preference', () => {
+    it.each([
+        { autoImportEpg: false, merge: false },
+        { autoImportEpg: true, merge: false },
+        { autoImportEpg: false, merge: true },
+        { autoImportEpg: true, merge: true },
+    ])(
+        'round-trips explicit EPG overrides with auto import $autoImportEpg and merge $merge',
+        async ({ autoImportEpg, merge }) => {
+            const selected = 'https://guide.example.test/selected.xml';
+            const manual = 'https://guide.example.test/manual.xml';
+            const disabled = 'https://guide.example.test/disabled.xml';
+            const source = {
+                _id: 'synthetic-overrides',
+                title: 'Synthetic EPG overrides',
+                url: 'https://provider.example.test/overrides.m3u',
+                count: 0,
+                importDate: '',
+                lastUsage: '',
+                autoRefresh: false,
+                favorites: [],
+                autoImportEpg,
+                detectedEpgUrls: [selected, disabled],
+                manualEpgUrls: [selected, manual],
+                disabledEpgUrls: [disabled],
+                epgUrls: [selected, manual],
+            } as Playlist;
+            const exported = await createPlaylistBackupService({
+                playlistsService: {
+                    getAllData: () => of([source]),
+                    getRawPlaylistById: () =>
+                        of(`#EXTM3U x-tvg-url="${selected},${disabled}"`),
+                },
+            }).exportBackup();
+            const entry = exported.manifest.playlists[0];
+            expect(entry).toMatchObject({
+                autoImportEpg,
+                manualEpgUrls: [selected, manual],
+                disabledEpgUrls: [disabled],
+            });
+            for (const field of ['manualEpgUrls', 'disabledEpgUrls']) {
+                for (const invalid of [null, 'not-a-list', [42]]) {
+                    expect(
+                        hasValidBackupEntryData({ ...entry, [field]: invalid })
+                    ).toBe(false);
+                }
+            }
+            const restorePlaylist = jest.fn((value: Playlist) => of(value));
+            const summary = await createPlaylistBackupService({
+                playlistsService: {
+                    getAllData: () =>
+                        of(
+                            merge
+                                ? [
+                                      {
+                                          ...source,
+                                          manualEpgUrls: [disabled],
+                                          disabledEpgUrls: [selected, manual],
+                                      },
+                                  ]
+                                : []
+                        ),
+                    handlePlaylistParsing: async () => ({
+                        ...source,
+                        manualEpgUrls: [],
+                        disabledEpgUrls: [],
+                        epgUrls: [selected, disabled],
+                    }),
+                    restorePlaylist,
+                },
+            }).importBackup(JSON.stringify(exported.manifest));
+            expect(summary.failed).toBe(0);
+            expect(summary.imported).toBe(merge ? 0 : 1);
+            expect(summary.merged).toBe(merge ? 1 : 0);
+            expect(restorePlaylist).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    autoImportEpg,
+                    manualEpgUrls: [selected, manual],
+                    disabledEpgUrls: [disabled],
+                    epgUrls: [selected, manual],
+                })
+            );
+        }
+    );
+
     it.each([true, undefined])(
         'restores exported default-on preference %s over a matching opt-out',
         async (preference) => {
