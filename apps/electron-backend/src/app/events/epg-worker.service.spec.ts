@@ -84,7 +84,7 @@ describe('EpgWorkerService worker lifecycle', () => {
         expect(worker.terminate).toHaveBeenCalledTimes(1);
         expect(mockWorkerInstances).toHaveLength(1);
         expect(service.hasFetchedUrl('https://example.com/retained.xml')).toBe(
-            true
+            false
         );
         await service.fetchEpgFromUrl('https://example.com/disabled.xml');
         expect(mockWorkerInstances).toHaveLength(1);

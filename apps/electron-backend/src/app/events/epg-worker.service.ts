@@ -45,6 +45,7 @@ export class EpgWorkerService {
                     imports.map((pending) => pending.catch(() => undefined))
                 );
                 this.workers.clear();
+                this.fetchedUrls.clear();
             })().finally(() => {
                 this.suspension = undefined;
             });

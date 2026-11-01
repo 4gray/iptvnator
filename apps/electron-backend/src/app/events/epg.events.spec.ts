@@ -114,6 +114,42 @@ describe('EpgEvents', () => {
         }
     );
 
+    it.each(['fresh', 'stale'])(
+        'rechecks %s stored data after suspending a previously fetched source',
+        async (state) => {
+            const { handleFetchEpg } = await import('./epg-fetch.service');
+            const { epgWorkerService: service } =
+                await import('./epg-worker.service');
+            const url = 'https://example.com/resumed-guide.xml';
+            let updatedAt = new Date().toISOString();
+            getDatabase.mockResolvedValue({
+                select: () => ({
+                    from: () => ({
+                        where: () => ({
+                            limit: async () => [{ updatedAt }],
+                        }),
+                    }),
+                }),
+            });
+            const clear = jest.spyOn(service, 'clearEpgData');
+            const clearSource = jest.spyOn(service, 'clearEpgDataForSource');
+            expect(await handleFetchEpg([url])).toMatchObject({ skipped: [url] });
+            expect(service.hasFetchedUrl(url)).toBe(true);
+            await service.setEnabled(false);
+            if (state === 'stale') updatedAt = '2000-01-01T00:00:00Z';
+            await service.setEnabled(true);
+
+            const resumed = handleFetchEpg([url]);
+            await flushPromises();
+            expect(mockWorkerInstances).toHaveLength(state === 'stale' ? 1 : 0);
+            if (state === 'stale')
+                mockWorkerInstances[0].emit('message', { type: 'EPG_COMPLETE' });
+            await expect(resumed).resolves.toMatchObject({ success: true });
+            expect(clear).not.toHaveBeenCalled();
+            expect(clearSource).not.toHaveBeenCalled();
+        }
+    );
+
     it('uses the shared worker bootstrap and passes native module search paths to the EPG worker', async () => {
         const fetchPromise = (EpgEvents as unknown as Record<string, any>)[
             'fetchEpgFromUrl'
