@@ -3,4 +3,4 @@ type: fix
 area: xtream
 ---
 
-Catalog retries and ordinary Refresh keep later history edits, including clears, playback progress and category visibility. Older pending scans migrate before retry or export. Explicit backup retries reset stale recovery state. Offline restoration uses selected cached catalogs and keeps unloaded catalogs dormant. Exports reflect current state.
+Catalog retries and Refresh preserve later history edits, clears, playback progress and hidden categories, including interrupted imports. Older pending scans migrate before retry or export. Backup retries reset stale recovery state. Offline restore uses selected caches and preserves dormant types. Disabled sections finish loading. Exports reflect current state.

@@ -79,7 +79,10 @@ for (const { failCleanup, legacy } of [
         const response = await request.get(
             `${xtreamMockServer}/player_api.php?username=performance&password=performance&action=get_vod_streams`
         );
-        const streams = (await response.json()) as { stream_id: number }[];
+        const streams = (await response.json()) as {
+            stream_id: number;
+            category_id: string;
+        }[];
         expect(streams.length).toBeGreaterThan(5000);
         const early = new Set(
             streams.slice(0, 5000).map((row) => Number(row.stream_id))
@@ -149,15 +152,37 @@ for (const { failCleanup, legacy } of [
                     await window.electron.dbAddRecentItem(contentId, id);
                 return rows;
             }, id);
+            if (legacy) {
+                await page.evaluate(
+                    async ({ id, categoryId }) => {
+                        await window.electron.dbSaveCategories(
+                            id,
+                            [
+                                {
+                                    category_id: categoryId,
+                                    category_name: 'Unfinished cached Movies',
+                                    parent_id: 0,
+                                },
+                            ],
+                            'movies'
+                        );
+                        await window.electron.dbSetAppState(
+                            `xtream-import-status:${id}:movie`,
+                            'failed'
+                        );
+                    },
+                    { id, categoryId: String(target.category_id) }
+                );
+            }
             await page.evaluate(
-                ({ id, xtreamId }) =>
+                ({ id, xtreamId, hiddenCategories }) =>
                     localStorage.setItem(
                         `xtream-catalog-restore-${id}`,
                         JSON.stringify({
                             version: 1,
                             favorites: [],
                             playbackPositions: [],
-                            hiddenCategories: [],
+                            hiddenCategories,
                             recentlyViewed: [
                                 {
                                     contentType: 'movie',
@@ -167,7 +192,18 @@ for (const { failCleanup, legacy } of [
                             ],
                         })
                     ),
-                { id, xtreamId: Number(target.stream_id) }
+                {
+                    id,
+                    xtreamId: Number(target.stream_id),
+                    hiddenCategories: legacy
+                        ? [
+                              {
+                                  categoryType: 'movies',
+                                  xtreamId: Number(target.category_id),
+                              },
+                          ]
+                        : [],
+                }
             );
             await page.evaluate(
                 async ({ id, xtreamId }) => {
@@ -350,6 +386,17 @@ for (const { failCleanup, legacy } of [
                     id
                 )
             ).toBe(true);
+            if (legacy) {
+                const movies = await page.evaluate(
+                    (id) => window.electron.dbGetAllCategories(id, 'movies'),
+                    id
+                );
+                expect(
+                    movies.find(
+                        (row) => row.xtream_id === Number(target.category_id)
+                    )?.hidden
+                ).toBe(true);
+            }
             const positions = await page.evaluate(
                 (id) => window.electron.dbGetAllPlaybackPositions(id),
                 id

@@ -356,8 +356,8 @@ export function withContent() {
                     }
 
                     return {
-                        isLoadingCategories: true,
-                        isLoadingContent: true,
+                        isLoadingCategories: types.length > 0,
+                        isLoadingContent: types.length > 0,
                         isImporting: false,
                         isContentInitialized: options?.preserveInitialized
                             ? state.isContentInitialized

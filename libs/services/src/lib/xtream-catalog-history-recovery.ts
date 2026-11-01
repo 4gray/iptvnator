@@ -98,9 +98,12 @@ export async function prepareLegacyCatalogHistoryRecovery(
     return owned ? snapshot : undefined;
 }
 
-/** Current categories own visibility; absent identities keep their parked choice. */
+/** Completed categories own visibility; partial rows retain parked hidden choices. */
 export async function readCatalogRecoveryVisibility(
-    db: Pick<DatabaseService, 'getAllXtreamCategories'>,
+    db: Pick<
+        DatabaseService,
+        'getAllXtreamCategories' | 'getXtreamImportStatus'
+    >,
     playlistId: string,
     fallback: XtreamBackupHiddenCategory[] = []
 ) {
@@ -108,38 +111,56 @@ export async function readCatalogRecoveryVisibility(
         XTREAM_CONTENT_TYPES.map(async (type) => {
             const categoryType: XtreamBackupHiddenCategory['categoryType'] =
                 type === 'movie' ? 'movies' : type;
-            return (
-                await db.getAllXtreamCategories(playlistId, categoryType)
-            ).map((row) => ({
+            const [categories, status] = await Promise.all([
+                db.getAllXtreamCategories(playlistId, categoryType),
+                db.getXtreamImportStatus(playlistId, type),
+            ]);
+            return categories.map((row) => ({
                 categoryType,
                 xtreamId: row.xtream_id,
                 hidden: row.hidden,
+                complete: status === 'completed',
             }));
         })
     );
-    const currentCategories = ([] as (typeof groups)[number]).concat(...groups);
+    const present = ([] as (typeof groups)[number]).concat(...groups);
+    // Partial catalog rows must not erase the archive's hidden choices.
+    const currentCategories = present
+        .filter((row) => row.complete)
+        .map(({ categoryType, xtreamId, hidden }) => ({
+            categoryType,
+            xtreamId,
+            hidden,
+        }));
     const ids = new Set(
         currentCategories.map((row) => `${row.categoryType}:${row.xtreamId}`)
     );
     return {
         currentCategories,
-        hiddenCategories: [
-            ...fallback.filter(
-                (row) => !ids.has(`${row.categoryType}:${row.xtreamId}`)
-            ),
-            ...currentCategories
-                .filter((row) => row.hidden)
-                .map(({ categoryType, xtreamId }) => ({
-                    categoryType,
-                    xtreamId,
-                })),
-        ],
+        hiddenCategories: Array.from(
+            new Map(
+                [
+                    ...fallback.filter(
+                        (row) => !ids.has(`${row.categoryType}:${row.xtreamId}`)
+                    ),
+                    ...present
+                        .filter((row) => row.hidden)
+                        .map(({ categoryType, xtreamId }) => ({
+                            categoryType,
+                            xtreamId,
+                        })),
+                ].map((row) => [`${row.categoryType}:${row.xtreamId}`, row])
+            ).values()
+        ),
     };
 }
 
 /** Capture catalog flags before either edit-time or ordinary refresh deletes rows. */
 export async function captureCatalogCacheRecoveryState(
-    db: Pick<DatabaseService, 'getAllXtreamCategories'>,
+    db: Pick<
+        DatabaseService,
+        'getAllXtreamCategories' | 'getXtreamImportStatus'
+    >,
     deferred: XtreamDeferredCatalogRestoreService,
     playlistId: string,
     available: readonly XtreamContentType[]
@@ -159,17 +180,22 @@ export async function captureCatalogCacheRecoveryState(
         state: {
             ...prepared.state,
             recentlyViewed: [],
-            hiddenCategories: [
-                ...prepared.snapshot.state.hiddenCategories.filter(
-                    (row) =>
-                        !visibility.currentCategories.some(
-                            (current) =>
-                                current.categoryType === row.categoryType &&
-                                current.xtreamId === row.xtreamId
-                        )
-                ),
-                ...visibility.hiddenCategories,
-            ],
+            hiddenCategories: Array.from(
+                new Map(
+                    [
+                        ...prepared.snapshot.state.hiddenCategories.filter(
+                            (row) =>
+                                !visibility.currentCategories.some(
+                                    (current) =>
+                                        current.categoryType ===
+                                            row.categoryType &&
+                                        current.xtreamId === row.xtreamId
+                                )
+                        ),
+                        ...visibility.hiddenCategories,
+                    ].map((row) => [`${row.categoryType}:${row.xtreamId}`, row])
+                ).values()
+            ),
             catalogSnapshot: {
                 key: prepared.snapshot.key,
                 generation: prepared.snapshot.generation,

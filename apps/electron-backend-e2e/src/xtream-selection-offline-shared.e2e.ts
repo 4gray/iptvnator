@@ -342,3 +342,58 @@ test('shared-source edits retain device-local catalog choices and dormant histor
         await server.close();
     }
 });
+
+test('offline disabled catalog bookmarks settle category loading without importing data', async ({
+    dataDir,
+}) => {
+    const recorder = await recordCatalogRequests();
+    let app = await launchElectronApp(dataDir);
+    let page = app.mainWindow;
+    const title = 'Offline empty source';
+    let closed = false;
+    try {
+        await addXtreamPortal(page, {
+            name: title,
+            serverUrl: recorder.url,
+            contentTypes: [],
+        });
+        const id = await page.evaluate(
+            async (title) =>
+                (await window.electron.dbGetAppPlaylists()).find(
+                    (row) => row.title === title
+                )!._id,
+            title
+        );
+        await recorder.close();
+        closed = true;
+        app = await restartElectronApp(app, dataDir);
+        page = app.mainWindow;
+        await openSources(page);
+        await sourceRowByTitle(page, title)
+            .locator('.source-row__name')
+            .click();
+        // A bookmark can still name a section disabled by the saved selection.
+        await page.evaluate((id) => {
+            const root = location.pathname.split('/workspace/')[0];
+            history.pushState({}, '', `${root}/workspace/xtreams/${id}/vod`);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        }, id);
+        await expect(page).toHaveURL(/\/vod$/);
+        await expect(
+            page.getByText(title, { exact: true }).first()
+        ).toBeVisible();
+        await expect(
+            page.locator('app-workspace-context-panel .context-skeleton')
+        ).toHaveCount(0);
+        expect(catalogActions(recorder.actions)).toEqual([]);
+        expect(
+            await page.evaluate(
+                (id) => window.electron.dbHasContent(id, 'movie'),
+                id
+            )
+        ).toBe(false);
+    } finally {
+        await closeElectronApp(app);
+        if (!closed) await recorder.close();
+    }
+});

@@ -398,7 +398,9 @@ so an older import cannot consume a newly parked archive. Resolved history repla
 history before replay; hidden choices remain parked until applied. The journal is
 acknowledged only after deferred completion, and source deletion removes it. Category imports
 already apply the parked hidden flags, so cache retry preserves live visibility
-instead of resetting it like an explicit backup restore.
+instead of resetting it like an explicit backup restore. Only completed catalogs
+can override archived visibility; default flags on partially imported rows must
+not erase parked hidden categories.
 Ordinary Refresh prepares the same cache policy and native journal before
 catalog deletion. A pre-existing explicit archive keeps its authoritative state;
 a cache retry retains its current flags and still-dormant owned history.
@@ -450,7 +452,8 @@ Fresh desktop backup restores separate dormant catalog-dependent history and
 hidden choices from the active import snapshot. Offline restore readiness checks
 only selected catalogs; completed retained caches can also accept their saved
 state. Unavailable types remain dormant, and an empty selection needs no catalog
-cache before its independent user state can restore. Enabled types initialize normally;
+cache before its independent user state can restore. A cached route for an empty
+or disabled scope settles its loading flags without reading catalog data. Enabled types initialize normally;
 unloaded types retain durable restore data for re-export and later re-enabling.
 Replay merges with current source history and does not overwrite later progress,
 favorite removals or source-pin edits. See [backup restoration](./playlist-backup-restore.md).

@@ -231,3 +231,43 @@ it('captures current visibility instead of resurrecting a parked hidden flag for
     expect(result.state.recentlyViewed).toEqual([]);
     expect(result.archivedHistory).toEqual(legacyState().recentlyViewed);
 });
+
+it.each(['failed', 'cancelled', 'idle'])(
+    'keeps archived hidden flags when an incomplete %s catalog has leftover categories',
+    async (status) => {
+        const db = setup();
+        db.getXtreamImportStatus.mockImplementation(async (_id, type) =>
+            type === 'movie' ? status : 'completed'
+        );
+        db.getAllXtreamCategories.mockImplementation(async (_id, type) =>
+            type === 'movies' ? [{ xtream_id: 2, hidden: false }] : []
+        );
+        const deferred = new XtreamDeferredCatalogRestoreService();
+        deferred.prepare(
+            'p',
+            {
+                ...legacyState(),
+                hiddenCategories: [{ categoryType: 'movies', xtreamId: 2 }],
+            },
+            []
+        );
+        const captured = await captureCatalogCacheRecoveryState(
+            db,
+            deferred,
+            'p',
+            ['movie']
+        );
+        expect(captured.state.hiddenCategories).toEqual([
+            { categoryType: 'movies', xtreamId: 2 },
+        ]);
+        const exported = await exportCatalogRecoveryState(
+            db,
+            { getAllPlaybackPositionsOrThrow: jest.fn().mockResolvedValue([]) },
+            'p',
+            captured.state.hiddenCategories
+        );
+        expect(exported.hiddenCategories).toEqual(
+            captured.state.hiddenCategories
+        );
+    }
+);

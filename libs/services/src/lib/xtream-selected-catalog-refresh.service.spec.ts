@@ -41,6 +41,7 @@ describe('edit-time Xtream catalog refresh', () => {
         | 'setXtreamImportStatus'
         | 'restoreXtreamUserData'
         | 'getRecentItemsOrThrow'
+        | 'getXtreamImportStatus'
         | 'getAllXtreamCategories'
         | 'clearXtreamImportCache'
         | 'setAppState',
@@ -60,6 +61,7 @@ describe('edit-time Xtream catalog refresh', () => {
                 'setXtreamImportStatus',
                 'restoreXtreamUserData',
                 'getRecentItemsOrThrow',
+                'getXtreamImportStatus',
                 'getAllXtreamCategories',
                 'clearXtreamImportCache',
                 'setAppState',
@@ -69,6 +71,7 @@ describe('edit-time Xtream catalog refresh', () => {
         db.clearXtreamImportCache.mockResolvedValue(true);
         db.setAppState.mockResolvedValue(true);
         db.getAllXtreamCategories.mockResolvedValue([]);
+        db.getXtreamImportStatus.mockResolvedValue('completed');
         db.getRecentItemsOrThrow.mockResolvedValue([
             { type: 'live', xtream_id: 42, viewed_at: '2026-01-01' },
         ]);
