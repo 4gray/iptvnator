@@ -21,11 +21,13 @@ test('@tmdb-match corrects an Xtream movie through its route menu', async ({
         params: { ...params, action: 'get_vod_streams' },
     });
     const movie = (await listing.json())[0];
+    movie.name = 'Synthetic Movie Alpha';
     const providerPlot = 'The original provider movie description.';
     // The mock generates a new plot for each request; pin it across reloads.
     await page.route('**/localhost:3000/xtream**', async (route) => {
         const original = new URL(route.request().url());
-        if (original.searchParams.get('action') !== 'get_vod_info')
+        const action = original.searchParams.get('action');
+        if (action !== 'get_vod_info' && action !== 'get_vod_streams')
             return route.fallback();
         const url = new URL(`${MOCK_SERVER}/xtream`);
         original.searchParams.forEach((value, key) => {
@@ -33,8 +35,15 @@ test('@tmdb-match corrects an Xtream movie through its route menu', async ({
         });
         const response = await route.fetch({ url: url.toString() });
         const body = await response.json();
-        body.payload.info.plot = providerPlot;
-        body.payload.info.description = providerPlot;
+        if (action === 'get_vod_info') {
+            body.payload.info.name = movie.name;
+            body.payload.movie_data.name = movie.name;
+            body.payload.info.plot = providerPlot;
+            body.payload.info.description = providerPlot;
+        } else {
+            for (const item of body.payload)
+                if (item.stream_id === movie.stream_id) item.name = movie.name;
+        }
         await route.fulfill({ response, json: body });
     });
     const manualPlot = 'The movie selected manually in TMDB.';
@@ -77,6 +86,16 @@ test('@tmdb-match corrects an Xtream movie through its route menu', async ({
         .first()
         .click();
     await page.getByText(movie.name, { exact: true }).first().click();
+    const addFavorite = page.getByRole('button', {
+        name: 'Add to favorites',
+        exact: true,
+    });
+    const removeFavorite = page.getByRole('button', {
+        name: 'Remove from favorites',
+        exact: true,
+    });
+    await addFavorite.click();
+    await expect(removeFavorite).toBeVisible();
     const dialog = page.getByRole('dialog');
     const open = async () => {
         await page.getByTestId('vod-more-menu').click();
@@ -94,6 +113,11 @@ test('@tmdb-match corrects an Xtream movie through its route menu', async ({
     await expect(
         page.getByText(manualPlot, { exact: true }).first()
     ).toBeVisible();
+    await expect(removeFavorite).toBeVisible();
+    await removeFavorite.click();
+    await expect(addFavorite).toBeVisible();
+    await addFavorite.click();
+    await expect(removeFavorite).toBeVisible();
     await open();
     await dialog
         .getByRole('button', { name: 'Provider data', exact: true })
@@ -104,6 +128,7 @@ test('@tmdb-match corrects an Xtream movie through its route menu', async ({
         page.getByText(providerPlot, { exact: true }).first()
     ).toBeVisible();
     await expect(page.getByText(manualPlot, { exact: true })).toHaveCount(0);
+    await expect(removeFavorite).toBeVisible();
     await page.reload();
     await expect(
         page.getByText(providerPlot, { exact: true }).first()

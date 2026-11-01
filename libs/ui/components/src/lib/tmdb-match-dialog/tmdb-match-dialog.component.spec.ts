@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { Language } from '@iptvnator/shared/interfaces';
 import {
     TmdbApiService,
     TmdbRuntimeService,
@@ -190,6 +191,50 @@ describe('TmdbMatchDialogComponent', () => {
         await view.componentInstance.save();
         expect(details).toHaveBeenCalledWith('movie', 900101);
     });
+
+    it.each(Object.values(Language))(
+        'renders result facts for app locale %s',
+        async (locale) => {
+            const translate = TestBed.inject(TranslateService);
+            translate.setTranslation(locale, {});
+            translate.use(locale);
+            const view = await create();
+            expect(
+                view.nativeElement.querySelector('.match-facts')?.textContent
+            ).toContain('2026');
+            expect(
+                view.nativeElement.querySelectorAll('.match-result')
+            ).toHaveLength(1);
+        }
+    );
+
+    it.each([
+        ['zhtw', 'zh-TW'],
+        ['by', 'be-BY'],
+        ['ary', 'ar-MA'],
+    ])(
+        'localizes country names for the app alias %s',
+        async (appLocale, intlLocale) => {
+            const translate = TestBed.inject(TranslateService);
+            translate.setTranslation(appLocale, {});
+            translate.use(appLocale);
+            const view = await create();
+            const Names = (
+                Intl as unknown as {
+                    DisplayNames: new (
+                        locales: string[],
+                        options: { type: string }
+                    ) => { of(code: string): string | undefined };
+                }
+            ).DisplayNames;
+            const expectedCountry = new Names([intlLocale], {
+                type: 'region',
+            }).of('DE');
+            expect(
+                view.nativeElement.querySelector('.match-facts')?.textContent
+            ).toContain(expectedCountry);
+        }
+    );
 
     it('restores a manual choice and identifies it before another selection', async () => {
         previous = {

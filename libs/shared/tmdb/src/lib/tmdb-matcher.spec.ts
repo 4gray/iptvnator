@@ -13,19 +13,21 @@ import { TmdbSearchResult } from './tmdb.types';
 
 describe('normalizeTitle', () => {
     it('lowercases and strips punctuation', () => {
-        expect(normalizeTitle('The Matrix: Reloaded!')).toBe(
-            'the matrix reloaded'
+        expect(normalizeTitle('Synthetic Movie Alpha: Reloaded!')).toBe(
+            'synthetic movie alpha reloaded'
         );
     });
 
     it('removes bracketed tags and quality markers', () => {
-        expect(normalizeTitle('The Matrix (1999) [4K] MULTI')).toBe(
-            'the matrix'
+        expect(normalizeTitle('Synthetic Movie Alpha (1999) [4K] MULTI')).toBe(
+            'synthetic movie alpha'
         );
     });
 
     it('removes leading language prefixes', () => {
-        expect(normalizeTitle('EN - The Matrix')).toBe('the matrix');
+        expect(normalizeTitle('EN - Synthetic Movie Alpha')).toBe(
+            'synthetic movie alpha'
+        );
         expect(normalizeTitle('DE| Der Untergang')).toBe('der untergang');
     });
 
@@ -34,7 +36,9 @@ describe('normalizeTitle', () => {
     });
 
     it('removes trailing release-year tags', () => {
-        expect(normalizeTitle('The Matrix 1999')).toBe('the matrix');
+        expect(normalizeTitle('Synthetic Movie Alpha 1999')).toBe(
+            'synthetic movie alpha'
+        );
     });
 
     it('keeps year-only titles intact', () => {
@@ -67,23 +71,23 @@ describe('extractYear', () => {
     });
 
     it('falls back to a year tag in the title', () => {
-        expect(extractYear(null, 'The Matrix (1999)')).toBe(1999);
-        expect(extractYear('', 'The Matrix 2021 4K')).toBe(2021);
+        expect(extractYear(null, 'Synthetic Movie Alpha (1999)')).toBe(1999);
+        expect(extractYear('', 'Synthetic Movie Alpha 2021 4K')).toBe(2021);
     });
 
     it('returns null when no year is present', () => {
-        expect(extractYear(null, 'The Matrix')).toBeNull();
+        expect(extractYear(null, 'Synthetic Movie Alpha')).toBeNull();
         expect(extractYear('invalid', null)).toBeNull();
     });
 });
 
 describe('lookup keys', () => {
     it('builds stable search and details keys', () => {
-        expect(buildSearchLookupKey('The Matrix', 1999)).toBe(
-            'title:the matrix|year:1999|v5'
+        expect(buildSearchLookupKey('Synthetic Movie Alpha', 1999)).toBe(
+            'title:synthetic movie alpha|year:1999|v5'
         );
-        expect(buildSearchLookupKey('The Matrix', null)).toBe(
-            'title:the matrix|year:|v5'
+        expect(buildSearchLookupKey('Synthetic Movie Alpha', null)).toBe(
+            'title:synthetic movie alpha|year:|v5'
         );
     });
 
@@ -100,7 +104,7 @@ describe('lookup keys', () => {
         expect(buildSearchLookupKey('THE BOYS', 2019)).toBe(
             buildSearchLookupKey('The Boys', 2019)
         );
-        expect(buildDetailsLookupKey(603)).toBe('id:603|v2');
+        expect(buildDetailsLookupKey(900001)).toBe('id:900001|v2');
     });
 });
 
@@ -176,8 +180,8 @@ describe('buildSearchTitleVariants', () => {
 
 describe('parseProviderTmdbId', () => {
     it('accepts positive numbers and numeric strings', () => {
-        expect(parseProviderTmdbId(603)).toBe(603);
-        expect(parseProviderTmdbId('603')).toBe(603);
+        expect(parseProviderTmdbId(900001)).toBe(900001);
+        expect(parseProviderTmdbId('900001')).toBe(900001);
     });
 
     it('rejects zero, negatives, garbage and nullish values', () => {
@@ -192,14 +196,14 @@ describe('parseProviderTmdbId', () => {
 
 describe('pickConfidentMatch', () => {
     const matrix1999: TmdbSearchResult = {
-        id: 603,
-        title: 'The Matrix',
+        id: 900001,
+        title: 'Synthetic Movie Alpha',
         release_date: '1999-03-31',
         vote_count: 20000,
     };
     const matrix2021: TmdbSearchResult = {
         id: 624860,
-        title: 'The Matrix Resurrections',
+        title: 'Synthetic Movie Alpha Resurrections',
         release_date: '2021-12-16',
         vote_count: 5000,
     };
@@ -208,7 +212,7 @@ describe('pickConfidentMatch', () => {
         expect(
             pickConfidentMatch(
                 [matrix2021, matrix1999],
-                { title: 'The Matrix (1999)', year: 1999 },
+                { title: 'Synthetic Movie Alpha (1999)', year: 1999 },
                 'movie'
             )
         ).toBe(matrix1999);
@@ -218,7 +222,7 @@ describe('pickConfidentMatch', () => {
         expect(
             pickConfidentMatch(
                 [matrix1999],
-                { title: 'The Matrix', year: 2000 },
+                { title: 'Synthetic Movie Alpha', year: 2000 },
                 'movie'
             )
         ).toBe(matrix1999);
@@ -228,7 +232,7 @@ describe('pickConfidentMatch', () => {
         expect(
             pickConfidentMatch(
                 [matrix1999],
-                { title: 'The Matrix', year: 2005 },
+                { title: 'Synthetic Movie Alpha', year: 2005 },
                 'movie'
             )
         ).toBeNull();
@@ -238,7 +242,7 @@ describe('pickConfidentMatch', () => {
         expect(
             pickConfidentMatch(
                 [matrix2021],
-                { title: 'The Matrix', year: 2021 },
+                { title: 'Synthetic Movie Alpha', year: 2021 },
                 'movie'
             )
         ).toBeNull();
@@ -248,20 +252,20 @@ describe('pickConfidentMatch', () => {
         expect(
             pickConfidentMatch(
                 [matrix1999],
-                { title: 'The Matrix', year: null },
+                { title: 'Synthetic Movie Alpha', year: null },
                 'movie'
             )
         ).toBe(matrix1999);
 
         const remake: TmdbSearchResult = {
             id: 999,
-            title: 'The Matrix',
+            title: 'Synthetic Movie Alpha',
             release_date: '2030-01-01',
         };
         expect(
             pickConfidentMatch(
                 [matrix1999, remake],
-                { title: 'The Matrix', year: null },
+                { title: 'Synthetic Movie Alpha', year: null },
                 'movie'
             )
         ).toBeNull();
@@ -270,14 +274,14 @@ describe('pickConfidentMatch', () => {
     it('disambiguates same-title results by year evidence', () => {
         const obscure: TmdbSearchResult = {
             id: 111,
-            title: 'The Matrix',
+            title: 'Synthetic Movie Alpha',
             release_date: '1998-05-01',
             vote_count: 3,
         };
         expect(
             pickConfidentMatch(
                 [obscure, matrix1999],
-                { title: 'The Matrix', year: 1999 },
+                { title: 'Synthetic Movie Alpha', year: 1999 },
                 'movie'
             )
         ).toBe(matrix1999);
@@ -388,11 +392,11 @@ describe('pickConfidentMatch', () => {
         'rejects same-title, same-year %s namesakes regardless of popularity or result order',
         (mediaType) => {
             const russian: TmdbSearchResult = {
-                id: 318158,
-                title: 'Красота',
-                name: 'Красота',
-                original_title: 'Красота',
-                original_name: 'Красота',
+                id: 900101,
+                title: 'Синтетический сериал Альфа',
+                name: 'Синтетический сериал Альфа',
+                original_title: 'Синтетический сериал Альфа',
+                original_name: 'Синтетический сериал Альфа',
                 release_date: '2026-10-30',
                 first_air_date: '2026-10-30',
                 vote_count: 0,
@@ -400,9 +404,9 @@ describe('pickConfidentMatch', () => {
             };
             const american: TmdbSearchResult = {
                 ...russian,
-                id: 273160,
-                original_title: 'The Beauty',
-                original_name: 'The Beauty',
+                id: 900102,
+                original_title: 'Synthetic Series Beta',
+                original_name: 'Synthetic Series Beta',
                 release_date: '2026-01-21',
                 first_air_date: '2026-01-21',
                 vote_count: 1000,
@@ -415,7 +419,10 @@ describe('pickConfidentMatch', () => {
                 expect(
                     pickConfidentMatch(
                         results,
-                        { title: 'Красота (8 серий)', year: 2026 },
+                        {
+                            title: 'Синтетический сериал Альфа (8 серий)',
+                            year: 2026,
+                        },
                         mediaType
                     )
                 ).toBeNull();
@@ -439,13 +446,13 @@ describe('pickConfidentMatch', () => {
     it('prefers the exact release year over one off by one', () => {
         const exact: TmdbSearchResult = {
             id: 1,
-            title: 'The Matrix',
+            title: 'Synthetic Movie Alpha',
             release_date: '1999-03-31',
             vote_count: 10,
         };
         const adjacent: TmdbSearchResult = {
             id: 2,
-            title: 'The Matrix',
+            title: 'Synthetic Movie Alpha',
             release_date: '1998-03-31',
             vote_count: 9000,
         };
@@ -453,7 +460,7 @@ describe('pickConfidentMatch', () => {
         expect(
             pickConfidentMatch(
                 [adjacent, exact],
-                { title: 'The Matrix', year: 1999 },
+                { title: 'Synthetic Movie Alpha', year: 1999 },
                 'movie'
             )
         ).toBe(exact);
@@ -463,7 +470,7 @@ describe('pickConfidentMatch', () => {
         expect(
             pickConfidentMatch(
                 [matrix1999],
-                { title: 'The Matrix', year: 2026 },
+                { title: 'Synthetic Movie Alpha', year: 2026 },
                 'movie'
             )
         ).toBeNull();
@@ -471,7 +478,11 @@ describe('pickConfidentMatch', () => {
 
     it('returns null for empty inputs', () => {
         expect(
-            pickConfidentMatch([], { title: 'The Matrix', year: 1999 }, 'movie')
+            pickConfidentMatch(
+                [],
+                { title: 'Synthetic Movie Alpha', year: 1999 },
+                'movie'
+            )
         ).toBeNull();
         expect(
             pickConfidentMatch([matrix1999], { title: '', year: null }, 'movie')
@@ -481,23 +492,25 @@ describe('pickConfidentMatch', () => {
 
 describe('buildBadProviderIdLookupKey', () => {
     it('namespaces the id so it cannot collide with a details row', () => {
-        expect(buildBadProviderIdLookupKey(603)).toBe('badProviderId:603');
-        expect(buildBadProviderIdLookupKey(603)).not.toBe(
-            buildDetailsLookupKey(603)
+        expect(buildBadProviderIdLookupKey(900001)).toBe(
+            'badProviderId:900001'
+        );
+        expect(buildBadProviderIdLookupKey(900001)).not.toBe(
+            buildDetailsLookupKey(900001)
         );
     });
 });
 
 describe('detailsMatchProviderTitle', () => {
     const details = {
-        title: 'The Matrix',
-        original_title: 'The Matrix',
+        title: 'Synthetic Movie Alpha',
+        original_title: 'Synthetic Movie Alpha',
     };
 
     it('accepts a match on a noisy provider title', () => {
         expect(
             detailsMatchProviderTitle(details, {
-                title: 'EN - The Matrix (1999) 1080p',
+                title: 'EN - Synthetic Movie Alpha (1999) 1080p',
             })
         ).toBe(true);
     });
@@ -528,8 +541,8 @@ describe('detailsMatchProviderTitle', () => {
 
     it('never reports a mismatch when there is nothing to compare', () => {
         expect(detailsMatchProviderTitle(details, { title: '' })).toBe(true);
-        expect(detailsMatchProviderTitle({}, { title: 'The Matrix' })).toBe(
-            false
-        );
+        expect(
+            detailsMatchProviderTitle({}, { title: 'Synthetic Movie Alpha' })
+        ).toBe(false);
     });
 });

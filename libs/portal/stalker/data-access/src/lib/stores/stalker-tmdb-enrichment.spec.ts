@@ -13,7 +13,7 @@ const identity = {
     itemId: '42',
 };
 const original = {
-    name: 'Красота (8 серий)',
+    name: 'Синтетический сериал Альфа (8 серий)',
     description: 'Provider plot',
     movie_image: 'provider.jpg',
     releasedate: '2026',
@@ -48,7 +48,7 @@ function fixture(name = original.name) {
         return choice?.mode === 'provider'
             ? null
             : {
-                  id: choice?.mode === 'manual' ? choice.tmdbId : 273160,
+                  id: choice?.mode === 'manual' ? choice.tmdbId : 900102,
                   overview:
                       choice?.mode === 'manual'
                           ? 'Chosen plot'
@@ -92,15 +92,15 @@ it.each(['Unknown', '', '   '])(
         expect(context.enrichTv).not.toHaveBeenCalled();
         await context.matches.save(identity, {
             mode: 'manual',
-            tmdbId: 318158,
-            title: 'Красота',
+            tmdbId: 900101,
+            title: 'Синтетический сериал Альфа',
         });
-        expect(context.store.selectedItem().info?.tmdb_id).toBe(318158);
+        expect(context.store.selectedItem().info?.tmdb_id).toBe(900101);
         expect(context.store.selectedItem().info?.description).toBe(
             'Chosen plot'
         );
         await context.run();
-        expect(context.store.selectedItem().info?.tmdb_id).toBe(318158);
+        expect(context.store.selectedItem().info?.tmdb_id).toBe(900101);
         await context.matches.save(identity, { mode: 'provider' });
         expect(context.store.selectedItem().info?.description).toBe(
             'Provider plot'
@@ -113,8 +113,8 @@ it('separates regular and VOD series that reuse a provider ID', async () => {
     await context.run();
     await context.matches.save(identity, {
         mode: 'manual',
-        tmdbId: 318158,
-        title: 'Красота',
+        tmdbId: 900101,
+        title: 'Синтетический сериал Альфа',
     });
     context.switchCatalog();
     await context.run();
@@ -142,8 +142,8 @@ it('restores original Stalker metadata and preserves it through enriched snapsho
     );
     await context.matches.save(identity, {
         mode: 'manual',
-        tmdbId: 318158,
-        title: 'Красота',
+        tmdbId: 900101,
+        title: 'Синтетический сериал Альфа',
     });
     expect(context.store.selectedItem().info?.description).toBe('Chosen plot');
     await context.run(); // Reopen the enriched snapshot.
@@ -184,7 +184,7 @@ it('drops an automatic response which arrives after a provider-only choice', asy
     const pending = context.run();
     await context.matches.save(identity, { mode: 'provider' });
     finish({
-        id: 273160,
+        id: 900102,
         overview: 'Late wrong plot',
         poster_path: '/late.jpg',
     });

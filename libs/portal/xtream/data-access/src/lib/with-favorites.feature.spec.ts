@@ -1,4 +1,17 @@
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    TmdbMatchService,
+    type TmdbEnrichmentService,
+} from '@iptvnator/services';
+import {
+    enrichSerialSelectionWithTmdb,
+    enrichVodSelectionWithTmdb,
+} from './stores/xtream-tmdb-enrichment';
+import {
+    xtreamDetailContentMetadata,
+    preserveXtreamProviderIdentity,
+    type XtreamDetailMetadataSource,
+} from './xtream-content-metadata.util';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { TestBed } from '@angular/core/testing';
@@ -60,11 +73,142 @@ describe('withFavorites', () => {
     });
 
     afterEach(() => {
+        localStorage.clear();
         Object.defineProperty(window, 'electron', {
             configurable: true,
             writable: true,
             value: originalElectron,
         });
+    });
+
+    it.each(['movie', 'series'] as const)(
+        'keeps an existing SQLite %s favorite usable after an explicit TMDB correction',
+        async (type) => {
+            runtime.supportsXtreamSqliteDataSource = true;
+            const matches = new TmdbMatchService();
+            const identity = {
+                provider: 'xtream' as const,
+                playlistId: 'synthetic-source',
+                mediaType:
+                    type === 'movie' ? ('movie' as const) : ('tv' as const),
+                itemId: '42',
+            };
+            let selected: Record<string, unknown> = {
+                stream_id: '42',
+                series_id: '42',
+                info: {
+                    name: 'Synthetic Provider Alpha',
+                    releasedate: '2024-02-03',
+                    releaseDate: '2024-02-03',
+                },
+            };
+            const selectionStore = {
+                selectedItem: () => selected,
+                setSelectedItem: (value: Record<string, unknown> | null) => {
+                    selected = value ?? {};
+                },
+                currentPlaylist: () => ({ id: 'synthetic-source' }),
+            };
+            const enrich = jest.fn(async () => ({
+                id: matches.read(identity)?.mode === 'manual' ? 900202 : 900101,
+                overview: 'Synthetic description',
+            }));
+            const enrichment = {
+                isEnabled: () => true,
+                matches,
+                enrichMovie: enrich,
+                enrichTv: enrich,
+            } as unknown as TmdbEnrichmentService;
+            const run = () =>
+                type === 'movie'
+                    ? enrichVodSelectionWithTmdb(
+                          selectionStore,
+                          enrichment,
+                          '42'
+                      )
+                    : enrichSerialSelectionWithTmdb(
+                          selectionStore,
+                          enrichment,
+                          '42'
+                      );
+            // The original automatic ID was already backfilled into the content row.
+            dataSource.getContentByXtreamId.mockImplementation(
+                async (_id, _playlist, _type, expected) =>
+                    expected?.tmdbId !== undefined && expected.tmdbId !== 900101
+                        ? null
+                        : { id: 7, tmdb_id: 900101 }
+            );
+            dataSource.isFavorite.mockResolvedValue(true);
+            await run();
+            await matches.save(identity, {
+                mode: 'manual',
+                tmdbId: 900202,
+                title: 'Synthetic Selected Alpha',
+            });
+            expect((selected['info'] as { tmdb_id: number }).tmdb_id).toBe(
+                900202
+            );
+            const metadata =
+                xtreamDetailContentMetadata(
+                    selected['info'] as XtreamDetailMetadataSource
+                ) ?? undefined;
+            await store.checkFavoriteStatus(
+                42,
+                'synthetic-source',
+                type,
+                metadata
+            );
+            expect(store.isFavorite()).toBe(true);
+            expect(
+                await store.toggleFavorite(
+                    42,
+                    'synthetic-source',
+                    type,
+                    undefined,
+                    metadata
+                )
+            ).toBe(false);
+            expect(dataSource.removeFavorite).toHaveBeenCalledWith(
+                { id: 7, type },
+                'synthetic-source'
+            );
+            expect(dataSource.addFavorite).not.toHaveBeenCalled();
+        }
+    );
+
+    it('still rejects a reused provider ID when manual display metadata hides the contrary provider claim', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const corrected = preserveXtreamProviderIdentity(
+            { tmdb_id: 900303 },
+            { tmdb_id: 900202 },
+            true
+        );
+        const identity = xtreamDetailContentMetadata(corrected) ?? undefined;
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (_id, _playlist, _type, expected) =>
+                expected?.tmdbId !== undefined && expected.tmdbId !== 900101
+                    ? null
+                    : { id: 7 }
+        );
+        dataSource.isFavorite.mockResolvedValue(true);
+        await store.checkFavoriteStatus(
+            42,
+            'synthetic-source',
+            'movie',
+            identity
+        );
+        expect(store.isFavorite()).toBe(false);
+        expect(
+            await store.toggleFavorite(
+                42,
+                'synthetic-source',
+                'movie',
+                undefined,
+                identity
+            )
+        ).toBe(false);
+        expect(dataSource.removeFavorite).not.toHaveBeenCalled();
+        expect(dataSource.addFavorite).not.toHaveBeenCalled();
     });
 
     it('reports a conflict without mutating when every SQLite duplicate contradicts the detail identity', async () => {

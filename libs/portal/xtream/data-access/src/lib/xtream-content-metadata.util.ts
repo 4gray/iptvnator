@@ -11,6 +11,7 @@ import {
  * whichever fields exist are used.
  */
 export interface XtreamDetailMetadataSource {
+    tmdb_provider_identity?: Omit<ContentMetadataPatch, 'backdropUrl'>;
     backdrop_path?: string[] | null;
     tmdb_id?: number | string | null;
     /** VOD (`get_vod_info`) */
@@ -31,8 +32,10 @@ export interface XtreamDetailMetadataSource {
  * so it must stay meaningful without it: `releasedate` and `o_name` come
  * straight from the provider and are exactly the fields the enrichment query
  * uses, which is what lets a later reader rebuild that same query. The
- * `tmdb_id` is whichever the view currently holds — the provider's claim
- * early on, the resolved id once enrichment lands. The write path never
+ * `tmdb_id` comes from the provider or automatic enrichment. Manual matches
+ * retain provider identity separately, so an editorial correction cannot
+ * invalidate an existing favorite or become evidence of a reused provider ID.
+ * The write path never
  * overwrites, so the first non-empty value for each column wins.
  *
  * The year deliberately does NOT fall back to a year found in the title:
@@ -47,12 +50,43 @@ export function xtreamDetailContentMetadata(
         return null;
     }
 
-    return normalizeContentMetadataPatch({
+    const patch = {
         backdropUrl: info.backdrop_path?.[0] ?? undefined,
         tmdbId: info.tmdb_id != null ? Number(info.tmdb_id) : undefined,
         releaseYear: providerReleaseYear(info),
         originalTitle: info.o_name ?? undefined,
-    });
+    };
+    const provider = info.tmdb_provider_identity;
+    return normalizeContentMetadataPatch(
+        provider
+            ? {
+                  ...patch,
+                  tmdbId: provider.tmdbId,
+                  releaseYear: provider.releaseYear,
+                  originalTitle: provider.originalTitle,
+              }
+            : patch
+    );
+}
+
+/** Manual metadata is presentation, never evidence that a provider reused an ID. */
+export function preserveXtreamProviderIdentity<
+    T extends XtreamDetailMetadataSource,
+>(
+    provider: XtreamDetailMetadataSource,
+    enriched: T,
+    manual: boolean | undefined
+): T {
+    if (!manual) return enriched;
+    const identity = xtreamDetailContentMetadata(provider);
+    return {
+        ...enriched,
+        tmdb_provider_identity: {
+            tmdbId: identity?.tmdbId,
+            releaseYear: identity?.releaseYear,
+            originalTitle: identity?.originalTitle,
+        },
+    };
 }
 
 /**

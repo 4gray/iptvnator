@@ -10,7 +10,11 @@ const identity: TmdbMatchIdentity = {
     mediaType: 'tv',
     itemId: '42',
 };
-const choice = { mode: 'manual' as const, tmdbId: 318158, title: 'Красота' };
+const choice = {
+    mode: 'manual' as const,
+    tmdbId: 900101,
+    title: 'Синтетический сериал Альфа',
+};
 
 beforeEach(() => localStorage.clear());
 afterEach(() => jest.restoreAllMocks());

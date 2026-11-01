@@ -177,10 +177,9 @@ Wrong metadata is worse than no metadata, so id resolution is conservative:
    (`yearEvidenceTier`): the provider's exact year beats a year off by one,
    which beats the series "premiered earlier" tolerance. The strongest tier
    must contain exactly one result; a tie leaves the provider metadata intact.
-   Popularity and vote counts cannot identify namesakes: both the Russian
-   «Красота» (TMDB 318158) and American *The Beauty* (273160) are named
-   «Красота» in Russian and premiered in 2026. Picking the more popular
-   result silently replaces the Russian series with the American one.
+   Popularity and vote counts cannot identify two unrelated productions with
+   the same localized title and release year. A tie preserves provider data
+   until the user explicitly chooses the correct match.
 
    The tolerance is a last resort, not an equal. Ranked alongside the
    exact-year tier it handed every new series its older, better-known
@@ -258,6 +257,13 @@ the portal supplies a fresh item. Xtream restores the original provider episode
 map and resets its season metadata status/overviews/posters when changing a
 series match. Provider-only choices also skip lazy season enrichment, including
 when the provider supplied a TMDB ID. Stalker's season overlays are already keyed by TMDB ID.
+Xtream manual enrichment retains the provider's original identity claims in
+`info.tmdb_provider_identity`, including an empty object when none were supplied.
+The shared content metadata adapter uses those claims for favorite/recent lookup
+and write-once catalog backfill; the selected TMDB ID remains display metadata.
+Existing favorites therefore survive corrections while conflicting provider
+claims still trigger the normal reused-ID guard. The marker survives JSON
+snapshots and is removed when restoring raw provider or automatic metadata.
 Per-item revisions and source/selection guards reject responses started under
 an older choice. Menus do not expose this action for live/radio or the TV app.
 

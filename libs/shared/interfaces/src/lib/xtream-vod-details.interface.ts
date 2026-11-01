@@ -1,4 +1,5 @@
 import type { ContentCertification } from './content-certification';
+import type { ContentMetadataPatch } from './content-metadata.interface';
 import {
     TmdbCountryFacet,
     TmdbEnrichedCastMember,
@@ -7,6 +8,8 @@ import {
 } from './tmdb.interface';
 
 export interface XtreamVodInfo {
+    /** Provider identity retained while a user-selected TMDB result supplies display metadata. */
+    tmdb_provider_identity?: Omit<ContentMetadataPatch, 'backdropUrl'>;
     /** All country classifications supplied by TMDB. */
     tmdb_certifications?: readonly ContentCertification[];
     kinopoisk_url: string;

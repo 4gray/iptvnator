@@ -20,6 +20,7 @@ import {
     TmdbMatchService,
     tmdbSearchLanguageForTitle,
     tmdbPosterUrl,
+    toTmdbLanguage,
     type TmdbMatchChoice,
     type TmdbMatchContext,
     type TmdbSearchResult,
@@ -184,16 +185,14 @@ export class TmdbMatchDialogComponent {
     }
 
     facts(row: TmdbSearchResult): string {
+        const locale = toTmdbLanguage(this.translate.currentLang);
         const date = row.release_date || row.first_air_date;
         const countries = row.origin_country ?? [];
-        const names = new DisplayNames([this.translate.currentLang || 'en'], {
+        const names = new DisplayNames([locale], {
             type: 'region',
         });
         const language = row.original_language;
-        const languageNames = new DisplayNames(
-            [this.translate.currentLang || 'en'],
-            { type: 'language' }
-        );
+        const languageNames = new DisplayNames([locale], { type: 'language' });
         return [
             date?.slice(0, 4),
             ...countries.map((code) => names.of(code)),

@@ -12,6 +12,7 @@ import {
     getXtreamVodInfo,
     resolveEnrichmentSeasonNumber,
 } from '@iptvnator/shared/interfaces';
+import { preserveXtreamProviderIdentity } from '../xtream-content-metadata.util';
 
 /**
  * Async TMDB enrichment of the currently selected Xtream detail item.
@@ -120,7 +121,12 @@ export async function enrichVodSelectionWithTmdb<TItem extends SelectionRecord>(
     try {
         store.setSelectedItem({
             ...current,
-            info: mergers.mergeVodInfoWithTmdb(currentInfo, details),
+            info: preserveXtreamProviderIdentity(
+                info,
+                mergers.mergeVodInfoWithTmdb(currentInfo, details),
+                !!matchIdentity &&
+                    matches?.read(matchIdentity)?.mode === 'manual'
+            ),
         } as unknown as TItem);
     } catch (error) {
         // Never degrade provider data over a malformed payload shape
@@ -225,7 +231,12 @@ export async function enrichSerialSelectionWithTmdb<
     try {
         store.setSelectedItem({
             ...current,
-            info: mergers.mergeSerieInfoWithTmdb(currentInfo, details),
+            info: preserveXtreamProviderIdentity(
+                info,
+                mergers.mergeSerieInfoWithTmdb(currentInfo, details),
+                !!matchIdentity &&
+                    matches?.read(matchIdentity)?.mode === 'manual'
+            ),
         } as unknown as TItem);
     } catch (error) {
         console.warn('[TMDB] series merge failed:', error);
