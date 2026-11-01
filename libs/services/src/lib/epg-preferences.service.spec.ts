@@ -9,6 +9,28 @@ describe('global EPG preference', () => {
         preferences = TestBed.inject(EpgPreferencesService);
     });
 
+    it('keeps the latest opt-out when an earlier native enable finishes last', async () => {
+        const original = window.electron;
+        let finish!: () => void;
+        const enabling = new Promise<void>((resolve) => {
+            finish = resolve;
+        });
+        window.electron = {
+            ...original,
+            setEpgEnabled: (enabled: boolean) =>
+                enabled ? enabling : Promise.resolve(),
+        } as typeof window.electron;
+        try {
+            const oldEnable = preferences.apply(true);
+            await preferences.apply(false);
+            finish();
+            await oldEnable;
+            expect(preferences.enabled()).toBe(false);
+        } finally {
+            window.electron = original;
+        }
+    });
+
     it('defaults on and never calls a loader when explicitly disabled', async () => {
         const load = jest.fn().mockResolvedValue(['programme']);
         expect(await preferences.run(load, [])).toEqual(['programme']);
@@ -26,6 +48,15 @@ describe('global EPG preference', () => {
         expect(load).not.toHaveBeenCalled();
         await preferences.apply(false);
         expect(await request).toEqual([]);
+        expect(load).not.toHaveBeenCalled();
+    });
+
+    it('rechecks opt-out when readiness resolves before the request resumes', async () => {
+        const load = jest.fn().mockResolvedValue(['programme']);
+        const pending = preferences.run(load, []);
+        await Promise.resolve();
+        await preferences.apply(false);
+        expect(await pending).toEqual([]);
         expect(load).not.toHaveBeenCalled();
     });
 
