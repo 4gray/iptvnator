@@ -23,6 +23,40 @@ function harness(enabled = true) {
 }
 describe('owned web-player activity', () => {
     afterEach(() => jest.restoreAllMocks());
+    it('keeps the shared resume point while the initial seek settles, then saves deliberate rewinds', () => {
+        const { events, activity } = harness();
+        const media = { ...playback('resumed'), startTime: 60 };
+        activity.begin(media);
+        activity.record(media, {
+            currentTime: 0,
+            duration: 100,
+            playing: false,
+        });
+        activity.flush();
+        expect(events.checkpoint).not.toHaveBeenCalled();
+        activity.record(media, {
+            currentTime: 58,
+            duration: 100,
+            playing: false,
+        });
+        activity.record(media, {
+            currentTime: 10,
+            duration: 100,
+            playing: false,
+        });
+        expect(events.checkpoint).toHaveBeenLastCalledWith(
+            expect.objectContaining({ positionSeconds: 10 })
+        );
+    });
+    it('accepts progress when a shorter stream cannot reach the requested resume point', () => {
+        const { events, activity } = harness();
+        const media = { ...playback('shorter'), startTime: 60 };
+        activity.begin(media);
+        activity.record(media, { currentTime: 2, duration: 6, playing: false });
+        expect(events.checkpoint).toHaveBeenCalledWith(
+            expect.objectContaining({ positionSeconds: 2 })
+        );
+    });
     it('flushes the last short-video position even between periodic checkpoints', () => {
         jest.spyOn(Date, 'now').mockReturnValue(10000);
         const { events, activity } = harness();

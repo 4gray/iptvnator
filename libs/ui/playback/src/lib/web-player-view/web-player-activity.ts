@@ -11,17 +11,20 @@ export class WebPlayerActivity {
     private last?: PlaybackPositionData;
     private savedAt = 0;
     private session?: string;
+    private resumeSettled = false;
     constructor(private readonly activity: PlaybackActivityEvents | null) {}
     begin(playback: ResolvedPortalPlayback | null): void {
         if (!playback?.contentInfo || playback.isLive) {
             this.flush();
             this.latest = undefined;
             this.session = undefined;
+            this.resumeSettled = false;
             return;
         }
         if (this.session !== playback.contentInfo.activitySessionId) {
             this.flush();
             this.latest = undefined;
+            this.resumeSettled = false;
         }
         void this.activity
             ?.begin(playback.contentInfo, playback.startTime, playback.title)
@@ -34,6 +37,12 @@ export class WebPlayerActivity {
     ): void {
         const info = playback?.contentInfo;
         if (!info?.activitySessionId || !this.activity?.active()) return;
+        if (!this.resumeSettled) {
+            const start = playback?.startTime ?? 0;
+            const reachable = !(event.duration > 0) || start < event.duration;
+            if (reachable && start > 0 && event.currentTime < start - 5) return;
+            this.resumeSettled = true;
+        }
         this.last = {
             ...info,
             positionSeconds: event.currentTime,

@@ -1,3 +1,4 @@
+import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
     HttpClient,
     provideHttpClient,
@@ -43,7 +44,10 @@ import { ElectronService } from './services/electron.service';
 import { ExternalPlaybackService } from './services/external-playback.service';
 import { PlayerService } from './services/player.service';
 import { provideParentalLockPrompt } from './services/parental-lock-prompt.service';
-import { provideActivitySync } from './services/activity-sync.providers';
+import {
+    activityDataSourceFactory,
+    activityEventsFactory,
+} from './services/activity-sync.providers';
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
 import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
@@ -150,8 +154,11 @@ export const appConfig: ApplicationConfig = {
         ...provideWorkspaceShellActions(),
         ...provideParentalLockPrompt(),
         provideParentalLockPlaylistCleanup(),
-        ...provideXtreamDataSource(),
-        ...provideActivitySync(),
+        ...provideXtreamDataSource(activityDataSourceFactory),
+        {
+            provide: PLAYBACK_ACTIVITY_EVENTS,
+            useFactory: activityEventsFactory,
+        },
         ...provideSourceSync(),
     ],
 };

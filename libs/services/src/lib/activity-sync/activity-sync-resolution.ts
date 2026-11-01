@@ -25,19 +25,30 @@ export async function resolveActivity(
     })) as ActivityState;
     const consentGeneration = this.consent();
     let session: { id: string; generation: number } | undefined;
+    let discardedSessions: string[] = [];
     await this.store.mutate(address, (current) => {
+        discardedSessions = [];
         if (!current)
             return {
                 state: remote,
                 pending: [],
                 position: projectActivity(address, remote, this.alias(address)),
             };
-        if (!useLocal)
+        if (!useLocal) {
+            for (const { operation } of current.pending)
+                if (
+                    operation.kind === 'begin' ||
+                    operation.kind === 'checkpoint'
+                )
+                    discardedSessions.push(operation.sessionId);
+            if (current.position?.activitySessionId)
+                discardedSessions.push(current.position.activitySessionId);
             return {
                 state: remote,
                 pending: [],
                 position: projectActivity(address, remote, this.alias(address)),
             };
+        }
         const position =
             current.position ?? projectActivity(address, current.state);
         const base = {
@@ -138,6 +149,7 @@ export async function resolveActivity(
             })),
         };
     });
+    for (const id of discardedSessions) this.retiredSessions.add(id);
     if (session)
         this.sessions.set(
             session.id,

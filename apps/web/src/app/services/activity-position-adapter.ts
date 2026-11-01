@@ -160,26 +160,30 @@ export class ActivityPositionAdapter {
         for (const item of await this.client.positions(sourceId)) {
             const position = item.position;
             if (item.reset)
-                await raw.clearPlaybackPosition(
+                await (this.strict?.clear(
                     sourceId,
                     position.contentXtreamId,
                     position.contentType
-                );
+                ) ??
+                    raw.clearPlaybackPosition(
+                        sourceId,
+                        position.contentXtreamId,
+                        position.contentType
+                    ));
             else {
                 const duration =
                     position.durationSeconds && position.durationSeconds > 0
                         ? position.durationSeconds
                         : 1;
-                await raw.savePlaybackPosition(
-                    sourceId,
-                    position.watched
-                        ? {
-                              ...position,
-                              positionSeconds: duration,
-                              durationSeconds: duration,
-                          }
-                        : position
-                );
+                const local = position.watched
+                    ? {
+                          ...position,
+                          positionSeconds: duration,
+                          durationSeconds: duration,
+                      }
+                    : position;
+                await (this.strict?.save(sourceId, local) ??
+                    raw.savePlaybackPosition(sourceId, local));
             }
         }
     }

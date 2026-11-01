@@ -931,8 +931,10 @@ entries and sources before explicit import; existing server entries become
 conflicts rather than being overwritten. Episodes without a verified provider
 identity stay local. Open the series to register its aliases, then retry import.
 Disabling retains local and remote data, mirrors the current projection into
-local playback storage and parks pending intent. A new consent generation cannot
-send an older queue until the user chooses to send it or keep it local.
+local playback storage and parks pending intent. Native mirror writes require a
+confirmed acknowledgement before pending intent can be discarded. A new consent
+generation cannot send an older queue until the user chooses to send it or keep
+it local.
 
 The implementation uses narrow entry points, outside the eager main barrels:
 
@@ -965,8 +967,12 @@ The source data-source decorator preserves local behavior while disabled. With
 consent it projects the shared state through existing Xtream/Stalker position
 APIs. Web players begin explicit sessions and save during playback, on completion
 and on teardown; existing native position reports retain session metadata.
-Refresh on focus/online and a visible-page five-second poll deliver changes;
-local invalidation refreshes open detail views and position caches.
+The consented activity runtime starts from the lazy source-server initializer;
+standalone startup keeps the optional client outside the initial bundle. Players
+ignore transient pre-seek ticks until the initial resume position is reached,
+then accept deliberate rewinds. Refresh on focus/online and a visible-page
+five-second poll deliver changes; local invalidation refreshes open detail views
+and position caches.
 
 An address contains the instance, shared activity scope, source ID, source
 incarnation and a typed provider identity. Episode identities include their
@@ -1016,7 +1022,9 @@ real HTTP, SQLite IPC and decoded media; run it through the source-sync config.
 The latest explicit online begin owns shared resume. Superseded online players
 keep playing and their background checkpoints are retired. A competing offline
 queue requires an explicit local/server choice; reconnect never silently elects
-an old session. Reset/unwatch clears both progress and watched state in this MVP.
+an old session. Choosing the server also retires the discarded local sessions,
+so their later ticks cannot recreate the resolved conflict. Reset/unwatch clears
+both progress and watched state in this MVP.
 
 ## Service factory and build bases
 

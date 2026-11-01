@@ -245,6 +245,36 @@ describe('activity sync clients', () => {
         expect(h.states.size).toBe(0);
         expect((await a.store.pending())[0].consentGeneration).toBe('consent');
     });
+    it.each([1, 2])(
+        'retires discarded offline sessions after choosing a server owner with equal or lower generation (%s begins)',
+        async (begins) => {
+            const h = harness();
+            const a = h.client('a');
+            const b = h.client('b');
+            h.offline(true);
+            for (let index = 1; index <= begins; index++) {
+                await a.value.save('source', movie(`offline-${index}`, 65));
+                await a.value.flush();
+            }
+            h.offline(false);
+            await b.value.save('source', movie('online', 30));
+            await b.value.flush();
+            await a.value.flush();
+            const entry = (await a.store.entries('source'))[0];
+            expect(entry.record.conflict).toBeDefined();
+            await a.value.resolve(entry.address, false);
+            await a.value.save('source', movie(`offline-${begins}`, 80));
+            await a.value.flush();
+            expect(await a.store.pending()).toHaveLength(0);
+            expect(
+                (await a.store.entries('source'))[0].record.conflict
+            ).toBeUndefined();
+            expect([...h.states.values()][0].resume?.positionSeconds).toBe(30);
+            await a.value.save('source', movie('explicit-new-session', 40));
+            await a.value.flush();
+            expect([...h.states.values()][0].resume?.positionSeconds).toBe(40);
+        }
+    );
     it('leaves explicitly imported server collisions for a choice', async () => {
         const h = harness();
         const a = h.client('a');

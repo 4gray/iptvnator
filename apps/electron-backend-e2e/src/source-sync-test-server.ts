@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { expect } from '@playwright/test';
 import { workspaceRoot } from './electron-test-fixtures';
 
@@ -49,7 +49,21 @@ export async function startSourceSyncServer(token = '') {
                     )
                         return 0;
                     try {
-                        return (await fetch(`${apiUrl}/health`)).status;
+                        const response = await fetch(
+                            `${apiUrl}/v1/instance/status`,
+                            {
+                                headers: token
+                                    ? { Authorization: `Bearer ${token}` }
+                                    : {},
+                            }
+                        );
+                        if (!response.ok) return 0;
+                        const { databasePath } = await response.json();
+                        return realpathSync(databasePath).startsWith(
+                            realpathSync(directory) + sep
+                        )
+                            ? 200
+                            : 0;
                     } catch {
                         return 0;
                     }

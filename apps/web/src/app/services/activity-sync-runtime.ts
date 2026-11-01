@@ -35,6 +35,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import type {
     PlaybackPositionData,
+    PlayerContentInfo,
     ServerInstanceInfo,
 } from '@iptvnator/shared/interfaces';
 import { activityConsentKey, activityEnabled } from './activity-consent';
@@ -167,10 +168,13 @@ export class ActivitySyncRuntime {
         }
     }
 
-    async begin(position: PlaybackPositionData): Promise<void> {
+    async begin(position: PlayerContentInfo, startTime = 0): Promise<void> {
         if (!this.enabled()) return;
         try {
-            await this.ensureClient().begin(position.playlistId!, position);
+            await this.ensureClient().begin(position.playlistId!, {
+                ...position,
+                positionSeconds: startTime,
+            });
         } catch {
             this.state.set('offline');
         }

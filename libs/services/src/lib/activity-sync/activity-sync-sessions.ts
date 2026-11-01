@@ -86,8 +86,9 @@ export async function saveActivity(
         const state = current?.state ?? emptyActivityState();
         if (
             session &&
-            state.generation > session.generation &&
-            state.owner?.sessionId !== position.activitySessionId
+            (this.retiredSessions.has(position.activitySessionId!) ||
+                (state.generation > session.generation &&
+                    state.owner?.sessionId !== position.activitySessionId))
         ) {
             this.retiredSessions.add(position.activitySessionId!);
             return current!;
