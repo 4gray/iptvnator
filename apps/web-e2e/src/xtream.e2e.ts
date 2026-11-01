@@ -1211,17 +1211,19 @@ for (const theme of ['light', 'dark']) {
         ).toBeChecked();
         await expect(row).toBeVisible();
 
-        // Phone width: the title keeps readable room and the actions move
-        // under the text instead of squeezing it.
+        // Phone width: the text column keeps readable room and the actions
+        // move below it. A short title's intrinsic width is not that room.
         await page.setViewportSize({ width: 360, height: 740 });
         await row.hover();
-        const narrowTitle = await title.boundingBox();
+        const narrowText = await row
+            .locator('.episode-item__text')
+            .boundingBox();
         const narrowActions = await row
             .locator('.episode-item__actions')
             .boundingBox();
-        expect(narrowTitle?.width ?? 0).toBeGreaterThan(120);
+        expect(narrowText?.width ?? 0).toBeGreaterThan(120);
         expect(narrowActions?.y ?? 0).toBeGreaterThanOrEqual(
-            (narrowTitle?.y ?? 0) + (narrowTitle?.height ?? 0)
+            (narrowText?.y ?? 0) + (narrowText?.height ?? 0)
         );
         // A grid card at that width keeps its text under the artwork.
         await page
