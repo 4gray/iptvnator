@@ -48,6 +48,26 @@ describe('StalkerAuthApi', () => {
         );
     }
 
+    it('authenticates a full portal over LAN HTTP without SubtleCrypto', async () => {
+        Object.defineProperty(globalThis, 'crypto', {
+            configurable: true,
+            value: {},
+        });
+        sendIpcEvent
+            .mockResolvedValueOnce({ js: { token: 'TOKEN-HTTP', random: 'r1' } })
+            .mockResolvedValueOnce({ js: { status: 0 } });
+
+        await expect(
+            api.authenticate(portalUrl, macAddress)
+        ).resolves.toMatchObject({ token: 'TOKEN-HTTP' });
+        for (const action of ['handshake', 'get_profile']) {
+            expect(callsByAction(action)[0][1].params.prehash).toBe(
+                'C7501DA00F79DFB9DC499C43834BAC5A10DB7445'
+            );
+        }
+        expect(callsByAction('get_profile')[0][1].params.device_id).toBeUndefined();
+    });
+
     it('reports one coherent MAG250 in the profile request', async () => {
         sendIpcEvent
             .mockResolvedValueOnce({ js: { token: 'TOKEN-1', random: 'r1' } })

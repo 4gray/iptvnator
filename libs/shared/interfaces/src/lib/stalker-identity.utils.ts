@@ -1,4 +1,8 @@
 import { normalizeStalkerMacAddress } from './stalker-mac-address.util';
+import {
+    hashStalkerProtocolValue,
+    STALKER_HASH_ALGORITHM,
+} from './stalker-protocol-hash.util';
 
 export const LEGACY_DEFAULT_STALKER_SERIAL = 'BEDACD4569BAF';
 const STALKER_CFDUID_LENGTH = 32;
@@ -62,18 +66,6 @@ export interface StalkerDerivedDeviceIds {
     deviceId2: string;
 }
 
-async function sha256Upper(value: string): Promise<string> {
-    const digest = await crypto.subtle.digest(
-        'SHA-256',
-        new TextEncoder().encode(value)
-    );
-
-    return Array.from(new Uint8Array(digest))
-        .map((byte) => byte.toString(16).padStart(2, '0'))
-        .join('')
-        .toUpperCase();
-}
-
 /**
  * Derives the MAC-based device ID pair that StbEmu and the `stalker-to-m3u`
  * reference client generate: uppercase hex `SHA256` of the canonical
@@ -98,24 +90,24 @@ async function sha256Upper(value: string): Promise<string> {
  * behind their back, where a MAC edit would silently re-derive them into a
  * conflict.
  *
- * Returns `null` whenever it cannot produce trustworthy IDs: when the MAC is
- * not a valid address (hashing whatever happens to be in the field would bind
- * the account to a typo, permanently), and when the runtime has no WebCrypto
- * — an insecure-context PWA, where the handshake's own SHA-1 prehash cannot
- * run either, so full-portal auth is already out of reach. Both cases fail
- * closed: nothing is written, so nothing is pinned.
+ * Returns `null` when the MAC is not valid: hashing whatever happens to be in
+ * the field would bind the account to a typo permanently. Native Web Crypto
+ * and LAN HTTP use the same SHA-256 values through the protocol hash helper.
  */
 export async function deriveStalkerDeviceIdsFromMac(
     macAddress: string | null | undefined
 ): Promise<StalkerDerivedDeviceIds | null> {
     const normalizedMac = normalizeStalkerMacAddress(macAddress);
-    if (!normalizedMac || !globalThis.crypto?.subtle) {
+    if (!normalizedMac) {
         return null;
     }
 
     const [deviceId1, deviceId2] = await Promise.all([
-        sha256Upper(normalizedMac),
-        sha256Upper(`${normalizedMac}${STALKER_DEVICE_ID2_SALT}`),
+        hashStalkerProtocolValue(normalizedMac, STALKER_HASH_ALGORITHM.SHA256),
+        hashStalkerProtocolValue(
+            `${normalizedMac}${STALKER_DEVICE_ID2_SALT}`,
+            STALKER_HASH_ALGORITHM.SHA256
+        ),
     ]);
 
     return { deviceId1, deviceId2 };

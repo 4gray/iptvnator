@@ -180,6 +180,13 @@ The PWA continues to use `PwaService`. A selected source server also supplies
 its backend base URL for browser provider proxy calls. Electron provider
 requests remain owned by the Electron backend and preload bridge.
 
+Stalker authentication also supports LAN HTTP origins without `crypto.subtle`:
+its SHA-1 prehash and optional MAC-derived SHA-256 device IDs use the shared
+protocol hash fallback described in [Stalker contracts](stalker-portal.md).
+HTTPS retains native Web Crypto. This compatibility path does not encrypt
+HTTP or enable browser features that require a secure context, such as service
+worker registration.
+
 ## Shared source library
 
 The self-hosted PWA discovers the runtime `BACKEND_URL` before Angular bootstrap.

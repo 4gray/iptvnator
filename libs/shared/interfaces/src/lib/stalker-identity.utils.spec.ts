@@ -1,6 +1,18 @@
 import { deriveStalkerDeviceIdsFromMac } from './stalker-identity.utils';
 
 describe('deriveStalkerDeviceIdsFromMac', () => {
+    const originalCrypto = Object.getOwnPropertyDescriptor(
+        globalThis,
+        'crypto'
+    );
+
+    afterEach(() => {
+        if (originalCrypto) {
+            Object.defineProperty(globalThis, 'crypto', originalCrypto);
+        } else {
+            Reflect.deleteProperty(globalThis, 'crypto');
+        }
+    });
     // Uppercase hex SHA-256 of the canonical MAC, and of that MAC plus the
     // `stalker` salt — the values StbEmu and stalker-to-m3u pin server-side.
     // Asserted literally: matching those clients byte for byte is the entire
@@ -19,14 +31,30 @@ describe('deriveStalkerDeviceIdsFromMac', () => {
         ).resolves.toEqual(EXPECTED);
     });
 
+    it.each([{}, undefined])(
+        'derives the same pair without Web Crypto (%p)',
+        async (cryptoApi) => {
+            Object.defineProperty(globalThis, 'crypto', {
+                configurable: true,
+                value: cryptoApi,
+            });
+
+            await expect(
+                deriveStalkerDeviceIdsFromMac('00-1a-79-ab-cd-ef')
+            ).resolves.toEqual(EXPECTED);
+            await expect(
+                deriveStalkerDeviceIdsFromMac('invalid')
+            ).resolves.toBeNull();
+        }
+    );
+
     it('never produces an identical pair', async () => {
         // A real box reports device_id and device_id2 from two separate
         // firmware calls and they are never equal, so an identical pair is a
         // fingerprint no STB produces — and the portal pins the first value it
         // sees permanently, so it cannot be corrected afterwards.
-        const derived = await deriveStalkerDeviceIdsFromMac(
-            '00:1A:79:00:00:01'
-        );
+        const derived =
+            await deriveStalkerDeviceIdsFromMac('00:1A:79:00:00:01');
 
         expect(derived?.deviceId1).not.toBe(derived?.deviceId2);
     });
@@ -44,7 +72,8 @@ describe('deriveStalkerDeviceIdsFromMac', () => {
     });
 
     it('produces 64 uppercase hex characters for both', async () => {
-        const derived = await deriveStalkerDeviceIdsFromMac('00:1A:79:00:00:01');
+        const derived =
+            await deriveStalkerDeviceIdsFromMac('00:1A:79:00:00:01');
 
         expect(derived?.deviceId1).toMatch(/^[0-9A-F]{64}$/);
         expect(derived?.deviceId2).toMatch(/^[0-9A-F]{64}$/);
