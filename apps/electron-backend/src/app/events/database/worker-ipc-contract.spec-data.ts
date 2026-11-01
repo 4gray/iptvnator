@@ -144,9 +144,51 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { key: 'workspace:last-route' },
     },
     {
+        operation: 'DB_CHECK_XTREAM_CATALOG_CONNECTION',
+        args: [
+            {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        ],
+        payload: {
+            condition: {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        },
+    },
+    {
         operation: 'DB_SET_APP_STATE',
         args: ['workspace:last-route', '/workspace'],
         payload: { key: 'workspace:last-route', value: '/workspace' },
+    },
+    {
+        operation: 'DB_SET_APP_STATE',
+        args: [
+            'xtream-import-status:p:movie',
+            'completed',
+            {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        ],
+        payload: {
+            key: 'xtream-import-status:p:movie',
+            value: 'completed',
+            condition: {
+                playlistId: 'p',
+                serverUrl: 'https://synthetic.invalid',
+                username: 'u',
+                password: 'p',
+            },
+        },
     },
     {
         operation: 'DB_HAS_CATEGORIES',
@@ -178,6 +220,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_UPDATE_CATEGORY_VISIBILITY',
         args: [categoryIds, true],
         payload: { categoryIds, hidden: true },
+    },
+    {
+        operation: 'DB_UPDATE_CATEGORY_VISIBILITY',
+        args: [categoryIds, false, true],
+        payload: { categoryIds, hidden: false, explicit: true },
     },
     {
         operation: 'DB_SET_CATEGORY_LOCKS',
@@ -338,6 +385,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_GET_RECENT_ITEMS',
         args: [playlistId],
         payload: { playlistId },
+    },
+    {
+        operation: 'DB_GET_RECENT_ITEMS',
+        args: [playlistId, { all: true }],
+        payload: { playlistId, all: true },
     },
     {
         operation: 'DB_ADD_RECENT_ITEM',

@@ -30,10 +30,14 @@ export function retainSourceProjection(
     }
     return Object.assign(
         next,
+        { autoImportEpg: incoming.autoImportEpg ?? current.autoImportEpg },
         resolvePlaylistEpgSourceState({
+            autoImportEpg: incoming.autoImportEpg ?? current.autoImportEpg,
             detectedEpgUrls: current.detectedEpgUrls,
-            enabledEpgUrls: current.epgUrls?.filter((url) =>
-                current.detectedEpgUrls?.includes(url)
+            enabledEpgUrls: current.epgUrls?.filter(
+                (url) =>
+                    current.detectedEpgUrls?.includes(url) ||
+                    !current.manualEpgUrls?.includes(url)
             ),
             manualEpgUrls: incoming.manualEpgUrls,
             disabledEpgUrls: incoming.disabledEpgUrls,

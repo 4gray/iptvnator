@@ -1,3 +1,4 @@
+import { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
 import { TestBed } from '@angular/core/testing';
 import {
     PLAYLIST_DELETE_CLEANUP,
@@ -100,6 +101,10 @@ describe('provideXtreamDataSource', () => {
 
     it('skips browser sidecar cleanup for SQLite-backed Xtream storage', async () => {
         configure(true);
+        const clear = jest.spyOn(
+            TestBed.inject(XtreamDeferredCatalogRestoreService),
+            'clear'
+        );
         const [cleanup] = TestBed.inject(
             PLAYLIST_DELETE_CLEANUP
         ) as PlaylistDeleteCleanup[];
@@ -108,6 +113,7 @@ describe('provideXtreamDataSource', () => {
 
         expect(electronSource.deletePlaylist).not.toHaveBeenCalled();
         expect(pwaSource.deletePlaylist).not.toHaveBeenCalled();
+        expect(clear).toHaveBeenCalledWith('playlist-1');
     });
 
     it('runs browser sidecar cleanup when SQLite-backed Xtream storage is unavailable', async () => {

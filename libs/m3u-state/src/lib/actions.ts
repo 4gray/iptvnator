@@ -45,6 +45,7 @@ export const PlaylistActions = createActionGroup({
         }>(),
         'Update Many Playlists': props<{ playlists: Playlist[] }>(),
         'Parse Playlist': props<{
+            autoImportEpg?: boolean;
             uploadType: 'FILE' | 'URL' | 'TEXT';
             playlist: string;
             title: string;

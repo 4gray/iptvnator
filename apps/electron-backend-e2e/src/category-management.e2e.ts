@@ -565,7 +565,7 @@ async function refreshFromWorkspaceHeader(page: Page): Promise<void> {
         .getByRole('button', { name: 'Refresh playlist', exact: true })
         .click();
 
-    const refreshOverlay = page.locator('app-workspace-shell-import-overlay');
+    const refreshOverlay = page.locator('app-workspace-shell-import-overlay .workspace-loading-overlay');
     await expect(refreshOverlay).toBeVisible({ timeout: 5000 });
     await expect(
         refreshOverlay.getByRole('heading', {

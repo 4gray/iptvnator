@@ -27,6 +27,11 @@ export const mockDrizzle = {
         left,
         values,
     })),
+    like: jest.fn((left: unknown, right: unknown) => ({
+        kind: 'like',
+        left,
+        right,
+    })),
     sql: Object.assign(
         jest.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
             kind: 'sql',
@@ -49,6 +54,7 @@ export function mockDrizzleOrmModule() {
         eq: (left: unknown, right: unknown) => mockDrizzle.eq(left, right),
         inArray: (left: unknown, values: unknown[]) =>
             mockDrizzle.inArray(left, values),
+        like: (left: unknown, right: unknown) => mockDrizzle.like(left, right),
         sql: Object.assign(
             (strings: TemplateStringsArray, ...values: unknown[]) =>
                 mockDrizzle.sql(strings, ...values),
@@ -65,6 +71,7 @@ export function resetDrizzleMocks() {
     mockDrizzle.desc.mockClear();
     mockDrizzle.eq.mockClear();
     mockDrizzle.inArray.mockClear();
+    mockDrizzle.like.mockClear();
     mockDrizzle.sql.mockClear();
     mockDrizzle.sql.placeholder.mockClear();
 }
@@ -75,6 +82,8 @@ export type QueryMock = {
     where: jest.Mock;
     orderBy: jest.Mock;
     limit: jest.Mock;
+    all: jest.Mock;
+    get: jest.Mock;
     then: (
         resolve: (value: unknown[]) => void,
         reject: (reason: unknown) => void
@@ -97,7 +106,9 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
             innerJoin: jest.fn(),
             where: jest.fn(),
             orderBy: jest.fn(),
-            limit: jest.fn().mockResolvedValue(rows),
+            limit: jest.fn(),
+            all: jest.fn().mockReturnValue(rows),
+            get: jest.fn().mockReturnValue(rows[0]),
             then: (resolve, reject) =>
                 Promise.resolve(rows).then(resolve, reject),
         };
@@ -105,6 +116,7 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
         query.innerJoin.mockReturnValue(query);
         query.where.mockReturnValue(query);
         query.orderBy.mockReturnValue(query);
+        query.limit.mockReturnValue(query);
         queries.push(query);
         return query;
     });
@@ -134,6 +146,7 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
         .fn()
         .mockReturnValue({ run: updateRun, execute: updateExecute });
     const updateWhere = jest.fn().mockReturnValue({
+        run: updateRun,
         prepare: updatePrepare,
         then: (
             resolve: (value: unknown) => void,
@@ -159,6 +172,7 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
     };
     const deleteWhere = jest.fn().mockReturnValue(deleteResult);
     const deleteFn = jest.fn().mockReturnValue({
+        run: deleteRun,
         where: deleteWhere,
         then: (
             resolve: (value: unknown) => void,
@@ -166,19 +180,19 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
         ) => Promise.resolve(undefined).then(resolve, reject),
     });
 
-    const transaction = jest.fn((callback: () => unknown) => {
-        const result = callback();
-        return Promise.resolve(result);
-    });
+    const transaction = jest.fn((callback: (tx: AppDatabase) => unknown) =>
+        callback(database)
+    );
+    const database = {
+        select,
+        insert,
+        update,
+        delete: deleteFn,
+        transaction,
+    } as unknown as AppDatabase;
 
     return {
-        db: {
-            select,
-            insert,
-            update,
-            delete: deleteFn,
-            transaction,
-        } as unknown as AppDatabase,
+        db: database,
         deleteExecute,
         deleteFn,
         deletePrepare,

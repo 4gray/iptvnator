@@ -123,9 +123,13 @@ test('@a11y icon-only buttons are named in Sources and the playlist info dialog'
 
     // Playlist info dialog, with an EPG source row and its remove button.
     const info = await openSourceEditor(page, M3U_TITLE);
-    await info.getByRole('button', { name: 'Add EPG source' }).click();
+    await info
+        .getByRole('button', { name: 'Add another source', exact: true })
+        .click();
     await expect(
-        info.getByRole('button', { name: 'Remove EPG source' }).last()
+        info
+            .getByRole('button', { name: 'Remove new source', exact: true })
+            .last()
     ).toBeVisible();
     await expect(
         info.getByRole('button', { name: 'Copy URL to clipboard' })

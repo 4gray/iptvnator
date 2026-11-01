@@ -1,5 +1,15 @@
 import { reconcileCompletedFavoriteCatalog } from './favorite-catalog';
+import {
+    beginHistoryRecovery,
+    deleteHistoryRecovery,
+} from './xtream-history-recovery';
 import { eq, sql } from 'drizzle-orm';
+import {
+    normalizeXtreamContentTypes,
+    parseXtreamHistoryRecovery,
+    XTREAM_HISTORY_RECOVERY_PREFIX,
+    type XtreamContentType,
+} from '@iptvnator/shared/interfaces';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { Channel, M3uFavoriteChannel } from '@iptvnator/shared/interfaces';
 import {
@@ -11,6 +21,12 @@ import {
     type PerformancePhaseMetadata,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
+import type {
+    XtreamCatalogStateCondition,
+    XtreamCatalogStateResult,
+} from '@iptvnator/shared/interfaces';
+import { setConditionalCatalogState } from './xtream-catalog-state';
+import { deleteExplicitCategoryVisibility } from './category-visibility';
 import {
     type CategoryRowCount,
     countContentRowsByCategory,
@@ -116,7 +132,9 @@ export async function createPlaylist(
     // A server profile receives complete source rows through projection.
     // A delayed portal-session fallback must never recreate a removed row.
     if (/^[a-f0-9]{64}$/.test(process.env.IPTVNATOR_SOURCE_PROFILE ?? '')) {
-        const existing = await db.select({ id: schema.playlists.id }).from(schema.playlists)
+        const existing = await db
+            .select({ id: schema.playlists.id })
+            .from(schema.playlists)
             .where(eq(schema.playlists.id, playlist.id));
         if (!existing.length) throw new Error('Shared source no longer exists');
         return { success: true };
@@ -241,6 +259,7 @@ export async function getAppPlaylistMetas(db: AppDatabase) {
             detectedEpgUrls: schema.playlists.detectedEpgUrls,
             manualEpgUrls: schema.playlists.manualEpgUrls,
             disabledEpgUrls: schema.playlists.disabledEpgUrls,
+            autoImportEpg: schema.playlists.autoImportEpg,
             autoRefresh: schema.playlists.autoRefresh,
             macAddress: schema.playlists.macAddress,
             url: schema.playlists.url,
@@ -252,15 +271,22 @@ export async function getAppPlaylistMetas(db: AppDatabase) {
             favorites: schema.playlists.favorites,
             recentlyViewed: schema.playlists.recentlyViewed,
             lastUsage: schema.playlists.lastUsage,
+            xtreamContentTypes: sql<
+                string | null
+            >`CASE WHEN ${schema.playlists.type} = 'xtream' THEN CASE WHEN json_valid(${schema.playlists.payload}) THEN CASE WHEN json_type(${schema.playlists.payload}, '$.xtreamContentTypes') = 'array' THEN json_extract(${schema.playlists.payload}, '$.xtreamContentTypes') END END END`,
         })
         .from(schema.playlists);
 
-    return rows.map((row) =>
-        parseAppPlaylist({
-            ...row,
-            payload: null,
-        } as schema.Playlist)
-    );
+    return rows.map((row) => ({
+        ...parseAppPlaylist({ ...row, payload: null } as schema.Playlist),
+        ...(row.xtreamContentTypes == null
+            ? {}
+            : {
+                  xtreamContentTypes: normalizeXtreamContentTypes(
+                      JSON.parse(row.xtreamContentTypes)
+                  ),
+              }),
+    }));
 }
 
 export async function getAppPlaylist(
@@ -376,7 +402,20 @@ export async function getPlaylist(db: AppDatabase, playlistId: string) {
     }
 
     const serverTimezone = readPayloadServerTimezone(row.payload);
-    return serverTimezone ? { ...row, serverTimezone } : row;
+    const payload = parseJsonValue<Record<string, unknown>>(row.payload, {});
+    if (!serverTimezone && payload?.xtreamContentTypes === undefined)
+        return row;
+    return {
+        ...row,
+        ...(serverTimezone ? { serverTimezone } : {}),
+        ...(payload?.xtreamContentTypes === undefined
+            ? {}
+            : {
+                  xtreamContentTypes: normalizeXtreamContentTypes(
+                      payload.xtreamContentTypes
+                  ),
+              }),
+    };
 }
 
 export async function updatePlaylist(
@@ -386,17 +425,28 @@ export async function updatePlaylist(
         name?: string;
         username?: string;
         password?: string;
+        userAgent?: string;
         serverUrl?: string;
         lastUpdated?: string;
+        xtreamContentTypes?: XtreamContentType[];
     }
 ): Promise<{ success: boolean }> {
+    const { xtreamContentTypes, ...columns } = updates;
+    const payload =
+        columns.serverUrl === undefined
+            ? sql`${schema.playlists.payload}`
+            : serverTimezoneInvalidation(columns.serverUrl);
     await db
         .update(schema.playlists)
         .set({
-            ...updates,
-            ...(updates.serverUrl === undefined
-                ? {}
-                : { payload: serverTimezoneInvalidation(updates.serverUrl) }),
+            ...columns,
+            ...(xtreamContentTypes !== undefined
+                ? {
+                      payload: sql`json_set(CASE WHEN json_valid(${payload}) THEN ${payload} ELSE '{}' END, '$.xtreamContentTypes', json(${JSON.stringify(normalizeXtreamContentTypes(xtreamContentTypes))}))`,
+                  }
+                : columns.serverUrl === undefined
+                  ? {}
+                  : { payload }),
         })
         .where(eq(schema.playlists.id, playlistId));
 
@@ -555,6 +605,8 @@ async function deleteCollectedPlaylistRows(
         increment: 1,
     });
 
+    deleteHistoryRecovery(db, playlistId);
+    deleteExplicitCategoryVisibility(db, playlistId);
     return countPlaylistDeletionRows(collection) + 1;
 }
 
@@ -606,8 +658,23 @@ export async function getAppState(db: AppDatabase, key: string) {
 export async function setAppState(
     db: AppDatabase,
     key: string,
-    value: string
-): Promise<{ success: boolean }> {
+    value: string,
+    condition?: XtreamCatalogStateCondition
+): Promise<XtreamCatalogStateResult> {
+    if (condition !== undefined) {
+        const result = setConditionalCatalogState(db, key, value, condition);
+        if (result.success)
+            await reconcileCompletedFavoriteCatalog(db, key, value);
+        return result;
+    }
+    if (value && key.startsWith(XTREAM_HISTORY_RECOVERY_PREFIX)) {
+        beginHistoryRecovery(
+            db,
+            key.slice(XTREAM_HISTORY_RECOVERY_PREFIX.length),
+            parseXtreamHistoryRecovery(value)
+        );
+        return { success: true };
+    }
     const updatedAt = new Date().toISOString();
 
     await db
@@ -676,5 +743,7 @@ export async function deleteAllPlaylists(
         });
     }
 
+    deleteHistoryRecovery(db);
+    deleteExplicitCategoryVisibility(db);
     return { success: true };
 }

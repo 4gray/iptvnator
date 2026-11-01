@@ -438,8 +438,8 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             const positionB = { contentXtreamId: 2 } as never;
             const restoreState = {
                 hiddenCategories: [{ categoryType: 'live', xtreamId: 101 }],
-                favorites: [{ xtreamId: 202, type: 'movie' }],
-                recentlyViewed: [{ xtreamId: 101, type: 'live' }],
+                favorites: [{ xtreamId: 202, contentType: 'movie' }],
+                recentlyViewed: [{ xtreamId: 101, contentType: 'live' }],
                 playbackPositions: [positionA, positionB],
             } as never;
             const options = { operationId: 'op-1' };
@@ -474,7 +474,7 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             ).toHaveBeenCalledWith(
                 playlistId,
                 [],
-                [{ xtreamId: 101, type: 'live' }],
+                [{ xtreamId: 101, contentType: 'live' }],
                 options
             );
             expect(

@@ -220,7 +220,7 @@ export class PlaylistsService {
             url: playlist.url,
             filePath: playlist.filePath,
             epgUrls: playlist.epgUrls ?? [],
-            detectedEpgUrls: playlist.detectedEpgUrls ?? playlist.epgUrls ?? [],
+            detectedEpgUrls: playlist.detectedEpgUrls ?? [],
             manualEpgUrls: playlist.manualEpgUrls ?? [],
             disabledEpgUrls: playlist.disabledEpgUrls ?? [],
             userAgent: playlist.userAgent,
@@ -230,6 +230,7 @@ export class PlaylistsService {
             updateState: playlist.updateState,
             position: playlist.position,
             serverUrl: playlist.serverUrl,
+            xtreamContentTypes: playlist.xtreamContentTypes,
             username: playlist.username,
             password: playlist.password,
             macAddress: playlist.macAddress,
@@ -777,6 +778,7 @@ export class PlaylistsService {
         updatedPlaylist: PlaylistMetaUpdate
     ): Playlist {
         const epgSourceState = resolvePlaylistEpgSourceState({
+            autoImportEpg: playlist.autoImportEpg,
             detectedEpgUrls:
                 updatedPlaylist.detectedEpgUrls ?? playlist.detectedEpgUrls,
             enabledEpgUrls: updatedPlaylist.epgUrls ?? playlist.epgUrls,
@@ -810,6 +812,9 @@ export class PlaylistsService {
                 : {}),
             ...(updatedPlaylist.serverUrl != null
                 ? { serverUrl: updatedPlaylist.serverUrl }
+                : {}),
+            ...(updatedPlaylist.xtreamContentTypes !== undefined
+                ? { xtreamContentTypes: updatedPlaylist.xtreamContentTypes }
                 : {}),
             ...(updatedPlaylist.portalUrl != null
                 ? { portalUrl: updatedPlaylist.portalUrl }
@@ -1378,6 +1383,12 @@ export class PlaylistsService {
             if (store) {
                 this.startupMetas = null;
                 await store.dbDeleteAllPlaylists();
+                if (this.usesElectronStorage) {
+                    const { XtreamDeferredCatalogRestoreService } = await import(
+                        './xtream-deferred-catalog-restore.service'
+                    );
+                    new XtreamDeferredCatalogRestoreService().clearAll();
+                }
                 this.healthEvidence?.connections.next({});
             }
             return;

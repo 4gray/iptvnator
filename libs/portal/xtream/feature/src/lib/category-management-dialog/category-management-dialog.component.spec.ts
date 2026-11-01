@@ -8,8 +8,10 @@ import {
     DatabaseService,
     ParentalLockService,
     RuntimeCapabilitiesService,
+    XtreamPendingRestoreService,
     XCategoryFromDb,
 } from '@iptvnator/services';
+import { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
@@ -84,7 +86,7 @@ describe('CategoryManagementDialogComponent', () => {
     beforeEach(async () => {
         jest.clearAllMocks();
         dataSource.getAllCategories.mockResolvedValue(categories);
-        db.updateCategoryVisibility.mockResolvedValue(undefined);
+        db.updateCategoryVisibility.mockResolvedValue(true);
         parentalLock.enabled.set(false);
         parentalLock.active.set(false);
         parentalLock.setXtreamLocks.mockResolvedValue(true);
@@ -214,11 +216,63 @@ describe('CategoryManagementDialogComponent', () => {
         component.deselectAll();
         await component.save();
         expect(db.updateCategoryVisibility.mock.calls).toEqual([
-            [[11, 12, 14], true],
-            [[13], false],
+            [[11, 12, 14], true, true],
+            [[13], false, true],
         ]);
         expect(dialogRef.close).toHaveBeenCalledWith(true);
     });
+
+    it.each([false, true])(
+        'records explicit native intent without changing dormant DOM data (failed=%s)',
+        async (failed) => {
+            localStorage.clear();
+            try {
+                const pending = new XtreamPendingRestoreService();
+                const deferred = new XtreamDeferredCatalogRestoreService();
+                const state = {
+                    favorites: [],
+                    playbackPositions: [],
+                    hiddenCategories: [102, 999].map((xtreamId) => ({
+                        categoryType: 'live' as const,
+                        xtreamId,
+                    })),
+                    recentlyViewed: [
+                        {
+                            contentType: 'movie' as const,
+                            xtreamId: 800,
+                            viewedAt: 'synthetic',
+                        },
+                    ],
+                };
+                pending.set(data.playlistId, state);
+                deferred.prepare(data.playlistId, state, []);
+                db.updateCategoryVisibility.mockResolvedValue(!failed);
+                component.selectAll();
+                await component.save();
+                const expected = state.hiddenCategories;
+                expect(
+                    deferred.getSnapshot(data.playlistId).state.hiddenCategories
+                ).toEqual(expected);
+                expect(
+                    pending.getOrThrow(data.playlistId)?.hiddenCategories
+                ).toEqual(expected);
+                expect(
+                    deferred.getSnapshot(data.playlistId).state.recentlyViewed
+                ).toEqual(state.recentlyViewed);
+                if (failed) expect(dialogRef.close).not.toHaveBeenCalled();
+                else {
+                    expect(db.updateCategoryVisibility).toHaveBeenCalledWith(
+                        [11, 12, 13, 14],
+                        false,
+                        true
+                    );
+                    expect(dialogRef.close).toHaveBeenCalledWith(true);
+                }
+            } finally {
+                localStorage.clear();
+            }
+        }
+    );
 
     it('closes without saving when the session relocks while it is open', () => {
         parentalLock.enabled.set(true);
@@ -239,7 +293,10 @@ describe('CategoryManagementDialogComponent', () => {
         fixture.detectChanges();
         let finishVisibility: () => void = () => undefined;
         db.updateCategoryVisibility.mockImplementationOnce(
-            () => new Promise<void>((resolve) => (finishVisibility = resolve))
+            () =>
+                new Promise<boolean>(
+                    (resolve) => (finishVisibility = () => resolve(true))
+                )
         );
         component.deselectAll();
 

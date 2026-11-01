@@ -14,6 +14,10 @@ export interface XtreamPendingRestoreState {
     favorites: XtreamBackupFavoriteItem[];
     recentlyViewed: XtreamBackupRecentlyViewedItem[];
     playbackPositions: PlaybackPositionData[];
+    /** Internal cache recovery leaves live positions authoritative; never exported. */
+    preservePlaybackPositions?: true;
+    /** Internal deferred-generation ownership; never accepted from an archive. */
+    catalogSnapshot?: { key: string; generation: string | null };
     /**
      * Optional: absent from archives and persisted entries written before
      * multi-source existed. The normalizer preserves that absence so restore
@@ -40,6 +44,8 @@ interface RestoreStateCandidate {
     favorites?: unknown;
     recentlyViewed?: unknown;
     playbackPositions?: unknown;
+    preservePlaybackPositions?: unknown;
+    catalogSnapshot?: unknown;
     sourcePins?: unknown;
     favoritesRestoreId?: unknown;
 }
@@ -156,6 +162,24 @@ export function normalizeXtreamPendingRestoreState(
         playbackPositions: toArray(candidate.playbackPositions).filter(
             (item): item is PlaybackPositionData => isRecord(item)
         ),
+        ...(candidate.preservePlaybackPositions === true
+            ? { preservePlaybackPositions: true as const }
+            : {}),
+        ...(isRecord(candidate.catalogSnapshot) &&
+        typeof candidate.catalogSnapshot['key'] === 'string' &&
+        (typeof candidate.catalogSnapshot['generation'] === 'string' ||
+            candidate.catalogSnapshot['generation'] === null)
+            ? {
+                  catalogSnapshot: {
+                      key: candidate.catalogSnapshot['key'],
+                      generation:
+                          typeof candidate.catalogSnapshot['generation'] ===
+                          'string'
+                              ? candidate.catalogSnapshot['generation']
+                              : null,
+                  },
+              }
+            : {}),
         // Absent stays ABSENT. Materializing `[]` here would make an older
         // archive — which says nothing about pins — look like one that says
         // "there are none", and restore would clear the user's pins.

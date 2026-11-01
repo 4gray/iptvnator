@@ -278,6 +278,18 @@ same with and without profiling. `DB_GLOBAL_SEARCH` is deliberately not
 instrumented: it interleaves queries and ranking across sources, so these
 single-query phases would be misleading.
 
+### Cache history recovery
+
+The internal `xtream-history-recovery:` keys in `app_state` register Xtream cache
+recovery through `DB_SET_APP_STATE`. Registration atomically captures live history
+and newly available archived entries. Native history mutations update that journal
+in their own transactions, including removal tombstones and explicit clears.
+`DB_RESTORE_XTREAM_USER_DATA` replays the current journal in one transaction so a
+watch or removal cannot be overwritten between replay chunks. This transaction
+contains saved history only; catalog writes keep the row budgets below. The
+renderer acknowledges the journal after deferred state completes, and source
+deletion removes its journal. Explicit backup import resets it before replay.
+
 ### Catalog write batching
 
 Catalog deletes and inserts commit in row-budgeted transactions rather than

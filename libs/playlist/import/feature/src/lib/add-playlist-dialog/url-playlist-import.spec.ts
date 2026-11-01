@@ -43,6 +43,29 @@ describe('dialog-owned URL playlist import', () => {
 
     afterEach(() => Reflect.deleteProperty(globalThis, hookSymbol));
 
+    it('applies EPG opt-out after the single authorized acquisition', async () => {
+        const pending = state.submit(
+            { ...draft, autoImportEpg: false },
+            completed
+        );
+        expect(fetchPlaylistDefinition).toHaveBeenCalledTimes(1);
+        resolve({
+            ...playlist,
+            detectedEpgUrls: ['https://epg.test/guide.xml'],
+            epgUrls: ['https://epg.test/guide.xml'],
+        });
+        await pending;
+        expect(dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlist: expect.objectContaining({
+                    autoImportEpg: false,
+                    epgUrls: [],
+                    detectedEpgUrls: ['https://epg.test/guide.xml'],
+                }),
+            })
+        );
+    });
+
     it('keeps dispatch inside the existing benchmark phase boundary', async () => {
         const boundaries: string[] = [];
         Reflect.set(

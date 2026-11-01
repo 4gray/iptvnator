@@ -290,7 +290,8 @@ describe('DatabaseService operation lifecycle', () => {
         ).resolves.toBe(snapshot);
         expect(bridge.dbDeleteXtreamContent).toHaveBeenCalledWith(
             'one',
-            'refresh-one'
+            'refresh-one',
+            undefined
         );
         expect(listeners.size).toBe(0);
         expect(unsubscribe[0]).toHaveBeenCalledTimes(1);

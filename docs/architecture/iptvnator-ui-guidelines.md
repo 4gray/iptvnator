@@ -1225,6 +1225,16 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   role (add `app-dialog__secondary--sm` for dense bulk tools), or
   `mat-button.app-dialog__ghost` for a text action. The footer remains the
   decision row. A separate EPG save explicitly says “Save EPG sources”.
+  The playlist editor's main Save also includes valid pending EPG rows, while
+  the separate action applies only EPG changes immediately. Track draft rows by
+  their form controls and reset the first control in place after applying them,
+  so the displayed input clears along with its value.
+  EPG rows show recorded provenance and a separate global-settings status. Name
+  actions by scope: “Add to global EPG settings”, “Remove from this playlist”,
+  “Remove new source” and “Add another source”. Explain immediate enable/removal
+  versus saving new rows. Keep unselected detected sources in the kit's native
+  disclosure with “Enable for this playlist”; after an action removes or disables
+  its button, move focus to a remaining source action or the add-row action.
 - **Shell.** A dialog's markup is `app-dialog-shell`
   (`@iptvnator/ui/components`): the heading (its `mat-dialog-title`, so
   the container is named by it), an optional subtitle and 40px icon tile
@@ -1263,6 +1273,17 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   surface scrolls the whole dialog, so a stacked footer never squeezes the
   body to a sliver. A dialog without a footer keeps its body scrolling
   there: its header × is its only in-dialog dismissal and stays in place.
+  Read-only account and shortcuts dialogs opt into `bodyFocusable`: the
+  named content region is the first keyboard stop, so PageDown and arrow
+  keys scroll the information without moving the header. Forms keep their
+  first control as the initial stop. The programme dialog's own frame caps
+  its height to the viewport and scrolls its named body, including archive
+  tools and actions; its hero stays outside that scroll region.
+  Account dialogs use a 960px cap, a neutral statistics band and flat detail
+  sections. Phone statistics use two columns while detail rows stack; an
+  unpaired Stalker statistic spans the row. Status text uses the theme's
+  success/expiry text tokens, and
+  loading shimmer stops under reduced motion and never remains on errors.
 - **Dismiss.** The shell's header × (named "Close dialog", so a footer
   "Close" stays the only button of that name) and the footer
   "Cancel"/"Close" both dismiss; a dialog never adds a second footer
@@ -1292,6 +1313,11 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   never depends on the entry point: `EpgProgrammeDialogService` opens the
   programme dialog at 540px from the timeline, list, guide and channel rows,
   with a panel class that scopes its surface overrides.
+  Playlist editors use `playlistInfoDialogConfig()` from every entry point:
+  its `md` preset supplies both width and the explicit viewport height cap that
+  the short-window surface scroller needs. EPG rows keep their action buttons in
+  one horizontal group below the full-width field on phones; field columns have
+  `min-width: 0` and draft rows have an explicit gap.
 - **Destructive actions.** Material only emits `warn` button colors for M2
   themes, so the `color` input is a no-op here. A button that removes or
   discards user data uses the global `.app-destructive-button` class from
@@ -1354,6 +1380,11 @@ that renders one adds `providers: [provideFormFieldDefaults()]`
 provide the defaults, because the token import there would load Material's
 form field and `@angular/forms` on startup. `pnpm run
 ui:form-field-defaults:validate` (in CI) reports a missing provider.
+
+Outlined labels use `--app-muted-color` at rest and on hover, and
+`--app-selection-text-color` on focus. Measure small text against the actual
+raised field fill, including alpha compositing; the surrounding dialog surface
+alone does not prove 4.5:1 contrast. Keep the kit's field shape and fill unchanged.
 
 A `mat-select` belongs inside a form. Its option panel is styled once in
 `m3-theme.scss` to match the kit menu (a bordered 10px panel, 36px rows at

@@ -41,11 +41,13 @@ export function forwardWorkerEvent(
 
 export function handleWorkerRequest<TArgs extends unknown[]>(
     channel: DbWorkerOperation,
-    buildPayload: (...args: TArgs) => unknown
+    buildPayload: (...args: TArgs) => unknown,
+    beforeRequest?: (event: Electron.IpcMainInvokeEvent, ...args: TArgs) => void
 ): void {
-    ipcMain.handle(channel, async (_event, ...args: TArgs) => {
+    ipcMain.handle(channel, async (event, ...args: TArgs) => {
         try {
             await awaitSchemaReady();
+            beforeRequest?.(event, ...args);
             return await databaseWorkerClient.request(
                 channel,
                 buildPayload(...args)

@@ -52,6 +52,10 @@ async function openChannelDetailsNarrow(
     );
     await expect(dialog.locator('.app-dialog__close')).toBeVisible();
     await expect(dialog.locator('.app-dialog__header')).toBeVisible();
+    await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
+        'transform',
+        'none'
+    );
     return dialog;
 }
 
@@ -77,6 +81,12 @@ async function openAccountInfoDialog(
     await expect(dialog.locator('.account-stat').first()).toBeVisible({
         timeout: 20_000,
     });
+    // Bounding boxes include the opening scale, but scrollbar widths and
+    // computed padding do not. Measure after the surface reaches full size.
+    await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
+        'transform',
+        'none'
+    );
     return dialog;
 }
 
@@ -96,6 +106,39 @@ async function serveUnbreakableChannel() {
 }
 
 test.describe('Dialog shell', () => {
+    test('scrolls account information with the keyboard while retaining the header', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        try {
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await page.setViewportSize({ width: 1024, height: 520 });
+            const dialog = await openAccountInfoDialog(page);
+            const body = dialog.getByRole('region', {
+                name: 'Account Information',
+            });
+            await expect(body).toBeFocused();
+            await page.keyboard.press('PageDown');
+            await expect
+                .poll(() => body.evaluate((element) => element.scrollTop))
+                .toBeGreaterThan(0);
+            const close = dialog.getByRole('button', { name: 'Close dialog' });
+            await expect(close).toBeInViewport();
+            await page.keyboard.press('Tab');
+            await expect(close).toBeFocused();
+            await page.keyboard.press('Shift+Tab');
+            await expect(body).toBeFocused();
+            await page.keyboard.press('Escape');
+            await expect(dialog).toBeHidden();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('wraps an unbreakable heading before it reaches the close button', async ({
         dataDir,
     }) => {
@@ -104,6 +147,11 @@ test.describe('Dialog shell', () => {
         try {
             app = await launchElectronApp(dataDir);
             const dialog = await openChannelDetailsNarrow(app, m3u.resourceUrl);
+            await expect(dialog.locator('.app-dialog__title')).toBeVisible();
+            await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
+                'transform',
+                'none'
+            );
             const geometry = await dialog.evaluate((container) => {
                 const title = container.querySelector(
                     '.app-dialog__title'
@@ -155,38 +203,60 @@ test.describe('Dialog shell', () => {
             await addXtreamPortal(page);
             await waitForXtreamWorkspaceReady(page);
             await page.setViewportSize({ width: 560, height: 760 });
-            const dialog = await openAccountInfoDialog(page);
-            const geometry = await dialog.evaluate((container) => {
-                const hero = container.querySelector(
-                    '.account-dialog__hero'
-                ) as HTMLElement;
-                const stats = container.querySelector(
-                    '.account-dialog__hero-stats'
-                ) as HTMLElement;
-                const body = container.querySelector(
-                    'mat-dialog-content'
-                ) as HTMLElement;
-                const heroStyle = getComputedStyle(hero);
-                return {
-                    heroWidth: hero.getBoundingClientRect().width,
-                    // The body's width without its scrollbar: the CI runners
-                    // draw a classic 15px one inside the box, a local Mac
-                    // overlays it. The bounding width keeps the fraction the
-                    // integer clientWidth would round away.
-                    bodyWidth:
-                        body.getBoundingClientRect().width -
-                        (body.offsetWidth - body.clientWidth),
-                    statsWidth: stats.getBoundingClientRect().width,
-                    heroInner:
-                        hero.getBoundingClientRect().width -
-                        parseFloat(heroStyle.paddingLeft) -
-                        parseFloat(heroStyle.paddingRight),
-                };
+            // Exercise classic scrollbar geometry even on overlay-scrollbar
+            // hosts, and make the opening transition observable on fast CPUs.
+            await page.addStyleTag({
+                content: `
+                    .mat-mdc-dialog-surface {
+                        transition-duration: 600ms !important;
+                    }
+                    mat-dialog-content { scrollbar-gutter: stable; }
+                    mat-dialog-content::-webkit-scrollbar { width: 16px; }
+                `,
             });
-            // Edge to edge under the header, and the stats fill the band.
-            expect(
-                Math.abs(geometry.heroWidth - geometry.bodyWidth)
-            ).toBeLessThanOrEqual(1);
+            const dialog = await openAccountInfoDialog(page);
+            await expect(dialog.locator('.app-dialog__title')).toBeVisible();
+            await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
+                'transform',
+                'none'
+            );
+            const readGeometry = () =>
+                dialog.evaluate((container) => {
+                    const hero = container.querySelector(
+                        '.account-dialog__hero'
+                    ) as HTMLElement;
+                    const stats = container.querySelector(
+                        '.account-dialog__hero-stats'
+                    ) as HTMLElement;
+                    const body = container.querySelector(
+                        'mat-dialog-content'
+                    ) as HTMLElement;
+                    const heroStyle = getComputedStyle(hero);
+                    return {
+                        heroWidth: hero.getBoundingClientRect().width,
+                        // The body's width without its scrollbar: the CI runners
+                        // draw a classic 15px one inside the box, a local Mac
+                        // overlays it. The bounding width keeps the fraction the
+                        // integer clientWidth would round away.
+                        bodyWidth:
+                            body.getBoundingClientRect().width -
+                            (body.offsetWidth - body.clientWidth),
+                        statsWidth: stats.getBoundingClientRect().width,
+                        heroInner:
+                            hero.getBoundingClientRect().width -
+                            parseFloat(heroStyle.paddingLeft) -
+                            parseFloat(heroStyle.paddingRight),
+                    };
+                });
+            // Bounding rects follow the entry transform; integer scrollbar
+            // metrics do not. Keep the strict geometry check through settling.
+            let geometry = await readGeometry();
+            await expect
+                .poll(async () => {
+                    geometry = await readGeometry();
+                    return Math.abs(geometry.heroWidth - geometry.bodyWidth);
+                })
+                .toBeLessThanOrEqual(1);
             expect(geometry.statsWidth).toBeGreaterThanOrEqual(
                 geometry.heroInner - 1
             );

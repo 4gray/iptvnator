@@ -49,6 +49,18 @@ describe('EpgItemDescriptionComponent', () => {
         expect(component).toBeTruthy();
     });
 
+    it('starts keyboard reading in the named scroll region rather than jumping to footer actions', () => {
+        const body = fixture.nativeElement.querySelector('.epg-dialog__body');
+        expect(body.getAttribute('tabindex')).toBe('0');
+        expect(body.getAttribute('aria-label')).toBe('TV Show 1');
+        expect(body.hasAttribute('cdkFocusInitial')).toBe(true);
+        expect(
+            fixture.nativeElement
+                .querySelector('.epg-dialog__close')
+                .hasAttribute('cdkFocusInitial')
+        ).toBe(false);
+    });
+
     it('should render epg details in the dialog', () => {
         fixture.detectChanges();
         const titleElement = fixture.debugElement.query(

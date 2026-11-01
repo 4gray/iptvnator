@@ -71,6 +71,7 @@ export function preserveUnchangedDeviceFields(
         'favorites',
         'recentlyViewed',
         'autoRefresh',
+        'autoImportEpg',
         'position',
         'hiddenGroupTitles',
         'manualEpgUrls',
@@ -83,13 +84,18 @@ export function preserveUnchangedDeviceFields(
         if (current[key] !== undefined)
             Object.assign(result, { [key]: current[key] });
     }
-    const detected = result.detectedEpgUrls ?? result.epgUrls;
+    const detected = result.detectedEpgUrls;
+    const knownManual = new Set([
+        ...(previous.manualEpgUrls ?? []),
+        ...(current.manualEpgUrls ?? []),
+    ]);
     return Object.assign(
         result,
         resolvePlaylistEpgSourceState({
+            autoImportEpg: result.autoImportEpg,
             detectedEpgUrls: detected,
-            enabledEpgUrls: result.epgUrls?.filter((url) =>
-                detected?.includes(url)
+            enabledEpgUrls: result.epgUrls?.filter(
+                (url) => detected?.includes(url) || !knownManual.has(url)
             ),
             manualEpgUrls: result.manualEpgUrls,
             disabledEpgUrls: result.disabledEpgUrls,

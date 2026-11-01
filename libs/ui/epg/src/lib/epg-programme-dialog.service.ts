@@ -13,6 +13,8 @@ import {
  */
 export const EPG_PROGRAMME_DIALOG_CONFIG = {
     width: '540px',
+    maxWidth: 'calc(100vw - 32px)',
+    maxHeight: 'calc(100dvh - 32px)',
     panelClass: 'epg-programme-dialog-panel',
 } as const satisfies MatDialogConfig;
 

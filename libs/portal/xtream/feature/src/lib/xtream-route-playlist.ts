@@ -1,5 +1,8 @@
 import type { XtreamPlaylistData } from '@iptvnator/portal/xtream/data-access';
-import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    normalizeXtreamContentTypes,
+    type PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 
 function normalizeOptionalConnectionValue(
     value: string | null | undefined
@@ -29,6 +32,7 @@ export function toXtreamPlaylistData(
         name: playlist.title || playlist.filename || 'Untitled playlist',
         title: playlist.title,
         updateDate: playlist.updateDate,
+        xtreamContentTypes: playlist.xtreamContentTypes,
         serverUrl: playlist.serverUrl,
         username: playlist.username,
         password: playlist.password,
@@ -73,7 +77,13 @@ function hasPlaylistConnectionChanges(
         currentPlaylist.password !== nextPlaylist.password ||
         currentUserAgent !== nextUserAgent ||
         currentReferrer !== nextReferrer ||
-        currentOrigin !== nextOrigin
+        currentOrigin !== nextOrigin ||
+        JSON.stringify(
+            normalizeXtreamContentTypes(currentPlaylist.xtreamContentTypes)
+        ) !==
+            JSON.stringify(
+                normalizeXtreamContentTypes(nextPlaylist.xtreamContentTypes)
+            )
     );
 }
 

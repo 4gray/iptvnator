@@ -356,6 +356,188 @@ surviving pending state or backup. Opening an Xtream section may initialize
 content when its cache is not ready; startup imports and explicit refresh use
 the same durable persistence invariant. This does not add a refresh scheduler.
 
+## Desktop catalog selection
+
+Desktop source metadata optionally carries `xtreamContentTypes` using `live`,
+`movie`, and `series`. Missing means all types (legacy behavior); `[]` means
+load no catalogs. Add/Edit expose independent checkboxes only with the complete
+Xtream SQLite capability. PWA imports keep their existing all-catalog behavior.
+Catalog choices belong to the device's source profile. Canonical shared-source
+definitions exclude `xtreamContentTypes`; remote title/connection updates retain
+the device's existing choice. The local editor owns re-enabling and deferred
+catalog replay, rather than another client's source-definition update.
+
+Electron category/content cache reads and imports honor the selection. Ordinary
+catalog search and recently-added SQL exclude disabled types; collection and
+identity reads deliberately do not. Disabling a type retains its cached rows so
+Favorites/history remain playable, with a disabled-type indication. It does not
+delete playback positions or offline files. Saved metadata includes the selection
+in startup projections without parsing large M3U payloads, and backups preserve
+it, including an explicit empty array.
+
+`XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
+fetching their category/content arrays before deleting their old cache. The editor
+prepares durable recovery after fetching, then confirms metadata persistence
+through `beforeReplace` before replacing any cached state.
+The callback returns accepted metadata. Before deleting any cache, the refresh
+compares its normalized connection with the connection used to fetch the arrays.
+A concurrent shared-source connection change aborts replacement; the accepted
+metadata stays authoritative and opening the source retries against its current
+connection. Old arrays must never become a completed cache for the new endpoint.
+Native completion and recovery acknowledgment compare the fetched connection
+with the current playlist inside their SQLite transaction. If a shared projection
+changes it during writes or replay, every catalog replaced by that scan is
+invalidated, including types completed earlier; pending recovery and its journal
+remain available for retry. The editor rereads authoritative metadata after a
+shared failure and rehydrates a changed connection without publishing its older
+accepted projection or reusing stale form credentials.
+An accepted mismatch before replacement also invalidates selected retained
+caches and keeps recovery; their older completed markers cannot authorize reuse
+on the new endpoint. Registering the native journal flushes its prepared DOM
+snapshot before metadata acceptance, including this early cleanup path.
+Terminal save errors also check the connection without writing recovery state;
+a coincident projection invalidates earlier completed types from that scan.
+Standalone saves persist the edited User-Agent before native completion checks,
+whose column-first header lookup follows the authoritative playlist codec.
+The active route waits for the edit-time activity hold before bootstrapping metadata published by
+source-server synchronization, so an ongoing scan is never treated as an
+interrupted import. Navigation queued during that wait uses its latest route.
+A rejected save cleans its prepared recovery and leaves the original cache and
+history intact. An accepted save is reused if later cache work fails, without
+a second authoritative write. Recovery captures the complete source history in
+SQLite, not the ordinary
+100-entry browsing projection. The optional `dbGetRecentItems` `{ all: true }`
+request crosses preload/main/worker; ordinary reads remain capped at 100. The
+cache-recovery snapshot sets internal `preservePlaybackPositions: true`: catalog
+replacement does not delete positions, so retry must retain current progress,
+new entries and explicit removals, including those from untouched catalogs.
+Explicit backup import clears that policy and keeps authoritative replacement.
+Cache recovery also registers `xtream-history-recovery:<playlistId>` in the
+profile's SQLite `app_state` before deleting content. Before acknowledging
+recovery, both bootstrap and edit-time refresh consume dormant history copies
+whose identities exist in current native history or in its removal tombstones.
+The live-row read precedes the journal read so concurrent removals are covered.
+A sticky native clear marker filters against current post-clear journal entries
+and timestamps; newer watches whose content is missing again remain deferred.
+Unavailable identities and hidden-category choices remain parked; generation
+ownership still protects a newer archive. The worker captures live
+history atomically with registration, then journals watch updates, individual
+and batch removals, and source/global history clears in their write transactions.
+Replay reads that journal in one transaction, so later user actions win over
+the parked JSON snapshot. Tombstones prevent deferred archive entries from
+undoing removals or clears. Deferred history ownership uses a generation token,
+so an older import cannot consume a newly parked archive. Resolved history replaces the owned deferred
+history before replay; hidden choices remain parked until applied. The journal is
+acknowledged only after deferred completion, and source deletion removes it. The
+app-state IPC flushes the updated deferred DOM state before clearing a native
+history journal; a flush failure leaves the journal/tombstones intact. Source and
+global history-clear IPCs also flush dormant history changes before native
+clearing, including when no active journal exists. Source-scoped native clearing
+uses a content subquery, avoiding one bound parameter per catalog row. Individual/batch removals
+participate in active journal transactions and do not mutate dormant DOM records. Category imports
+already apply the parked hidden flags, so cache retry preserves live visibility
+instead of resetting it like an explicit backup restore. Only completed catalogs
+can override archived visibility; default flags on partially imported rows must
+not erase parked hidden categories.
+Ordinary Refresh prepares the same cache policy and native journal before
+catalog deletion. A pre-existing explicit archive keeps its authoritative state;
+a cache retry retains its current flags and still-dormant owned history.
+Older cache-only pending records without a journal/ownership token are upgraded
+before bootstrap imports (and before export). Only unfinished catalog types seed
+archival history; completed retained catalogs keep their current rows/removals.
+An existing journal is reused so its tombstones remain authoritative. Every
+explicit archive replay retries the journal reset first; a reset failure leaves
+the archive pending and prevents backup history from being replaced by an older
+cache journal.
+The read-only progress signal reports the current type, network/local phase and
+worker save counts. The editor stays modal with its close button hidden and uses
+the same shared `ImportProgressComponent` as the workspace scanning overlay;
+disable-only edits do not show scanning. This path does not advertise cancellation
+it cannot perform.
+Connected desktop sources use the same refresh path, including already cached
+catalogs. Their metadata save goes through the authoritative server-aware playlist
+service and dispatches the returned revision without a second persistence effect.
+Edit-time requests honor the source's custom User-Agent, just like ordinary
+imports. Catalog visibility checks use reactive playlist metadata already held by
+NgRx, so each category/content/cache check does not repeat a playlist IPC read.
+When the requested source is not in that metadata, the data source reads SQLite;
+there is no separate long-lived selection cache to invalidate after edits.
+Checkboxes and section selection share the sidebar's Movies → Live TV → Series
+order. After a successful edit-time scan, navigate to the first newly enabled
+type in that order; a single newly enabled type always opens itself. Initial
+imports, manual refreshes and reopening a source from Sources choose the first
+enabled type in the same order. Browser source navigation remains unchanged.
+Failed scans and disable-only edits do not trigger the edit-time navigation. Cache
+delete carries an optional type scope through the worker bridge, snapshots all
+history/hidden-category state, and deletes only the requested catalogs. Ordinary
+Refresh supplies the source's enabled types. Disabled catalog rows remain intact;
+restore still sees the complete source's user state. Import completion and progress
+exclude intentionally skipped types.
+
+Failed edit-time writes clear only unfinished catalog types and retain their
+pending user-state snapshot. Native save transactions commit in batches, so a
+partially written catalog must be removed before bootstrap can retry it. Completed
+types survive a failure in another type or in user-state replay. An existing
+pending restore blocks a new edit before metadata persistence. Recovery prepared
+for a rejected `beforeReplace` callback is removed only if its pending revision
+still belongs to that attempt.
+Native deletion resets existing statuses to `idle` before deleting any rows.
+Edit preparation durably stages unfinished markers before accepting metadata,
+including a shared connection change returned by acceptance. Marker failure
+aborts acceptance. Rejected edits
+conditionally restore the previous markers only while the original connection
+still owns the cache; rollback failure retains recovery without deleting rows.
+Accepted staged edits authorize cleanup even when deletion fails before reaching
+the worker. An unchanged connection may restore healthy prior markers only when
+strict reads prove every staged marker is still `importing`: native deletion
+resets them to `idle` before mutating rows. An unknown or reset marker cannot
+authorize restoring completion. Direct refreshes without metadata acceptance
+authorize cleanup after native invalidation succeeds.
+Replacement saves re-arm `importing` after deletion; failed preparation keeps
+healthy rows intact. Interrupted deletion retains pending recovery for bootstrap cleanup. The deletion IPC flushes the sender session’s DOM storage
+before native work, so an immediate process exit cannot drop the parked snapshot.
+A failed/false completion-status write keeps the type unfinished and recovery
+pending; it must not acknowledge the journal or snapshot.
+This applies to route bootstrap retries as well as edit-time scans. PWA imports
+do not write native completion markers.
+The native journal records identities resolved by its latest replay in the same
+transaction as history restoration. Watches add their identity atomically;
+removals and clears retain that proof. Each replay replaces the proof so rows
+lost in a later interrupted deletion remain dormant. Completion uses this proof
+alongside current rows and tombstones, including a remove/rewatch between the
+renderer’s separate history and journal reads.
+Explicit category visibility writes update SQLite rows and their typed override
+ledger in one transaction. Recovery and export honor these overrides even for
+disabled unfinished catalogs, while untouched partial-import defaults remain
+non-authoritative. Category reimport applies the same explicit choices.
+Full-history backups resolve native content identities in bounded batches before
+clearing existing recent history. A lookup failure preserves the previous rows;
+backups larger than SQLite’s parameter limit remain importable.
+Explicit backup replay returns exact typed history identities from the successful
+native operation, including retained rows in disabled unfinished catalogs. Both
+immediate and pending restore paths consume those dormant copies and flush DOM
+storage; missing identities and unavailable hidden flags remain parked.
+Startup clears leftover `importing` caches, including
+`idle` caches with a pending cache-recovery record after interrupted deletion.
+Bootstrap also clears leftover failed/cancelled type caches before reading or
+reimporting categories. If cleanup still fails, retry stops before provider or
+save work, retaining pending history. Completed warm caches keep their existing
+read path; cold category-import code is loaded only when needed. Failed-import
+cleanup also loads only on the error path, keeping the startup payload bounded.
+
+Fresh desktop backup restores separate dormant catalog-dependent history and
+hidden choices from the active import snapshot. Offline restore readiness checks
+only selected catalogs; completed retained caches can also accept their saved
+state. Unavailable types remain dormant, and an empty selection needs no catalog
+cache before its independent user state can restore. A cached route for an empty
+or disabled scope settles its loading flags without reading catalog data. Enabled types initialize normally;
+unloaded types retain durable restore data for re-export and later re-enabling.
+Replay merges with current source history and does not overwrite later progress,
+favorite removals or source-pin edits. See [backup restoration](./playlist-backup-restore.md).
+
+See [isolated Linux testing](../development/xtream-content-selection-testing.md)
+for the development build and manual validation checklist.
+
 ## PWA Collection Persistence
 
 Collection operations carry `{ id, type }`: `id` remains the SQLite row ID
@@ -428,6 +610,14 @@ Rules:
 The Xtream import form may extract `username` and `password` from full
 `get.php` or `player_api.php` URLs, but stored playlist metadata should keep
 the normalized `serverUrl` plus trimmed credentials.
+
+The playlist editor validates Xtream server URLs with that same normalizer and
+requires nonblank username/password fields. Inline errors identify each invalid
+field; Save and Test are disabled until the connection input is valid. These
+validators apply only to Xtream: M3U metadata and optional Stalker credentials
+keep their own rules. Saving valid edits or changing a title never requires a
+successful network test. Stored sources with missing credentials still show both
+credential inputs so the user can repair them.
 
 ### Explicit protocol discovery
 

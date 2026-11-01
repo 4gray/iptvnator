@@ -1,5 +1,6 @@
 <app-dialog-shell
     icon="account_circle"
+    [bodyFocusable]="true"
     [heading]="'XTREAM.ACCOUNT_INFO.TITLE' | translate"
     [subtitle]="playlistLabel()"
 >
@@ -69,7 +70,7 @@
                         }
                     </article>
                 }
-            } @else {
+            } @else if (loadState() === 'loading') {
                 @for (item of skeletonStats; track item) {
                     <div class="account-skeleton account-skeleton--stat"></div>
                 }
@@ -134,10 +135,9 @@
             <div class="account-dialog__grid">
                 <section class="account-panel">
                     <div class="account-panel__header">
-                        <p class="account-panel__eyebrow">
+                        <h3>
                             {{ 'XTREAM.ACCOUNT_INFO.USER_INFO' | translate }}
-                        </p>
-                        <h3>{{ info.user_info.username || '-' }}</h3>
+                        </h3>
                     </div>
 
                     <dl class="account-detail-list">
@@ -191,10 +191,9 @@
 
                 <section class="account-panel">
                     <div class="account-panel__header">
-                        <p class="account-panel__eyebrow">
+                        <h3>
                             {{ 'XTREAM.ACCOUNT_INFO.SERVER_INFO' | translate }}
-                        </p>
-                        <h3>{{ serverHost() }}</h3>
+                        </h3>
                     </div>
 
                     <dl class="account-detail-list">

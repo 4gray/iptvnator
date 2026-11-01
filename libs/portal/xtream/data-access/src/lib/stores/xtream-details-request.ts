@@ -14,23 +14,7 @@ import {
 
 type PlaylistId = string | null | undefined;
 
-export function createXtreamDetailsRequestGuard(
-    getCurrentPlaylistId: () => PlaylistId
-) {
-    let generation = 0;
-
-    return {
-        begin(expectedPlaylistId: string): () => boolean {
-            const requestGeneration = ++generation;
-            return () =>
-                requestGeneration === generation &&
-                getCurrentPlaylistId() === expectedPlaylistId;
-        },
-        invalidate(): void {
-            generation += 1;
-        },
-    };
-}
+export { createXtreamDetailsRequestGuard } from './xtream-details-request-guard';
 
 interface RecoverXtreamVodCatalogItemOptions {
     readonly apiService: {

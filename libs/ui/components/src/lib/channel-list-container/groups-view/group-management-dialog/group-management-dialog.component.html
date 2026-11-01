@@ -68,6 +68,9 @@
                 <div class="group-item" (click)="toggleGroup(group)">
                     <mat-checkbox
                         [checked]="group.selected"
+                        [aria-label]="
+                            group.key || ('CHANNELS.UNGROUPED' | translate)
+                        "
                         (click)="$event.stopPropagation()"
                         (change)="toggleGroup(group)"
                     >

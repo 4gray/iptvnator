@@ -1,3 +1,6 @@
+@if (isRefreshingSelectedCatalogs()) {
+    <app-xtream-selection-progress />
+} @else {
 <form
     [formGroup]="playlistDetails"
     (ngSubmit)="saveChanges(playlistDetails.value)"
@@ -9,15 +12,22 @@
         [attr.aria-busy]="isSaving() || isHydratingStalkerPlaylist()"
     >
         <ng-template #providerCredentials>
-            @if (playlist.portalUrl || playlist.username) {
+            @if (
+                playlist.portalUrl || playlist.serverUrl || playlist.username
+            ) {
                 <mat-form-field class="w-full">
                     <mat-label>{{
                         'HOME.PLAYLISTS.INFO_DIALOG.USERNAME' | translate
                     }}</mat-label>
                     <input matInput formControlName="username" />
+                    <mat-error>{{
+                        'HOME.XTREAM_PLAYLIST.USERNAME_REQUIRED' | translate
+                    }}</mat-error>
                 </mat-form-field>
             }
-            @if (playlist.portalUrl || playlist.password) {
+            @if (
+                playlist.portalUrl || playlist.serverUrl || playlist.password
+            ) {
                 <mat-form-field class="w-full">
                     <mat-label>{{
                         'HOME.PLAYLISTS.INFO_DIALOG.PASSWORD' | translate
@@ -36,6 +46,9 @@
                     >
                         <mat-icon>{{ passwordToggle.icon() }}</mat-icon>
                     </button>
+                    <mat-error>{{
+                        'HOME.XTREAM_PLAYLIST.PASSWORD_REQUIRED' | translate
+                    }}</mat-error>
                 </mat-form-field>
             }
         </ng-template>
@@ -158,12 +171,36 @@
                         </div>
                     </details>
                 }
+                @if (
+                    playlist.serverUrl &&
+                    !playlist.portalUrl &&
+                    supportsXtreamSelection
+                ) {
+                    <app-xtream-content-selection
+                        [selected]="
+                            playlistDetails.controls['xtreamContentTypes'].value
+                        "
+                        (selectedChange)="
+                            playlistDetails.controls[
+                                'xtreamContentTypes'
+                            ].setValue($event);
+                            playlistDetails.markAsDirty()
+                        "
+                    />
+                }
                 @if (playlist.serverUrl) {
                     <mat-form-field class="w-full">
                         <mat-label>{{
                             'HOME.PLAYLISTS.INFO_DIALOG.SERVER_URL' | translate
                         }}</mat-label>
                         <input matInput formControlName="serverUrl" />
+                        <mat-hint>{{
+                            'HOME.XTREAM_PLAYLIST.URL_HINT' | translate
+                        }}</mat-hint>
+                        <mat-error>{{
+                            'HOME.XTREAM_PLAYLIST.URL_VALIDATION_ERROR'
+                                | translate
+                        }}</mat-error>
                     </mat-form-field>
                 }
                 @if (!playlist.portalUrl) {
@@ -278,103 +315,237 @@
                         }
                     </mat-form-field>
                 }
-                @if (canManagePlaylistEpgSources) {
+                @if (epg.canManage) {
                     <section
                         class="playlist-epg-sources"
                         data-test-id="playlist-epg-sources"
+                        #epgSources
                     >
                         <div class="playlist-epg-sources__header">
                             <mat-icon>event_note</mat-icon>
                             <div>
                                 <h3 class="playlist-epg-sources__title">
-                                    {{ 'SETTINGS.EPG_SOURCES' | translate }}
+                                    {{
+                                        'SETTINGS.PLAYLIST_EPG_TITLE'
+                                            | translate
+                                    }}
                                 </h3>
-                                <p>
-                                    @if (
-                                        hiddenDetectedPlaylistEpgSourceCount > 0
-                                    ) {
+                                @if (epg.detectedUrls.length > 0) {
+                                    <p
+                                        data-test-id="playlist-epg-detected-count"
+                                    >
                                         {{
-                                            'SETTINGS.PLAYLIST_EPG_SOURCES_AUTO_SELECTED'
+                                            'SETTINGS.PLAYLIST_EPG_ENABLED_DETECTED'
                                                 | translate
                                                     : {
                                                           enabled:
-                                                              playlistEpgUrls.length,
+                                                              epg.enabledDetectedCount,
                                                           detected:
-                                                              playlistDetectedEpgUrls.length,
+                                                              epg.detectedUrls
+                                                                  .length,
                                                       }
                                         }}
-                                    } @else {
-                                        {{
-                                            'SETTINGS.EPG_SOURCES_DESCRIPTION'
-                                                | translate
-                                        }}
-                                    }
+                                    </p>
+                                }
+                                <p>
+                                    {{
+                                        'SETTINGS.PLAYLIST_EPG_TIMING'
+                                            | translate
+                                    }}
                                 </p>
                             </div>
                         </div>
-                        @for (epgUrl of playlistEpgUrls; track epgUrl) {
-                            <div class="playlist-epg-source-row">
+                        <ng-template
+                            #epgSourceRow
+                            let-epgUrl
+                            let-enabled="enabled"
+                        >
+                            <div
+                                class="playlist-epg-source-row"
+                                [attr.data-epg-source-url]="epgUrl"
+                                [attr.data-epg-source-state]="
+                                    enabled ? 'enabled' : 'available'
+                                "
+                            >
                                 <mat-form-field
                                     class="w-full"
                                     subscriptSizing="dynamic"
                                 >
                                     <mat-label>{{
-                                        'SETTINGS.EPG_URL_LABEL' | translate
+                                        'SETTINGS.EPG_SOURCE_LABEL' | translate
                                     }}</mat-label>
                                     <input matInput [value]="epgUrl" readonly />
+                                    <mat-hint class="playlist-epg-source-meta">
+                                        <span>{{
+                                            (enabled
+                                                ? epg.originKey(epgUrl)
+                                                : 'SETTINGS.PLAYLIST_EPG_FROM_PLAYLIST'
+                                            ) | translate
+                                        }}</span>
+                                        <span role="status">
+                                            @if (epg.isGlobal(epgUrl)) {
+                                                {{
+                                                    'SETTINGS.PLAYLIST_EPG_IN_GLOBAL'
+                                                        | translate
+                                                }}
+                                            }
+                                        </span>
+                                    </mat-hint>
                                 </mat-form-field>
-                                <button
-                                    mat-icon-button
-                                    type="button"
-                                    [disabled]="!canRefreshPlaylistEpg"
-                                    [matTooltip]="
-                                        'SETTINGS.REFRESH_EPG' | translate
-                                    "
-                                    [attr.aria-label]="
-                                        'SETTINGS.REFRESH_EPG' | translate
-                                    "
-                                    (click)="refreshPlaylistEpgSource(epgUrl)"
-                                >
-                                    <mat-icon>refresh</mat-icon>
-                                </button>
-                                <button
-                                    mat-icon-button
-                                    type="button"
-                                    [disabled]="isGlobalEpgSource(epgUrl)"
-                                    [matTooltip]="
-                                        'SETTINGS.ADD_EPG_SOURCE' | translate
-                                    "
-                                    [attr.aria-label]="
-                                        'SETTINGS.ADD_EPG_SOURCE' | translate
-                                    "
-                                    (click)="
-                                        addPlaylistEpgSourceToSettings(epgUrl)
-                                    "
-                                >
-                                    <mat-icon>playlist_add</mat-icon>
-                                </button>
-                                <button
-                                    mat-icon-button
-                                    type="button"
-                                    [matTooltip]="
-                                        'SETTINGS.REMOVE_EPG_SOURCE' | translate
-                                    "
-                                    [attr.aria-label]="
-                                        'SETTINGS.REMOVE_EPG_SOURCE' | translate
-                                    "
-                                    (click)="removePlaylistEpgSource(epgUrl)"
-                                >
-                                    <mat-icon>delete</mat-icon>
-                                </button>
+                                <div class="playlist-epg-source-row__actions">
+                                    @if (enabled) {
+                                        <button
+                                            mat-icon-button
+                                            type="button"
+                                            [disabled]="!epg.canRefresh"
+                                            [matTooltip]="
+                                                'SETTINGS.REFRESH_EPG'
+                                                    | translate
+                                            "
+                                            [attr.aria-label]="
+                                                'SETTINGS.REFRESH_EPG'
+                                                    | translate
+                                            "
+                                            (click)="epg.refresh(epgUrl)"
+                                        >
+                                            <mat-icon>refresh</mat-icon>
+                                        </button>
+                                        <button
+                                            mat-icon-button
+                                            type="button"
+                                            [disabled]="epg.isGlobal(epgUrl)"
+                                            [matTooltip]="
+                                                (epg.isGlobal(epgUrl)
+                                                    ? 'SETTINGS.PLAYLIST_EPG_IN_GLOBAL'
+                                                    : 'SETTINGS.PLAYLIST_EPG_ADD_GLOBAL'
+                                                ) | translate
+                                            "
+                                            [attr.aria-label]="
+                                                'SETTINGS.PLAYLIST_EPG_ADD_GLOBAL'
+                                                    | translate
+                                            "
+                                            (click)="
+                                                epg.addToSettings(
+                                                    epgUrl,
+                                                    epgSources
+                                                )
+                                            "
+                                        >
+                                            <mat-icon>playlist_add</mat-icon>
+                                        </button>
+                                        <button
+                                            mat-icon-button
+                                            type="button"
+                                            [disabled]="isSaving()"
+                                            [matTooltip]="
+                                                'SETTINGS.PLAYLIST_EPG_REMOVE'
+                                                    | translate
+                                            "
+                                            [attr.aria-label]="
+                                                'SETTINGS.PLAYLIST_EPG_REMOVE'
+                                                    | translate
+                                            "
+                                            (click)="
+                                                epg.remove(epgUrl, epgSources)
+                                            "
+                                        >
+                                            <mat-icon>delete</mat-icon>
+                                        </button>
+                                    } @else {
+                                        <button
+                                            mat-button
+                                            class="app-dialog__ghost"
+                                            type="button"
+                                            [disabled]="isSaving()"
+                                            (click)="
+                                                epg.enableDetected(
+                                                    epgUrl,
+                                                    epgSources
+                                                )
+                                            "
+                                        >
+                                            {{
+                                                'SETTINGS.PLAYLIST_EPG_ENABLE'
+                                                    | translate
+                                            }}
+                                        </button>
+                                    }
+                                </div>
                             </div>
+                        </ng-template>
+                        @for (epgUrl of epg.urls; track epgUrl) {
+                            <ng-container
+                                [ngTemplateOutlet]="epgSourceRow"
+                                [ngTemplateOutletContext]="{
+                                    $implicit: epgUrl,
+                                    enabled: true,
+                                }"
+                            />
+                        }
+                        @if (epg.hiddenDetectedCount > 0) {
+                            <details
+                                #availableEpg
+                                class="app-dialog-disclosure playlist-epg-available"
+                                data-test-id="playlist-epg-available"
+                                [open]="epg.availableOpen()"
+                                (toggle)="
+                                    epg.toggleAvailable(availableEpg.open)
+                                "
+                            >
+                                <summary>
+                                    {{
+                                        'SETTINGS.PLAYLIST_EPG_AVAILABLE'
+                                            | translate
+                                                : {
+                                                      count: epg.hiddenDetectedCount,
+                                                  }
+                                    }}
+                                </summary>
+                                @if (epg.availableOpen()) {
+                                    <div class="app-dialog-disclosure__fields">
+                                        @for (
+                                            epgUrl of epg.visibleAvailableUrls;
+                                            track epgUrl
+                                        ) {
+                                            <ng-container
+                                                [ngTemplateOutlet]="
+                                                    epgSourceRow
+                                                "
+                                                [ngTemplateOutletContext]="{
+                                                    $implicit: epgUrl,
+                                                    enabled: false,
+                                                }"
+                                            />
+                                        }
+                                        @if (epg.hasMoreAvailable) {
+                                            <button
+                                                mat-button
+                                                class="app-dialog__ghost"
+                                                type="button"
+                                                data-test-id="playlist-epg-show-more"
+                                                (click)="
+                                                    epg.showMoreAvailable(
+                                                        epgSources
+                                                    )
+                                                "
+                                            >
+                                                {{
+                                                    'CHANNELS.LOAD_MORE'
+                                                        | translate
+                                                }}
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </details>
                         }
                         <div
                             formArrayName="playlistEpgSourceInputs"
                             class="playlist-epg-source-form"
                         >
                             @for (
-                                control of playlistEpgSourceInputs.controls;
-                                track $index
+                                control of epg.inputs.controls;
+                                track control
                             ) {
                                 <div class="playlist-epg-source-row">
                                     <mat-form-field
@@ -382,12 +553,16 @@
                                         subscriptSizing="dynamic"
                                     >
                                         <mat-label>{{
-                                            'SETTINGS.EPG_URL_LABEL' | translate
+                                            'SETTINGS.EPG_SOURCE_LABEL'
+                                                | translate
                                         }}</mat-label>
                                         <input
                                             matInput
                                             [formControlName]="$index"
                                         />
+                                        <mat-hint>{{
+                                            'SETTINGS.EPG_URL_LABEL' | translate
+                                        }}</mat-hint>
                                         @if (
                                             control.invalid && control.touched
                                         ) {
@@ -397,45 +572,45 @@
                                             }}</mat-error>
                                         }
                                     </mat-form-field>
-                                    @if (canBrowseEpgFiles) {
+                                    <div
+                                        class="playlist-epg-source-row__actions"
+                                    >
+                                        @if (epg.canBrowseFiles) {
+                                            <button
+                                                mat-icon-button
+                                                type="button"
+                                                data-test-id="playlist-epg-source-browse"
+                                                [matTooltip]="
+                                                    'SETTINGS.BROWSE_EPG_FILE'
+                                                        | translate
+                                                "
+                                                [attr.aria-label]="
+                                                    'SETTINGS.BROWSE_EPG_FILE'
+                                                        | translate
+                                                "
+                                                (click)="
+                                                    epg.browseInput($index)
+                                                "
+                                            >
+                                                <mat-icon>folder_open</mat-icon>
+                                            </button>
+                                        }
                                         <button
                                             mat-icon-button
                                             type="button"
-                                            data-test-id="playlist-epg-source-browse"
                                             [matTooltip]="
-                                                'SETTINGS.BROWSE_EPG_FILE'
+                                                'SETTINGS.PLAYLIST_EPG_REMOVE_DRAFT'
                                                     | translate
                                             "
                                             [attr.aria-label]="
-                                                'SETTINGS.BROWSE_EPG_FILE'
+                                                'SETTINGS.PLAYLIST_EPG_REMOVE_DRAFT'
                                                     | translate
                                             "
-                                            (click)="
-                                                browsePlaylistEpgSourceInput(
-                                                    $index
-                                                )
-                                            "
+                                            (click)="epg.removeInput($index)"
                                         >
-                                            <mat-icon>folder_open</mat-icon>
+                                            <mat-icon>remove</mat-icon>
                                         </button>
-                                    }
-                                    <button
-                                        mat-icon-button
-                                        type="button"
-                                        [matTooltip]="
-                                            'SETTINGS.REMOVE_EPG_SOURCE'
-                                                | translate
-                                        "
-                                        [attr.aria-label]="
-                                            'SETTINGS.REMOVE_EPG_SOURCE'
-                                                | translate
-                                        "
-                                        (click)="
-                                            removePlaylistEpgSourceInput($index)
-                                        "
-                                    >
-                                        <mat-icon>remove</mat-icon>
-                                    </button>
+                                    </div>
                                 </div>
                             }
                             <div class="playlist-epg-source-actions">
@@ -443,16 +618,22 @@
                                     mat-button
                                     class="app-dialog__ghost"
                                     type="button"
-                                    (click)="addPlaylistEpgSourceInput()"
+                                    [disabled]="isSaving()"
+                                    (click)="epg.addInput()"
+                                    data-test-id="add-playlist-epg-source"
                                 >
                                     <mat-icon>add</mat-icon>
-                                    {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
+                                    {{
+                                        'SETTINGS.PLAYLIST_EPG_ADD_ROW'
+                                            | translate
+                                    }}
                                 </button>
                                 <button
                                     mat-flat-button
                                     class="app-dialog__secondary"
                                     type="button"
-                                    (click)="savePlaylistEpgSources()"
+                                    [disabled]="isSaving()"
+                                    (click)="epg.save()"
                                 >
                                     <mat-icon>playlist_add</mat-icon>
                                     {{
@@ -513,7 +694,7 @@
                 >
                     {{
                         (isSaving()
-                            ? 'HOME.STALKER_PORTAL.VALIDATING'
+                            ? 'HOME.PLAYLISTS.REFRESH_SAVING'
                             : 'HOME.PLAYLISTS.INFO_DIALOG.SAVE'
                         ) | translate
                     }}
@@ -522,3 +703,4 @@
         </app-dialog-shell>
     </fieldset>
 </form>
+}

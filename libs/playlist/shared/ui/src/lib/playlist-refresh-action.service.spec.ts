@@ -78,6 +78,10 @@ function createPlaylistMeta(
 describe('PlaylistRefreshActionService', () => {
     let service: PlaylistRefreshActionService;
     let databaseService: {
+        readAppState: jest.Mock;
+        setAppState: jest.Mock;
+        getXtreamImportStatus: jest.Mock;
+        getAllXtreamCategories: jest.Mock;
         createOperationId: jest.Mock;
         deleteXtreamPlaylistContent: jest.Mock;
         updateXtreamPlaylistDetails: jest.Mock;
@@ -121,6 +125,16 @@ describe('PlaylistRefreshActionService', () => {
         localStorage.clear();
 
         databaseService = {
+            readAppState: jest.fn().mockResolvedValue({ value: null }),
+            setAppState: jest.fn().mockResolvedValue(true),
+            getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
+            getAllXtreamCategories: jest
+                .fn()
+                .mockImplementation(async (_id, type) =>
+                    type === 'live'
+                        ? [{ xtream_id: 404, type: 'live', hidden: true }]
+                        : []
+                ),
             createOperationId: jest.fn((prefix: string) => `${prefix}-op`),
             deleteXtreamPlaylistContent: jest.fn().mockResolvedValue({
                 success: true,
@@ -486,7 +500,11 @@ describe('PlaylistRefreshActionService', () => {
                 key: string,
                 value: string
             ) {
-                executionOrder.push('setItem');
+                executionOrder.push(
+                    key.startsWith('xtream-catalog-restore-')
+                        ? 'parkCatalogState'
+                        : 'setItem'
+                );
                 return originalSetItem.call(this, key, value);
             });
 
@@ -521,26 +539,32 @@ describe('PlaylistRefreshActionService', () => {
                 ([key]) => key === `xtream-restore-${item._id}`
             )?.[1] ?? 'null'
         );
+        const parkedState = JSON.parse(
+            localStorage.getItem(`xtream-catalog-restore-${item._id}`) ?? 'null'
+        );
+        expect(parkedState).toEqual({
+            version: 1,
+            generation: null,
+            revision: expect.any(String),
+            catalogSnapshot: {
+                key: `xtream-catalog-restore-${item._id}`,
+                generation: null,
+            },
+            hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
+            recentlyViewed: [],
+            favorites: [],
+            playbackPositions: [],
+        });
         expect(persistedRestoreState).toEqual({
             hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
-            favorites: [
-                {
-                    xtreamId: 101,
-                    contentType: 'live',
-                },
-                {
-                    xtreamId: 202,
-                    contentType: 'movie',
-                },
-            ],
-            recentlyViewed: [
-                {
-                    xtreamId: 303,
-                    contentType: 'series',
-                    viewedAt: '2026-04-04T08:00:00.000Z',
-                },
-            ],
+            favorites: [],
+            recentlyViewed: [],
             playbackPositions: [],
+            preservePlaybackPositions: true,
+            catalogSnapshot: {
+                key: `xtream-catalog-restore-${item._id}`,
+                generation: parkedState.generation,
+            },
         });
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({
@@ -551,8 +575,10 @@ describe('PlaylistRefreshActionService', () => {
             '/workspace',
             'xtreams',
             item._id,
+            'vod',
         ]);
         expect(executionOrder).toEqual([
+            'parkCatalogState',
             'setItem',
             'start',
             'dispatch',

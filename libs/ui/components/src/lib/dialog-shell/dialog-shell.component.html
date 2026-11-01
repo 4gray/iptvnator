@@ -21,6 +21,9 @@
 <mat-dialog-content
     class="app-dialog__body"
     [class.app-dialog__body--column]="bodyLayout() === 'column'"
+    [attr.tabindex]="bodyFocusable() ? 0 : null"
+    [attr.role]="bodyFocusable() ? 'region' : null"
+    [attr.aria-label]="bodyFocusable() ? heading() : null"
 >
     <ng-content />
 </mat-dialog-content>

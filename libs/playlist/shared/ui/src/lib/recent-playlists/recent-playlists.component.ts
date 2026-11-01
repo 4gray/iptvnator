@@ -43,13 +43,17 @@ import {
     SortService,
     SourceActivityService,
 } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    getXtreamContentRoute,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import type { PlaylistType } from '../add-playlist-menu/playlist-type';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { SourceRemovalService } from '../source-removal/source-removal.service';
 import { SourceRowComponent } from '../source-row/source-row.component';
 import { EmptyStateComponent } from './empty-state/empty-state.component';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
+import { playlistInfoDialogConfig } from './playlist-info/playlist-info-dialog';
 import { SourceListRefreshService } from './source-list-refresh.service';
 
 /**
@@ -193,7 +197,15 @@ export class RecentPlaylistsComponent {
 
     open(playlist: PlaylistMeta): void {
         if (playlist.serverUrl) {
-            void this.router.navigate(['/workspace', 'xtreams', playlist._id]);
+            const section = this.runtime.supportsXtreamSqliteDataSource
+                ? getXtreamContentRoute(playlist.xtreamContentTypes)
+                : null;
+            void this.router.navigate([
+                '/workspace',
+                'xtreams',
+                playlist._id,
+                ...(section ? [section] : []),
+            ]);
         } else if (playlist.macAddress) {
             void this.router.navigate(['/workspace', 'stalker', playlist._id]);
         } else {
@@ -207,7 +219,10 @@ export class RecentPlaylistsComponent {
     }
 
     edit(playlist: PlaylistMeta): void {
-        this.dialog.open(PlaylistInfoComponent, { data: playlist });
+        this.dialog.open(
+            PlaylistInfoComponent,
+            playlistInfoDialogConfig(playlist)
+        );
     }
 
     /** Deletes with Undo; the active source hands over to its neighbour. */

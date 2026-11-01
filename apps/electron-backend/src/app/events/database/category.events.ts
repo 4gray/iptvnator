@@ -56,9 +56,10 @@ handleWorkerRequest(
 
 handleWorkerRequest(
     'DB_UPDATE_CATEGORY_VISIBILITY',
-    (categoryIds: number[], hidden: boolean) => ({
+    (categoryIds: number[], hidden: boolean, explicit?: boolean) => ({
         categoryIds,
         hidden,
+        ...(explicit === undefined ? {} : { explicit }),
     })
 );
 

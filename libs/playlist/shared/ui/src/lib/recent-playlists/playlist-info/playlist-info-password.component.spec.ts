@@ -46,7 +46,10 @@ describe('PlaylistInfoComponent password field', () => {
                     provide: PlaylistsService,
                     useValue: { getPlaylistById: jest.fn(() => of(playlist)) },
                 },
-                { provide: DatabaseService, useValue: {} },
+                {
+                    provide: DatabaseService,
+                    useValue: { updateXtreamPlaylistDetails: jest.fn() },
+                },
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: { supportsDataManagement: false },
@@ -59,11 +62,17 @@ describe('PlaylistInfoComponent password field', () => {
                 { provide: MatSnackBar, useValue: { open: jest.fn() } },
                 {
                     provide: MatDialogRef,
-                    useValue: { beforeClosed: () => new Subject<void>() },
+                    useValue: {
+                        beforeClosed: () => new Subject<void>(),
+                        close: jest.fn(),
+                    },
                 },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { supportsDesktopFileSave: false },
+                    useValue: {
+                        supportsDesktopFileSave: false,
+                        supportsXtreamSqliteDataSource: true,
+                    },
                 },
                 { provide: STALKER_PLAYLIST_CONNECTION_EDITOR, useValue: {} },
             ],
@@ -72,6 +81,40 @@ describe('PlaylistInfoComponent password field', () => {
         fixture.detectChanges();
         return fixture;
     }
+
+    it('rejects invalid Xtream edits before dispatch or Electron persistence', async () => {
+        const component = render(xtream).componentInstance;
+        component.playlistDetails.patchValue({
+            serverUrl: 'not-a-url',
+            username: ' ',
+            password: '',
+        });
+        expect(component.playlistDetails.invalid).toBe(true);
+        await component.saveChanges(component.playlistDetails.value);
+        await component.connectionTest.test();
+        expect(TestBed.inject(Store).dispatch).not.toHaveBeenCalled();
+        expect(
+            TestBed.inject(DatabaseService).updateXtreamPlaylistDetails
+        ).not.toHaveBeenCalled();
+        expect(TestBed.inject(MatDialogRef).close).not.toHaveBeenCalled();
+        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
+        expect(component.playlistDetails.get('serverUrl')?.value).toBe(
+            'not-a-url'
+        );
+        expect(component.isSaving()).toBe(false);
+    });
+
+    it('shows both required Xtream credential fields when stored values are missing', () => {
+        const fixture = render({ ...xtream, username: '', password: '' });
+        const root = fixture.nativeElement as HTMLElement;
+        expect(
+            root.querySelector('input[formcontrolname="username"]')
+        ).not.toBeNull();
+        expect(
+            root.querySelector('input[formcontrolname="password"]')
+        ).not.toBeNull();
+        expect(fixture.componentInstance.playlistDetails.invalid).toBe(true);
+    });
 
     it('starts blank Stalker identity collapsed and keeps entered values when folded', () => {
         const fixture = render({ ...stalker, username: '', password: '' });

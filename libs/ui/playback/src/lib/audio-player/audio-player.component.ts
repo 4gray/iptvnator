@@ -264,7 +264,9 @@ export class AudioPlayerComponent {
     handleKeyboard(event: KeyboardEvent) {
         if (
             event.target instanceof HTMLInputElement ||
-            event.target instanceof HTMLTextAreaElement
+            event.target instanceof HTMLTextAreaElement ||
+            (event.target instanceof Element &&
+                event.target.closest('[role="dialog"], [role="alertdialog"]'))
         )
             return;
 

@@ -143,6 +143,37 @@ describe('playlistReducers', () => {
         );
         expect(next.playlists.entities['removed']).toBeUndefined();
     });
+    it('keeps explicit empty Xtream selections in metadata and retains them on unrelated edits', () => {
+        const playlist = {
+            _id: 'xc',
+            xtreamContentTypes: ['live'],
+        } as PlaylistMeta;
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(
+                playlist,
+                initialState.playlists
+            ),
+        };
+        const disabled = reducer(
+            state,
+            PlaylistActions.updatePlaylistMeta({
+                playlist: { ...playlist, xtreamContentTypes: [] },
+            })
+        );
+        expect(disabled.playlists.entities['xc']?.xtreamContentTypes).toEqual(
+            []
+        );
+        const renamed = reducer(
+            disabled,
+            PlaylistActions.updatePlaylistMeta({
+                playlist: { _id: 'xc', title: 'Renamed' } as PlaylistMeta,
+            })
+        );
+        expect(renamed.playlists.entities['xc']?.xtreamContentTypes).toEqual(
+            []
+        );
+    });
     it('keeps a failed initial inventory unready until a retry succeeds', () => {
         const failed = reducer(
             initialState,

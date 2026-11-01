@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { injectTranslationTick } from '@iptvnator/services';
 import {
     PlaylistInfoComponent,
+    playlistInfoDialogConfig,
     PlaylistRefreshActionService,
 } from '@iptvnator/playlist/shared/ui';
 import {
@@ -74,8 +75,8 @@ export class WorkspaceShellHeaderService {
             this.routeState.currentSection()
         )
     );
-    readonly headerSidebarToggle = computed<WorkspaceHeaderSidebarToggle | null>(
-        () => {
+    readonly headerSidebarToggle =
+        computed<WorkspaceHeaderSidebarToggle | null>(() => {
             this.languageTick();
 
             const surface = this.liveSidebarSurface();
@@ -93,8 +94,7 @@ export class WorkspaceShellHeaderService {
                         : 'LAYOUT.HIDE_CHANNELS_LIST'
                 ),
             };
-        }
-    );
+        });
     readonly canOpenPlaylistInfo = computed(() =>
         Boolean(this.routeState.activePlaylist())
     );
@@ -102,14 +102,12 @@ export class WorkspaceShellHeaderService {
         const playlist = this.routeState.activePlaylist();
         return Boolean(
             playlist &&
-                (isXtreamAccountPlaylist(playlist) ||
-                    isStalkerAccountPlaylist(playlist))
+            (isXtreamAccountPlaylist(playlist) ||
+                isStalkerAccountPlaylist(playlist))
         );
     });
     readonly canRefreshPlaylist = computed(() =>
-        this.playlistRefreshAction.canRefresh(
-            this.routeState.activePlaylist()
-        )
+        this.playlistRefreshAction.canRefresh(this.routeState.activePlaylist())
     );
     readonly playlistSubtitle = computed(() => {
         this.languageTick();
@@ -181,9 +179,10 @@ export class WorkspaceShellHeaderService {
             return;
         }
 
-        this.dialog.open(PlaylistInfoComponent, {
-            data: playlist,
-        });
+        this.dialog.open(
+            PlaylistInfoComponent,
+            playlistInfoDialogConfig(playlist)
+        );
     }
 
     openAccountInfo(): void {
@@ -209,8 +208,7 @@ export class WorkspaceShellHeaderService {
                 // only apply when the dialog targets the active playlist.
                 ...(isActivePlaylist
                     ? {
-                          vodStreamsCount:
-                              this.xtreamStore.vodStreams().length,
+                          vodStreamsCount: this.xtreamStore.vodStreams().length,
                           liveStreamsCount:
                               this.xtreamStore.liveStreams().length,
                           seriesCount: this.xtreamStore.serialStreams().length,

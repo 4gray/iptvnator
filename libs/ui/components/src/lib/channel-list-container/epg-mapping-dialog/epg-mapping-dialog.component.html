@@ -42,7 +42,18 @@
         }
     </mat-form-field>
 
-    @if (hasSearchTerm()) {
+    @if (searchFailed()) {
+        <div class="epg-mapping-empty" role="status">
+            <span>{{ 'PORTALS.SEARCH_VIEW.ERROR_TITLE' | translate }}</span>
+            <button
+                mat-flat-button
+                class="app-dialog__secondary"
+                (click)="retrySearch()"
+            >
+                {{ 'RETRY' | translate }}
+            </button>
+        </div>
+    } @else if (hasSearchTerm()) {
         <div class="epg-mapping-results">
             @for (channel of results(); track channel.id) {
                 <button

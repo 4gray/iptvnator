@@ -69,6 +69,33 @@ describe('AddPlaylistDialogComponent with the real URL form', () => {
             'input[formcontrolname="playlistUrl"]'
         );
 
+    it('keeps the M3U EPG choice while switching methods and hides it for portals', async () => {
+        const component = fixture.componentInstance;
+        const checkbox = () =>
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLInputElement>(
+                '[data-test-id="m3u-import-epg"] input'
+            );
+        expect(checkbox()?.checked).toBe(true);
+        component.autoImportEpg.set(false);
+        component.selectMethod('xtream');
+        await settle();
+        expect(checkbox()).toBeNull();
+        component.selectMethod('url');
+        await settle();
+        expect(checkbox()?.checked).toBe(false);
+        component.selectMethod('file');
+        await settle();
+        expect(component.fileUpload()?.autoImportEpg()).toBe(false);
+        component.selectMethod('text');
+        await settle();
+        expect(checkbox()?.checked).toBe(false);
+        component.clearCurrentForm();
+        await settle();
+        expect(checkbox()?.checked).toBe(true);
+    });
+
     it('keeps provider and URL drafts in the dialog and resets only the cleared method', async () => {
         const component = fixture.componentInstance;
         component.selectMethod('xtream');

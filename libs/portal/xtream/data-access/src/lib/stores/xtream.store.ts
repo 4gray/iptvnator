@@ -33,11 +33,7 @@ import {
     withTmdbEpisodeMetadata,
 } from './features';
 
-import {
-    applyRecoveredXtreamVodCatalogItem,
-    createXtreamDetailsRequestGuard,
-    resolveXtreamVodDetailsSelection,
-} from './xtream-details-request';
+import { createXtreamDetailsRequestGuard } from './xtream-details-request-guard';
 import { stripXtreamSerieInfoPlaceholders } from './xtream-detail-metadata';
 
 /** Facade composing the Xtream feature stores and cross-feature workflows. */
@@ -167,7 +163,15 @@ export const XtreamStore = signalStore(
                 store.setSelectedItem(null);
                 xtreamApiService
                     .getVodInfo(credentials, params.vodId)
-                    .then((vodDetails: XtreamVodDetails) => {
+                    .then(async (vodDetails: XtreamVodDetails) => {
+                        if (!isCurrentRequest()) return;
+
+                        const {
+                            resolveXtreamVodDetailsSelection,
+                            applyRecoveredXtreamVodCatalogItem,
+                        } = await import('./xtream-details-request');
+                        // Cancellation, a newer detail or another playlist can
+                        // take ownership while the detail chunk is loading.
                         if (!isCurrentRequest()) return;
 
                         const { recovery, selection } =

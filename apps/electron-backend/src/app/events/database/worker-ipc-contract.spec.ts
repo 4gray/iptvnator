@@ -15,6 +15,7 @@ type MockIpcEvent = {
     sender: {
         isDestroyed: jest.Mock<boolean, []>;
         send: jest.Mock;
+        session: { flushStorageData: jest.Mock };
     };
 };
 
@@ -63,6 +64,7 @@ function createIpcEvent(): MockIpcEvent {
         sender: {
             isDestroyed: jest.fn(() => false),
             send: jest.fn(),
+            session: { flushStorageData: jest.fn() },
         },
     };
 }
@@ -84,6 +86,91 @@ function getLastWorkerRequestCall(): unknown[] {
 }
 
 describe('database worker IPC contract', () => {
+    it('flushes parked DOM recovery before native catalog deletion', async () => {
+        const event = createIpcEvent();
+        await getHandler('DB_DELETE_XTREAM_CONTENT')(
+            event,
+            playlistId,
+            operationId
+        );
+        expect(event.sender.session.flushStorageData).toHaveBeenCalledTimes(1);
+        expect(
+            event.sender.session.flushStorageData.mock.invocationCallOrder[0]
+        ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
+    });
+
+    it.each(['', '{"version":1}'])(
+        'flushes durable deferred state before writing its native history journal (%s)',
+        async (value) => {
+            const event = createIpcEvent();
+            await getHandler('DB_SET_APP_STATE')(
+                event,
+                'xtream-history-recovery:p',
+                value
+            );
+            expect(event.sender.session.flushStorageData).toHaveBeenCalledTimes(
+                1
+            );
+            expect(
+                event.sender.session.flushStorageData.mock
+                    .invocationCallOrder[0]
+            ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
+        }
+    );
+
+    it.each([
+        ['workspace:last-route', '/workspace'],
+        ['workspace:last-route', ''],
+    ])('does not flush unrelated app-state writes (%s)', async (key, value) => {
+        const event = createIpcEvent();
+        await getHandler('DB_SET_APP_STATE')(event, key, value);
+        expect(event.sender.session.flushStorageData).not.toHaveBeenCalled();
+    });
+
+    it('keeps the native journal when persisting resolved DOM state fails', async () => {
+        const event = createIpcEvent();
+        event.sender.session.flushStorageData.mockImplementation(() => {
+            throw new Error('storage flush failed');
+        });
+        await expect(
+            getHandler('DB_SET_APP_STATE')(
+                event,
+                'xtream-history-recovery:p',
+                ''
+            )
+        ).rejects.toThrow('storage flush failed');
+        expect(mockWorkerRequest).not.toHaveBeenCalled();
+    });
+
+    it.each(['DB_CLEAR_RECENTLY_VIEWED', 'DB_CLEAR_PLAYLIST_RECENT_ITEMS'])(
+        '%s persists dormant history before clearing native rows',
+        async (channel) => {
+            const event = createIpcEvent();
+            await getHandler(channel)(event, playlistId);
+            expect(event.sender.session.flushStorageData).toHaveBeenCalledTimes(
+                1
+            );
+            expect(
+                event.sender.session.flushStorageData.mock
+                    .invocationCallOrder[0]
+            ).toBeLessThan(mockWorkerRequest.mock.invocationCallOrder[0]);
+        }
+    );
+
+    it.each(['DB_CLEAR_RECENTLY_VIEWED', 'DB_CLEAR_PLAYLIST_RECENT_ITEMS'])(
+        '%s does not acknowledge a clear when dormant state cannot be persisted',
+        async (channel) => {
+            const event = createIpcEvent();
+            event.sender.session.flushStorageData.mockImplementation(() => {
+                throw new Error('storage flush failed');
+            });
+            await expect(
+                getHandler(channel)(event, playlistId)
+            ).rejects.toThrow('storage flush failed');
+            expect(mockWorkerRequest).not.toHaveBeenCalled();
+        }
+    );
+
     beforeEach(async () => {
         jest.resetModules();
         mockRegisteredHandlers.clear();

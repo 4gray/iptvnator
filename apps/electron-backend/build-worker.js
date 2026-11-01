@@ -122,6 +122,11 @@ async function buildWorker() {
                         __dirname,
                         '../../libs/shared/database/src/activity-sync.ts'
                     ),
+                    '@iptvnator/shared/interfaces/xtream-category-visibility':
+                        path.join(
+                            __dirname,
+                            '../../libs/shared/interfaces/src/lib/xtream-category-visibility.ts'
+                        ),
                     '@iptvnator/shared/interfaces': path.join(
                         __dirname,
                         '../../libs/shared/interfaces/src/index.ts'

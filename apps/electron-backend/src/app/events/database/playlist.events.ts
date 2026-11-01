@@ -4,6 +4,8 @@
  */
 
 import { ipcMain } from 'electron';
+import { XTREAM_HISTORY_RECOVERY_PREFIX } from '@iptvnator/shared/interfaces';
+import type { XtreamCatalogStateCondition } from '@iptvnator/shared/interfaces';
 import { recoverLegacyProfile } from '../../services/legacy-profile-recovery';
 import { databaseWorkerClient } from '../../services/database-worker-client';
 import {
@@ -59,6 +61,7 @@ handleWorkerRequest(
             name?: string;
             username?: string;
             password?: string;
+            userAgent?: string;
             serverUrl?: string;
             lastUpdated?: string;
         }
@@ -68,10 +71,26 @@ handleWorkerRequest(
     })
 );
 handleWorkerRequest('DB_GET_APP_STATE', (key: string) => ({ key }));
-handleWorkerRequest('DB_SET_APP_STATE', (key: string, value: string) => ({
-    key,
-    value,
-}));
+handleWorkerRequest(
+    'DB_CHECK_XTREAM_CATALOG_CONNECTION',
+    (condition: XtreamCatalogStateCondition) => ({ condition })
+);
+handleWorkerRequest(
+    'DB_SET_APP_STATE',
+    (key: string, value: string, condition?: XtreamCatalogStateCondition) => ({
+        key,
+        value,
+        ...(condition === undefined ? {} : { condition }),
+    }),
+    (event, key) => {
+        // Persist prepared recovery before registering its native journal or
+        // accepting metadata; early connection mismatches can clear retained
+        // caches without entering the ordinary catalog-deletion IPC.
+        // Also flush resolved archives before acknowledging native tombstones.
+        if (key.startsWith(XTREAM_HISTORY_RECOVERY_PREFIX))
+            event.sender.session.flushStorageData();
+    }
+);
 
 ipcMain.handle(
     'DB_DELETE_PLAYLIST',

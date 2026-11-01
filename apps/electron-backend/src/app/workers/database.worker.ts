@@ -90,6 +90,11 @@ import {
     upsertAppPlaylists,
 } from '../database/operations/playlist.operations';
 import { setPlaylistServerTimezone } from '../database/operations/playlist-server-timezone.operations';
+import { checkXtreamCatalogConnection } from '../database/operations/xtream-catalog-state';
+import type {
+    XtreamCatalogStateCondition,
+    XtreamContentType,
+} from '@iptvnator/shared/interfaces';
 import {
     addRecentItem,
     clearPlaylistRecentItems,
@@ -495,11 +500,13 @@ async function executeRequest(
             const payload = message.payload as {
                 categoryIds: number[];
                 hidden: boolean;
+                explicit?: boolean;
             };
             return updateCategoryVisibility(
                 db,
                 payload.categoryIds,
-                payload.hidden
+                payload.hidden,
+                payload.explicit === true
             );
         }
 
@@ -862,9 +869,25 @@ async function executeRequest(
             return getAppState(db, payload.key);
         }
 
+        case 'DB_CHECK_XTREAM_CATALOG_CONNECTION': {
+            const payload = message.payload as {
+                condition: XtreamCatalogStateCondition;
+            };
+            return checkXtreamCatalogConnection(db, payload.condition);
+        }
+
         case 'DB_SET_APP_STATE': {
-            const payload = message.payload as { key: string; value: string };
-            return setAppState(db, payload.key, payload.value);
+            const payload = message.payload as {
+                key: string;
+                value: string;
+                condition?: XtreamCatalogStateCondition;
+            };
+            return setAppState(
+                db,
+                payload.key,
+                payload.value,
+                payload.condition
+            );
         }
 
         case 'DB_GET_TMDB_METADATA': {
@@ -989,6 +1012,7 @@ async function executeRequest(
             const payload = message.payload as {
                 playlistId: string;
                 operationId?: string;
+                contentTypes?: XtreamContentType[];
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -1010,7 +1034,8 @@ async function executeRequest(
                         db,
                         payload.playlistId,
                         controller.control,
-                        capturePhase
+                        capturePhase,
+                        payload.contentTypes
                     );
 
                     controller.emitCompleted({
@@ -1138,8 +1163,11 @@ async function executeRequest(
             return clearRecentlyViewed(db);
 
         case 'DB_GET_RECENT_ITEMS': {
-            const payload = message.payload as { playlistId: string };
-            return getRecentItems(db, payload.playlistId);
+            const payload = message.payload as {
+                playlistId: string;
+                all?: boolean;
+            };
+            return getRecentItems(db, payload.playlistId, payload.all === true);
         }
 
         case 'DB_ADD_RECENT_ITEM': {

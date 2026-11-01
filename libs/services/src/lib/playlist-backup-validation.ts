@@ -34,6 +34,11 @@ export function hasValidBackupEntryData(entry: unknown): boolean {
             !Number.isFinite(entry['position']))
     )
         return false;
+    if (
+        entry['autoImportEpg'] !== undefined &&
+        typeof entry['autoImportEpg'] !== 'boolean'
+    )
+        return false;
     if (!isRecord(entry['userState'])) return false;
     const state = entry['userState'];
     const metadata =
@@ -76,6 +81,12 @@ export function hasValidBackupEntryData(entry: unknown): boolean {
     switch (entry['portalType']) {
         case 'm3u':
             return (
+                (entry['epgUrls'] === undefined ||
+                    isStringList(entry['epgUrls'])) &&
+                (entry['manualEpgUrls'] === undefined ||
+                    isStringList(entry['manualEpgUrls'])) &&
+                (entry['disabledEpgUrls'] === undefined ||
+                    isStringList(entry['disabledEpgUrls'])) &&
                 isText(metadata['rawM3u']) &&
                 /^\s*#EXTM3U/i.test(metadata['rawM3u']) &&
                 isStringList(state['favorites']) &&

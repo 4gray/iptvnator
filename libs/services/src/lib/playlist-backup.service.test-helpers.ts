@@ -8,6 +8,7 @@ import {
     XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistBackupService } from './playlist-backup.service';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
 import {
     createBrowserUserDataStorage,
@@ -118,6 +119,8 @@ export function createPlaylistBackupService(
             updateSettings: jest.fn().mockResolvedValue(undefined),
         },
         databaseService: {
+            readAppState: jest.fn().mockResolvedValue({ value: null }),
+            setAppState: jest.fn().mockResolvedValue(true),
             getAllXtreamCategories: jest.fn().mockResolvedValue([]),
             getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
             getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
@@ -127,7 +130,10 @@ export function createPlaylistBackupService(
             restoreXtreamFavoriteSnapshots: jest
                 .fn()
                 .mockResolvedValue(undefined),
-            restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
+            restoreXtreamUserData: jest.fn().mockResolvedValue({
+                success: true,
+                resolvedHistory: [],
+            }),
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },
         playbackPositionService: {
@@ -145,6 +151,7 @@ export function createPlaylistBackupService(
             clearForPlaylist: jest.fn().mockResolvedValue(true),
         },
         pendingRestoreService,
+        deferredRestore: new XtreamDeferredCatalogRestoreService(),
         parentalLock: {
             initialize: jest.fn().mockResolvedValue(undefined),
             locksReadable: jest.fn(() => true),
@@ -266,6 +273,8 @@ export function createStatefulBackupCollaborators(
             },
         },
         databaseService: {
+            readAppState: async () => ({ value: null }),
+            setAppState: async () => true,
             getAllXtreamCategories: async (
                 playlistId: string,
                 type: 'live' | 'movies' | 'series'
@@ -341,6 +350,13 @@ export function createStatefulBackupCollaborators(
                     type: item.contentType,
                     viewed_at: item.viewedAt,
                 }));
+                return {
+                    success: true,
+                    resolvedHistory: state.xtreamRecent.map((row) => ({
+                        contentType: row.type,
+                        xtreamId: row.xtream_id,
+                    })),
+                };
             },
         },
         playbackPositionService: {

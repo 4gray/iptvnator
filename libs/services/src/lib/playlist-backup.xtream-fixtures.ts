@@ -150,6 +150,8 @@ export function createRestoreCollaborators() {
             handlePlaylistParsing: jest.fn(),
         },
         databaseService: {
+            readAppState: jest.fn().mockResolvedValue({ value: null }),
+            setAppState: jest.fn().mockResolvedValue(true),
             getAllXtreamCategories: jest.fn(
                 (_playlistId: string, type: string) =>
                     Promise.resolve(categoryRowsByType[type] ?? [])
@@ -162,7 +164,10 @@ export function createRestoreCollaborators() {
             restoreXtreamFavoriteSnapshots: jest
                 .fn()
                 .mockResolvedValue(undefined),
-            restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
+            restoreXtreamUserData: jest.fn().mockResolvedValue({
+                success: true,
+                resolvedHistory: [],
+            }),
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },
         pendingRestoreService,

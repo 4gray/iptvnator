@@ -41,7 +41,11 @@
                           ? 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
                           : 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_UNKNOWN'
                       ) | translate)
-                    : ''
+                    : ch.catalogDisabled
+                      ? ('PORTALS.LIVE_TV' | translate) +
+                        ' — ' +
+                        ('SETTINGS.STATUS_DISABLED' | translate)
+                      : ''
             "
             [selected]="activeUid() === ch.uid"
             [showEpg]="
