@@ -226,6 +226,98 @@ describe('retryable activity disable transition', () => {
         }
     );
 
+    it.each(['checkpoint', 'reset'] as const)(
+        'preserves a sibling %s that persists before a stale opt-out mirror',
+        async (action) => {
+            const f = fixture('native');
+            f.recover();
+            const origin = f.makeRuntime();
+            const sibling = f.makeRuntime();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const waiting = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const save = f.save.getMockImplementation()!;
+            f.save.mockImplementationOnce(async (...args) => {
+                entered();
+                await held;
+                await save(...args);
+            });
+            const disabling = origin.runtime.setEnabled(false);
+            await waiting;
+            if (action === 'checkpoint')
+                await sibling.runtime.invoke(f.raw, 'savePlaybackPosition', [
+                    f.sourceId,
+                    {
+                        ...f.position,
+                        positionSeconds: 75,
+                        activitySessionId: 'synthetic-newer-session',
+                    },
+                ]);
+            else
+                await sibling.runtime.invoke(f.raw, 'clearPlaybackPosition', [
+                    f.sourceId,
+                    42,
+                    'vod',
+                ]);
+            expect(sibling.localOnly.snapshots(f.sourceId)).toEqual([]);
+            release();
+            await disabling;
+            expect(origin.runtime.enabled()).toBe(false);
+            expect(f.rows().map((row) => row.positionSeconds)).toEqual(
+                action === 'reset' ? [] : [75]
+            );
+        }
+    );
+
+    it('retries a failed repair without replaying completed history over later local data', async () => {
+        const f = fixture('native');
+        f.recover();
+        const origin = f.makeRuntime();
+        const sibling = f.makeRuntime();
+        let release!: () => void;
+        let entered!: () => void;
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const waiting = new Promise<void>((resolve) => {
+            entered = resolve;
+        });
+        const save = f.save.getMockImplementation()!;
+        f.save
+            .mockImplementationOnce(async (...args) => {
+                entered();
+                await held;
+                await save(...args);
+            })
+            .mockImplementationOnce(save)
+            .mockRejectedValueOnce(new Error('Synthetic repair failure'));
+        const disabling = origin.runtime.setEnabled(false);
+        await waiting;
+        await sibling.runtime.invoke(f.raw, 'savePlaybackPosition', [
+            f.sourceId,
+            { ...f.position, positionSeconds: 75 },
+        ]);
+        release();
+        await disabling;
+        expect(origin.runtime.enabled()).toBe(true);
+        expect(
+            origin.localOnly.snapshots(f.sourceId)[0].position.positionSeconds
+        ).toBe(75);
+        await origin.runtime.setEnabled(false);
+        expect(f.rows()[0].positionSeconds).toBe(75);
+        await f.raw.savePlaybackPosition(f.sourceId, {
+            ...f.position,
+            positionSeconds: 90,
+        });
+        await origin.adapter.keepLocal(f.raw, f.sourceId);
+        expect(f.rows()[0].positionSeconds).toBe(90);
+    });
+
     it('reconciles a superseded pause after consent reads recover', async () => {
         const f = fixture('native');
         f.recover();

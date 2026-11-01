@@ -19,6 +19,7 @@ interface Ownership {
     token?: string;
     position?: PlaybackPositionData;
     clearing?: boolean;
+    settled?: boolean;
 }
 export interface LocalActivitySnapshot {
     token: string;
@@ -108,7 +109,9 @@ export class ActivityLocalOnlyPositions {
             (record.scope !== null && typeof record.scope !== 'string') ||
             typeof record.sessionId !== 'string' ||
             (record.clearing !== undefined &&
-                typeof record.clearing !== 'boolean')
+                typeof record.clearing !== 'boolean') ||
+            (record.settled !== undefined &&
+                typeof record.settled !== 'boolean')
         )
             throw new Error('Local activity ownership unavailable');
         const bound = record.scope ?? this.firstScopes.get(sourceId) ?? null;
@@ -157,6 +160,7 @@ export class ActivityLocalOnlyPositions {
                 ? {
                       position: pending.position,
                       token: pending.token,
+                      ...(pending.settled ? { settled: true } : {}),
                       ...(pending.clearing ? { clearing: true } : {}),
                   }
                 : {}),
@@ -204,10 +208,33 @@ export class ActivityLocalOnlyPositions {
         );
         if (current?.token !== snapshot.token) return;
         this.write(sourceId, snapshot.position, {
-            version: 2,
-            scope: current.scope,
-            sessionId: current.sessionId,
+            ...current,
+            settled: true,
         });
+    }
+    retry(sourceId: string, snapshot: LocalActivitySnapshot): void {
+        const current = this.read(
+            sourceId,
+            this.key(sourceId, snapshot.position)
+        );
+        if (current?.token === snapshot.token && current.settled)
+            this.write(sourceId, snapshot.position, {
+                ...current,
+                settled: false,
+            });
+    }
+    latest(
+        sourceId: string,
+        position: PositionKey
+    ): LocalActivitySnapshot | null {
+        const current = this.read(sourceId, this.key(sourceId, position));
+        return current?.position && current.token
+            ? {
+                  token: current.token,
+                  position: current.position,
+                  ...(current.clearing ? { clearing: true } : {}),
+              }
+            : null;
     }
     snapshots(sourceId: string): LocalActivitySnapshot[] {
         const prefix = `iptvnator-server:${this.instanceId}:activity-local-only-v1:${JSON.stringify([sourceId]).slice(0, -1)},`;
@@ -219,7 +246,7 @@ export class ActivityLocalOnlyPositions {
         for (const key of keys) {
             if (!key?.startsWith(prefix)) continue;
             const record = this.read(sourceId, key);
-            if (record?.position && record.token)
+            if (record?.position && record.token && !record.settled)
                 result.push({
                     token: record.token,
                     position: record.position,

@@ -171,6 +171,39 @@ async function launch(
 }
 
 describe('activity sync clients', () => {
+    it.each(['incarnation', 'consent'] as const)(
+        'recovers ready status while an old %s queue remains parked',
+        async (retired) => {
+            const h = harness();
+            const a = h.client('synthetic-device');
+            await a.value.begin('source', movie('synthetic-session'));
+            await a.value.flush();
+            h.offline(true);
+            await a.value.save('source', movie('synthetic-session', 65));
+            await a.value.flush();
+            expect(a.status).toHaveBeenLastCalledWith('offline');
+            if (retired === 'incarnation')
+                a.value.acceptContext({
+                    ...context,
+                    sourceIncarnation: 'synthetic-replacement',
+                });
+            else a.consent('synthetic-new-consent');
+            h.offline(false);
+            if (retired === 'incarnation')
+                h.request.mockImplementationOnce(async () => ({
+                    status: 200,
+                    body: {
+                        ...context,
+                        sourceIncarnation: 'synthetic-replacement',
+                    },
+                }));
+            await a.value.refresh('source');
+            await a.value.flush();
+            expect(a.status).toHaveBeenLastCalledWith('ready');
+            expect(await a.store.pending()).toHaveLength(1);
+        }
+    );
+
     it('retires a failed local launch after its verified source account changes', async () => {
         const h = harness();
         const a = h.client('a');

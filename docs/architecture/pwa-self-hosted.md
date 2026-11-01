@@ -936,13 +936,17 @@ opt-out and pauses delivery while keeping shared reads active. Only acknowledged
 local writes complete the disabled state. Failed writes or an interrupted app
 restart retry the mirror on startup, focus, online and the visible-page timer;
 new playback changes during this pause stay local and take precedence over the
-mirror. Consent changes are serialized within the runtime, and stale completion
+mirror. Acknowledged local snapshots retain their latest token for delayed-write
+repair until a confirmed shared action retires ownership. Completed snapshots
+are not replayed as pending work; a failed repair becomes pending again. Consent changes are serialized within the runtime, and stale completion
 cannot overwrite another window's newer consent or a different profile. Native mirror writes require a
 confirmed acknowledgement before pending intent can be discarded. A new consent
 generation cannot send an older queue until the user chooses to send it or keep
 it local. A pending import keeps its local projection even when the conflicting
 server state is a reset, so disabling or keeping the queue local preserves it.
 Queue actions use the current source incarnation and leave retired records parked.
+Successful delivery determines readiness from current-incarnation, current-consent
+operations; parked historical queues do not preserve an obsolete offline status.
 Stalker episode resets keep exact zero rows in series reads and local mirrors;
 compatible legacy aliases cannot promote old progress over that reset.
 

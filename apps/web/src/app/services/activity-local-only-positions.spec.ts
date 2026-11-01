@@ -143,6 +143,7 @@ describe('durable local-only position ownership', () => {
         expect(reopened.snapshots('source-a')).toHaveLength(1);
         reopened.complete('source-a', pending);
         expect(reopened.snapshots('source-a')).toHaveLength(0);
+        expect(reopened.latest('source-a', input)?.token).toBe(pending.token);
         expect(reopened.has('source-a', input)).toBe(true);
     });
     it('retains an unfinished raw snapshot while transferring fallback ownership to a new launch', () => {

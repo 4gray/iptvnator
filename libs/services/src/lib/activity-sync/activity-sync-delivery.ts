@@ -6,6 +6,7 @@ export async function sendPendingActivity(
     this: ActivitySyncClient
 ): Promise<void> {
     try {
+        let conflict = false;
         for (const source of this.contexts.keys()) {
             for (const entry of await this.store.entries(source)) {
                 if (
@@ -55,6 +56,7 @@ export async function sendPendingActivity(
                     if (response.rebased) rebases++;
                 }
                 if (record.conflict) {
+                    conflict = true;
                     for (const intent of record.pending)
                         this.delivery.settled(intent.operation.operationId);
                     this.options.status('conflict');
@@ -62,7 +64,15 @@ export async function sendPendingActivity(
             }
         }
         this.options.changed();
-        if (!(await this.store.pending()).length) this.options.status('ready');
+        const activePending = (await this.store.pending()).some(
+            (intent) =>
+                intent.consentGeneration === this.options.consent() &&
+                intent.address.instanceId === this.options.instanceId &&
+                intent.address.sourceIncarnation ===
+                    this.contexts.get(intent.address.sourceId)
+                        ?.sourceIncarnation
+        );
+        if (!conflict && !activePending) this.options.status('ready');
     } catch {
         await this.delivery.release();
         this.options.status('offline');

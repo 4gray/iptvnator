@@ -237,22 +237,35 @@ export class ActivityPositionAdapter {
         snapshot: LocalActivitySnapshot
     ): Promise<void> {
         return this.localWrites.run(sourceId, snapshot.position, async () => {
-            if (snapshot.clearing) {
-                const { contentXtreamId, contentType } = snapshot.position;
-                await (this.strict?.clear(
+            let current = snapshot;
+            for (;;) {
+                const latest = this.localOnly.latest(
                     sourceId,
-                    contentXtreamId,
-                    contentType
-                ) ??
-                    raw.clearPlaybackPosition(
+                    current.position
+                );
+                if (!latest) return;
+                current = latest;
+                this.localOnly.retry(sourceId, current);
+                if (current.clearing) {
+                    const { contentXtreamId, contentType } = current.position;
+                    await (this.strict?.clear(
                         sourceId,
                         contentXtreamId,
                         contentType
-                    ));
-            } else
-                await (this.strict?.save(sourceId, snapshot.position) ??
-                    raw.savePlaybackPosition(sourceId, snapshot.position));
-            this.localOnly.complete(sourceId, snapshot);
+                    ) ??
+                        raw.clearPlaybackPosition(
+                            sourceId,
+                            contentXtreamId,
+                            contentType
+                        ));
+                } else
+                    await (this.strict?.save(sourceId, current.position) ??
+                        raw.savePlaybackPosition(sourceId, current.position));
+                this.localOnly.complete(sourceId, current);
+                const newer = this.localOnly.latest(sourceId, current.position);
+                if (!newer || newer.token === current.token) return;
+                current = newer;
+            }
         });
     }
 
@@ -350,6 +363,9 @@ export class ActivityPositionAdapter {
                     await (this.strict?.save(sourceId, local) ??
                         raw.savePlaybackPosition(sourceId, local));
                 }
+                // A sibling may have completed its newer write while this mirror waited.
+                const newer = this.localOnly.latest(sourceId, position);
+                if (newer) await this.persistLocal(raw, sourceId, newer);
             }
             await this.localWrites.wait(sourceId);
         } while (this.localOnly.snapshots(sourceId).length);
