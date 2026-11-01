@@ -285,6 +285,14 @@ directory and runs the summary per OS with `--input=<directory>` and
 the summary never reports a partial run as complete. Tests for that merge live
 in `tools/coverage/e2e-shard-reports.test.mjs` (`pnpm run coverage:tools:test`).
 
+The shared Electron launcher waits for Playwright's first window and selects a
+non-DevTools URL, including a later renderer when DevTools appears first.
+It then waits for the app root, fonts and finite rail entrance animations;
+it does not sleep for a fixed startup interval. Window-selection and
+process-lifecycle regression tests run once per OS before the E2E suite.
+Every test still owns its temporary profile, and restarts still confirm the
+previous process exited before relaunching.
+
 For local investigation only, Chromium browser V8 coverage can be explored with:
 
 ```bash
