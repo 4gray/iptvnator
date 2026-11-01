@@ -64,6 +64,7 @@ describe('catalog selection runtime compatibility', () => {
                 getCachedContent: jest.fn().mockResolvedValue([]),
                 restoreUserData: jest.fn().mockResolvedValue(undefined),
             };
+            const setXtreamImportStatus = jest.fn().mockResolvedValue(desktop);
             TestBed.configureTestingModule({
                 providers: [
                     ...createContentTestProviders(TestStore, {
@@ -75,9 +76,7 @@ describe('catalog selection runtime compatibility', () => {
                             getXtreamImportStatus: jest
                                 .fn()
                                 .mockResolvedValue('idle'),
-                            setXtreamImportStatus: jest
-                                .fn()
-                                .mockResolvedValue(true),
+                            setXtreamImportStatus,
                             supportsDbOperationCancellation: jest
                                 .fn()
                                 .mockReturnValue(false),
@@ -105,6 +104,7 @@ describe('catalog selection runtime compatibility', () => {
                 dataSource.getContent.mock.calls.map((call) => call[2])
             ).toEqual(expected);
             expect(store.isContentInitialized()).toBe(true);
+            if (!desktop) expect(setXtreamImportStatus).not.toHaveBeenCalled();
         }
     );
 });

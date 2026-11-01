@@ -62,8 +62,9 @@ export async function completeCatalogHistoryRecovery(
     snapshot: DeferredCatalogSnapshot,
     available: readonly XtreamContentType[]
 ): Promise<void> {
-    // Read live rows first, then the journal: a concurrent removal is covered
-    // either by the row we saw or by its later native tombstone.
+    // Native replay records resolved identities atomically. Its proof survives
+    // a remove/rewatch between these reads, even if the later watch erased its
+    // tombstone. Missing catalog rows stay outside that proof for later retry.
     const current = await db.getRecentItemsOrThrow(playlistId);
     const journal = await readCatalogHistoryRecovery(db, playlistId);
     if (!journal) throw new Error('Catalog history recovery is unavailable.');
@@ -74,6 +75,7 @@ export async function completeCatalogHistoryRecovery(
                 xtreamId: row.xtream_id,
             })),
             ...(journal.removed ?? []),
+            ...(journal.resolved ?? []),
         ],
         afterClearHistory: journal.cleared ? journal.recentlyViewed : undefined,
     });

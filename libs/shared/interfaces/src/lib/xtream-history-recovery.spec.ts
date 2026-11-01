@@ -28,6 +28,10 @@ it.each([
     { ...valid, removed: [null] },
     { ...valid, removed: [{ contentType: 'bad', xtreamId: 1 }] },
     { ...valid, removed: [{ contentType: 'live', xtreamId: '1' }] },
+    { ...valid, resolved: 'bad' },
+    { ...valid, resolved: [null] },
+    { ...valid, resolved: [{ contentType: 'bad', xtreamId: 1 }] },
+    { ...valid, resolved: [{ contentType: 'live', xtreamId: '1' }] },
     ...[
         null,
         { contentType: 'bad', xtreamId: 42, viewedAt: 'd' },

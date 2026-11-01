@@ -134,6 +134,9 @@ it('records current watch timestamps without duplicating identities', () => {
     expect(
         JSON.parse(insertValues.mock.calls[0][0].value).recentlyViewed
     ).toEqual([entry(1, 'new')]);
+    expect(JSON.parse(insertValues.mock.calls[0][0].value).resolved).toEqual([
+        { contentType: 'movie', xtreamId: 1 },
+    ]);
     const missing = createDbMock();
     recordRecoveredHistory(missing.db, 'p', 10);
     expect(missing.insertValues).not.toHaveBeenCalled();
@@ -144,7 +147,15 @@ it('records current watch timestamps without duplicating identities', () => {
 
 it('removes single and batched identities per source, leaving an absent source alone', () => {
     const { db, insertValues } = createDbMock([
-        [record(state([entry(1), entry(2)]))],
+        [
+            record({
+                ...state([entry(1), entry(2)]),
+                resolved: [
+                    { contentType: 'movie', xtreamId: 1 },
+                    { contentType: 'movie', xtreamId: 2 },
+                ],
+            }),
+        ],
         [entry(1), entry(2)],
         [],
     ]);
@@ -183,7 +194,15 @@ it('clears one journal or every nonempty journal without deleting ownership', ()
 
 it('atomically replays the current journal with fresh content identities and retains it until acknowledgement', () => {
     const { db, insertValues, deleteFn, transaction } = createDbMock([
-        [record(state([entry(1), entry(2)]))],
+        [
+            record({
+                ...state([entry(1), entry(2)]),
+                resolved: [
+                    { contentType: 'movie', xtreamId: 1 },
+                    { contentType: 'movie', xtreamId: 2 },
+                ],
+            }),
+        ],
         [{ id: 99, contentType: 'movie', xtreamId: 1 }],
     ]);
     expect(replayRecoveredHistory(db, 'p')).toBe(1);
@@ -192,10 +211,19 @@ it('atomically replays the current journal with fresh content identities and ret
     ]);
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(deleteFn).toHaveBeenCalledTimes(1);
+    const journal = insertValues.mock.calls.find(([value]) => value.key)?.[0];
+    expect(JSON.parse(journal.value).resolved).toEqual([
+        { contentType: 'movie', xtreamId: 1 },
+    ]);
     expect(replayRecoveredHistory(createDbMock().db, 'p')).toBeNull();
     const empty = createDbMock([[record(state([]))]]);
     expect(replayRecoveredHistory(empty.db, 'p')).toBe(0);
-    expect(empty.insertValues).not.toHaveBeenCalled();
+    expect(
+        empty.insertValues.mock.calls.some(([value]) => Array.isArray(value))
+    ).toBe(false);
+    expect(
+        JSON.parse(empty.insertValues.mock.calls[0][0].value).resolved
+    ).toEqual([]);
 });
 
 it('deletes recovery data when the source or whole library is deleted', () => {

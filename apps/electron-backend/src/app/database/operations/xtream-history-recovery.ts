@@ -133,6 +133,14 @@ export function recordRecoveredHistory(
         (item) => identity(item) !== identity(row)
     );
     journal.recentlyViewed.push(row);
+    journal.resolved = [
+        ...new Map(
+            [
+                ...(journal.resolved ?? []),
+                { contentType: row.contentType, xtreamId: row.xtreamId },
+            ].map((item) => [identity(item), item])
+        ).values(),
+    ];
     if (journal.removed)
         journal.removed = journal.removed.filter(
             (item) => identity(item) !== identity(row)
@@ -301,6 +309,14 @@ export function replayRecoveredHistory(
             tx.insert(schema.recentlyViewed)
                 .values(rows.slice(offset, offset + 1000))
                 .run();
+        // Recompute after every replay: a previous catalog deletion may have
+        // removed rows that an earlier replay/watch had resolved. The renderer
+        // must consume only copies now owned by native history. Keep this proof
+        // in the same transaction so remove/rewatch cannot erase it mid-read.
+        journal.resolved = journal.recentlyViewed
+            .filter((row) => content.has(identity(row)))
+            .map(({ contentType, xtreamId }) => ({ contentType, xtreamId }));
+        writeHistoryRecovery(tx, playlistId, journal);
         return rows.length;
     });
 }

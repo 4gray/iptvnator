@@ -23,12 +23,21 @@ async function faultAndCount(
     id: string,
     enabled: boolean,
     failCleanup = false,
-    failCompletion = false
+    failCompletion = false,
+    resetHistory = true
 ) {
     return app.electronApp.evaluate(
         (
             _electron,
-            { dependency, file, id, enabled, failCleanup, failCompletion }
+            {
+                dependency,
+                file,
+                id,
+                enabled,
+                failCleanup,
+                failCompletion,
+                resetHistory,
+            }
         ) => {
             const Database = process
                 .getBuiltinModule('module')
@@ -39,13 +48,14 @@ async function faultAndCount(
                 db.exec('DROP TRIGGER IF EXISTS test_fail_movie_cleanup');
                 db.exec('DROP TRIGGER IF EXISTS test_fail_movie_completion');
                 if (enabled) {
-                    db.prepare(
-                        'UPDATE recently_viewed SET viewed_at = ? WHERE playlist_id = ?'
-                    ).run('2026-01-01 00:00:00', id);
+                    if (resetHistory)
+                        db.prepare(
+                            'UPDATE recently_viewed SET viewed_at = ? WHERE playlist_id = ?'
+                        ).run('2026-01-01 00:00:00', id);
                     const literal = id.replaceAll("'", "''");
                     if (failCompletion)
                         db.exec(`CREATE TRIGGER test_fail_movie_completion BEFORE INSERT ON app_state
-                        WHEN NEW.key = 'xtream-import-status:${literal}:movie' AND NEW.value = 'completed'
+                        WHEN NEW.key = 'xtream-import-status:${literal}:movie' AND NEW.value IN ('completed', 'failed')
                         BEGIN SELECT RAISE(ABORT, 'simulated completion status failure'); END`);
                     else
                         db.exec(`CREATE TRIGGER test_fail_movie_second_batch BEFORE INSERT ON content
@@ -73,6 +83,7 @@ async function faultAndCount(
             enabled,
             failCleanup,
             failCompletion,
+            resetHistory,
         }
     );
 }
@@ -347,9 +358,85 @@ for (const { failCleanup, legacy, failCompletion } of [
             app = await restartElectronApp(app, dataDir);
             page = app.mainWindow;
             await openSources(page);
+            if (failCompletion) {
+                await faultAndCount(app, dataDir, id, true, false, true, false);
+                await app.electronApp.evaluate(({ ipcMain }, id) => {
+                    type Handler = (...args: unknown[]) => Promise<unknown>;
+                    const handlers = (
+                        ipcMain as typeof ipcMain & {
+                            _invokeHandlers: Map<string, Handler>;
+                        }
+                    )._invokeHandlers;
+                    const original = handlers.get('DB_SET_APP_STATE')!;
+                    const state = globalThis as typeof globalThis & {
+                        rejectedCompletion?: boolean;
+                    };
+                    ipcMain.removeHandler('DB_SET_APP_STATE');
+                    ipcMain.handle(
+                        'DB_SET_APP_STATE',
+                        async (event, key, value) => {
+                            try {
+                                return await original(event, key, value);
+                            } catch (error) {
+                                if (
+                                    key ===
+                                        `xtream-import-status:${id}:movie` &&
+                                    value === 'completed'
+                                ) {
+                                    state.rejectedCompletion = true;
+                                }
+                                throw error;
+                            }
+                        }
+                    );
+                }, id);
+            }
             await sourceRowByTitle(page, title)
                 .locator('.source-row__name')
                 .click();
+            if (failCompletion) {
+                // Retry writes all native rows, but cannot acknowledge recovery
+                // while its completion marker still fails in actual SQLite.
+                await expect
+                    .poll(
+                        () =>
+                            app.electronApp.evaluate(
+                                () =>
+                                    !!(
+                                        globalThis as typeof globalThis & {
+                                            rejectedCompletion?: boolean;
+                                        }
+                                    ).rejectedCompletion
+                            ),
+                        { timeout: 60000 }
+                    )
+                    .toBe(true);
+                await expect(
+                    page.locator('.workspace-loading-overlay')
+                ).not.toBeVisible();
+                await expect(
+                    page.getByRole('button', { name: 'Retry', exact: true })
+                ).toBeVisible();
+                expect(
+                    await page.evaluate(
+                        (id) => !!localStorage.getItem(`xtream-restore-${id}`),
+                        id
+                    )
+                ).toBe(true);
+                expect(
+                    await page.evaluate(
+                        (id) =>
+                            window.electron.dbGetAppState(
+                                `xtream-history-recovery:${id}`
+                            ),
+                        id
+                    )
+                ).toBeTruthy();
+                await faultAndCount(app, dataDir, id, false);
+                await page
+                    .getByRole('button', { name: 'Retry', exact: true })
+                    .click();
+            }
             await expect
                 .poll(
                     () =>

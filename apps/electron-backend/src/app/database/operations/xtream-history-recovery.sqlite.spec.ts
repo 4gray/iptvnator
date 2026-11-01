@@ -45,6 +45,7 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         db.insert(schema.content).values({ id: 6, categoryId: 3, xtreamId: 99, title: 'Archive Movie', type: 'movie' }).run();
         await restoreXtreamUserData(db, 'p', [], stale);
         const returned = (await getRecentItems(db, 'p', true)).map(row => row.xtream_id).sort((a,b) => a-b);
+        const resolvedReplay = JSON.parse(await getAppState(db, key('p'))).resolved.map(row => row.xtreamId).sort((a,b) => a-b);
         const beforeFailure = sqlite.prepare('SELECT * FROM recently_viewed WHERE playlist_id = ? ORDER BY id').all('p');
         sqlite.exec("CREATE TRIGGER test_fail_history BEFORE INSERT ON recently_viewed WHEN NEW.content_id = 4 BEGIN SELECT RAISE(ABORT, 'test replay fault'); END");
         let rejected = false;
@@ -65,6 +66,24 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         await setAppState(db, key('p'), '');
         await restoreXtreamUserData(db, 'p', [], stale.slice(0,1));
         const explicit = (await getRecentItems(db, 'p', true)).map(row => row.viewed_at);
+        const largeHistory = Array.from({ length: 40000 }, (_, index) => ({
+            contentType: 'movie', xtreamId: 100000 + index,
+            viewedAt: '2026-02-01 00:00:00'
+        }));
+        await restoreXtreamUserData(db, 'p', [], largeHistory);
+        const largeExplicit = (await getRecentItems(db, 'p', true)).length;
+        const brokenLookup = new Proxy(db, {
+            get(target, property) {
+                if (property === 'select') return (...args) => {
+                    if (args[0]?.xtreamId) throw new Error('synthetic lookup failure');
+                    return target.select(...args);
+                };
+                return Reflect.get(target, property);
+            }
+        });
+        let lookupRejected = false;
+        try { await restoreXtreamUserData(brokenLookup, 'p', [], stale); } catch { lookupRejected = true; }
+        const lookupPreserved = (await getRecentItems(db, 'p', true)).length === largeExplicit;
         await setAppState(db, key('p'), journal());
         await clearRecentlyViewed(db);
         await setAppState(db, key('p'), JSON.stringify({ version: 1, contentTypes: ['live'], recentlyViewed: stale }));
@@ -78,7 +97,7 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         await deleteAllPlaylists(db);
         const allDeleted = await getAppState(db, key('q'));
         const setting = await getAppState(db, 'unrelated-setting');
-        console.log(JSON.stringify({ kept, currentTimestamp, returned, rejected, rollback, cleared, other, explicit, globalClear, deleted, qJournal: !!qJournal, allDeleted, setting }));
+        console.log(JSON.stringify({ kept, currentTimestamp, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, allDeleted, setting }));
         sqlite.close();
     `;
     const result = JSON.parse(
@@ -103,11 +122,15 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         kept: [10, 40],
         currentTimestamp: true,
         returned: [10, 40, 99],
+        resolvedReplay: [10, 40, 99],
         rejected: true,
         rollback: true,
         cleared: 0,
         other: [50],
         explicit: ['2020-01-01'],
+        largeExplicit: 40000,
+        lookupRejected: true,
+        lookupPreserved: true,
         globalClear: 0,
         deleted: null,
         qJournal: true,

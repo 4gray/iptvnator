@@ -229,8 +229,9 @@ export function withContent() {
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
             const runtime = inject(RuntimeCapabilitiesService);
+            const usesSqlite = runtime.supportsXtreamSqliteDataSource;
             const isEnabled = (type: ContentType): boolean =>
-                !runtime.supportsXtreamSqliteDataSource ||
+                !usesSqlite ||
                 normalizeXtreamContentTypes(
                     getPortalStore().currentPlaylist?.()?.xtreamContentTypes
                 ).includes(type === 'vod' ? 'movie' : type);
@@ -845,45 +846,17 @@ export function withContent() {
                 type: ContentType,
                 status: XtreamImportStatus
             ): Promise<void> => {
+                if (!usesSqlite) return;
                 const importType = type === 'vod' ? 'movie' : type;
-                await databaseService.setXtreamImportStatus(
+                const saved = await databaseService.setXtreamImportStatus(
                     playlistId,
                     importType,
                     status
                 );
-            };
-
-            const clearImportCache = async (
-                playlistId: string,
-                type: ContentType
-            ): Promise<void> => {
-                const importType = type === 'vod' ? 'movie' : type;
-                await databaseService.clearXtreamImportCache(
-                    playlistId,
-                    importType
-                );
-            };
-
-            const finalizePendingImportTypes = async (
-                playlistId: string,
-                completedTypes: Set<ContentType>,
-                status: XtreamImportStatus
-            ): Promise<void> => {
-                for (const type of importTypes) {
-                    if (completedTypes.has(type)) {
-                        continue;
-                    }
-
-                    // Only types that performed remote/save work this session
-                    // can hold partial data. A type still pending because it
-                    // was being read from the local cache keeps its healthy
-                    // catalog instead of being cleared into a redownload.
-                    if (!sessionRemoteWorkTypes.has(type)) {
-                        continue;
-                    }
-
-                    await setImportStatus(playlistId, type, status);
-                    await clearImportCache(playlistId, type);
+                if (!saved && status === 'completed') {
+                    throw new Error(
+                        'Could not persist catalog completion status.'
+                    );
                 }
             };
 
@@ -1081,10 +1054,15 @@ export function withContent() {
                     // it published; read them again under the current lock.
                     await runDeferredReload();
                 } catch (error) {
-                    if (store.isImporting()) {
+                    if (store.isImporting() && usesSqlite) {
+                        const { finalizePendingImportTypes } =
+                            await import('./xtream-import-failure');
                         await finalizePendingImportTypes(
+                            databaseService,
                             ctx.playlistId,
+                            importTypes,
                             completedTypes,
+                            sessionRemoteWorkTypes,
                             isDbAbortError(error) ? 'cancelled' : 'failed'
                         );
                     }

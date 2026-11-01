@@ -549,7 +549,7 @@ export class PlaylistInfoComponent {
                 await this.injector
                     .get(XtreamSelectedCatalogRefreshService)
                     .refresh(playlist, newlyEnabled, async () => {
-                        await persistOnce();
+                        return persistOnce();
                     });
             } catch (error) {
                 // Accepted metadata stays authoritative after a cache failure.

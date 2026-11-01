@@ -378,8 +378,13 @@ it, including an explicit empty array.
 `XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
 fetching their category/content arrays before deleting their old cache. The editor
 prepares durable recovery after fetching, then confirms metadata persistence
-through `beforeReplace` before replacing any cached state. The active route waits
-for the edit-time activity hold before bootstrapping metadata published by
+through `beforeReplace` before replacing any cached state.
+The callback returns accepted metadata. Before deleting any cache, the refresh
+compares its normalized connection with the connection used to fetch the arrays.
+A concurrent shared-source connection change aborts replacement; the accepted
+metadata stays authoritative and opening the source retries against its current
+connection. Old arrays must never become a completed cache for the new endpoint.
+The active route waits for the edit-time activity hold before bootstrapping metadata published by
 source-server synchronization, so an ongoing scan is never treated as an
 interrupted import. Navigation queued during that wait uses its latest route.
 A rejected save cleans its prepared recovery and leaves the original cache and
@@ -468,12 +473,24 @@ rows intact. Interrupted deletion retains pending recovery for bootstrap cleanup
 before native work, so an immediate process exit cannot drop the parked snapshot.
 A failed/false completion-status write keeps the type unfinished and recovery
 pending; it must not acknowledge the journal or snapshot.
+This applies to route bootstrap retries as well as edit-time scans. PWA imports
+do not write native completion markers.
+The native journal records identities resolved by its latest replay in the same
+transaction as history restoration. Watches add their identity atomically;
+removals and clears retain that proof. Each replay replaces the proof so rows
+lost in a later interrupted deletion remain dormant. Completion uses this proof
+alongside current rows and tombstones, including a remove/rewatch between the
+renderer’s separate history and journal reads.
+Full-history backups resolve native content identities in bounded batches before
+clearing existing recent history. A lookup failure preserves the previous rows;
+backups larger than SQLite’s parameter limit remain importable.
 Startup clears leftover `importing` caches, including
 `idle` caches with a pending cache-recovery record after interrupted deletion.
 Bootstrap also clears leftover failed/cancelled type caches before reading or
 reimporting categories. If cleanup still fails, retry stops before provider or
 save work, retaining pending history. Completed warm caches keep their existing
-read path; cold category-import code is loaded only when needed.
+read path; cold category-import code is loaded only when needed. Failed-import
+cleanup also loads only on the error path, keeping the startup payload bounded.
 
 Fresh desktop backup restores separate dormant catalog-dependent history and
 hidden choices from the active import snapshot. Offline restore readiness checks

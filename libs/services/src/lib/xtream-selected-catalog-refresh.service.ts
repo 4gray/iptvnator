@@ -59,7 +59,7 @@ export class XtreamSelectedCatalogRefreshService {
     async refresh(
         playlist: PlaylistMeta,
         types: XtreamContentType[],
-        beforeReplace?: () => Promise<void>
+        beforeReplace?: () => Promise<PlaylistMeta | void>
     ): Promise<void> {
         if (!types.length) return;
         if (
@@ -128,7 +128,12 @@ export class XtreamSelectedCatalogRefreshService {
             historyPrepared = true;
             // Secure recovery before accepting metadata, but never replace a
             // catalog until the authoritative edit is accepted.
-            await beforeReplace?.();
+            const accepted = await beforeReplace?.();
+            if (accepted && !this.sameConnection(playlist, accepted)) {
+                throw new Error(
+                    'The source connection changed during the scan. Reopen its editor and retry.'
+                );
+            }
             replacementStarted = true;
             const invalidated = await this.db.deleteXtreamPlaylistContent(
                 playlist._id,
@@ -255,6 +260,22 @@ export class XtreamSelectedCatalogRefreshService {
             this.progressState.set(null);
             release();
         }
+    }
+
+    private sameConnection(
+        fetched: PlaylistMeta,
+        accepted: PlaylistMeta
+    ): boolean {
+        const identity = (source: PlaylistMeta) => [
+            normalizeXtreamServerUrl(source.serverUrl ?? ''),
+            source.username?.trim() ?? '',
+            source.password?.trim() ?? '',
+            source.userAgent?.trim() ?? '',
+        ];
+        return (
+            JSON.stringify(identity(fetched)) ===
+            JSON.stringify(identity(accepted))
+        );
     }
 
     private async markUnfinished(

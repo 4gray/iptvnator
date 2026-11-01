@@ -145,6 +145,40 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(release).toHaveBeenCalled();
     });
 
+    it.each(['serverUrl', 'username', 'password', 'userAgent'] as const)(
+        'rejects catalogs fetched before the accepted %s changed',
+        async (field) => {
+            const accepted = {
+                ...playlist,
+                [field]:
+                    field === 'serverUrl'
+                        ? 'https://changed.example.invalid'
+                        : 'new-connection',
+            };
+            await expect(
+                service.refresh(playlist, ['movie'], async () => accepted)
+            ).rejects.toThrow('connection changed');
+            expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+            expect(db.saveXtreamCategories).not.toHaveBeenCalled();
+            expect(db.saveXtreamContent).not.toHaveBeenCalled();
+            expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+            expect(pending['clear']).toHaveBeenCalled();
+            expect(release).toHaveBeenCalled();
+        }
+    );
+
+    it('accepts normalized equivalent connections and unrelated metadata edits', async () => {
+        await service.refresh(playlist, ['movie'], async () => ({
+            ...playlist,
+            username: ' u ',
+            password: ' p ',
+            userAgent: ' ',
+            title: 'Updated synthetic source',
+        }));
+        expect(db.saveXtreamContent).toHaveBeenCalled();
+        expect(pending['applyAndConsume']).toHaveBeenCalled();
+    });
+
     it('durably marks each invalidated catalog before any replacement write', async () => {
         await service.refresh(playlist, ['movie']);
         const marks = db.setXtreamImportStatus.mock.calls

@@ -12,6 +12,11 @@ export interface XtreamHistoryRecovery {
     version: 1;
     contentTypes: XtreamContentType[];
     recentlyViewed: XtreamBackupRecentlyViewedItem[];
+    /** Rows owned by the latest native replay, plus watches since that replay. */
+    resolved?: Pick<
+        XtreamBackupRecentlyViewedItem,
+        'contentType' | 'xtreamId'
+    >[];
     removed?: Pick<
         XtreamBackupRecentlyViewedItem,
         'contentType' | 'xtreamId'
@@ -39,15 +44,18 @@ export function parseXtreamHistoryRecovery(raw: string): XtreamHistoryRecovery {
                 row.viewedAt.length > 0
         ) ||
         (value.cleared !== undefined && value.cleared !== true) ||
-        (value.removed !== undefined &&
-            (!Array.isArray(value.removed) ||
-                !value.removed.every(
-                    (row) =>
-                        row &&
-                        XTREAM_CONTENT_TYPES.includes(row.contentType) &&
-                        typeof row.xtreamId === 'number' &&
-                        Number.isFinite(row.xtreamId)
-                )))
+        [value.removed, value.resolved].some(
+            (identities) =>
+                identities !== undefined &&
+                (!Array.isArray(identities) ||
+                    !identities.every(
+                        (row) =>
+                            row &&
+                            XTREAM_CONTENT_TYPES.includes(row.contentType) &&
+                            typeof row.xtreamId === 'number' &&
+                            Number.isFinite(row.xtreamId)
+                    ))
+        )
     )
         throw new Error('Catalog history recovery is unreadable.');
     return value;

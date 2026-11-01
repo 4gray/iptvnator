@@ -227,7 +227,8 @@ async function getContentIdentityMap(
     identities: Array<{
         contentType: XtreamBackupFavoriteItem['contentType'];
         xtreamId: number;
-    }>
+    }>,
+    control?: OperationControl
 ): Promise<Map<string, number>> {
     const xtreamIds = Array.from(
         new Set(identities.map((item) => item.xtreamId))
@@ -237,30 +238,35 @@ async function getContentIdentityMap(
         return new Map();
     }
 
-    const content = await db
-        .select({
-            id: schema.content.id,
-            xtreamId: schema.content.xtreamId,
-            contentType: schema.content.type,
-        })
-        .from(schema.content)
-        .innerJoin(
-            schema.categories,
-            eq(schema.content.categoryId, schema.categories.id)
-        )
-        .where(
-            and(
-                eq(schema.categories.playlistId, playlistId),
-                inArray(schema.content.xtreamId, xtreamIds)
+    const result = new Map<string, number>();
+    for (const ids of chunkValues(xtreamIds, DEFAULT_BATCH_SIZE)) {
+        await checkpointOperation(control);
+        const content = await db
+            .select({
+                id: schema.content.id,
+                xtreamId: schema.content.xtreamId,
+                contentType: schema.content.type,
+            })
+            .from(schema.content)
+            .innerJoin(
+                schema.categories,
+                eq(schema.content.categoryId, schema.categories.id)
             )
-        );
+            .where(
+                and(
+                    eq(schema.categories.playlistId, playlistId),
+                    inArray(schema.content.xtreamId, ids)
+                )
+            );
 
-    return new Map(
-        content.map((item: ContentIdentity) => [
-            toContentIdentityKey(item.contentType, item.xtreamId),
-            item.id,
-        ])
-    );
+        for (const item of content as ContentIdentity[]) {
+            result.set(
+                toContentIdentityKey(item.contentType, item.xtreamId),
+                item.id
+            );
+        }
+    }
+    return result;
 }
 
 export async function restoreXtreamUserData(
@@ -283,16 +289,19 @@ export async function restoreXtreamUserData(
         });
         return { success: true };
     }
-    await db
-        .delete(schema.recentlyViewed)
-        .where(eq(schema.recentlyViewed.playlistId, playlistId));
-
-    const contentByIdentity = await getContentIdentityMap(db, playlistId, [
-        ...recentlyViewed.map((item) => ({
+    const contentByIdentity = await getContentIdentityMap(
+        db,
+        playlistId,
+        recentlyViewed.map((item) => ({
             contentType: item.contentType,
             xtreamId: item.xtreamId,
         })),
-    ]);
+        control
+    );
+    await checkpointOperation(control);
+    await db
+        .delete(schema.recentlyViewed)
+        .where(eq(schema.recentlyViewed.playlistId, playlistId));
 
     const recentlyViewedValues = recentlyViewed
         .map((item) => {
