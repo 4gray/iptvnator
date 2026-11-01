@@ -24,7 +24,10 @@ describe('provideXtreamDataSource', () => {
         supportsXtreamSqliteDataSource: boolean;
     };
 
-    function configure(supportsXtreamSqliteDataSource: boolean): void {
+    function configure(
+        supportsXtreamSqliteDataSource: boolean,
+        factory?: () => IXtreamDataSource
+    ): void {
         electronSource = {
             deletePlaylist: jest.fn().mockResolvedValue(undefined),
         } as Partial<IXtreamDataSource> as IXtreamDataSource;
@@ -37,7 +40,7 @@ describe('provideXtreamDataSource', () => {
 
         TestBed.configureTestingModule({
             providers: [
-                ...provideXtreamDataSource(),
+                ...provideXtreamDataSource(factory),
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtime,
@@ -123,5 +126,18 @@ describe('provideXtreamDataSource', () => {
 
         expect(pwaSource.deletePlaylist).toHaveBeenCalledWith('playlist-1');
         expect(electronSource.deletePlaylist).not.toHaveBeenCalled();
+    });
+    it('uses the supplied runtime factory for injection and browser cleanup', async () => {
+        const source = {
+            deletePlaylist: jest.fn(async () => undefined),
+        } as unknown as IXtreamDataSource;
+        configure(false, () => source);
+        expect(TestBed.inject(XTREAM_DATA_SOURCE)).toBe(source);
+        const [cleanup] = TestBed.inject(
+            PLAYLIST_DELETE_CLEANUP
+        ) as PlaylistDeleteCleanup[];
+        await cleanup('source');
+        expect(source.deletePlaylist).toHaveBeenCalledWith('source');
+        expect(pwaSource.deletePlaylist).not.toHaveBeenCalled();
     });
 });

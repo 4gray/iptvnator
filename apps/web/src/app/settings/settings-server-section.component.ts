@@ -4,7 +4,6 @@ import {
     inject,
     signal,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import {
     FormControl,
     FormsModule,
@@ -13,9 +12,12 @@ import {
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { SettingsSyncStatusComponent } from './settings-sync-status.component';
 import { MatInputModule } from '@angular/material/input';
 import { TranslateModule } from '@ngx-translate/core';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import { SettingsActivitySectionComponent } from './settings-activity-section.component';
 import { createRandomId, type Playlist } from '@iptvnator/shared/interfaces';
 import {
     normalizeSourceServerUrl,
@@ -35,7 +37,9 @@ import {
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [provideFormFieldDefaults()],
     imports: [
-        DatePipe,
+        SettingsActivitySectionComponent,
+        SettingsSyncStatusComponent,
+        MatIconModule,
         FormsModule,
         ReactiveFormsModule,
         MatButtonModule,
@@ -44,39 +48,7 @@ import {
         TranslateModule,
     ],
     templateUrl: './settings-server-section.component.html',
-    styles: [
-        `
-            :host {
-                display: block;
-            }
-            .server-fields {
-                display: grid;
-                gap: 16px;
-                padding: 20px;
-            }
-            .server-actions {
-                display: flex;
-                gap: 12px;
-                flex-wrap: wrap;
-            }
-            .server-message {
-                margin: 0;
-                color: var(--app-eyebrow-color);
-                overflow-wrap: anywhere;
-            }
-            .server-help {
-                display: inline-block;
-                margin-top: 8px;
-                color: var(--app-selection-text-color);
-                text-underline-offset: 3px;
-            }
-            button,
-            input,
-            a {
-                app-region: no-drag;
-            }
-        `,
-    ],
+    styleUrl: './settings-server-section.component.scss',
 })
 export class SettingsServerSectionComponent {
     readonly sync = inject(SourceSyncService);
@@ -100,11 +72,41 @@ export class SettingsServerSectionComponent {
     });
     token = '';
 
+    isCurrentServer(): boolean {
+        const input = this.urlControl.value.trim().replace(/\/+$/, '');
+        if (!this.sync.connection) return false;
+        try {
+            return (
+                input === this.sync.connection.apiUrl ||
+                normalizeSourceServerUrl(input) === this.sync.connection.apiUrl
+            );
+        } catch {
+            return false;
+        }
+    }
+
+    async refresh(): Promise<void> {
+        if (this.busy()) return;
+        this.busy.set(true);
+        this.message.set('');
+        try {
+            await this.sync.refresh();
+        } catch (error) {
+            this.showError(error);
+        } finally {
+            this.busy.set(false);
+        }
+    }
+
     async connect(): Promise<void> {
         if (this.busy()) return;
         this.message.set('');
         this.urlControl.markAsTouched();
         if (this.urlControl.invalid) return;
+        if (this.isCurrentServer() && !this.token) {
+            await this.refresh();
+            return;
+        }
         this.busy.set(true);
         this.connecting.set(true);
         try {
@@ -117,9 +119,10 @@ export class SettingsServerSectionComponent {
                 await window.electron.sourceSyncConfigure(
                     apiUrl,
                     this.token,
-                    true
+                    !this.isCurrentServer()
                 );
                 this.token = '';
+                if (this.isCurrentServer()) await this.sync.refresh();
             } else {
                 const response = await fetch(`${apiUrl}/v1/instance`, {
                     redirect: 'error',
@@ -135,6 +138,11 @@ export class SettingsServerSectionComponent {
                     throw new Error('SOURCE_SYNC.INCOMPATIBLE');
                 });
                 assertSourceInstance(instance);
+                if (
+                    this.isCurrentServer() &&
+                    instance.instanceId !== this.sync.connection?.instanceId
+                )
+                    throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
                 const check = await fetch(`${apiUrl}/v1/sources`, {
                     headers: this.token
                         ? { Authorization: `Bearer ${this.token}` }
@@ -153,7 +161,8 @@ export class SettingsServerSectionComponent {
                     this.token
                 );
                 this.token = '';
-                location.reload();
+                if (this.isCurrentServer()) await this.sync.refresh();
+                else location.reload();
             }
         } catch (error) {
             this.showError(error, 'SOURCE_SYNC.CONNECTION_FAILED');

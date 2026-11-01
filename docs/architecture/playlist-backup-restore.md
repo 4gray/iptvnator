@@ -90,6 +90,14 @@ is unavailable. Re-export neither applies nor consumes the pending snapshot,
 so it also works before the portal has been opened and in browser runtimes.
 Parental category locks still come from the current lock store.
 
+The settings facade supplies an export-only position projector when viewing
+activity is enabled. Normal Xtream exports overlay the durable shared projection
+on the strictly read local positions, including pending offline progress and reset
+barriers. Watched marks are encoded as complete legacy progress so either runtime
+can restore them; player session IDs and action markers are omitted. A pending
+restore snapshot remains authoritative and bypasses the projector. Projection
+failures fail export. Restore writes remain local and do not acquire sync consent.
+
 For desktop sources whose restored selection omits catalogs, history and hidden
 category choices without an available catalog are parked separately under
 `xtream-catalog-restore-<playlistId>`. This dormant record does not keep the source
@@ -181,7 +189,7 @@ Explicitly excluded:
 ### Stalker
 
 Stalker backups export connection metadata plus playlist-scoped favorites/recent
-state.
+state and playback positions.
 
 - Exported connection fields:
     - `portalUrl`
@@ -196,6 +204,14 @@ state.
 - Exported user state:
     - favorites snapshots
     - recently viewed snapshots
+    - optional `playbackPositions`, including shared activity and exact episode reset barriers
+
+The settings projector overlays shared activity on strictly read local positions.
+Restore atomically replaces the local position collection and remaps the source
+ID; it never uploads the archive as shared activity. Historical v1 archives with
+no `playbackPositions` field leave local positions untouched. An explicit empty
+array clears them. Invalid collections fail validation before playlist writes.
+A failed native or browser position read fails export.
 
 Explicitly excluded — session state, as opposed to the connection definition:
 

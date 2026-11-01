@@ -1,5 +1,6 @@
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -407,6 +408,11 @@ export class DashboardDataService {
     });
 
     constructor() {
+        inject(DestroyRef).onDestroy(
+            observeActivityChanges(() => {
+                void this.reloadPlaybackPositions().catch(() => undefined);
+            })
+        );
         effect(() => {
             this.playlistFavoritesReloadKey();
             if (
@@ -903,6 +909,8 @@ export class DashboardDataService {
             {
                 ...position,
                 positionSeconds: position.durationSeconds,
+                activitySessionId: undefined,
+                activityAction: 'mark-watched',
                 updatedAt: new Date().toISOString(),
             }
         );

@@ -125,6 +125,15 @@ with `diagnostics: false`); `isolatedModules`-incompatible syntax such as a
 type re-export without `export type` still fails at load time, and spec type
 errors are caught by `typecheck:spec` (see Unit And Type Checks).
 
+The activity SQLite and real Chromium contracts return their actual runtime
+counters through `@iptvnator/shared/testing/runtime-coverage`. Esbuild instruments
+selected original TypeScript files before bundling; paths and locations remain
+source-based. SQLite writes counters on subprocess exit. Browser tests capture
+all pages before reload/close and merge their counters before writing the report.
+The parent merges those reports into Jest without replacing objects cached by
+existing instrumentation. Missing reports fail the test; assertion failures still
+propagate. The helper never creates synthetic hits or changes coverage thresholds.
+
 Some `electron-backend` and `database` specs run SQLite code in the Electron
 binary under `ELECTRON_RUN_AS_NODE`, resolving it with `require('electron')`.
 pnpm does not run Electron's postinstall (`electron` is deliberately absent from

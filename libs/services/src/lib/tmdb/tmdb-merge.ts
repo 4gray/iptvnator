@@ -22,7 +22,7 @@ import {
     topCast,
     unifiedTvCast,
 } from './tmdb-credits';
-import { extractYear } from './tmdb-matcher';
+import { extractYear } from '@iptvnator/shared/interfaces';
 import { TmdbDetails, TmdbMovieDetails, TmdbTvDetails } from './tmdb.types';
 
 /**

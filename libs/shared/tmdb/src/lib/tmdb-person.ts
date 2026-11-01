@@ -1,5 +1,5 @@
 import { tmdbPosterUrl, tmdbProfileUrl } from './tmdb-config';
-import { extractYear } from './tmdb-matcher';
+import { extractYear } from '@iptvnator/shared/interfaces';
 import { TmdbPersonDetails } from './tmdb.types';
 
 /**

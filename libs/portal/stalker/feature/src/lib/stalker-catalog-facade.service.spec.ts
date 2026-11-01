@@ -1,3 +1,4 @@
+import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -127,6 +128,121 @@ describe('StalkerCatalogFacadeService', () => {
                 },
             ],
         });
+    });
+
+    it('refreshes an open filtered catalog after shared activity and unsubscribes on destruction', async () => {
+        const catalog = [{ id: '17359', name: 'Synthetic catalog item' }];
+        (
+            stalkerStoreMock['getPaginatedContent'] as ReturnType<
+                typeof signal<typeof catalog>
+            >
+        ).set(catalog);
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        TestBed.tick();
+        await Promise.resolve();
+        service.hideWatched.setEnabled(true);
+        expect(service.hideWatched.enabled()).toBe(true);
+        expect(service.paginatedContent()).toEqual(catalog);
+        const refresh = jest.spyOn(service, 'refreshPositions');
+        playbackPositions.getAllPlaybackPositions.mockResolvedValue([
+            {
+                contentType: 'vod',
+                contentXtreamId: 17359,
+                positionSeconds: 100,
+                durationSeconds: 100,
+            },
+        ]);
+        announceActivityChange();
+        expect(refresh).toHaveBeenCalledWith(playlist._id);
+        await refresh.mock.results[0].value;
+        expect(service.getItemProgress({ id: '17359' })).toEqual({
+            progress: 100,
+            watchState: 'watched',
+        });
+        expect(service.paginatedContent()).toEqual([]);
+        playbackPositions.getAllPlaybackPositions.mockResolvedValue([]);
+        announceActivityChange();
+        await refresh.mock.results[1].value;
+        expect(service.getItemProgress({ id: '17359' }).watchState).toBe(
+            'unwatched'
+        );
+        expect(service.paginatedContent()).toEqual(catalog);
+        const calls =
+            playbackPositions.getAllPlaybackPositions.mock.calls.length;
+        TestBed.resetTestingModule();
+        announceActivityChange();
+        expect(playbackPositions.getAllPlaybackPositions).toHaveBeenCalledTimes(
+            calls
+        );
+    });
+    it('keeps the newest activity refresh when an older response finishes last', async () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        TestBed.tick();
+        await Promise.resolve();
+        let finishOld!: (positions: PlaybackPositionData[]) => void;
+        playbackPositions.getAllPlaybackPositions
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finishOld = resolve;
+                    })
+            )
+            .mockResolvedValueOnce([
+                {
+                    contentType: 'vod',
+                    contentXtreamId: 17359,
+                    positionSeconds: 100,
+                    durationSeconds: 100,
+                },
+            ]);
+        const refresh = jest.spyOn(service, 'refreshPositions');
+        announceActivityChange();
+        announceActivityChange();
+        expect(refresh).toHaveBeenCalledTimes(2);
+        await refresh.mock.results[1].value;
+        finishOld([
+            {
+                contentType: 'vod',
+                contentXtreamId: 17359,
+                positionSeconds: 10,
+                durationSeconds: 100,
+            },
+        ]);
+        await refresh.mock.results[0].value;
+        expect(service.getItemProgress({ id: '17359' }).watchState).toBe(
+            'watched'
+        );
+    });
+    it('ignores a pending positions response after its playlist is cleared', async () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        TestBed.tick();
+        await Promise.resolve();
+        let finish!: (positions: PlaybackPositionData[]) => void;
+        playbackPositions.getAllPlaybackPositions.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
+        );
+        const loading = service.refreshPositions(playlist._id);
+        (
+            stalkerStoreMock['currentPlaylist'] as ReturnType<
+                typeof signal<typeof playlist | null>
+            >
+        ).set(null);
+        TestBed.tick();
+        finish([
+            {
+                contentType: 'vod',
+                contentXtreamId: 17359,
+                positionSeconds: 100,
+                durationSeconds: 100,
+            },
+        ]);
+        await loading;
+        expect(service.getItemProgress({ id: '17359' }).watchState).toBe(
+            'unwatched'
+        );
     });
 
     it('re-labels the every-item genre after a runtime language switch', () => {

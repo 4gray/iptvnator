@@ -208,6 +208,12 @@ private temporary file followed by an atomic rename.
 Settings → Server connects a desktop or browser client, refreshes the
 library, previews/imports original local sources, and disconnects. Connection
 help links to the [client connection guide](../../docker/README.md#connect-your-clients).
+Rechecking the selected endpoint keeps its saved token when the password field
+is empty. Renewing credentials for the same endpoint and instance does not
+reload either client. Switching an endpoint or server instance still requires
+the native profile restart; disconnecting returns to the retained local profile.
+Connection and activity status share a compact summary with timestamps formatted
+in the selected UI language.
 The form validates full HTTP(S) app addresses before either runtime is called;
 the API suffix is normalized centrally. Pending connections announce their
 state and make the fields read-only. Failed attempts retain the address and
@@ -442,7 +448,9 @@ expose desktop-only actions in the PWA/shared UI.
 The sections below describe the legacy whole-document PWA integration and its
 reusable API clients. The current bootstrap does not install these providers:
 PWA and Electron now use the [shared source library](#shared-source-library).
-Viewing activity remains local; the existing user-state API stays compatible
+Viewing activity is local by default; the separate
+[activity synchronization](#viewing-activity-synchronization) consent enables
+progress and watched marks. The existing user-state API remains compatible
 for explicit consumers. Do not re-enable automatic activity uploads by adding
 `provideServerStorage()` alongside source sync.
 
@@ -908,6 +916,233 @@ small M3U fixture, then verify in the browser that M3U, Xtream, and Stalker can
 add sources, play an item, toggle favorites, populate global favorites,
 populate recently viewed, and appear on the dashboard rails, and that Xtream
 and Stalker live channels show their provider's programme guide.
+
+## Viewing activity synchronization
+
+Connecting a source server synchronizes sources only. Settings → Server offers
+an independent, disabled-by-default consent for progress and watched marks.
+The UI explains that the server holds **one shared household activity**: anyone
+with access sees and changes the same activity. Favorites, history and EPG stay
+local. There are no per-person accounts or cross-provider content matching.
+
+Enabling receives server activity and uploads new actions. It never scans and
+uploads older local activity automatically. A separate preview counts local
+entries and sources before explicit import; existing server entries become
+conflicts rather than being overwritten. Episodes without a verified provider
+identity stay local. Open the series to register its aliases, then retry import.
+Disabling retains local and remote data, mirrors the current projection into
+local playback storage and parks pending intent. It first persists a pending
+opt-out and pauses delivery while keeping shared reads active. Only acknowledged
+local writes complete the disabled state. Failed writes or an interrupted app
+restart retry the mirror on startup, focus, online and the visible-page timer;
+new playback changes during this pause stay local and take precedence over the
+mirror. Acknowledged local snapshots retain their latest token for delayed-write
+repair until a confirmed shared action retires ownership. Completed snapshots
+are not replayed as pending work; a failed repair becomes pending again. Consent changes are serialized within the runtime, and stale completion
+cannot overwrite another window's newer consent or a different profile. Native mirror writes require a
+confirmed acknowledgement before pending intent can be discarded. A new consent
+generation cannot send an older queue until the user chooses to send it or keep
+it local. A pending import keeps its local projection even when the conflicting
+server state is a reset, so disabling or keeping the queue local preserves it.
+Queue actions use the current source incarnation and leave retired records parked.
+Successful delivery determines readiness from current-incarnation, current-consent
+operations; parked historical queues do not preserve an obsolete offline status.
+Explicit import preserves these zero-position, zero-duration episode rows as
+null resume state with identity metadata, rather than creating resume activity.
+Stalker episode resets keep exact zero rows in series reads and local mirrors;
+compatible legacy aliases cannot promote old progress over that reset.
+
+The implementation uses narrow entry points, outside the eager main barrels:
+
+- `@iptvnator/shared/interfaces/activity-sync`: portable addresses, wire parsing,
+  session/reset rules and local transactions;
+- `@iptvnator/shared/database/activity-sync`: SQLite local state/outbox and
+  server state/idempotency receipts;
+- `@iptvnator/services/activity-sync`: client delivery, IndexedDB and Electron
+  local-store adapters;
+- `@iptvnator/services/activity-events`: explicit playback begin/checkpoint and
+  Stalker alias registration; a no-op without consent.
+
+The NAS advertises `activity-v1` alongside `sources-v1`. Authenticated `/v1/activity`
+routes require the verified `X-IPTVnator-Instance-Id`, bounded JSON and canonical
+provider addresses: reset operations retain resolved tracking/season hints even
+before shared activity exists. `GET /sources/:id` returns the source incarnation,
+`GET /sources/:id/items?cursor=…` returns pages of 100 rows, `POST /read` reads one
+address, and `POST /operations` applies one operation. Responses are not cached.
+A persisted source fingerprint determines its incarnation; password rotation
+retains it, while a new account/endpoint or deletion/recreation retires it.
+The source repository invalidates a changed fingerprint inside its upsert
+transaction, so an account/endpoint change followed by a return to the original
+identity still retires old queues even if activity never observed the intermediate
+identity. Canonically equivalent URLs and metadata/password edits keep their scope.
+Pending operations never move automatically to another incarnation or instance.
+
+The local consent reader accepts the original boolean records and normalizes
+`enabled: 2` as a retryable pending disable: projection remains enabled but the
+client has no delivery consent. This compact value fits in the existing record
+when storage is full; final persistence failure keeps the retryable pause. The
+settings show that activity is being saved locally while synchronization is
+paused. A local pause retains its profile and consent generation. Superseding it
+in another window cancels the old retry, including when a storage read only
+recovers on a later refresh. Same-generation storage failures remain retryable.
+The local value never travels to the NAS.
+
+PWA delivery uses the verified source HTTP client and a separate versioned
+IndexedDB database per instance. Electron uses the same verified native source
+transport and `DB_ACTIVITY_LOCAL` IPC; only the database worker owns SQLite.
+That IPC accepts fixed read/list/pending/compare-and-swap operations, not SQL or
+callbacks, and main verifies the selected instance. Renderer retries preserve a
+sibling window's writes. Native storage errors remain visible/retryable.
+
+The source data-source decorator preserves local behavior while disabled. With
+consent it projects the shared state through existing Xtream/Stalker position
+APIs. Web players begin explicit sessions and save during playback, on completion
+and on teardown; existing native position reports retain session metadata.
+The consented activity runtime starts from the lazy source-server initializer;
+standalone startup keeps the optional client outside the initial bundle. Players
+ignore transient pre-seek ticks until the initial resume position is reached,
+then accept deliberate rewinds. The same guard filters the emitted time updates
+before legacy episode writers receive them, so those writers cannot upload a
+transient pre-seek position. If an explicit launch cannot commit its source
+context, its later checkpoints stay on the local persistence path, including
+when connectivity returns. Failed-launch ownership is persisted before the begin
+promise rejects, so an external player remains local if the renderer reloads
+before its first checkpoint. Unknown or non-finite player durations normalize to an omitted
+value before local persistence. Per-position local-only flags in the selected instance's
+renderer storage keep those raw rows ahead of downloaded server projections and
+out of disable-time mirroring, including after renderer recreation. The flags
+are bound to the verified source incarnation. The first verified context binds
+previously unbound fallback data; subsequent account/endpoint changes retire the
+old ownership, including after restart. Bootstrap bindings persist before the
+new context cache is published. Development flags without verified identity are
+not applied to a verified source.
+
+Opt-out drains local shared mutations already started in the renderer before
+mirroring. A checkpoint committed after another window pauses consent also
+returns through the local persistence path, preserving that acknowledged point.
+A launch completing after consent pauses cannot clear newer local ownership.
+A failure after consent changes preserves an existing local snapshot or reset;
+its callback creates fallback ownership only when no newer local record exists.
+An explicit begin, watched/reset action, import or conflict resolution supersedes
+older launches for the same item. Their delayed context responses and failures
+cannot reclaim fallback ownership or accept an obsolete source context. Every
+compare-and-swap attempt checks the explicit-action fence again, including
+watched/reset, import and conflict resolution mutations. Reset/import context
+lookups also reject obsolete responses before updating the source cache. Command acknowledgements
+clear local ownership only while their action and consent are still current.
+Reset invocation captures its per-item action before reading local positions. If a
+sibling finishes opt-out before the reset commits, its guarded local-clear result
+updates the raw store without replacing a newer local action. A server-profile
+change cancels that fallback. Sibling opt-out also stops polling and clears the
+previous ready status.
+Confirmed commands retire failed fallback owners by content identity even before
+their first local checkpoint. A local conflict choice may reacquire its own player
+session. Context reads retain their request order: older replies may reuse the
+same incarnation, but cannot replace a newer accepted incarnation or recreate a
+removed source. Superseded work settles without changing connection status.
+Transferring fallback ownership to a new launch retains any unfinished raw snapshot
+and its acknowledgement token until the raw writer succeeds.
+A delayed shared-save completion may fall back locally only while its original
+write is still the latest invocation for that item; later checkpoints or resets
+supersede it before awaiting storage. The data-source proxy keeps an already loaded
+runtime informed after consent is disabled; a client that never enabled activity
+keeps its direct local path. Imported positions persist their computed watched
+flag separately from a conflicting server mark, so keeping them local preserves
+the imported progress.
+
+Before a raw fallback write, a minimal position snapshot is saved locally without
+titles or stream addresses. A failed raw write keeps this snapshot readable and
+retryable. Raw writes are ordered per item; acknowledgements remove only their
+own snapshot, and disabling drains writes and replays remaining snapshots before
+completing. An unbound source also uses this durable local-clear path when its context cannot
+be fetched; the reset retires its fallback player session before clearing storage.
+Local clears retain an explicit deletion intent in this journal and
+use the same per-item queue, so a failed deletion retries after restart and an
+older save cannot complete after it. Pending deletions hide the old raw point
+until the main store acknowledges removal. Acknowledged snapshots become ownership flags again so later ordinary
+local writes can advance normally. These records never travel to the server. A committed explicit launch, watched/reset action, import
+or conflict choice can clear the corresponding flag; keeping a parked queue local
+retains it. A protected missing raw row is an authoritative local reset, not
+permission to restore the server row. Series reads retain a zero Stalker row so
+legacy aliases cannot promote cleared progress. Superseded fallback callbacks cannot reclaim a cleared flag. A new
+explicit launch may acquire shared ownership.
+Durable local snapshots get a fresh save timestamp for offline episode ordering
+and retain the reducer's watched state.
+Refresh on focus/online and a visible-page five-second poll deliver changes;
+local invalidation refreshes open detail views and position caches, including
+Dashboard Continue Watching and the Stalker catalog.
+Consumers remove their listeners on destruction; catalog reads reject superseded
+responses and rows belonging to a cleared playlist.
+
+An address contains the instance, shared activity scope, source ID, source
+incarnation and a typed provider identity. Episode identities include their
+parent; Stalker episodes additionally retain their mode, season key and episode
+number. The serialized key is a tuple, not a numeric tracking hash. Runtime
+adapters establish the source incarnation and preserve guarded legacy aliases. Stream URLs, credentials,
+local SQL row IDs and content snapshots are not identity inputs.
+
+`begin` and explicit manual actions require the current revision. A successful
+begin advances the ownership generation. Checkpoints require that generation,
+the owning device/session and an increasing sequence; a deliberate rewind is
+valid. Checkpoints, local conflict choices and explicit imports share whole-second
+normalization of player snapshots; unknown or sub-second durations stay omitted.
+Completion retains the portal's rounded 90% threshold when duration is
+known. Manual watched state does not manufacture a duration. A checkpoint does
+not silently unmark an already watched item. `reset` clears resume and watched
+and advances the generation, retaining the empty row as a barrier to old ticks.
+Marking watched also retires the old session. Dashboard watched commands carry
+the same explicit activity intent as portal toggles. A remote ownership change does
+not command a running player to seek or stop. A surviving external player can
+recover its durable session after renderer recreation; a checkpoint never
+manufactures a new begin, including when a reset or another owner is cached.
+
+The server SQLite store receives a synchronous authorization callback that must
+verify instance and current source incarnation in the mutation transaction.
+State and the immutable operation receipt commit together. Reusing an operation
+ID for another address/body is rejected; an exact retry returns its original
+result without applying the mutation again. Conflict receipts also remain
+immutable: a user-approved retry on a new base needs a new operation ID. Reset
+rows and receipts have no automatic TTL. The HTTP boundary additionally checks
+authentication, source existence and bounded request shapes; the store does not
+replace that access-control boundary.
+
+Both local stores commit a projection and its ordered pending operations in one
+transaction. They bind reads and writes to their instance and expose indexed
+pending-intent discovery for restart recovery. Each intent retains its original
+address and consent generation. The sender filters consent and pauses
+parked generations; recovering an intent does not authorize uploading it. Fresh
+operations also carry a local-only delivery lease owned by their originating
+client. Live holders renew it every five seconds; it expires after fifteen
+seconds without renewal. Each sender claims the queue head transactionally, and
+response handling checks the current lease rather than a request-time snapshot.
+Sibling tabs wait for live holders. Expired/released claims are recoverable, but
+never grant permission to rebase an offline intent. Disabling consent stops
+renewal and releases held claims; explicitly sending a parked generation drops
+old leases. These fields are not sent to the NAS and require neither Web Locks
+nor schema changes.
+
+Acknowledgements must remove only the confirmed operation inside `mutate`,
+preserving a sibling tab's later intents. Mutators are synchronous and must not
+perform network I/O. The IndexedDB store uses its own versioned database and
+transaction ordering, without relying on Web Locks or changing existing source
+databases. The Electron SQLite store runs in the database worker.
+
+Tests cover session fences, stale/offline bases, reset barriers, retry identity,
+real SQLite rollback/reopen and preservation of populated historical schemas,
+plus two real Chromium tabs sharing IndexedDB with Web Locks unavailable.
+Client tests cover live ownership transfer, lost responses/restart, offline
+conflict choices, parked consent, explicit import and all three Stalker episode
+modes. Mixed-runtime Playwright coverage lives in `activity-sync.e2e.ts`, using
+real HTTP, SQLite IPC and decoded media; run it through the source-sync config.
+The latest explicit online begin owns shared resume. Superseded online players
+keep playing and their background checkpoints are retired. A competing offline
+queue requires an explicit local/server choice; reconnect never silently elects
+an old session. Resolving a conflict retires discarded local sessions, including
+when keeping a local reset or watched mark, so their later ticks cannot recreate
+the conflict. Keeping local playback preserves its chosen session for subsequent
+checkpoints. If chosen local playback is unwatched, resolution clears a competing
+server watched mark before reacquiring ownership and resuming checkpoints.
+Reset/unwatch clears both progress and watched state in this MVP.
 
 ## Service factory and build bases
 

@@ -1652,6 +1652,9 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 - The previous season/episode hash remains available only as a compatibility
   alias in `legacyTrackingId`. The scoped ID is the in-memory episode key, and
   new playback positions always use it.
+- The open catalog observes shared-activity invalidation and reloads its position
+  maps. Subscriptions end with the facade; superseded reads, cleared playlists
+  and destroyed facades cannot repopulate those maps.
 - Quick-start actions preserve both their translation key and interpolation
   parameters when adapted for the Stalker CTA. Dropping `labelParams` exposes
   the raw `{{episode}}` placeholder.
@@ -1705,6 +1708,16 @@ series' positions and mapped episodes are available:
 - On the next position write, IPTVnator persists the scoped row through the
   strict, failure-propagating persistence boundary before removing a confirmed
   legacy row. If the scoped write fails, the legacy row remains intact.
+- Shared activity resets remain exact zero-position rows in series reads and
+  when mirrored to local storage. They take precedence over compatible legacy
+  progress; the guarded alias remains available for normal migration cleanup.
+  The first reset also sends resolved scoped tracking and season metadata, so a
+  client that has not opened the series can mirror the correct zero row.
+  A zero duration distinguishes these zero-position barriers in the local
+  mirror; ordinary launches at zero with unknown duration remain activity.
+  Next-up excludes the barriers from played activity without removing exact
+  rows needed for guarded reconciliation. Backups retain these barrier rows so
+  restoring alongside a legacy alias cannot resurrect its prior watched mark.
 - This is an on-read/on-write compatibility path, not a database schema
   migration or a bulk rewrite of saved positions.
 
@@ -1876,7 +1889,7 @@ snapshot-first + background re-fetch contract:
 ## Backup and Restore
 
 Versioned playlist backups include Stalker connection metadata plus playlist-
-scoped favorites/recent snapshots.
+scoped favorites/recent snapshots and portable playback positions.
 
 Exported fields:
 
@@ -1896,7 +1909,12 @@ the connection:
 - `stalkerWatchdogTimeout` / `stalkerTimeslot` (the cadence the profile
   advertised)
 - `stalkerAccountInfo`
-- playback positions in backup v1
+
+Playback positions are an optional v1 field: new backups include local/shared
+progress, watched marks and exact episode reset barriers. Older archives without
+this field keep existing positions; an empty array explicitly clears them.
+Restore writes the collection locally and remaps its playlist ID, without sending
+activity to the server.
 
 Import rule:
 

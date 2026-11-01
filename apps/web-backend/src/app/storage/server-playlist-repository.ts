@@ -41,7 +41,10 @@ const metaColumns = metadataColumns();
 
 /** Playlist documents in the shared `playlists` table, same rows as desktop. */
 export class ServerPlaylistRepository {
-    constructor(private readonly db: DatabaseInstance) {}
+    constructor(
+        private readonly db: DatabaseInstance,
+        private readonly onUpsert?: (id: string) => void
+    ) {}
 
     count(): number {
         return this.db.select({ id: playlists.id }).from(playlists).all()
@@ -128,6 +131,7 @@ export class ServerPlaylistRepository {
                     set: { document: metadata },
                 })
                 .run();
+            this.onUpsert?.(row.id);
         });
     }
 

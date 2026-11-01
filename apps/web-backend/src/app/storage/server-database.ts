@@ -18,6 +18,7 @@ const INSTANCE_ID_KEY = 'server:instance-id';
 
 export interface ServerDatabase {
     readonly db: DatabaseInstance;
+    readonly sqlite: import('better-sqlite3').Database;
     readonly instanceId: string;
     readonly path: string;
     sizeBytes(): number;
@@ -40,6 +41,11 @@ export async function openServerDatabase(): Promise<ServerDatabase> {
 
     return {
         db,
+        sqlite: (
+            db as DatabaseInstance & {
+                $client: import('better-sqlite3').Database;
+            }
+        ).$client,
         instanceId: ensureInstanceId(db),
         path,
         sizeBytes: () => fileSize(path) + fileSize(`${path}-wal`),

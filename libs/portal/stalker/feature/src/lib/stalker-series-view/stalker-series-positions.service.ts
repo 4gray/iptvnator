@@ -1,3 +1,6 @@
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
+import { DestroyRef } from '@angular/core';
+import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import { Injectable, Signal, inject, signal, untracked } from '@angular/core';
 import {
     createLogger,
@@ -34,6 +37,10 @@ interface StalkerSeriesPositionsBindings {
  */
 @Injectable()
 export class StalkerSeriesPositionsService {
+    private readonly activity = inject(PLAYBACK_ACTIVITY_EVENTS, {
+        optional: true,
+    });
+    private registeredActivity = '';
     private readonly stalkerStore = inject(StalkerStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly migrationPlaybackPositions = {
@@ -94,6 +101,19 @@ export class StalkerSeriesPositionsService {
         },
     });
 
+    constructor() {
+        inject(DestroyRef).onDestroy(
+            observeActivityChanges(() => {
+                const id = this.stalkerStore.currentPlaylist()?._id;
+                const context = id
+                    ? this.queue.mutationContext(id, this.shownSeriesId())
+                    : null;
+                if (context)
+                    void this.queue.load(context).catch(() => undefined);
+            })
+        );
+    }
+
     bind(bindings: StalkerSeriesPositionsBindings): void {
         this.bindings.set(bindings);
     }
@@ -143,6 +163,34 @@ export class StalkerSeriesPositionsService {
         const seriesXtreamId = toStalkerSeriesId(item?.id ?? 0);
         const rawSeriesPositions = this.rawSeriesPositions();
         const episodesBySeason = this.bindings()?.mappedSeasons() ?? {};
+        if (playlistId && this.activity?.active()) {
+            const aliases = Object.values(episodesBySeason)
+                .reduce<XtreamSerieEpisode[]>(
+                    (all, season) => all.concat(season),
+                    []
+                )
+                .filter((episode) => episode.activityIdentity)
+                .map((episode) => ({
+                    contentXtreamId: Number(episode.id),
+                    contentType: 'episode' as const,
+                    seriesXtreamId,
+                    seasonNumber: Number(episode.season),
+                    episodeNumber: Number(episode.episode_num),
+                    positionSeconds: 0,
+                    activityIdentity: episode.activityIdentity,
+                }));
+            const signature = JSON.stringify([playlistId, aliases]);
+            if (signature !== this.registeredActivity) {
+                this.registeredActivity = signature;
+                void this.activity.register(playlistId, aliases).then(() => {
+                    const context = this.queue.mutationContext(
+                        playlistId,
+                        seriesXtreamId
+                    );
+                    if (context) void this.queue.load(context);
+                });
+            }
+        }
 
         if (!item || !playlistId || seriesXtreamId <= 0) {
             if (rawSeriesPositions.length > 0) {
@@ -164,6 +212,9 @@ export class StalkerSeriesPositionsService {
         });
         if (
             rawSeriesPositions.length === 0 &&
+            (!this.activity?.active() ||
+                this.seriesPositionsLoadedKey() !==
+                    this.seriesPositionsKey(playlistId!, seriesXtreamId)) &&
             reconciled.positionsByTrackingId.size === 0 &&
             untracked(() => this.episodePlaybackPositions().size) > 0
         ) {

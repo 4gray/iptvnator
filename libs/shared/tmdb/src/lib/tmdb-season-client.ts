@@ -1,3 +1,4 @@
+import { loadTmdbMatcher } from './tmdb-matcher-loader';
 import { TmdbApiClient } from './tmdb-api-client';
 import { TmdbClientCache, TmdbClientRuntime } from './tmdb-client-contracts';
 import { TMDB_DETAILS_CACHE_TTL_MS } from './tmdb-config';
@@ -5,7 +6,6 @@ import {
     fillSeasonFromFallback,
     seasonNeedsTextFallback,
 } from './tmdb-language-fallback';
-import { buildDetailsLookupKey } from './tmdb-matcher';
 import { TmdbDetails, TmdbSeasonDetails } from './tmdb.types';
 
 /** Lazy, language-scoped season metadata; failures never discard provider episodes. */
@@ -29,6 +29,7 @@ export class TmdbSeasonClient {
         );
         if (!season || !seasonNeedsTextFallback(season)) return season;
         try {
+            const { buildDetailsLookupKey } = await loadTmdbMatcher();
             const cached = await this.cache.get(
                 'tv',
                 buildDetailsLookupKey(tmdbId),

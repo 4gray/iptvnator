@@ -1,4 +1,9 @@
+import { localBackupPosition } from './playlist-backup-playback-position';
 import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
+import {
+    projectBackupPositions,
+    type BackupPositionProjector,
+} from './playlist-backup-position-projection';
 import {
     hasValidBackupEntryData,
     hasValidBackupSettings,
@@ -94,7 +99,9 @@ export class PlaylistBackupService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private backupImportTail?: Promise<void>;
 
-    async exportBackup(): Promise<PlaylistBackupExportPayload> {
+    async exportBackup(
+        projectPositions?: BackupPositionProjector
+    ): Promise<PlaylistBackupExportPayload> {
         // Locks are written only when present, and an absent field means
         // "no opinion" on restore — so an export must never run against an
         // empty in-memory store that merely has not loaded, or could not.
@@ -112,7 +119,9 @@ export class PlaylistBackupService {
         );
         const settings = this.buildSettingsPayload();
         const playlistEntries = await Promise.all(
-            playlists.map((playlist) => this.buildPlaylistEntry(playlist))
+            playlists.map((playlist) =>
+                this.buildPlaylistEntry(playlist, projectPositions)
+            )
         );
         const exportedAt = new Date().toISOString();
         const manifest: PlaylistBackupManifestV1 = {
@@ -210,6 +219,12 @@ export class PlaylistBackupService {
                     existingIds
                 );
                 let isMerge = existingMatch != null;
+                if (
+                    entry.portalType === 'stalker' &&
+                    entry.userState.playbackPositions !== undefined &&
+                    this.runtime.supportsXtreamSqliteDataSource
+                )
+                    this.playbackPositionService.assertSupportsAtomicReplacement();
                 const nextPlaylist = await this.buildImportedPlaylist(
                     entry,
                     targetId,
@@ -238,6 +253,24 @@ export class PlaylistBackupService {
                 if (entry.portalType === 'xtream') {
                     await this.restoreXtreamEntry(targetId, entry);
                 }
+                if (
+                    entry.portalType === 'stalker' &&
+                    entry.userState.playbackPositions !== undefined
+                ) {
+                    const positions = entry.userState.playbackPositions.map(
+                        (position) => localBackupPosition(position, targetId)
+                    );
+                    if (this.runtime.supportsXtreamSqliteDataSource)
+                        await this.playbackPositionService.replaceAllPlaybackPositions(
+                            targetId,
+                            positions
+                        );
+                    else
+                        await this.pwaXtream.replacePlaybackPositions(
+                            targetId,
+                            positions
+                        );
+                }
 
                 // Last: a failed Xtream restore above must leave the
                 // playlist's previous locks in place rather than commit the
@@ -262,15 +295,16 @@ export class PlaylistBackupService {
     }
 
     private async buildPlaylistEntry(
-        playlist: Playlist
+        playlist: Playlist,
+        projectPositions?: BackupPositionProjector
     ): Promise<PlaylistBackupEntry> {
         const portalType = this.getPlaylistPortalType(playlist);
 
         switch (portalType) {
             case 'xtream':
-                return this.buildXtreamEntry(playlist);
+                return this.buildXtreamEntry(playlist, projectPositions);
             case 'stalker':
-                return this.buildStalkerEntry(playlist);
+                return this.buildStalkerEntry(playlist, projectPositions);
             case 'm3u':
             default:
                 return this.buildM3uEntry(playlist);
@@ -332,7 +366,8 @@ export class PlaylistBackupService {
     }
 
     private async buildXtreamEntry(
-        playlist: Playlist
+        playlist: Playlist,
+        projectPositions?: BackupPositionProjector
     ): Promise<XtreamPlaylistBackupEntry> {
         const entry: XtreamPlaylistBackupEntry = {
             portalType: 'xtream',
@@ -427,7 +462,10 @@ export class PlaylistBackupService {
         // An unavailable pin store is no opinion, never an authoritative [].
         // Same choice as XTREAM_DATA_SOURCE: user state lives where it reads.
         if (!this.runtime.supportsXtreamSqliteDataSource)
-            return this.pwaXtream.exportInto(entry);
+            return projectBackupPositions(
+                this.pwaXtream.exportInto(entry),
+                projectPositions
+            );
 
         const [
             liveCategories,
@@ -477,26 +515,29 @@ export class PlaylistBackupService {
             }),
             explicitVisibility
         );
-        return {
-            ...entry,
-            userState: {
-                ...catalogState,
-                ...this.optionalLockedXtreamCategories(playlist._id),
-                favorites: favorites.map(toXtreamBackupFavorite),
-                playbackPositions: playbackPositions.map((item) => ({
-                    ...item,
-                })),
-                // Carried under the playlist they point AT, so a restore that
-                // does not include that portal cannot resurrect a preference
-                // for something the archive never had.
-                //
-                // Present ONLY when this runtime can actually read them. The
-                // collection is authoritative on restore, so stating `[]`
-                // where the answer is "could not look" turns the archive into
-                // an instruction to delete.
-                ...(sourcePins ? { sourcePins } : {}),
+        return projectBackupPositions(
+            {
+                ...entry,
+                userState: {
+                    ...catalogState,
+                    ...this.optionalLockedXtreamCategories(playlist._id),
+                    favorites: favorites.map(toXtreamBackupFavorite),
+                    playbackPositions: playbackPositions.map((item) => ({
+                        ...item,
+                    })),
+                    // Carried under the playlist they point AT, so a restore that
+                    // does not include that portal cannot resurrect a preference
+                    // for something the archive never had.
+                    //
+                    // Present ONLY when this runtime can actually read them. The
+                    // collection is authoritative on restore, so stating `[]`
+                    // where the answer is "could not look" turns the archive into
+                    // an instruction to delete.
+                    ...(sourcePins ? { sourcePins } : {}),
+                },
             },
-        };
+            projectPositions
+        );
     }
 
     /**
@@ -526,8 +567,11 @@ export class PlaylistBackupService {
         }));
     }
 
-    private buildStalkerEntry(playlist: Playlist): StalkerPlaylistBackupEntry {
-        return {
+    private async buildStalkerEntry(
+        playlist: Playlist,
+        projectPositions?: BackupPositionProjector
+    ): Promise<StalkerPlaylistBackupEntry> {
+        const entry: StalkerPlaylistBackupEntry = {
             portalType: 'stalker',
             exportedId: playlist._id,
             title: playlist.title,
@@ -566,12 +610,18 @@ export class PlaylistBackupService {
             },
             userState: {
                 ...this.optionalLockedStalkerCategories(playlist._id),
+                playbackPositions: this.runtime.supportsXtreamSqliteDataSource
+                    ? await this.playbackPositionService.getAllPlaybackPositionsOrThrow(
+                          playlist._id
+                      )
+                    : this.pwaXtream.getPlaybackPositions(playlist._id),
                 favorites: this.extractStalkerItems(playlist.favorites),
                 recentlyViewed: this.extractStalkerItems(
                     playlist.recentlyViewed
                 ),
             },
         };
+        return projectBackupPositions(entry, projectPositions);
     }
 
     private buildSettingsPayload(): PlaylistBackupSettings | undefined {

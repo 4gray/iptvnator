@@ -1,0 +1,212 @@
+<section class="settings-group" data-test-id="activity-sync-settings">
+    <header class="settings-group__header">
+        <h2>{{ 'ACTIVITY_SYNC.TITLE' | translate }}</h2>
+        <p>{{ 'ACTIVITY_SYNC.SHARED_HINT' | translate }}</p>
+    </header>
+    <div class="settings-card activity-fields">
+        @if (runtime(); as activity) {
+            <mat-checkbox
+                [checked]="activity.enabled()"
+                [disabled]="busy() || activity.busy()"
+                (change)="setActivityEnabled($event)"
+                data-test-id="activity-sync-enabled"
+            >
+                <span class="activity-toggle-label">{{
+                    'ACTIVITY_SYNC.ENABLE' | translate
+                }}</span>
+            </mat-checkbox>
+            <div class="activity-policy">
+                <p>{{ 'ACTIVITY_SYNC.IMPORT_HINT' | translate }}</p>
+                <p>{{ 'ACTIVITY_SYNC.LOCAL_HINT' | translate }}</p>
+            </div>
+            <app-settings-sync-status
+                [state]="activity.state()"
+                [stateKey]="activity.stateKey()"
+                [lastSync]="activity.lastSync()"
+                testId="activity-sync-state"
+            />
+            @if (activity.error() || failed()) {
+                <p role="alert">
+                    {{ 'ACTIVITY_SYNC.ERROR' | translate }}
+                </p>
+            }
+            @if (activity.enabled()) {
+                <div class="activity-actions">
+                    <button
+                        mat-button
+                        type="button"
+                        (click)="refresh()"
+                        [disabled]="busy() || activity.busy()"
+                        data-test-id="activity-sync-refresh"
+                    >
+                        <mat-icon aria-hidden="true">refresh</mat-icon>
+                        {{ 'SOURCE_SYNC.REFRESH' | translate }}
+                    </button>
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        (click)="previewImport()"
+                        [disabled]="
+                            busy() ||
+                            activity.busy() ||
+                            activity.state() === 'disabling'
+                        "
+                        data-test-id="activity-import-preview"
+                    >
+                        <mat-icon aria-hidden="true">upload</mat-icon>
+                        {{ 'ACTIVITY_SYNC.PREVIEW_IMPORT' | translate }}
+                    </button>
+                </div>
+                @if (activity.pending()) {
+                    <p>
+                        {{
+                            'ACTIVITY_SYNC.PENDING'
+                                | translate: { count: activity.pending() }
+                        }}
+                    </p>
+                    <div class="activity-actions">
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="parked(true)"
+                            [disabled]="
+                                busy() ||
+                                activity.busy() ||
+                                activity.state() === 'disabling'
+                            "
+                        >
+                            {{ 'ACTIVITY_SYNC.SEND_PENDING' | translate }}
+                        </button>
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="parked(false)"
+                            [disabled]="
+                                busy() ||
+                                activity.busy() ||
+                                activity.state() === 'disabling'
+                            "
+                        >
+                            {{ 'ACTIVITY_SYNC.KEEP_PENDING_LOCAL' | translate }}
+                        </button>
+                    </div>
+                }
+                @for (
+                    conflict of activity.conflicts();
+                    track addressKey(conflict.address)
+                ) {
+                    <div
+                        class="activity-conflict"
+                        data-test-id="activity-conflict"
+                    >
+                        <p>
+                            {{ 'ACTIVITY_SYNC.CONFLICT' | translate }} ·
+                            {{ conflict.record.position?.activityTitle ?? '' }}
+                            ·
+                            {{
+                                conflict.record.position?.seasonNumber
+                                    ? 'S' +
+                                      conflict.record.position?.seasonNumber +
+                                      ' E' +
+                                      conflict.record.position?.episodeNumber
+                                    : ('ACTIVITY_SYNC.MOVIE' | translate)
+                            }}
+                            · {{ conflict.address.content.id }}
+                        </p>
+                        <p>
+                            {{ 'ACTIVITY_SYNC.LOCAL_POSITION' | translate }}:
+                            {{ conflict.record.position?.positionSeconds ?? 0 }}
+                            s ·
+                            {{ 'ACTIVITY_SYNC.SERVER_POSITION' | translate }}:
+                            {{
+                                conflict.record.conflict?.resume
+                                    ?.positionSeconds ?? 0
+                            }}
+                            s
+                        </p>
+                        <div class="activity-actions">
+                            <button
+                                mat-button
+                                type="button"
+                                (click)="resolve(conflict.address, false)"
+                                data-test-id="activity-keep-server"
+                                [disabled]="
+                                    busy() ||
+                                    activity.busy() ||
+                                    activity.state() === 'disabling'
+                                "
+                            >
+                                {{ 'ACTIVITY_SYNC.KEEP_SERVER' | translate }}
+                            </button>
+                            <button
+                                mat-button
+                                type="button"
+                                (click)="resolve(conflict.address, true)"
+                                data-test-id="activity-use-local"
+                                [disabled]="
+                                    busy() ||
+                                    activity.busy() ||
+                                    activity.state() === 'disabling'
+                                "
+                            >
+                                {{ 'ACTIVITY_SYNC.USE_LOCAL' | translate }}
+                            </button>
+                        </div>
+                    </div>
+                }
+                @if (preview(); as items) {
+                    <p>
+                        {{
+                            'ACTIVITY_SYNC.IMPORT_PREVIEW'
+                                | translate
+                                    : {
+                                          count: count(),
+                                          sources: items.length,
+                                      }
+                        }}
+                    </p>
+                    <p>
+                        {{ 'ACTIVITY_SYNC.IMPORT_CONFLICT_HINT' | translate }}
+                    </p>
+                    <div class="activity-actions">
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="preview.set(null)"
+                        >
+                            {{ 'CANCEL' | translate }}
+                        </button>
+                        <button
+                            mat-flat-button
+                            type="button"
+                            (click)="importPositions()"
+                            [disabled]="
+                                busy() ||
+                                activity.busy() ||
+                                !count() ||
+                                activity.state() === 'disabling'
+                            "
+                            data-test-id="activity-import-confirm"
+                        >
+                            {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                        </button>
+                    </div>
+                }
+                @if (unresolved()) {
+                    <p role="status">
+                        {{
+                            'ACTIVITY_SYNC.UNRESOLVED'
+                                | translate: { count: unresolved() }
+                        }}
+                    </p>
+                }
+            }
+        } @else if (failed()) {
+            <p role="alert">{{ 'ACTIVITY_SYNC.ERROR' | translate }}</p>
+        } @else {
+            <p role="status">
+                {{ 'ACTIVITY_SYNC.STATE_initializing' | translate }}
+            </p>
+        }
+    </div>
+</section>

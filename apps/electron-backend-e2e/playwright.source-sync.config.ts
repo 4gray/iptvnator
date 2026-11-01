@@ -24,7 +24,7 @@ const mockServers = (Array.isArray(base.webServer) ? base.webServer : []).map(
 
 export default defineConfig({
     ...base,
-    testMatch: '**/source-sync.e2e.ts',
+    testMatch: ['**/source-sync.e2e.ts', '**/activity-sync.e2e.ts'],
     timeout: 180000,
     webServer: [
         ...mockServers,

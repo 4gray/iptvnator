@@ -1,3 +1,6 @@
+import type { ActivityLocalRequest } from '@iptvnator/shared/interfaces/activity-sync';
+import { activityLocalOperation } from '../database/operations/activity-local.operations';
+import { getWorkerSqlite } from './database.worker-connection';
 import type {
     ElectronBridgeFavoriteReorderUpdate,
     XtreamFavoriteRemovalRef,
@@ -432,6 +435,12 @@ async function executeRequest(
     const db = await getWorkerDatabase();
 
     switch (message.operation) {
+        case 'DB_ACTIVITY_LOCAL':
+            return activityLocalOperation(
+                getWorkerSqlite(),
+                message.payload as ActivityLocalRequest
+            );
+
         case 'DB_HAS_CATEGORIES': {
             const payload = message.payload as {
                 playlistId: string;

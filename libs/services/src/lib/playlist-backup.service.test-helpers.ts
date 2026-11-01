@@ -219,6 +219,11 @@ export function createStatefulBackupCollaborators(
 ) {
     let lastParsedRawM3u: string | null = null;
     const favoriteReceipts = new Set<string>();
+    const stalkerPositions = new Map<string, PlaybackPositionData[]>();
+    const isStalker = (id: string) =>
+        state.playlists.some(
+            (playlist) => playlist._id === id && !!playlist.portalUrl
+        );
 
     return {
         playlistsService: {
@@ -361,15 +366,19 @@ export function createStatefulBackupCollaborators(
         },
         playbackPositionService: {
             assertSupportsAtomicReplacement: jest.fn(),
-            getAllPlaybackPositionsOrThrow: async () =>
-                state.playbackPositions.map((item) => ({ ...item })),
+            getAllPlaybackPositionsOrThrow: async (id: string) =>
+                (isStalker(id)
+                    ? (stalkerPositions.get(id) ?? [])
+                    : state.playbackPositions
+                ).map((item) => ({ ...item })),
             replaceAllPlaybackPositions: async (
-                _playlistId: string,
+                playlistId: string,
                 positions: PlaybackPositionData[]
             ) => {
-                state.playbackPositions = positions.map((item) => ({
-                    ...item,
-                }));
+                const saved = positions.map((item) => ({ ...item }));
+                if (isStalker(playlistId))
+                    stalkerPositions.set(playlistId, saved);
+                else state.playbackPositions = saved;
             },
             getAllPlaybackPositions: async () =>
                 state.playbackPositions.map((item) => ({ ...item })),
