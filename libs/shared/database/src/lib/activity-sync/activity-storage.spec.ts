@@ -44,7 +44,7 @@ describe('opt-in activity persistence in real SQLite', () => {
                             __dirname: JSON.stringify(originalDirectory),
                         },
                         footer: {
-                            js: `process.on('exit', () => require('node:fs').writeFileSync(${JSON.stringify(coverageFile)}, JSON.stringify(globalThis.__coverage__ ?? {})));`,
+                            js: "process.on('exit', () => require('node:fs').writeFileSync(process.env.IPTVNATOR_TEST_COVERAGE_FILE, JSON.stringify(globalThis.__coverage__ ?? {})));",
                         },
                     });
                     entry = bundled;
@@ -60,6 +60,9 @@ describe('opt-in activity persistence in real SQLite', () => {
                         env: {
                             ...process.env,
                             ELECTRON_RUN_AS_NODE: '1',
+                            ...(coverageFile
+                                ? { IPTVNATOR_TEST_COVERAGE_FILE: coverageFile }
+                                : {}),
                             TSX_TSCONFIG_PATH: resolve(
                                 process.cwd(),
                                 'tsconfig.base.json'
