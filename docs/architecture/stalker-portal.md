@@ -230,6 +230,8 @@ shared interfaces only when authentication starts. Device-ID derivation loads it
 only after validating a MAC. Eager identity normalization and auth-service
 construction therefore do not load hashing during startup. The helper checks
 `crypto` without `globalThis` to retain the TV client's Chromium 68 support.
+The loader's relative dynamic import uses the emitted `.js` extension so the
+same shared barrel also resolves under the backends' NodeNext configuration.
 
 The playlist-info Edit dialog compares URL, MAC, username/password, serial,
 device IDs and signatures as one connection identity. A metadata-only edit
