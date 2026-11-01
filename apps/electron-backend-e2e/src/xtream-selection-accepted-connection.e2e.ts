@@ -10,6 +10,7 @@ import {
     saveSourceDialog,
     sourceRowByTitle,
     test,
+    waitForSourceRowIdle,
 } from './electron-test-fixtures';
 import { startSourceSyncServer } from './source-sync-test-server';
 import {
@@ -47,12 +48,27 @@ for (const retained of [false, true])
                 password: 'performance',
                 contentTypes: retained ? ['live', 'movie'] : ['live'],
             });
-            // Setup imports the large synthetic Live/optional Movie catalogs.
+            const id = await waitForNativeXtreamSource(page, title);
+            // No overlay can also mean the account check has not started the
+            // import yet. Observe its native completion before editing.
+            await expect
+                .poll(
+                    () =>
+                        page.evaluate(
+                            (id) =>
+                                window.electron.dbGetAppState(
+                                    `xtream-import-status:${id}:live`
+                                ),
+                            id
+                        ),
+                    { timeout: 60000 }
+                )
+                .toBe('completed');
             await expect(
                 page.locator('.workspace-loading-overlay')
             ).not.toBeVisible({ timeout: 60000 });
             await openSources(page);
-            const id = await waitForNativeXtreamSource(page, title);
+            await waitForSourceRowIdle(page, title);
             let rememberedMovie: number | undefined;
             if (retained) {
                 await expect
