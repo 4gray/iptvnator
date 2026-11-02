@@ -320,7 +320,7 @@ importers:
         version: 1.64.0
       '@preact/preset-vite':
         specifier: 2.10.6
-        version: 2.10.6(@babel/core@7.29.7)(preact@10.29.8)(rollup@4.59.0)(vite@8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
+        version: 2.10.6(@babel/core@7.29.7)(preact@10.29.8)(rollup@4.59.0)(vite@8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
       '@schematics/angular':
         specifier: 22.2.2
         version: 22.2.2(chokidar@5.0.0)
@@ -523,8 +523,8 @@ importers:
         specifier: ^8.71.1
         version: 8.71.1(eslint@9.39.2(jiti@1.21.7))(typescript@6.0.3)
       vite:
-        specifier: 8.3.3
-        version: 8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
+        specifier: 8.3.4
+        version: 8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -9326,6 +9326,10 @@ packages:
     resolution: {integrity: sha512-cBznnQ9KjJqU67B52RMC65CMarK2600WFnbkcaiwWq3xy/5haFJlshgnpjovMVJ+Hff49d8GEn0b87C5pDQ10g==}
     hasBin: true
 
+  semver@5.7.3:
+    resolution: {integrity: sha512-kM18BPOqTi0+TB68703/GJRpAML5Me+IDQsR1J26YB3EFKKNEyHIVZuWDX7+WKQB3tHwDwgk24BfhdpWUbytvQ==}
+    hasBin: true
+
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
     hasBin: true
@@ -9868,6 +9872,9 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
+  tslib@2.9.1:
+    resolution: {integrity: sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==}
+
   tsx@4.23.15:
     resolution: {integrity: sha512-Yiex1Ovn8z2xPpOWckIiysV1SSyRMY9BkLF++q0yKiDxCqRhosKfMg3janKkiLBwZ5c/YryloKwGZcrEmtwxKw==}
     engines: {node: '>=18.0.0'}
@@ -10239,8 +10246,8 @@ packages:
       yaml:
         optional: true
 
-  vite@8.3.3:
-    resolution: {integrity: sha512-cTAldKPImjg6c+gk48U19POPn3GCBzZwpdsN8ZMEEcbpes+6/wvfqUd0C2y3qYY4wsj8PwgFwrZ/1jBPVttMSg==}
+  vite@8.3.4:
+    resolution: {integrity: sha512-IftLE8phJhdNRIGNEV4JCCvfNScoZQVfcXaN8TQropWGJtOHcu+iAB9pHcuGvmEb/kddw0LBe/jS8ztdC6xdiQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -13934,19 +13941,19 @@ snapshots:
     dependencies:
       playwright: 1.64.0
 
-  '@preact/preset-vite@2.10.6(@babel/core@7.29.7)(preact@10.29.8)(rollup@4.59.0)(vite@8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))':
+  '@preact/preset-vite@2.10.6(@babel/core@7.29.7)(preact@10.29.8)(rollup@4.59.0)(vite@8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/plugin-transform-react-jsx': 7.29.7(@babel/core@7.29.7)
       '@babel/plugin-transform-react-jsx-development': 7.29.7(@babel/core@7.29.7)
-      '@prefresh/vite': 2.4.12(preact@10.29.8)(vite@8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
+      '@prefresh/vite': 2.4.12(preact@10.29.8)(vite@8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
       '@rollup/pluginutils': 5.4.0(rollup@4.59.0)
       babel-plugin-transform-hook-names: 1.0.2(@babel/core@7.29.7)
       debug: 4.4.3
       magic-string: 0.30.21
       picocolors: 1.1.1
-      vite: 8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
-      vite-prerender-plugin: 0.5.14(vite@8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
+      vite: 8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
+      vite-prerender-plugin: 0.5.14(vite@8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
       zimmerframe: 1.1.5
     transitivePeerDependencies:
       - preact
@@ -13963,7 +13970,7 @@ snapshots:
 
   '@prefresh/utils@1.2.1': {}
 
-  '@prefresh/vite@2.4.12(preact@10.29.8)(vite@8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))':
+  '@prefresh/vite@2.4.12(preact@10.29.8)(vite@8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       '@babel/core': 7.29.7
       '@prefresh/babel-plugin': 0.5.4(@babel/core@7.29.7)
@@ -13971,7 +13978,7 @@ snapshots:
       '@prefresh/utils': 1.2.1
       '@rollup/pluginutils': 4.2.1
       preact: 10.29.8
-      vite: 8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -15350,8 +15357,8 @@ snapshots:
       ultrahtml: 1.6.0
       unifont: 0.7.5
       unstorage: 1.17.5
-      vite: 8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
-      vitefu: 1.1.3(vite@8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
+      vite: 8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
+      vitefu: 1.1.3(vite@8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
       xxhash-wasm: 1.1.0
       yargs-parser: 22.0.0
       zod: 4.6.6
@@ -18361,7 +18368,7 @@ snapshots:
     dependencies:
       copy-anything: 2.0.6
       parse-node-version: 1.0.1
-      tslib: 2.8.1
+      tslib: 2.9.1
     optionalDependencies:
       errno: 0.1.8
       graceful-fs: 4.2.11
@@ -18568,7 +18575,7 @@ snapshots:
   make-dir@2.1.0:
     dependencies:
       pify: 4.0.1
-      semver: 5.7.2
+      semver: 5.7.3
     optional: true
 
   make-dir@4.0.0:
@@ -20610,6 +20617,9 @@ snapshots:
 
   semver@5.7.2: {}
 
+  semver@5.7.3:
+    optional: true
+
   semver@6.3.1: {}
 
   semver@7.7.3: {}
@@ -21238,6 +21248,9 @@ snapshots:
 
   tslib@2.8.1: {}
 
+  tslib@2.9.1:
+    optional: true
+
   tsx@4.23.15:
     dependencies:
       esbuild: 0.28.2
@@ -21582,7 +21595,7 @@ snapshots:
     dependencies:
       global: 4.4.0
 
-  vite-prerender-plugin@0.5.14(vite@8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)):
+  vite-prerender-plugin@0.5.14(vite@8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       kolorist: 1.8.0
       magic-string: 0.30.21
@@ -21590,7 +21603,7 @@ snapshots:
       simple-code-frame: 1.3.0
       source-map: 0.7.6
       stack-trace: 1.0.0
-      vite: 8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
 
   vite@8.1.5(patch_hash=469ec4025880fc7b86d3d8b3b4e2028572d6acf65bdfb93973db18fdb3c00ad9)(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
@@ -21611,7 +21624,7 @@ snapshots:
       tsx: 4.23.15
       yaml: 2.9.1
 
-  vite@8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1):
+  vite@8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -21630,9 +21643,9 @@ snapshots:
       tsx: 4.23.15
       yaml: 2.9.1
 
-  vitefu@1.1.3(vite@8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)):
+  vitefu@1.1.3(vite@8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)):
     optionalDependencies:
-      vite: 8.3.3(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.3.4(@types/node@20.19.9)(esbuild@0.28.2)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1)
 
   w3c-xmlserializer@5.0.0:
     dependencies:
