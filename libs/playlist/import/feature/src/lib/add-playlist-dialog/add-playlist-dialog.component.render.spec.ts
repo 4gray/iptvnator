@@ -5,7 +5,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    DataService,
+    EpgPreferencesService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { StalkerPortalDiscoveryService } from '@iptvnator/portal/stalker/data-access';
 import { AddPlaylistDialogComponent } from './add-playlist-dialog.component';
 
@@ -68,6 +72,23 @@ describe('AddPlaylistDialogComponent with the real URL form', () => {
         (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
             'input[formcontrolname="playlistUrl"]'
         );
+
+    it('hides the M3U EPG choice during global opt-out without resetting it', async () => {
+        const checkbox = () =>
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '[data-test-id="m3u-import-epg"]'
+            );
+        const preferences = TestBed.inject(EpgPreferencesService);
+        expect(checkbox()).not.toBeNull();
+        await preferences.apply(false);
+        await settle();
+        expect(checkbox()).toBeNull();
+        expect(fixture.componentInstance.autoImportEpg()).toBe(true);
+        await preferences.apply(true);
+        await settle();
+        expect(checkbox()).not.toBeNull();
+        expect(fixture.componentInstance.autoImportEpg()).toBe(true);
+    });
 
     it('keeps the M3U EPG choice while switching methods and hides it for portals', async () => {
         const component = fixture.componentInstance;

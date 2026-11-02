@@ -1,6 +1,6 @@
 import { XtreamEpgNormalizer, EpgResponse } from '../xtream-epg-normalizer';
 import { inject, Injectable } from '@angular/core';
-import { DataService } from '@iptvnator/services';
+import { EpgPreferencesService, DataService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     EpgItem,
@@ -67,6 +67,7 @@ const XTREAM_ACCOUNT_ACTIONS = [
 @Injectable({ providedIn: 'root' })
 export class XtreamApiService extends XtreamEpgNormalizer {
     private readonly dataService = inject(DataService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly logger = createLogger('XtreamApiService');
 
     async cancelSession(sessionId: string): Promise<boolean> {
@@ -387,16 +388,27 @@ export class XtreamApiService extends XtreamEpgNormalizer {
                     : serializedValue;
         });
 
-        const response = (await this.dataService.sendIpcEvent(XTREAM_REQUEST, {
-            url: normalizedUrl,
-            ...(credentials.userAgent?.trim()
-                ? { userAgent: credentials.userAgent.trim() }
-                : {}),
-            params: serializedParams,
-            requestId: options?.requestId,
-            sessionId: options?.sessionId,
-            suppressErrorLog: options?.suppressErrorLog,
-        })) as {
+        const request = async () =>
+            this.dataService.sendIpcEvent(XTREAM_REQUEST, {
+                url: normalizedUrl,
+                ...(credentials.userAgent?.trim()
+                    ? { userAgent: credentials.userAgent.trim() }
+                    : {}),
+                params: serializedParams,
+                requestId: options?.requestId,
+                sessionId: options?.sessionId,
+                suppressErrorLog: options?.suppressErrorLog,
+            });
+        const isEpg = [
+            XtreamCodeActions.GetShortEpg,
+            XtreamCodeActions.GetSimpleDataTable,
+            XtreamCodeActions.GetSimpleDateTable,
+        ].includes(params['action'] as XtreamCodeActions);
+        const response = (await (isEpg
+            ? this.epgPreferences.run<unknown>(request, {
+                  payload: { epg_listings: [] },
+              })
+            : request())) as {
             message?: string;
             payload?: unknown;
             type?: string;

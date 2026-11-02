@@ -35,7 +35,7 @@
         <div class="channel-details">
             <div class="channel-name-row">
                 <div class="channel-name">{{ displayName() }}</div>
-                @if (catchupAvailable()) {
+                @if (showEpg() && catchupAvailable()) {
                     <mat-icon
                         class="catchup-badge"
                         data-test-id="catchup-badge"

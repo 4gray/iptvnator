@@ -194,6 +194,8 @@ The M3U URL, file and text forms share a default-on EPG checkbox. It only
 controls sources declared in the imported M3U; entering a URL does not trigger
 a metadata or EPG request. The choice survives import-method switches in the
 open dialog and resets for a new import or Clear.
+Global EPG opt-out hides this checkbox without changing the source's import
+preference, so re-enabling EPG can use its declared sources normally.
 
 `Playlist.autoImportEpg: false` retains detected addresses as candidates without
 enabling them. An absent flag keeps the legacy default-on behavior. Refresh,
@@ -1225,6 +1227,43 @@ These URLs are playlist-scoped by default:
 - **Features**: Read-only channel details context menu, row-level and context-menu removal
 
 ## EPG Integration
+
+### Global EPG preference
+
+`Settings.epgEnabled` is a default-on opt-out shared by Electron and the PWA.
+Settings → EPG stages the switch until Save. Turning it off preserves source
+addresses, mappings and committed XMLTV data, while hiding programme panels,
+guide commands, row previews and EPG source editors. Channel logos supplied by
+the playlist or provider remain visible; XMLTV-only artwork is not requested.
+
+`EpgPreferencesService` gates import and lookup transports. Settings hydration
+blocks requests until the saved preference is known. Preference changes retire
+the source lookup revision, which clears ephemeral previews and fences late
+responses across XMLTV, portal stores, collections and the dashboard. Electron's
+`EPG_SET_ENABLED` drains active and queued imports without clearing the database.
+Startup synchronizes the native preference in the existing source-reconciliation
+IPC before reconciling source data, including when a renderer reopens over a
+reused native worker. Its acknowledgement avoids a separate enable command.
+Actual changes still synchronize the worker; overlapping updates use the latest
+acknowledgement and failures retry. Completed settings writes also retire older
+EPG activation continuations, so delayed source reconciliation cannot re-enable EPG
+after a newer saved opt-out; failed writes do not retire the committed change.
+Reconciliation after a native acknowledgement uses the latest committed source
+URLs, so an older save cannot restore obsolete ownership.
+Suspension clears session fetch markers after writers drain, so a source that
+becomes stale while disabled can refresh on resumption; fresh stored data still
+skips downloading through the ordinary freshness check.
+The resumable list follows `filterPlaylistEpgUrlsForFetch`: global sources stay
+eligible, while local playlist paths require explicit manual provenance. The
+ownership inventory remains intact for reconciliation and lookup retirement.
+Read helpers for programme and channel metadata lookups load on the first
+subscribed lookup, keeping source imports and settings hydration on the small
+startup path. Concurrent reads share that module; failed chunk loads can retry.
+Requests retain their source revision across loading, so a retired request
+cannot start after the chunk arrives or survive an EPG off/on cycle.
+Re-enabling restores ordinary loading and freshness checks without a restart.
+Archive browsing through the programme guide is unavailable while EPG is off.
+
 
 ### Xtream channel-row programme refresh
 

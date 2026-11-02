@@ -187,6 +187,8 @@ export interface Settings {
      * show, so recognition never runs.
      */
     m3uVodDetails?: boolean;
+    /** Global programme guide opt-out; missing means enabled. */
+    epgEnabled?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;
