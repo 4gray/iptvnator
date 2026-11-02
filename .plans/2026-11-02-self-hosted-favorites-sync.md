@@ -184,3 +184,17 @@ Production Electron/frontend/worker and Linux arm64 Docker builds pass; the
 initial payload is 1,199,591 / 1,200,301 bytes. All three mixed favorites flows
 and Docker HTTP add/remove/receipt/restart smoke pass. Radio classification reuses
 the existing shared predicate with transport-command fields excluded.
+
+Local Codex round 7 is clean at f45a347ed02e3ad763accc30b801912a749df609.
+The additional Ponytail pass found one concrete ID-precedence mismatch: a row
+with id 42 and stream_id 84 displays as 42 but exported as 84. Its regression
+fails before repair; portable references now match existing canonical field
+precedence without adopting synthetic display fallbacks. No other Ponytail
+finding was confirmed at the documented household load assumption.
+
+Ponytail ID-precedence repair passes owning tests/types/lint, full coverage
+(statements 85.31%, branches 76.89%, functions 83.64%, lines 85.81%), production
+Electron/frontend/worker build and initial bytes (1,199,586 / 1,200,301).
+Linux arm64 Docker build and HTTP add/remove/receipt/restart smoke pass too.
+The synthetic regression observes the canonical display ID and portable ID
+agree after repair. A fresh committed-branch Codex gate follows this final fix.

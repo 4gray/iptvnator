@@ -5,7 +5,8 @@ import type { FavoriteReference } from './favorites-sync.contract';
 export function stalkerFavoriteReference(
     item: StalkerPortalItem
 ): Extract<FavoriteReference, { provider: 'stalker' }> | null {
-    const id = [item.stream_id, item.id, item.series_id, item.movie_id].find(
+    // Match extractStalkerItemId's precedence, without its synthetic display fallback.
+    const id = [item.id, item.stream_id, item.series_id, item.movie_id].find(
         (value) => value != null && String(value).trim()
     );
     if (id == null) return null;

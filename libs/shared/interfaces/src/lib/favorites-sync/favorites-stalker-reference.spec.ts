@@ -1,6 +1,21 @@
+import { extractStalkerItemId } from '../stalker-item.normalizer';
 import { stalkerFavoriteReference } from './favorites-stalker-reference';
 
 describe('historical Stalker favorite references', () => {
+    it('uses the displayed provider ID when an alternative stream ID differs', () => {
+        const item = {
+            id: '42',
+            stream_id: '84',
+            favoriteContentType: 'itv' as const,
+            title: 'Synthetic channel',
+        };
+        expect(extractStalkerItemId(item)).toBe('42');
+        expect(stalkerFavoriteReference(item)).toEqual({
+            provider: 'stalker',
+            kind: 'live',
+            id: '42',
+        });
+    });
     it.each([
         [{ id: '42', category_id: 'series', series: [1, 2] }, 'embedded'],
         [{ id: '42', category_id: 'series', is_series: '1' }, 'lazy'],

@@ -2086,3 +2086,7 @@ resources for the same source identity and series mode. A real connection edit
 still resets the context. Shared references honor legacy embedded/lazy markers
 before the old `series` category, and accept the existing string radio marker
 without widening the strict `is_series` predicate.
+
+Portable references use the same `id`-before-`stream_id` precedence as existing
+Stalker display/navigation identity. Synthetic display fallbacks are never
+published as provider IDs.
