@@ -499,16 +499,37 @@ describe('EpgQueryService', () => {
         return programLimits;
     }
 
-    it('keeps one current-programme statement while the ids fit the SQLite variable limit', async () => {
-        // GROUP BY picks a channel's row by query plan when sources overlap,
-        // so splitting a request that fits could change the programme shown.
-        const programLimits = recordCurrentProgramQueries();
-        const ids = Array.from({ length: 25_000 }, (_, i) => `ch-${i}`);
+    // GROUP BY picks a channel's row by query plan when sources overlap, so a
+    // request that fits one statement must not be split. Each query binds the
+    // ids, two airing timestamps and the LIMIT, plus the source URLs (scoped)
+    // or one '' (legacy).
+    it.each([
+        {
+            name: 'unscoped ids at the limit',
+            idCount: 32_763,
+            sourceUrls: [] as string[],
+            expected: [32_763],
+        },
+        {
+            name: 'scoped and legacy queries with two source URLs',
+            idCount: 32_761,
+            sourceUrls: [
+                'https://a.example.com/epg.xml',
+                'https://b.example.com/epg.xml',
+            ],
+            expected: [32_761, 32_761],
+        },
+    ])(
+        'keeps one current-programme statement for $name',
+        async ({ idCount, sourceUrls, expected }) => {
+            const programLimits = recordCurrentProgramQueries();
+            const ids = Array.from({ length: idCount }, (_, i) => `ch-${i}`);
 
-        await service.getCurrentProgramsBatch(ids);
+            await service.getCurrentProgramsBatch(ids, { sourceUrls });
 
-        expect(programLimits).toEqual([25_000]);
-    });
+            expect(programLimits).toEqual(expected);
+        }
+    );
 
     it('splits current-programme ids past the SQLite variable limit', async () => {
         // A single `IN (…)` over every playlist channel failed with "too many
@@ -518,9 +539,7 @@ describe('EpgQueryService', () => {
 
         const result = await service.getCurrentProgramsBatch(ids);
 
-        // 32,766 bound parameters minus the airing timestamps, LIMIT and
-        // legacy-scope '' (no source URLs here).
-        expect(programLimits).toEqual([32_762, 7_238]);
+        expect(programLimits).toEqual([32_763, 7_237]);
         expect(Object.keys(result)).toHaveLength(40_000);
     });
 

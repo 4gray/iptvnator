@@ -38,10 +38,11 @@ const CHANNEL_LOOKUP_CHUNK_SIZE = 500;
 const SQLITE_MAX_BOUND_PARAMETERS = 32_766;
 
 /**
- * Bound parameters the current-programme query adds besides the channel ids
- * and source URLs: two airing timestamps, the LIMIT and the legacy-scope ''.
+ * Bound parameters every current-programme query adds besides the channel ids:
+ * the two airing timestamps and the LIMIT. The source scope adds one per
+ * source URL, or the single `''` of the legacy-source condition.
  */
-const CURRENT_PROGRAM_FIXED_PARAMETERS = 4;
+const CURRENT_PROGRAM_FIXED_PARAMETERS = 3;
 
 export class EpgQueryService {
     constructor(private readonly loggerLabel = '[EPG Events]') {}
@@ -589,11 +590,12 @@ export class EpgQueryService {
         // Split only when the ids exceed SQLite's bound-parameter limit. The
         // GROUP BY picks a channel's row by query plan when several sources
         // overlap, so a request that fits keeps its single statement.
+        const scopeParameters = options.legacyOnly ? 1 : sourceUrls.length;
         const chunkSize = Math.max(
             1,
             SQLITE_MAX_BOUND_PARAMETERS -
-                sourceUrls.length -
-                CURRENT_PROGRAM_FIXED_PARAMETERS
+                CURRENT_PROGRAM_FIXED_PARAMETERS -
+                scopeParameters
         );
         const chunkRows: EpgProgramSelectRow[][] = [];
         for (const chunk of chunkValues(channelIds, chunkSize)) {
