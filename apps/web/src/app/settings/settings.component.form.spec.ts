@@ -343,11 +343,13 @@ describe('SettingsComponent form', () => {
 
         it('hides again after a successful save', async () => {
             settingsStore.updateSettings.mockResolvedValue(undefined);
+            const save = jest.spyOn(component.form, 'save');
             component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
             component.settingsForm.markAsDirty();
             fixture.detectChanges();
 
             component.onSubmit();
+            await save.mock.results[0].value;
             await fixture.whenStable();
             fixture.detectChanges();
 
@@ -362,6 +364,7 @@ describe('SettingsComponent form', () => {
         // here, so a regression shows.
         it('hides after a save on a page without a form section', async () => {
             settingsStore.updateSettings.mockResolvedValue(undefined);
+            const save = jest.spyOn(component.form, 'save');
             setSettingsSection('backup');
             fixture.autoDetectChanges();
             component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
@@ -370,6 +373,7 @@ describe('SettingsComponent form', () => {
             expect(unsavedBar()).not.toBeNull();
 
             component.onSubmit();
+            await save.mock.results[0].value;
             await fixture.whenStable();
             // The render the form event scheduled runs in the next macrotask.
             await new Promise((resolve) => setTimeout(resolve));

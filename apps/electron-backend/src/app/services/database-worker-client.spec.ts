@@ -365,6 +365,172 @@ describe('DatabaseWorkerClient', () => {
         await expect(secondRequest).resolves.toEqual([]);
     });
 
+    it.each(['exit', 'error'])(
+        'ignores a failed worker’s late %s after restarting',
+        async (eventName) => {
+            const client = createClient();
+            const firstRequest = client.request('DB_GLOBAL_SEARCH', {});
+            const firstFailure =
+                expect(firstRequest).rejects.toThrow('worker failed');
+            const firstWorker = mockWorkerInstances[0];
+            firstWorker.emit('message', { type: 'ready' });
+            await flushPromises();
+            firstWorker.emit('error', new Error('worker failed'));
+            await firstFailure;
+
+            const secondRequest = client.request('DB_GLOBAL_SEARCH', {});
+            const secondResult = expect(secondRequest).resolves.toEqual([]);
+            const secondWorker = mockWorkerInstances[1];
+            secondWorker.emit('message', { type: 'ready' });
+            await flushPromises();
+
+            firstWorker.emit(
+                eventName,
+                eventName === 'exit' ? 1 : new Error('late error')
+            );
+            const request = secondWorker.postMessage.mock.calls[0][0];
+            secondWorker.emit('message', {
+                type: 'response',
+                requestId: request.requestId,
+                success: true,
+                result: [],
+            });
+            await secondResult;
+            await client.cancel('operation-2');
+            expect(mockWorkerInstances).toHaveLength(2);
+        }
+    );
+
+    it('ignores a failed worker’s late ready and response messages', async () => {
+        const client = createClient();
+        const firstRequest = client.request('DB_GLOBAL_SEARCH', {});
+        const firstFailure =
+            expect(firstRequest).rejects.toThrow('worker failed');
+        const firstWorker = mockWorkerInstances[0];
+        firstWorker.emit('error', new Error('worker failed'));
+        await firstFailure;
+
+        const secondRequest = client.request('DB_GLOBAL_SEARCH', {});
+        const secondResult = expect(secondRequest).resolves.toEqual([]);
+        const secondWorker = mockWorkerInstances[1];
+        firstWorker.emit('message', { type: 'ready' });
+        await flushPromises();
+        expect(secondWorker.postMessage).not.toHaveBeenCalled();
+
+        secondWorker.emit('message', { type: 'ready' });
+        await flushPromises();
+        const request = secondWorker.postMessage.mock.calls[0][0];
+        firstWorker.emit('message', {
+            type: 'response',
+            requestId: request.requestId,
+            success: true,
+            result: ['stale'],
+        });
+        secondWorker.emit('message', {
+            type: 'response',
+            requestId: request.requestId,
+            success: true,
+            result: [],
+        });
+        await secondResult;
+    });
+
+    it('rejects requests waiting for readiness when shut down', async () => {
+        const client = createClient();
+        const request = client.request('DB_GLOBAL_SEARCH', {});
+        const result = expect(request).rejects.toThrow(
+            'Database worker shut down'
+        );
+
+        await client.shutdown();
+        await result;
+    });
+
+    it.each(['request', 'cancel', 'parental-lock'] as const)(
+        'rejects a ready %s dispatch when its worker is replaced before the continuation',
+        async (kind) => {
+            const client = createClient();
+            const dispatch = () => {
+                if (kind === 'cancel') return client.cancel('operation-1');
+                if (kind === 'parental-lock')
+                    return client.setParentalLockState(true);
+                return client.request('DB_GLOBAL_SEARCH', {});
+            };
+            let outcome: unknown = 'pending';
+            void dispatch().then(
+                () => (outcome = 'resolved'),
+                (error) => (outcome = error)
+            );
+            const firstWorker = mockWorkerInstances[0];
+            firstWorker.emit('message', { type: 'ready' });
+            const shutdown = client.shutdown();
+            const replacementRequest = client.request('DB_GLOBAL_SEARCH', {});
+            const replacementResult = expect(
+                replacementRequest
+            ).resolves.toEqual([]);
+            const secondWorker = mockWorkerInstances[1];
+
+            await flushPromises();
+            const outcomeBeforeReplacementReady = outcome;
+            const messagesBeforeReplacementReady =
+                secondWorker.postMessage.mock.calls.length;
+
+            secondWorker.emit('message', { type: 'ready' });
+            await flushPromises();
+            for (const [message] of secondWorker.postMessage.mock.calls) {
+                if (message.type !== 'request') continue;
+                secondWorker.emit('message', {
+                    type: 'response',
+                    requestId: message.requestId,
+                    success: true,
+                    result: [],
+                });
+            }
+            await replacementResult;
+            await shutdown;
+
+            expect(outcomeBeforeReplacementReady).toEqual(
+                new Error('Database worker shut down or replaced')
+            );
+            expect(firstWorker.postMessage).not.toHaveBeenCalled();
+            expect(messagesBeforeReplacementReady).toBe(0);
+        }
+    );
+
+    it('handles replacement exits while the previous worker is terminating', async () => {
+        const client = createClient();
+        const firstRequest = client.request('DB_GLOBAL_SEARCH', {});
+        const firstWorker = mockWorkerInstances[0];
+        firstWorker.emit('message', { type: 'ready' });
+        await flushPromises();
+        const firstFailure = expect(firstRequest).rejects.toThrow(
+            'Database worker shut down'
+        );
+        let finishTermination!: (code: number) => void;
+        firstWorker.terminate.mockImplementation(
+            () =>
+                new Promise<number>((resolve) => {
+                    finishTermination = resolve;
+                })
+        );
+        const shutdown = client.shutdown();
+        await firstFailure;
+
+        const secondRequest = client.request('DB_GLOBAL_SEARCH', {});
+        const secondFailure = expect(secondRequest).rejects.toThrow(
+            'Database worker stopped with exit code 1'
+        );
+        const secondWorker = mockWorkerInstances[1];
+        secondWorker.emit('message', { type: 'ready' });
+        await flushPromises();
+        firstWorker.emit('exit', 0);
+        secondWorker.emit('exit', 1);
+        finishTermination(0);
+
+        await shutdown;
+        await secondFailure;
+    });
+
     it('rejects requests with actionable worker path errors', async () => {
         const client = createClient();
         resolveWorkerRuntimeBootstrap.mockImplementation(() => {

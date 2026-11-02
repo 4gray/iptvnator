@@ -94,21 +94,86 @@ describe('SettingsComponent storage failures', () => {
 
     it('marks the form pristine only after the settings write succeeded', async () => {
         settingsStore.updateSettings.mockResolvedValue(undefined);
+        const save = jest.spyOn(component.form, 'save');
         jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
         component.settingsForm.markAsDirty();
 
         component.onSubmit();
-        // save() resolves a tick after the store write: the callback and
-        // the Electron mirror run first, so the pristine flip lands on the
-        // next turn of the microtask queue.
-        await fixture.whenStable();
+        await save.mock.results[0].value;
         await fixture.whenStable();
 
         expect(component.settingsForm.pristine).toBe(true);
     });
 
+    it('warns and keeps edits available when the desktop runtime rejects settings', async () => {
+        const update = Promise.reject(new Error('Port 8765 is already in use'));
+        void update.catch(() => undefined);
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValue(update);
+        component.settingsForm.markAsDirty();
+
+        component.onSubmit();
+        await fixture.whenStable();
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'SETTINGS.SETTINGS_RUNTIME_UPDATE_FAILED',
+            undefined,
+            expect.any(Object)
+        );
+        expect(snackBar.open).not.toHaveBeenCalledWith(
+            'SETTINGS.SETTINGS_SAVE_FAILED',
+            expect.anything(),
+            expect.anything()
+        );
+        expect(snackBar.open).not.toHaveBeenCalledWith(
+            'SETTINGS.SETTINGS_SAVED',
+            undefined,
+            expect.any(Object)
+        );
+        expect(component.settingsForm.dirty).toBe(true);
+        expect(settingsStore.updateSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the user in settings when saved preferences cannot be applied to the desktop runtime', async () => {
+        jest.spyOn(window.electron, 'updateSettings').mockRejectedValue(
+            new Error('Port 8765 is already in use')
+        );
+        component.settingsForm.markAsDirty();
+        (TestBed.inject(MatDialog).open as jest.Mock).mockReturnValue({
+            afterClosed: () => of('save'),
+        });
+
+        await expect(component.confirmLeaveWithUnsavedChanges()).resolves.toBe(
+            false
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'SETTINGS.SETTINGS_RUNTIME_UPDATE_FAILED',
+            undefined,
+            expect.any(Object)
+        );
+        expect(component.settingsForm.dirty).toBe(true);
+    });
+
+    it('confirms success only after the desktop runtime accepts settings', async () => {
+        let acceptUpdate!: () => void;
+        const update = new Promise<void>((resolve) => {
+            acceptUpdate = resolve;
+        });
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValue(update);
+        const onSaved = jest.fn();
+
+        const saving = component.form.save(onSaved);
+        await Promise.resolve();
+        const confirmedWhilePending = onSaved.mock.calls.length;
+        acceptUpdate();
+        await saving;
+
+        expect(confirmedWhilePending).toBe(0);
+        expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+
     it('retries failed source cleanup on an explicit EPG save and clears dirty state only on success', async () => {
         await fixture.whenStable();
+        const save = jest.spyOn(component.form, 'save');
         jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
         component.form.setEpgUrls(['removed-source']);
         component.form.removeEpgSource(0);
@@ -147,6 +212,7 @@ describe('SettingsComponent storage failures', () => {
             expect.any(Object)
         );
         component.onSubmit();
+        await save.mock.results[1].value;
         await fixture.whenStable();
         expect(settingsStore.updateSettings).toHaveBeenCalledTimes(2);
         expect(component.form.epgUrl.pristine).toBe(true);

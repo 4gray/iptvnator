@@ -328,5 +328,9 @@ Renderer IPC payloads are not filesystem authorization.
   returned by `DOWNLOADS_GET_DEFAULT_FOLDER`, so renderer-managed settings
   cannot substitute an arbitrary host path.
 - Downloads do not overwrite an existing destination file.
+- Download filenames use a media-extension allowlist. New downloads, retained
+  retry/resume paths and missing-file re-downloads reject unsupported types; Play checks the same allowlist
+  before OS opening, including records created by older releases. Provider
+  endpoints without a media extension use `.mp4`.
 - Reveal and playback handlers accept only file paths recorded in IPTVnator's
   downloads database.

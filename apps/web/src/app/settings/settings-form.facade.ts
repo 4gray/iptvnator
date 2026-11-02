@@ -38,6 +38,12 @@ import {
 
 type SettingsFormPatch = Parameters<SettingsForm['patchValue']>[0];
 
+export class SettingsRuntimeUpdateError extends Error {
+    constructor(readonly cause: unknown) {
+        super('SETTINGS.SETTINGS_RUNTIME_UPDATE_FAILED');
+    }
+}
+
 /**
  * Owns the settings form: creation, hydration from the store, the small
  * mutations the section components trigger, and persisting on submit.
@@ -227,8 +233,8 @@ export class SettingsFormFacade {
     /**
      * Persists the form to the settings store and mirrors the result to the
      * desktop backend.
-     * @param onSaved runs after the store write, before the backend is
-     * notified, so the UI confirmation is not delayed by IPC
+     * @param onSaved runs after persistence and the desktop backend update
+     * succeed, so runtime failures keep the form available for retry.
      */
     async save(onSaved: () => void): Promise<void> {
         const settings = createSettingsFromFormValue(
@@ -246,13 +252,12 @@ export class SettingsFormFacade {
             // committed values, but retain the dirty form for cleanup retry.
             cleanupError = error;
         }
-        if (!cleanupError) {
-            onSaved();
-            this.refreshRestartPending();
-        }
-
         if (window.electron) {
-            window.electron.updateSettings(settings);
+            try {
+                await window.electron.updateSettings(settings);
+            } catch (error) {
+                throw new SettingsRuntimeUpdateError(error);
+            }
 
             if (this.runtime.supportsExternalPlayerPathSettings) {
                 window.electron.setMpvPlayerPath(settings.mpvPlayerPath);
@@ -260,6 +265,8 @@ export class SettingsFormFacade {
             }
         }
         if (cleanupError) throw cleanupError;
+        onSaved();
+        this.refreshRestartPending();
     }
 
     /** Later: the reminder stays away until one of those settings changes. */

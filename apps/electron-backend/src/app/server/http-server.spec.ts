@@ -7,7 +7,7 @@ import {
     writeFileSync,
 } from 'node:fs';
 import * as http from 'node:http';
-import type { AddressInfo } from 'node:net';
+import { createConnection, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -127,6 +127,7 @@ describe('HttpServer', () => {
 
     beforeEach(() => {
         jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
         capturedServers = [];
         tempRoot = mkdtempSync(join(tmpdir(), 'iptvnator-http-server-'));
@@ -156,6 +157,7 @@ describe('HttpServer', () => {
                 nodeServer.on('listening', () => {
                     captured.listeningEvents += 1;
                 });
+                void captured.listening.catch(() => undefined);
                 capturedServers.push(captured);
                 return nodeServer;
             },
@@ -186,7 +188,7 @@ describe('HttpServer', () => {
 
     async function startServer(): Promise<CapturedServer> {
         const serverIndex = capturedServers.length;
-        server.start(0);
+        await server.start(0);
         const captured = capturedServers[serverIndex];
         if (!captured) {
             throw new Error('Expected HttpServer.start() to create a server');
@@ -328,24 +330,164 @@ describe('HttpServer', () => {
     );
 
     it('creates and listens on only one server when started twice', async () => {
-        server.start(0);
-        server.start(0);
+        await Promise.all([server.start(0), server.start(0)]);
 
         expect(capturedServers).toHaveLength(1);
         await capturedServers[0].listening;
         expect(capturedServers[0].listeningEvents).toBe(1);
     });
 
+    it('rejects an occupied port and can retry after it becomes available', async () => {
+        const blocker = http.createServer();
+        await new Promise<void>((resolve) => blocker.listen(0, resolve));
+        const port = getAddress(blocker).port;
+
+        try {
+            await expect(
+                Promise.resolve(server.updateSettings(true, port))
+            ).rejects.toMatchObject({ code: 'EADDRINUSE' });
+        } finally {
+            await closeServer(blocker);
+        }
+
+        await server.updateSettings(true, port);
+        const replacement = capturedServers.at(-1);
+        if (!replacement) {
+            throw new Error('Expected the retry to create a server');
+        }
+        await replacement.listening;
+        await expect(request(port, '/')).resolves.toMatchObject({
+            statusCode: 200,
+        });
+    });
+
+    it('can retry after listen rejects an invalid port synchronously', async () => {
+        await expect(server.start(-1)).rejects.toMatchObject({
+            code: 'ERR_SOCKET_BAD_PORT',
+        });
+
+        const captured = await startServer();
+        expect(captured.server.listening).toBe(true);
+    });
+
+    it('finishes disabled when disabled while startup is pending', async () => {
+        await Promise.all([
+            server.updateSettings(true, 0),
+            server.updateSettings(false, 0),
+        ]);
+
+        expect(capturedServers).toHaveLength(1);
+        expect(capturedServers[0].server.listening).toBe(false);
+    });
+
+    it('serializes rapid toggles and port changes, including returning to the first port', async () => {
+        const firstPort = await getAvailablePort();
+        const secondPort = await getAvailablePort();
+
+        await Promise.all([
+            server.updateSettings(true, firstPort),
+            server.updateSettings(false, firstPort),
+            server.updateSettings(true, secondPort),
+            server.updateSettings(true, firstPort),
+        ]);
+
+        expect(capturedServers).toHaveLength(3);
+        expect(capturedServers.map(({ server }) => server.listening)).toEqual([
+            false,
+            false,
+            true,
+        ]);
+        expect(getAddress(capturedServers[2].server).port).toBe(firstPort);
+        await expect(request(firstPort, '/')).resolves.toMatchObject({
+            statusCode: 200,
+        });
+    });
+
+    it('handles a listener error after startup and permits a later retry', async () => {
+        const captured = await startServer();
+        const closed = new Promise<void>((resolve) => {
+            captured.server.once('close', resolve);
+        });
+
+        captured.server.emit('error', new Error('Listener failure'));
+        await closed;
+        await server.updateSettings(true, 0);
+
+        expect(capturedServers).toHaveLength(2);
+        expect(capturedServers[1].server.listening).toBe(true);
+    });
+
     it('stops the running server when disabled', async () => {
         const captured = await startServer();
         const closed = once(captured.server, 'close');
 
-        server.updateSettings(false, 0);
+        await server.updateSettings(false, 0);
         await closed;
 
         expect(captured.server.listening).toBe(false);
         expect(capturedServers).toHaveLength(1);
     });
+
+    it.each(['disable', 'change port'])(
+        'finishes %s with an unfinished HTTP request body',
+        async (action) => {
+            const requestStarted = new Promise<void>((resolve) => {
+                server.registerRemoteControlHandler(
+                    '/api/remote-control/pending',
+                    (incomingRequest, response) => {
+                        incomingRequest.on('data', () => undefined);
+                        incomingRequest.on('end', () => response.end());
+                        resolve();
+                    }
+                );
+            });
+            const captured = await startServer();
+            const nextPort = await getAvailablePort();
+            const client = createConnection({
+                host: '127.0.0.1',
+                port: getAddress(captured.server).port,
+            });
+            client.on('error', () => undefined);
+            await once(client, 'connect');
+            client.write(
+                'POST /api/remote-control/pending HTTP/1.1\r\n' +
+                    'Host: localhost\r\nContent-Length: 100\r\n\r\n{'
+            );
+            await requestStarted;
+
+            const update = server.updateSettings(
+                action === 'change port',
+                nextPort
+            );
+            let timeout: ReturnType<typeof setTimeout> | undefined;
+            try {
+                await Promise.race([
+                    update,
+                    new Promise<never>((_resolve, reject) => {
+                        timeout = setTimeout(() => {
+                            reject(
+                                new Error(
+                                    'Server update waited for unfinished request body'
+                                )
+                            );
+                        }, 1000);
+                    }),
+                ]);
+                expect(captured.server.listening).toBe(false);
+                if (action === 'change port') {
+                    await expect(request(nextPort, '/')).resolves.toMatchObject(
+                        {
+                            statusCode: 200,
+                        }
+                    );
+                }
+            } finally {
+                clearTimeout(timeout);
+                client.destroy();
+                await update;
+            }
+        }
+    );
 
     it('stops once and starts once on the new port when the port changes', async () => {
         const first = await startServer();
@@ -356,7 +498,7 @@ describe('HttpServer', () => {
         });
         const firstClosed = once(first.server, 'close');
 
-        server.updateSettings(true, newPort);
+        await server.updateSettings(true, newPort);
         const second = capturedServers[1];
         if (!second) {
             throw new Error('Expected a replacement HTTP server');
