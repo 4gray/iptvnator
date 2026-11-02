@@ -372,3 +372,69 @@ describe('stalker-series.adapters', () => {
         expect(firstEpisode.originalCmd).toBe('/media/file_100.mpg');
     });
 });
+
+describe('portable Stalker activity identities', () => {
+    it('distinguishes regular and embedded episodes without changing their local tracking ids', () => {
+        const seasons = [
+            { id: 'provider-season', name: 'Season', series: [1, 2] },
+        ];
+        const regular = mapRegularSeriesEpisodes(
+            seasons,
+            undefined,
+            undefined,
+            'raw-parent',
+            'regular'
+        );
+        const embedded = mapRegularSeriesEpisodes(
+            seasons,
+            undefined,
+            undefined,
+            'raw-parent',
+            'embedded'
+        );
+        const a = Object.values(regular)[0][0];
+        const b = Object.values(embedded)[0][0];
+        expect(a.id).toBe(b.id);
+        expect(a.activityIdentity).toMatchObject({
+            provider: 'stalker',
+            kind: 'episode',
+            seriesId: 'raw-parent',
+            mode: 'regular',
+            seasonKey: 'provider-season',
+            episodeNumber: 1,
+        });
+        expect(b.activityIdentity).toEqual({
+            ...a.activityIdentity,
+            mode: 'embedded',
+        });
+    });
+    it('keeps the raw lazy parent and provider coordinates separate from a legacy numeric alias', () => {
+        const seasons = [
+            {
+                id: 's1',
+                video_id: 'provider-parent',
+                isLoading: false,
+                isExpanded: true,
+                name: 'Season 1',
+                season_number: '1',
+                episodes: [{ id: 'provider-file', series_number: 1 }],
+            },
+        ];
+        const local = mapVodSeriesEpisodes(seasons, { parentSeriesId: 123 });
+        const portable = mapVodSeriesEpisodes(seasons, {
+            parentSeriesId: 123,
+            activityParentSeriesId: 'raw-parent',
+            mode: 'lazy',
+        });
+        const a = Object.values(local)[0][0];
+        const b = Object.values(portable)[0][0];
+        expect(b.id).toBe(a.id);
+        expect(b.activityIdentity).toMatchObject({
+            mode: 'lazy',
+            seriesId: 'raw-parent',
+            id: 'provider-file',
+            seasonKey: '1',
+            episodeNumber: 1,
+        });
+    });
+});

@@ -1,5 +1,6 @@
 export * from './lib/tmdb-config';
-export * from './lib/tmdb-matcher';
+export { extractYear, normalizeTitle } from '@iptvnator/shared/interfaces';
+export type { SearchTitleVariant, ProviderIdVerdict } from './lib/tmdb-matcher';
 export * from './lib/tmdb.types';
 export * from './lib/tmdb-credits';
 export * from './lib/tmdb-cache-payload';
@@ -9,7 +10,7 @@ export * from './lib/tmdb-client-contracts';
 export * from './lib/tmdb-id-resolver';
 export * from './lib/tmdb-metadata-client';
 export * from './lib/tmdb-memory-cache';
-export * from './lib/tmdb-season-client';
+export type { TmdbSeasonClient } from './lib/tmdb-season-client';
 export * from './lib/tmdb-episode-title';
 export * from './lib/tmdb-person';
 export * from './lib/tmdb-person-client';

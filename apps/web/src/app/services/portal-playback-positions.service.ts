@@ -1,3 +1,4 @@
+import { activityEnabled } from './activity-consent';
 import { Injectable, inject } from '@angular/core';
 import {
     PORTAL_PLAYBACK_POSITIONS,
@@ -15,13 +16,10 @@ import {
 @Injectable({
     providedIn: 'root',
 })
-export class AppPortalPlaybackPositionsService
-    implements PortalPlaybackPositions
-{
+export class AppPortalPlaybackPositionsService implements PortalPlaybackPositions {
     private readonly dataSource = inject(XTREAM_DATA_SOURCE);
-    private readonly useRuntimePersistence = inject(
-        RuntimeCapabilitiesService
-    ).supportsXtreamSqliteDataSource;
+    private readonly useRuntimePersistence = inject(RuntimeCapabilitiesService)
+        .supportsXtreamSqliteDataSource;
     private readonly runtimeBridge = inject(
         PlaybackPositionRuntimeBridgeService
     );
@@ -37,7 +35,7 @@ export class AppPortalPlaybackPositionsService
         playlistId: string,
         data: PlaybackPositionData
     ): Promise<void> {
-        if (this.useRuntimePersistence) {
+        if (this.useRuntimePersistence && !activityEnabled()) {
             await this.runtimeBridge.savePlaybackPositionOrThrow(
                 playlistId,
                 data
@@ -93,7 +91,7 @@ export class AppPortalPlaybackPositionsService
         contentXtreamId: number,
         contentType: 'vod' | 'episode'
     ): Promise<void> {
-        if (this.useRuntimePersistence) {
+        if (this.useRuntimePersistence && !activityEnabled()) {
             await this.runtimeBridge.clearPlaybackPositionOrThrow(
                 playlistId,
                 contentXtreamId,

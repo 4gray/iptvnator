@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { createServer } from 'node:http';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -9,6 +9,68 @@ import {
     openSettings,
     openSettingsSection,
 } from './electron-test-fixtures';
+import { startSourceSyncServer } from './source-sync-test-server';
+
+export async function verifySourceConnectionRecheck() {
+    const token = 'synthetic-renewed-token';
+    const server = await startSourceSyncServer(token);
+    const directory = mkdtempSync(
+        join(tmpdir(), 'iptvnator-connection-recheck-')
+    );
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        const { instanceId } = await (
+            await fetch(`${server.apiUrl}/v1/instance`)
+        ).json();
+        writeFileSync(
+            join(directory, 'source-server.json'),
+            JSON.stringify({ apiUrl: server.apiUrl, instanceId })
+        );
+        desktop = await launchElectronApp(directory);
+        const page = desktop.mainWindow;
+        const pid = desktop.electronApp.process().pid;
+        // A locked first synchronization shows the recovery screen, not the rail.
+        await page
+            .getByRole('button', { name: 'Open settings', exact: true })
+            .click();
+        await openSettingsSection(page, 'server');
+        await page.evaluate(() =>
+            Reflect.set(window, '__connectionSession', 'kept')
+        );
+        await page.getByTestId('source-server-token').fill(token);
+        await page.getByTestId('source-server-connect').click();
+        await expect(page.getByTestId('source-server-state')).toHaveText(
+            'Connected'
+        );
+        await expect(page.getByTestId('source-server-connect')).toBeDisabled();
+        await page.getByTestId('source-server-refresh').click();
+        expect(
+            await page.evaluate(() =>
+                Reflect.get(window, '__connectionSession')
+            )
+        ).toBe('kept');
+        await page.evaluate(
+            async ({ apiUrl, token }) => {
+                await window.electron!.sourceSyncConfigure!(
+                    apiUrl,
+                    token,
+                    true
+                );
+            },
+            { apiUrl: server.apiUrl, token }
+        );
+        expect(desktop.electronApp.process().pid).toBe(pid);
+        expect(
+            await page.evaluate(() =>
+                Reflect.get(window, '__connectionSession')
+            )
+        ).toBe('kept');
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        await server.close();
+        rmSync(directory, { recursive: true, force: true });
+    }
+}
 
 /** Exercise the actual preload/main bridge against a disposable failing server. */
 export async function verifySourceSettingsRecovery() {

@@ -5,7 +5,7 @@ import {
     TMDB_TRENDING_CACHE_TTL_MS,
     tmdbPosterUrl,
 } from './tmdb-config';
-import { extractYear } from './tmdb-matcher';
+import { extractYear } from '@iptvnator/shared/interfaces';
 import { TmdbRuntimeService } from './tmdb-runtime.service';
 import { TmdbSearchResult, TmdbTrendingEntry } from './tmdb.types';
 

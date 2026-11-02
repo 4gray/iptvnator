@@ -12,4 +12,9 @@ export interface PlaybackPositionData {
     playlistId?: string;
     updatedAt?: string;
     sessionId?: string;
+    activitySessionId?: string;
+    activityTitle?: string;
+    activityAction?: 'mark-watched';
+    activityIdentity?: import('./activity-sync/activity-sync.contract').ActivityContentIdentity;
+    watched?: boolean;
 }

@@ -13,7 +13,8 @@ export type {
 export * from './tmdb-runtime.service';
 export * from './tmdb-id-resolver.service';
 export * from './tmdb-episode-merge';
-export * from './tmdb-matcher';
+export { extractYear, normalizeTitle } from '@iptvnator/shared/interfaces';
+export type { SearchTitleVariant, ProviderIdVerdict } from './tmdb-matcher';
 export * from './tmdb-person';
 export * from './tmdb.types';
 export * from './tmdb-lazy-merge';

@@ -358,6 +358,27 @@ describe('SerialDetailsPlaybackPositionState', () => {
             );
         });
 
+        it('clears a reset duration when explicitly launching that episode again', async () => {
+            state.update(
+                position(2001, { positionSeconds: 0, durationSeconds: 0 })
+            );
+            await state.recordExternalLaunch(
+                playback(2001),
+                Promise.resolve(session),
+                save
+            );
+            expect(save).toHaveBeenCalledWith(
+                'xtream-1',
+                expect.objectContaining({
+                    positionSeconds: 0,
+                    durationSeconds: undefined,
+                })
+            );
+            expect(
+                state.positions().get(2001)?.durationSeconds
+            ).toBeUndefined();
+        });
+
         it('clamps invalid start times to zero', async () => {
             await state.recordExternalLaunch(
                 playback(2001, { startTime: Number.NaN }),

@@ -441,6 +441,9 @@ importers:
       istanbul-lib-coverage:
         specifier: 3.2.2
         version: 3.2.2
+      istanbul-lib-instrument:
+        specifier: 6.0.3
+        version: 6.0.3
       istanbul-lib-report:
         specifier: 3.0.1
         version: 3.0.1

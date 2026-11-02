@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
+import { ACTIVITY_SYNC_CAPABILITY } from '@iptvnator/shared/interfaces/activity-sync';
 
 export function createInstanceRouter(deps: {
     readonly storage: ServerStorage | null;
@@ -16,7 +17,14 @@ export function createInstanceRouter(deps: {
 
     router.get('/instance', (_req, res) => {
         const body: ServerInstanceInfo = {
-            ...(deps.storage ? { capabilities: [SOURCE_SYNC_CAPABILITY] } : {}),
+            ...(deps.storage
+                ? {
+                      capabilities: [
+                          SOURCE_SYNC_CAPABILITY,
+                          ACTIVITY_SYNC_CAPABILITY,
+                      ],
+                  }
+                : {}),
             service: 'iptvnator',
             apiVersion: SERVER_STORAGE_API_VERSION,
             instanceId: deps.storage?.database.instanceId ?? null,

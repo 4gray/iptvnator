@@ -7,7 +7,6 @@ import { TmdbCacheService } from './tmdb-cache.service';
 import { TmdbIdResolverService } from './tmdb-id-resolver.service';
 import { TmdbRuntimeService } from './tmdb-runtime.service';
 import { TmdbPersonService } from './tmdb-person.service';
-import { TmdbSeasonService } from './tmdb-season.service';
 import { TmdbTrendingService } from './tmdb-trending.service';
 import { TmdbDiscoverService } from './tmdb-discover.service';
 import { DiscoverTitle } from './tmdb-discover';
@@ -29,7 +28,6 @@ export interface TmdbSelectionQuery extends TmdbEnrichmentQuery {
 export class TmdbEnrichmentService extends TmdbMetadataClient {
     private readonly injector = inject(Injector);
     private readonly person = inject(TmdbPersonService);
-    private readonly season = inject(TmdbSeasonService);
     private readonly trending = inject(TmdbTrendingService);
     private readonly discover = inject(TmdbDiscoverService);
     constructor() {
@@ -83,7 +81,10 @@ export class TmdbEnrichmentService extends TmdbMetadataClient {
         tmdbId: number,
         seasonNumber: number
     ): Promise<TmdbEpisode[] | null> {
-        return this.season.getSeasonEpisodes(tmdbId, seasonNumber);
+        return (await this.getSeasonClient()).getSeasonEpisodes(
+            tmdbId,
+            seasonNumber
+        );
     }
 
     /**
@@ -95,7 +96,12 @@ export class TmdbEnrichmentService extends TmdbMetadataClient {
         tmdbId: number,
         seasonNumber: number
     ): Promise<TmdbSeasonDetails | null> {
-        return this.season.getSeason(tmdbId, seasonNumber);
+        return (await this.getSeasonClient()).getSeason(tmdbId, seasonNumber);
+    }
+
+    private async getSeasonClient() {
+        const { TmdbSeasonService } = await import('./tmdb-season.service');
+        return this.injector.get(TmdbSeasonService);
     }
 
     /** Weekly trending titles (movies + series merged by popularity) */

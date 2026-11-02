@@ -65,6 +65,14 @@ const vodSourcePin = {
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
     {
+        method: 'activityLocalRequest',
+        args: [{ instanceId: 'activity-test-instance', operation: 'pending' }],
+        channel: 'DB_ACTIVITY_LOCAL',
+        forwardedArgs: [
+            { instanceId: 'activity-test-instance', operation: 'pending' },
+        ],
+    },
+    {
         method: 'sourceSyncLocalSources',
         args: [],
         channel: 'DB_GET_STANDALONE_SOURCES',

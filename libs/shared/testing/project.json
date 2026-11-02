@@ -3,10 +3,26 @@
     "$schema": "../../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/shared/testing/src",
     "projectType": "library",
-    "tags": ["scope:shared", "domain:shared-runtime", "type:util"],
+    "tags": [
+        "scope:shared",
+        "domain:shared-runtime",
+        "type:util"
+    ],
     "targets": {
         "lint": {
             "executor": "@nx/eslint:lint"
+        },
+        "build": {
+            "executor": "@nx/js:tsc",
+            "outputs": [
+                "{options.outputPath}"
+            ],
+            "options": {
+                "outputPath": "dist/libs/shared/testing",
+                "main": "libs/shared/testing/src/index.ts",
+                "tsConfig": "libs/shared/testing/tsconfig.lib.json",
+                "assets": []
+            }
         }
     }
 }

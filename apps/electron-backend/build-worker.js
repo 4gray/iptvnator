@@ -3,19 +3,50 @@ const path = require('path');
 
 // Node.js built-in modules that should be externalized
 const nodeBuiltins = [
-    'assert', 'async_hooks', 'buffer', 'child_process', 'cluster',
-    'console', 'constants', 'crypto', 'dgram', 'dns', 'domain',
-    'events', 'fs', 'http', 'http2', 'https', 'inspector', 'module',
-    'net', 'os', 'path', 'perf_hooks', 'process', 'punycode',
-    'querystring', 'readline', 'repl', 'stream', 'string_decoder',
-    'sys', 'timers', 'tls', 'trace_events', 'tty', 'url', 'util',
-    'v8', 'vm', 'worker_threads', 'zlib'
+    'assert',
+    'async_hooks',
+    'buffer',
+    'child_process',
+    'cluster',
+    'console',
+    'constants',
+    'crypto',
+    'dgram',
+    'dns',
+    'domain',
+    'events',
+    'fs',
+    'http',
+    'http2',
+    'https',
+    'inspector',
+    'module',
+    'net',
+    'os',
+    'path',
+    'perf_hooks',
+    'process',
+    'punycode',
+    'querystring',
+    'readline',
+    'repl',
+    'stream',
+    'string_decoder',
+    'sys',
+    'timers',
+    'tls',
+    'trace_events',
+    'tty',
+    'url',
+    'util',
+    'v8',
+    'vm',
+    'worker_threads',
+    'zlib',
 ];
 
 // Native modules that must be externalized (loaded at runtime)
-const nativeModules = [
-    'better-sqlite3',
-];
+const nativeModules = ['better-sqlite3'];
 
 const isProduction = process.env.NODE_ENV === 'production';
 const isPerformance = process.argv.includes('--performance');
@@ -83,10 +114,19 @@ async function buildWorker() {
                 sourcemap: isPerformance || !isProduction,
                 minify: isProduction || isPerformance,
                 alias: {
-                    '@iptvnator/shared/interfaces/xtream-category-visibility': path.join(
+                    '@iptvnator/shared/interfaces/activity-sync': path.join(
                         __dirname,
-                        '../../libs/shared/interfaces/src/lib/xtream-category-visibility.ts'
+                        '../../libs/shared/interfaces/src/activity-sync.ts'
                     ),
+                    '@iptvnator/shared/database/activity-sync': path.join(
+                        __dirname,
+                        '../../libs/shared/database/src/activity-sync.ts'
+                    ),
+                    '@iptvnator/shared/interfaces/xtream-category-visibility':
+                        path.join(
+                            __dirname,
+                            '../../libs/shared/interfaces/src/lib/xtream-category-visibility.ts'
+                        ),
                     '@iptvnator/shared/interfaces': path.join(
                         __dirname,
                         '../../libs/shared/interfaces/src/index.ts'

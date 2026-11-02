@@ -1,3 +1,5 @@
+import { WebPlayerActivity } from './web-player-activity';
+import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
     Component,
     ElementRef,
@@ -310,7 +312,12 @@ export class WebPlayerViewComponent implements OnDestroy {
         ];
     });
 
+    private readonly activity = new WebPlayerActivity(
+        inject(PLAYBACK_ACTIVITY_EVENTS, { optional: true })
+    );
+
     constructor() {
+        effect(() => this.activity.begin(this.playback()));
         effect(() => {
             const session = this.externalPlayback?.activeSession() ?? null;
             untracked(() => this.externalRecovery.observe(session));
@@ -358,6 +365,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.activity.flush();
         this.liveAutoFormat.destroy();
         this.externalRecovery.destroy();
         this.applicationHandoff.destroy();
@@ -386,27 +394,35 @@ export class WebPlayerViewComponent implements OnDestroy {
         event: PlayerTimeUpdate,
         ownership: PlaybackApplicationOwnership
     ): void {
-        if (
-            !ownsPlaybackApplication({
-                ownership,
-                currentToken: this.playbackApplicationToken(),
-                currentSourceRevision: this.playbackSourceRevisionToken(),
-                bindingOwned: ownership.binding
-                    ? this.applicationHandoff.owns(
-                          ownership.binding,
-                          ownership.token
-                      )
-                    : false,
-                embeddedMpvSelected:
-                    this.selectedPlayer() === VideoPlayer.EmbeddedMpv,
-            })
-        ) {
-            return;
-        }
+        if (!this.ownsApplication(ownership)) return;
 
+        if (!ownership.isLive && !this.activity.record(this.playback(), event))
+            return;
         this.recoverySession.recordTimeUpdate(event, ownership.isLive);
         this.historyConfirmation.record(event.currentTime, event.playing);
         this.timeUpdate.emit(event);
+    }
+
+    handleActivityEnded(ownership: PlaybackApplicationOwnership): void {
+        if (!this.ownsApplication(ownership)) return;
+        if (!ownership.isLive) this.activity.finish();
+        this.playbackEnded.emit();
+    }
+
+    private ownsApplication(ownership: PlaybackApplicationOwnership): boolean {
+        return ownsPlaybackApplication({
+            ownership,
+            currentToken: this.playbackApplicationToken(),
+            currentSourceRevision: this.playbackSourceRevisionToken(),
+            bindingOwned: ownership.binding
+                ? this.applicationHandoff.owns(
+                      ownership.binding,
+                      ownership.token
+                  )
+                : false,
+            embeddedMpvSelected:
+                this.selectedPlayer() === VideoPlayer.EmbeddedMpv,
+        });
     }
 
     requestRecommendedPlayer(target: PlaybackRecommendationTarget): void {

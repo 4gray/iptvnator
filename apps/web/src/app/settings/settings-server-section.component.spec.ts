@@ -79,6 +79,30 @@ describe('source server settings', () => {
         expect(requestSourceServer).not.toHaveBeenCalled();
     });
 
+    it('shows a compact dismissible empty preview without an empty list or import action', async () => {
+        readLocalSourcesForImport.mockResolvedValueOnce([]);
+        await fixture.componentInstance.previewImport();
+        fixture.detectChanges();
+        const preview = fixture.nativeElement.querySelector(
+            '[data-test-id="source-server-import-preview"]'
+        );
+        expect(preview.querySelector('[role="status"]').textContent).toContain(
+            'SOURCE_SYNC.IMPORT_EMPTY'
+        );
+        expect(preview.querySelector('ul')).toBeNull();
+        expect(
+            preview.querySelector(
+                '[data-test-id="source-server-import-confirm"]'
+            )
+        ).toBeNull();
+        preview
+            .querySelector('[data-test-id="source-server-import-close"]')
+            .click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.preview()).toBeNull();
+        expect(requestSourceServer).not.toHaveBeenCalled();
+    });
+
     it('imports definitions with fresh IDs while leaving favorites and history local', async () => {
         const component = fixture.componentInstance;
         await component.previewImport();
@@ -286,6 +310,7 @@ describe('source server settings', () => {
 
     it('identifies an incompatible response without exposing its body', async () => {
         window.electron = {} as typeof window.electron;
+        fixture.componentInstance.urlControl.setValue('https://other-nas.test');
         globalThis.fetch = jest.fn().mockResolvedValue({
             ok: true,
             json: () =>
@@ -308,11 +333,38 @@ describe('source server settings', () => {
             try {
                 sync.connection.apiUrl = apiUrl;
                 fixture.componentInstance.urlControl.setValue(apiUrl);
+                fixture.componentInstance.token = 'renewed-token';
                 await fixture.componentInstance.connect();
-                expect(configure).toHaveBeenCalledWith(apiUrl, '', true);
+                expect(configure).toHaveBeenCalledWith(
+                    apiUrl,
+                    'renewed-token',
+                    false
+                );
             } finally {
                 sync.connection.apiUrl = original;
             }
+        }
+    );
+
+    it.each(['native', 'browser'])(
+        'refreshes an unchanged %s connection without replacing its token or reloading',
+        async (runtime) => {
+            const configure = jest.fn();
+            window.electron = (
+                runtime === 'native' ? { sourceSyncConfigure: configure } : {}
+            ) as typeof window.electron;
+            globalThis.fetch = jest.fn();
+            fixture.componentInstance.urlControl.setValue('https://nas.test');
+            await fixture.componentInstance.connect();
+            expect(sync.refresh).toHaveBeenCalledTimes(1);
+            expect(configure).not.toHaveBeenCalled();
+            expect(globalThis.fetch).not.toHaveBeenCalled();
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="source-server-connect"]'
+                ).disabled
+            ).toBe(true);
         }
     );
 
