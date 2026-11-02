@@ -1265,3 +1265,9 @@ hearts use the data source's explicit portable-favorites capability when a
 received favorite has no local catalog row; ordinary local SQL IDs retain their
 existing meaning. Received Stalker commands are resolved locally as described
 in the [Stalker contract](stalker-portal.md#optional-shared-favorites).
+
+Open Xtream live lists reload their complete typed favorite map on shared
+invalidation and local mark changes, canceling older loads and disposing the
+listener with the list. Dashboard cards for received Xtream snapshots without
+local SQL/favorite row IDs use kind plus provider ID as their stable fallback;
+existing local IDs retain their previous card identities.

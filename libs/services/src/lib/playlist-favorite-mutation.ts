@@ -41,8 +41,10 @@ export function removePortalFavorite(
         if (!matchesId) return true;
         const candidate = stalkerFavoriteReference(item);
         if (!reference) return context ? Boolean(candidate) : false;
-        return (
-            !candidate ||
+        // Historical untyped rows use the same ID fallback as their heart.
+        // Known typed rows still protect another kind or series origin.
+        return Boolean(
+            candidate &&
             favoriteReferenceKey(candidate) !== favoriteReferenceKey(reference)
         );
     });

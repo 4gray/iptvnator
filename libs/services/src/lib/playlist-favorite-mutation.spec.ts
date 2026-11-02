@@ -33,6 +33,26 @@ describe('explicit favorite mutations', () => {
         }
         expect(removePortalFavorite(items, '42')).toEqual([]);
     });
+    it('removes a historical untyped Stalker movie while retaining a typed series with the same ID', () => {
+        const legacy = {
+            id: '42',
+            category_id: '17',
+            title: 'Synthetic historical movie',
+            cmd: 'synthetic-command',
+        };
+        const series = {
+            id: '42',
+            favoriteContentType: 'series' as const,
+            title: 'Synthetic series',
+        };
+        expect(
+            removePortalFavorite([legacy, series], '42', {
+                id: '42',
+                favoriteContentType: 'vod',
+                category_id: '17',
+            })
+        ).toEqual([series]);
+    });
     it('keeps the ordinary local path when no shared favorite domain handles the action', async () => {
         const source = { _id: 'source', favorites: ['legacy'] } as Playlist;
         const bridge = {

@@ -716,6 +716,50 @@ describe('DashboardDataService', () => {
         );
     });
 
+    it('gives received favorites distinct stable identities without local catalog rows', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        xtreamDataSourceMock.getFavorites.mockResolvedValue([
+            {
+                id: null,
+                type: 'movie',
+                xtream_id: 42,
+                title: 'Synthetic movie',
+            },
+            {
+                id: null,
+                type: 'series',
+                xtream_id: 42,
+                title: 'Synthetic series',
+            },
+            {
+                id: null,
+                type: 'movie',
+                xtream_id: 43,
+                title: 'Synthetic second movie',
+            },
+        ]);
+        await service.reloadGlobalFavorites();
+        const ids = () =>
+            service
+                .globalFavoriteItems()
+                .filter((item) => item.source === 'xtream')
+                .map((item) => item.id);
+        expect(ids()).toEqual(
+            expect.arrayContaining([
+                'favorite:movie:42',
+                'favorite:series:42',
+                'favorite:movie:43',
+            ])
+        );
+        expect(new Set(ids()).size).toBe(3);
+        const first = ids();
+        await service.reloadGlobalFavorites();
+        expect(ids()).toEqual(first);
+    });
+
     it('loads PWA Xtream favorites for multiple playlists in parallel', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,

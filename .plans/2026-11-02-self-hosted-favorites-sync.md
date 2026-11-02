@@ -70,13 +70,13 @@ temporary browser contexts, Electron profiles and a disposable Docker container.
 - Full coverage gates pass without threshold changes; the PR records the final
   measured coverage and exact tested/reviewed commit.
 - All 42 spec programs and frontend/backend application typechecks pass.
-  Lint passes for all 14 affected projects.
+  Lint passes for all 15 affected projects.
 - All 20 existing source/activity mixed-runtime scenarios pass. The three new
   favorites scenarios pass after fixing typed removal of numeric Stalker
   categories; active hearts update without navigation. M3U verifies offline
   conflicts, independent adds, duplicate URLs and narrow light/dark settings.
 - Production Electron/frontend/worker builds and the initial-byte gate pass:
-  1,199,556 bytes against 1,200,301 allowed; no baseline changes.
+  1,199,561 bytes against 1,200,301 allowed; no baseline changes.
 - Docker linux/arm64 PWA/backend build and HTTP smoke pass, including restart,
   persisted server identity, removals and old idempotency receipts.
 - Canonical subsystem docs, Docker guidance and the feature release note are
@@ -108,6 +108,12 @@ three favorites scenarios pass on the final production build. Receiving-device
 Stalker movie/live/radio media advances in both PWA and Electron. Default mock
 radio now serves its local progressive audio fixture instead of video HLS.
 Narrow conflict controls and light/dark settings were visually inspected.
-Coverage: statements 85.24%, branches 76.77%, functions 83.54%, lines 85.75%.
+Coverage: statements 85.24%, branches 76.77%, functions 83.53%, lines 85.74%.
 Latest fetched master c5b333e9f adds only unrelated website documentation/assets;
 there is no application overlap with this branch's tested base.
+
+Local review round 3 identified three additional real issues; all were accepted:
+legacy untyped Stalker removal, live Xtream channel-map invalidation, and stable
+Dashboard identities for received Xtream snapshots without local catalog rows.
+New regressions fail before repair. Typed Stalker collisions stay protected;
+channel-map requests cancel superseded reads and stop after list destruction.

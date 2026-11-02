@@ -710,7 +710,9 @@ export class DashboardDataService {
         playlist: PlaylistMeta
     ): DashboardFavoriteItem {
         return {
-            id: item.id ?? `favorite:${item.favorite_id}`,
+            id:
+                item.id ??
+                `favorite:${item.favorite_id ?? `${this.normalizeXtreamActivityType(item.type)}:${item.xtream_id}`}`,
             favorite_id: item.favorite_id,
             catalogStatus: item.catalog_status,
             title: item.title,

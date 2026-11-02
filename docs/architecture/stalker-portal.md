@@ -2072,3 +2072,7 @@ series-origin equality. Fresh category metadata still passes parental locking.
 Resolved commands remain local and never enter a shared snapshot. The global
 collection detail host reuses an open detail for the same item during polling,
 so background membership updates cannot cancel an in-flight playback request.
+
+Removing a typed target also removes its historical untyped ID copy, consistent
+with legacy heart matching. Known typed rows with another kind or series origin
+remain intact even when the provider reuses the same numeric ID.
