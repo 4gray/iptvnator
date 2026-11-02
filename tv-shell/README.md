@@ -1,11 +1,11 @@
-# NatorTV (Fire TV / Android TV)
+# IPTVnator (Fire TV / Android TV)
 
-**NatorTV** is an experimental Android shell based on IPTVnator: it runs the
+**IPTVnator for Android TV / Fire TV** is an experimental platform build: it runs the
 **IPTVnator browser app** (the PWA built from this repository) on Fire TV sticks
 and Android TV boxes, driven entirely with the remote, **with no server to
-host**: the web backend is re-implemented in Java and embedded in the APK. It is
-an independent app, not the official IPTVnator (see `TRADEMARK.md`); the web
-app inside keeps its own name and screens. _[Version française](README.fr.md)._
+host**: the web backend is re-implemented in Java and embedded in the APK.
+The Android build shares the IPTVnator name and web interface with desktop
+and PWA builds. _[Version française](README.fr.md)._
 
 ```
 APK
@@ -38,7 +38,7 @@ APK
   a **"This stream cannot be played here"** prompt offering to open them in
   another player (VLC, Kodi, MX Player...). The app's "Copy stream URL" button
   does the same on a TV.
-- **NatorTV settings** (long-press Menu, or hold Back on remotes without a Menu
+- **IPTVnator settings** (long-press Menu, or hold Back on remotes without a Menu
   key): interface size (960 / 1280 / 1600 px), preferred external player, data
   reset, diagnostics (WebView version, screen).
 - Data (playlists, favourites, positions) is stored by the PWA in the WebView
@@ -63,7 +63,7 @@ features in IPTVnator).
   shell's own actions (ready, external player, toast, keyboard, settings, exit).
 - The published APK is a **non-debuggable** release build, `allowBackup` is
   off (the WebView storage holds portal credentials) and remote debugging
-  (`chrome://inspect`) is **opt-in** in the NatorTV settings.
+  (`chrome://inspect`) is **opt-in** in the IPTVnator settings.
 - Native diagnostics and forwarded WebView errors share a redactor: full URLs,
   credential fields and authorization values are removed before logging or
   displaying startup diagnostics. Other console levels are consumed without
@@ -81,7 +81,7 @@ features in IPTVnator).
 The `Build TV shell APK` workflow runs on pull requests and `master` pushes that
 touch `tv-shell/` (artifact only) and on demand (**Actions → Build TV shell APK
 → Run workflow**; tick `create_release` to also publish a GitHub release
-`natortv-v0.1.0-N`). The release is a **pre-release never marked "Latest"**
+`tv-shell-v0.1.0-N`). The release is a **pre-release never marked "Latest"**
 unless you untick `prerelease`: keep it on in the IPTVnator repository itself,
 where a Latest release without the desktop updater's files would break
 auto-update; a fork publishing for its own users can untick it. It builds the PWA
@@ -89,7 +89,7 @@ auto-update; a fork publishing for its own users can untick it. It builds the PW
 parser fixtures against the installed parser, drives that PWA with the two
 remote-control suites in Chromium (screenshots are uploaded when one fails),
 runs the backend tests, assembles the release APK and uploads
-`natortv-0.1.0-<sha>.apk`.
+`iptvnator-tv-shell-0.1.0-<sha>.apk`.
 
 Signing: without secrets the APK is signed with the **versioned debug key**
 (`android/app/debug.keystore`, password `android`), which is conventional, not
@@ -98,6 +98,9 @@ the `TVSHELL_KEYSTORE_B64` (base64 keystore), `TVSHELL_KEYSTORE_PASSWORD`,
 `TVSHELL_KEY_ALIAS` and `TVSHELL_KEY_PASSWORD` secrets for a release key. The
 `versionCode` is the commit time in minutes, so every build upgrades the
 previous one.
+
+The launcher banner reuses the shared IPTVnator icon. After changing that icon
+or the banner wording, regenerate it with `node tv-shell/tools/gen-brand-banner.mjs`.
 
 ### Locally (Android Studio or the command line)
 
@@ -123,9 +126,9 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 3. **ADB** (from a PC on the same network):
    ```bash
    adb connect 192.168.x.x        # the stick's IP: Settings → My Fire TV → About → Network
-   adb install -r natortv-0.1.0-xxxxxxx.apk
+   adb install -r iptvnator-tv-shell-0.1.0-xxxxxxx.apk
    ```
-4. Start *NatorTV*. Add a source: **Sources → Add M3U / Add
+4. Start *IPTVnator*. Add a source: **Sources → Add M3U / Add
    Xtream / Add Stalker**; OK on a text field opens the Fire TV keyboard.
 5. Install **VLC for Android** (Appstore) for `.ts` streams.
 
@@ -135,8 +138,8 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 | --- | --- |
 | D-pad | move between elements; on the picture: ◀ ▶ seek, ▲ ▼ leave the picture / reach the controls; in a text field the arrows move the caret until it cannot move further |
 | OK | activate; on the picture: fullscreen; on a text field: keyboard. A held OK is one activation |
-| Back | close dialog/menu → leave fullscreen → previous page → (twice) exit the app; **hold**: NatorTV settings (remotes without a Menu key) |
-| Menu | context menu of the focused item; on the picture: open the stream in VLC; **long press**: NatorTV settings. The HDMI-CEC context-menu key and Y on a game controller do the same |
+| Back | close dialog/menu → leave fullscreen → previous page → (twice) exit the app; **hold**: IPTVnator settings (remotes without a Menu key) |
+| Menu | context menu of the focused item; on the picture: open the stream in VLC; **long press**: IPTVnator settings. The HDMI-CEC context-menu key and Y on a game controller do the same |
 | ▶⏸ ⏪ ⏩ | play/pause, −15 s, +30 s |
 
 ## Design notes
@@ -247,7 +250,7 @@ tv-shell/
 
 ## Troubleshooting
 
-The **diagnostics** (long-press Menu or hold Back → NatorTV settings, or the error panel) show
+The **diagnostics** (long-press Menu or hold Back → IPTVnator settings, or the error panel) show
 the WebView's Chrome engine version, the device, the embedded server port and a
 "Screen" line (pixels, density, CSS width, layout width). Attach it to any
 report. From a PC:
@@ -333,7 +336,7 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   prompt (install VLC from the Appstore), or Menu on the picture / "Copy stream
   URL". For Xtream, choose the `m3u8` output format in the playlist settings.
   Each new attempt on a channel asks again.
-- **The VLC prompt no longer appears**: NatorTV settings → *External player* →
+- **The VLC prompt no longer appears**: IPTVnator settings → *External player* →
   tick "Offer an external player" and pick the player. With the HTML5 or
   ArtPlayer engine, a dropped connection (native media error 1 or 2) does not
   offer it: VLC would fail the same way. The default video.js engine still
@@ -347,9 +350,9 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 
 ### Data and memory
 
-- **Start over**: NatorTV settings → *Erase NatorTV data* (or uninstall the
+- **Start over**: IPTVnator settings → *Erase IPTVnator data* (or uninstall the
   app). Data survives updates as long as the server port does not change.
-- **Inspect the page**: NatorTV settings → *remote debugging*, then
+- **Inspect the page**: IPTVnator settings → *remote debugging*, then
   `chrome://inspect` on a PC with `adb connect`.
 
 ## Third-party notices

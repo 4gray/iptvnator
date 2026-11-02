@@ -348,7 +348,7 @@ test('@web @m3u @dash segment failures show their stage and preserve codecs', as
         navigator.clipboard.readText()
     );
     expect(JSON.parse(reportText)).toMatchObject({
-        app: 'NatorTV',
+        app: 'IPTVnator',
         engine: 'shaka',
         stage: 'segment',
         httpStatus: 403,

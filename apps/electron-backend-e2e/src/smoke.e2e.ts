@@ -12,7 +12,7 @@ test.describe('Electron App Smoke Test', () => {
         try {
             await expect
                 .poll(async () => app.mainWindow.title())
-                .toContain('NatorTV');
+                .toContain('IPTVnator');
             await expect(
                 app.mainWindow.getByRole('link', {
                     name: 'Dashboard',

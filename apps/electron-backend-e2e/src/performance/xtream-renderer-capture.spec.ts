@@ -62,7 +62,7 @@ const APP_TITLE =
         )
     )?.[1] ?? '';
 
-test('exports capture and persists the one exact NatorTV renderer target', async () => {
+test('exports capture and persists the one exact IPTVnator renderer target', async () => {
     assert.ok(APP_TITLE, 'apps/web index.html must declare a <title>');
     const module = await modulePromise;
     assert.ok(module, 'Xtream renderer capture module must exist');
