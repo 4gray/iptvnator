@@ -478,9 +478,8 @@ describe('EpgQueryService', () => {
         expect(select).toHaveBeenCalledTimes(2);
     });
 
-    it('chunks the current-programme lookup to stay under the SQLite variable limit', async () => {
-        // A single `IN (…)` over every playlist channel failed with "too many
-        // SQL variables" past 32766 ids, and the batch came back empty.
+    /** Records the LIMIT (= channel ids bound) of each current-programme query. */
+    function recordCurrentProgramQueries(): number[] {
         const programLimits: number[] = [];
         const select = jest.fn(() => {
             const chain: Record<string, jest.Mock> = {};
@@ -497,12 +496,32 @@ describe('EpgQueryService', () => {
             return { from: jest.fn(() => ({ where })) };
         });
         getDatabase.mockResolvedValue({ select });
+        return programLimits;
+    }
 
+    it('keeps one current-programme statement while the ids fit the SQLite variable limit', async () => {
+        // GROUP BY picks a channel's row by query plan when sources overlap,
+        // so splitting a request that fits could change the programme shown.
+        const programLimits = recordCurrentProgramQueries();
         const ids = Array.from({ length: 25_000 }, (_, i) => `ch-${i}`);
+
+        await service.getCurrentProgramsBatch(ids);
+
+        expect(programLimits).toEqual([25_000]);
+    });
+
+    it('splits current-programme ids past the SQLite variable limit', async () => {
+        // A single `IN (…)` over every playlist channel failed with "too many
+        // SQL variables" past 32766 ids, and the batch came back empty.
+        const programLimits = recordCurrentProgramQueries();
+        const ids = Array.from({ length: 40_000 }, (_, i) => `ch-${i}`);
+
         const result = await service.getCurrentProgramsBatch(ids);
 
-        expect(programLimits).toEqual([10_000, 10_000, 5_000]);
-        expect(Object.keys(result)).toHaveLength(25_000);
+        // 32,766 bound parameters minus the airing timestamps, LIMIT and
+        // legacy-scope '' (no source URLs here).
+        expect(programLimits).toEqual([32_762, 7_238]);
+        expect(Object.keys(result)).toHaveLength(40_000);
     });
 
     it('scopes channel metadata by program source ownership for shared channels', async () => {

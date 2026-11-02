@@ -34,11 +34,14 @@ type EpgChannelRow = typeof schema.epgChannels.$inferSelect;
  */
 const CHANNEL_LOOKUP_CHUNK_SIZE = 500;
 
+/** SQLite's default `SQLITE_LIMIT_VARIABLE_NUMBER`. */
+const SQLITE_MAX_BOUND_PARAMETERS = 32_766;
+
 /**
- * Max channel ids per current-programme query, which binds each id once.
- * Playlists can carry more than SQLite's 32766-variable limit.
+ * Bound parameters the current-programme query adds besides the channel ids
+ * and source URLs: two airing timestamps, the LIMIT and the legacy-scope ''.
  */
-const CURRENT_PROGRAM_LOOKUP_CHUNK_SIZE = 10_000;
+const CURRENT_PROGRAM_FIXED_PARAMETERS = 4;
 
 export class EpgQueryService {
     constructor(private readonly loggerLabel = '[EPG Events]') {}
@@ -583,13 +586,19 @@ export class EpgQueryService {
             return [];
         }
 
-        const rows: EpgProgramSelectRow[] = [];
-        for (const chunk of chunkValues(
-            channelIds,
-            CURRENT_PROGRAM_LOOKUP_CHUNK_SIZE
-        )) {
-            rows.push(
-                ...(await db
+        // Split only when the ids exceed SQLite's bound-parameter limit. The
+        // GROUP BY picks a channel's row by query plan when several sources
+        // overlap, so a request that fits keeps its single statement.
+        const chunkSize = Math.max(
+            1,
+            SQLITE_MAX_BOUND_PARAMETERS -
+                sourceUrls.length -
+                CURRENT_PROGRAM_FIXED_PARAMETERS
+        );
+        const chunkRows: EpgProgramSelectRow[][] = [];
+        for (const chunk of chunkValues(channelIds, chunkSize)) {
+            chunkRows.push(
+                await db
                     .select()
                     .from(schema.epgPrograms)
                     .where(
@@ -606,10 +615,10 @@ export class EpgQueryService {
                     // slots don't consume the per-channel cap and starve
                     // other channels.
                     .groupBy(schema.epgPrograms.channelId)
-                    .limit(chunk.length))
+                    .limit(chunk.length)
             );
         }
-        return rows;
+        return chunkRows.flat();
     }
 
     /**
