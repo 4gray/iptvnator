@@ -116,7 +116,6 @@ export async function forwardPwaXtreamRequest(
                     {
                         params,
                         ...headers,
-                        timeout: 30_000,
                     }
                 );
             })
