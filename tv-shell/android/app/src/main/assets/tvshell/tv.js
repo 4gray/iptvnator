@@ -144,11 +144,21 @@
         return inView(el.getBoundingClientRect()) && isShown(el);
     }
 
+    // Material draws these controls beside a transparent native input. The component is
+    // the visible surface, while the input must retain DOM focus and native activation.
+    function materialControlSurface(el) {
+        if (el.tagName !== 'INPUT' || !/^(checkbox|radio)$/.test(el.type)) return null;
+        return el.closest('mat-checkbox,mat-radio-button');
+    }
+
     /** The ancestor walk and the computed style: asked only of the few elements that matter. */
     function isShown(el) {
         if (el.closest('[hidden],[inert],[aria-hidden="true"],.cdk-visually-hidden,.cdk-overlay-backdrop')) return false;
         var cs = getComputedStyle(el);
-        return !(cs.visibility === 'hidden' || cs.display === 'none' || cs.opacity === '0' || cs.pointerEvents === 'none');
+        if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none') return false;
+        if (cs.opacity !== '0') return true;
+        var surface = materialControlSurface(el);
+        return !!surface && isShown(surface);
     }
 
     function isDisabled(el) {
@@ -375,6 +385,12 @@
     }
 
     // ---------------------------------------------------------------- focus
+    function paintFocus(el) {
+        el.classList.add(FOCUS_CLASS);
+        var surface = materialControlSurface(el);
+        if (surface) surface.classList.add(FOCUS_CLASS);
+    }
+
     function setFocus(el, opts) {
         var previous = document.querySelectorAll('.' + FOCUS_CLASS);
         for (var i = 0; i < previous.length; i++) previous[i].classList.remove(FOCUS_CLASS);
@@ -383,7 +399,7 @@
         } catch (e) {
             el.focus();
         }
-        el.classList.add(FOCUS_CLASS);
+        paintFocus(el);
         try {
             el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }); // never animated
         } catch (e) {
@@ -543,7 +559,7 @@
             var type = (el.getAttribute('type') || 'text').toLowerCase();
             if (type === 'range') return horizontal;
             if (/^(text|search|url|email|password|tel|number)$/.test(type)) return horizontal && caretCanMove(el, dir);
-            if (type === 'radio') return true;
+            if (type === 'radio') return horizontal; // Up/Down can leave the group on a remote without Tab.
             return false;
         }
         if (tag === 'TEXTAREA') return caretCanMove(el, dir);
@@ -1266,7 +1282,7 @@
             if (!active || active === document.body || !active.isConnected || !isVisible(active)) {
                 focusFirst();
             } else if (!active.classList.contains(FOCUS_CLASS)) {
-                active.classList.add(FOCUS_CLASS);
+                paintFocus(active);
                 lastRect = rectOf(active);
             }
         }, 350);
@@ -1279,7 +1295,7 @@
             if (!t || t === document.body || t.nodeType !== 1) return;
             var previous = document.querySelectorAll('.' + FOCUS_CLASS);
             for (var i = 0; i < previous.length; i++) if (previous[i] !== t) previous[i].classList.remove(FOCUS_CLASS);
-            t.classList.add(FOCUS_CLASS);
+            paintFocus(t);
             lastRect = rectOf(t);
         }, true);
         // When the focused element disappears (virtual scroll recycling, route

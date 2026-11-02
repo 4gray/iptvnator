@@ -78,6 +78,32 @@ check(await page.evaluate(() => !!window.__tvShell), 'TV layer present');
 check(await page.evaluate(() => !document.getElementById('initial-splash')), 'Angular bootstrapped');
 console.log('  focused:', await focused());
 
+console.log('1b. real Material checkbox remains reachable and visibly focused');
+await page.goto(URL_ + '/workspace/sources', { waitUntil: 'networkidle' });
+await page.getByRole('button', { name: /Add Stalker/i }).click();
+const materialDialog = page.locator('mat-dialog-container');
+const materialCheckbox = materialDialog.locator('mat-checkbox input[type="checkbox"]').first();
+await materialCheckbox.waitFor({ state: 'attached' });
+const advancedSettings = materialDialog.locator('details').filter({ has: page.locator('mat-checkbox') });
+if (!(await advancedSettings.evaluate((details) => details.open))) await advancedSettings.locator('summary').click();
+await materialCheckbox.waitFor({ state: 'visible' });
+await materialDialog.locator('input[type="text"]').first().focus();
+const materialFocus = await reach(/^input.*mdc-checkbox__native-control/, ['ArrowDown'], 30);
+check(!!materialFocus, 'D-pad reaches the transparent native input of a visible Material checkbox');
+if (materialFocus) {
+    const materialInput = page.locator('mat-checkbox input[type="checkbox"]:focus');
+    const checked = await materialInput.isChecked();
+    check(await materialInput.evaluate((input) => {
+        const style = getComputedStyle(input.closest('mat-checkbox'));
+        return style.opacity !== '0' && style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
+    }), 'focus ring is painted on the visible Material component');
+    await key('Enter');
+    check(await materialInput.isChecked() !== checked, 'OK toggles the real Material checkbox once');
+    await key('Enter');
+    check(await materialInput.isChecked() === checked, 'another OK restores its original state');
+}
+await key('Escape');
+
 console.log('2. rail → Sources → "Add Xtream" with the D-pad only');
 let f = await reach(/\[Sources\]/, ['ArrowDown']);
 check(!!f, 'reached the Sources rail item: ' + f);
@@ -593,6 +619,7 @@ await page.evaluate(() => {
         <label><input id="tv-checkbox" type="checkbox">Synthetic option</label>
         <input id="tv-radio-a" type="radio" name="synthetic-choice" checked>
         <input id="tv-radio-b" type="radio" name="synthetic-choice">
+        <button id="tv-after-radio" type="button" style="display:block">Synthetic next action</button>
     </form>`;
     window.tvControlEvents = { changes: 0, submits: 0 };
     document.querySelector('#tv-checkbox').addEventListener('change', () => window.tvControlEvents.changes++);
@@ -612,6 +639,10 @@ await page.locator('#tv-radio-b').focus();
 await page.keyboard.press('Enter');
 check(await page.locator('#tv-radio-b').isChecked() && !(await page.locator('#tv-radio-a').isChecked()),
     'OK selects a radio option and clears its peer');
+await page.keyboard.press('ArrowDown');
+check(await page.locator('#tv-after-radio').evaluate((button) => button === document.activeElement),
+    'Down leaves a native radio group instead of trapping the remote');
+check(await page.locator('#tv-radio-b').isChecked(), 'leaving the radio group keeps its selection');
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();
