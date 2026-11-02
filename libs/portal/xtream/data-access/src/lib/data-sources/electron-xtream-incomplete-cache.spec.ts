@@ -24,7 +24,9 @@ describe('unfinished catalog cache recovery', () => {
             apiService.getCategories.mockResolvedValue([
                 { category_id: '1', category_name: 'Recovered' },
             ]);
-            await dataSource.getCategories('p', credentials, 'vod');
+            await dataSource.getCategories('p', credentials, 'vod', {
+                sessionId: 'bootstrap',
+            });
             expect(dbService.clearXtreamImportCache).toHaveBeenCalledWith(
                 'p',
                 'movie'
@@ -43,7 +45,9 @@ describe('unfinished catalog cache recovery', () => {
         pendingRestoreService.get.mockReturnValue({
             preservePlaybackPositions: true,
         });
-        await dataSource.getCategories('p', credentials, 'vod');
+        await dataSource.getCategories('p', credentials, 'vod', {
+            sessionId: 'bootstrap',
+        });
         expect(dbService.clearXtreamImportCache).toHaveBeenCalledWith(
             'p',
             'movie'
@@ -56,7 +60,9 @@ describe('unfinished catalog cache recovery', () => {
         dbService.getXtreamImportStatus.mockResolvedValue('failed');
         dbService.clearXtreamImportCache.mockResolvedValue(false);
         await expect(
-            dataSource.getCategories('p', credentials, 'vod')
+            dataSource.getCategories('p', credentials, 'vod', {
+                sessionId: 'bootstrap',
+            })
         ).rejects.toThrow('incomplete catalog');
         expect(apiService.getCategories).not.toHaveBeenCalled();
         expect(dbService.saveXtreamCategories).not.toHaveBeenCalled();
@@ -68,9 +74,11 @@ describe('unfinished catalog cache recovery', () => {
         const rows = [{ id: 1, xtream_id: 1, name: 'Healthy', type: 'movies' }];
         dbService.getXtreamImportStatus.mockResolvedValue('completed');
         dbService.getXtreamCategories.mockResolvedValue(rows);
-        expect(await dataSource.getCategories('p', credentials, 'vod')).toEqual(
-            rows
-        );
+        expect(
+            await dataSource.getCategories('p', credentials, 'vod', {
+                sessionId: 'bootstrap',
+            })
+        ).toEqual(rows);
         expect(dbService.clearXtreamImportCache).not.toHaveBeenCalled();
         expect(apiService.getCategories).not.toHaveBeenCalled();
     });

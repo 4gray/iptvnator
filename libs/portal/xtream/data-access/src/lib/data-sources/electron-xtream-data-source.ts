@@ -190,6 +190,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         }
         if (!(await this.isEnabled(playlistId, type))) return [];
         const dbType = mapCategoryTypeToDbType(type);
+        // Import cancellation must not reject independent detail/cache readers.
+        if (options?.signal || options?.sessionId) {
+            return this.loadCategories(
+                playlistId, credentials, type, dbType, options
+            );
+        }
         // The lock version keys the share: a read issued under an older lock
         // state (still unlocked, or locks since edited) answers with rows the
         // caller under the newer state must not be handed.
@@ -227,7 +233,9 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         options?.onPhaseChange?.('loading-cached');
         const importStatus = await this.getImportStatus(playlistId, importType);
         options?.signal?.throwIfAborted();
+        // Bootstrap owns recovery; a reader may be observing an active import.
         if (
+            options?.sessionId &&
             importStatus !== 'completed' &&
             (importStatus !== 'idle' ||
                 this.pendingRestoreService.get(playlistId)
@@ -347,6 +355,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             return [];
         }
         if (!(await this.isEnabled(playlistId, type))) return [];
+        if (options?.signal || options?.sessionId) {
+            return this.loadContent(
+                playlistId, credentials, type, onProgress, onTotal, options
+            );
+        }
         const requestKey = `${playlistId}:${type}:${this.parentalLock.version()}`;
         const inFlightRequest = this.contentRequests.get(requestKey);
 

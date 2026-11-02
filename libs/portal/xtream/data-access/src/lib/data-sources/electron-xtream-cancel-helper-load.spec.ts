@@ -16,6 +16,7 @@ it('does not start cache deletion after cancellation during helper loading', asy
     dbService.getXtreamImportStatus.mockResolvedValue('importing');
     const request = dataSource.getCategories('p', credentials, 'live', {
         signal: mockController.signal,
+        sessionId: 'bootstrap',
     });
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
     expect(mockController.signal.aborted).toBe(true);

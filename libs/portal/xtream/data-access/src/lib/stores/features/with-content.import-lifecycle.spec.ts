@@ -50,6 +50,28 @@ describe('Xtream import session lifecycle', () => {
 
     afterEach(() => localStorage.clear());
 
+    it('defers lock-driven category reloads until the active import finishes', async () => {
+        const content = createDeferred<[]>();
+        dataSource.getContent.mockReturnValueOnce(content.promise);
+        dataSource.getCategories.mockResolvedValue([{ category_id: 'old' }]);
+        const task = store.initializeContent();
+        await waitForCondition(
+            () => dataSource.getContent.mock.calls.length === 1
+        );
+        store.withholdCatalog();
+        dataSource.getCategories.mockResolvedValue([
+            { category_id: 'filtered' },
+        ]);
+        await store.reloadCategories();
+        const callsDuringImport = dataSource.getCategories.mock.calls.length;
+        content.resolve([]);
+        await task;
+        expect(callsDuringImport).toBe(3);
+        expect(dataSource.getCategories).toHaveBeenCalledTimes(6);
+        expect(store.liveCategories()).toEqual([{ category_id: 'filtered' }]);
+        expect(store.isContentInitialized()).toBe(true);
+    });
+
     it('aborts data-source work before acknowledging cancellation', async () => {
         const content = createDeferred<[]>();
         let signal: AbortSignal | undefined;

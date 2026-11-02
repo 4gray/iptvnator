@@ -1657,6 +1657,14 @@ export function withContent() {
                 ): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
+                    if (
+                        activeInitializationPromise &&
+                        !store.isContentInitialized()
+                    ) {
+                        reloadAfterInitialization = true;
+                        deferredPublishGuard = shouldPublishArg;
+                        return;
+                    }
                     const shouldPublish = publishWhileCurrent(
                         ctx.playlistId,
                         shouldPublishArg

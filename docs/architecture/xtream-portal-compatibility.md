@@ -536,6 +536,11 @@ responses and persistence boundaries. Existing session/operation IPC cancellatio
 still interrupts active Electron work. Category failure aborts sibling work and
 waits for every request to settle before cleanup and releasing the source hold.
 Phase callbacks belong to their import session and cannot revive a terminated run.
+Only session-owned bootstrap category loads may clear unfinished cache rows;
+ordinary category/detail readers cannot interpret a live `importing` marker as
+abandoned work. Lock-driven category reloads wait until initialization settles.
+Cancelable or session-owned requests do not share promises with independent
+readers, so cancelling an import cannot cancel a concurrent detail recovery.
 
 Fresh desktop backup restores separate dormant catalog-dependent history and
 hidden choices from the active import snapshot. Offline restore readiness checks
