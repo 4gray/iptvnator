@@ -1599,6 +1599,14 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 - Treated as series flow from VOD context.
 - Seasons are fetched lazily.
 - Episodes are fetched on season select.
+- Lazy VOD season and episode lists collect all `get_ordered_list` pages
+  sequentially through `executeStalkerRequest`, then sort the complete list.
+  Provider IDs are deduplicated; declared totals/pages or the server page size
+  determine completion. Legacy array replies without paging metadata stay
+  single-response lists. Empty early pages, malformed replies, repeated pages
+  and the 1000-page safety bound fail the load rather than publish a partial
+  list. Navigation retires the collection before another page or state write;
+  an HTTP request already in flight may still finish. Other seasons stay lazy.
 - The season resource depends on the VOD item id and series mode, so a TMDB
   metadata patch does not reload seasons or discard loaded episodes. Pending
   episode requests belong to the exact loading season VM; replies from an old
