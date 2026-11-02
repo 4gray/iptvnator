@@ -1090,9 +1090,10 @@ async function getEpgFixtureStream(
     request: APIRequestContext
 ): Promise<XtreamLiveStream> {
     // The cached "current" programme expires during a long full-suite run.
-    await request.post(
+    const reset = await request.post(
         `${MOCK_SERVER}/reset?username=${EPG_USERNAME}&password=${EPG_PASSWORD}`
     );
+    expect(reset.ok()).toBeTruthy();
     const categories = (await (
         await request.get(
             `${MOCK_SERVER}/player_api.php?username=${EPG_USERNAME}&password=${EPG_PASSWORD}&action=get_live_categories`
