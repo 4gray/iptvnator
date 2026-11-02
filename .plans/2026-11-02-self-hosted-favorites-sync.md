@@ -133,3 +133,20 @@ Final validation passes after the final repairs: all 42 spec programs, app types
 15-project lint, full coverage, production build/worker, initial bytes, all three
 favorites mixed-runtime scenarios, and Docker HTTP/restart smoke. The helper
 extraction keeps the favorites client below the 400-line production limit.
+
+## Publication stopped after local review round 5
+
+Last reviewed runtime revision: 70596e06ea18c752281a62062b281a8b17ad0963.
+The main validation suite passes, but focused review probes reproduce two open
+findings. Both are accepted and remain unfixed:
+
+- P1: same-item polling reuses the outer global detail host but recreates the
+  nested Xtream detail injector, destroying its component and closing playback.
+- P2: a replayed older conflict receipt overwrites a newer polled server base
+  and conflict snapshot in favorites-sync-delivery.ts.
+
+The repository's five-round local review limit is reached. No push or PR was
+created, and no merge occurred. Continue only after the maintainer authorizes
+work beyond that review limit. Greptile CLI remains unavailable under the
+existing documented exception. The worktree and local branch are retained.
+Review output: /tmp/iptvnator-favorites-review-5.out.
