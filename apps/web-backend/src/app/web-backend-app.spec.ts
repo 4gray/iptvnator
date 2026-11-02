@@ -988,6 +988,7 @@ https://stream.example/live.m3u8`);
                 await expect(unknownTargetResponse.json()).resolves.toEqual({
                     message: 'Provider target not found',
                     status: 404,
+                    code: 'PROVIDER_TARGET_NOT_FOUND',
                 });
                 expect(httpClient.requests).toEqual([]);
             }

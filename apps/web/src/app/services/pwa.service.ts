@@ -5,14 +5,7 @@ import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import {
-    catchError,
-    firstValueFrom,
-    from,
-    Observable,
-    switchMap,
-    throwError,
-} from 'rxjs';
+import { catchError, firstValueFrom, Observable, throwError } from 'rxjs';
 import {
     DataService,
     isBackendUrl,
@@ -43,6 +36,7 @@ import {
 } from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
 import { isSourceBackendRequest } from '@iptvnator/services/source-sync/connection';
+import { ProviderTargetClient } from './provider-target-client';
 
 /**
  * How long to wait for the backend to forget a host before giving up.
@@ -92,7 +86,14 @@ export class PwaService extends DataService {
     private readonly translateService = inject(TranslateService);
     private readonly serverStatus = inject(ServerStorageStatusService);
     private readonly logger = createLogger('PwaService');
-    private readonly providerTargetIds = new Map<string, Promise<string>>();
+    private readonly providerTargets = new ProviderTargetClient((url) =>
+        firstValueFrom(
+            this.http.post<ProviderTargetRegistration>(
+                `${this.corsProxyUrl}/provider-targets`,
+                { url }
+            )
+        ).then((response) => response.targetId)
+    );
     private readonly silentXtreamActions = new Set<string>([
         XtreamCodeActions.GetAccountInfo,
         XtreamCodeActions.GetLiveCategories,
@@ -440,45 +441,48 @@ export class PwaService extends DataService {
         });
 
         try {
-            const targetId = await this.getProviderTargetId(payload.url);
-            const requestParams = {
-                targetId,
-                ...payload.params,
-                ...(payload.userAgent?.trim()
-                    ? { userAgent: payload.userAgent.trim() }
-                    : {}),
-                ...(payload.connectionTest ? { connectionTest: 'true' } : {}),
-            };
-            const requestPayload = {
-                method: 'GET',
-                params: requestParams,
-                url: `${this.corsProxyUrl}/xtream`,
-                ...(payload.macAddress
-                    ? {
-                          headers: {
-                              Cookie: `mac=${payload.macAddress}`,
-                          },
-                      }
-                    : {}),
-            };
-            context = createPortalDebugRequestContext({
-                provider: 'xtream',
-                operation: payload.params?.action ?? 'unknown',
-                transport: 'pwa-http',
-                request: requestPayload,
-            });
-            logPortalDebugRequest(context);
-
-            let result: PwaErrorResult | PwaXtreamResult;
-            const response = (await firstValueFrom(
-                this.http.get<PwaXtreamResponse>(
-                    `${this.corsProxyUrl}/xtream`,
-                    {
+            const response = await firstValueFrom(
+                this.providerTargets.request(payload.url, (targetId) => {
+                    const requestParams = {
+                        targetId,
+                        ...payload.params,
+                        ...(payload.userAgent?.trim()
+                            ? { userAgent: payload.userAgent.trim() }
+                            : {}),
+                        ...(payload.connectionTest
+                            ? { connectionTest: 'true' }
+                            : {}),
+                    };
+                    const requestPayload = {
+                        method: 'GET',
                         params: requestParams,
-                        ...headers,
-                    }
-                )
-            )) as PwaXtreamResponse;
+                        url: `${this.corsProxyUrl}/xtream`,
+                        ...(payload.macAddress
+                            ? {
+                                  headers: {
+                                      Cookie: `mac=${payload.macAddress}`,
+                                  },
+                              }
+                            : {}),
+                    };
+                    context = createPortalDebugRequestContext({
+                        provider: 'xtream',
+                        operation: payload.params?.action ?? 'unknown',
+                        transport: 'pwa-http',
+                        request: requestPayload,
+                    });
+                    logPortalDebugRequest(context);
+
+                    return this.http.get<PwaXtreamResponse>(
+                        `${this.corsProxyUrl}/xtream`,
+                        {
+                            params: requestParams,
+                            ...headers,
+                        }
+                    );
+                })
+            );
+            let result: PwaErrorResult | PwaXtreamResult;
 
             if (payload.connectionTest) return response;
 
@@ -643,44 +647,48 @@ export class PwaService extends DataService {
         });
 
         try {
-            const targetId = await this.getProviderTargetId(payload.url);
-            const token = payload.token ?? payload.params.token;
-            // `macAddress`, `token` and `serialNumber` are control params for
-            // the /stalker proxy: it turns them into the portal-facing
-            // Cookie / Authorization / SN headers and strips them from the
-            // query it forwards to the portal.
-            const requestParams = {
-                targetId,
-                ...payload.params,
-                macAddress: payload.macAddress,
-                ...(token ? { token } : {}),
-                ...(payload.serialNumber
-                    ? { serialNumber: payload.serialNumber }
-                    : {}),
-                // Endpoint-discovery probes are exempt from the backend's
-                // connectivity guard. Dropping this here would let two probes
-                // that time out open the breaker and fast-fail the healthy
-                // candidate discovery is looking for.
-                ...(payload.skipConnectionGuard
-                    ? { skipConnectionGuard: 'true' }
-                    : {}),
-            };
-            const params = new URLSearchParams(requestParams);
-            const requestUrl = `${this.corsProxyUrl}/stalker?${params.toString()}`;
-            context = createPortalDebugRequestContext({
-                provider: 'stalker',
-                operation: payload.params?.action ?? 'unknown',
-                transport: 'pwa-http',
-                request: {
-                    method: 'GET',
-                    params: requestParams,
-                    url: requestUrl,
-                },
-            });
-            logPortalDebugRequest(context);
+            const response = await this.providerTargets.fetch(
+                payload.url,
+                async (targetId) => {
+                    const token = payload.token ?? payload.params.token;
+                    // `macAddress`, `token` and `serialNumber` are control params for
+                    // the /stalker proxy: it turns them into the portal-facing
+                    // Cookie / Authorization / SN headers and strips them from the
+                    // query it forwards to the portal.
+                    const requestParams = {
+                        targetId,
+                        ...payload.params,
+                        macAddress: payload.macAddress,
+                        ...(token ? { token } : {}),
+                        ...(payload.serialNumber
+                            ? { serialNumber: payload.serialNumber }
+                            : {}),
+                        // Endpoint-discovery probes are exempt from the backend's
+                        // connectivity guard. Dropping this here would let two probes
+                        // that time out open the breaker and fast-fail the healthy
+                        // candidate discovery is looking for.
+                        ...(payload.skipConnectionGuard
+                            ? { skipConnectionGuard: 'true' }
+                            : {}),
+                    };
+                    const params = new URLSearchParams(requestParams);
+                    const requestUrl = `${this.corsProxyUrl}/stalker?${params.toString()}`;
+                    context = createPortalDebugRequestContext({
+                        provider: 'stalker',
+                        operation: payload.params?.action ?? 'unknown',
+                        transport: 'pwa-http',
+                        request: {
+                            method: 'GET',
+                            params: requestParams,
+                            url: requestUrl,
+                        },
+                    });
+                    logPortalDebugRequest(context);
 
-            // Make the fetch request
-            const response = await this.backendFetch(requestUrl, {});
+                    // Make the fetch request
+                    return this.backendFetch(requestUrl, {});
+                }
+            );
 
             if (!response.ok) {
                 throw new Error(
@@ -767,40 +775,16 @@ export class PwaService extends DataService {
 
     getPlaylistFromUrl(url: string, userAgent?: string): Observable<Playlist> {
         const normalizedUserAgent = userAgent?.trim();
-        return from(this.getProviderTargetId(url)).pipe(
-            switchMap((targetId) =>
-                this.http.get<Playlist>(`${this.corsProxyUrl}/parse`, {
-                    params: {
-                        targetId,
-                        ...(normalizedUserAgent
-                            ? { userAgent: normalizedUserAgent }
-                            : {}),
-                    },
-                })
-            )
+        return this.providerTargets.request(url, (targetId) =>
+            this.http.get<Playlist>(`${this.corsProxyUrl}/parse`, {
+                params: {
+                    targetId,
+                    ...(normalizedUserAgent
+                        ? { userAgent: normalizedUserAgent }
+                        : {}),
+                },
+            })
         );
-    }
-
-    private getProviderTargetId(url: string): Promise<string> {
-        const cachedTargetId = this.providerTargetIds.get(url);
-        if (cachedTargetId) {
-            return cachedTargetId;
-        }
-
-        const targetIdRequest = firstValueFrom(
-            this.http.post<ProviderTargetRegistration>(
-                `${this.corsProxyUrl}/provider-targets`,
-                { url }
-            )
-        )
-            .then((response) => response.targetId)
-            .catch((error) => {
-                this.providerTargetIds.delete(url);
-                throw error;
-            });
-
-        this.providerTargetIds.set(url, targetIdRequest);
-        return targetIdRequest;
     }
 
     removeAllListeners(type: string): void {
