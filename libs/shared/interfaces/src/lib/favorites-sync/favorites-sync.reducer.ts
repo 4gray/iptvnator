@@ -1,3 +1,4 @@
+import { sha256 } from './favorites-sha256';
 import type {
     FavoriteState,
     FavoriteOperation,
@@ -36,10 +37,10 @@ export function applyFavoriteOperation(
 /** Exact URL bytes retain the historical URL membership, including duplicate catalog rows. */
 export async function m3uFavoriteReference(url: string) {
     if (!url) throw new Error('Missing favorite URL');
-    const hash = await crypto.subtle.digest(
-        'SHA-256',
-        new TextEncoder().encode(url)
-    );
+    const bytes = new TextEncoder().encode(url);
+    const hash = crypto.subtle
+        ? new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+        : sha256(bytes);
     return {
         provider: 'm3u' as const,
         version: 1 as const,

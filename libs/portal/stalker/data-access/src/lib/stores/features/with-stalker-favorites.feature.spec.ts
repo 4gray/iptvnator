@@ -115,6 +115,7 @@ describe('withStalkerFavorites', () => {
             );
             expect(ngrxStore.dispatch).toHaveBeenCalledWith(
                 PlaylistActions.updatePlaylistMeta({
+                    persist: false,
                     playlist: {
                         _id: 'portal-1',
                         favorites: [{ id: '42', title: 'Movie Title' }],
@@ -206,6 +207,7 @@ describe('withStalkerFavorites', () => {
             ).toHaveBeenCalledWith('portal-1', '42', undefined);
             expect(ngrxStore.dispatch).toHaveBeenCalledWith(
                 PlaylistActions.updatePlaylistMeta({
+                    persist: false,
                     playlist: {
                         _id: 'portal-1',
                         favorites: [],

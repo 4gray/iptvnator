@@ -73,6 +73,18 @@ export class UnifiedFavoritesDataService {
         return this.getAllFavorites();
     }
 
+    membershipUid(item: UnifiedCollectionItem): string {
+        return item.sourceType === 'stalker' &&
+            this.favoriteSync.active() &&
+            item.stalkerItem
+            ? buildCollectionUid(
+                  'stalker',
+                  item.playlistId,
+                  this.getStalkerFavoriteId(item)
+              )
+            : item.uid;
+    }
+
     async addFavorite(item: UnifiedCollectionItem): Promise<void> {
         switch (item.sourceType) {
             case 'm3u':
@@ -152,7 +164,7 @@ export class UnifiedFavoritesDataService {
                 break;
             }
             case 'stalker': {
-                const sourceItemId = item.uid.split('::')[2];
+                const sourceItemId = item.stalkerId ?? item.uid.split('::')[2];
                 await firstValueFrom(
                     this.playlistsService.removeFromPortalFavorites(
                         item.playlistId,
@@ -345,6 +357,9 @@ export class UnifiedFavoritesDataService {
                                         this.getStalkerFavoriteId(favorite)
                                     )
                             ),
+                            ...current.filter(
+                                (favorite) => !isStalkerItem(favorite)
+                            ),
                         ];
                     }
                 )
@@ -470,16 +485,13 @@ export class UnifiedFavoritesDataService {
                         this.playlistsService.transformPlaylistFavorites(
                             playlistId,
                             (current) =>
-                                current
-                                    .filter(isStalkerItem)
-                                    .filter(
-                                        (favorite) =>
-                                            !targetIds.has(
-                                                this.getStalkerFavoriteId(
-                                                    favorite
-                                                )
-                                            )
-                                    )
+                                current.filter(
+                                    (favorite) =>
+                                        !isStalkerItem(favorite) ||
+                                        !targetIds.has(
+                                            this.getStalkerFavoriteId(favorite)
+                                        )
+                                )
                         )
                     );
                 }
@@ -863,6 +875,7 @@ export class UnifiedFavoritesDataService {
         );
         this.store.dispatch(
             PlaylistActions.updatePlaylistMeta({
+                persist: false,
                 playlist: {
                     _id: playlistId,
                     favorites: updatedPlaylist.favorites,

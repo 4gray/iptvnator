@@ -74,7 +74,8 @@ export function withStalkerFavorites() {
                                     portalId,
                                     {
                                         favorites: updatedPlaylist?.favorites,
-                                    }
+                                    },
+                                    false
                                 );
                                 snackBar.open(
                                     translate.instant(
@@ -121,7 +122,8 @@ export function withStalkerFavorites() {
                                     portalId,
                                     {
                                         favorites: updatedPlaylist?.favorites,
-                                    }
+                                    },
+                                    false
                                 );
                                 snackBar.open(
                                     translate.instant(

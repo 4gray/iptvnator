@@ -72,6 +72,12 @@ for (const provider of ['xtream', 'stalker'] as const)
     }) => {
         const server = await startSourceSyncServer();
         const context = await browser.newContext({ serviceWorkers: 'block' });
+        await context.addInitScript(() =>
+            Object.defineProperties(crypto, {
+                randomUUID: { value: undefined },
+                subtle: { value: undefined },
+            })
+        );
         const directory = mkdtempSync(
             join(tmpdir(), 'iptvnator-favorites-sync-')
         );
@@ -309,6 +315,12 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
 }, testInfo) => {
     const server = await startSourceSyncServer();
     const context = await browser.newContext({ serviceWorkers: 'block' });
+    await context.addInitScript(() =>
+        Object.defineProperties(crypto, {
+            randomUUID: { value: undefined },
+            subtle: { value: undefined },
+        })
+    );
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-favorites-m3u-'));
     let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
     try {

@@ -10,7 +10,10 @@ import {
     type FavoriteReference,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
-import { XTREAM_FAVORITE_IDENTITY_CONFLICT } from '@iptvnator/shared/interfaces';
+import {
+    normalizeContentMetadataPatch,
+    XTREAM_FAVORITE_IDENTITY_CONFLICT,
+} from '@iptvnator/shared/interfaces';
 
 type XtreamRef = Extract<FavoriteReference, { provider: 'xtream' }>;
 export function xtreamFavoriteReference(
@@ -170,30 +173,41 @@ export class FavoritesXtreamAdapter {
                 favoriteReferenceKey(xtreamFavoriteReference(item)) ===
                 favoriteReferenceKey(ref)
         );
+        const identity =
+            typeof target !== 'number' && target.identity
+                ? normalizeContentMetadataPatch(target.identity)
+                : null;
+        const conflictsWith = (item?: XtreamFavoriteItem | null) =>
+            !!item &&
+            (!!(
+                identity?.tmdbId &&
+                item.tmdb_id &&
+                identity.tmdbId !== Number(item.tmdb_id)
+            ) ||
+                !!(
+                    identity?.releaseYear &&
+                    item.release_year &&
+                    identity.releaseYear !== Number(item.release_year)
+                ));
         if (method === 'isFavorite')
             return (
                 !!current &&
-                current.catalog_missing_reason !== 'identity_conflict'
+                current.catalog_missing_reason !== 'identity_conflict' &&
+                !conflictsWith(current)
             );
+        if (conflictsWith(current))
+            throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
         const member = method === 'addFavorite';
         const candidate = await raw.getContentByXtreamId(
             Number(ref.id),
             sourceId,
             ref.kind
         );
-        if (member && current?.catalog_missing_reason === 'identity_conflict')
-            throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
-        const identity =
-            typeof target !== 'number' ? target.identity : undefined;
         if (
             member &&
-            candidate &&
-            ((identity?.tmdbId &&
-                candidate.tmdb_id &&
-                identity.tmdbId !== candidate.tmdb_id) ||
-                (identity?.releaseYear &&
-                    candidate.release_year &&
-                    identity.releaseYear !== candidate.release_year))
+            (current?.catalog_missing_reason === 'identity_conflict' ||
+                candidate?.catalog_missing_reason === 'identity_conflict' ||
+                conflictsWith(candidate))
         )
             throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
         const snapshot =

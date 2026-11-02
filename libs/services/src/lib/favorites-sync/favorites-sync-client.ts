@@ -1,3 +1,4 @@
+import { createRandomId } from '@iptvnator/shared/interfaces';
 import { deliverFavorites } from './favorites-sync-delivery';
 import {
     FavoriteSupersededError,
@@ -195,7 +196,7 @@ export class FavoritesSyncClient {
         if (knownIncarnation && knownIncarnation !== context.sourceIncarnation)
             throw new FavoriteSupersededError();
         const address = this.address(context, content);
-        const operationId = crypto.randomUUID();
+        const operationId = createRandomId();
         await this.store.mutate(address, (current) => {
             this.current(generation);
             currentAction();
@@ -313,7 +314,7 @@ export class FavoritesSyncClient {
     async resolve(address: FavoriteAddress, useLocal: boolean): Promise<void> {
         const currentAction = this.action(address.sourceId, address.content);
         const generation = this.generation();
-        const operationId = crypto.randomUUID();
+        const operationId = createRandomId();
         await this.store.mutate(address, (current) => {
             this.current(generation);
             currentAction();

@@ -209,6 +209,16 @@ export class UnifiedCollectionDataService {
                 params.portalType
             );
             const uids = new Set(favorites.map((item) => item.uid));
+            const memberships = new Set(
+                favorites.map((item) => this.favoritesData.membershipUid(item))
+            );
+            for (const item of recentItems) {
+                if (
+                    item.sourceType === 'stalker' &&
+                    memberships.has(this.favoritesData.membershipUid(item))
+                )
+                    uids.add(item.uid);
+            }
             await Promise.all(
                 recentItems.map(async (item) => {
                     if (item.sourceType !== 'xtream' || !uids.has(item.uid))

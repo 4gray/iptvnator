@@ -1,7 +1,8 @@
 # Optional self-hosted favorites synchronization
 
 Date: 2026-11-02. Implementation authorized by the handoff.
-Base: origin/master, 2f788b80d980215b08e495662bbebde1d600f823 (#2062).
+Base at start: origin/master, 2f788b80d980215b08e495662bbebde1d600f823 (#2062).
+Rebased before final review onto cf9b66c7171d6771a971f0460ee4443ff2888cb2.
 Branch: codex/favorites-sync, isolated managed worktree. Main checkout is untouched.
 
 ## Reconciled scope
@@ -75,7 +76,7 @@ temporary browser contexts, Electron profiles and a disposable Docker container.
   categories; active hearts update without navigation. M3U verifies offline
   conflicts, independent adds, duplicate URLs and narrow light/dark settings.
 - Production Electron/frontend/worker builds and the initial-byte gate pass:
-  1,200,282 bytes against 1,200,301 allowed; no baseline changes.
+  1,199,408 bytes against 1,200,301 allowed; no baseline changes.
 - Docker linux/arm64 PWA/backend build and HTTP smoke pass, including restart,
   persisted server identity, removals and old idempotency receipts.
 - Canonical subsystem docs, Docker guidance and the feature release note are
@@ -86,3 +87,11 @@ in this environment; mixed macOS Electron and local Linux arm64 Docker supply
 the runtime evidence. Greptile CLI is absent, so its documented exception applies.
 Local Codex review follows the committed-branch gate before the first push. The
 separate PR must remain unmerged and must not close #2059 or #1616.
+
+Local review round 1 identified six real regressions; all were accepted for repair:
+HTTP crypto availability, Stalker projection-to-archive writes, typed collection
+removal IDs, recent-row membership comparison, new local sources after opt-out,
+and Xtream requested-identity checks. Each repair has regression coverage; the
+real browser IndexedDB harness also exercises client mutation and SHA-256 at an
+insecure HTTP origin. Mixed favorites scenarios remove secure-context crypto APIs
+from PWA contexts to exercise the fallback through Settings and provider actions.

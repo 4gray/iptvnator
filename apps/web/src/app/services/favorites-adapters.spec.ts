@@ -42,6 +42,61 @@ beforeAll(() =>
     })
 );
 describe('favorite provider references and projections', () => {
+    it('checks requested Xtream identity before status or removal and allows explicit original removal', async () => {
+        const saved = {
+            id: null,
+            category_id: null,
+            xtream_id: 42,
+            type: 'movie',
+            title: 'Synthetic retained item',
+            tmdb_id: 100,
+            release_year: 1995,
+        };
+        const raw = {
+            getFavorites: async () => [saved],
+            getContentByXtreamId: async () => ({
+                ...saved,
+                id: 1,
+                tmdb_id: 200,
+                release_year: 2024,
+            }),
+        } as unknown as IXtreamDataSource;
+        const set = jest.fn(async () => undefined);
+        const client = {
+            entries: async () => [],
+            set,
+        } as unknown as FavoritesSyncClient;
+        const adapter = new FavoritesXtreamAdapter(client, () => true, false);
+        const replacement = {
+            id: 42,
+            providerId: 42,
+            type: 'movie',
+            identity: { tmdbId: 200, releaseYear: 2024 },
+        };
+        expect(
+            await adapter.invoke(raw, 'isFavorite', [replacement, 'source'])
+        ).toBe(false);
+        await expect(
+            adapter.invoke(raw, 'removeFavorite', [replacement, 'source'])
+        ).rejects.toThrow('XTREAM_FAVORITE_IDENTITY_CONFLICT');
+        expect(set).not.toHaveBeenCalled();
+        const original = {
+            ...replacement,
+            identity: { tmdbId: 100, releaseYear: 1995 },
+        };
+        expect(
+            await adapter.invoke(raw, 'isFavorite', [original, 'source'])
+        ).toBe(true);
+        Object.assign(saved, { catalog_missing_reason: 'identity_conflict' });
+        await adapter.invoke(raw, 'removeFavorite', [original, 'source']);
+        expect(set).toHaveBeenCalledWith(
+            'source',
+            { provider: 'xtream', kind: 'movie', id: '42' },
+            false,
+            expect.objectContaining({ tmdbId: '100' })
+        );
+    });
+
     it('retains URL membership for duplicate M3U entries and verified legacy IDs', async () => {
         const source = playlist([]);
         expect((await playlistFavorite(source, 'one'))?.reference).toEqual(

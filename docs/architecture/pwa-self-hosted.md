@@ -1189,7 +1189,9 @@ require an explicit choice; independent keys do not replace a collection map.
 Legacy playlist and user-state writes cannot erase the new membership tables.
 
 M3U v1 references contain the SHA-256 digest of the exact URL bytes. Duplicate
-URLs retain one membership. Clients resolve legacy IDs only through their local
+URLs retain one membership. SubtleCrypto is used where available, with a byte-identical
+SHA-256 fallback for HTTP LAN origins; IDs use the shared HTTP-compatible UUID helper.
+Clients resolve legacy IDs only through their local
 catalog; title and tvg-id never establish identity. Raw stream URLs stay in local
 catalogs, outside the favorites wire reference. Changed URLs and ambiguous legacy
 IDs remain unresolved rather than matching by title. Xtream references carry the
@@ -1241,3 +1243,18 @@ navigation. Stalker removals carry the content kind and series origin, and live
 controls acknowledge membership only after local persistence. Xtream collection
 ordering remains in device-local app state (browser storage in PWA), outside the
 shared membership protocol.
+
+Favorite completion updates in the Stalker store and unified M3U collection
+are UI-only metadata actions:
+the membership/archive owner has already persisted the write. Projected shared
+favorites must never be written back into the retained source archive. After
+opt-out, a newly added source without a verified favorites context keeps using
+ordinary local favorite storage and makes no favorites requests. Recent Stalker
+rows keep their own UIDs; collection checks normalize typed favorite membership
+without changing recent history or ordering. Xtream status and removal honor the
+requested identity hints against the retained favorite, including provider ID reuse.
+
+The HTTP SHA-256 fallback is a static dependency of the favorites code, so the
+first offline favorite action does not depend on fetching an additional chunk.
+Stalker bulk clear/reorder retains unresolved local values outside the selected
+typed memberships.

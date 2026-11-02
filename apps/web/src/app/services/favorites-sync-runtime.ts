@@ -1,3 +1,4 @@
+import { createRandomId } from '@iptvnator/shared/interfaces';
 import { refreshFavoriteViews } from './favorites-view-refresh';
 import { projectFavoriteBackup } from './favorites-backup-projection';
 import {
@@ -159,8 +160,8 @@ export class FavoritesSyncRuntime {
                 key,
                 JSON.stringify({
                     enabled,
-                    generation: crypto.randomUUID(),
-                    deviceId: previous?.deviceId ?? crypto.randomUUID(),
+                    generation: createRandomId(),
+                    deviceId: previous?.deviceId ?? createRandomId(),
                 })
             );
             this.enabled.set(enabled);
@@ -266,7 +267,9 @@ export class FavoritesSyncRuntime {
         ) => Promise<void>
     ) {
         this.error.set(false);
-        this.ensureClient();
+        const client = this.ensureClient();
+        if (!favoritesEnabled() && !client.contexts.has(playlist._id))
+            return null;
         try {
             const result = await this.playlistAdapter!.mutate(
                 playlist,
@@ -282,7 +285,10 @@ export class FavoritesSyncRuntime {
     }
     async invoke(raw: IXtreamDataSource, method: string, args: unknown[]) {
         this.error.set(false);
-        this.ensureClient();
+        const client = this.ensureClient();
+        const sourceId = String(args[method === 'getFavorites' ? 0 : 1]);
+        if (!favoritesEnabled() && !client.contexts.has(sourceId))
+            return Reflect.apply(Reflect.get(raw, method), raw, args);
         try {
             const result = await this.xtreamAdapter!.invoke(raw, method, args);
             await this.summary();

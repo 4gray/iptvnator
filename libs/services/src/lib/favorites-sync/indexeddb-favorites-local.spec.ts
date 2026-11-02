@@ -19,7 +19,7 @@ describe('favorites outbox in real browser IndexedDB', () => {
             import { chromium } from '@playwright/test';
             import { runtimeCoveragePlugin, writeRuntimeCoverage } from '@iptvnator/shared/testing/runtime-coverage';
             const options = { platform: 'browser', plugins: [runtimeCoveragePlugin(/indexeddb-favorites-local[.]ts$/)] };
-            const result = await build({ stdin: { contents: "export { IndexedDbFavoriteLocalStore } from './libs/services/src/lib/favorites-sync/indexeddb-favorites-local';", resolveDir: process.cwd(), loader: 'ts' }, bundle: true, write: false, format: 'iife', globalName: 'favoritesTest', tsconfig: 'tsconfig.base.json', ...options });
+            const result = await build({ stdin: { contents: "export { IndexedDbFavoriteLocalStore } from './libs/services/src/lib/favorites-sync/indexeddb-favorites-local'; export { FavoritesSyncClient } from './libs/services/src/lib/favorites-sync/favorites-sync-client'; export { m3uFavoriteReference } from './libs/shared/interfaces/src/lib/favorites-sync/favorites-sync.reducer'; export { createRandomId } from './libs/shared/interfaces/src/lib/random-id.util';", resolveDir: process.cwd(), loader: 'ts' }, bundle: true, write: false, format: 'iife', globalName: 'favoritesTest', tsconfig: 'tsconfig.base.json', ...options });
             const bundle = result.outputFiles[0].text;
             const browser = await chromium.launch({ headless: true });
             const snapshots = [];
@@ -29,6 +29,17 @@ describe('favorites outbox in real browser IndexedDB', () => {
                 await context.route('http://favorites.test/**', route => route.fulfill({ body: '<html></html>', contentType: 'text/html' }));
                 const pages = await Promise.all([context.newPage(), context.newPage()]);
                 for (const page of pages) { await page.goto('http://favorites.test'); await page.addScriptTag({ content: bundle }); }
+                const http = await pages[0].evaluate(async () => {
+                    const api = window.favoritesTest;
+                    const source = { sourceId: 'source', sourceIncarnation: 'first', provider: 'xtream' };
+                    const store = new api.IndexedDbFavoriteLocalStore('http-nas');
+                    const client = new api.FavoritesSyncClient(store, { instanceId: 'http-nas', deviceId: api.createRandomId(), contexts: [source], consent: () => 'consent', request: async () => { throw new Error('offline'); }, remember: () => undefined, changed: () => undefined });
+                    await client.set('source', { provider: 'xtream', kind: 'movie', id: '99' }, true);
+                    return { secure: isSecureContext, subtle: typeof crypto.subtle, randomUUID: typeof crypto.randomUUID, hash: (await api.m3uFavoriteReference('https://synthetic.invalid/stream')).urlHash, pending: await store.pending() };
+                });
+                assert.equal(http.secure, false); assert.equal(http.subtle, 'undefined'); assert.equal(http.randomUUID, 'undefined');
+                assert.equal(http.hash, '59936cfe563ba8f9672e4c077e3f9a8f7473db9bd9ce922aa97aa9081165d271'); assert.equal(http.pending.length, 1);
+                assert.match(http.pending[0].operation.operationId, /^[a-f0-9-]{36}$/);
                 const address = { instanceId: 'nas', scope: 'shared', sourceId: 'source', sourceIncarnation: 'first', content: { provider: 'xtream', kind: 'movie', id: '42' } };
                 await Promise.all(pages.map((page, tab) => page.evaluate(async ({ address, tab }) => {
                     const store = new window.favoritesTest.IndexedDbFavoriteLocalStore('nas');

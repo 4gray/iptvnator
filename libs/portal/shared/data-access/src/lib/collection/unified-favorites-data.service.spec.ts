@@ -579,6 +579,7 @@ describe('UnifiedFavoritesDataService', () => {
         expect(store.dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: '[Playlists] Update Playlist Meta',
+                persist: false,
                 playlist: expect.objectContaining({
                     _id: 'm3u-1',
                     favorites: [
@@ -991,6 +992,7 @@ describe('UnifiedFavoritesDataService', () => {
         expect(store.dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: '[Playlists] Update Playlist Meta',
+                persist: false,
                 playlist: expect.objectContaining({
                     _id: 'm3u-1',
                     favorites: ['https://example.com/3.m3u8'],
