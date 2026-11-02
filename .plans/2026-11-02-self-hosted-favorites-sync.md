@@ -170,3 +170,17 @@ polling cycle in both PWA and Electron. Stalker and M3U mixed cases also pass.
 Ponytail connected-code inspection assumes one shared home server with a few
 clients. It found no additional confirmed issue after these repairs; it checked
 authorization, transactions, durable receipts, source/profile fences and callers.
+
+Local review round 6 identified four additional real issues, all accepted:
+Stalker hydrated detail resets during polling, legacy embedded/lazy reference
+classification, string radio markers, and shared identity/conflict overlay in
+Xtream backups. New focused regressions fail before repair for each. The fixes
+reuse the source session fingerprint and the same identity guard for display
+and backup; archive ordering/timestamps and the strict series predicate remain.
+
+Round-6 repairs pass all 42 spec programs, affected lint and full coverage:
+statements 85.31%, branches 76.88%, functions 83.63%, lines 85.81%.
+Production Electron/frontend/worker and Linux arm64 Docker builds pass; the
+initial payload is 1,199,591 / 1,200,301 bytes. All three mixed favorites flows
+and Docker HTTP add/remove/receipt/restart smoke pass. Radio classification reuses
+the existing shared predicate with transport-command fields excluded.

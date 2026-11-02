@@ -1,3 +1,4 @@
+import { isStalkerRadioItem } from '../stalker-item.normalizer';
 import type { StalkerPortalItem } from '../stalker-portal-item.interface';
 import type { FavoriteReference } from './favorites-sync.contract';
 /** Ambiguous historical rows remain local; names and commands never establish identity. */
@@ -18,7 +19,11 @@ export function stalkerFavoriteReference(
         !!item.series?.length;
     const kind = series
         ? 'series'
-        : category === 'radio' || positive(item.radio)
+        : isStalkerRadioItem({
+                radio: item.radio,
+                category_id: category,
+                stream_type: item.stream_type,
+            })
           ? 'radio'
           : category === 'itv' || item.stream_type === 'live'
             ? 'live'
@@ -28,12 +33,11 @@ export function stalkerFavoriteReference(
               ? 'movie'
               : null;
     if (!kind) return null;
-    const mode =
-        category === 'series'
-            ? 'regular'
-            : item.series?.length
-              ? 'embedded'
-              : 'lazy';
+    const mode = item.series?.length
+        ? 'embedded'
+        : positive(item.is_series)
+          ? 'lazy'
+          : 'regular';
     return {
         provider: 'stalker',
         kind,

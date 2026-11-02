@@ -1282,3 +1282,7 @@ favorite cache is invalidated after a successful removal.
 Both applied and conflict receipts are compared with the newest locally known
 server revision. Replaying an older persisted conflict receipt cannot roll back
 a later polling result; either conflict choice starts from that newest copy.
+
+Xtream backup projection overlays shared identity and conflict metadata on
+existing typed archive entries too, preserving local order and timestamps.
+The same identity-compatibility helper guards both visible projection and export.

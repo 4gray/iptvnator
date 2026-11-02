@@ -8,6 +8,7 @@ import {
     favoriteReferenceKey,
     parseFavoriteSnapshot,
     type FavoriteReference,
+    type FavoriteSnapshot,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
 import {
@@ -43,6 +44,25 @@ export function xtreamFavoriteSnapshot(item: XtreamFavoriteItem) {
             ? { identityConflict: true }
             : {}),
     });
+}
+/** Shared identity guards also apply when exporting a retained local backup. */
+export function hasXtreamFavoriteIdentityConflict(
+    snapshot: FavoriteSnapshot | undefined,
+    candidate?: Pick<
+        XtreamFavoriteItem,
+        'tmdb_id' | 'release_year' | 'catalog_missing_reason'
+    > | null
+): boolean {
+    return !!(
+        snapshot?.identityConflict ||
+        candidate?.catalog_missing_reason === 'identity_conflict' ||
+        (snapshot?.tmdbId &&
+            candidate?.tmdb_id != null &&
+            snapshot.tmdbId !== String(candidate.tmdb_id)) ||
+        (snapshot?.releaseYear &&
+            candidate?.release_year != null &&
+            snapshot.releaseYear !== String(candidate.release_year))
+    );
 }
 export class FavoritesXtreamAdapter {
     constructor(
@@ -80,19 +100,10 @@ export class FavoritesXtreamAdapter {
                     sourceId,
                     ref.kind
                 ));
-            const conflict =
-                snapshot?.identityConflict ||
-                candidate?.catalog_missing_reason === 'identity_conflict' ||
-                !!(
-                    snapshot?.tmdbId &&
-                    candidate?.tmdb_id != null &&
-                    snapshot.tmdbId !== String(candidate.tmdb_id)
-                ) ||
-                !!(
-                    snapshot?.releaseYear &&
-                    candidate?.release_year != null &&
-                    snapshot.releaseYear !== String(candidate.release_year)
-                );
+            const conflict = hasXtreamFavoriteIdentityConflict(
+                snapshot,
+                candidate
+            );
             mapped.set(key, {
                 ...(candidate ?? {
                     title: snapshot?.title ?? '',

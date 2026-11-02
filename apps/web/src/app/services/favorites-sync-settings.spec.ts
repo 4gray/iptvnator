@@ -123,6 +123,72 @@ describe('favorite preview and retained local copy', () => {
         ).toBe(1);
         expect(f.set).not.toHaveBeenCalled();
     });
+    it.each([false, true])(
+        'overlays shared identity on an archived Xtream backup (explicitConflict=%s)',
+        async (explicitConflict) => {
+            const f = fixture();
+            f.entries[0].record.state = {
+                revision: 2,
+                member: true,
+                snapshot: {
+                    title: 'Synthetic shared item',
+                    tmdbId: '100',
+                    releaseYear: '1995',
+                    ...(explicitConflict ? { identityConflict: true } : {}),
+                },
+            };
+            const entry = {
+                portalType: 'xtream',
+                exportedId: 'source',
+                title: 'Synthetic source',
+                autoRefresh: false,
+                connection: {
+                    serverUrl: 'https://fixture.invalid',
+                    username: 'fixture',
+                    password: 'fixture',
+                },
+                userState: {
+                    hiddenCategories: [],
+                    favorites: [
+                        {
+                            xtreamId: 42,
+                            contentType: 'movie',
+                            position: 3,
+                            addedAt: '2026-01-01T00:00:00Z',
+                            snapshot: {
+                                title: 'Synthetic archived item',
+                                tmdbId: 200,
+                                releaseYear: 2024,
+                                catalogStatus: 'present',
+                            },
+                        },
+                    ],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                },
+            } as XtreamPlaylistBackupEntry;
+            const result = (await projectFavoriteBackup(
+                f.client,
+                {} as FavoritesPlaylistAdapter,
+                f.source,
+                entry
+            )) as XtreamPlaylistBackupEntry;
+            expect(result.userState.favorites[0]).toMatchObject({
+                xtreamId: 42,
+                position: 3,
+                addedAt: '2026-01-01T00:00:00Z',
+                snapshot: {
+                    tmdbId: 100,
+                    releaseYear: 1995,
+                    catalogStatus: 'missing',
+                    catalogMissingReason: 'identity_conflict',
+                },
+            });
+            expect(entry.userState.favorites[0].snapshot?.tmdbId).toBe(200);
+            expect(f.set).not.toHaveBeenCalled();
+        }
+    );
+
     it('exports the durable visible projection without importing or changing recent history', async () => {
         const f = fixture();
         f.entries[1].record.state = {

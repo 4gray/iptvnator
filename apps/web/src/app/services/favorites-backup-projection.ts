@@ -1,3 +1,4 @@
+import { hasXtreamFavoriteIdentityConflict } from './favorites-xtream-adapter';
 import type {
     Playlist,
     PlaylistBackupEntry,
@@ -56,27 +57,34 @@ export async function projectFavoriteBackup(
             favorites.delete(key);
             continue;
         }
-        if (!favorites.has(key))
-            favorites.set(key, {
-                xtreamId: Number(ref.id),
-                contentType: ref.kind,
-                snapshot: {
-                    title: state.snapshot?.title ?? '',
-                    catalogStatus: 'unknown',
-                    ...(state.snapshot?.tmdbId
-                        ? { tmdbId: Number(state.snapshot.tmdbId) }
-                        : {}),
-                    ...(state.snapshot?.releaseYear
-                        ? { releaseYear: Number(state.snapshot.releaseYear) }
-                        : {}),
-                    ...(state.snapshot?.identityConflict
-                        ? {
-                              catalogStatus: 'missing',
-                              catalogMissingReason: 'identity_conflict',
-                          }
-                        : {}),
-                },
-            });
+        const previous = favorites.get(key);
+        const conflict = hasXtreamFavoriteIdentityConflict(state.snapshot, {
+            tmdb_id: previous?.snapshot?.tmdbId,
+            release_year: previous?.snapshot?.releaseYear,
+            catalog_missing_reason: previous?.snapshot?.catalogMissingReason,
+        });
+        favorites.set(key, {
+            ...previous,
+            xtreamId: Number(ref.id),
+            contentType: ref.kind,
+            snapshot: {
+                ...previous?.snapshot,
+                title: state.snapshot?.title ?? previous?.snapshot?.title ?? '',
+                catalogStatus: previous?.snapshot?.catalogStatus ?? 'unknown',
+                ...(state.snapshot?.tmdbId
+                    ? { tmdbId: Number(state.snapshot.tmdbId) }
+                    : {}),
+                ...(state.snapshot?.releaseYear
+                    ? { releaseYear: Number(state.snapshot.releaseYear) }
+                    : {}),
+                ...(conflict
+                    ? {
+                          catalogStatus: 'missing',
+                          catalogMissingReason: 'identity_conflict',
+                      }
+                    : {}),
+            },
+        });
     }
     return {
         ...entry,

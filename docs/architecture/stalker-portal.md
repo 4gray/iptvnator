@@ -2080,3 +2080,9 @@ remain intact even when the provider reuses the same numeric ID.
 Dashboard favorites with the new typed marker also use kind and series origin
 for their card identity. Their provider ID remains separate for navigation and
 explicit removal; historical untyped card identities remain unchanged.
+
+Collection polling also preserves the hydrated Stalker selection and season
+resources for the same source identity and series mode. A real connection edit
+still resets the context. Shared references honor legacy embedded/lazy markers
+before the old `series` category, and accept the existing string radio marker
+without widening the strict `is_series` predicate.
