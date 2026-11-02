@@ -187,6 +187,9 @@ export interface XtreamOperationOptions {
  * Allows different implementations for Electron (DB-first) and PWA (API-only).
  */
 export interface IXtreamDataSource {
+    /** Only the consent-aware adapter may handle provider references without SQLite rows. */
+    supportsPortableFavorites?(playlistId: string): boolean | Promise<boolean>;
+
     // =========================================================================
     // Playlist Operations
     // =========================================================================

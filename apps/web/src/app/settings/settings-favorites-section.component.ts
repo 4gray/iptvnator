@@ -14,6 +14,7 @@ import { loadFavoritesRuntime } from '../services/favorites-sync.providers';
 import {
     favoriteAddressKey,
     type FavoriteAddress,
+    type FavoriteEntry,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type {
     FavoritesSyncRuntime,
@@ -48,6 +49,17 @@ export class SettingsFavoritesSectionComponent {
         void loadFavoritesRuntime(inject(EnvironmentInjector))
             .then((runtime) => this.runtime.set(runtime))
             .catch(() => this.failed.set(true));
+    }
+    conflictTitle(entry: FavoriteEntry): string {
+        const title =
+            entry.record.state.snapshot?.title ??
+            entry.record.local?.snapshot?.title ??
+            entry.record.conflict?.snapshot?.title;
+        if (title) return title;
+        const ref = entry.address.content;
+        return ref.provider === 'm3u'
+            ? `M3U · ${ref.urlHash.slice(0, 12)}`
+            : `${ref.provider} · ${ref.kind} · ${ref.id}${ref.provider === 'stalker' && ref.mode ? ` · ${ref.mode}` : ''}`;
     }
     async toggle(change: { checked: boolean; source: { checked: boolean } }) {
         await this.action(() => this.runtime()!.setEnabled(change.checked));

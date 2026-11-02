@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ComponentRef,
     EnvironmentInjector,
     OnDestroy,
     Type,
@@ -88,6 +89,8 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
     private readonly environmentInjector = inject(EnvironmentInjector);
     private closeSubscription: { unsubscribe(): void } | null = null;
     private renderRequestId = 0;
+    private detailRef: ComponentRef<unknown> | null = null;
+    private detailKey: string | null = null;
 
     constructor() {
         effect(() => {
@@ -109,6 +112,21 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
         item: UnifiedCollectionItem | null,
         seriesResume: SeriesResumeTarget | null
     ): Promise<void> {
+        const key = item
+            ? JSON.stringify([
+                  item.sourceType,
+                  item.playlistId,
+                  item.uid,
+                  item.contentType,
+                  item.xtreamIdentity?.tmdbId,
+                  item.xtreamIdentity?.releaseYear,
+              ])
+            : null;
+        if (key && key === this.detailKey && this.detailRef) {
+            this.detailRef.setInput('item', item);
+            this.detailRef.setInput('seriesResume', seriesResume);
+            return;
+        }
         const requestId = ++this.renderRequestId;
         this.clearDetail();
         this.isLoading.set(
@@ -127,6 +145,8 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
         const componentRef = this.viewContainer.createComponent(componentType, {
             environmentInjector: this.environmentInjector,
         });
+        this.detailRef = componentRef;
+        this.detailKey = key;
         componentRef.setInput('item', item);
         // Both portal details accept the one-shot resume handoff (Xtream
         // series, Stalker embedded-VOD / lazy is_series shows).
@@ -167,6 +187,8 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
     private clearDetail(): void {
         this.closeSubscription?.unsubscribe();
         this.closeSubscription = null;
+        this.detailRef = null;
+        this.detailKey = null;
         this.viewContainer.clear();
     }
 }

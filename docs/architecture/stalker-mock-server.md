@@ -233,7 +233,7 @@ marker and an `ffrt4://radio/...` command.
 }
 ```
 
-The stream URL is selected from a pool of 4 real public HLS test streams. The choice is deterministic based on the `cmd` field's character sum, so the same item always returns the same stream.
+The default video stream URL is selected from a pool of 4 public HLS test streams, deterministically from the `cmd` character sum. Default radio uses the local progressive `/stream/audio.mp4` fixture, because a bare Chromium audio element cannot play HLS. Credential-gated and TV scenarios retain their own media routes.
 
 `cmd_received` and `query_keys_received` are mock-only diagnostics (a real
 portal does not send them): they echo the request's `cmd` after Express' single

@@ -71,14 +71,19 @@ export const withFavorites = function () {
                         type,
                         ...(sqlite() && identity ? [identity] : [])
                     );
-                    const contentId = content?.id ?? (!sqlite() ? id : null);
+                    const portable =
+                        await dataSource.supportsPortableFavorites?.(playlist);
+                    const contentId =
+                        content?.id ?? (!sqlite() || portable ? id : null);
                     return contentId == null
                         ? null
                         : {
                               id: contentId,
                               providerId: id,
                               type,
-                              ...(!sqlite() && identity ? { identity } : {}),
+                              ...((!sqlite() || portable) && identity
+                                  ? { identity }
+                                  : {}),
                           };
                 };
                 const methods = {

@@ -44,6 +44,7 @@ describe('withFavorites', () => {
         getContentByXtreamId: jest.Mock;
         isFavorite: jest.Mock;
         removeFavorite: jest.Mock;
+        supportsPortableFavorites: jest.Mock;
     };
 
     beforeEach(() => {
@@ -54,6 +55,7 @@ describe('withFavorites', () => {
             getContentByXtreamId: jest.fn(),
             isFavorite: jest.fn().mockResolvedValue(false),
             removeFavorite: jest.fn().mockResolvedValue(undefined),
+            supportsPortableFavorites: jest.fn().mockResolvedValue(false),
         };
 
         TestBed.configureTestingModule({
@@ -79,6 +81,33 @@ describe('withFavorites', () => {
             writable: true,
             value: originalElectron,
         });
+    });
+
+    it('uses the consent-aware provider reference for a downloaded favorite without a native row', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        dataSource.supportsPortableFavorites.mockResolvedValue(true);
+        dataSource.isFavorite.mockResolvedValue(true);
+        const identity = { tmdbId: 100, releaseYear: 1995 };
+        await store.checkFavoriteStatus(
+            42,
+            'synthetic-source',
+            'movie',
+            identity
+        );
+        expect(store.isFavorite()).toBe(true);
+        await store.toggleFavorite(
+            42,
+            'synthetic-source',
+            'movie',
+            undefined,
+            identity
+        );
+        expect(dataSource.removeFavorite).toHaveBeenCalledWith(
+            { id: 42, providerId: 42, type: 'movie', identity },
+            'synthetic-source'
+        );
+        expect(store.isFavorite()).toBe(false);
     });
 
     it('refreshes the active heart after a durable favorite change and detaches on destroy', async () => {

@@ -35,12 +35,28 @@ describe('new sources after favorites opt-out', () => {
             FavoritesSyncRuntime.prototype
         ) as FavoritesSyncRuntime;
         const request = jest.fn();
+        const contexts = new Map();
         Object.assign(value, {
             error: signal(false),
-            ensureClient: () => ({ contexts: new Map(), options: { request } }),
+            ensureClient: () => ({ contexts, options: { request } }),
         });
-        return { value, request };
+        return { value, request, contexts };
     };
+    it('allows provider references only for a context this disabled profile already owns', async () => {
+        const { value, contexts } = runtime();
+        const raw = {} as IXtreamDataSource;
+        expect(
+            await value.invoke(raw, 'supportsPortableFavorites', [
+                'synthetic-new-source',
+            ])
+        ).toBe(false);
+        contexts.set('synthetic-known-source', { sourceIncarnation: 'first' });
+        expect(
+            await value.invoke(raw, 'supportsPortableFavorites', [
+                'synthetic-known-source',
+            ])
+        ).toBe(true);
+    });
     it('returns playlist mutations to ordinary local persistence without requesting context', async () => {
         const { value, request } = runtime();
         expect(

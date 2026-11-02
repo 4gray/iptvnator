@@ -83,7 +83,34 @@
                     entry of favorites.conflicts();
                     track addressKey(entry.address)
                 ) {
-                    <div class="favorites-conflict">
+                    <section
+                        class="favorites-conflict"
+                        [attr.aria-label]="conflictTitle(entry)"
+                    >
+                        <h3>{{ conflictTitle(entry) }}</h3>
+                        <p>
+                            {{ favorites.sourceTitle(entry.address.sourceId) }}
+                        </p>
+                        <p>
+                            {{ 'FAVORITES_SYNC.LOCAL_MEMBERSHIP' | translate }}:
+                            {{
+                                (entry.record.state.member
+                                    ? 'FAVORITES_SYNC.MEMBER_PRESENT'
+                                    : 'FAVORITES_SYNC.MEMBER_ABSENT'
+                                ) | translate
+                            }}
+                        </p>
+                        <p>
+                            {{
+                                'FAVORITES_SYNC.SERVER_MEMBERSHIP' | translate
+                            }}:
+                            {{
+                                (entry.record.conflict?.member
+                                    ? 'FAVORITES_SYNC.MEMBER_PRESENT'
+                                    : 'FAVORITES_SYNC.MEMBER_ABSENT'
+                                ) | translate
+                            }}
+                        </p>
                         <p>{{ 'FAVORITES_SYNC.CONFLICT' | translate }}</p>
                         <div class="favorites-actions">
                             <button
@@ -93,7 +120,7 @@
                                 [disabled]="busy()"
                                 data-test-id="favorites-keep-server"
                             >
-                                {{ 'ACTIVITY_SYNC.KEEP_SERVER' | translate }}
+                                {{ 'FAVORITES_SYNC.KEEP_SERVER' | translate }}
                             </button>
                             <button
                                 type="button"
@@ -102,10 +129,10 @@
                                 [disabled]="busy()"
                                 data-test-id="favorites-use-local"
                             >
-                                {{ 'ACTIVITY_SYNC.USE_LOCAL' | translate }}
+                                {{ 'FAVORITES_SYNC.USE_LOCAL' | translate }}
                             </button>
                         </div>
-                    </div>
+                    </section>
                 }
                 @if (preview(); as items) {
                     <p>

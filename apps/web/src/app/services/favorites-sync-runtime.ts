@@ -1,3 +1,4 @@
+import { readFavoriteSummary } from './favorites-runtime-summary';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import { refreshFavoriteViews } from './favorites-view-refresh';
 import { projectFavoriteBackup } from './favorites-backup-projection';
@@ -31,6 +32,7 @@ import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import {
     FavoritesSyncClient,
     FavoriteRequestError,
+    FavoriteSupersededError,
 } from '@iptvnator/services/favorites-sync';
 import {
     ElectronXtreamDataSource,
@@ -96,6 +98,7 @@ export class FavoritesSyncRuntime {
         if (
             this.client?.options.instanceId !== sourceConnection()?.instanceId
         ) {
+            this.sourceNames.clear();
             const created = createFavoritesRuntimeClient(
                 this.capabilities,
                 (id) => firstValueFrom(this.playlists.getPlaylistById(id)),
@@ -213,17 +216,10 @@ export class FavoritesSyncRuntime {
                 if (!sources.some((source) => source._id === id))
                     client.forget(id);
             for (const source of sources) await client.refresh(source._id);
-            await this.summary();
+            const summary = await this.summary();
+            if (!summary) return;
             this.lastSync.set(new Date());
-            this.state.set(
-                this.conflicts().length
-                    ? 'conflict'
-                    : this.parkedCount()
-                      ? 'choice'
-                      : this.pending()
-                        ? 'pending'
-                        : 'ready'
-            );
+            this.state.set(summary.state);
             await this.publish();
         } catch (error) {
             if (
@@ -234,6 +230,7 @@ export class FavoritesSyncRuntime {
         }
     }
     private reportFailure(error: unknown): void {
+        if (error instanceof FavoriteSupersededError) return;
         const message = error instanceof Error ? error.message : '';
         const storage =
             /storage|quota|indexeddb|database/i.test(message) ||
@@ -286,6 +283,8 @@ export class FavoritesSyncRuntime {
     async invoke(raw: IXtreamDataSource, method: string, args: unknown[]) {
         this.error.set(false);
         const client = this.ensureClient();
+        if (method === 'supportsPortableFavorites')
+            return favoritesEnabled() || client.contexts.has(String(args[0]));
         const sourceId = String(args[method === 'getFavorites' ? 0 : 1]);
         if (!favoritesEnabled() && !client.contexts.has(sourceId))
             return Reflect.apply(Reflect.get(raw, method), raw, args);
@@ -343,48 +342,40 @@ export class FavoritesSyncRuntime {
         await this.summary();
         await this.publish();
     }
+    private readonly sourceNames = new Map<string, string>();
+    sourceTitle(id: string): string {
+        return this.sourceNames.get(id) ?? id;
+    }
     private async sourceRows() {
-        return firstValueFrom(this.playlists.getAllPlaylists());
+        const instance = sourceConnection()?.instanceId;
+        const rows = await firstValueFrom(this.playlists.getAllPlaylists());
+        if (sourceConnection()?.instanceId !== instance) return rows;
+        for (const row of rows)
+            this.sourceNames.set(row._id, row.title || row.filename || row._id);
+        return rows;
     }
     private async summary() {
         if (!this.client) return;
         const generation = readFavoritesConsent()?.generation;
-        const entries = (
-            await Promise.all(
-                [...this.client.contexts.keys()].map((id) =>
-                    this.client!.entries(id)
-                )
-            )
-        ).reduce<FavoriteEntry[]>((all, entries) => all.concat(entries), []);
-        this.pending.set(
-            entries.reduce((n, entry) => n + entry.record.pending.length, 0)
-        );
-        this.parkedCount.set(
-            entries.reduce(
-                (n, entry) =>
-                    n +
-                    entry.record.pending.filter(
-                        (intent) => intent.consentGeneration !== generation
-                    ).length,
-                0
-            )
-        );
-        this.conflicts.set(entries.filter((entry) => !!entry.record.conflict));
+        const client = this.client;
+        const summary = await readFavoriteSummary(client, generation);
+        if (
+            this.client !== client ||
+            sourceConnection()?.instanceId !== client.options.instanceId ||
+            readFavoritesConsent()?.generation !== generation
+        )
+            return;
+        this.pending.set(summary.pending);
+        this.parkedCount.set(summary.parked);
+        this.conflicts.set(summary.conflicts);
         if (
             favoritesEnabled() &&
             !['offline', 'locked', 'incompatible', 'storage-error'].includes(
                 this.state()
             )
         )
-            this.state.set(
-                this.conflicts().length
-                    ? 'conflict'
-                    : this.parkedCount()
-                      ? 'choice'
-                      : this.pending()
-                        ? 'pending'
-                        : 'ready'
-            );
+            this.state.set(summary.state);
+        return summary;
     }
     private publish() {
         return refreshFavoriteViews(

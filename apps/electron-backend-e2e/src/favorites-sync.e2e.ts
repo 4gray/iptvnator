@@ -1,5 +1,9 @@
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
 import { test, expect, type Page } from '@playwright/test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startSourceSyncServer } from './source-sync-test-server';
@@ -233,6 +237,90 @@ for (const provider of ['xtream', 'stalker'] as const)
                         { headers }
                     )
                 ).json();
+                // A receiving device has never archived these provider rows or commands.
+                for (const [type, kind] of [
+                    ['vod', 'movie'],
+                    ['itv', 'live'],
+                    ['radio', 'radio'],
+                ] as const) {
+                    const rows = (
+                        await (
+                            await fetch(
+                                `http://localhost:${process.env['MOCK_PORT'] ?? '3417'}/portal.php?type=${type}&action=get_ordered_list&category=*&p=1`,
+                                { headers: { cookie: 'mac=00:1a:79:00:00:07' } }
+                            )
+                        ).json()
+                    ).js.data;
+                    const row = rows.filter(
+                        (value: { is_series?: unknown; series?: unknown[] }) =>
+                            !value.is_series && !value.series?.length
+                    )[1];
+                    expect(row).toBeDefined();
+                    const title = `Synthetic remote ${kind}`;
+                    expect(
+                        (
+                            await fetch(
+                                `${server.apiUrl}/v1/favorites/operations`,
+                                {
+                                    method: 'POST',
+                                    headers,
+                                    body: JSON.stringify({
+                                        address: {
+                                            instanceId,
+                                            scope: 'shared',
+                                            sourceId,
+                                            sourceIncarnation:
+                                                scope.sourceIncarnation,
+                                            content: {
+                                                provider: 'stalker',
+                                                kind,
+                                                id: String(row.id),
+                                            },
+                                        },
+                                        operation: {
+                                            operationId: `synthetic-remote-${kind}`,
+                                            deviceId: 'fixture',
+                                            expectedRevision: 0,
+                                            member: true,
+                                            snapshot: { title },
+                                        },
+                                    }),
+                                }
+                            )
+                        ).status
+                    ).toBe(200);
+                }
+                await settings(page, true);
+                for (const client of [page, desktop.mainWindow]) {
+                    await routePlayableStreams(client);
+                    for (const kind of ['movie', 'live', 'radio']) {
+                        await refresh(client);
+                        await openGlobalFavorites(client);
+                        await switchUnifiedCollectionContent(
+                            client,
+                            kind === 'movie' ? 'Movies' : 'Live TV'
+                        );
+                        await startAndConfirmPlayback(
+                            client,
+                            async () => {
+                                await client
+                                    .getByText(`Synthetic remote ${kind}`, {
+                                        exact: true,
+                                    })
+                                    .first()
+                                    .click();
+                                if (kind === 'movie')
+                                    await client
+                                        .locator(
+                                            '[data-testid="vod-primary-action"]'
+                                        )
+                                        .click();
+                            },
+                            0.75
+                        );
+                    }
+                }
+                expect(JSON.stringify(await list())).not.toContain('cmd');
                 for (const [index, mode] of [
                     'regular',
                     'embedded',
@@ -469,6 +557,14 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
         await page.unroute(`${server.apiUrl}/v1/favorites/**`);
         await refresh(page);
         await expect(page.getByTestId('favorites-keep-server')).toBeVisible();
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.locator('.favorites-conflict').scrollIntoViewIfNeeded();
+        await page.screenshot({
+            path: testInfo.outputPath('settings-favorites-conflict-narrow.png'),
+            fullPage: true,
+            animations: 'disabled',
+        });
+        await page.setViewportSize({ width: 1280, height: 800 });
         await page.getByTestId('favorites-keep-server').click();
         await expect
             .poll(

@@ -300,8 +300,16 @@ export class FavoritesSyncClient {
         this.options.changed();
     }
     async entries(sourceId: string) {
+        if (this.options.profileActive?.() === false)
+            throw new FavoriteSupersededError();
         const incarnation = this.contexts.get(sourceId)?.sourceIncarnation;
-        return (await this.store.entries(sourceId)).filter(
+        const rows = await this.store.entries(sourceId);
+        if (
+            this.options.profileActive?.() === false ||
+            this.contexts.get(sourceId)?.sourceIncarnation !== incarnation
+        )
+            throw new FavoriteSupersededError();
+        return rows.filter(
             (entry) => entry.address.sourceIncarnation === incarnation
         );
     }

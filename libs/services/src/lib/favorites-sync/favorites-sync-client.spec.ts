@@ -160,6 +160,15 @@ beforeAll(() =>
     })
 );
 describe('favorites delivery and consent boundaries', () => {
+    it('discards a local projection read after profile or incarnation ownership changes', async () => {
+        for (const boundary of ['profile', 'source']) {
+            const f = fixture();
+            const read = f.client.entries('source');
+            if (boundary === 'profile') f.active(false);
+            else f.client.forget('source');
+            await expect(read).rejects.toThrow();
+        }
+    });
     it('enabling receives shared state without uploading older local data or synthesizing removals', async () => {
         const f = fixture();
         f.states.set(favoriteAddressKey(address), {

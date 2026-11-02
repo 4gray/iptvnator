@@ -70,13 +70,13 @@ temporary browser contexts, Electron profiles and a disposable Docker container.
 - Full coverage gates pass without threshold changes; the PR records the final
   measured coverage and exact tested/reviewed commit.
 - All 42 spec programs and frontend/backend application typechecks pass.
-  Lint passes for all 13 affected projects.
+  Lint passes for all 14 affected projects.
 - All 20 existing source/activity mixed-runtime scenarios pass. The three new
   favorites scenarios pass after fixing typed removal of numeric Stalker
   categories; active hearts update without navigation. M3U verifies offline
   conflicts, independent adds, duplicate URLs and narrow light/dark settings.
 - Production Electron/frontend/worker builds and the initial-byte gate pass:
-  1,199,408 bytes against 1,200,301 allowed; no baseline changes.
+  1,199,556 bytes against 1,200,301 allowed; no baseline changes.
 - Docker linux/arm64 PWA/backend build and HTTP smoke pass, including restart,
   persisted server identity, removals and old idempotency receipts.
 - Canonical subsystem docs, Docker guidance and the feature release note are
@@ -95,3 +95,19 @@ and Xtream requested-identity checks. Each repair has regression coverage; the
 real browser IndexedDB harness also exercises client mutation and SHA-256 at an
 insecure HTTP origin. Mixed favorites scenarios remove secure-context crypto APIs
 from PWA contexts to exercise the fallback through Settings and provider actions.
+
+Local review round 2 identified three additional real issues; all were accepted:
+receiving-device Stalker playback without a shared command, native Xtream hearts
+without a local catalog row, and indistinguishable conflict controls. Regression
+coverage now exercises exact typed Stalker lookup, parental locking, portable
+native targets, and per-item conflict labels/actions. Actual receiving-device
+playback checks additionally guard against polling destroying the open detail.
+
+Final repair validation: all 20 existing source/activity scenarios pass, and all
+three favorites scenarios pass on the final production build. Receiving-device
+Stalker movie/live/radio media advances in both PWA and Electron. Default mock
+radio now serves its local progressive audio fixture instead of video HLS.
+Narrow conflict controls and light/dark settings were visually inspected.
+Coverage: statements 85.24%, branches 76.77%, functions 83.54%, lines 85.75%.
+Latest fetched master c5b333e9f adds only unrelated website documentation/assets;
+there is no application overlap with this branch's tested base.

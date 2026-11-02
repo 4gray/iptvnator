@@ -19,6 +19,16 @@ export function activityDataSourceFactory(): IXtreamDataSource {
     const injector = inject(EnvironmentInjector);
     return new Proxy(xtreamDataSourceFactory(), {
         get(target, key) {
+            if (key === 'supportsPortableFavorites')
+                return (sourceId: string) =>
+                    favoritesProfileUsed()
+                        ? invokeFavorites(
+                              injector,
+                              target,
+                              'supportsPortableFavorites',
+                              [sourceId]
+                          )
+                        : false;
             const value = Reflect.get(target, key);
             if (typeof value !== 'function') return value;
             const local = value.bind(target);

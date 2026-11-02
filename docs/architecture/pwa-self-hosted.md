@@ -1258,3 +1258,10 @@ The HTTP SHA-256 fallback is a static dependency of the favorites code, so the
 first offline favorite action does not depend on fetching an additional chunk.
 Stalker bulk clear/reorder retains unresolved local values outside the selected
 typed memberships.
+
+Conflict cards show the item title (or typed identity), source, and separate local
+and server membership values before either resolution action. Native Xtream
+hearts use the data source's explicit portable-favorites capability when a
+received favorite has no local catalog row; ordinary local SQL IDs retain their
+existing meaning. Received Stalker commands are resolved locally as described
+in the [Stalker contract](stalker-portal.md#optional-shared-favorites).

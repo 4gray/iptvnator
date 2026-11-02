@@ -2062,3 +2062,13 @@ display metadata and embedded episode numbers. They never transport cmd or sessi
 credentials. New local favorites record `favoriteContentType` independently of a
 numeric provider category ID; ambiguous historical rows stay local for preview.
 Projection reconstructs route/type hints without inventing playback coordinates.
+
+Received shared favorites contain no command. `StalkerFavoritePlaybackResolver`
+looks up the exact typed provider ID through `executeStalkerRequest` on the
+receiving device before movie/live/radio playback. Live lookup first uses
+`get_all_channels`; bounded paged lookup covers unsupported bulk endpoints and
+VOD/radio/series. A title is only a search hint; it never substitutes for ID and
+series-origin equality. Fresh category metadata still passes parental locking.
+Resolved commands remain local and never enter a shared snapshot. The global
+collection detail host reuses an open detail for the same item during polling,
+so background membership updates cannot cancel an in-flight playback request.

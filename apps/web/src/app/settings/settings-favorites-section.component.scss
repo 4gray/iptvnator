@@ -27,3 +27,8 @@ button,
 mat-checkbox {
     app-region: no-drag;
 }
+
+.favorites-conflict h3 {
+    margin: 0;
+    overflow-wrap: anywhere;
+}

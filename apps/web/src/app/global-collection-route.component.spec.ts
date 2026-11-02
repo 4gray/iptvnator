@@ -206,6 +206,42 @@ describe('GlobalCollectionDetailHostComponent', () => {
         expect(instance.seriesResume()).toEqual(seriesResume);
     });
 
+    it('preserves playback state when polling refreshes the same detail', async () => {
+        fixture.componentInstance.item.set(xtreamSeriesItem);
+        await stabilize();
+        const original = queryDetail()?.componentInstance;
+        const refreshed = {
+            ...xtreamSeriesItem,
+            name: 'Synthetic refreshed title',
+        };
+        fixture.componentInstance.item.set(refreshed);
+        await stabilize();
+        expect(queryDetail()?.componentInstance).toBe(original);
+        expect(original.item()).toBe(refreshed);
+        fixture.componentInstance.item.set({
+            ...refreshed,
+            uid: 'xtream::xtream-1::series:104',
+            xtreamId: 104,
+        });
+        await stabilize();
+        expect(queryDetail()?.componentInstance).not.toBe(original);
+    });
+
+    it('replaces a detail when the same provider ID has a different known identity', async () => {
+        fixture.componentInstance.item.set({
+            ...xtreamSeriesItem,
+            xtreamIdentity: { tmdbId: 101, releaseYear: 2024 },
+        });
+        await stabilize();
+        const original = queryDetail()?.componentInstance;
+        fixture.componentInstance.item.set({
+            ...xtreamSeriesItem,
+            xtreamIdentity: { tmdbId: 102, releaseYear: 2025 },
+        });
+        await stabilize();
+        expect(queryDetail()?.componentInstance).not.toBe(original);
+    });
+
     it('re-emits close requests and clears the detail with the item', async () => {
         fixture.componentInstance.item.set(xtreamSeriesItem);
         await stabilize();
