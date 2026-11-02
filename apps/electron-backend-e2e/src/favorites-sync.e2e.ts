@@ -161,6 +161,13 @@ for (const provider of ['xtream', 'stalker'] as const)
             await settings(page, true);
             expect(await list()).toHaveLength(0);
             await settings(desktop.mainWindow, true);
+            await openGlobalFavorites(desktop.mainWindow);
+            await expect(
+                desktop.mainWindow.getByRole('heading', {
+                    name: 'No favorites yet',
+                    exact: true,
+                })
+            ).toBeVisible();
             await page.getByTestId('favorites-import-preview').click();
             await expect(
                 page.getByTestId('favorites-import-confirm')
@@ -173,11 +180,9 @@ for (const provider of ['xtream', 'stalker'] as const)
                             .length
                 )
                 .toBe(1);
-            await refresh(desktop.mainWindow);
-            await openGlobalFavorites(desktop.mainWindow);
             await expect(
                 desktop.mainWindow.getByText(title!, { exact: true }).first()
-            ).toBeVisible();
+            ).toBeVisible({ timeout: 30000 });
             if (provider === 'xtream') {
                 for (const client of [page, desktop.mainWindow]) {
                     await routePlayableStreams(client);

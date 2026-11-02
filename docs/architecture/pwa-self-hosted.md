@@ -1244,6 +1244,10 @@ controls acknowledge membership only after local persistence. Xtream collection
 ordering remains in device-local app state (browser storage in PWA), outside the
 shared membership protocol.
 
+Background collection refreshes use the page's guarded content-type selection.
+Receiving the first movie or series on an empty favorites page selects its type
+even when the single-type toggle is hidden; an open inline detail retains its tab.
+
 Favorite completion updates in the Stalker store and unified M3U collection
 are UI-only metadata actions:
 the membership/archive owner has already persisted the write. Projected shared

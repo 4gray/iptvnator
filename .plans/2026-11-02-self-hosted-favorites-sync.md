@@ -198,3 +198,18 @@ Electron/frontend/worker build and initial bytes (1,199,586 / 1,200,301).
 Linux arm64 Docker build and HTTP add/remove/receipt/restart smoke pass too.
 The synthetic regression observes the canonical display ID and portable ID
 agree after repair. A fresh committed-branch Codex gate follows this final fix.
+
+Local review round 8 found an additional accepted issue: background favorite
+reloads bypassed page content-type selection. The first shared Xtream movie or
+series received on an empty page stayed hidden behind the selected live type.
+Both regressions fail before repair. The page now owns renderer invalidation
+and routes refreshes through its existing guarded load; the redundant service
+listener and remembered request are removed. The mixed Electron receiver stays
+on the empty page during PWA import and must display the first movie unaided.
+
+Round-8 repair passes 224 portal UI tests, owning data tests/lint/types and E2E
+types, full coverage (85.32% statements, 76.90% branches, 83.64% functions,
+85.82% lines), production Electron/frontend/worker, initial bytes
+1,199,588 / 1,200,301, all three mixed favorites E2E cases, and Linux arm64
+Docker build plus HTTP add/remove/receipt/restart smoke. Canonical PWA docs
+describe guarded background type selection. No findings were declined.
