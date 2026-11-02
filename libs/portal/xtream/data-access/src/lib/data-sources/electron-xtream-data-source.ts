@@ -439,6 +439,19 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                 onProgress,
                 options
             );
+            options?.signal?.throwIfAborted();
+            // A refill of a completed empty type has no bootstrap owner to finish it.
+            if (
+                !options?.sessionId &&
+                importStatus === 'completed' &&
+                !(await this.dbService.setXtreamImportStatus(
+                    playlistId,
+                    type,
+                    'completed'
+                ))
+            ) {
+                throw new Error('Could not persist catalog completion status.');
+            }
         }
 
         // Return from cache (now populated)

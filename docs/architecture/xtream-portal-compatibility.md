@@ -541,6 +541,11 @@ ordinary category/detail readers cannot interpret a live `importing` marker as
 abandoned work. Lock-driven category reloads wait until initialization settles.
 Cancelable or session-owned requests do not share promises with independent
 readers, so cancelling an import cannot cancel a concurrent detail recovery.
+When a completed empty type gains content during a sessionless cache refill,
+the data source records completion after persistence. Cancellation or a failed
+completion write leaves its unfinished marker intact. A refill cannot finalize
+a type already marked unfinished by another owner; bootstrap completion stays
+with the import session.
 
 Fresh desktop backup restores separate dormant catalog-dependent history and
 hidden choices from the active import snapshot. Offline restore readiness checks
