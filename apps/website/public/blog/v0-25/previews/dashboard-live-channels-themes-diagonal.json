@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "composition": "original screenshot pixels; light on the left, dark on the right",
+  "width": 1600,
+  "height": 1100,
+  "split": "diagonal",
+  "topCut": 640,
+  "bottomCut": 960,
+  "sources": [
+    {
+      "theme": "light",
+      "file": "../screenshots/dashboard-live-channels-light.png",
+      "sha256": "d1f459a17262e7a5814d2059ea7605c43f7a0c8881e5f17bff170629ad950601"
+    },
+    {
+      "theme": "dark",
+      "file": "../screenshots/dashboard-live-channels-dark.png",
+      "sha256": "c531297e7326636c4912c34c680d665918c27666af4b72be49f0af2d8f8f1373"
+    }
+  ],
+  "outputs": [
+    {
+      "file": "dashboard-live-channels-themes-diagonal.png",
+      "sha256": "b771bd68cd3c6694ecde4d658049a3a2c8b61254c3ce27674ec49467d76c62c8"
+    },
+    {
+      "file": "dashboard-live-channels-themes-diagonal.webp",
+      "sha256": "378493cef72244bdc766c9faf9a700da9e7ec0af0a1fba12efbfe253e4e1deee"
+    }
+  ]
+}

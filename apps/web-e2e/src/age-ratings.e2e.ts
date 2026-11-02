@@ -47,7 +47,7 @@ for (const type of ['vod', 'series'] as const) {
         request,
     }) => {
         test.setTimeout(90_000);
-        await request.post(`${XTREAM_SERVER}/reset`);
+        await request.post(`${XTREAM_SERVER}/reset?username=user1&password=pass1`);
         const tmdb = await interceptAgeRatingTmdb(page);
         await setAgeRatingCountry(page, 'DE', true);
         await interceptXtreamRequests(page);
@@ -112,7 +112,7 @@ test('@web @metadata provider age rating is available without TMDB opt-in', asyn
     page,
     request,
 }) => {
-    await request.post(`${XTREAM_SERVER}/reset`);
+    await request.post(`${XTREAM_SERVER}/reset?username=user1&password=pass1`);
     const tmdb = await interceptAgeRatingTmdb(page);
     await setAgeRatingCountry(page, 'DE');
     await interceptXtreamRequests(page);

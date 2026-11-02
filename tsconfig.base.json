@@ -18,6 +18,12 @@
         "baseUrl": ".",
         "paths": {
             "@iptvnator/shared/tmdb": ["libs/shared/tmdb/src/index.ts"],
+            "@iptvnator/shared/tmdb/season": [
+                "libs/shared/tmdb/src/lib/tmdb-season-client.ts"
+            ],
+            "@iptvnator/shared/tmdb/matcher": [
+                "libs/shared/tmdb/src/lib/tmdb-matcher.ts"
+            ],
             "@iptvnator/shared/epg": ["libs/shared/epg/src/index.ts"],
             "@iptvnator/portal/catalog/feature": [
                 "libs/portal/catalog/feature/src/index.ts"
@@ -136,6 +142,9 @@
                 "libs/shared/m3u-utils/src/index.ts"
             ],
             "@iptvnator/shared/testing": ["libs/shared/testing/src/index.ts"],
+            "@iptvnator/shared/testing/runtime-coverage": [
+                "libs/shared/testing/src/lib/runtime-coverage.ts"
+            ],
             "@iptvnator/shared/logging": ["libs/shared/logging/src/index.ts"],
             "@iptvnator/shared/host-health": [
                 "libs/shared/host-health/src/index.ts"
@@ -242,6 +251,21 @@
             ],
             "@iptvnator/services/tmdb-merge": [
                 "libs/services/src/lib/tmdb/tmdb-merge.ts"
+            ],
+            "@iptvnator/shared/database/activity-sync": [
+                "libs/shared/database/src/activity-sync.ts"
+            ],
+            "@iptvnator/services/activity-changes": [
+                "libs/services/src/lib/activity-sync/activity-changes.ts"
+            ],
+            "@iptvnator/services/activity-events": [
+                "libs/services/src/lib/activity-sync/activity-events.token.ts"
+            ],
+            "@iptvnator/services/activity-sync": [
+                "libs/services/src/activity-sync.ts"
+            ],
+            "@iptvnator/shared/interfaces/activity-sync": [
+                "libs/shared/interfaces/src/activity-sync.ts"
             ],
             "@iptvnator/shared/interfaces/age-rating": [
                 "libs/shared/interfaces/src/age-rating.ts"

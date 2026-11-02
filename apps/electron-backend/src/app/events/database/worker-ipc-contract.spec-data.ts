@@ -65,6 +65,11 @@ const vodSourcePin = {
 };
 
 export const workerIpcContractCases: WorkerIpcContractCase[] = [
+    {
+        operation: 'DB_ACTIVITY_LOCAL',
+        args: [{ instanceId: 'activity-test-instance', operation: 'pending' }],
+        payload: { instanceId: 'activity-test-instance', operation: 'pending' },
+    },
     { operation: 'DB_GET_STANDALONE_SOURCES', args: [], payload: {} },
     {
         operation: 'DB_CREATE_PLAYLIST',

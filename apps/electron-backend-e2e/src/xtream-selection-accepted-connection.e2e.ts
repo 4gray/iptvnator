@@ -48,9 +48,12 @@ for (const retained of [false, true])
                 password: 'performance',
                 contentTypes: retained ? ['live', 'movie'] : ['live'],
             });
+            // Dialog closure/native projection precedes route initialization.
+            // Stay on the import route until its catalog and activity hold settle.
+            await expect(page).toHaveURL(/\/workspace\/xtreams\/[^/]+(?:\/|$)/);
             const id = await waitForNativeXtreamSource(page, title);
-            // No overlay can also mean the account check has not started the
-            // import yet. Observe its native completion before editing.
+            // An absent overlay can precede the account check/import startup.
+            // Observe native completion before opening the editor.
             await expect
                 .poll(
                     () =>

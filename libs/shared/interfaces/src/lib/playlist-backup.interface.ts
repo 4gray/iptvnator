@@ -155,6 +155,8 @@ export interface StalkerPlaylistBackupEntry extends PlaylistBackupBaseEntry {
     userState: {
         favorites: StalkerPortalItem[];
         recentlyViewed: StalkerPortalItem[];
+        /** Absent in historical archives: preserve existing local activity on restore. */
+        playbackPositions?: PlaybackPositionData[];
         /** Parental-lock genres; optional with the same absence rule as Xtream. */
         lockedCategories?: StalkerBackupLockedCategory[];
     };

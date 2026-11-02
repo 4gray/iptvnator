@@ -105,7 +105,7 @@ export async function expectCollectionFits(page: Page) {
 
 export async function selectUiLanguage(
     page: Page,
-    language: 'en' | 'de' | 'ru'
+    language: 'en' | 'de' | 'ru' | 'ar'
 ) {
     await page.goto('/workspace/settings/general');
     const previous = await page.locator('html').getAttribute('lang');

@@ -20,7 +20,9 @@ That means:
 - EPG/XMLTV panels and multi-EPG views are not available in the self-hosted PWA.
 - With server storage enabled, source definitions are shared by connected PWA
   and Electron clients. Each browser retains a local IndexedDB projection and
-  its own Xtream user data. Viewing activity is not synchronized.
+  its own Xtream user data. Progress and watched marks synchronize only after
+  enabling **Settings → Server → Viewing activity synchronization** on each
+  client. Everyone with server access shares that activity.
 - Docker cannot launch local desktop players or Embedded MPV. If a stream does
   not play inline in the browser, use the in-app copy URL action and open the
   stream manually in an external player such as MPV, VLC, or IINA.
@@ -195,10 +197,14 @@ container once on your NAS or home server, then connect your clients to it.
    review the preview and confirm. Disconnecting returns to the retained local
    library; it does not delete the server's sources.
 
-Only source definitions synchronize in this version: names, connection
-details and uploaded M3U text. Favorites, recently viewed items, playback
-progress, EPG and device settings remain local. One server is one shared source
-library, not separate user accounts. Browser tokens last for the tab; desktop
+Connecting synchronizes source definitions: names, connection details and
+uploaded M3U text. Enable **Viewing activity synchronization** separately on each
+client to share Xtream and Stalker progress and watched marks within the same
+source. Older local activity uploads only through the separate import preview;
+enabling synchronization sends new actions and downloads server activity.
+Favorites, recently viewed items, EPG and device settings remain local. One
+server has one shared source library and viewing activity, without separate
+user accounts. Browser tokens last for the tab; desktop
 uses protected storage when available. Keep the same token available for a
 later browser session.
 

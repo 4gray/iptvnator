@@ -1,3 +1,4 @@
+import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import { Injectable, inject } from '@angular/core';
 import { DataService } from '@iptvnator/services';
 import {
@@ -17,6 +18,9 @@ import { SettingsStore } from './settings-store.service';
     providedIn: 'root',
 })
 export class PlayerService {
+    private readonly activity = inject(PLAYBACK_ACTIVITY_EVENTS, {
+        optional: true,
+    });
     private lazyDialog = inject(LazyMatDialog);
     private dataService = inject(DataService);
     private settingsStore = inject(SettingsStore);
@@ -114,6 +118,14 @@ export class PlayerService {
         playback: ResolvedPortalPlayback,
         player: ExternalPlayerName
     ): Promise<ExternalPlayerSession | void> {
+        if (playback.contentInfo)
+            void this.activity
+                ?.begin(
+                    playback.contentInfo,
+                    playback.startTime,
+                    playback.title
+                )
+                .catch(() => undefined);
         const ipcEvent = player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
 
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(

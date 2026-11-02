@@ -31,6 +31,22 @@ import { content, categories, playlists, type Content } from '@iptvnator/shared/
 ### Connection observer (`connection-observer.ts`)
 - `setDatabaseConnectionObserver(observer | null)` - Called by `initDatabase` with each connection it opens, before any statement runs on it. The Electron main process registers one only with `IPTVNATOR_PERF_CAPTURE=1`, to count main-thread SQL statements. The module has no runtime dependencies and is also importable as `@iptvnator/shared/database/connection-observer`.
 
+## Activity-sync storage
+
+`@iptvnator/shared/database/activity-sync` provides opt-in SQLite stores for
+activity state, local pending operations and server idempotency receipts. The
+module does not alter `initDatabase()` or migrate/upload legacy playback rows.
+Its constructors create only additive activity tables and indexes, and local
+projection/outbox changes share one synchronous transaction. Optional delivery
+leases live inside those JSON records and are checked during compare-and-swap;
+legacy records without leases remain valid. No schema migration is required.
+Server state and receipts also commit together, including durable reset barriers. The owning
+runtime must verify the selected instance/source incarnation and provide the
+connection. Electron read/list/pending/compare-and-swap operations run in the
+database worker through the fixed `DB_ACTIVITY_LOCAL` IPC. NAS routes use a
+separate server store and persisted source incarnations. See the
+[self-hosted activity contract](../../../docs/architecture/pwa-self-hosted.md#viewing-activity-synchronization).
+
 ## Database Location
 
 The SQLite database is stored at `<data root>/databases/iptvnator.db`. The data

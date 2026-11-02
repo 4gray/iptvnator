@@ -1,3 +1,4 @@
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import { type Signal, effect, signal } from '@angular/core';
 import type { PortalPlaybackPositions } from '@iptvnator/portal/shared/util';
 import type { StalkerSelectedVodItem } from '@iptvnator/portal/stalker/data-access';
@@ -29,6 +30,7 @@ export class StalkerCatalogVodPosition {
     /** The stored row is in hand (not the placeholder shown while reading). */
     readonly loaded = signal(false);
     private unsubscribePositionUpdates: (() => void) | null = null;
+    private stopActivityUpdates?: () => void;
     private loadGeneration = 0;
 
     constructor(private readonly config: StalkerCatalogVodPositionConfig) {}
@@ -38,6 +40,12 @@ export class StalkerCatalogVodPosition {
      * effect, so the host calls it from its constructor.
      */
     connect(): void {
+        this.stopActivityUpdates = observeActivityChanges(() => {
+            const id = this.config.playlistId();
+            const item = this.config.selectedItem();
+            if (id && item && !this.config.isSeriesDetail())
+                void this.load(id, Number(item.id)).catch(() => undefined);
+        });
         effect(() => {
             const item = this.config.selectedItem();
             const playlistId = this.config.playlistId();
@@ -73,6 +81,7 @@ export class StalkerCatalogVodPosition {
     }
 
     disconnect(): void {
+        this.stopActivityUpdates?.();
         this.unsubscribePositionUpdates?.();
     }
 

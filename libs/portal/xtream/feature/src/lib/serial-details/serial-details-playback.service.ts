@@ -1,3 +1,4 @@
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import {
     computed,
     DestroyRef,
@@ -145,6 +146,14 @@ export class SerialDetailsPlaybackService {
     );
 
     constructor() {
+        inject(DestroyRef).onDestroy(
+            observeActivityChanges(() => {
+                const id = this.currentPlaylistId();
+                const seriesId = Number(this.selectedItem()?.series_id);
+                if (id && seriesId)
+                    void this.loadSeriesPlaybackPositions(id, seriesId);
+            })
+        );
         // A launch still closing its predecessor must not outlive the page.
         inject(DestroyRef).onDestroy(() => this.bindings.set(null));
         effect(() => {

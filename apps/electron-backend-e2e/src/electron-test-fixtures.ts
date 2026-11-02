@@ -615,7 +615,7 @@ function assertPackagedRendererBuildIsElectronSafe(): void {
     }
 }
 
-async function waitForAppReady(page: Page): Promise<void> {
+export async function waitForAppReady(page: Page): Promise<void> {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForSelector('app-root', { timeout: 30000 });
     try {
@@ -652,7 +652,11 @@ async function waitForAppReady(page: Page): Promise<void> {
 
     // The old startup sleep also hid the rail's entrance animation. Keep
     // geometry-sensitive tests ready for interaction without a fixed delay.
-    await page.locator('.app-rail').evaluate(async (rail) => {
+    const rail = page.locator('.app-rail');
+    // Source inventory can keep the workspace hidden after app-root mounts.
+    // Its entrance animations only start when that startup gate opens.
+    await rail.waitFor({ state: 'visible' });
+    await rail.evaluate(async (rail) => {
         await document.fonts.ready;
         await Promise.all(
             rail

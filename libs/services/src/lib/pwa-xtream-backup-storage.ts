@@ -1,3 +1,4 @@
+import { isBackupPlaybackPosition as isPlaybackPosition } from './playlist-backup-playback-position';
 import type {
     PlaybackPositionData,
     XtreamBackupCollectionItem,
@@ -35,6 +36,25 @@ export class PwaXtreamBackupStorage {
 
     async ready(): Promise<void> {
         await preparePwaRestore(this.storage);
+    }
+
+    getPlaybackPositions(playlistId: string): PlaybackPositionData[] {
+        const positions = this.listFor('playbackPositions', playlistId);
+        if (!positions.every(isPlaybackPosition))
+            throw new Error('Stored playback positions are unreadable');
+        return positions.map((position) => ({ ...position }));
+    }
+
+    async replacePlaybackPositions(
+        playlistId: string,
+        positions: PlaybackPositionData[]
+    ): Promise<void> {
+        await this.ready();
+        await preparePwaRestore(this.storage, playlistId);
+        this.writeMap('playbackPositions', {
+            ...this.readMap('playbackPositions'),
+            [playlistId]: positions,
+        });
     }
 
     /**
@@ -434,16 +454,6 @@ function backdropOf(item: object): { backdropUrl?: string } {
     return typeof value === 'string' && value.trim()
         ? { backdropUrl: value.trim() }
         : {};
-}
-
-function isPlaybackPosition(value: unknown): value is PlaybackPositionData {
-    return (
-        isRecord(value) &&
-        Number.isFinite(value['contentXtreamId']) &&
-        (value['contentType'] === 'vod' ||
-            value['contentType'] === 'episode') &&
-        Number.isFinite(value['positionSeconds'])
-    );
 }
 
 function isQuotaExceeded(error: unknown): boolean {

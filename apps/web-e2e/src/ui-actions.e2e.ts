@@ -1,5 +1,5 @@
 import type { Locator } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, test } from './pwa-mock.fixture';
 import {
     addStalkerPortal,
     addXtreamPortal,
@@ -97,10 +97,11 @@ test('@ui @stalker additional fields survive folding, import and editing', async
 
 test('@ui @stalker search and catalog retry actions keep recovery reachable', async ({
     page,
+    pwaMocks,
 }, testInfo) => {
     await interceptPwaProviderRequests(page);
     await page.goto('/');
-    await addStalkerPortal(page, 'UI retries');
+    await addStalkerPortal(page, 'UI retries', pwaMocks);
     let failInitial = true;
     let failAppend = true;
     await page.route('**/localhost:3000/stalker**', async (route) => {
@@ -181,10 +182,11 @@ test('@ui @stalker search and catalog retry actions keep recovery reachable', as
 
 test('@ui @xtream hidden channel list offers a styled restore action', async ({
     page,
+    pwaMocks,
 }, testInfo) => {
     await interceptPwaProviderRequests(page);
     await page.goto('/');
-    await addXtreamPortal(page, 'UI hidden channels');
+    await addXtreamPortal(page, 'UI hidden channels', pwaMocks);
     await page.getByRole('link', { name: 'Live TV', exact: true }).click();
     await page
         .locator('app-workspace-context-panel .category-item')

@@ -22,7 +22,7 @@ export const NEW_MARKETING_MOVIES = [
         name: 'Black Harbor',
         slug: 'black-harbor',
         description:
-            'A dock inspector follows a missing cargo ledger through a fogbound harbor where every night crew remembers a different ship.',
+            'When an unregistered freighter arrives in a fogbound port, dock inspector Mara Venn finds a cargo ledger that records tomorrow’s departures. With one night before the tide turns, she must trace a missing crew through the silent terminals and decide which secret the harbor can afford to keep.',
         director: 'Nadia Rook',
         actors: 'Mara Venn, Elias Shore, Tomas Bell, June Cross',
         genre: 'Maritime Crime Thriller',

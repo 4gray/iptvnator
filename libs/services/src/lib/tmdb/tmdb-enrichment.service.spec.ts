@@ -42,7 +42,8 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
     // The services Jest target has no @angular/core/testing — build the
     // service in a plain injection context instead of TestBed.
     function createService(
-        matches: TmdbMatchService | null = null
+        matches: TmdbMatchService | null = null,
+        seasonFactory: () => object = () => ({})
     ): TmdbEnrichmentService {
         const injector = Injector.create({
             providers: [
@@ -77,7 +78,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
                     },
                 },
                 { provide: TmdbPersonService, useValue: {} },
-                { provide: TmdbSeasonService, useValue: {} },
+                { provide: TmdbSeasonService, useFactory: seasonFactory },
                 { provide: TmdbTrendingService, useValue: {} },
                 { provide: TmdbDiscoverService, useValue: {} },
             ],
@@ -93,6 +94,21 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         resolveBySearch = jest.fn().mockResolvedValue(null);
         isKnownBadProviderId = jest.fn().mockResolvedValue(false);
         rememberBadProviderId = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('loads one season client only when season metadata is requested', async () => {
+        const season = {
+            getSeason: jest.fn().mockResolvedValue(null),
+            getSeasonEpisodes: jest.fn().mockResolvedValue([]),
+        };
+        const factory = jest.fn(() => season);
+        const service = createService(null, factory);
+        expect(factory).not.toHaveBeenCalled();
+        expect(await service.getSeason(100, 1)).toBeNull();
+        expect(await service.getSeasonEpisodes(100, 1)).toEqual([]);
+        expect(factory).toHaveBeenCalledTimes(1);
+        expect(season.getSeason).toHaveBeenCalledWith(100, 1);
+        expect(season.getSeasonEpisodes).toHaveBeenCalledWith(100, 1);
     });
 
     it('uses a valid provider id without searching at all', async () => {

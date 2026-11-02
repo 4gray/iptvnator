@@ -11,7 +11,7 @@
     <app-global-favorites-list
         [channels]="channelsForList()"
         [mode]="mode()"
-        [showEpg]="supportsAnyEpg"
+        [showEpg]="epgVisibility.any"
         [favoriteUids]="favoriteUids()"
         [epgMap]="epgMap()"
         [progressTick]="progressTick()"
@@ -193,7 +193,7 @@
     <app-global-favorites-list
         [channels]="fullscreenPanelChannels()"
         [mode]="mode()"
-        [showEpg]="supportsAnyEpg"
+        [showEpg]="epgVisibility.any"
         [favoriteUids]="favoriteUids()"
         [epgMap]="epgMap()"
         [progressTick]="progressTick()"

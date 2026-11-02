@@ -129,6 +129,7 @@ export function createSettingsForm(
         // View mode and offset shape every guide, a portal's own included.
         ...(supportsEpgDisplay
             ? {
+                  epgEnabled: true,
                   epgViewMode: 'timeline' as EpgViewMode,
                   epgOffsetMinutes: new FormControl<number>(0, [
                       Validators.required,
@@ -149,6 +150,21 @@ export function createSettingsForm(
     form.get('player')?.valueChanges.subscribe(() =>
         form.get('embeddedMpvExtraOptions')?.updateValueAndValidity()
     );
+    const syncEpgControls = (enabled: boolean): void => {
+        for (const name of [
+            'epgUrl',
+            'epgViewMode',
+            'epgOffsetMinutes',
+            'preferUploadedEpgOverXtream',
+        ]) {
+            const control = form.get(name);
+            if (enabled) control?.enable({ emitEvent: false });
+            else control?.disable({ emitEvent: false });
+        }
+    };
+    form.get('epgEnabled')?.valueChanges.subscribe((enabled) =>
+        syncEpgControls(enabled !== false)
+    );
     return form;
 }
 
@@ -163,8 +179,11 @@ export function applyEpgUrlsToFormArray(
         .map((url) => url.trim())
         .filter((url) => url !== '');
 
+    const disabled = epgUrl.disabled;
     filteredUrls.forEach((url) => {
-        epgUrl.push(createEpgUrlControl(url));
+        const control = createEpgUrlControl(url);
+        if (disabled) control.disable({ emitEvent: false });
+        epgUrl.push(control);
     });
 }
 
@@ -221,6 +240,7 @@ export function createSettingsFromFormValue(
         portalConnectivityGuard: value.portalConnectivityGuard !== false,
         coverSize: value.coverSize ?? 'medium',
         showCoverTitles: value.showCoverTitles !== false,
+        epgEnabled: value.epgEnabled ?? currentSettings.epgEnabled ?? true,
         epgUrl,
         preferUploadedEpgOverXtream:
             value.preferUploadedEpgOverXtream ??

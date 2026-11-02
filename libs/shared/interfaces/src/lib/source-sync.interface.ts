@@ -40,7 +40,22 @@ export interface SourceServerConnection {
 /** Narrow IPC surface; paths and arbitrary headers are never caller-supplied. */
 export interface SourceServerRequest {
     operation:
-        'instance' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'clear';
+        | 'instance'
+        | 'list'
+        | 'get'
+        | 'create'
+        | 'update'
+        | 'delete'
+        | 'clear'
+        | 'activity-context'
+        | 'activity-list'
+        | 'activity-read'
+        | 'activity-apply';
+    cursor?: string;
+    activity?: {
+        address: import('./activity-sync/activity-sync.contract').ActivityAddress;
+        operation?: import('./activity-sync/activity-sync.contract').ActivityOperation;
+    };
     id?: string;
     source?: SourceDefinition;
     revision?: string;

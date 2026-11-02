@@ -65,6 +65,14 @@ const vodSourcePin = {
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
     {
+        method: 'activityLocalRequest',
+        args: [{ instanceId: 'activity-test-instance', operation: 'pending' }],
+        channel: 'DB_ACTIVITY_LOCAL',
+        forwardedArgs: [
+            { instanceId: 'activity-test-instance', operation: 'pending' },
+        ],
+    },
+    {
         method: 'sourceSyncLocalSources',
         args: [],
         channel: 'DB_GET_STANDALONE_SOURCES',
@@ -648,6 +656,12 @@ export const epgPreloadCases: PreloadInvokeCase[] = [
         channel: 'EPG_RECONCILE_SOURCES',
         forwardedArgs: [{ urls: epgUrls }],
     },
+    ...[true, false].map((epgEnabled) => ({
+        method: 'reconcileEpgSources' as const,
+        args: [epgUrls, epgEnabled],
+        channel: 'EPG_RECONCILE_SOURCES',
+        forwardedArgs: [{ urls: epgUrls, epgEnabled }],
+    })),
     {
         method: 'clearEpgDataForSource',
         args: ['https://example.com/guide.xml'],

@@ -99,6 +99,7 @@ import {
 } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import {
+    EpgPreferencesService,
     DatabaseService,
     ParentalLockService,
     RecordingsService,
@@ -176,6 +177,7 @@ export class LiveStreamLayoutComponent
     private readonly archiveCopy = inject(EpgArchiveCopyService);
     private readonly xtreamUrlService = inject(XtreamUrlService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly parentalLock = inject(ParentalLockService);
@@ -214,7 +216,11 @@ export class LiveStreamLayoutComponent
             this.xtreamStore.selectItemsFromSelectedCategory() as XtreamChannelListItem[]
     );
     readonly isElectron = this.runtime.isElectron;
-    readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
+    get supportsProviderEpg(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.runtime.supportsProviderEpg
+        );
+    }
     readonly workspaceSearchTerm = queryParamSignal(this.route, 'q', (value) =>
         (value ?? '').trim()
     );

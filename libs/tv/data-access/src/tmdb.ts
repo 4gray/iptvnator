@@ -1,9 +1,9 @@
+import { TmdbSeasonClient } from '@iptvnator/shared/tmdb/season';
 import {
     TmdbApiClient,
     TmdbIdResolver,
     TmdbMemoryCache,
     TmdbMetadataClient,
-    TmdbSeasonClient,
     TmdbPersonClient,
     enrichedCast,
     enrichedCreators,

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Request, Response } from 'express';
+import { portalIdentityKey } from './account-identity.js';
 
 /** Share of the clip after which the provider loses the first connection. */
 export const DROPPING_EPISODE_CUT_RATIO = 0.35;
@@ -11,11 +12,18 @@ export const DROPPING_EPISODE_CUT_RATIO = 0.35;
 export const DROPPING_EPISODE_REFUSE_MS = 4_000;
 
 let fixture: Buffer | null = null;
-/** Stream id → when its connection was cut. Every episode drops once. */
-const droppedAt = new Map<string, number>();
+/** Account → stream id → cut time. Reset detaches in-flight callbacks too. */
+const droppedByAccount = new Map<string, Map<string, number>>();
 
-export function resetDroppingEpisodes(): void {
-    droppedAt.clear();
+export function resetDroppingEpisodes(
+    username?: string,
+    password?: string
+): void {
+    if (username !== undefined && password !== undefined) {
+        droppedByAccount.delete(portalIdentityKey(username, password));
+    } else {
+        droppedByAccount.clear();
+    }
 }
 
 /**
@@ -32,6 +40,16 @@ export function streamDroppingEpisode(
     const body = (fixture ??= readFileSync(
         join(process.cwd(), 'apps/xtream-mock-server/src/fixtures/episode.mkv')
     ));
+    const account = portalIdentityKey(
+        String(request.params['username']),
+        String(request.params['password'])
+    );
+    let droppedAt = droppedByAccount.get(account);
+    if (!droppedAt) {
+        droppedAt = new Map();
+        droppedByAccount.set(account, droppedAt);
+    }
+    const streamState = droppedAt;
     const streamId = String(request.params['streamId']);
     const cutAt = droppedAt.get(streamId);
     response.set('Cache-Control', 'no-store');
@@ -67,7 +85,7 @@ export function streamDroppingEpisode(
     const cut = Math.floor(body.length * DROPPING_EPISODE_CUT_RATIO);
     if (cutAt === undefined && start < cut && end >= cut) {
         response.write(body.subarray(start, cut), () => {
-            droppedAt.set(streamId, Date.now());
+            streamState.set(streamId, Date.now());
             response.socket?.destroy();
         });
         return;

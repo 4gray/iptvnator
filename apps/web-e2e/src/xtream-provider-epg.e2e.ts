@@ -14,7 +14,7 @@ import {
 const EPG_PORTAL = { name: 'EPG Portal', username: 'epg', password: 'epg' };
 
 test.beforeEach(async ({ page, request }) => {
-    await request.post(`${MOCK_SERVER}/reset`);
+    await request.post(`${MOCK_SERVER}/reset?username=epg&password=epg`);
     await page.goto('/');
     await interceptXtreamRequests(page);
 });

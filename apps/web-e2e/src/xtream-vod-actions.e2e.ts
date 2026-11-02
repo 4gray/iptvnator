@@ -16,7 +16,7 @@ for (const mode of ['catalog', 'missing', 'direct'] as const) {
         request,
     }) => {
         test.setTimeout(90_000);
-        await request.post(`${MOCK_SERVER}/reset`);
+        await request.post(`${MOCK_SERVER}/reset?username=minimal&password=minimal`);
         const catalogResponse = await request.get(
             `${MOCK_SERVER}/player_api.php?username=minimal&password=minimal&action=get_vod_streams`
         );

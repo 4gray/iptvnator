@@ -43,6 +43,10 @@ export function buildWatchedEpisodePosition(options: {
     return {
         contentXtreamId,
         contentType: 'episode',
+        activityAction: 'mark-watched',
+        ...(episode.activityIdentity
+            ? { activityIdentity: episode.activityIdentity }
+            : {}),
         seriesXtreamId: options.seriesId,
         seasonNumber: Number(episode.season || options.fallbackSeasonKey || 1),
         episodeNumber: Number(episode.episode_num || 1),

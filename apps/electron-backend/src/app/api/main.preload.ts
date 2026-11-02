@@ -310,6 +310,8 @@ const electronApi: ElectronBridgeApi = {
         if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
         return result;
     },
+    activityLocalRequest: (request) =>
+        ipcRenderer.invoke('DB_ACTIVITY_LOCAL', request),
     sourceSyncRequest: (request) =>
         ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
     sourceSyncConfigure: (url, token, restart) =>
@@ -715,6 +717,8 @@ const electronApi: ElectronBridgeApi = {
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
     ) => ipcRenderer.invoke('AUTO_UPDATE', playlists, options),
+    setEpgEnabled: (enabled: boolean) =>
+        ipcRenderer.invoke('EPG_SET_ENABLED', enabled),
     fetchEpg: (urls: string[], options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('FETCH_EPG', { url: urls, options }),
     getChannelPrograms: (
@@ -743,8 +747,11 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
     openEpgFileDialog: () => ipcRenderer.invoke('EPG_OPEN_FILE_DIALOG'),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
-    reconcileEpgSources: (urls: string[]) =>
-        ipcRenderer.invoke('EPG_RECONCILE_SOURCES', { urls }),
+    reconcileEpgSources: (urls: string[], epgEnabled?: boolean) =>
+        ipcRenderer.invoke('EPG_RECONCILE_SOURCES', {
+            urls,
+            ...(epgEnabled === undefined ? {} : { epgEnabled }),
+        }),
     clearEpgDataForSource: (sourceUrl: string) =>
         ipcRenderer.invoke('EPG_CLEAR_SOURCE', { sourceUrl }),
     checkEpgFreshness: (urls: string[], maxAgeHours?: number) =>

@@ -58,8 +58,9 @@ import { expect, test } from './fixtures';
  * every spec file and its state is keyed by MAC:
  *
  * - ACROSS FILES: `beforeEach` resets only the MACs in `OWNED_MACS`, and the
- *   sibling files that touch this server (self-hosted, sources-pwa) own a
- *   disjoint `00:1A:79:5F:*` range, so neither can clear the other's state.
+ *   self-hosted suite owns `00:1A:79:5F:*`. PWA source consumers allocate
+ *   per-test MACs in `00:1A:79:C0:*` through `00:1A:79:FF:*`, so their
+ *   scoped resets cannot clear this file's sessions.
  * - WITHIN THIS FILE: tests deliberately share scenario MACs (`default`,
  *   `minimal`, `embedded-series` — their fixture shapes are what the
  *   assertions are written against), and every `beforeEach` resets all of

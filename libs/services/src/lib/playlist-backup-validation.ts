@@ -1,3 +1,4 @@
+import { isStalkerBackupPosition } from './playlist-backup-playback-position';
 import {
     isM3uRecentlyViewedItem,
     PlaylistBackupSettings,
@@ -99,7 +100,12 @@ export function hasValidBackupEntryData(entry: unknown): boolean {
                 isText(metadata['portalUrl']) &&
                 isText(metadata['macAddress']) &&
                 isRecordList(state['favorites']) &&
-                isRecordList(state['recentlyViewed'])
+                isRecordList(state['recentlyViewed']) &&
+                (state['playbackPositions'] === undefined ||
+                    (Array.isArray(state['playbackPositions']) &&
+                        state['playbackPositions'].every(
+                            isStalkerBackupPosition
+                        )))
             );
         case 'xtream':
             return (

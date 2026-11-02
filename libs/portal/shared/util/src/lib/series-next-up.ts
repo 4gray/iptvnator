@@ -128,11 +128,19 @@ function getOrderedSeriesEpisodes(
         .forEach(([seasonKey, episodes]) => {
             [...episodes].sort(compareEpisodes).forEach((episode) => {
                 const seasonNumber = episodeSeasonNumber(episode, seasonKey);
+                let position =
+                    request.playbackPositions.get(Number(episode.id)) ?? null;
+                // Local mirrors encode reset barriers as zero position and duration.
+                // A freshly launched episode at zero with unknown duration remains activity.
+                if (
+                    position?.positionSeconds === 0 &&
+                    position.durationSeconds === 0 &&
+                    !isPortalPlaybackWatched(position)
+                )
+                    position = null;
                 entries.push({
                     episode,
-                    position:
-                        request.playbackPositions.get(Number(episode.id)) ??
-                        null,
+                    position,
                     order: entries.length,
                     seasonNumber,
                     special: seasonNumber === 0,

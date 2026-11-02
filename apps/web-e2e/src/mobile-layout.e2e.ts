@@ -1,9 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, test } from './pwa-mock.fixture';
 import {
     addXtreamPortal,
     interceptPwaProviderRequests,
-    resetPwaMockServers,
 } from './sources-pwa.helpers';
 
 /**
@@ -160,11 +159,10 @@ test.describe('portrait phone 375x812', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('xtream portal routes on a phone', () => {
-    test.beforeEach(async ({ page, request }) => {
-        await resetPwaMockServers(request);
+    test.beforeEach(async ({ page, pwaMocks }) => {
         await interceptPwaProviderRequests(page);
         await page.goto('/');
-        await addXtreamPortal(page, 'Mobile Layout Portal');
+        await addXtreamPortal(page, 'Mobile Layout Portal', pwaMocks);
     });
 
     test('@mobile @xtream vod route keeps the context panel in a drawer behind the header toggle', async ({

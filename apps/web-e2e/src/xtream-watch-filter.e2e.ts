@@ -27,7 +27,7 @@ test('@web @pwa @xtream @persistence filters movies after manual marks and detai
     request,
 }) => {
     test.setTimeout(120_000);
-    await request.post(`${MOCK_SERVER}/reset`);
+    await request.post(`${MOCK_SERVER}/reset?username=minimal&password=minimal`);
     await configureMockProviderBackend(page);
     await interceptXtreamRequests(page);
     await page.goto('/');

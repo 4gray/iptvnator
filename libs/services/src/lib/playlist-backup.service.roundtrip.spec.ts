@@ -279,10 +279,17 @@ describe('PlaylistBackupService export → import round-trip', () => {
         expect(snapshot).not.toBeNull();
         // Durable favorites remain readable independently of the catalog;
         // other pending state does not require a completed import.
+        const readPositions =
+            collaborators.playbackPositionService
+                .getAllPlaybackPositionsOrThrow;
         jest.spyOn(
             collaborators.playbackPositionService,
             'getAllPlaybackPositionsOrThrow'
-        ).mockRejectedValue(new Error('Position storage unavailable'));
+        ).mockImplementation((id) =>
+            id === 'xtream-1'
+                ? Promise.reject(new Error('Position storage unavailable'))
+                : readPositions(id)
+        );
         const exported = await service.exportBackup();
         expect(xtreamEntry(exported.manifest).userState).toEqual(originalState);
         expect(
@@ -495,7 +502,7 @@ describe('PlaylistBackupService export → import round-trip', () => {
             );
 
             const failed = await service.importBackup(original.json);
-            expect(failed.failed).toBe(1);
+            expect(failed.failed).toBe(2);
             expect(visibility).not.toHaveBeenCalled();
             expect(collections).not.toHaveBeenCalled();
             expect(favorites).not.toHaveBeenCalled();
@@ -512,7 +519,7 @@ describe('PlaylistBackupService export → import round-trip', () => {
                 'completed';
             const retried = await service.importBackup(original.json);
             expect(retried.failed).toBe(0);
-            expect(positions).toHaveBeenCalledTimes(1);
+            expect(positions).toHaveBeenCalledTimes(2);
             expect(
                 collaborators.pendingRestoreService.getOrThrow('xtream-1')
             ).toBeNull();
@@ -543,7 +550,7 @@ describe('PlaylistBackupService export → import round-trip', () => {
             'restoreXtreamFavoriteSnapshots'
         );
         const result = await service.importBackup(archive.json);
-        expect(result.failed).toBe(1);
+        expect(result.failed).toBe(2);
         expect(favorites).not.toHaveBeenCalled();
         expect(
             collaborators.pendingRestoreService.getOrThrow('xtream-1')
@@ -569,7 +576,7 @@ describe('PlaylistBackupService export → import round-trip', () => {
         ).toEqual(state.playbackPositions);
         const retried = await service.importBackup(original.json);
         expect(retried.failed).toBe(0);
-        expect(replace).toHaveBeenCalledTimes(2);
+        expect(replace).toHaveBeenCalledTimes(4);
         expect(
             collaborators.pendingRestoreService.getOrThrow('xtream-1')
         ).toBeNull();

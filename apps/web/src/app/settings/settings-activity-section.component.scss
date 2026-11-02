@@ -1,0 +1,42 @@
+:host {
+    display: block;
+}
+.activity-fields {
+    display: grid;
+    gap: 20px;
+    padding: 20px;
+    min-width: 0;
+    p {
+        margin: 0;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+}
+.activity-toggle-label {
+    font-weight: 600;
+}
+.activity-policy {
+    display: grid;
+    gap: 8px;
+    max-width: 72ch;
+    font-size: 13px;
+    color: var(--app-body-color);
+}
+.settings-group__header h2 {
+    font-size: 22px;
+}
+.activity-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.activity-conflict {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    background: var(--app-hover-overlay);
+}
+button,
+mat-checkbox {
+    app-region: no-drag;
+}

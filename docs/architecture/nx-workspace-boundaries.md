@@ -284,6 +284,11 @@ the lazy workspace shell feature into the initial bundle.
 
 ## Import Aliases and Public APIs
 
+`@iptvnator/shared/testing/runtime-coverage` is a Node-only test entry. It keeps
+Istanbul, esbuild hooks and temporary coverage files out of the browser-safe
+`shared-testing` barrel. Its build target lets buildable database tests consume
+that public entry without weakening dependency boundaries. Runtime code does not import it.
+
 Use scoped aliases from `tsconfig.base.json` and expose public imports through a
 library's `src/index.ts`. Do not introduce legacy bare aliases such as
 `services`, `components`, `shared-interfaces`, or `database`, and avoid deep
@@ -359,6 +364,15 @@ entry for lazy consumers. Eager provider data access calls `loadTmdbMergers`, wh
 local dynamic import defers that implementation until metadata enrichment, then
 checks the current selection again before applying it. This keeps age metadata
 off the launch path without changing the module-boundary rules.
+`@iptvnator/shared/tmdb/season` exposes the season client separately so optional
+season requests do not pull their response handling into eager metadata imports.
+The shared root barrel retains its type only; Angular and TV consumers use the
+explicit entry for construction.
+
+`@iptvnator/shared/tmdb/matcher` likewise exposes the pure confidence matcher
+without re-exporting its runtime functions from the eager shared/services
+barrels. Asynchronous metadata lookups load it through their local matcher loader;
+lightweight title helpers remain direct shared-interface imports.
 
 The web app's root shell (`app.component.ts`, `app.config.ts` and the services
 they construct) is on the renderer's initial path, where a barrel costs its

@@ -160,6 +160,21 @@ Screenshots come only from the capture script running against the mock servers.
 Never publish one taken from a real playlist or account — streams, logos and
 metadata are copyrighted, and credentials must never reach a published image.
 
+For the release 0.25 dashboard and detail showcase, run
+`pnpm release:screenshots --cinematic --release v0-25` after the standard
+capture. This overlays four screenshot pairs using committed original artwork
+and a synthetic offline metadata cache. The default capture keeps enrichment
+disabled; the explicit preset accepts only its invalid fixture key and retains
+the external-request and personal-database guards. Saved prompts, the interactive
+`pnpm demo:cinematic` / `pnpm demo:cinematic:live` launchers and validation commands are in the
+[cinematic demo guide](../development/cinematic-demo.md).
+
+`pnpm release:preview:themes` additionally composes the saved dark/light
+dashboard captures into a diagonal theme comparison for README or release
+previews. It writes lossless PNG/WebP files and source hashes to the release's
+`previews/` directory, preserving the captured screenshots and README. This is
+a local image-composition command; it starts no app, remote image API or CI job.
+
 The same script also produces the evergreen screenshots of the website guides.
 Manifest shots that carry `"group": "guides"` are skipped by a release run and
 captured only with `pnpm release:screenshots --group guides`, which publishes

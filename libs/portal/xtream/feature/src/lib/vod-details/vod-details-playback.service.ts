@@ -1,3 +1,4 @@
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import {
     DestroyRef,
     Injectable,
@@ -140,12 +141,19 @@ export class VodDetailsPlaybackService {
     readonly hasPlaybackPosition = this.positions.hasResumable;
 
     constructor() {
+        const stopActivityUpdates = observeActivityChanges(() => {
+            const id = this.xtreamStore.currentPlaylist()?.id;
+            const contentId = this.bindings()?.vodId();
+            if (id && contentId && !this.inlinePlayback())
+                void this.loadPosition(id, contentId).catch(() => undefined);
+        });
         const unsubscribePositionUpdates =
             this.playbackPositionBridge.onPlaybackPositionUpdate(
                 (data: PlaybackPositionData) => this.positions.trackOwned(data)
             ) ?? null;
 
         inject(DestroyRef).onDestroy(() => {
+            stopActivityUpdates();
             this.positions.destroy();
             unsubscribePositionUpdates?.();
         });

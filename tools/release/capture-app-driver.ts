@@ -447,6 +447,10 @@ async function addXtreamPortal(
         timeout: 45_000,
     });
     registerPlaylistId(seed.provider, idFromUrl(page.url(), 'xtreams'));
+    // A new source now opens without a selected category. Choose the fixture
+    // explicitly instead of waiting for a grid that has not been requested.
+    await page.locator('app-workspace-context-panel .category-item')
+        .filter({ hasText: 'Action & Mystery' }).first().click({ timeout: 45_000 });
     await page
         .locator('.category-content-layout, app-content-card')
         .first()

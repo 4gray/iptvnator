@@ -125,6 +125,15 @@ with `diagnostics: false`); `isolatedModules`-incompatible syntax such as a
 type re-export without `export type` still fails at load time, and spec type
 errors are caught by `typecheck:spec` (see Unit And Type Checks).
 
+The activity SQLite and real Chromium contracts return their actual runtime
+counters through `@iptvnator/shared/testing/runtime-coverage`. Esbuild instruments
+selected original TypeScript files before bundling; paths and locations remain
+source-based. SQLite writes counters on subprocess exit. Browser tests capture
+all pages before reload/close and merge their counters before writing the report.
+The parent merges those reports into Jest without replacing objects cached by
+existing instrumentation. Missing reports fail the test; assertion failures still
+propagate. The helper never creates synthetic hits or changes coverage thresholds.
+
 Some `electron-backend` and `database` specs run SQLite code in the Electron
 binary under `ELECTRON_RUN_AS_NODE`, resolving it with `require('electron')`.
 pnpm does not run Electron's postinstall (`electron` is deliberately absent from
@@ -287,8 +296,10 @@ in `tools/coverage/e2e-shard-reports.test.mjs` (`pnpm run coverage:tools:test`).
 
 The shared Electron launcher waits for Playwright's first window and selects a
 non-DevTools URL, including a later renderer when DevTools appears first.
-It then waits for the app root, fonts and finite rail entrance animations;
-it does not sleep for a fixed startup interval. Window-selection and
+It then waits for the app root, visible rail, fonts and finite rail entrance
+animations, without a fixed startup sleep. Visibility comes first because
+source inventory loading can hide the workspace. `electron-app-readiness.e2e.ts`
+covers this delayed startup gate and animation completion. Window-selection and
 process-lifecycle regression tests run once per OS before the E2E suite.
 Every test still owns its temporary profile, and restarts still confirm the
 previous process exited before relaunching.

@@ -24,7 +24,11 @@ import {
     ChannelDetailsDialogComponent,
     ChannelListItemComponent,
 } from '@iptvnator/ui/components';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgPreferencesService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
@@ -71,8 +75,13 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
 export class GlobalFavoritesListComponent {
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
-    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
+    get supportsEpgMapping(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.epgBridge.supportsEpgMapping
+        );
+    }
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
 
     readonly channelContextMenu = viewChild.required(
@@ -90,11 +99,17 @@ export class GlobalFavoritesListComponent {
      * Which rows can carry a programme line: M3U rows need XMLTV, Xtream
      * and Stalker rows read their provider's guide (also in the PWA).
      */
-    protected readonly guideBySource = {
-        m3u: this.runtime.supportsEpg,
-        xtream: this.runtime.supportsProviderEpg,
-        stalker: this.runtime.supportsProviderEpg,
-    };
+    protected get guideBySource() {
+        return {
+            m3u: this.epgPreferences.enabled() && this.runtime.supportsEpg,
+            xtream:
+                this.epgPreferences.enabled() &&
+                this.runtime.supportsProviderEpg,
+            stalker:
+                this.epgPreferences.enabled() &&
+                this.runtime.supportsProviderEpg,
+        };
+    }
     readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
     readonly epgMap = input<Map<string, EpgProgram | null>>(new Map());
     readonly progressTick = input<number>(0);

@@ -364,6 +364,7 @@ Call `POST /reset?macAddress=<mac>` to clear a MAC's favorites (and its cached
 generated data) between test runs — see "Test Isolation" for why the scoped
 form is the one specs should use.
 
+
 ## Playwright Integration
 
 `apps/web-e2e/playwright.config.ts` registers the mock server as a second `webServer` entry:
@@ -417,9 +418,9 @@ file running in parallel workers, so isolation is per-MAC rather than global:
   spec's session mid-test.
 - `apps/web-e2e/src/stalker.e2e.ts` declares its shared scenario MACs in
   `OWNED_MACS` (the constants live in `stalker-portal.fixture.ts`) and clears
-  them in one batched request. The sibling specs that
-  reach this server (`self-hosted.e2e.ts`, the `sources-pwa` helpers) own a
-  disjoint `00:1A:79:5F:*` range, so neither file can clear the other's state.
+  them in one batched request. `self-hosted.e2e.ts` owns a disjoint
+  `00:1A:79:5F:*` range; PWA source consumers use the test fixture range below,
+  so these suites cannot clear one another's sessions.
 - Within each browser project, tests deliberately share content-scenario MACs
   (their fixture shapes are what the assertions are written against), so the
   file uses `test.describe.configure({ mode: 'serial' })`.
@@ -430,6 +431,17 @@ file running in parallel workers, so isolation is per-MAC rather than global:
   token, login completion, invalidated session or pinned device identity; a
   restarted worker retains the same slot instead of consuming a wider MAC
   value.
+
+PWA source tests reserve `00:1A:79:C0:00:00` through
+`00:1A:79:FF:FF:FF`, outside the fixed scenarios and auth-worker aliases.
+`pwa-mock-state.ts` assigns the fourth byte by Playwright parallel slot
+(`0..63`) and allocates two distinct MACs per test for import and edit.
+The allocator fails on range exhaustion. The fixture resets both MACs at
+setup and after closing the browser context at teardown. Each scoped reset
+clears generated portal data, favorites, adopted/pending auth tokens, pinned
+device identity, login state and watchdog counters for those MACs only.
+The global token counter stays monotonic. Static media bytes are immutable
+and need no reset.
 
 A reset drops the generated content cache, favorites (`data-store.ts`), the
 auth/session record (`auth-store.ts`, including any pinned device identity) and

@@ -13,7 +13,7 @@ import {
 test.use({ serviceWorkers: 'block' });
 
 test.beforeEach(async ({ page, request }) => {
-    await request.post(`${MOCK_SERVER}/reset`);
+    await request.post(`${MOCK_SERVER}/reset?username=user1&password=pass1`);
     await page.route('**/assets/app-config.js', (route) =>
         route.fulfill({
             contentType: 'application/javascript',

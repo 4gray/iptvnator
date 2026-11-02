@@ -37,6 +37,7 @@ import {
 } from '@iptvnator/ui/components/radio-group';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { PlaylistActions } from '@iptvnator/m3u-state';
+import { EpgPreferencesService } from '@iptvnator/services';
 import {
     ProviderImportCandidate,
     SOURCE_TYPE_ICONS,
@@ -123,6 +124,7 @@ export class AddPlaylistDialogComponent {
 
     readonly method = signal<PlaylistType>('url');
     readonly autoImportEpg = signal(true);
+    readonly epgEnabled = inject(EpgPreferencesService).enabled;
     readonly isM3uImport = computed(() =>
         ['url', 'file', 'text'].includes(this.method())
     );
