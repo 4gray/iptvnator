@@ -166,6 +166,36 @@ describe('withStalkerFavorites', () => {
     });
 
     describe('removeFromFavorites', () => {
+        it('carries the selected kind when a removal context has a numeric category', () => {
+            store.removeFromFavorites('42', undefined, {
+                id: '42',
+                category_id: '17',
+                title: 'Synthetic movie',
+            });
+            expect(
+                playlistService.removeFromPortalFavorites
+            ).toHaveBeenCalledWith(
+                'portal-1',
+                '42',
+                expect.objectContaining({
+                    favoriteContentType: 'vod',
+                    category_id: '17',
+                })
+            );
+            store.setSelectedContentType('series');
+            store.removeFromFavorites('42', undefined, {
+                id: '42',
+                category_id: '17',
+            });
+            expect(
+                playlistService.removeFromPortalFavorites
+            ).toHaveBeenLastCalledWith(
+                'portal-1',
+                '42',
+                expect.objectContaining({ favoriteContentType: 'series' })
+            );
+        });
+
         it('removes the favorite and syncs the emptied playlist meta', () => {
             const onDone = jest.fn();
 
@@ -173,7 +203,7 @@ describe('withStalkerFavorites', () => {
 
             expect(
                 playlistService.removeFromPortalFavorites
-            ).toHaveBeenCalledWith('portal-1', '42');
+            ).toHaveBeenCalledWith('portal-1', '42', undefined);
             expect(ngrxStore.dispatch).toHaveBeenCalledWith(
                 PlaylistActions.updatePlaylistMeta({
                     playlist: {

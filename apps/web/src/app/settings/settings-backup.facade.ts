@@ -1,3 +1,5 @@
+import { favoritesProfileUsed } from '../services/favorites-consent';
+import { loadFavoritesRuntime } from '../services/favorites-sync.providers';
 import { activityEnabled } from '../services/activity-consent';
 import { loadActivityRuntime } from '../services/activity-sync.providers';
 import {
@@ -63,7 +65,13 @@ export class SettingsBackupFacade {
                         ? (
                               await loadActivityRuntime(this.environment)
                           ).exportPositions(sourceId, local)
-                        : local
+                        : local,
+                async (playlist, entry) =>
+                    favoritesProfileUsed()
+                        ? (
+                              await loadFavoritesRuntime(this.environment)
+                          ).exportFavorites(playlist, entry)
+                        : entry
             );
 
             if (this.runtime.supportsDesktopFileSave && window.electron) {

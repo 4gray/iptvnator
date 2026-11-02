@@ -1,6 +1,14 @@
+import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
-import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
+import {
+    DestroyRef,
+    Injectable,
+    computed,
+    effect,
+    inject,
+    signal,
+} from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -82,6 +90,7 @@ export type DashboardRecentlyAddedFilterKind = GlobalRecentlyAddedKind;
 
 @Injectable({ providedIn: 'root' })
 export class DashboardDataService {
+    private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
@@ -408,6 +417,17 @@ export class DashboardDataService {
     });
 
     constructor() {
+        const refreshFavorites = () => void this.reloadGlobalFavorites();
+        window.addEventListener(
+            'iptvnator-favorites-changed',
+            refreshFavorites
+        );
+        inject(DestroyRef).onDestroy(() =>
+            window.removeEventListener(
+                'iptvnator-favorites-changed',
+                refreshFavorites
+            )
+        );
         inject(DestroyRef).onDestroy(
             observeActivityChanges(() => {
                 void this.reloadPlaybackPositions().catch(() => undefined);
@@ -600,7 +620,7 @@ export class DashboardDataService {
     }
 
     private async reloadXtreamGlobalFavorites(): Promise<void> {
-        if (!this.hasPortalActivityStorage) {
+        if (this.favoriteSync.active() || !this.hasPortalActivityStorage) {
             const favorites = await this.loadPwaXtreamGlobalFavorites();
             this.xtreamGlobalFavorites.set(favorites);
             return;
@@ -1007,7 +1027,7 @@ export class DashboardDataService {
 
     async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
         if (item.source === 'xtream') {
-            if (this.hasPortalActivityStorage) {
+            if (!this.favoriteSync.active() && this.hasPortalActivityStorage) {
                 await this.dbService.removeFromFavorites(
                     item.favorite_id != null
                         ? { favoriteId: item.favorite_id }
@@ -1018,6 +1038,7 @@ export class DashboardDataService {
                 await this.xtreamDataSource.removeFavorite(
                     {
                         id: Number(item.id),
+                        providerId: Number(item.xtream_id),
                         type: item.type as 'live' | 'movie' | 'series',
                     },
                     item.playlist_id
@@ -1106,8 +1127,10 @@ export class DashboardDataService {
             return fastPathItems;
         }
 
-        const playlist = (await firstValueFrom(
-            this.playlistsService.getPlaylistById(playlistMeta._id)
+        const playlist = (await this.favoriteSync.project(
+            await firstValueFrom(
+                this.playlistsService.getPlaylistById(playlistMeta._id)
+            )
         )) as Playlist & {
             playlist?: {
                 items?: Channel[];

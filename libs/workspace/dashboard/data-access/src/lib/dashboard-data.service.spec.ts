@@ -929,7 +929,7 @@ describe('DashboardDataService', () => {
         await service.removeGlobalFavorite(item);
 
         expect(xtreamDataSourceMock.removeFavorite).toHaveBeenCalledWith(
-            { id: 51, type: 'movie' },
+            { id: 51, providerId: 5001, type: 'movie' },
             'xtream-1'
         );
         expect(dbServiceMock.removeFromFavorites).not.toHaveBeenCalled();

@@ -81,6 +81,22 @@ describe('withFavorites', () => {
         });
     });
 
+    it('refreshes the active heart after a durable favorite change and detaches on destroy', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue({ id: 42 });
+        dataSource.isFavorite.mockResolvedValue(true);
+        await store.checkFavoriteStatus(42, 'synthetic-source', 'movie');
+        expect(store.isFavorite()).toBe(true);
+        dataSource.isFavorite.mockResolvedValue(false);
+        window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(store.isFavorite()).toBe(false);
+        const calls = dataSource.isFavorite.mock.calls.length;
+        TestBed.resetTestingModule();
+        window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.isFavorite).toHaveBeenCalledTimes(calls);
+    });
+
     it.each(['movie', 'series'] as const)(
         'keeps an existing SQLite %s favorite usable after an explicit TMDB correction',
         async (type) => {
@@ -169,7 +185,7 @@ describe('withFavorites', () => {
                 )
             ).toBe(false);
             expect(dataSource.removeFavorite).toHaveBeenCalledWith(
-                { id: 7, type },
+                { id: 7, providerId: 42, type },
                 'synthetic-source'
             );
             expect(dataSource.addFavorite).not.toHaveBeenCalled();
@@ -246,7 +262,7 @@ describe('withFavorites', () => {
         resolveOld({ id: 1 });
         await toggling;
         expect(dataSource.addFavorite).toHaveBeenCalledWith(
-            { id: 1, type: 'movie' },
+            { id: 1, providerId: 42, type: 'movie' },
             'p1',
             undefined
         );
@@ -271,7 +287,7 @@ describe('withFavorites', () => {
             releaseYear: 1995,
         });
         expect(dataSource.removeFavorite).toHaveBeenCalledWith(
-            { id: 2, type: 'movie' },
+            { id: 2, providerId: 42, type: 'movie' },
             'p1'
         );
     });
@@ -293,7 +309,7 @@ describe('withFavorites', () => {
         );
         expect(dataSource.removeFavorite).not.toHaveBeenCalled();
         expect(dataSource.addFavorite).toHaveBeenCalledWith(
-            { id: 42, type: 'movie', identity },
+            { id: 42, providerId: 42, type: 'movie', identity },
             'playlist-1',
             undefined
         );
@@ -354,7 +370,7 @@ describe('withFavorites', () => {
                 !persistedStatus
             );
             expect(dataSource.isFavorite).toHaveBeenCalledWith(
-                { id: 42, type: 'live' },
+                { id: 42, providerId: 42, type: 'live' },
                 'playlist-1'
             );
             expect(
@@ -381,7 +397,7 @@ describe('withFavorites', () => {
             'series'
         );
         expect(dataSource.addFavorite).toHaveBeenCalledWith(
-            { id: 3941697, type: 'series' },
+            { id: 3941697, providerId: 290, type: 'series' },
             'playlist-1',
             undefined
         );
@@ -404,7 +420,7 @@ describe('withFavorites', () => {
         );
 
         expect(dataSource.addFavorite).toHaveBeenCalledWith(
-            { id: 1767451, type: 'movie' },
+            { id: 1767451, providerId: 1767451, type: 'movie' },
             'playlist-1',
             undefined
         );
@@ -432,7 +448,7 @@ describe('withFavorites', () => {
             'movie'
         );
         expect(dataSource.addFavorite).toHaveBeenCalledWith(
-            { id: 1767451, type: 'movie' },
+            { id: 1767451, providerId: 1767451, type: 'movie' },
             'playlist-1',
             undefined
         );
@@ -457,7 +473,7 @@ describe('withFavorites', () => {
             'live'
         );
         expect(dataSource.removeFavorite).toHaveBeenCalledWith(
-            { id: 3867578, type: 'live' },
+            { id: 3867578, providerId: 290, type: 'live' },
             'playlist-1'
         );
         expect(result).toBe(false);
@@ -481,7 +497,7 @@ describe('withFavorites', () => {
             'series'
         );
         expect(dataSource.isFavorite).toHaveBeenCalledWith(
-            { id: 3829429, type: 'series' },
+            { id: 3829429, providerId: 31, type: 'series' },
             'playlist-1'
         );
         expect(store.isFavorite()).toBe(true);
@@ -499,7 +515,7 @@ describe('withFavorites', () => {
         await store.checkFavoriteStatus(1767451, 'playlist-1', 'movie');
 
         expect(dataSource.isFavorite).toHaveBeenCalledWith(
-            { id: 1767451, type: 'movie' },
+            { id: 1767451, providerId: 1767451, type: 'movie' },
             'playlist-1'
         );
         expect(store.isFavorite()).toBe(true);

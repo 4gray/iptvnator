@@ -23,6 +23,9 @@ const playbackPositionStorageMethods = [
 
 @Injectable({ providedIn: 'root' })
 export class RuntimeCapabilitiesService {
+    get supportsFavoritesStorage(): boolean {
+        return this.isPwa || this.hasElectronMethod('favoritesLocalRequest');
+    }
     get supportsActivityStorage(): boolean {
         return this.isPwa || this.hasElectronMethod('activityLocalRequest');
     }

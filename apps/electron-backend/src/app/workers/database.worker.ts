@@ -1,3 +1,5 @@
+import type { FavoriteLocalRequest } from '@iptvnator/shared/interfaces/favorites-sync';
+import { favoriteLocalOperation } from '../database/operations/favorites-local.operations';
 import type { ActivityLocalRequest } from '@iptvnator/shared/interfaces/activity-sync';
 import { activityLocalOperation } from '../database/operations/activity-local.operations';
 import { getWorkerSqlite } from './database.worker-connection';
@@ -435,6 +437,11 @@ async function executeRequest(
     const db = await getWorkerDatabase();
 
     switch (message.operation) {
+        case 'DB_FAVORITES_LOCAL':
+            return favoriteLocalOperation(
+                getWorkerSqlite(),
+                message.payload as FavoriteLocalRequest
+            );
         case 'DB_ACTIVITY_LOCAL':
             return activityLocalOperation(
                 getWorkerSqlite(),

@@ -2051,3 +2051,14 @@ lifetime. The health consumer bounds only its own wait; its deadline and closing
 a status surface never cancel or shorten authentication shared with playback.
 Profile/account reads have request-owned cancellation. Outer profile challenge
 statuses are not subscription statuses. Missing account dates stay unknown.
+
+
+## Optional shared favorites
+
+The [self-hosted favorites opt-in](pwa-self-hosted.md#favorites-synchronization)
+uses independent typed membership for live, radio, movie and series. Series
+references retain regular, embedded and lazy origins; snapshots retain only safe
+display metadata and embedded episode numbers. They never transport cmd or session
+credentials. New local favorites record `favoriteContentType` independently of a
+numeric provider category ID; ambiguous historical rows stay local for preview.
+Projection reconstructs route/type hints without inventing playback coordinates.

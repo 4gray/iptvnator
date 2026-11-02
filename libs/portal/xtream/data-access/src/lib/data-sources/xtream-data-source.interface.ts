@@ -34,6 +34,8 @@ export interface XtreamPlayedContent extends ContentMetadataPatch {
 
 /** SQLite row id on Electron; provider id on PWA. Always carry type for PWA. */
 export interface TypedXtreamCollectionRef {
+    /** Portable provider ID when a retained favorite has no catalog row. */
+    readonly providerId?: number;
     readonly id: number;
     readonly type: XtreamContentType;
     /** Expected identity of the rendered collection row, independent of catalog hydration. */

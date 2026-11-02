@@ -1,3 +1,8 @@
+import {
+    favoriteReferenceKey,
+    stalkerFavoriteReference,
+} from '@iptvnator/shared/interfaces/favorites-sync';
+import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import type { ElectronBridgeFavoriteReorderUpdate } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
 import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
@@ -49,6 +54,7 @@ type StalkerPortalFavoriteItem = StalkerPortalItem & {
 
 @Injectable({ providedIn: 'root' })
 export class UnifiedFavoritesDataService {
+    private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
@@ -92,6 +98,7 @@ export class UnifiedFavoritesDataService {
         return this.xtreamDataSource.isFavorite(
             {
                 id: contentId,
+                providerId: item.xtreamId,
                 type: item.contentType,
                 ...(item.xtreamIdentity
                     ? { identity: item.xtreamIdentity }
@@ -122,17 +129,19 @@ export class UnifiedFavoritesDataService {
                     );
                     return;
                 }
-                if (item.contentId == null) return;
+                if (item.contentId == null && !this.favoriteSync.active())
+                    return;
                 if (electron) {
                     await electron.dbRemoveFavorite(
-                        item.contentId,
+                        item.contentId!,
                         item.playlistId
                     );
                     return;
                 }
                 await this.xtreamDataSource.removeFavorite(
                     {
-                        id: item.contentId,
+                        id: item.contentId ?? 0,
+                        providerId: item.xtreamId,
                         type: item.contentType,
                         ...(item.xtreamIdentity
                             ? { identity: item.xtreamIdentity }
@@ -147,7 +156,8 @@ export class UnifiedFavoritesDataService {
                 await firstValueFrom(
                     this.playlistsService.removeFromPortalFavorites(
                         item.playlistId,
-                        sourceItemId
+                        sourceItemId,
+                        item.stalkerItem as StalkerPortalItem
                     )
                 );
                 break;
@@ -184,6 +194,7 @@ export class UnifiedFavoritesDataService {
             await this.xtreamDataSource.addFavorite(
                 {
                     id: contentId,
+                    providerId: item.xtreamId,
                     type: item.contentType,
                     ...(item.xtreamIdentity
                         ? { identity: item.xtreamIdentity }
@@ -212,6 +223,16 @@ export class UnifiedFavoritesDataService {
             (item.stalkerItem as StalkerPortalItem | undefined) ?? {};
         const favorite: StalkerPortalFavoriteItem = {
             ...stalkerItem,
+            favoriteContentType:
+                item.contentType === 'series' &&
+                !stalkerItem.is_series &&
+                !stalkerItem.series?.length
+                    ? 'series'
+                    : item.contentType === 'movie'
+                      ? 'vod'
+                      : item.radio === 'true'
+                        ? 'radio'
+                        : 'itv',
             id:
                 item.stalkerId ??
                 extractStalkerItemId(stalkerItem) ??
@@ -342,6 +363,8 @@ export class UnifiedFavoritesDataService {
         ) {
             if (xtreamUpdates.length > 0 && electron) {
                 await electron.dbReorderGlobalFavorites(xtreamUpdates);
+            } else {
+                await this.saveOrder(items.map((item) => item.uid));
             }
             return;
         }
@@ -404,12 +427,16 @@ export class UnifiedFavoritesDataService {
                             item
                         ): item is UnifiedCollectionItem & {
                             readonly contentId: number;
-                        } => item.contentId != null
+                        } =>
+                            item.contentId != null ||
+                            (this.favoriteSync.active() &&
+                                item.xtreamId != null)
                     )
                     .map((item) =>
                         this.xtreamDataSource.removeFavorite(
                             {
-                                id: item.contentId,
+                                id: item.contentId ?? 0,
+                                providerId: item.xtreamId,
                                 type: item.contentType,
                                 ...(item.xtreamIdentity
                                     ? { identity: item.xtreamIdentity }
@@ -493,7 +520,7 @@ export class UnifiedFavoritesDataService {
         meta: PlaylistMeta
     ): Promise<UnifiedCollectionItem[]> {
         if (!meta.favorites?.length) return [];
-        const favoriteIds = (meta.favorites as string[]).map(String);
+
         let playlist: PlaylistWithChannels | undefined;
         try {
             playlist = (await firstValueFrom(
@@ -502,6 +529,10 @@ export class UnifiedFavoritesDataService {
         } catch {
             return [];
         }
+        if (playlist) playlist = await this.favoriteSync.project(playlist);
+        const favoriteIds = ((playlist?.favorites ?? []) as string[]).map(
+            String
+        );
         const channels = playlist?.playlist?.items ?? [];
         const channelsByFavoriteId = new Map<string, Channel>();
         channels.forEach((channel) => {
@@ -585,8 +616,11 @@ export class UnifiedFavoritesDataService {
             if (!this.electronActivityBridge) {
                 const rows =
                     await this.xtreamDataSource.getFavorites(playlistId);
-                return rows.map((row) =>
-                    this.mapXtreamContentItem(row, playlistId, meta?.title)
+                return this.applyOrder(
+                    rows.map((row) =>
+                        this.mapXtreamContentItem(row, playlistId, meta?.title)
+                    ),
+                    await this.getSavedOrder()
                 );
             }
 
@@ -718,6 +752,7 @@ export class UnifiedFavoritesDataService {
         } catch {
             return [];
         }
+        if (playlist) playlist = await this.favoriteSync.project(playlist);
         const favs = Array.isArray(playlist?.favorites)
             ? playlist.favorites.filter(isStalkerItem)
             : [];
@@ -728,7 +763,11 @@ export class UnifiedFavoritesDataService {
             const stalkerId = extractStalkerItemId(fav, meta._id, index);
             const poster = extractStalkerItemPoster(fav) || null;
             return {
-                uid: buildCollectionUid('stalker', meta._id, stalkerId),
+                uid: buildCollectionUid(
+                    'stalker',
+                    meta._id,
+                    this.getStalkerFavoriteId(fav) || stalkerId
+                ),
                 name:
                     extractStalkerItemTitle(fav) ||
                     this.translate.instant(
@@ -777,11 +816,11 @@ export class UnifiedFavoritesDataService {
 
     private async getSavedOrder(): Promise<string[]> {
         const electron = window.electron;
-        if (!this.runtime.supportsAppStateStorage || !electron) return [];
         try {
-            const raw = await electron.dbGetAppState(
-                GLOBAL_FAVORITES_ORDER_KEY
-            );
+            const raw =
+                this.runtime.supportsAppStateStorage && electron
+                    ? await electron.dbGetAppState(GLOBAL_FAVORITES_ORDER_KEY)
+                    : localStorage.getItem(GLOBAL_FAVORITES_ORDER_KEY);
             return raw ? (JSON.parse(raw) as string[]) : [];
         } catch {
             return [];
@@ -790,12 +829,17 @@ export class UnifiedFavoritesDataService {
 
     private async saveOrder(uidOrder: string[]): Promise<void> {
         const electron = window.electron;
-        if (!this.runtime.supportsAppStateStorage || !electron) return;
         try {
-            await electron.dbSetAppState(
-                GLOBAL_FAVORITES_ORDER_KEY,
-                JSON.stringify(uidOrder)
-            );
+            if (this.runtime.supportsAppStateStorage && electron)
+                await electron.dbSetAppState(
+                    GLOBAL_FAVORITES_ORDER_KEY,
+                    JSON.stringify(uidOrder)
+                );
+            else
+                localStorage.setItem(
+                    GLOBAL_FAVORITES_ORDER_KEY,
+                    JSON.stringify(uidOrder)
+                );
         } catch {
             /* ignore */
         }
@@ -905,8 +949,16 @@ export class UnifiedFavoritesDataService {
 
     private getStalkerFavoriteId(
         favorite:
-            Pick<UnifiedCollectionItem, 'stalkerId' | 'uid'> | StalkerPortalItem
+            | Pick<UnifiedCollectionItem, 'stalkerId' | 'uid' | 'stalkerItem'>
+            | StalkerPortalItem
     ): string {
+        const item = ('uid' in favorite ? favorite.stalkerItem : favorite) as
+            StalkerPortalItem | undefined;
+        const reference =
+            item &&
+            this.favoriteSync.active() &&
+            stalkerFavoriteReference(item);
+        if (reference) return favoriteReferenceKey(reference);
         if ('uid' in favorite) {
             return String(
                 favorite.stalkerId ?? favorite.uid.split('::')[2] ?? ''
@@ -917,7 +969,8 @@ export class UnifiedFavoritesDataService {
     }
 
     private get electronActivityBridge(): Window['electron'] | undefined {
-        return this.runtime.supportsPortalActivityStorage
+        return !this.favoriteSync.active() &&
+            this.runtime.supportsPortalActivityStorage
             ? window.electron
             : undefined;
     }

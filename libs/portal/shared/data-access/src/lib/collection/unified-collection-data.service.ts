@@ -57,6 +57,16 @@ export class UnifiedCollectionDataService {
         this.request.asReadonly();
 
     private requestId = 0;
+    private lastLoad?: CollectionLoadRequest & { mode: CollectionMode };
+    constructor() {
+        const refresh = () => {
+            if (this.lastLoad) void this.load(this.lastLoad);
+        };
+        window.addEventListener('iptvnator-favorites-changed', refresh);
+        inject(DestroyRef).onDestroy(() =>
+            window.removeEventListener('iptvnator-favorites-changed', refresh)
+        );
+    }
 
     /**
      * Replace the collection with the rows the request resolves to. Returns
@@ -66,6 +76,7 @@ export class UnifiedCollectionDataService {
     async load(
         params: CollectionLoadRequest & { mode: CollectionMode }
     ): Promise<UnifiedCollectionItem[] | null> {
+        this.lastLoad = params;
         const requestId = ++this.requestId;
         if (this.allItems().length === 0) {
             this.isLoading.set(true);

@@ -1,3 +1,5 @@
+import { favoritesProfileUsed } from './favorites-consent';
+import { invokeFavorites } from './favorites-sync.providers';
 import {
     createRandomId,
     type PlayerContentInfo,
@@ -21,6 +23,18 @@ export function activityDataSourceFactory(): IXtreamDataSource {
             if (typeof value !== 'function') return value;
             const local = value.bind(target);
             const method = String(key);
+            if (
+                [
+                    'getFavorites',
+                    'addFavorite',
+                    'removeFavorite',
+                    'isFavorite',
+                ].includes(method)
+            )
+                return (...args: unknown[]) =>
+                    favoritesProfileUsed()
+                        ? invokeFavorites(injector, target, method, args)
+                        : local(...args);
             if (!method.includes('PlaybackPosition')) return local;
             return async (...args: unknown[]) => {
                 const existing = runtimes.get(injector);

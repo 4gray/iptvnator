@@ -100,7 +100,11 @@ export class PlaylistBackupService {
     private backupImportTail?: Promise<void>;
 
     async exportBackup(
-        projectPositions?: BackupPositionProjector
+        projectPositions?: BackupPositionProjector,
+        projectFavorites?: (
+            playlist: Playlist,
+            entry: PlaylistBackupEntry
+        ) => Promise<PlaylistBackupEntry>
     ): Promise<PlaylistBackupExportPayload> {
         // Locks are written only when present, and an absent field means
         // "no opinion" on restore — so an export must never run against an
@@ -119,9 +123,15 @@ export class PlaylistBackupService {
         );
         const settings = this.buildSettingsPayload();
         const playlistEntries = await Promise.all(
-            playlists.map((playlist) =>
-                this.buildPlaylistEntry(playlist, projectPositions)
-            )
+            playlists.map(async (playlist) => {
+                const entry = await this.buildPlaylistEntry(
+                    playlist,
+                    projectPositions
+                );
+                return projectFavorites
+                    ? projectFavorites(playlist, entry)
+                    : entry;
+            })
         );
         const exportedAt = new Date().toISOString();
         const manifest: PlaylistBackupManifestV1 = {

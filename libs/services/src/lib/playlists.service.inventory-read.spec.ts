@@ -47,6 +47,11 @@ describe('PlaylistsService inventory reads', () => {
             PlaylistsService.prototype
         ) as PlaylistsService;
         Object.assign(service, {
+            favoriteSync: {
+                active: () => false,
+                project: async <T>(row: T) => row,
+                mutate: async () => null,
+            },
             dbService: { getAll: jest.fn(() => of([])) },
             storageBackend: {
                 kind: () => 'electron',

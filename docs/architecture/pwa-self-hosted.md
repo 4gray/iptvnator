@@ -922,7 +922,7 @@ and Stalker live channels show their provider's programme guide.
 Connecting a source server synchronizes sources only. Settings → Server offers
 an independent, disabled-by-default consent for progress and watched marks.
 The UI explains that the server holds **one shared household activity**: anyone
-with access sees and changes the same activity. Favorites, history and EPG stay
+with access sees and changes the same activity. Favorites have their own independent opt-in. History and EPG stay
 local. There are no per-person accounts or cross-provider content matching.
 
 Enabling receives server activity and uploads new actions. It never scans and
@@ -1169,3 +1169,75 @@ Web development and PWA use `baseHref="/"`; packaged Electron frontend uses
 `baseHref="./"` so file URLs resolve. In `apps/web/project.json`, `production`
 is the Electron frontend build, `pwa` is the web build, and `development` uses
 the index base. Do not ship the Electron frontend build as a PWA deployment.
+
+
+## Favorites synchronization
+
+Settings → Server provides an independent, disabled-by-default favorites consent.
+Connecting a server or enabling progress does not read/upload favorites. One shared
+library belongs to the server; there are no personal accounts or cross-provider
+matches. Membership is scoped by instance, source ID, persisted source incarnation
+and a typed portable reference. Order and Recently Viewed remain device-local.
+
+`favorites-v1` advertises authenticated, uncached `/v1/favorites` routes matching
+the activity transport shape: source context, paginated source items, one-address
+read and per-item operations. The verified instance header is mandatory. Per-item
+revisions and idempotency receipts commit with state in SQLite. Removed memberships
+remain stored as negative states; retrying an acknowledged old add returns its
+original receipt and cannot resurrect a later removal. Stale same-item edits
+require an explicit choice; independent keys do not replace a collection map.
+Legacy playlist and user-state writes cannot erase the new membership tables.
+
+M3U v1 references contain the SHA-256 digest of the exact URL bytes. Duplicate
+URLs retain one membership. Clients resolve legacy IDs only through their local
+catalog; title and tvg-id never establish identity. Raw stream URLs stay in local
+catalogs, outside the favorites wire reference. Changed URLs and ambiguous legacy
+IDs remain unresolved rather than matching by title. Xtream references carry the
+provider ID and normalized live/movie/series kind, never a SQLite row ID. Stalker
+also preserves radio and regular/embedded/lazy series origins. Allowlisted display
+snapshots contain title, optional metadata and embedded episode numbers, without
+cmd, media URLs, credentials, session tokens or full provider objects. Display
+snapshots do not bypass known catalog identity conflicts.
+
+First enable receives server state without uploading the older local archive.
+For matching keys, shared state projects over local favorites; local-only entries
+stay local. Explicit preview/import reports source and unresolved counts. Import
+uses conditional per-item adds and presents existing server choices as conflicts.
+Absence from a local archive is never a remove operation.
+
+Projection and intent commit together in a separate instance-scoped IndexedDB
+store or the Electron database worker. SQLite uses fixed `DB_FAVORITES_LOCAL`
+read/list/pending/CAS operations; renderer CAS retries recheck consent and source
+ownership. IndexedDB uses readwrite transactions and does not require Web Locks.
+Offline intents survive restart. Profiles and source incarnations never inherit
+old pending work. The source lifecycle shared with activity now covers M3U too;
+activity itself remains limited to its existing supported provider types.
+
+Opt-out stops delivery and remote application, retaining the durable local
+projection and server state. Subsequent local edits remain local. Re-enable uses
+a fresh consent generation: earlier queued changes need an explicit Send or Keep
+local choice. Keeping an intent local preserves its local membership without
+sending it to the server. Late responses cannot acknowledge a newer generation
+or overwrite a local action made after opt-out. Settings exposes queue, conflict,
+incompatible and storage/network failure states independently of progress sync.
+
+The narrow entries are `@iptvnator/shared/interfaces/favorites-sync`,
+`@iptvnator/shared/database/favorites-sync`, `@iptvnator/services/favorites-sync`
+and the lightweight `@iptvnator/services/favorites-events` composition token.
+Existing source documents remain the retained local archive; only explicit
+favorites APIs enqueue membership changes. Catalog refresh and source edits do
+not infer favorites operations from whole documents.
+
+Favorite Retry and reconnect refresh the source lifecycle first, restoring the
+anonymous instance verification revoked by a transport outage before reading or
+sending favorite payloads. Backup export projects the durable visible favorite
+copy; restoring an archive stays local until explicit favorites preview/import.
+Stalker embedded snapshots keep VOD routing and episode arrays, regular snapshots
+keep the series route, and lazy snapshots keep the VOD origin plus series marker.
+
+Open favorite detail controls and collections re-read the durable projection on
+renderer invalidation; a server update therefore changes the active heart without
+navigation. Stalker removals carry the content kind and series origin, and live
+controls acknowledge membership only after local persistence. Xtream collection
+ordering remains in device-local app state (browser storage in PWA), outside the
+shared membership protocol.

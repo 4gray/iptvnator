@@ -1116,3 +1116,14 @@ dates, and falls back to `last_modified` for series without a usable `added`
 value. It does not infer addition time from release dates or IDs. TV applies
 this timestamp before client pagination; see [TV application](tv-application.md).
 The Angular selection store's sort behavior is unchanged.
+
+
+## Optional shared favorites
+
+The [self-hosted favorites opt-in](pwa-self-hosted.md#favorites-synchronization)
+projects typed provider membership through the selected data source in both
+runtimes. Collection references can carry a portable `providerId` alongside the
+existing local row ID, including removal of a retained row with no catalog link.
+The shared snapshot cannot turn a known TMDB/year conflict into a playable catalog
+row. Global collections and dashboard use the same projection when this profile
+has used favorites sync; recently viewed and collection order stay local.

@@ -1,3 +1,5 @@
+import { favoritesEnabled } from './favorites-consent';
+import { loadFavoritesRuntime } from './favorites-sync.providers';
 import { EnvironmentInjector, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { Router } from '@angular/router';
@@ -14,6 +16,10 @@ export function initializeSourceSync(): Promise<void> {
     const playlists = inject(PlaylistsService);
     const sync = inject(SourceSyncService);
     // A consented activity profile always belongs to this selected source server.
+    if (favoritesEnabled())
+        void loadFavoritesRuntime(inject(EnvironmentInjector)).catch(
+            () => undefined
+        );
     if (activityEnabled())
         void loadActivityRuntime(inject(EnvironmentInjector)).catch(
             () => undefined

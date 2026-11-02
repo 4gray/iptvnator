@@ -31,6 +31,17 @@ export function sourceRequestRoute(request: SourceServerRequest): {
             return { path: `/v1/sources/${id}`, method: 'DELETE' };
         case 'clear':
             return { path: '/v1/sources', method: 'DELETE' };
+        case 'favorites-context':
+            return { path: `/v1/favorites/sources/${id}`, method: 'GET' };
+        case 'favorites-list':
+            return {
+                path: `/v1/favorites/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
+                method: 'GET',
+            };
+        case 'favorites-read':
+            return { path: '/v1/favorites/read', method: 'POST' };
+        case 'favorites-apply':
+            return { path: '/v1/favorites/operations', method: 'POST' };
         case 'activity-context':
             return { path: `/v1/activity/sources/${id}`, method: 'GET' };
         case 'activity-list':
@@ -81,8 +92,12 @@ export async function requestSourceServer(
                       }
                     : {}),
             },
-            ...((request.activity ?? request.source)
-                ? { body: JSON.stringify(request.activity ?? request.source) }
+            ...((request.favorite ?? request.activity ?? request.source)
+                ? {
+                      body: JSON.stringify(
+                          request.favorite ?? request.activity ?? request.source
+                      ),
+                  }
                 : {}),
         });
         // These routes are server-owned; JSON 5xx responses are outages too.

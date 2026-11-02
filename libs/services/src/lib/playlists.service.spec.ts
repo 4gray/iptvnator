@@ -47,6 +47,11 @@ describe('PlaylistsService', () => {
         ) as PlaylistsService;
 
         Object.assign(service as object, {
+            favoriteSync: {
+                active: () => false,
+                project: async <T>(row: T) => row,
+                mutate: async () => null,
+            },
             dbService: {
                 clear: jest.fn(() => of(undefined)),
                 delete: jest.fn(() => of(undefined)),

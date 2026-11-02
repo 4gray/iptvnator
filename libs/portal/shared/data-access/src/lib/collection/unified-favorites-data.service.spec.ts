@@ -783,7 +783,12 @@ describe('UnifiedFavoritesDataService', () => {
             xtreamId: 101,
             xtreamIdentity: { tmdbId: 200, releaseYear: 2026 },
         };
-        const ref = { id: 101, type: 'movie', identity: item.xtreamIdentity };
+        const ref = {
+            id: 101,
+            providerId: 101,
+            type: 'movie',
+            identity: item.xtreamIdentity,
+        };
         await service.isXtreamFavorite(item);
         expect(xtreamDataSource.isFavorite).toHaveBeenCalledWith(
             ref,
@@ -834,7 +839,7 @@ describe('UnifiedFavoritesDataService', () => {
             'movie'
         );
         expect(xtreamDataSource.addFavorite).toHaveBeenCalledWith(
-            { id: 101, type: 'movie' },
+            { id: 101, providerId: 101, type: 'movie' },
             'xtream-1',
             'movie.png'
         );
@@ -860,7 +865,7 @@ describe('UnifiedFavoritesDataService', () => {
         } satisfies UnifiedCollectionItem);
 
         expect(xtreamDataSource.removeFavorite).toHaveBeenCalledWith(
-            { id: 1010, type: 'movie' },
+            { id: 1010, providerId: 101, type: 'movie' },
             'xtream-1'
         );
         expect(electronApi.dbRemoveFavorite).not.toHaveBeenCalled();

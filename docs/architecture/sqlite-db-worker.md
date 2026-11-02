@@ -1176,3 +1176,15 @@ When adding another heavy SQLite operation:
 6. Reuse existing preload/service APIs where possible instead of creating a new
    renderer-facing contract.
 7. Re-run the worker unit test and at least one Electron runtime smoke.
+
+
+### Optional favorites projection
+
+`DB_FAVORITES_LOCAL` follows the fixed local CAS protocol used by activity, with
+independent favorite record types and tables. The main handler verifies the
+selected source-server instance before dispatch; only the worker opens SQLite.
+Projection and pending membership operations commit in one synchronous SQLite
+transaction. Renderer retries preserve sibling-window changes and recheck the
+captured consent/source ownership. No callback, SQL or media address crosses this
+bridge. The worker bundler explicitly maps the favorites secondary entries before
+the parent interface/database aliases.

@@ -751,6 +751,9 @@ export interface ElectronBridgeApi {
     onAppMenuAction: (
         callback: (action: ElectronBridgeAppMenuAction) => void
     ) => () => void;
+    favoritesLocalRequest?: (
+        request: import('./favorites-sync/favorites-sync.contract').FavoriteLocalRequest
+    ) => Promise<unknown>;
     activityLocalRequest?: (
         request: import('./activity-sync/activity-sync.wire').ActivityLocalRequest
     ) => Promise<unknown>;

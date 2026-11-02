@@ -1,3 +1,4 @@
+import { SettingsFavoritesSectionComponent } from './settings-favorites-section.component';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -38,6 +39,7 @@ import {
     providers: [provideFormFieldDefaults()],
     imports: [
         SettingsActivitySectionComponent,
+        SettingsFavoritesSectionComponent,
         SettingsSyncStatusComponent,
         MatIconModule,
         FormsModule,
