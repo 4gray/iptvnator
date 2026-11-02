@@ -1,3 +1,4 @@
+import { latestFavoriteBase } from './favorites-client-state';
 import {
     assertFavoriteState,
     type FavoriteResult,
@@ -56,17 +57,12 @@ export async function deliverFavorites(
                 head.consentGeneration !== generation
             )
                 return current;
-            if (result.status === 'conflict')
-                return {
-                    ...current,
-                    base: result.state,
-                    conflict: result.state,
-                };
-            const pending = current.pending.slice(1);
+            const known = latestFavoriteBase(current);
             const base =
-                result.state.revision >= current.base.revision
-                    ? result.state
-                    : current.base;
+                result.state.revision >= known.revision ? result.state : known;
+            if (result.status === 'conflict')
+                return { ...current, base, conflict: base };
+            const pending = current.pending.slice(1);
             return {
                 ...current,
                 base,

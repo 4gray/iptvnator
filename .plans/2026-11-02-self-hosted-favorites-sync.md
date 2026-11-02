@@ -150,3 +150,23 @@ created, and no merge occurred. Continue only after the maintainer authorizes
 work beyond that review limit. Greptile CLI remains unavailable under the
 existing documented exception. The worktree and local branch are retained.
 Review output: /tmp/iptvnator-favorites-review-5.out.
+
+## Resumed after maintainer authorization
+
+The maintainer explicitly requested continued review beyond the five-round stop
+and an additional `ponytail-review` pass. The new focused regressions reproduce
+both open findings before repair: nested movie/series detail recreation, and an
+older conflict receipt replacing a newer polled state. The source-edit reset
+still passes. Repairs retain nested detail identity and compare both receipt
+kinds with the newest known server copy. Mixed-runtime Xtream playback now must
+advance beyond the five-second polling interval. Ponytail is a checklist skill,
+not an additional external review service.
+
+Resumed validation passes: movie/series injector regressions and both old-receipt
+resolution paths; affected types/lint, full coverage, production build and worker,
+initial bytes 1,199,493 / 1,200,301, Docker add/remove/retry/restart smoke.
+The mixed Xtream test confirms the same playing media element survives a full
+polling cycle in both PWA and Electron. Stalker and M3U mixed cases also pass.
+Ponytail connected-code inspection assumes one shared home server with a few
+clients. It found no additional confirmed issue after these repairs; it checked
+authorization, transactions, durable receipts, source/profile fences and callers.

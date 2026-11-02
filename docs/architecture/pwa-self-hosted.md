@@ -1278,3 +1278,7 @@ showing or resolving either choice. Sparse Xtream additions retain known TMDB
 identity hints even without a local catalog row. Dashboard M3U/Stalker removals
 use explicit membership APIs and publish metadata with `persist: false`; the M3U
 favorite cache is invalidated after a successful removal.
+
+Both applied and conflict receipts are compared with the newest locally known
+server revision. Replaying an older persisted conflict receipt cannot roll back
+a later polling result; either conflict choice starts from that newest copy.

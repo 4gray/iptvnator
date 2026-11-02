@@ -178,6 +178,54 @@ for (const provider of ['xtream', 'stalker'] as const)
             await expect(
                 desktop.mainWindow.getByText(title!, { exact: true }).first()
             ).toBeVisible();
+            if (provider === 'xtream') {
+                for (const client of [page, desktop.mainWindow]) {
+                    await routePlayableStreams(client);
+                    await detail(client, provider);
+                    await openGlobalFavorites(client);
+                    // Keep the original media element through a full poll,
+                    // including a loop of the short deterministic fixture.
+                    await startAndConfirmPlayback(
+                        client,
+                        async () => {
+                            await client
+                                .getByText(title!, { exact: true })
+                                .first()
+                                .click();
+                            await client
+                                .locator('[data-testid="vod-primary-action"]')
+                                .click();
+                        },
+                        2.5
+                    );
+                    const media = await client
+                        .locator('video')
+                        .first()
+                        .elementHandle();
+                    if (!media)
+                        throw new Error('Synthetic playback element missing');
+                    const startedAt = await media.evaluate((element) => {
+                        (element as HTMLVideoElement).loop = true;
+                        return performance.now();
+                    });
+                    await expect
+                        .poll(
+                            () =>
+                                media.evaluate((element, start) => {
+                                    const video = element as HTMLVideoElement;
+                                    return (
+                                        video.isConnected &&
+                                        !video.paused &&
+                                        video.readyState >= 2 &&
+                                        performance.now() - start >= 6500
+                                    );
+                                }, startedAt),
+                            { timeout: 15000 }
+                        )
+                        .toBe(true);
+                    await media.dispose();
+                }
+            }
             await detail(page, provider);
             await expect(
                 page

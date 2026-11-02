@@ -161,6 +161,36 @@ beforeAll(() =>
 );
 describe('favorites delivery and consent boundaries', () => {
     it.each([false, true])(
+        'retains newer polled state when an old conflict receipt is retried (useLocal=%s)',
+        async (useLocal) => {
+            const f = fixture();
+            const key = favoriteAddressKey(address);
+            f.states.set(key, { revision: 2, member: false });
+            f.afterApply(async () => {
+                throw new Error('Synthetic lost response');
+            });
+            await f.client.set('source', ref, false);
+            expect((await f.local.read(address))?.pending).toHaveLength(1);
+            f.states.set(key, { revision: 3, member: true });
+            f.afterApply(async () => undefined);
+            await f.client.refresh('source');
+            expect((await f.local.read(address))?.base).toEqual({
+                revision: 3,
+                member: true,
+            });
+            expect((await f.local.read(address))?.conflict).toEqual({
+                revision: 3,
+                member: true,
+            });
+            await f.client.resolve(address, useLocal);
+            expect((await f.local.read(address))?.state).toEqual({
+                revision: useLocal ? 4 : 3,
+                member: !useLocal,
+            });
+            expect((await f.local.read(address))?.pending).toEqual([]);
+        }
+    );
+    it.each([false, true])(
         'resolves the latest server conflict after polling (useLocal=%s)',
         async (useLocal) => {
             const f = fixture();
