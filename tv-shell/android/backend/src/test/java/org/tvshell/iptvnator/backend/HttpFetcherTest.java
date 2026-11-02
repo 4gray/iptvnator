@@ -4,6 +4,10 @@ import static org.tvshell.iptvnator.backend.TestMain.assertEquals;
 import static org.tvshell.iptvnator.backend.TestMain.assertTrue;
 
 import java.io.ByteArrayInputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -69,4 +73,69 @@ public class HttpFetcherTest {
         assertTrue("input map is not mutated", input.containsKey("Authorization"));
         assertTrue("null headers stay null", HttpFetcher.headersForRedirect(null, new URL("https://a.example/"), new URL("https://b.example/")) == null);
     }
+    /** A real HTTP 200 whose body cannot be consumed; no external host or provider data. */
+    private static final class BrokenBodyServer implements AutoCloseable {
+        final ServerSocket listener;
+        final Thread thread;
+        volatile IOException failure;
+
+        BrokenBodyServer(final boolean timeout) throws IOException {
+            listener = new ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"));
+            thread = new Thread(() -> {
+                try (Socket socket = listener.accept()) {
+                    socket.setSoTimeout(2000);
+                    BufferedReader request = new BufferedReader(new InputStreamReader(socket.getInputStream(), "US-ASCII"));
+                    String line;
+                    while ((line = request.readLine()) != null && !line.isEmpty()) { /* consume headers */ }
+                    String headers = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: " + (timeout ? "1" : "3")
+                        + (timeout ? "" : "\r\nContent-Encoding: gzip") + "\r\n\r\n";
+                    socket.getOutputStream().write(headers.getBytes("US-ASCII"));
+                    if (!timeout) socket.getOutputStream().write(new byte[] { 0x1f, (byte) 0x8b, 0x08 });
+                    socket.getOutputStream().flush();
+                    // A stalled body ends when the client times out and disconnects.
+                    if (timeout) socket.getInputStream().read();
+                } catch (IOException e) {
+                    failure = e;
+                }
+            }, "synthetic-broken-body");
+            thread.start();
+        }
+
+        String url() { return "http://127.0.0.1:" + listener.getLocalPort() + "/synthetic.m3u"; }
+
+        @Override
+        public void close() throws Exception {
+            listener.close();
+            thread.join(3000);
+            assertTrue("server thread finished", !thread.isAlive());
+            if (failure != null) throw failure;
+        }
+    }
+
+    public void testBodyReadFailuresLoseTheSuccessfulHttpStatus() throws Exception {
+        for (boolean timeout : new boolean[] { false, true }) {
+            try (BrokenBodyServer server = new BrokenBodyServer(timeout)) {
+                try {
+                    new HttpFetcher().get(server.url(), null, 200);
+                    throw new TestMain.AssertionFailed("broken body must fail");
+                } catch (ProviderException error) {
+                    assertTrue("body failure is a transport error", !error.hasHttpStatus());
+                    assertTrue("network error code retained", error.code != null);
+                    if (timeout) assertEquals("body timeout code", "ETIMEDOUT", error.code);
+                }
+            }
+        }
+    }
+
+    public void testBrokenPlaylistBodyCannotLookLikeASuccessfulImport() throws Exception {
+        try (BrokenBodyServer server = new BrokenBodyServer(false)) {
+            WebBackend backend = new WebBackend(new HttpFetcher(), "/api");
+            String id = WebBackendTest.register(backend, server.url());
+            WebBackend.Response response = backend.handle("GET", "/parse", WebBackendTest.query("targetId", id), null);
+            assertEquals("failed import is non-2xx", 500, Integer.valueOf(response.status));
+            assertEquals("error payload status", 500, ((Number) WebBackendTest.body(response).get("status")).intValue());
+            assertTrue("never a playlist", !WebBackendTest.body(response).containsKey("playlist"));
+        }
+    }
+
 }

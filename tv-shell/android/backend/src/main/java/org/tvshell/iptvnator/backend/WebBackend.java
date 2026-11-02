@@ -292,6 +292,8 @@ public class WebBackend {
     static Object payloadOf(String body) {
         if (body == null) return "";
         String trimmed = body.trim();
+        // Axios strips a leading UTF-8 BOM before parsing provider responses.
+        if (trimmed.startsWith("\uFEFF")) trimmed = trimmed.substring(1).trim();
         if (trimmed.startsWith("{") || trimmed.startsWith("[") || trimmed.startsWith("\"") || trimmed.equals("null")
             || trimmed.equals("true") || trimmed.equals("false") || trimmed.matches("-?\\d.*")) {
             if (Json.validate(trimmed)) return new Json.Raw(trimmed);

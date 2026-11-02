@@ -182,9 +182,8 @@ public class HttpFetcher {
                 } catch (TooLargeException e) {
                     throw tooLarge();
                 } catch (IOException e) {
-                    ProviderException wrapped = new ProviderException(status, "Provider response body failed");
-                    wrapped.code = codeOf(e);
-                    throw wrapped;
+                    // Receiving headers is not a successful request when the body cannot be read.
+                    throw mapNetworkError(e);
                 } finally {
                     try {
                         in.close();

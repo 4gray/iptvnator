@@ -63,6 +63,17 @@ public class WebBackendTest {
         assertTrue("plot kept", text.contains("\"plot\":\"a\\nb\\tc\""));
     }
 
+    public void testBomPrefixedProviderJsonStaysStructured() {
+        String[] payloads = { "{\"user_info\":{\"auth\":1}}", "[{\"synthetic_id\":1}]", "\"synthetic-value\"", "null", "true", "42" };
+        for (String json : payloads) {
+            Object payload = WebBackend.payloadOf("\uFEFF" + json);
+            assertTrue("BOM JSON must not become a string", payload instanceof Json.Raw);
+            assertEquals("BOM removed before writing JSON", json, payload.toString());
+        }
+        String embedded = "{\"synthetic\":\"left\uFEFFright\"}";
+        assertEquals("BOM inside JSON text is preserved", embedded, WebBackend.payloadOf("\uFEFF" + embedded).toString());
+    }
+
     static String register(WebBackend backend, String url) {
         WebBackend.Response r = backend.handle("POST", "/provider-targets", null, "{\"url\":" + Json.write(url) + "}");
         assertEquals("register status", 200, Integer.valueOf(r.status));
