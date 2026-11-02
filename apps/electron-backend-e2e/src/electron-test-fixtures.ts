@@ -655,7 +655,12 @@ export async function waitForAppReady(page: Page): Promise<void> {
     const rail = page.locator('.app-rail');
     // Source inventory can keep the workspace hidden after app-root mounts.
     // Its entrance animations only start when that startup gate opens.
-    await rail.waitFor({ state: 'visible' });
+    await page
+        .locator('.app-rail:visible, app-startup-status [role="alert"]:visible')
+        .first()
+        .waitFor({ state: 'visible' });
+    // Failed migrations expose recovery controls while keeping the rail hidden.
+    if (!(await rail.isVisible())) return;
     await rail.evaluate(async (rail) => {
         await document.fonts.ready;
         await Promise.all(

@@ -299,7 +299,9 @@ non-DevTools URL, including a later renderer when DevTools appears first.
 It then waits for the app root, visible rail, fonts and finite rail entrance
 animations, without a fixed startup sleep. Visibility comes first because
 source inventory loading can hide the workspace. `electron-app-readiness.e2e.ts`
-covers this delayed startup gate and animation completion. Window-selection and
+covers this delayed startup gate and animation completion. A visible startup
+failure alert is also ready for tests: failed migration/recovery scenarios need
+the Electron bridge while the workspace stays hidden. Window-selection and
 process-lifecycle regression tests run once per OS before the E2E suite.
 Every test still owns its temporary profile, and restarts still confirm the
 previous process exited before relaunching.
