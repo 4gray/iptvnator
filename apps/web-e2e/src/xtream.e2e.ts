@@ -1089,6 +1089,10 @@ test('@xtream posters-only wall — hides VOD titles behind a hover caption afte
 async function getEpgFixtureStream(
     request: APIRequestContext
 ): Promise<XtreamLiveStream> {
+    // The cached "current" programme expires during a long full-suite run.
+    await request.post(
+        `${MOCK_SERVER}/reset?username=${EPG_USERNAME}&password=${EPG_PASSWORD}`
+    );
     const categories = (await (
         await request.get(
             `${MOCK_SERVER}/player_api.php?username=${EPG_USERNAME}&password=${EPG_PASSWORD}&action=get_live_categories`
