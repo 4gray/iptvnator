@@ -976,6 +976,8 @@ transaction, so an account/endpoint change followed by a return to the original
 identity still retires old queues even if activity never observed the intermediate
 identity. Canonically equivalent URLs and metadata/password edits keep their scope.
 Pending operations never move automatically to another incarnation or instance.
+Activity metadata omits nullable SQLite series, season and episode fields before
+wire validation, so historical native VOD rows remain deliverable.
 
 The local consent reader accepts the original boolean records and normalizes
 `enabled: 2` as a retryable pending disable: projection remains enabled but the

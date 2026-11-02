@@ -74,13 +74,13 @@ export function activityPositionMetadata(position: PlaybackPositionData) {
         ...(position.activityTitle
             ? { title: position.activityTitle.slice(0, 512) }
             : {}),
-        ...(position.seriesXtreamId === undefined
+        ...(position.seriesXtreamId == null
             ? {}
             : { seriesXtreamId: position.seriesXtreamId }),
-        ...(position.seasonNumber === undefined
+        ...(position.seasonNumber == null
             ? {}
             : { seasonNumber: position.seasonNumber }),
-        ...(position.episodeNumber === undefined
+        ...(position.episodeNumber == null
             ? {}
             : { episodeNumber: position.episodeNumber }),
     };

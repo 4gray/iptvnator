@@ -213,13 +213,16 @@ no `playbackPositions` field leave local positions untouched. An explicit empty
 array clears them. Invalid collections fail validation before playlist writes.
 A failed native or browser position read fails export.
 
+Stalker exports omit SQLite `null` values in optional duration and episode metadata
+fields. A zero duration remains zero, preserving exact episode reset barriers;
+unknown durations restore as nullable native columns.
+
 Explicitly excluded — session state, as opposed to the connection definition:
 
 - `stalkerToken`
 - `stalkerSessionIdentity` (the fingerprint the token was negotiated for)
 - `stalkerWatchdogTimeout` / `stalkerTimeslot` (the profile-advertised cadence)
 - `stalkerAccountInfo`
-- playback positions in v1
 
 ### App Settings
 

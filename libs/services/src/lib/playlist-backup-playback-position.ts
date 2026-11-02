@@ -45,3 +45,16 @@ export function localBackupPosition(
     }
     return local;
 }
+
+/** SQLite reads use null for optional columns; archive optionals use omission. */
+export function normalizeBackupPosition(
+    position: PlaybackPositionData
+): PlaybackPositionData {
+    return {
+        ...position,
+        seriesXtreamId: position.seriesXtreamId ?? undefined,
+        seasonNumber: position.seasonNumber ?? undefined,
+        episodeNumber: position.episodeNumber ?? undefined,
+        durationSeconds: position.durationSeconds ?? undefined,
+    };
+}

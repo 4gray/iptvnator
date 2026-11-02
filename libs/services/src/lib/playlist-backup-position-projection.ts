@@ -1,3 +1,4 @@
+import { normalizeBackupPosition } from './playlist-backup-playback-position';
 import type {
     PlaybackPositionData,
     XtreamPlaylistBackupEntry,
@@ -13,15 +14,18 @@ export type BackupPositionProjector = (
 export async function projectBackupPositions<
     T extends XtreamPlaylistBackupEntry | StalkerPlaylistBackupEntry,
 >(entry: T, projector?: BackupPositionProjector): Promise<T> {
-    if (!projector) return entry;
+    if (!projector && !entry.userState.playbackPositions) return entry;
+    const positions = projector
+        ? await projector(
+              entry.exportedId!,
+              entry.userState.playbackPositions ?? []
+          )
+        : (entry.userState.playbackPositions ?? []);
     return {
         ...entry,
         userState: {
             ...entry.userState,
-            playbackPositions: await projector(
-                entry.exportedId!,
-                entry.userState.playbackPositions ?? []
-            ),
+            playbackPositions: positions.map(normalizeBackupPosition),
         },
     };
 }
