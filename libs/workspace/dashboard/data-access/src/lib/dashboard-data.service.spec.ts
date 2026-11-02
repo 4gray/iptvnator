@@ -164,6 +164,7 @@ describe('DashboardDataService', () => {
         getM3uFavoriteChannels: jest.fn().mockReturnValue(of(null)),
         getPlaylistById: jest.fn().mockReturnValue(of(playlistMock)),
         transformPlaylistFavorites: jest.fn().mockReturnValue(of(playlistMock)),
+        removeFromPortalFavorites: jest.fn(),
         removeFromM3uRecentlyViewed: jest.fn().mockReturnValue(
             of({
                 ...playlistMock,
@@ -272,6 +273,7 @@ describe('DashboardDataService', () => {
         playlistsServiceMock.getM3uFavoriteChannels.mockReturnValue(of(null));
         playlistsServiceMock.getPlaylistById.mockClear();
         playlistsServiceMock.getPlaylistById.mockReturnValue(of(playlistMock));
+        playlistsServiceMock.removeFromPortalFavorites.mockReset();
         playlistsServiceMock.transformPlaylistFavorites.mockClear();
         playlistsServiceMock.transformPlaylistFavorites.mockReturnValue(
             of(playlistMock)
@@ -950,6 +952,87 @@ describe('DashboardDataService', () => {
         expect(
             transform(['channel-1', 'https://example.com/stream-2.m3u8'])
         ).toEqual(['https://example.com/stream-2.m3u8']);
+    });
+
+    it('removes Dashboard Stalker favorites through the explicit membership API', async () => {
+        const target = {
+            id: '42',
+            favoriteContentType: 'vod' as const,
+            title: 'Synthetic movie',
+        };
+        const series = {
+            id: '42',
+            favoriteContentType: 'series' as const,
+            title: 'Synthetic series',
+        };
+        playlistsSignal.set([
+            {
+                ...playlistMock,
+                _id: 'synthetic-stalker',
+                macAddress: 'synthetic-mac',
+                favorites: [target, series],
+            },
+        ]);
+        playlistsServiceMock.removeFromPortalFavorites.mockReturnValue(
+            of({
+                ...playlistMock,
+                _id: 'synthetic-stalker',
+                favorites: [series],
+            })
+        );
+        await service.removeGlobalFavorite({
+            id: 'synthetic-typed-dashboard-key',
+            xtream_id: '42',
+            title: 'Synthetic movie',
+            type: 'movie',
+            playlist_id: 'synthetic-stalker',
+            playlist_name: 'Synthetic source',
+            added_at: '',
+            category_id: 'vod',
+            source: 'stalker',
+            stalker_item: target,
+        });
+        expect(
+            playlistsServiceMock.removeFromPortalFavorites
+        ).toHaveBeenCalledWith('synthetic-stalker', '42', target);
+        expect(storeMock.dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlist: expect.objectContaining({
+                    _id: 'synthetic-stalker',
+                    favorites: [series],
+                }),
+                persist: false,
+            })
+        );
+    });
+    it('invalidates cached Dashboard M3U favorites after an explicit removal', async () => {
+        await service.reloadGlobalFavorites();
+        const item = service
+            .globalFavoriteItems()
+            .find((item) => item.source === 'm3u' && item.id === 'channel-1')!;
+        const next = {
+            ...playlistMock,
+            favorites: ['https://example.com/stream-2.m3u8'],
+        };
+        playlistsServiceMock.transformPlaylistFavorites.mockReturnValue(
+            of(next)
+        );
+        playlistsServiceMock.getPlaylistById.mockReturnValue(of(next));
+        await service.removeGlobalFavorite(item);
+        expect(storeMock.dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlist: expect.objectContaining({
+                    _id: 'm3u-1',
+                    favorites: next.favorites,
+                }),
+                persist: false,
+            })
+        );
+        expect(
+            service
+                .globalFavoriteItems()
+                .some((row) => row.source === 'm3u' && row.id === 'channel-1')
+        ).toBe(false);
     });
 
     it('removes PWA Xtream favorites through the active data source', async () => {

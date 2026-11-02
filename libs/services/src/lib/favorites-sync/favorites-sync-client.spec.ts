@@ -160,6 +160,37 @@ beforeAll(() =>
     })
 );
 describe('favorites delivery and consent boundaries', () => {
+    it.each([false, true])(
+        'resolves the latest server conflict after polling (useLocal=%s)',
+        async (useLocal) => {
+            const f = fixture();
+            f.online(false);
+            await f.client.set('source', ref, true);
+            f.states.set(favoriteAddressKey(address), {
+                revision: 2,
+                member: false,
+            });
+            f.online(true);
+            await f.client.refresh('source');
+            expect((await f.local.read(address))?.conflict?.revision).toBe(2);
+            f.states.set(favoriteAddressKey(address), {
+                revision: 3,
+                member: true,
+            });
+            await f.client.refresh('source');
+            expect((await f.local.read(address))?.conflict).toEqual({
+                revision: 3,
+                member: true,
+            });
+            await f.client.resolve(address, useLocal);
+            expect((await f.local.read(address))?.state).toEqual({
+                revision: useLocal ? 4 : 3,
+                member: true,
+            });
+            expect((await f.local.read(address))?.conflict).toBeUndefined();
+            expect((await f.local.read(address))?.pending).toEqual([]);
+        }
+    );
     it('discards a local projection read after profile or incarnation ownership changes', async () => {
         for (const boundary of ['profile', 'source']) {
             const f = fixture();

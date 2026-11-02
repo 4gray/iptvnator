@@ -76,7 +76,7 @@ temporary browser contexts, Electron profiles and a disposable Docker container.
   categories; active hearts update without navigation. M3U verifies offline
   conflicts, independent adds, duplicate URLs and narrow light/dark settings.
 - Production Electron/frontend/worker builds and the initial-byte gate pass:
-  1,199,561 bytes against 1,200,301 allowed; no baseline changes.
+  1,199,491 bytes against 1,200,301 allowed; no baseline changes.
 - Docker linux/arm64 PWA/backend build and HTTP smoke pass, including restart,
   persisted server identity, removals and old idempotency receipts.
 - Canonical subsystem docs, Docker guidance and the feature release note are
@@ -108,7 +108,7 @@ three favorites scenarios pass on the final production build. Receiving-device
 Stalker movie/live/radio media advances in both PWA and Electron. Default mock
 radio now serves its local progressive audio fixture instead of video HLS.
 Narrow conflict controls and light/dark settings were visually inspected.
-Coverage: statements 85.24%, branches 76.77%, functions 83.53%, lines 85.74%.
+Coverage: statements 85.30%, branches 76.81%, functions 83.62%, lines 85.80%.
 Latest fetched master c5b333e9f adds only unrelated website documentation/assets;
 there is no application overlap with this branch's tested base.
 
@@ -117,3 +117,19 @@ legacy untyped Stalker removal, live Xtream channel-map invalidation, and stable
 Dashboard identities for received Xtream snapshots without local catalog rows.
 New regressions fail before repair. Typed Stalker collisions stay protected;
 channel-map requests cancel superseded reads and stop after list destruction.
+
+Local review round 4 identified three additional real issues; all were accepted:
+sparse Xtream identity snapshots, conflict snapshots lagging a newer server
+revision, and local ordering with an empty shared membership store. Additional
+entry-point inspection repaired Dashboard Stalker membership removal and M3U
+metadata/cache refresh. Regressions cover both conflict choices, both local-order
+providers and Dashboard mutations; each fails before its repair.
+
+Dashboard typed Stalker identities are also verified across movie, regular,
+embedded and lazy series with the same provider ID. The display key remains
+separate from the provider ID used for navigation and explicit removal.
+
+Final validation passes after the final repairs: all 42 spec programs, app types,
+15-project lint, full coverage, production build/worker, initial bytes, all three
+favorites mixed-runtime scenarios, and Docker HTTP/restart smoke. The helper
+extraction keeps the favorites client below the 400-line production limit.

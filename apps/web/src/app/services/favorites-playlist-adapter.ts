@@ -38,7 +38,8 @@ export class FavoritesPlaylistAdapter {
     async project<T extends Playlist>(playlist: T): Promise<T> {
         if (!playlist || playlist.serverUrl) return playlist;
         const entries = await this.client.entries(playlist._id);
-        if (!entries.length) return playlist;
+        const localOrder = this.order?.read(playlist._id) ?? [];
+        if (!entries.length && !localOrder.length) return playlist;
         const source = await this.catalog(playlist);
         const local = await this.local(source);
         const mapped = new Map(
@@ -80,12 +81,7 @@ export class FavoritesPlaylistAdapter {
             else if (ref.provider === 'm3u' && urls.has(key))
                 mapped.set(key, urls.get(key)!);
         }
-        const order = new Map(
-            (this.order?.read(playlist._id) ?? []).map((key, index) => [
-                key,
-                index,
-            ])
-        );
+        const order = new Map(localOrder.map((key, index) => [key, index]));
         const favorites = [...mapped]
             .sort(
                 ([a], [b]) =>

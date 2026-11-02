@@ -1271,3 +1271,10 @@ invalidation and local mark changes, canceling older loads and disposing the
 listener with the list. Dashboard cards for received Xtream snapshots without
 local SQL/favorite row IDs use kind plus provider ID as their stable fallback;
 existing local IDs retain their previous card identities.
+
+Local ordering applies even when the shared library has no membership entries.
+Polling advances a recorded conflict to the newest known server revision before
+showing or resolving either choice. Sparse Xtream additions retain known TMDB
+identity hints even without a local catalog row. Dashboard M3U/Stalker removals
+use explicit membership APIs and publish metadata with `persist: false`; the M3U
+favorite cache is invalidated after a successful removal.

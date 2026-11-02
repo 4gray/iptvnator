@@ -211,8 +211,18 @@ export class FavoritesXtreamAdapter {
         )
             throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
         const snapshot =
-            current || candidate
-                ? xtreamFavoriteSnapshot(current ?? candidate!)
+            current || candidate || identity
+                ? parseFavoriteSnapshot({
+                      ...(current || candidate
+                          ? xtreamFavoriteSnapshot(current ?? candidate!)
+                          : {}),
+                      ...(identity?.tmdbId
+                          ? { tmdbId: String(identity.tmdbId) }
+                          : {}),
+                      ...(identity?.releaseYear
+                          ? { releaseYear: String(identity.releaseYear) }
+                          : {}),
+                  })
                 : undefined;
         if (this.enabled())
             await this.client.set(sourceId, ref, member, snapshot);

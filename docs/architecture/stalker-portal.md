@@ -2076,3 +2076,7 @@ so background membership updates cannot cancel an in-flight playback request.
 Removing a typed target also removes its historical untyped ID copy, consistent
 with legacy heart matching. Known typed rows with another kind or series origin
 remain intact even when the provider reuses the same numeric ID.
+
+Dashboard favorites with the new typed marker also use kind and series origin
+for their card identity. Their provider ID remains separate for navigation and
+explicit removal; historical untyped card identities remain unchanged.

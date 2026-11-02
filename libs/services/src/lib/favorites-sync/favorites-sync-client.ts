@@ -1,3 +1,4 @@
+import { latestFavoriteBase } from './favorites-client-state';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import { deliverFavorites } from './favorites-sync-delivery';
 import {
@@ -13,7 +14,6 @@ import {
     parseFavoriteOperation,
     type FavoriteAddress,
     type FavoriteReference,
-    type FavoriteState,
     type FavoriteSnapshot,
     type FavoriteSourceContext,
     type FavoriteLocalStore,
@@ -282,7 +282,13 @@ export class FavoritesSyncClient {
                     if (current && current.base.revision > entry.state.revision)
                         return current;
                     if (current?.pending.length)
-                        return { ...current, base: entry.state };
+                        return {
+                            ...current,
+                            base: entry.state,
+                            ...(current.conflict
+                                ? { conflict: entry.state }
+                                : {}),
+                        };
                     return {
                         ...current,
                         state: entry.state,
@@ -332,7 +338,7 @@ export class FavoritesSyncClient {
                     this.contexts.get(address.sourceId)?.sourceIncarnation
             )
                 throw new FavoriteSupersededError();
-            const base = current.conflict ?? current.base;
+            const base = latestFavoriteBase(current);
             return {
                 ...current,
                 base,

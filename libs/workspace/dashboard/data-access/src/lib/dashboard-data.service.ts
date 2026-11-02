@@ -40,7 +40,6 @@ import {
     PortalFavoriteItem,
     PortalRecentItem,
     resolvePortalActivityWatchKind,
-    stalkerItemMatchesId,
 } from '@iptvnator/shared/interfaces';
 import {
     buildStalkerFavoriteItems,
@@ -1051,38 +1050,19 @@ export class DashboardDataService {
         }
 
         if (item.source === 'stalker') {
-            const playlist = this.playlists().find(
-                (p) => p._id === item.playlist_id
+            const updated = await firstValueFrom(
+                this.playlistsService.removeFromPortalFavorites(
+                    item.playlist_id,
+                    item.xtream_id ?? item.id,
+                    item.stalker_item
+                )
             );
-            if (!playlist) return;
-
-            const currentFavorites = Array.isArray(playlist.favorites)
-                ? [...playlist.favorites]
-                : [];
-            const itemMatchStr = String(item.id);
-
-            const filteredFavorites = currentFavorites.filter(
-                (raw, index) =>
-                    !stalkerItemMatchesId(
-                        raw,
-                        itemMatchStr,
-                        playlist._id,
-                        index
-                    )
-            );
-
-            this.store.dispatch(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: {
-                        _id: item.playlist_id,
-                        favorites: filteredFavorites,
-                    } as unknown as PlaylistMeta,
-                }) as any
-            );
+            this.updateFavoriteMeta(updated);
+            return;
         }
 
         if (item.source === 'm3u') {
-            await firstValueFrom(
+            const updated = await firstValueFrom(
                 this.playlistsService.transformPlaylistFavorites(
                     item.playlist_id,
                     (current) =>
@@ -1093,8 +1073,22 @@ export class DashboardDataService {
                         )
                 )
             );
+            this.m3uFavoritesCache.delete(item.playlist_id);
+            this.updateFavoriteMeta(updated);
             await this.reloadGlobalFavorites();
         }
+    }
+
+    private updateFavoriteMeta(playlist: Playlist): void {
+        this.store.dispatch(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    _id: playlist._id,
+                    favorites: playlist.favorites ?? [],
+                } as PlaylistMeta,
+                persist: false,
+            })
+        );
     }
 
     formatTimestamp(value?: string | number): string {

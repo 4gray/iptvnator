@@ -1,3 +1,4 @@
+import { FavoritesLocalOrder } from './favorites-local-order';
 import { extractStalkerItemType } from '@iptvnator/shared/interfaces';
 import { webcrypto } from 'node:crypto';
 import {
@@ -42,6 +43,96 @@ beforeAll(() =>
     })
 );
 describe('favorite provider references and projections', () => {
+    it('preserves requested identity when a sparse Xtream favorite has no catalog row', async () => {
+        const set = jest.fn(async () => undefined);
+        const client = {
+            entries: async () => [],
+            set,
+        } as unknown as FavoritesSyncClient;
+        const raw = {
+            getFavorites: async () => [],
+            getContentByXtreamId: async () => null,
+        } as unknown as IXtreamDataSource;
+        const adapter = new FavoritesXtreamAdapter(client, () => true, true);
+        await adapter.invoke(raw, 'addFavorite', [
+            {
+                id: 42,
+                providerId: 42,
+                type: 'movie',
+                identity: { tmdbId: 100, releaseYear: 2024 },
+            },
+            'source',
+        ]);
+        expect(set).toHaveBeenCalledWith(
+            'source',
+            { provider: 'xtream', kind: 'movie', id: '42' },
+            true,
+            expect.objectContaining({ tmdbId: '100', releaseYear: '2024' })
+        );
+    });
+    it.each(['m3u', 'stalker'] as const)(
+        'retains local %s ordering with an empty shared library across reload',
+        async (provider) => {
+            const set = jest.fn();
+            const client = {
+                entries: async () => [],
+                set,
+            } as unknown as FavoritesSyncClient;
+            const source =
+                provider === 'm3u'
+                    ? playlist([
+                          'https://fixture.invalid/one',
+                          'https://fixture.invalid/two',
+                      ])
+                    : ({
+                          ...playlist([]),
+                          macAddress: 'synthetic-mac',
+                          favorites: [
+                              {
+                                  id: '1',
+                                  favoriteContentType: 'vod',
+                                  title: 'Synthetic one',
+                              },
+                              {
+                                  id: '2',
+                                  favoriteContentType: 'vod',
+                                  title: 'Synthetic two',
+                              },
+                          ],
+                      } as Playlist);
+            const values = new Map<string, string>();
+            const storage = {
+                getItem: (key: string) => values.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    values.set(key, value);
+                },
+            };
+            const create = () =>
+                new FavoritesPlaylistAdapter(
+                    client,
+                    () => true,
+                    undefined,
+                    new FavoritesLocalOrder('synthetic-order', storage)
+                );
+            const persist = jest.fn();
+            const expected = [...source.favorites!].reverse();
+            expect(
+                (
+                    await create().mutate(
+                        source,
+                        (items) => [...items].reverse(),
+                        persist
+                    )
+                ).favorites
+            ).toEqual(expected);
+            expect((await create().project(source)).favorites).toEqual(
+                expected
+            );
+            expect(source.favorites).not.toEqual(expected);
+            expect(set).not.toHaveBeenCalled();
+            expect(persist).not.toHaveBeenCalled();
+        }
+    );
     it('checks requested Xtream identity before status or removal and allows explicit original removal', async () => {
         const saved = {
             id: null,

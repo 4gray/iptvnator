@@ -16,6 +16,46 @@ describe('buildStalkerFavoriteItems', () => {
         );
     }
 
+    it('separates typed Stalker favorite identities while retaining the provider ID', () => {
+        const rows = [
+            { id: '42', favoriteContentType: 'vod', title: 'Synthetic movie' },
+            {
+                id: '42',
+                favoriteContentType: 'series',
+                title: 'Synthetic regular series',
+            },
+            {
+                id: '42',
+                favoriteContentType: 'vod',
+                is_series: true,
+                title: 'Synthetic lazy series',
+            },
+            {
+                id: '42',
+                favoriteContentType: 'vod',
+                series: [1, 2],
+                title: 'Synthetic embedded series',
+            },
+        ];
+        const items = buildStalkerFavoriteItems(
+            [
+                {
+                    _id: 'synthetic-source',
+                    macAddress: 'synthetic-mac',
+                    favorites: rows,
+                } as unknown as PlaylistMeta,
+            ],
+            'Synthetic source'
+        );
+        expect(new Set(items.map((item) => item.id)).size).toBe(4);
+        expect(items.map((item) => item.xtream_id)).toEqual([
+            '42',
+            '42',
+            '42',
+            '42',
+        ]);
+        expect(items.map((item) => item.stalker_item)).toEqual(rows);
+    });
     it('surfaces the backdrop the detail view merged into the entry', () => {
         // Stalker items never reach the `content` table, so the enriched
         // backdrop travels inside the stored favorite itself.
