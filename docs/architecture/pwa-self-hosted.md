@@ -1046,8 +1046,10 @@ Transferring fallback ownership to a new launch retains any unfinished raw snaps
 and its acknowledgement token until the raw writer succeeds.
 A delayed shared-save completion may fall back locally only while its original
 write is still the latest invocation for that item; later checkpoints or resets
-supersede it before awaiting storage. The data-source proxy keeps an already loaded
-runtime informed after consent is disabled; a client that never enabled activity
+supersede it before awaiting storage. Checkpoints also capture a per-session
+invocation token: a superseded snapshot cannot rebase itself to a higher sequence
+after an Electron compare-and-swap retry, including when the newer point is a
+rewind. The data-source proxy keeps an already loaded runtime informed after consent is disabled; a client that never enabled activity
 keeps its direct local path. Imported positions persist their computed watched
 flag separately from a conflicting server mark, so keeping them local preserves
 the imported progress.

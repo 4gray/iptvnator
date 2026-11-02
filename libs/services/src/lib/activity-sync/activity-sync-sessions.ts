@@ -145,7 +145,7 @@ export async function saveActivity(
     position: PlaybackPositionData
 ): Promise<'local-only' | void> {
     const currentAction = position.activitySessionId
-        ? this.actions.watch(sourceId, position)
+        ? this.actions.checkpoint(sourceId, position)
         : this.actions.position(sourceId, position);
     const failed = position.activitySessionId
         ? this.localSessions.get(position.activitySessionId)

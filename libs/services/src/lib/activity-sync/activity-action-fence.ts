@@ -25,6 +25,22 @@ export class ActivityActionFence {
             keys.every((key, index) => this.current.get(key) === tokens[index]);
     }
 
+    /** Background reports order within their session without claiming explicit-action ownership. */
+    checkpoint(
+        sourceId: string,
+        position: Partial<PlaybackPositionData>
+    ): () => boolean {
+        const currentAction = this.watch(sourceId, position);
+        const latest = this.advance([
+            JSON.stringify([
+                'checkpoint',
+                sourceId,
+                position.activitySessionId,
+            ]),
+        ]);
+        return () => currentAction() && latest();
+    }
+
     private keys(
         sourceId: string,
         position: Partial<PlaybackPositionData>
