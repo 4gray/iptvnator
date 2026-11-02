@@ -45,7 +45,9 @@ export async function fetchStalkerSeriesPages<
         if (rows.length === 0) {
             if (
                 (total !== undefined && items.size < total) ||
-                (pages !== undefined && page < pages)
+                (pages !== undefined &&
+                    page <= pages &&
+                    (page > 1 || pages > 1))
             ) {
                 throw new Error('Incomplete Stalker series list');
             }

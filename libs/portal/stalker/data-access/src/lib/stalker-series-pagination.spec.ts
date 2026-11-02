@@ -85,10 +85,24 @@ describe('fetchStalkerSeriesPages', () => {
     it('accepts a well-formed empty list', async () => {
         await expect(
             fetchStalkerSeriesPages(
-                async () => ({ js: { total_items: 0, data: [] } }),
+                async () => ({
+                    js: { total_items: 0, total_pages: 1, data: [] },
+                }),
                 current
             )
         ).resolves.toEqual([]);
+    });
+
+    it('rejects an empty declared final page without an item total', async () => {
+        const request = jest
+            .fn()
+            .mockResolvedValueOnce({
+                js: { total_pages: 2, data: [{ id: 1 }] },
+            })
+            .mockResolvedValueOnce({ js: { data: [] } });
+        await expect(fetchStalkerSeriesPages(request, current)).rejects.toThrow(
+            'Incomplete'
+        );
     });
 
     it('rejects rows without a usable provider ID', async () => {
