@@ -535,6 +535,10 @@
         // to the player controls and the rest of the page (the TV remote owns
         // the volume anyway).
         if (tag === 'VIDEO' || tag === 'AUDIO') return horizontal;
+        // Composite widgets own arrow keys even when their focused element is a text input.
+        // The source switcher keeps DOM focus here and uses aria-activedescendant for its rows.
+        var role = el.getAttribute('role');
+        if (role === 'combobox' && el.getAttribute('aria-expanded') === 'true') return true;
         if (tag === 'INPUT') {
             var type = (el.getAttribute('type') || 'text').toLowerCase();
             if (type === 'range') return horizontal;
@@ -544,9 +548,7 @@
         }
         if (tag === 'TEXTAREA') return caretCanMove(el, dir);
         if (el.isContentEditable) return true; // no value/selection to inspect
-        var role = el.getAttribute('role');
         if (role === 'slider') return horizontal;
-        if (role === 'combobox' && el.getAttribute('aria-expanded') === 'true') return true;
         if (el.closest('[role="menu"],[role="menubar"],[role="listbox"],mat-option,.mat-mdc-autocomplete-panel')) return !horizontal || !!el.closest('[role="menubar"]');
         if (el.closest('.mat-mdc-slider,mat-slider')) return horizontal;
         if (el.closest('[data-tv-passthrough]')) return true;

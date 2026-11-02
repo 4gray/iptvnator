@@ -127,6 +127,23 @@ st = await state();
 console.log('  url:', page.url());
 check(/xtream|portal|workspace/i.test(page.url()) && st.scope === 'document', 'dialog closed, portal opened: ' + st.active);
 
+console.log('3b. source switcher keeps its expanded combobox keyboard navigation');
+await page.locator('[data-test-id="playlist-switcher-trigger"]').focus();
+await key('Enter');
+const switcherSearch = page.locator('app-playlist-switcher-panel input[role="combobox"]');
+await switcherSearch.waitFor({ state: 'visible' });
+await page.waitForFunction(() => document.activeElement?.matches('app-playlist-switcher-panel input[role="combobox"]'));
+for (const arrow of ['ArrowDown', 'ArrowUp']) {
+    await key(arrow);
+    check(await switcherSearch.evaluate((input) => input === document.activeElement &&
+        document.getElementById(input.getAttribute('aria-activedescendant'))?.getAttribute('role') === 'option'),
+        arrow + ' highlights a source while focus stays in the search field');
+}
+await key('Enter');
+check(await page.locator('app-playlist-switcher-panel').count() === 0, 'OK selects a source and closes the switcher');
+// Keep subsequent checks useful if the regression is present.
+if (await page.locator('app-playlist-switcher-panel').count()) await key('Escape');
+
 console.log('4. browse Live TV with the D-pad');
 f = await reach(/\[Live/i, ['ArrowLeft', 'ArrowDown']);
 console.log('  focused:', f);
