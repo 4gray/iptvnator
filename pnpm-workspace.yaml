@@ -20,7 +20,7 @@ packageExtensions:
 # Covered by executor/package tests and the historical IndexedDB v1 E2E.
 peerDependencyRules:
     allowedVersions:
-        'nx-electron@22.0.0>@nx/devkit': '23.2.1'
-        'nx-electron@22.0.0>@nx/workspace': '23.2.1'
+        'nx-electron@22.0.0>@nx/devkit': '23.3.1'
+        'nx-electron@22.0.0>@nx/workspace': '23.3.1'
         'ngx-indexed-db@22.0.0>@angular/common': '22.1.6'
         'ngx-indexed-db@22.0.0>@angular/core': '22.1.6'
