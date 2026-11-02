@@ -471,11 +471,38 @@ describe('EpgQueryService', () => {
         const select = jest.fn(() => createSelectChain([], []));
         getDatabase.mockResolvedValue({ select });
 
-        const ids = Array.from({ length: 600 }, (_, i) => `ch-${i}`);
+        const ids = Array.from({ length: 7_001 }, (_, i) => `ch-${i}`);
         await service.getChannelMetadata(ids); // no sourceUrls → candidate lookup only
 
-        // 600 unique keys → ceil(600 / 500) = 2 chunked candidate-lookup queries.
+        // 7,001 unique keys → ceil(7001 / 7000) = 2 chunked candidate-lookup queries.
         expect(select).toHaveBeenCalledTimes(2);
+    });
+
+    it('chunks the current-programme lookup to stay under the SQLite variable limit', async () => {
+        // A single `IN (…)` over every playlist channel failed with "too many
+        // SQL variables" past 32766 ids, and the batch came back empty.
+        const programLimits: number[] = [];
+        const select = jest.fn(() => {
+            const chain: Record<string, jest.Mock> = {};
+            chain.groupBy = jest.fn(() => chain);
+            chain.limit = jest.fn((count: number) => {
+                programLimits.push(count);
+                return Promise.resolve([]);
+            });
+            // Candidate lookups await where() directly; programme queries
+            // continue with groupBy().limit().
+            const where = jest.fn(() =>
+                Object.assign(Promise.resolve([]), chain)
+            );
+            return { from: jest.fn(() => ({ where })) };
+        });
+        getDatabase.mockResolvedValue({ select });
+
+        const ids = Array.from({ length: 25_000 }, (_, i) => `ch-${i}`);
+        const result = await service.getCurrentProgramsBatch(ids);
+
+        expect(programLimits).toEqual([10_000, 10_000, 5_000]);
+        expect(Object.keys(result)).toHaveLength(25_000);
     });
 
     it('scopes channel metadata by program source ownership for shared channels', async () => {

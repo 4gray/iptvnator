@@ -2,7 +2,12 @@ import { epgLogger } from '../util/epg-logger';
 import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
+import { chunkValues } from '../database/operations/operation-control';
 import * as schema from '../database/schema';
+import {
+    indexEpgChannelCandidates,
+    resolveEpgChannelCandidate,
+} from './epg-channel-candidate-index.util';
 import { isValidEpgProgram, toEpgProgramFromRow } from './epg-program-row.util';
 
 interface EpgProgramSelectRow {
@@ -23,11 +28,19 @@ type EpgChannelRow = typeof schema.epgChannels.$inferSelect;
 
 /**
  * Max channel keys per candidate-lookup query. The query binds each key up to
- * four times (raw id / raw displayName / LOWER(id) / LOWER(displayName)), so we
- * chunk to stay well under SQLite's `SQLITE_LIMIT_VARIABLE_NUMBER` (32766) even
- * for very large playlists — at 500 that's ~2k bound parameters per statement.
+ * four times (raw id / raw displayName / LOWER(id) / LOWER(displayName)) plus
+ * the source URLs twice, so 7,000 keys stays under SQLite's
+ * `SQLITE_LIMIT_VARIABLE_NUMBER` (32766). The LOWER() branches cannot use an
+ * index, so every chunk scans `epg_channels`: fewer, larger chunks keep a
+ * 90k-key playlist at a handful of scans instead of ~185.
  */
-const CHANNEL_LOOKUP_CHUNK_SIZE = 500;
+const CHANNEL_LOOKUP_CHUNK_SIZE = 7_000;
+
+/**
+ * Max channel ids per current-programme query, which binds each id once.
+ * Playlists can carry more than SQLite's 32766-variable limit.
+ */
+const CURRENT_PROGRAM_LOOKUP_CHUNK_SIZE = 10_000;
 
 export class EpgQueryService {
     constructor(private readonly loggerLabel = '[EPG Events]') {}
@@ -219,16 +232,14 @@ export class EpgQueryService {
                         unmatchedIds,
                         sourceUrls
                     );
+                const scopedIndex = indexEpgChannelCandidates(scopedCandidates);
                 const unresolvedIds = unmatchedIds.filter(
                     (channelId) =>
-                        !this.resolveChannelMetadataCandidate(
-                            channelId,
-                            scopedCandidates
-                        )
+                        !resolveEpgChannelCandidate(scopedIndex, channelId)
                 );
-                const candidates =
+                const candidateIndex =
                     unresolvedIds.length > 0
-                        ? [
+                        ? indexEpgChannelCandidates([
                               ...scopedCandidates,
                               ...(await this.selectChannelLookupCandidates(
                                   db,
@@ -236,13 +247,13 @@ export class EpgQueryService {
                                   sourceUrls,
                                   { legacyOnly: true }
                               )),
-                          ]
-                        : scopedCandidates;
+                          ])
+                        : scopedIndex;
                 const candidateIdsByRequestedId = new Map<string, string>();
                 for (const channelId of unmatchedIds) {
-                    const candidate = this.resolveChannelMetadataCandidate(
-                        channelId,
-                        candidates
+                    const candidate = resolveEpgChannelCandidate(
+                        candidateIndex,
+                        channelId
                     );
                     if (candidate) {
                         candidateIdsByRequestedId.set(channelId, candidate.id);
@@ -362,18 +373,18 @@ export class EpgQueryService {
 
         const db = await getDatabase();
         const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
-        let candidates = await this.selectChannelMetadataCandidates(
+        const candidates = await this.selectChannelMetadataCandidates(
             db,
             normalizedChannelIds,
             sourceUrls
         );
+        let index = indexEpgChannelCandidates(candidates);
         if (sourceUrls.length > 0) {
             const missingChannelIds = normalizedChannelIds.filter(
-                (channelId) =>
-                    !this.resolveChannelMetadataCandidate(channelId, candidates)
+                (channelId) => !resolveEpgChannelCandidate(index, channelId)
             );
             if (missingChannelIds.length > 0) {
-                candidates = [
+                index = indexEpgChannelCandidates([
                     ...candidates,
                     ...(await this.selectChannelMetadataCandidates(
                         db,
@@ -381,14 +392,14 @@ export class EpgQueryService {
                         sourceUrls,
                         { legacyOnly: true }
                     )),
-                ];
+                ]);
             }
         }
 
         return Object.fromEntries(
             normalizedChannelIds.map((channelId) => [
                 channelId,
-                this.resolveChannelMetadataCandidate(channelId, candidates),
+                resolveEpgChannelCandidate(index, channelId),
             ])
         );
     }
@@ -563,25 +574,33 @@ export class EpgQueryService {
             return [];
         }
 
-        return (
-            db
-                .select()
-                .from(schema.epgPrograms)
-                .where(
-                    this.withProgramSourceScope(
-                        and(
-                            inArray(schema.epgPrograms.channelId, channelIds),
-                            this.isAiringAt(now)
-                        ) as SQL,
-                        sourceUrls,
-                        options
+        const rows: EpgProgramSelectRow[] = [];
+        for (const chunk of chunkValues(
+            channelIds,
+            CURRENT_PROGRAM_LOOKUP_CHUNK_SIZE
+        )) {
+            rows.push(
+                ...(await db
+                    .select()
+                    .from(schema.epgPrograms)
+                    .where(
+                        this.withProgramSourceScope(
+                            and(
+                                inArray(schema.epgPrograms.channelId, chunk),
+                                this.isAiringAt(now)
+                            ) as SQL,
+                            sourceUrls,
+                            options
+                        )
                     )
-                )
-                // One current row per channel so duplicate cross-source slots
-                // don't consume the per-channel cap and starve other channels.
-                .groupBy(schema.epgPrograms.channelId)
-                .limit(channelIds.length)
-        );
+                    // One current row per channel so duplicate cross-source
+                    // slots don't consume the per-channel cap and starve
+                    // other channels.
+                    .groupBy(schema.epgPrograms.channelId)
+                    .limit(chunk.length))
+            );
+        }
+        return rows;
     }
 
     /**
@@ -756,7 +775,7 @@ export class EpgQueryService {
         // Match the raw key case-sensitively too — parity with the timeline's
         // exact display-name lookup — so those channels resolve; the LOWER()
         // branch keeps ASCII case-insensitivity. The JS resolver
-        // (`resolveChannelMetadataCandidate`) then folds with full-Unicode
+        // (`resolveEpgChannelCandidate`) then folds with full-Unicode
         // toLowerCase().
         const lookupCondition = sql`
             (
@@ -845,42 +864,6 @@ export class EpgQueryService {
             WHERE ${schema.epgPrograms.channelId} = ${schema.epgChannels.id}
               AND ${schema.epgPrograms.sourceUrl} IN (${sql.join(sourceUrlValues, sql`, `)})
         )`;
-    }
-
-    private resolveChannelMetadataCandidate(
-        channelId: string,
-        candidates: EpgChannelMetadata[]
-    ): EpgChannelMetadata | null {
-        const lowerChannelId = channelId.toLowerCase();
-
-        const exactIdMatch =
-            candidates.find((candidate) => candidate.id === channelId) ?? null;
-        if (exactIdMatch) {
-            return exactIdMatch;
-        }
-
-        const caseInsensitiveIdMatch =
-            candidates.find(
-                (candidate) => candidate.id.toLowerCase() === lowerChannelId
-            ) ?? null;
-        if (caseInsensitiveIdMatch) {
-            return caseInsensitiveIdMatch;
-        }
-
-        const exactDisplayNameMatch =
-            candidates.find(
-                (candidate) => candidate.displayName === channelId
-            ) ?? null;
-        if (exactDisplayNameMatch) {
-            return exactDisplayNameMatch;
-        }
-
-        return (
-            candidates.find(
-                (candidate) =>
-                    candidate.displayName.toLowerCase() === lowerChannelId
-            ) ?? null
-        );
     }
 
     /**

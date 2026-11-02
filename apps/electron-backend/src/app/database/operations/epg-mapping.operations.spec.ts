@@ -134,6 +134,22 @@ describe('epg-mapping.operations', () => {
                 ['a', 'b', 'c']
             );
         });
+
+        it('splits large key lists to stay under the SQLite variable limit', async () => {
+            const { db, select } = createDbMock([
+                { channelKey: 'key-0', epgChannelId: 'epg-0' },
+            ]);
+            const keys = Array.from({ length: 40_000 }, (_, i) => `key-${i}`);
+
+            const result = await getEpgMappingsBatch(db, keys);
+
+            expect(select).toHaveBeenCalledTimes(4);
+            const boundCounts = inArrayMock.mock.calls.map(
+                ([, values]) => (values as unknown[]).length
+            );
+            expect(boundCounts).toEqual([10_000, 10_000, 10_000, 10_000]);
+            expect(result.get('key-0')).toBe('epg-0');
+        });
     });
 
     describe('setEpgMapping', () => {
