@@ -415,6 +415,68 @@ describe('SettingsComponent form', () => {
             }
         );
 
+        it.each([
+            { pendingStep: 'storage', failed: false },
+            { pendingStep: 'backend', failed: false },
+            { pendingStep: 'storage', failed: true },
+            { pendingStep: 'backend', failed: true },
+        ])(
+            'ignores an older $pendingStep save after a newer save (failed: $failed)',
+            async ({ pendingStep, failed }) => {
+                await fixture.whenStable();
+                const changeLanguage = jest
+                    .spyOn(TestBed.inject(AppDateLocaleService), 'use')
+                    .mockResolvedValue(undefined);
+                let finishOlderSave!: () => void;
+                let failOlderSave!: (error: Error) => void;
+                const pending = new Promise<void>((resolve, reject) => {
+                    finishOlderSave = resolve;
+                    failOlderSave = reject;
+                });
+                if (pendingStep === 'storage') {
+                    settingsStore.updateSettings.mockReturnValueOnce(pending);
+                } else {
+                    jest.spyOn(
+                        window.electron,
+                        'updateSettings'
+                    ).mockReturnValueOnce(pending);
+                }
+                component.settingsForm.patchValue({
+                    language: Language.GERMAN,
+                    startupWindowMode: 'maximized',
+                });
+                component.settingsForm.markAsDirty();
+                const older = component.form.save(() =>
+                    component.applyChangedSettings()
+                );
+                await Promise.resolve();
+
+                component.settingsForm.patchValue({
+                    language: Language.FRENCH,
+                    startupWindowMode: 'normal',
+                });
+                await component.form.save(() =>
+                    component.applyChangedSettings()
+                );
+                expect(component.settingsForm.pristine).toBe(true);
+
+                if (failed) failOlderSave(new Error('Superseded save failed'));
+                else finishOlderSave();
+                await older;
+                await fixture.whenStable();
+
+                expect(component.settingsForm.pristine).toBe(true);
+                expect(component.form.changedPaths()).toEqual([]);
+                expect(component.form.restartPendingControls()).toEqual([]);
+                expect(changeLanguage).toHaveBeenLastCalledWith(
+                    Language.FRENCH
+                );
+                expect(window.electron.updateSettings).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ language: Language.FRENCH })
+                );
+            }
+        );
+
         it('preserves a newer theme preview while applying only the submitted language', async () => {
             await fixture.whenStable();
             const changeTheme = jest.spyOn(

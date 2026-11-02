@@ -98,6 +98,7 @@ export class SettingsFormFacade {
     readonly restartPendingControls = signal<readonly string[]>([]);
 
     private savedSnapshot = this.form.getRawValue();
+    private saveRevision = 0;
 
     constructor() {
         this.form.valueChanges
@@ -237,6 +238,7 @@ export class SettingsFormFacade {
      * succeed, so runtime failures keep the form available for retry.
      */
     async save(onSaved: () => void): Promise<void> {
+        const saveRevision = ++this.saveRevision;
         const submittedSnapshot = this.form.getRawValue();
         const settings = createSettingsFromFormValue(
             this.form,
@@ -248,17 +250,21 @@ export class SettingsFormFacade {
                 retryEpgCleanup: this.epgUrl?.dirty ?? false,
             });
         } catch (error) {
+            if (saveRevision !== this.saveRevision) return;
             if (!(error instanceof EpgSourceReconciliationError)) throw error;
             // This error follows a successful settings write. Mirror the
             // committed values, but retain the dirty form for cleanup retry.
             cleanupError = error;
         }
+        if (saveRevision !== this.saveRevision) return;
         if (window.electron) {
             try {
                 await window.electron.updateSettings(settings);
             } catch (error) {
+                if (saveRevision !== this.saveRevision) return;
                 throw new SettingsRuntimeUpdateError(error);
             }
+            if (saveRevision !== this.saveRevision) return;
 
             if (this.runtime.supportsExternalPlayerPathSettings) {
                 window.electron.setMpvPlayerPath(settings.mpvPlayerPath);

@@ -101,6 +101,9 @@ Status ingestion from renderer:
   preferences could not be applied, separately from a storage-write failure.
   Edits made while a save is pending remain dirty after the submitted values
   are saved; save-and-leave stays on settings when newer changes remain.
+  Overlapping saves use a revision guard: older completions cannot overwrite
+  the latest saved snapshot, mirror older values to Electron after a cleanup
+  wait, or report stale failures after a newer save.
 
 ## Preload Bridge
 
