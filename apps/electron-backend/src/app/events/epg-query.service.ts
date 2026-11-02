@@ -28,13 +28,11 @@ type EpgChannelRow = typeof schema.epgChannels.$inferSelect;
 
 /**
  * Max channel keys per candidate-lookup query. The query binds each key up to
- * four times (raw id / raw displayName / LOWER(id) / LOWER(displayName)) plus
- * the source URLs twice, so 7,000 keys stays under SQLite's
- * `SQLITE_LIMIT_VARIABLE_NUMBER` (32766). The LOWER() branches cannot use an
- * index, so every chunk scans `epg_channels`: fewer, larger chunks keep a
- * 90k-key playlist at a handful of scans instead of ~185.
+ * four times (raw id / raw displayName / LOWER(id) / LOWER(displayName)), so we
+ * chunk to stay well under SQLite's `SQLITE_LIMIT_VARIABLE_NUMBER` (32766) even
+ * for very large playlists — at 500 that's ~2k bound parameters per statement.
  */
-const CHANNEL_LOOKUP_CHUNK_SIZE = 7_000;
+const CHANNEL_LOOKUP_CHUNK_SIZE = 500;
 
 /**
  * Max channel ids per current-programme query, which binds each id once.
@@ -483,6 +481,18 @@ export class EpgQueryService {
         candidateIdsByRequestedId: Map<string, string>,
         rows: EpgProgramSelectRow[]
     ): Set<string> {
+        // Several requested keys can resolve to one candidate (e.g. duplicate
+        // stream names); group them once instead of scanning every pair per row.
+        const requestedIdsByCandidateId = new Map<string, string[]>();
+        for (const [requestedId, candidateId] of candidateIdsByRequestedId) {
+            const requestedIds = requestedIdsByCandidateId.get(candidateId);
+            if (requestedIds) {
+                requestedIds.push(requestedId);
+            } else {
+                requestedIdsByCandidateId.set(candidateId, [requestedId]);
+            }
+        }
+
         const matchedCandidateIds = new Set<string>();
         for (const row of rows) {
             const program = toEpgProgramFromRow(row);
@@ -490,16 +500,15 @@ export class EpgQueryService {
                 continue;
             }
 
-            for (const [
-                requestedId,
-                candidateId,
-            ] of candidateIdsByRequestedId) {
-                if (candidateId !== row.channelId || result[requestedId]) {
+            for (const requestedId of requestedIdsByCandidateId.get(
+                row.channelId
+            ) ?? []) {
+                if (result[requestedId]) {
                     continue;
                 }
 
                 result[requestedId] = program;
-                matchedCandidateIds.add(candidateId);
+                matchedCandidateIds.add(row.channelId);
             }
         }
         return matchedCandidateIds;

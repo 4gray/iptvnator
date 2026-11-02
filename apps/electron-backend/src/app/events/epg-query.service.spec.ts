@@ -471,10 +471,10 @@ describe('EpgQueryService', () => {
         const select = jest.fn(() => createSelectChain([], []));
         getDatabase.mockResolvedValue({ select });
 
-        const ids = Array.from({ length: 7_001 }, (_, i) => `ch-${i}`);
+        const ids = Array.from({ length: 600 }, (_, i) => `ch-${i}`);
         await service.getChannelMetadata(ids); // no sourceUrls → candidate lookup only
 
-        // 7,001 unique keys → ceil(7001 / 7000) = 2 chunked candidate-lookup queries.
+        // 600 unique keys → ceil(600 / 500) = 2 chunked candidate-lookup queries.
         expect(select).toHaveBeenCalledTimes(2);
     });
 

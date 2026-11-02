@@ -135,20 +135,38 @@ describe('epg-mapping.operations', () => {
             );
         });
 
-        it('splits large key lists to stay under the SQLite variable limit', async () => {
-            const { db, select } = createDbMock([
-                { channelKey: 'key-0', epgChannelId: 'epg-0' },
+        it('splits large key lists and merges the mappings found in every chunk', async () => {
+            // One mapping per chunk, including the partial last one.
+            const mapped = new Map([
+                ['key-0', 'epg-0'],
+                ['key-15000', 'epg-15000'],
+                ['key-25000', 'epg-25000'],
             ]);
-            const keys = Array.from({ length: 40_000 }, (_, i) => `key-${i}`);
+            const select = jest.fn(() => {
+                const chain: Record<string, unknown> = {};
+                chain['from'] = jest.fn().mockReturnValue(chain);
+                chain['where'] = jest.fn((condition: { values: string[] }) =>
+                    Promise.resolve(
+                        condition.values
+                            .filter((key) => mapped.has(key))
+                            .map((channelKey) => ({
+                                channelKey,
+                                epgChannelId: mapped.get(channelKey),
+                            }))
+                    )
+                );
+                return chain;
+            });
+            const db = { select } as unknown as AppDatabase;
+            const keys = Array.from({ length: 25_001 }, (_, i) => `key-${i}`);
 
             const result = await getEpgMappingsBatch(db, keys);
 
-            expect(select).toHaveBeenCalledTimes(4);
             const boundCounts = inArrayMock.mock.calls.map(
                 ([, values]) => (values as unknown[]).length
             );
-            expect(boundCounts).toEqual([10_000, 10_000, 10_000, 10_000]);
-            expect(result.get('key-0')).toBe('epg-0');
+            expect(boundCounts).toEqual([10_000, 10_000, 5_001]);
+            expect(result).toEqual(mapped);
         });
     });
 

@@ -1155,8 +1155,13 @@ These URLs are playlist-scoped by default:
   names (Cyrillic, Greek, …) a `LOWER()`-only match would miss channels whose
   M3U name and EPG `display_name` share the same casing — the raw exact match
   keeps parity with the timeline's single-channel exact-display-name lookup, and
-  the JS `resolveChannelMetadataCandidate` then folds with full-Unicode
-  `toLowerCase()`. The "airing now" window is compared with timezone-aware SQLite
+  the JS `resolveEpgChannelCandidate` then folds with full-Unicode
+  `toLowerCase()`, using id/display-name lookup tables built once per candidate
+  list (`epg-channel-candidate-index.util.ts`) rather than scanning candidates
+  per key. Every id list bound into SQL on this path (candidate keys,
+  current-programme channel ids, manual-mapping keys) is chunked below SQLite's
+  32,766-variable limit, so playlists with tens of thousands of channels still
+  resolve. The "airing now" window is compared with timezone-aware SQLite
   `datetime()` on both sides (`EpgQueryService.isAiringAt`), not raw string
   comparison: stored EPG timestamps often carry an offset (e.g. `+03:00`) while
   `now` is built as UTC (`…Z`), so a lexical compare would be wrong by the offset
