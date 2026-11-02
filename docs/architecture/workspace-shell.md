@@ -347,6 +347,8 @@ The service then navigates to the page's parent with `replaceUrl`, so history
 Back cannot return to the page just left; with nothing in-app before it, the
 parent shows no history fallback. The resolver returns a URL or router commands, may be asynchronous, and
 returns null when the page knows no parent, which keeps `Location.back()`.
+Starting another navigation while the parent resolves discards that pending
+Back action, so a delayed lookup cannot replace the newer page.
 Portal pages build their parent with `workspacePortalCommands()`
 (`@iptvnator/portal/shared/util`) from the route's `:id`; without a section,
 the portal route's `redirectTo` picks the default section within the same
