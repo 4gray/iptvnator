@@ -4,6 +4,17 @@ import {
 } from './electron-xtream-data-source.test-helpers';
 
 describe('unfinished catalog cache recovery', () => {
+    it.each(['importing', 'failed', 'cancelled'])(
+        'does not offer partial %s rows as an offline catalog',
+        async (status) => {
+            const { dataSource, dbService } = setupElectronXtreamDataSource();
+            dbService.getXtreamImportStatus.mockResolvedValue(status);
+            dbService.hasXtreamContent.mockResolvedValue(true);
+            expect(await dataSource.hasContent('p', 'live')).toBe(false);
+            expect(dbService.hasXtreamContent).not.toHaveBeenCalled();
+        }
+    );
+
     it.each(['failed', 'cancelled', 'importing'])(
         'clears %s cache before importing categories again',
         async (status) => {

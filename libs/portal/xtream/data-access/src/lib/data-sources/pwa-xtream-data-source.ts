@@ -332,6 +332,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         type: CategoryType,
         options?: XtreamOperationOptions
     ): Promise<XtreamCategory[]> {
+        options?.signal?.throwIfAborted();
         const cacheKey = `${playlistId}-${type}-categories`;
 
         // Check in-memory cache first
@@ -350,6 +351,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             credentials,
             type
         );
+        options?.signal?.throwIfAborted();
 
         // Cache in memory
         this.categoryCache.set(cacheKey, categories);
@@ -537,10 +539,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                   ? 'loading-movies'
                   : 'loading-series'
         );
+        options?.signal?.throwIfAborted();
         const content = await this.normalizeContentItems(
             await this.apiService.getStreams(credentials, type),
             type
         );
+        options?.signal?.throwIfAborted();
 
         // Report total and progress (PWA doesn't have incremental save, so report all at once)
         if (onTotal) {

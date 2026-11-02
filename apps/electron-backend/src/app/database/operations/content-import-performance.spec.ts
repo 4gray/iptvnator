@@ -7,6 +7,10 @@ import {
 } from './content.operations';
 import { createRecordingOperationPhaseCapture } from './performance-phase-capture.test-helpers';
 
+jest.mock('./playlist.operations', () => ({
+    setAppState: jest.fn().mockResolvedValue({ success: true }),
+}));
+
 function createContentDb(streamCount: number, timeline: string[]) {
     const existingWhere = jest.fn().mockResolvedValue([{ count: 0 }]);
     const categoriesWhere = jest

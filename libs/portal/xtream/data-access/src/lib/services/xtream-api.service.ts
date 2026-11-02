@@ -152,7 +152,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     /**
@@ -172,7 +175,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     /**
@@ -195,7 +201,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     async getVodStream(
@@ -233,7 +242,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     /**

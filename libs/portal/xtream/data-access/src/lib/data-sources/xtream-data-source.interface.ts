@@ -174,6 +174,8 @@ export function mapStreamTypeToDbType(
 export type ProgressCallback = (count: number) => void;
 
 export interface XtreamOperationOptions {
+    /** Renderer-local cancellation; never serialized across IPC. */
+    signal?: AbortSignal;
     operationId?: string;
     sessionId?: string;
     onEvent?: (event: DbOperationEvent) => void;

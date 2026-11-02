@@ -324,6 +324,12 @@ the main-process and EPG-worker connections give up after their 5 s
   an `XtreamContentValue` supplies, 1,100 parameters per statement; a whole
   5,000-row commit in one statement would pass SQLite's 32,766 limit) and
   wrap fifty of them in one transaction.
+- Category imports use at most 1,000 rows per `INSERT` to stay below SQLite's
+  bound-parameter limit. All statements remain in one transaction, preserving
+  provider order and rolling back earlier batches if a later batch fails.
+- A cold content save persists its type's `importing` marker before committing
+  any content rows. Failure to persist the marker prevents all content writes;
+  only the import owner records completion after the save succeeds.
 - For deletes, progress `current` is the sum of the `changes` SQLite reports
   and `total` is the summed pre-count. For inserts, `current` counts the rows
   handed to `INSERT ... ON CONFLICT DO NOTHING` and `total` is the number of
