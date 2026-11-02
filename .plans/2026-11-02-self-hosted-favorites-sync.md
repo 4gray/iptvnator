@@ -213,3 +213,18 @@ types, full coverage (85.32% statements, 76.90% branches, 83.64% functions,
 1,199,588 / 1,200,301, all three mixed favorites E2E cases, and Linux arm64
 Docker build plus HTTP add/remove/receipt/restart smoke. Canonical PWA docs
 describe guarded background type selection. No findings were declined.
+
+Local review round 9 found two accepted issues: operations-only failures were
+hidden from runtime status, and overlapping Stalker live favorite reads could
+publish old membership after newer reads or acknowledged local changes. All
+six new regressions fail before repair. Delivery retains queued intents,
+continues independent keys, then propagates the first failure. Stalker fences
+read publication by request generation and invalidates reads on local callbacks.
+
+Round-9 repairs pass owning tests/types/lint, full coverage (85.32% statements,
+76.90% branches, 83.64% functions, 85.82% lines), production Electron/frontend/
+worker, initial bytes 1,199,593 / 1,200,301, all three mixed favorites E2E cases,
+and Linux arm64 Docker build plus HTTP add/remove/receipt/restart smoke.
+The M3U E2E case now verifies a visible error when only operation delivery fails,
+then restores delivery and confirms the saved queue drains. Canonical PWA docs
+describe delivery failure reporting and Stalker read fencing. No findings declined.

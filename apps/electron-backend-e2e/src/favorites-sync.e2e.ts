@@ -546,6 +546,36 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
                 .nth(1)
                 .locator('.favorite-button')
         ).toHaveAttribute('aria-pressed', 'true');
+        await page.route(`${server.apiUrl}/v1/favorites/operations`, (route) =>
+            route.fulfill({ status: 503, body: 'Synthetic delivery outage' })
+        );
+        await page
+            .getByTestId('channel-item')
+            .nth(2)
+            .locator('.favorite-button')
+            .click();
+        await refresh(page);
+        await expect(page.getByTestId('favorites-sync-state')).toContainText(
+            'Server or local storage unavailable',
+            { timeout: 30000 }
+        );
+        await page.unroute(`${server.apiUrl}/v1/favorites/operations`);
+        await refresh(page);
+        await expect(page.getByTestId('favorites-sync-state')).toContainText(
+            'Favorites synchronized'
+        );
+        await open(page);
+        await page
+            .getByTestId('channel-item')
+            .nth(2)
+            .locator('.favorite-button')
+            .click();
+        await expect
+            .poll(
+                async () =>
+                    (await list()).filter((entry) => entry.state.member).length
+            )
+            .toBe(1);
         await page.route(`${server.apiUrl}/v1/favorites/**`, (route) =>
             route.abort()
         );

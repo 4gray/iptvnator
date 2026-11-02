@@ -9,6 +9,7 @@ export async function deliverFavorites(
     this: FavoritesSyncClient
 ): Promise<void> {
     const generation = this.generation();
+    let failure: { error: unknown } | undefined;
     for (const intent of await this.store.pending()) {
         this.current(generation);
         if (
@@ -41,6 +42,7 @@ export async function deliverFavorites(
                 throw new Error('Invalid favorite receipt');
         } catch (error) {
             if (error instanceof FavoriteSupersededError) throw error;
+            failure ??= { error };
             continue; // Durable intent stays queued for reconnect/restart.
         }
         await this.store.mutate(intent.address, (current) => {
@@ -73,4 +75,5 @@ export async function deliverFavorites(
         });
     }
     this.options.changed();
+    if (failure) throw failure.error;
 }

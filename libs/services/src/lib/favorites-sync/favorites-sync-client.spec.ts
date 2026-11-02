@@ -75,6 +75,7 @@ function fixture() {
     const receipts = new Map<string, unknown>();
     const requests: SourceServerRequest[] = [];
     let afterApply: (() => Promise<void>) | undefined;
+    let applyFailure: Error | number | undefined;
     const request = async (input: SourceServerRequest) => {
         requests.push(input);
         if (!online) throw new Error('offline');
@@ -110,6 +111,8 @@ function fixture() {
                     ),
                 },
             };
+        if (applyFailure instanceof Error) throw applyFailure;
+        if (applyFailure !== undefined) return { status: applyFailure };
         const a = input.favorite!.address;
         const operation = input.favorite!.operation!;
         if (a.sourceIncarnation !== incarnation) return { status: 409 };
@@ -151,6 +154,8 @@ function fixture() {
         incarnation: (value: string) => (incarnation = value),
         active: (value: boolean) => (active = value),
         afterApply: (value: () => Promise<void>) => (afterApply = value),
+        applyFailure: (value: Error | number | undefined) =>
+            (applyFailure = value),
     };
 }
 beforeAll(() =>
@@ -160,6 +165,20 @@ beforeAll(() =>
     })
 );
 describe('favorites delivery and consent boundaries', () => {
+    it.each([401, 503, new Error('Synthetic network failure')])(
+        'reports an operations-only failure while retaining the durable intent (%s)',
+        async (failure) => {
+            const f = fixture();
+            f.applyFailure(failure);
+            await f.client.set('source', ref, true);
+            await expect(f.client.refresh('source')).rejects.toThrow();
+            expect(await f.local.pending()).toHaveLength(1);
+            expect((await f.local.read(address))?.state.member).toBe(true);
+            f.applyFailure(undefined);
+            await f.client.refresh('source');
+            expect(await f.local.pending()).toHaveLength(0);
+        }
+    );
     it.each([false, true])(
         'retains newer polled state when an old conflict receipt is retried (useLocal=%s)',
         async (useLocal) => {

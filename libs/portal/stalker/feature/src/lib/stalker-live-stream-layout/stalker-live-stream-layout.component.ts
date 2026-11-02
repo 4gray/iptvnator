@@ -665,6 +665,7 @@ export class StalkerLiveStreamLayoutComponent
         promise: Promise<ResolvedPortalPlayback>;
     } | null = null;
     private lastPlaylistId: string | null | undefined = undefined;
+    private favoritesRequestId = 0;
 
     constructor() {
         this.epgClockTimer = setInterval(
@@ -691,12 +692,19 @@ export class StalkerLiveStreamLayoutComponent
         // Load favorites for current playlist
         const destroyRef = inject(DestroyRef);
         const refreshFavorites = () => {
+            const requestId = ++this.favoritesRequestId;
             const playlistId = this.stalkerStore.currentPlaylist()?._id;
             if (playlistId) {
                 this.playlistService
                     .getPortalFavorites(playlistId)
                     .pipe(takeUntilDestroyed(destroyRef))
                     .subscribe((favs) => {
+                        if (
+                            requestId !== this.favoritesRequestId ||
+                            playlistId !==
+                                this.stalkerStore.currentPlaylist()?._id
+                        )
+                            return;
                         this.favorites.clear();
                         favs.forEach((fav: StalkerFavoriteItem) => {
                             const reference = stalkerFavoriteReference(
@@ -1159,6 +1167,7 @@ export class StalkerLiveStreamLayoutComponent
             this.stalkerStore.removeFromFavorites(
                 itemId,
                 () => {
+                    this.favoritesRequestId++;
                     this.favorites.delete(itemId);
                     this.cdr.markForCheck();
                 },
@@ -1166,6 +1175,7 @@ export class StalkerLiveStreamLayoutComponent
             );
         } else {
             this.stalkerStore.addToFavorites(favorite, () => {
+                this.favoritesRequestId++;
                 this.favorites.set(itemId, true);
                 this.cdr.markForCheck();
             });

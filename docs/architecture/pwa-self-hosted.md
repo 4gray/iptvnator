@@ -1247,6 +1247,9 @@ shared membership protocol.
 Background collection refreshes use the page's guarded content-type selection.
 Receiving the first movie or series on an empty favorites page selects its type
 even when the single-type toggle is hidden; an open inline detail retains its tab.
+Delivery failures retain durable intents and report network/authentication errors
+even when context and list reads succeed. Stalker live refreshes discard results
+superseded by another read or an acknowledged local membership change.
 
 Favorite completion updates in the Stalker store and unified M3U collection
 are UI-only metadata actions:
