@@ -276,6 +276,7 @@
         "jest": "^30.5.2",
         "jest-environment-jsdom": "^30.5.2",
         "jest-environment-node": "^30.5.2",
+        "jest-junit": "^16.0.0",
         "jest-preset-angular": "17.0.2",
         "jest-util": "^30.5.1",
         "jsdom": "26.1.0",

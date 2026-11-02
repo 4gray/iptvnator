@@ -210,6 +210,18 @@ The merged report is written to `coverage/merged/` as HTML, LCOV, Cobertura,
 and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 `unit` flag and keeps the HTML report as a GitHub artifact.
 
+Each Tier A Jest run also writes `coverage/<projectRoot>/junit.xml` through
+`jest-junit`, with file paths as test class names for Codecov Test Analytics.
+The report lives inside the test target's coverage output so Nx cache restores
+include it, and concurrent projects cannot overwrite one another's results.
+CI uploads available JUnit reports with `codecov-action@v7` and
+`report_type: test_results`, including after test failures, and keeps them in
+the `unit-coverage` artifact. Cancelled runs and runs without reports skip the
+test-results upload. Upload errors are non-blocking for this analytics step;
+test failures and the existing coverage upload remain blocking. Analytics
+covers executed Tier A tests only: projects skipped after the first failure
+and out-of-scope suites do not contribute results.
+
 Passing the local coverage health checks does not guarantee that Codecov's
 `patch` check passes: it separately evaluates changed code, including partially
 covered branches, against the target reported for the current PR head. Inspect
