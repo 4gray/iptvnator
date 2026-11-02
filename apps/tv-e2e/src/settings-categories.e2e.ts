@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { workspaceRoot } from '@nx/devkit';
-import { addSource, backend, nav, start } from './helpers';
+import { chooseTv, addSource, backend, nav, start } from './helpers';
 
 test('categories retain drafts and save only their own field across relaunch', async ({
     page,
@@ -13,7 +13,7 @@ test('categories retain drafts and save only their own field across relaunch', a
         page.getByRole('tab', { name, exact: false });
     await expect(page.getByRole('tabpanel')).toHaveCount(1);
     await category('Appearance').click();
-    await page.getByLabel('Home composition').selectOption('shelf');
+    await chooseTv(page, 'Home composition', 'shelf');
     await category('Metadata').click();
     await page
         .getByLabel('TMDB API key or read access token')
@@ -28,7 +28,10 @@ test('categories retain drafts and save only their own field across relaunch', a
     ).toBeVisible();
     await expect(page.locator('.tv-app')).toHaveClass(/cinema/);
     await category('Appearance').click();
-    await expect(page.getByLabel('Home composition')).toHaveValue('shelf');
+    await expect(page.getByLabel('Home composition')).toHaveAttribute(
+        'data-value',
+        'shelf'
+    );
     await page
         .getByRole('button', { name: 'Save settings', exact: true })
         .click();
@@ -363,8 +366,8 @@ for (const [width, height] of [
         await page.keyboard.press('ArrowRight');
         const layout = page.getByLabel('Home composition');
         await expect(layout).toBeFocused();
-        await layout.selectOption('shelf');
-        await expect(layout).toHaveValue('shelf');
+        await chooseTv(page, 'Home composition', 'shelf');
+        await expect(layout).toHaveAttribute('data-value', 'shelf');
         await expect(layout).toBeFocused();
         await page.keyboard.press('ArrowRight');
         await expect(
