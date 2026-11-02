@@ -76,6 +76,18 @@ pnpm nx reset
 pnpm nx build web --configuration=pwa --skip-nx-cache
 ```
 
+## Xtream request cancellation
+
+Xtream import signals travel as a separate, renderer-local argument to
+`DataService.sendIpcEvent`, never inside an IPC or HTTP payload. The PWA's
+on-demand `pwa-xtream-request.ts` transport unsubscribes the caller's pending
+target-registration wait or catalog GET when aborted. A category failure can
+therefore settle sibling requests before releasing the import's busy hold.
+Provider-target registrations remain shared between independent callers;
+cancelling one reader does not cancel another. Registration POSTs and Xtream
+GETs each have a 30-second HTTP timeout so an unresponsive backend cannot retain
+an unbounded registration promise. Cancelled imports do not show error toasts.
+
 ## Web Backend
 
 The current self-hosted PWA uses these `apps/web-backend` routes:

@@ -149,6 +149,7 @@ describe('PwaService', () => {
             params: { username: 'user', password: 'pass' },
             connectionTest: true,
         });
+        await new Promise((resolve) => setTimeout(resolve, 0));
         http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
             targetId: 'test-target',
         });

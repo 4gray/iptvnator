@@ -22,17 +22,15 @@ import {
 } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
-    ERROR,
     isHostConnectivityFastFailMessage,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
     STALKER_REQUEST,
-    XtreamCodeActions,
     XTREAM_REQUEST,
-    XTREAM_RESPONSE,
 } from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../../environments/environment';
+import type { PwaXtreamRequest } from './pwa-xtream-request';
 import {
     createPortalDebugErrorEvent,
     createPortalDebugRequestContext,
@@ -53,23 +51,6 @@ import { isSourceBackendRequest } from '@iptvnator/services/source-sync/connecti
  * caller's own request reports the real state either way.
  */
 const CONNECTIVITY_GUARD_RESET_TIMEOUT_MS = 5_000;
-
-interface PwaXtreamResponse {
-    readonly payload?: unknown;
-    readonly status?: number;
-}
-
-interface PwaXtreamResult {
-    readonly action: string;
-    readonly payload: unknown;
-    readonly type: typeof XTREAM_RESPONSE;
-}
-
-interface PwaErrorResult {
-    readonly message: string;
-    readonly status: number;
-    readonly type: typeof ERROR;
-}
 
 interface ErrorStatus {
     readonly message?: string;
@@ -93,15 +74,6 @@ export class PwaService extends DataService {
     private readonly serverStatus = inject(ServerStorageStatusService);
     private readonly logger = createLogger('PwaService');
     private readonly providerTargetIds = new Map<string, Promise<string>>();
-    private readonly silentXtreamActions = new Set<string>([
-        XtreamCodeActions.GetAccountInfo,
-        XtreamCodeActions.GetLiveCategories,
-        XtreamCodeActions.GetVodCategories,
-        XtreamCodeActions.GetSeriesCategories,
-        XtreamCodeActions.GetShortEpg,
-        XtreamCodeActions.GetSimpleDataTable,
-        XtreamCodeActions.GetSimpleDateTable,
-    ]);
 
     /** The backend's URL as configured: `/` for the page's own origin. */
     private readonly backendUrl = getRuntimeBackendUrl();
@@ -150,7 +122,11 @@ export class PwaService extends DataService {
      * @param type ipc command type
      * @param payload payload
      */
-    sendIpcEvent<T = unknown>(type: string, payload?: unknown): T {
+    sendIpcEvent<T = unknown>(
+        type: string,
+        payload?: unknown,
+        signal?: AbortSignal
+    ): T {
         if (type === PLAYLIST_PARSE_BY_URL) {
             this.fetchFromUrl(payload as Partial<Playlist>);
             return undefined as T;
@@ -165,7 +141,8 @@ export class PwaService extends DataService {
 
         if (type === XTREAM_REQUEST) {
             return this.forwardXtreamRequest(
-                payload as { url: string; params: Record<string, string> }
+                payload as { url: string; params: Record<string, string> },
+                signal
             ) as T;
         }
 
@@ -411,156 +388,30 @@ export class PwaService extends DataService {
         return match ? parseInt(match[1], 10) : null;
     }
 
-    async forwardXtreamRequest(payload: {
-        userAgent?: string;
-        connectionTest?: boolean;
-        url: string;
-        params: Record<string, string>;
-        macAddress?: string;
-        requestId?: string;
-        sessionId?: string;
-        suppressErrorLog?: boolean;
-    }) {
-        const headers = payload.macAddress
-            ? {
-                  headers: {
-                      Cookie: `mac=${payload.macAddress}`,
-                  },
-              }
-            : {};
-        let context = createPortalDebugRequestContext({
-            provider: 'xtream',
-            operation: payload.params?.action ?? 'unknown',
-            transport: 'pwa-http',
-            request: {
-                method: 'GET',
-                params: payload.params,
-                url: `${this.corsProxyUrl}/xtream`,
-            },
-        });
-
-        try {
-            const targetId = await this.getProviderTargetId(payload.url);
-            const requestParams = {
-                targetId,
-                ...payload.params,
-                ...(payload.userAgent?.trim()
-                    ? { userAgent: payload.userAgent.trim() }
-                    : {}),
-                ...(payload.connectionTest ? { connectionTest: 'true' } : {}),
-            };
-            const requestPayload = {
-                method: 'GET',
-                params: requestParams,
-                url: `${this.corsProxyUrl}/xtream`,
-                ...(payload.macAddress
-                    ? {
-                          headers: {
-                              Cookie: `mac=${payload.macAddress}`,
-                          },
-                      }
-                    : {}),
-            };
-            context = createPortalDebugRequestContext({
-                provider: 'xtream',
-                operation: payload.params?.action ?? 'unknown',
-                transport: 'pwa-http',
-                request: requestPayload,
-            });
-            logPortalDebugRequest(context);
-
-            let result: PwaErrorResult | PwaXtreamResult;
-            const response = (await firstValueFrom(
-                this.http.get<PwaXtreamResponse>(
-                    `${this.corsProxyUrl}/xtream`,
-                    {
-                        params: requestParams,
-                        ...headers,
-                    }
-                )
-            )) as PwaXtreamResponse;
-
-            if (payload.connectionTest) return response;
-
-            if (!response.payload) {
-                const action = payload.params.action;
-                const isSilentAction =
-                    payload.suppressErrorLog === true ||
-                    this.silentXtreamActions.has(action);
-                const normalizedMessage =
-                    this.getReadableXtreamErrorMessage(response);
-                logPortalDebugEvent(
-                    createPortalDebugErrorEvent(context, response)
-                );
-
-                if (isSilentAction) {
-                    this.logger.debug(
-                        `Background Xtream action failed (${action ?? 'unknown'}):`,
-                        normalizedMessage
+    async forwardXtreamRequest(payload: PwaXtreamRequest, signal?: AbortSignal) {
+        signal?.throwIfAborted();
+        const { forwardPwaXtreamRequest } = await import('./pwa-xtream-request');
+        return forwardPwaXtreamRequest(
+            {
+                http: this.http,
+                proxyUrl: this.corsProxyUrl,
+                getTargetId: (url) => this.getProviderTargetId(url),
+                logger: this.logger,
+                errorMessage: (error) => this.getReadableXtreamErrorMessage(error),
+                errorStatus: (error) => this.getErrorDetails(error)?.status,
+                showError: (message) => {
+                    void this.snackBar.open(
+                        this.translateService.instant('PORTALS.REQUEST_ERRORS.XTREAM', {
+                            message,
+                        }),
+                        this.translateService.instant('CLOSE'),
+                        { duration: 5000 }
                     );
-                    return {
-                        type: ERROR,
-                        status: response.status ?? 500,
-                        message: normalizedMessage,
-                    };
-                }
-
-                result = {
-                    type: ERROR,
-                    status: response.status ?? 500,
-                    message: normalizedMessage,
-                };
-                window.postMessage(result);
-            } else {
-                result = {
-                    type: XTREAM_RESPONSE,
-                    payload: response.payload,
-                    action: payload.params.action,
-                };
-                logPortalDebugEvent(
-                    createPortalDebugSuccessEvent(context, response)
-                );
-                window.postMessage(result);
-            }
-            return result;
-        } catch (error: unknown) {
-            logPortalDebugEvent(createPortalDebugErrorEvent(context, error));
-            const action = payload.params.action;
-            const isSilentAction =
-                payload.suppressErrorLog === true ||
-                this.silentXtreamActions.has(action);
-            const normalizedMessage = this.getReadableXtreamErrorMessage(error);
-            const errorInfo = this.getErrorDetails(error);
-
-            // Log error to console
-            if (isSilentAction) {
-                this.logger.debug(
-                    `Background Xtream action failed (${action ?? 'unknown'}):`,
-                    normalizedMessage
-                );
-                return {
-                    type: ERROR,
-                    status: errorInfo?.status ?? 500,
-                    message: normalizedMessage,
-                };
-            }
-
-            this.logger.error('Xtream request error:', normalizedMessage);
-            void this.snackBar.open(
-                this.translateService.instant('PORTALS.REQUEST_ERRORS.XTREAM', {
-                    message: normalizedMessage,
-                }),
-                this.translateService.instant('CLOSE'),
-                {
-                    duration: 5000,
-                }
-            );
-            return {
-                type: ERROR,
-                status: errorInfo?.status ?? 500,
-                message: normalizedMessage,
-            };
-        }
+                },
+            },
+            payload,
+            signal
+        );
     }
 
     private getReadableXtreamErrorMessage(error: unknown): string {
@@ -790,7 +641,8 @@ export class PwaService extends DataService {
         const targetIdRequest = firstValueFrom(
             this.http.post<ProviderTargetRegistration>(
                 `${this.corsProxyUrl}/provider-targets`,
-                { url }
+                { url },
+                { timeout: 30_000 }
             )
         )
             .then((response) => response.targetId)

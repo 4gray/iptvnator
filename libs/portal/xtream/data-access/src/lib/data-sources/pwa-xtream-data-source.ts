@@ -349,7 +349,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         options?.onPhaseChange?.('loading-categories');
         const categories = await this.apiService.getCategories(
             credentials,
-            type
+            type,
+            ...(options?.signal ? [{ signal: options.signal }] as const : [])
         );
         options?.signal?.throwIfAborted();
 
@@ -541,7 +542,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         );
         options?.signal?.throwIfAborted();
         const content = await this.normalizeContentItems(
-            await this.apiService.getStreams(credentials, type),
+            await this.apiService.getStreams(
+                credentials,
+                type,
+                ...(options?.signal ? [{ signal: options.signal }] as const : [])
+            ),
             type
         );
         options?.signal?.throwIfAborted();

@@ -66,7 +66,9 @@ export abstract class DataService {
     abstract getAppVersion(): string;
     abstract sendIpcEvent<T = unknown>(
         type: string,
-        payload?: unknown
+        payload?: unknown,
+        /** Renderer-local cancellation; never part of a serialized IPC payload. */
+        signal?: AbortSignal
     ): T | Promise<T>;
     abstract removeAllListeners(type: string): void;
     abstract listenOn(

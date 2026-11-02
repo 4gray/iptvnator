@@ -139,6 +139,75 @@ describe('Xtream import session lifecycle', () => {
         expect(databaseService.clearXtreamImportCache).toHaveBeenCalledTimes(3);
     });
 
+    it('loads categories and content independently without opening an import session', async () => {
+        dataSource.getCategories.mockImplementation(
+            (_p, _c, _type, options) => {
+                options.onPhaseChange('loading-cached');
+                return Promise.resolve([{ category_id: 'cached' }]);
+            }
+        );
+        dataSource.getContent.mockImplementation(
+            (_p, _c, _type, _progress, _total, options) => {
+                options.onPhaseChange('loading-cached');
+                options.onEvent({
+                    operation: 'save-content',
+                    status: 'completed',
+                });
+                return Promise.resolve([]);
+            }
+        );
+        await store.fetchAllCategories();
+        await store.fetchAllContent();
+        expect(store.liveCategories()).toEqual([{ category_id: 'cached' }]);
+        expect(dataSource.getContent).toHaveBeenCalledTimes(3);
+        expect(store.isLoadingContent()).toBe(false);
+        expect(store.activeImportSessionId()).toBeNull();
+        expect(api.cancelSession).not.toHaveBeenCalled();
+    });
+
+    it('settles a failed independent category read without cancelling an import session', async () => {
+        dataSource.getCategories.mockRejectedValueOnce(
+            new Error('Synthetic provider failure')
+        );
+        await expect(store.fetchAllCategories()).rejects.toThrow(
+            'Synthetic provider failure'
+        );
+        expect(api.cancelSession).not.toHaveBeenCalled();
+        expect(store.isLoadingCategories()).toBe(false);
+    });
+
+    it.each(['live', 'movie', 'series'])(
+        'ignores late %s progress and phase events after cancellation',
+        async (type) => {
+            const pending = createDeferred<[]>();
+            let callbacks: XtreamOperationOptions | undefined;
+            dataSource.getContent.mockImplementation(
+                (_p, _c, requestedType, _progress, _total, options) => {
+                    if (requestedType !== type) return Promise.resolve([]);
+                    callbacks = options;
+                    return pending.promise;
+                }
+            );
+            const task = store.initializeContent();
+            await waitForCondition(() => callbacks !== undefined);
+            await store.cancelImport();
+            pending.resolve([]);
+            await task;
+            callbacks?.onEvent?.({
+                operation: 'save-content',
+                operationId: 'late',
+                status: 'progress',
+                phase: 'saving-content',
+                current: 1,
+                total: 10,
+            });
+            callbacks?.onPhaseChange?.('saving-content');
+            expect(store.isImporting()).toBe(false);
+            expect(store.importPhase()).toBeNull();
+            expect(store.activeImportOperationIds()).toEqual([]);
+        }
+    );
+
     it('ignores category phase callbacks after their session has terminated', async () => {
         let latePhase: XtreamOperationOptions['onPhaseChange'];
         dataSource.getCategories.mockImplementation(

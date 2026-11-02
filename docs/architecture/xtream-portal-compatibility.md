@@ -536,6 +536,8 @@ responses and persistence boundaries. Existing session/operation IPC cancellatio
 still interrupts active Electron work. Category failure aborts sibling work and
 waits for every request to settle before cleanup and releasing the source hold.
 Phase callbacks belong to their import session and cannot revive a terminated run.
+Browser imports propagate that signal to their HTTP subscriptions, including
+pending target-registration waits; see [PWA request cancellation](./pwa-self-hosted.md#xtream-request-cancellation).
 Only session-owned bootstrap category loads may clear unfinished cache rows;
 ordinary category/detail readers cannot interpret a live `importing` marker as
 abandoned work. Lock-driven category reloads wait until initialization settles.
