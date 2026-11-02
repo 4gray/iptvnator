@@ -461,11 +461,11 @@ export class SettingsComponent
         return false;
     }
 
-    /** @returns whether settings were saved and applied to the runtime */
+    /** @returns whether saved/applied settings include every current edit */
     private async persistSettings(): Promise<boolean> {
         try {
             await this.form.save(() => this.applyChangedSettings());
-            return true;
+            return this.settingsForm.pristine;
         } catch (error) {
             if (error instanceof SettingsRuntimeUpdateError) {
                 this.settingsSnackbar.runtimeUpdateFailure(error.message);

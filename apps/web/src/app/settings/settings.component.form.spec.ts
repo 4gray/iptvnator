@@ -11,6 +11,8 @@ import {
 import { TranslateService } from '@ngx-translate/core';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { SettingsStore } from '../services/settings-store.service';
+import { SettingsService } from '../services/settings.service';
+import { AppDateLocaleService } from '../app-date-locales';
 import { SettingsComponent } from './settings.component';
 import {
     configureSettingsComponentTestBed,
@@ -355,6 +357,100 @@ describe('SettingsComponent form', () => {
 
             expect(component.settingsForm.pristine).toBe(true);
             expect(unsavedBar()).toBeNull();
+        });
+
+        it.each(['storage', 'backend'])(
+            'keeps later edits dirty when the %s save completes',
+            async (pendingStep) => {
+                await fixture.whenStable();
+                let finishSave!: () => void;
+                const pending = new Promise<void>((resolve) => {
+                    finishSave = resolve;
+                });
+                if (pendingStep === 'storage') {
+                    settingsStore.updateSettings.mockReturnValueOnce(pending);
+                } else {
+                    jest.spyOn(
+                        window.electron,
+                        'updateSettings'
+                    ).mockReturnValueOnce(pending);
+                }
+                component.settingsForm.patchValue({
+                    playerAmbientMode: true,
+                    startupWindowMode: 'maximized',
+                });
+                component.settingsForm.markAsDirty();
+                const save = jest.spyOn(component.form, 'save');
+                component.onSubmit();
+                await Promise.resolve();
+
+                component.settingsForm.patchValue({
+                    playerAmbientMode: false,
+                    startupWindowMode: 'normal',
+                });
+                component.settingsForm.markAsDirty();
+                finishSave();
+                await save.mock.results[0].value;
+                await fixture.whenStable();
+
+                expect(component.settingsForm.dirty).toBe(true);
+                expect(component.form.changedPaths()).toEqual([
+                    'playerAmbientMode',
+                    'startupWindowMode',
+                ]);
+                expect(component.form.restartPendingControls()).toEqual([
+                    'startupWindowMode',
+                ]);
+                expect(window.electron.updateSettings).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        playerAmbientMode: true,
+                        startupWindowMode: 'maximized',
+                    })
+                );
+                component.settingsForm.patchValue({
+                    playerAmbientMode: true,
+                    startupWindowMode: 'maximized',
+                });
+                expect(component.form.changedPaths()).toEqual([]);
+            }
+        );
+
+        it('preserves a newer theme preview while applying only the submitted language', async () => {
+            await fixture.whenStable();
+            const changeTheme = jest.spyOn(
+                TestBed.inject(SettingsService),
+                'changeTheme'
+            );
+            const changeLanguage = jest
+                .spyOn(TestBed.inject(AppDateLocaleService), 'use')
+                .mockResolvedValue(undefined);
+            let finishUpdate!: () => void;
+            const pending = new Promise<void>((resolve) => {
+                finishUpdate = resolve;
+            });
+            jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+                pending
+            );
+            component.form.selectTheme(Theme.DarkTheme);
+            component.settingsForm.patchValue({ language: Language.GERMAN });
+            const save = jest.spyOn(component.form, 'save');
+            component.onSubmit();
+            await Promise.resolve();
+
+            component.form.selectTheme(Theme.LightTheme);
+            component.settingsForm.patchValue({ language: Language.FRENCH });
+            finishUpdate();
+            await save.mock.results[0].value;
+            await fixture.whenStable();
+
+            expect(changeTheme).toHaveBeenLastCalledWith(Theme.LightTheme);
+            expect(changeLanguage).toHaveBeenLastCalledWith(Language.GERMAN);
+            expect(component.settingsForm.value.theme).toBe(Theme.LightTheme);
+            expect(component.settingsForm.dirty).toBe(true);
+            expect(component.form.changedPaths()).toEqual([
+                'language',
+                'theme',
+            ]);
         });
 
         // The page owns the bar and is OnPush, and Save marks the form

@@ -171,6 +171,34 @@ describe('SettingsComponent storage failures', () => {
         expect(onSaved).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps the user in settings when more edits are made during save-and-leave', async () => {
+        await fixture.whenStable();
+        let finishUpdate!: () => void;
+        const pending = new Promise<void>((resolve) => {
+            finishUpdate = resolve;
+        });
+        const updateSettings = jest
+            .spyOn(window.electron, 'updateSettings')
+            .mockReturnValueOnce(pending);
+        component.settingsForm.patchValue({ remoteControlPort: 9988 });
+        component.settingsForm.markAsDirty();
+        (TestBed.inject(MatDialog).open as jest.Mock).mockReturnValue({
+            afterClosed: () => of('save'),
+        });
+
+        const leaving = component.confirmLeaveWithUnsavedChanges();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(updateSettings).toHaveBeenCalled();
+        component.settingsForm.patchValue({ remoteControlPort: 9999 });
+        component.settingsForm.markAsDirty();
+        finishUpdate();
+
+        await expect(leaving).resolves.toBe(false);
+        expect(component.settingsForm.dirty).toBe(true);
+        expect(component.form.changedPaths()).toEqual(['remoteControlPort']);
+    });
+
     it('retries failed source cleanup on an explicit EPG save and clears dirty state only on success', async () => {
         await fixture.whenStable();
         const save = jest.spyOn(component.form, 'save');

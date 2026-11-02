@@ -34,7 +34,8 @@ export function sanitizeFilename(name: string): string {
 }
 
 export function createFileName(title: string, url: string): string {
-    const extension = getPlaybackMediaExtensionFromUrl(url) || 'mp4';
+    const extension =
+        getPlaybackMediaExtensionFromUrl(new URL(url).href) || 'mp4';
     const filename = `${sanitizeFilename(title)}.${extension}`;
     assertDownloadMediaFile(filename);
     return filename;

@@ -99,6 +99,8 @@ Status ingestion from renderer:
 - The settings form awaits the backend update before confirming success. An
   apply failure keeps the form available for retry and explains that the saved
   preferences could not be applied, separately from a storage-write failure.
+  Edits made while a save is pending remain dirty after the submitted values
+  are saved; save-and-leave stays on settings when newer changes remain.
 
 ## Preload Bridge
 

@@ -97,7 +97,7 @@ export class SettingsFormFacade {
     /** Controls whose saved value differs from what the running app uses. */
     readonly restartPendingControls = signal<readonly string[]>([]);
 
-    private savedSnapshot: unknown = {};
+    private savedSnapshot = this.form.getRawValue();
 
     constructor() {
         this.form.valueChanges
@@ -237,6 +237,7 @@ export class SettingsFormFacade {
      * succeed, so runtime failures keep the form available for retry.
      */
     async save(onSaved: () => void): Promise<void> {
+        const submittedSnapshot = this.form.getRawValue();
         const settings = createSettingsFromFormValue(
             this.form,
             this.settingsStore.getSettings()
@@ -265,6 +266,7 @@ export class SettingsFormFacade {
             }
         }
         if (cleanupError) throw cleanupError;
+        this.takeSavedSnapshot(submittedSnapshot);
         onSaved();
         this.refreshRestartPending();
     }
@@ -278,17 +280,22 @@ export class SettingsFormFacade {
         this.restartPendingControls.set([]);
     }
 
-    /** Applies the saved language/theme and resets the dirty state */
+    /** Applies saved values while keeping edits made during Save available. */
     applySavedSettings(): void {
-        this.form.markAsPristine();
-        this.takeSavedSnapshot();
+        if (this.changedPaths().length) this.form.markAsDirty();
+        else this.form.markAsPristine();
         // The switch re-renders every date with the new locale; its data is
         // a lazy chunk that must be registered first, and a newer choice
         // must win over an older one whose data arrives later.
-        void this.dateLocales.use(this.form.value.language ?? Language.ENGLISH);
-        this.settingsService.changeTheme(
-            this.form.value.theme ?? Theme.SystemTheme
+        void this.dateLocales.use(
+            this.savedSnapshot.language ?? Language.ENGLISH
         );
+        // Theme selections preview immediately; an older save must not undo one.
+        if (this.form.value.theme === this.savedSnapshot.theme) {
+            this.settingsService.changeTheme(
+                this.savedSnapshot.theme ?? Theme.SystemTheme
+            );
+        }
     }
 
     /**
@@ -317,8 +324,8 @@ export class SettingsFormFacade {
         }
     }
 
-    private takeSavedSnapshot(): void {
-        this.savedSnapshot = this.form.getRawValue();
+    private takeSavedSnapshot(snapshot = this.form.getRawValue()): void {
+        this.savedSnapshot = snapshot;
         this.refreshChangedPaths();
     }
 
