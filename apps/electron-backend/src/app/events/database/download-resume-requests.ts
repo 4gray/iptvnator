@@ -7,6 +7,7 @@ import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import { catchupForDownload } from './download-catchup';
 import { sanitizeFilename, createFileName } from './download-request-options';
+import { assertDownloadMediaFile } from './download-media-file';
 import { resolveStoredDownloadHeaders } from './download-request-headers';
 import { enqueueDownload, hasRuntimeDownload } from './download-runtime';
 
@@ -59,6 +60,7 @@ export async function retryDownloadRequest(
         : catchup
           ? sanitizeFilename(item.title) + '.ts'
           : createFileName(item.title, item.url);
+    assertDownloadMediaFile(fileName);
     const headers = await resolveStoredDownloadHeaders(db, item);
     const queuedUpdate = retainedFilePath
         ? {
@@ -139,6 +141,7 @@ export async function resumeDownloadRequest(
         : catchup
           ? sanitizeFilename(item.title) + '.ts'
           : createFileName(item.title, item.url);
+    assertDownloadMediaFile(fileName);
     const headers = await resolveStoredDownloadHeaders(db, item);
 
     // Claim the row atomically: a concurrent resume for the same id loses

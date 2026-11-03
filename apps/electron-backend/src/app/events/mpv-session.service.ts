@@ -304,7 +304,7 @@ async function launchMpvPlayer(
                     session.id
                 );
                 reusableMpvProcess.clear(proc);
-                stopPositionPolling();
+                stopPositionPolling(processSessionId);
                 externalPlayerSessions.markError(
                     processSessionId,
                     `Failed to start MPV player: ${err.message}`,
@@ -322,7 +322,7 @@ async function launchMpvPlayer(
                     session.id
                 );
                 reusableMpvProcess.clear(proc);
-                stopPositionPolling();
+                stopPositionPolling(processSessionId);
 
                 if (code !== 0 && code !== null) {
                     console.error(
@@ -396,7 +396,7 @@ async function launchMpvPlayer(
     } catch (error) {
         console.error('Error opening MPV player:', error);
         if (!reuseState.teardownUnconfirmed && !freshTeardownUnconfirmed) {
-            stopPositionPolling();
+            stopPositionPolling(session.id);
         }
         const restoredSession =
             reuseState.teardownUnconfirmed &&

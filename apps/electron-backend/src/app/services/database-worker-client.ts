@@ -52,14 +52,16 @@ export class DatabaseWorkerClient {
     private readyResolve: (() => void) | null = null;
     private readyReject: ((reason?: unknown) => void) | null = null;
     private pendingRequests = new Map<string, PendingRequest>();
-    private shuttingDown = false;
 
     async request<TResult>(
         operation: DbWorkerOperation,
         payload: unknown,
         options?: RequestOptions
     ): Promise<TResult> {
-        await this.ensureWorker();
+        const worker = await this.ensureWorker();
+        if (this.worker !== worker) {
+            throw new Error('Database worker shut down or replaced');
+        }
 
         const requestId = randomUUID();
         const startedAt = Date.now();
@@ -81,7 +83,7 @@ export class DatabaseWorkerClient {
                 startedAt,
             });
 
-            this.worker?.postMessage({
+            worker.postMessage({
                 type: 'request',
                 requestId,
                 operation,
@@ -96,8 +98,11 @@ export class DatabaseWorkerClient {
      * on the request port so later reads observe it in order.
      */
     async setParentalLockState(active: boolean): Promise<void> {
-        await this.ensureWorker();
-        this.worker?.postMessage({
+        const worker = await this.ensureWorker();
+        if (this.worker !== worker) {
+            throw new Error('Database worker shut down or replaced');
+        }
+        worker.postMessage({
             type: 'parental-lock',
             active: active === true,
         });
@@ -108,8 +113,11 @@ export class DatabaseWorkerClient {
             return { success: false };
         }
 
-        await this.ensureWorker();
-        this.worker?.postMessage({
+        const worker = await this.ensureWorker();
+        if (this.worker !== worker) {
+            throw new Error('Database worker shut down or replaced');
+        }
+        worker.postMessage({
             type: 'cancel',
             operationId,
         });
@@ -118,36 +126,22 @@ export class DatabaseWorkerClient {
     }
 
     async shutdown(): Promise<void> {
-        this.shuttingDown = true;
-        this.readyResolve = null;
-        this.readyReject = null;
-        this.readyPromise = null;
-
-        if (!this.worker) {
-            return;
-        }
-
         const currentWorker = this.worker;
-        this.worker = null;
-        this.rejectAllPending(new Error('Database worker shut down'));
+        const error = new Error('Database worker shut down');
+        this.readyReject?.(error);
+        this.resetWorkerState();
+        this.rejectAllPending(error);
 
-        try {
-            await currentWorker.terminate();
-        } finally {
-            this.shuttingDown = false;
-        }
+        await currentWorker?.terminate();
     }
 
-    private async ensureWorker(): Promise<void> {
-        if (this.worker && this.readyPromise) {
-            return this.readyPromise;
-        }
-
-        this.createWorker();
-        return this.readyPromise!;
+    private async ensureWorker(): Promise<Worker> {
+        const worker = this.worker ?? this.createWorker();
+        await this.readyPromise;
+        return worker;
     }
 
-    private createWorker(): void {
+    private createWorker(): Worker {
         const bootstrap = resolveWorkerRuntimeBootstrap({
             isPackaged: app.isPackaged,
             workerFilename: 'database.worker.js',
@@ -189,15 +183,23 @@ export class DatabaseWorkerClient {
             throw error;
         }
 
-        this.worker.on('message', (message: DbWorkerMessage) => {
-            this.handleMessage(message);
+        const currentWorker = this.worker;
+        currentWorker.on('message', (message: DbWorkerMessage) => {
+            if (this.worker === currentWorker) {
+                this.handleMessage(message);
+            }
         });
-        this.worker.on('error', (error) => {
-            this.handleWorkerFailure(error);
+        currentWorker.on('error', (error) => {
+            if (this.worker === currentWorker) {
+                this.handleWorkerFailure(error);
+            }
         });
-        this.worker.on('exit', (code) => {
-            this.handleWorkerExit(code);
+        currentWorker.on('exit', (code) => {
+            if (this.worker === currentWorker) {
+                this.handleWorkerExit(code);
+            }
         });
+        return currentWorker;
     }
 
     private handleMessage(message: DbWorkerMessage): void {
@@ -293,10 +295,6 @@ export class DatabaseWorkerClient {
     }
 
     private handleWorkerExit(code: number): void {
-        if (this.shuttingDown) {
-            return;
-        }
-
         if (isDbTraceEnabled()) {
             trace('db-worker', 'exit', { code });
         }

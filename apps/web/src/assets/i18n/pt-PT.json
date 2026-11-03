@@ -483,6 +483,7 @@
         "LANGUAGE": "Idioma",
         "SETTINGS_SAVED": "Definições guardadas.",
         "SETTINGS_SAVE_FAILED": "Não foi possível guardar as definições. As alterações serão perdidas ao reiniciar a aplicação.",
+        "SETTINGS_RUNTIME_UPDATE_FAILED": "As definições foram guardadas, mas a aplicação em execução não conseguiu aplicá-las. Verifique a porta do controlo remoto e guarde novamente.",
         "SETTINGS_LOAD_FAILED": "Não foi possível carregar as definições guardadas. Estão a ser utilizados os valores predefinidos. Confirma que não existe outra instância da aplicação em execução.",
         "THEME": "Tema visual",
         "SHOW_CAPTIONS": "Mostrar legendas",
