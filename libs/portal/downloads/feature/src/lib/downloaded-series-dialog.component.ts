@@ -50,10 +50,12 @@ export class DownloadedSeriesDialogComponent {
     );
     readonly itemAction = output<DownloadItemAction>();
     protected readonly currentMembers = computed(() => this.members()());
-    private readonly seasonUnknown = computed(() =>
-        this.currentMembers().some(
-            (item) => item.metadataSnapshot?.episode?.seasonUnknown
-        )
+    private readonly seasonUnknown = computed(
+        () =>
+            this.group.seasonUnknown ||
+            this.currentMembers().some(
+                (item) => item.metadataSnapshot?.episode?.seasonUnknown
+            )
     );
 
     protected emitAction(

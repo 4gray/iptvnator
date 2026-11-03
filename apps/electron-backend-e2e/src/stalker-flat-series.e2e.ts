@@ -1,5 +1,6 @@
 import {
     addStalkerPortal,
+    fillWorkspaceSearch,
     closeElectronApp,
     expect,
     goToDashboard,
@@ -265,6 +266,16 @@ for (const tmdb of [false, true]) {
             );
             await expect(library).toContainText('Signal House (1-9 season)');
             await expect(library).not.toContainText('Season 9');
+            await fillWorkspaceSearch(app.mainWindow, 'S09E01');
+            await expect(library).not.toContainText('Season 9');
+            await library.locator('.download-library__episodes-button').click();
+            await expect(
+                app.mainWindow.locator('.downloaded-series-dialog__number')
+            ).toHaveText(['E01']);
+            await app.mainWindow
+                .getByRole('button', { name: 'Close dialog', exact: true })
+                .click();
+            await fillWorkspaceSearch(app.mainWindow, '');
             await library.locator('.download-library__episodes-button').click();
             await expect(
                 app.mainWindow.locator('.downloaded-series-dialog__number')

@@ -304,11 +304,9 @@ function compareOfflineEpisodes(
 }
 
 function buildSeasons(
-    members: readonly ReadonlyDownloadItem[]
+    members: readonly ReadonlyDownloadItem[],
+    seasonUnknown: boolean
 ): readonly DownloadOfflineSeason[] {
-    const seasonUnknown = members.some(
-        (item) => snapshotForKind(item, 'series')?.episode?.seasonUnknown
-    );
     const episodes = members
         .map((item) => toSortableOfflineEpisode(item, seasonUnknown))
         .sort(compareOfflineEpisodes);
@@ -350,24 +348,27 @@ function buildSeriesDetail(
         return undefined;
     }
 
-    const members =
+    const collection =
         seriesXtreamId === undefined
             ? [representative]
             : downloads.filter(
                   (item) =>
                       isPositiveSafeInteger(item.id) &&
-                      isLocallyAvailable(item) &&
                       item.contentType === 'episode' &&
                       item.playlistId === representative.playlistId &&
                       item.seriesXtreamId === seriesXtreamId
               );
+    const members = collection.filter(isLocallyAvailable);
+    const seasonUnknown = collection.some(
+        (item) => snapshotForKind(item, 'series')?.episode?.seasonUnknown
+    );
     const snapshot = selectSeriesSnapshot(members);
 
     return {
         kind: 'series',
         representative,
         ...(snapshot === undefined ? {} : { snapshot }),
-        seasons: buildSeasons(members),
+        seasons: buildSeasons(members, seasonUnknown),
     };
 }
 
