@@ -18,8 +18,9 @@ import {
     buildStalkerRequestUrl,
     normalizeXtreamServerUrl,
     describeXtreamConnectionFailure,
+    type ParsedPlaylist,
 } from '@iptvnator/shared/interfaces';
-import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
+import { createPlaylistObject as createM3uPlaylist } from '@iptvnator/shared/m3u-utils';
 import {
     admitProviderRequest,
     observeProviderRequest,
@@ -591,7 +592,7 @@ async function handlePlaylistParse(options: {
                 ? { headers: { 'User-Agent': options.userAgent } }
                 : {}),
         });
-        const parsedPlaylist = parsePlaylist(response.data);
+        const parsedPlaylist = parser.parse(response.data);
         const title = getLastUrlSegment(options.url);
         return {
             ...createPlaylistObject({
@@ -663,51 +664,30 @@ function isPlaylistParseError(
     );
 }
 
-function parsePlaylist(playlist: string): {
-    items: Array<Record<string, unknown>>;
-} {
-    return parser.parse(playlist) as unknown as {
-        items: Array<Record<string, unknown>>;
-    };
-}
-
 function createPlaylistObject(options: {
     readonly guid: () => string;
     readonly now: () => Date;
-    readonly playlist: { items: Array<Record<string, unknown>> };
+    readonly playlist: ParsedPlaylist;
     readonly title: string;
     readonly url: string;
 }): Record<string, unknown> {
     const timestamp = options.now().toISOString();
     const id = options.guid();
+    const playlist = createM3uPlaylist(
+        options.title,
+        options.playlist,
+        options.url,
+        'URL'
+    );
+    for (const item of playlist.playlist.items) {
+        item.id = options.guid();
+    }
     return {
+        ...playlist,
         id,
         _id: id,
-        filename: options.title,
-        title: options.title,
-        count: options.playlist.items.length,
-        playlist: {
-            ...options.playlist,
-            items: options.playlist.items.map((item) => {
-                // Keep this builder aligned with the shared
-                // createPlaylistObject() in @iptvnator/shared/m3u-utils:
-                // KODIPROP ClearKey DRM must survive the /parse URL-import
-                // path too.
-                const drm = extractDrmFromRaw(
-                    typeof item['raw'] === 'string' ? item['raw'] : undefined
-                );
-                return {
-                    id: options.guid(),
-                    ...item,
-                    ...(drm ? { drm } : {}),
-                };
-            }),
-        },
         importDate: timestamp,
         lastUsage: timestamp,
-        favorites: [],
-        autoRefresh: false,
-        url: options.url,
     };
 }
 

@@ -197,6 +197,12 @@ open dialog and resets for a new import or Clear.
 Global EPG opt-out hides this checkbox without changing the source's import
 preference, so re-enabling EPG can use its declared sources normally.
 
+The self-hosted backend's `/parse` response uses the shared M3U playlist
+builder, including detected and enabled EPG URLs. URL imports and first-time
+source projections therefore receive the same header-derived guide selection
+as local file and text imports; the backend only replaces IDs and timestamps
+with its injected values.
+
 `Playlist.autoImportEpg: false` retains detected addresses as candidates without
 enabling them. An absent flag keeps the legacy default-on behavior. Refresh,
 local source projection and backup/restore preserve this preference, including
