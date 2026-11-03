@@ -13,6 +13,50 @@ import {
 } from './electron-test-fixtures';
 
 const mac = '00:1A:79:18:44:01';
+for (const endpoint of ['portal.php', 'stalker_portal/server/load.php']) {
+    test(`@stalker @electron regression #1844: complete season and episode pages via ${endpoint}`, async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        try {
+            await addStalkerPortal(app.mainWindow, {
+                macAddress: '00:1A:79:18:44:02',
+                name: 'Paginated lazy VOD',
+                portalUrl: `${stalkerMockServer}/${endpoint}`,
+            });
+            await app.mainWindow
+                .getByRole('button', { name: 'Fixture Paginated', exact: true })
+                .click();
+            const episodes = app.mainWindow.locator('.episode-item');
+            await expect(episodes).toHaveCount(58);
+            await expect(episodes.first()).toContainText('Episode 1');
+            await expect(episodes.last()).toContainText('Episode 58');
+            await app.mainWindow.locator('.season-tabs__dropdown').click();
+            await app.mainWindow
+                .locator('.season-tabs__menu-item')
+                .filter({ hasText: 'Season 20' })
+                .click();
+            await expect(episodes).toHaveCount(58);
+            await episodes.last().click();
+            await expect
+                .poll(() =>
+                    app.mainWindow.locator('video').evaluateAll((videos) =>
+                        videos.map((video) => ({
+                            src: (video as HTMLVideoElement).currentSrc,
+                            ready: (video as HTMLVideoElement).readyState,
+                        }))
+                    )
+                )
+                .toContainEqual({
+                    src: `${stalkerMockServer}/stream/issue1844/30-320/58.mp4`,
+                    ready: 4,
+                });
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+}
+
 for (const [title, movie, season] of [
     ['Fixture Alpha', '10', '11'],
     ['Fixture Beta', '20', '21'],
