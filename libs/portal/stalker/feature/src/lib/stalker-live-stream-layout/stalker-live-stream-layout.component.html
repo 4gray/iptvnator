@@ -111,7 +111,7 @@
 }
 
 <div class="content-container">
-    @if (isSidebarCollapsed()) {
+    @if (isSidebarCollapsed() && !isItvOverviewVisible()) {
         <button
             #restoreButton
             mat-icon-button
@@ -133,7 +133,15 @@
                 [loading]="isFullListLoading()"
                 [progress]="fullListProgress()"
                 [searchTerm]="searchTerm()"
-                (channelActivated)="playChannel($event)"
+                [sidebarCollapsed]="isSidebarCollapsed()"
+                [showEpg]="supportsProviderEpg"
+                [epgLoading]="stalkerStore.isLoadingBulkItvEpg()"
+                [epgPrograms]="epgPreviewPrograms"
+                [epgProgress]="currentProgramsProgress"
+                (restorePanels)="livePanels.toggleSidebar()"
+                (visibleChannelsChanged)="overviewVisibleChannels.set($event)"
+                (previewRefreshRequested)="scheduleEpgPreviewRefresh()"
+                (channelActivated)="playChannel($event, true)"
             />
         } @else {
             <app-portal-empty-state

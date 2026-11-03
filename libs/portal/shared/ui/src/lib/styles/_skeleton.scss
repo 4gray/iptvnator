@@ -73,11 +73,7 @@
     gap: 12px;
     padding: 10px 16px;
     border-bottom: 1px solid
-        color-mix(
-            in srgb,
-            var(--mat-sys-outline-variant) 40%,
-            transparent
-        );
+        color-mix(in srgb, var(--mat-sys-outline-variant) 40%, transparent);
 }
 
 .list-skeleton-handle {
@@ -158,5 +154,21 @@
 @keyframes skeleton-shimmer {
     100% {
         transform: translateX(120%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .grid-skeleton-thumb,
+    .grid-skeleton-badge,
+    .grid-skeleton-line,
+    .list-skeleton-handle,
+    .list-skeleton-avatar,
+    .list-skeleton-star,
+    .list-skeleton-text .grid-skeleton-line {
+        &::after {
+            animation: none;
+            transform: none;
+            background: none;
+        }
     }
 }
