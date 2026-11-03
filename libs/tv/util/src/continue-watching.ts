@@ -7,8 +7,7 @@ export function continueWatching(data: UserData, limit = 8): Progress[] {
         .map((progress, ordinal) => ({ progress, ordinal }))
         .filter(
             ({ progress: p }) =>
-                p.item.sourceId === data.activeId &&
-                (p.item.kind === 'movie' || p.item.kind === 'episode')
+                p.item.kind === 'movie' || p.item.kind === 'episode'
         )
         .sort(
             (a, b) =>
