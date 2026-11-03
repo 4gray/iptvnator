@@ -180,9 +180,13 @@ function createSeriesEntity(
         .find((title) => title !== undefined);
     const legacyTitle =
         members.find((item) => item.title.trim().length > 0)?.title ?? '';
-    const seasons = members
-        .map(({ seasonNumber }) => seasonNumber)
-        .filter(isUsableDownloadOrderNumber);
+    const seasons = members.some(
+        (item) => item.metadataSnapshot?.episode?.seasonUnknown
+    )
+        ? []
+        : members
+              .map(({ seasonNumber }) => seasonNumber)
+              .filter(isUsableDownloadOrderNumber);
 
     return {
         kind: 'series',

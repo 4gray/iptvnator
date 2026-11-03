@@ -217,6 +217,14 @@ for (const tmdb of [false, true]) {
             await app.mainWindow.screenshot({
                 path: testInfo.outputPath('flat-series.png'),
             });
+            await app.mainWindow
+                .getByRole('button', { name: 'Open downloads', exact: true })
+                .click();
+            const library = app.mainWindow.getByTestId(
+                'downloads-library-section'
+            );
+            await expect(library).toContainText('Signal House (1-9 season)');
+            await expect(library).not.toContainText('Season 9');
         } finally {
             await closeElectronApp(app);
         }
