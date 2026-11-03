@@ -107,7 +107,7 @@ export class FavoritesSyncClient {
             this.current(generation);
             if (
                 error instanceof FavoriteSupersededError ||
-                error instanceof FavoriteRequestError
+                (error instanceof FavoriteRequestError && !error.transient)
             )
                 throw error;
             // Offline writes can use a previously verified incarnation, never a guessed one.

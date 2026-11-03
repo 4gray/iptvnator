@@ -6,14 +6,21 @@ import {
     stalkerFavorite,
 } from './favorites-reference-adapters';
 import { FavoritesPlaylistAdapter } from './favorites-playlist-adapter';
-import { FavoritesXtreamAdapter } from './favorites-xtream-adapter';
+import {
+    FavoritesXtreamAdapter,
+    xtreamFavoriteSnapshot,
+} from './favorites-xtream-adapter';
 import type { Playlist, StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
 import type {
     FavoriteReference,
     FavoriteEntry,
 } from '@iptvnator/shared/interfaces/favorites-sync';
-import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
+import type {
+    IXtreamDataSource,
+    XtreamFavoriteItem,
+} from '@iptvnator/portal/xtream/data-access';
+import { parseFavoriteSnapshot } from '@iptvnator/shared/interfaces/favorites-sync';
 const playlist = (favorites: Playlist['favorites']) =>
     ({
         _id: 'source',
@@ -43,6 +50,62 @@ beforeAll(() =>
     })
 );
 describe('favorite provider references and projections', () => {
+    it.each([
+        [
+            'Synthetic ' + 'x'.repeat(513),
+            ('Synthetic ' + 'x'.repeat(513)).slice(0, 512),
+        ],
+        ['Synthetic\titem\nname\u0000', 'Synthetic item name'],
+    ])(
+        'bounds local display hints without changing the archive (%s)',
+        async (title, expected) => {
+            const m3u = playlist(['one']);
+            m3u.playlist!.items[0].name = title;
+            const item = {
+                id: '42',
+                favoriteContentType: 'vod',
+                title,
+            } as StalkerPortalItem;
+            const stalker = {
+                ...playlist([item]),
+                macAddress: 'synthetic-mac',
+            };
+            expect((await playlistFavorite(m3u, 'one'))?.snapshot).toEqual({
+                title: expected,
+            });
+            expect(
+                (await playlistFavorite(stalker, item))?.snapshot
+            ).toMatchObject({ title: expected });
+            expect(
+                xtreamFavoriteSnapshot({ title } as XtreamFavoriteItem)
+            ).toEqual({ title: expected });
+            // Local conversion must not weaken validation of received wire payloads.
+            expect(() => parseFavoriteSnapshot({ title })).toThrow(
+                'Invalid favorite metadata'
+            );
+            const order = {
+                read: () => ['existing-order'],
+            } as unknown as FavoritesLocalOrder;
+            const adapter = new FavoritesPlaylistAdapter(
+                { entries: async () => [] } as unknown as FavoritesSyncClient,
+                () => true,
+                undefined,
+                order
+            );
+            const projected = await Promise.all(
+                [m3u, stalker, playlist([])].map((source) =>
+                    adapter.project(source)
+                )
+            );
+            expect(projected.map((source) => source.favorites)).toEqual([
+                ['https://fixture.invalid/one'],
+                [item],
+                [],
+            ]);
+            expect(item.title).toBe(title);
+            expect(m3u.playlist!.items[0].name).toBe(title);
+        }
+    );
     it('preserves requested identity when a sparse Xtream favorite has no catalog row', async () => {
         const set = jest.fn(async () => undefined);
         const client = {

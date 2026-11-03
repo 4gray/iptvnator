@@ -11,6 +11,7 @@ import {
     type FavoriteSnapshot,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
+import { normalizeFavoriteTitle } from './favorites-reference-adapters';
 import {
     normalizeContentMetadataPatch,
     XTREAM_FAVORITE_IDENTITY_CONFLICT,
@@ -35,7 +36,7 @@ export function xtreamFavoriteReference(
 }
 export function xtreamFavoriteSnapshot(item: XtreamFavoriteItem) {
     return parseFavoriteSnapshot({
-        title: item.title,
+        title: normalizeFavoriteTitle(item.title),
         ...(item.tmdb_id == null ? {} : { tmdbId: String(item.tmdb_id) }),
         ...(item.release_year == null
             ? {}

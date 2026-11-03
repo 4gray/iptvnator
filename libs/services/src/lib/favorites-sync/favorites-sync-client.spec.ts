@@ -165,6 +165,51 @@ beforeAll(() =>
     })
 );
 describe('favorites delivery and consent boundaries', () => {
+    it.each([500, 502, 503, 504, 599])(
+        'queues an edit against a verified cached context on HTTP %s and delivers after recovery',
+        async (status) => {
+            const f = fixture();
+            const request = f.options.request;
+            f.options.request = async () => ({ status });
+            await f.client.set('source', ref, true);
+            expect((await f.local.read(address))?.state.member).toBe(true);
+            expect(await f.local.pending()).toHaveLength(1);
+            f.options.request = request;
+            await f.client.refresh('source');
+            expect(await f.local.pending()).toHaveLength(0);
+            expect(f.states.get(favoriteAddressKey(address))?.member).toBe(
+                true
+            );
+        }
+    );
+    it('does not guess an unverified source context during HTTP 503', async () => {
+        const f = fixture();
+        f.client.forget('source');
+        f.options.request = async () => ({ status: 503 });
+        await expect(f.client.set('source', ref, true)).rejects.toThrow();
+        expect(f.local.rows.size).toBe(0);
+    });
+    it.each(['consent', 'profile', 'source', 'newer-context'])(
+        'rejects cached HTTP 503 fallback after %s ownership changes',
+        async (change) => {
+            const f = fixture();
+            f.options.request = async () => {
+                if (change === 'consent') f.consent(null);
+                if (change === 'profile') f.active(false);
+                if (change === 'source') f.client.forget('source');
+                if (change === 'newer-context') {
+                    f.options.request = async () => ({
+                        status: 200,
+                        body: { ...source, sourceIncarnation: 'second' },
+                    });
+                    await f.client.context('source');
+                }
+                return { status: 503 };
+            };
+            await expect(f.client.set('source', ref, true)).rejects.toThrow();
+            expect(f.local.rows.size).toBe(0);
+        }
+    );
     it.each([401, 503, new Error('Synthetic network failure')])(
         'reports an operations-only failure while retaining the durable intent (%s)',
         async (failure) => {
@@ -396,12 +441,15 @@ describe('favorites delivery and consent boundaries', () => {
         expect(await f.client.entries('source')).toHaveLength(0);
         expect(await f.local.pending()).toHaveLength(1);
     });
-    it('does not use a cached context after a source was deleted or the API rejected it', async () => {
-        const f = fixture();
-        f.options.request = async () => ({ status: 404 });
-        await expect(f.client.set('source', ref, true)).rejects.toThrow();
-        expect(f.local.rows.size).toBe(0);
-    });
+    it.each([401, 403, 404, 409])(
+        'does not use a cached context after HTTP %s',
+        async (status) => {
+            const f = fixture();
+            f.options.request = async () => ({ status });
+            await expect(f.client.set('source', ref, true)).rejects.toThrow();
+            expect(f.local.rows.size).toBe(0);
+        }
+    );
     it('fences a profile change even for disabled local actions', async () => {
         const f = fixture();
         f.consent(null);

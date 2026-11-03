@@ -1200,6 +1200,9 @@ also preserves radio and regular/embedded/lazy series origins. Allowlisted displ
 snapshots contain title, optional metadata and embedded episode numbers, without
 cmd, media URLs, credentials, session tokens or full provider objects. Display
 snapshots do not bypass known catalog identity conflicts.
+Local display titles replace control characters with spaces and are capped at
+512 characters when creating a shared snapshot; the retained archive is unchanged.
+Incoming wire snapshots still use strict validation.
 
 First enable receives server state without uploading the older local archive.
 For matching keys, shared state projects over local favorites; local-only entries
@@ -1214,6 +1217,9 @@ ownership. IndexedDB uses readwrite transactions and does not require Web Locks.
 Offline intents survive restart. Profiles and source incarnations never inherit
 old pending work. The source lifecycle shared with activity now covers M3U too;
 activity itself remains limited to its existing supported provider types.
+Network failures and HTTP 5xx can queue edits against a previously verified source
+context. Without that context, or after a rejected access/source request, no edit
+is queued; consent, profile and source ownership fences still apply.
 
 Opt-out stops delivery and remote application, retaining the durable local
 projection and server state. Subsequent local edits remain local. Re-enable uses

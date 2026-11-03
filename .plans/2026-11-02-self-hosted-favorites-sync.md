@@ -228,3 +228,26 @@ and Linux arm64 Docker build plus HTTP add/remove/receipt/restart smoke.
 The M3U E2E case now verifies a visible error when only operation delivery fails,
 then restores delivery and confirms the saved queue drains. Canonical PWA docs
 describe delivery failure reporting and Stalker read fencing. No findings declined.
+
+Local review round 10 and the requested Ponytail review confirmed two accepted
+issues: strict wire title validation rejected retained local display hints, and
+native HTTP 5xx context failures prevented durable offline edits. The user
+authorized both repairs. Seven new regression cases fail before the fixes.
+
+All three provider adapters now normalize only the outgoing display-title copy;
+original archives and strict incoming validation remain unchanged. The client
+uses a previously verified context for transient HTTP 5xx, with existing consent,
+profile, incarnation and request-owner fences. Tests also cover recovery delivery,
+missing context, rejected access/source responses and superseded requests.
+The optional M3U digest-cache optimization remains deferred.
+
+Round-10 repairs pass web (804 tests), services (1,385 tests), the final focused
+client run (36 tests), both owning lint targets, application types and all 42
+spec programs. Full coverage passes unchanged gates: 85.32% statements, 76.91%
+branches, 83.64% functions and 85.82% lines. Production Electron/frontend/worker
+builds pass; initial bytes are 1,199,595 / 1,200,301. All three mixed favorites
+E2E cases pass. Release notes (231), guidance (3), formatting and whitespace
+checks pass. The existing feature release note covers these pre-release repairs.
+No server, container or packaging behavior changed, so the Docker smoke is not
+repeated in this repair. Physical Synology and packaged Windows/Linux runtimes
+remain unavailable. A fresh committed-branch local review follows.

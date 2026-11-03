@@ -13,6 +13,14 @@ export interface LocalFavorite {
     original: string | StalkerPortalItem;
     resolvedUrl?: string;
 }
+export function normalizeFavoriteTitle(title?: string): string | undefined {
+    return typeof title === 'string'
+        ? title
+              .replace(/\p{Cc}/gu, ' ')
+              .slice(0, 512)
+              .trim()
+        : undefined;
+}
 export async function playlistFavorite(
     playlist: Playlist,
     original: string | StalkerPortalItem
@@ -28,7 +36,7 @@ export async function playlistFavorite(
             original,
             reference,
             snapshot: parseFavoriteSnapshot({
-                title: original.title ?? original.name,
+                title: normalizeFavoriteTitle(original.title ?? original.name),
                 ...(category ? { categoryId: category } : {}),
                 ...(reference.mode === 'embedded'
                     ? { episodes: original.series?.map(Number) }
@@ -62,7 +70,9 @@ export async function playlistFavorite(
         original,
         resolvedUrl: url,
         reference: await m3uFavoriteReference(url),
-        snapshot: parseFavoriteSnapshot({ title: channel?.name }),
+        snapshot: parseFavoriteSnapshot({
+            title: normalizeFavoriteTitle(channel?.name),
+        }),
     };
 }
 export function stalkerFavorite(
