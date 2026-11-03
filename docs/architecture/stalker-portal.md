@@ -1593,6 +1593,14 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 
 - Item is opened under VOD, but already contains episodes.
 - `StalkerSeriesViewComponent` creates a pseudo-season and renders episodes directly.
+- When the raw title carries a season range such as `(1-9 season)` or
+  `S01-S09`, that single flat list has no known season boundaries. Mapped
+  episodes carry `seasonUnknown: true`: season tabs and season-code prefixes
+  are hidden, season-level TMDB requests/overlays are skipped and loading is
+  settled normally. Show-level enrichment still applies. No automatic split
+  is inferred from TMDB. Numeric grouping, episode IDs, commands and activity
+  identities retain their historical values for progress/download matching;
+  the number is an internal coordinate, not a claimed season.
 
 3. VOD with `is_series=1` (Ministra plugin behavior):
 

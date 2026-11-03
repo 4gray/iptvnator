@@ -16,6 +16,51 @@ type EpisodeWithMetadata = {
 };
 
 describe('stalker-series.adapters', () => {
+    it('marks flat range collections without changing playback or episode identities', () => {
+        const seasons = [
+            {
+                id: '9686',
+                name: 'Episodes',
+                cmd: '/media/9686.mpg',
+                series: [1, 2, 189],
+            },
+        ];
+        const old = mapRegularSeriesEpisodes(
+            seasons,
+            undefined,
+            'Show (9 season)',
+            9686,
+            'embedded'
+        )['9'];
+        const episodes = Object.values(
+            mapRegularSeriesEpisodes(
+                seasons,
+                undefined,
+                'The Office (1-9 season)',
+                9686,
+                'embedded'
+            )
+        )[0];
+        expect(episodes.map((e) => e.id)).toEqual(old.map((e) => e.id));
+        expect(episodes.map((e) => e.activityIdentity)).toEqual(
+            old.map((e) => e.activityIdentity)
+        );
+        expect(
+            episodes.map((e) => (e as EpisodeWithMetadata).originalCmd)
+        ).toEqual(old.map((e) => (e as EpisodeWithMetadata).originalCmd));
+        expect(episodes.every((e) => e.seasonUnknown)).toBe(true);
+        expect(episodes.map((e) => e.season)).toEqual(old.map((e) => e.season));
+        const structured = mapRegularSeriesEpisodes(
+            seasons,
+            undefined,
+            'Show (1-9 season)',
+            9686,
+            'regular'
+        );
+        expect(Object.values(structured)[0].some((e) => e.seasonUnknown)).toBe(
+            false
+        );
+    });
     it.each([
         'The Gentlemen s02',
         'The Gentlemen season2',

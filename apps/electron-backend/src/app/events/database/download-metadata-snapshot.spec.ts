@@ -25,6 +25,22 @@ const validSnapshot: DownloadMetadataSnapshot = {
 };
 
 describe('download metadata snapshot', () => {
+    it('preserves unknown-season presentation through the persisted snapshot', () => {
+        const snapshot: DownloadMetadataSnapshot = {
+            ...validSnapshot,
+            mediaKind: 'series',
+            episode: {
+                seasonNumber: 1,
+                episodeNumber: 189,
+                seasonUnknown: true,
+            },
+        };
+        expect(
+            decodeDownloadMetadataSnapshot(
+                encodeDownloadMetadataSnapshot(snapshot)
+            )
+        ).toEqual(snapshot);
+    });
     it('encodes a valid normalized snapshot without changing its shape', () => {
         expect(encodeDownloadMetadataSnapshot(validSnapshot)).toBe(
             JSON.stringify(validSnapshot)

@@ -1,10 +1,32 @@
 import {
     extractSeasonFromTitle,
+    hasSeasonRangeInTitle,
     pickSeasonMarkedTitle,
     resolveEnrichmentSeasonNumber,
 } from './season-marker.util';
 
 describe('extractSeasonFromTitle', () => {
+    it.each([
+        'The Office (1-9 season)',
+        'The Office (1–9 season)',
+        'Офис (1-9 сезон)',
+        'The Office Seasons 1-9',
+        'The Office S01-S09',
+    ])('recognizes the multi-season range %s', (title) => {
+        expect(hasSeasonRangeInTitle(title)).toBe(true);
+    });
+    it.each([
+        'The Boys S02',
+        'The Boys (2 season)',
+        '2001-2009',
+        'Seasons 2-2',
+        null,
+    ])('does not mark a single season or ordinary range %s', (title) => {
+        expect(hasSeasonRangeInTitle(title)).toBe(false);
+    });
+    it('retains historical numeric grouping for persisted episode coordinates', () => {
+        expect(extractSeasonFromTitle('The Office (1-9 season)')).toBe(9);
+    });
     it('reads bracketed number-first markers', () => {
         expect(extractSeasonFromTitle('The Mandalorian (2 season)')).toBe(2);
         expect(extractSeasonFromTitle('Кухня (6 сезон)')).toBe(6);
@@ -53,6 +75,11 @@ describe('extractSeasonFromTitle', () => {
 });
 
 describe('pickSeasonMarkedTitle', () => {
+    it('retains a range carried only by the original title', () => {
+        expect(
+            pickSeasonMarkedTitle('The Office', 'The Office (1-9 season)')
+        ).toBe('The Office (1-9 season)');
+    });
     it('prefers the title that carries a season marker', () => {
         expect(
             pickSeasonMarkedTitle(
@@ -60,9 +87,9 @@ describe('pickSeasonMarkedTitle', () => {
                 'The Mandalorian (2 season)'
             )
         ).toBe('The Mandalorian (2 season)');
-        expect(
-            pickSeasonMarkedTitle('The Boys S05', 'The Boys')
-        ).toBe('The Boys S05');
+        expect(pickSeasonMarkedTitle('The Boys S05', 'The Boys')).toBe(
+            'The Boys S05'
+        );
     });
 
     it('falls back to the first non-empty title without markers', () => {

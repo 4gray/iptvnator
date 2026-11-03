@@ -80,7 +80,7 @@ function episodeLabel(item: DownloadItem): string {
 
     const season = String(item.seasonNumber).padStart(2, '0');
     const episode = String(item.episodeNumber).padStart(2, '0');
-    return `S${season}E${episode}`;
+    return `${item.metadataSnapshot?.episode?.seasonUnknown ? '' : `S${season}`}E${episode}`;
 }
 
 function seriesTitle(item: DownloadItem): string {

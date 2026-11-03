@@ -31,16 +31,18 @@
                 </span>
             </div>
         }
-        <app-season-tabs
-            [seasonKeys]="seasonKeys()"
-            [selectedSeason]="selectedSeasonKey() ?? undefined"
-            [episodeCounts]="episodeCounts()"
-            [watchedCounts]="watchedCounts()"
-            [seasonLoadStates]="seasonLoadStates()"
-            [playingSeasonKey]="playingSeasonKey()"
-            (seasonSelected)="onSeasonSelected($event)"
-            (backToPlayingRequested)="backToPlaying()"
-        />
+        @if (!selectedSeason()?.seasonUnknown) {
+            <app-season-tabs
+                [seasonKeys]="seasonKeys()"
+                [selectedSeason]="selectedSeasonKey() ?? undefined"
+                [episodeCounts]="episodeCounts()"
+                [watchedCounts]="watchedCounts()"
+                [seasonLoadStates]="seasonLoadStates()"
+                [playingSeasonKey]="playingSeasonKey()"
+                (seasonSelected)="onSeasonSelected($event)"
+                (backToPlayingRequested)="backToPlaying()"
+            />
+        }
     </div>
 
     <ul

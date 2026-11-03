@@ -1,6 +1,7 @@
 import {
     XtreamSerieEpisode,
     resolveEnrichmentSeasonNumber,
+    hasSeasonRangeInTitle,
 } from '@iptvnator/shared/interfaces';
 import {
     StalkerSeason,
@@ -292,6 +293,10 @@ export function mapRegularSeriesEpisodes(
     activityMode: 'regular' | 'embedded' = 'regular'
 ): Record<string, XtreamSerieEpisode[]> {
     const mapped: Record<string, XtreamSerieEpisode[]> = {};
+    const seasonUnknown =
+        activityMode === 'embedded' &&
+        seasons.length === 1 &&
+        hasSeasonRangeInTitle(rawTitle);
 
     seasons.forEach((season, index) => {
         const seasonKey = String(
@@ -334,6 +339,7 @@ export function mapRegularSeriesEpisodes(
                           },
                       }
                     : {}),
+                ...(seasonUnknown ? { seasonUnknown: true } : {}),
                 originalCmd: season.cmd,
             } as StalkerMappedEpisode;
         });

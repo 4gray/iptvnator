@@ -247,9 +247,11 @@ function episodeCoordinateFields(
 function toSortableOfflineEpisode(
     item: ReadonlyDownloadItem
 ): SortableOfflineEpisode {
-    const season = normalizedCoordinate(item.seasonNumber);
-    const episode = normalizedCoordinate(item.episodeNumber);
     const episodeMetadata = snapshotForKind(item, 'series')?.episode;
+    const season = normalizedCoordinate(
+        episodeMetadata?.seasonUnknown ? undefined : item.seasonNumber
+    );
+    const episode = normalizedCoordinate(item.episodeNumber);
 
     return {
         season,

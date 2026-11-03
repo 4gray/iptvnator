@@ -92,6 +92,28 @@ describe('normalizeDownloadFilter', () => {
 });
 
 describe('buildDownloadManagerViewModel', () => {
+    it('labels flat collection downloads without the internal season number', () => {
+        const model = build([
+            download(1, {
+                contentType: 'episode',
+                status: 'queued',
+                seasonNumber: 9,
+                episodeNumber: 189,
+                metadataSnapshot: {
+                    version: 1,
+                    mediaKind: 'series',
+                    title: 'Flat collection',
+                    language: 'en',
+                    episode: {
+                        seasonNumber: 9,
+                        episodeNumber: 189,
+                        seasonUnknown: true,
+                    },
+                },
+            }),
+        ]);
+        expect(model.active[0].episodeLabel).toBe('E189');
+    });
     it('supports global and playlist-scoped views with resolved source labels', () => {
         const downloads = [
             download(1, { status: 'queued' }),

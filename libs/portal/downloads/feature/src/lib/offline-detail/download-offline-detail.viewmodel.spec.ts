@@ -14,6 +14,26 @@ import {
 const SERIES_ID = 77;
 const CREATED_AT = '2026-01-01T00:00:00.000Z';
 
+it('groups flat collection downloads under unknown seasons despite legacy storage coordinates', () => {
+    const detail = expectSeries(
+        build(1, [
+            download(1, {
+                seasonNumber: 9,
+                episodeNumber: 189,
+                metadataSnapshot: snapshot('series', 'Flat collection', {
+                    episode: {
+                        seasonNumber: 9,
+                        episodeNumber: 189,
+                        seasonUnknown: true,
+                    },
+                }),
+            }),
+        ])
+    );
+    expect(detail.seasons[0].seasonNumberState).toBe('unknown');
+    expect(detail.seasons[0].episodes[0].episodeNumber).toBe(189);
+});
+
 function deepFreeze<T>(value: T): T {
     Object.freeze(value);
     for (const child of Object.values(value as Record<string, unknown>)) {

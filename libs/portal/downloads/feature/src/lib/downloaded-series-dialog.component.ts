@@ -79,7 +79,7 @@ export class DownloadedSeriesDialogComponent {
         ) {
             return '';
         }
-        return `S${String(item.seasonNumber).padStart(2, '0')}E${String(
+        return `${item.metadataSnapshot?.episode?.seasonUnknown ? '' : `S${String(item.seasonNumber).padStart(2, '0')}`}E${String(
             item.episodeNumber
         ).padStart(2, '0')}`;
     }

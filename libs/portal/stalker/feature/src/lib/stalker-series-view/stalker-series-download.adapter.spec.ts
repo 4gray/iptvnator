@@ -1,4 +1,5 @@
 import type { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import { resolveEpisodeDownload } from '@iptvnator/portal/shared/util';
 import { createStalkerSeriesDownloadAdapter } from './stalker-series-download.adapter';
 
 const EPISODE_POSTER_URL = 'https://images.example.test/stills/the-call.jpg';
@@ -78,6 +79,38 @@ function options(
 }
 
 describe('createStalkerSeriesDownloadAdapter', () => {
+    it('keeps download identity and suppresses a false season in new titles', async () => {
+        const adapter = createStalkerSeriesDownloadAdapter(options());
+        const known = adapter.createCandidate(episode(), '2');
+        const unknown = adapter.createCandidate(
+            episode({ seasonUnknown: true }),
+            '2'
+        );
+        expect(unknown?.identity).toEqual(known?.identity);
+        const prepared = await unknown?.prepare();
+        expect(prepared?.title).toBe('Signal House - E03 - The Call');
+        expect(prepared?.metadataSnapshot?.episode?.seasonUnknown).toBe(true);
+    });
+    it('still finds an existing flat collection download with its historical season coordinate', () => {
+        const adapter = createStalkerSeriesDownloadAdapter({
+            ...options(),
+            seriesMode: 'embedded-vod',
+        });
+        const candidate = adapter.createCandidate(
+            episode({ season: 9, seasonUnknown: true }),
+            '9'
+        );
+        if (!candidate) throw new Error('Expected flat episode candidate');
+        const old = {
+            ...candidate.identity,
+            id: 1,
+            status: 'completed' as const,
+        };
+        expect(resolveEpisodeDownload(candidate.identity, [old])).toEqual({
+            kind: 'match',
+            download: old,
+        });
+    });
     it.each([
         ['regular-series', 'stalker-regular-series'],
         ['embedded-vod', 'stalker-embedded-vod'],
