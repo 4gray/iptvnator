@@ -9,11 +9,14 @@ ignoredBuiltDependencies:
 onlyBuiltDependencies:
     - nx
 
-# nx-electron imports this at runtime but omits it from its manifest.
+# Runtime imports omitted from these packages' dependency manifests.
 packageExtensions:
     'nx-electron@22.0.0':
         dependencies:
             webpack-node-externals: '3.0.0'
+    'videojs-quality-selector-hls@1.1.1':
+        dependencies:
+            '@babel/runtime': '7.29.10'
 
 # Scoped compatibility bridges until these packages declare current peers.
 # nx-electron also needs patches/nx-electron@22.0.0.patch for Nx 23 exports.
