@@ -42,41 +42,13 @@ const NUMBER_FIRST_MARKER = new RegExp(
  */
 const S_FORM_MARKER = /(?:^|[\s([{_.-])s(\d{1,2})(?=$|[\s)\]}_.-]|e\d)/i;
 
-const SEASON_RANGE_PATTERNS = [
-    new RegExp(
-        `(?:^|[^\\d])(\\d{1,2})\\s*[-–—]\\s*(\\d{1,2})\\s*${SEASON_WORD}(?:s|ы|ов)?(?!\\p{L})`,
-        'iu'
-    ),
-    new RegExp(
-        `(?:^|[^\\p{L}])${SEASON_WORD}(?:s|ы|ов)?[\\s_.:]*(\\d{1,2})\\s*[-–—]\\s*(\\d{1,2})(?!\\d)`,
-        'iu'
-    ),
-    /(?:^|[\s([{_.-])s(\d{1,2})\s*[-–—]\s*s?(\d{1,2})(?=$|[\s)\]}_.-])/i,
-];
-
-/** An explicit multi-season range gives no season coordinates for a flat list. */
-export function hasSeasonRangeInTitle(raw: string | null | undefined): boolean {
-    return (
-        !!raw &&
-        SEASON_RANGE_PATTERNS.some((pattern) => {
-            const match = raw.match(pattern);
-            return (
-                !!match &&
-                Number(match[1]) > 0 &&
-                Number(match[2]) > 0 &&
-                Number(match[1]) !== Number(match[2])
-            );
-        })
-    );
-}
-
 /**
  * Extract an explicit season number from a RAW provider title (before any
  * normalization — bracket groups like "(2 season)" are removed by
  * `normalizeTitleKeys`, so this must see the original string). Returns
  * `null` when there is no marker; season 0 ("specials") is rejected.
  * This also retains historical numeric grouping for persisted identities;
- * flat collections must check `hasSeasonRangeInTitle` before displaying it.
+ * flat Stalker collections check ranges separately before displaying it.
  */
 export function extractSeasonFromTitle(
     raw: string | null | undefined

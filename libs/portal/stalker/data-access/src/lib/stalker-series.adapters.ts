@@ -1,7 +1,6 @@
 import {
     XtreamSerieEpisode,
     resolveEnrichmentSeasonNumber,
-    hasSeasonRangeInTitle,
 } from '@iptvnator/shared/interfaces';
 import {
     StalkerSeason,
@@ -9,6 +8,7 @@ import {
     StalkerVodSeriesSeason,
     StalkerVodSource,
 } from './models';
+import { hasSeasonRangeInTitle } from './stalker-season-range.util';
 import { isStalkerSeriesFlag } from '@iptvnator/shared/interfaces';
 
 const naturalSeasonCollator = new Intl.Collator(undefined, {

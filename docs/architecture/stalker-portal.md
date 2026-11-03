@@ -1601,6 +1601,9 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   is inferred from TMDB. Numeric grouping, episode IDs, commands and activity
   identities retain their historical values for progress/download matching;
   the number is an internal coordinate, not a claimed season.
+- Range matching stays local to the lazy Stalker adapter. The shared numeric
+  season-marker helpers are used by title normalization at startup; placing the
+  range parser there also pulls it into the initial bundle.
 
 3. VOD with `is_series=1` (Ministra plugin behavior):
 

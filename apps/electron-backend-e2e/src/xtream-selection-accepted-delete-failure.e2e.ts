@@ -29,6 +29,20 @@ test('accepted connection changes cannot reuse retained catalogs when deletion f
             password: 'performance',
             contentTypes: ['movie'],
         });
+        // Closing the add dialog precedes the asynchronous playlist write.
+        await expect
+            .poll(
+                () =>
+                    page.evaluate(
+                        async (title) =>
+                            (await window.electron.dbGetAppPlaylists()).some(
+                                (row) => row.title === title
+                            ),
+                        title
+                    ),
+                { timeout: 60000 }
+            )
+            .toBe(true);
         const id = await page.evaluate(
             async (title) =>
                 (await window.electron.dbGetAppPlaylists()).find(
