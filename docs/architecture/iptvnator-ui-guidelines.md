@@ -8,6 +8,8 @@ Use it when changing existing views or introducing new list-based UI in the work
 
 1. Prefer shared components over duplicated markup.
    The canonical channel row is `app-channel-list-item`.
+   Its main button takes its accessible name from visible channel and programme
+   text; a name-only `aria-label` hides the programme metadata from that name.
 
 2. Drive emphasis through selection state, not through constant decoration.
    Neutral rows should stay quiet. Only active or current items should pick up strong color.
@@ -750,8 +752,14 @@ remain local when the meaning is explicit.
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
   `app-grid-list`. Use the grid list's logo-oriented live variant so channel
-  logos stay contained in 16:9 thumbnails instead of being cropped like
-  VOD/series posters. Selecting a channel from that root grid starts playback,
+  logos stay contained in a compact 72px-high region instead of being cropped
+  like VOD/series posters. The outer card owns the rounding; the logo region
+  joins the title and programme area with straight inner corners. Logo loading
+  placeholders reserve the same height, while channel rows remain unchanged.
+  Channel titles use a single 20px line with ellipsis and the full name in the
+  card's native tooltip; programme metadata follows after 8px without a reserved
+  second title line. Keep the title at 14px and programme text at 12px.
+  Selecting a channel from that root grid starts playback,
   selects the channel's category, highlights the active category and channel,
   and scrolls the category rail plus virtual channels list to the selected rows
   when those rails are visible.

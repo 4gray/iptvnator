@@ -52,6 +52,24 @@ describe('ChannelListItemComponent', () => {
         expect(clicked).not.toHaveBeenCalled();
     });
 
+    it('keeps visible programme metadata in the main button accessible name', () => {
+        fixture.componentRef.setInput('name', 'News');
+        fixture.componentRef.setInput('epgProgram', {
+            start: '2026-11-02T19:00:00Z',
+            stop: '2026-11-02T20:00:00Z',
+            channel: '1',
+            title: 'Evening bulletin',
+            desc: null,
+            category: null,
+        });
+        fixture.detectChanges();
+        const button = fixture.nativeElement.querySelector(
+            'button.channel-content'
+        ) as HTMLButtonElement;
+        expect(button.getAttribute('aria-label')).toBeNull();
+        expect(button.textContent).toContain('Evening bulletin');
+    });
+
     it('formats preview times from timestamp fields when raw strings are offset', () => {
         const startTimestamp = Math.floor(
             Date.parse('2026-04-05T05:30:00.000Z') / 1000

@@ -78,6 +78,75 @@ describe('GridListComponent', () => {
         fixture = TestBed.createComponent(GridListComponent);
     });
 
+    it('renders optional live programme metadata and keeps it hidden when EPG is off', () => {
+        fixture.componentRef.setInput('variant', 'logo');
+        fixture.componentRef.setInput('type', 'live');
+        fixture.componentRef.setInput('showEpg', true);
+        fixture.componentRef.setInput('items', [
+            {
+                id: '1',
+                name: 'News',
+                epgProgress: 40,
+                epgProgram: {
+                    start: '2026-11-02T19:00:00Z',
+                    stop: '2026-11-02T20:00:00Z',
+                    title: 'Evening bulletin',
+                    channel: '1',
+                    desc: null,
+                    category: null,
+                },
+            },
+        ]);
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('.grid-epg-title')?.textContent
+        ).toContain('Evening bulletin');
+        expect(
+            fixture.nativeElement.querySelector('.grid-epg-progress-fill')
+                ?.style.width
+        ).toBe('40%');
+        expect(
+            fixture.nativeElement
+                .querySelector('mat-card')
+                .getAttribute('aria-label')
+        ).toBeNull();
+        fixture.componentRef.setInput('showEpg', false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.grid-epg')).toBeNull();
+    });
+
+    it('reserves the programme block after the channel title while loading', () => {
+        fixture.componentRef.setInput('variant', 'logo');
+        fixture.componentRef.setInput('showEpg', true);
+        fixture.componentRef.setInput('isLoading', true);
+        fixture.detectChanges();
+        const skeleton = fixture.nativeElement.querySelector(
+            '.grid-skeleton-card'
+        ) as HTMLElement;
+        expect(
+            skeleton.querySelector('.grid-skeleton-title')?.nextElementSibling
+                ?.className
+        ).toBe('grid-skeleton-epg');
+    });
+
+    it('honours optional double-click playback while keyboard activation remains immediate', () => {
+        const activate = jest.fn();
+        fixture.componentInstance.itemClicked.subscribe(activate);
+        fixture.componentRef.setInput('activateOnDoubleClick', true);
+        fixture.componentRef.setInput('items', [{ id: '1', name: 'News' }]);
+        fixture.detectChanges();
+        const card = fixture.nativeElement.querySelector(
+            'mat-card'
+        ) as HTMLElement;
+        card.dispatchEvent(new MouseEvent('click', { detail: 1 }));
+        expect(activate).not.toHaveBeenCalled();
+        card.click();
+        expect(activate).toHaveBeenCalledTimes(1);
+        card.dispatchEvent(new MouseEvent('dblclick'));
+        card.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(activate).toHaveBeenCalledTimes(3);
+    });
+
     it.each([
         [{ rating: '7.5', rating_imdb: '8.2' }, 'XTREAM.IMDB_RATING'],
         [{ rating: '7.5' }, 'XTREAM.RATING'],
