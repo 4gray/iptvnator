@@ -67,6 +67,15 @@ Registered endpoints:
 - `POST /api/remote-control/volume/toggle-mute`
 - `GET /api/remote-control/status`
 
+Command POSTs require `application/json` (an optional charset is accepted).
+Before dispatching any API request, including status reads, the HTTP server
+rejects cross-site browser requests and origins other than its own
+`http://<host>:<port>`. The Host must name the
+listening interface, localhost, or the machine's hostname/mDNS name at the
+actual listener port; arbitrary DNS aliases are rejected to prevent DNS
+rebinding. JSON clients without an Origin header remain supported on the
+trusted LAN. Rejected requests return JSON HTTP 403 and never reach IPC.
+
 IPC emitted to renderer:
 
 - `CHANNEL_CHANGE` payload: `{ direction: 'up' | 'down' }`

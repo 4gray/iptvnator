@@ -8,7 +8,7 @@ import {
 } from 'node:fs';
 import * as http from 'node:http';
 import { createConnection, type AddressInfo } from 'node:net';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { HttpServer } from './http-server';
@@ -47,7 +47,11 @@ const ASSETS = {
 
 jest.setTimeout(15_000);
 
-function request(port: number, path: string): Promise<TestResponse> {
+function request(
+    port: number,
+    path: string,
+    options: Pick<http.RequestOptions, 'method' | 'headers'> = {}
+): Promise<TestResponse> {
     return new Promise((resolve, reject) => {
         const clientRequest = http.request(
             {
@@ -55,6 +59,7 @@ function request(port: number, path: string): Promise<TestResponse> {
                 method: 'GET',
                 path,
                 port,
+                ...options,
             },
             (response) => {
                 const chunks: Buffer[] = [];
@@ -288,6 +293,119 @@ describe('HttpServer', () => {
         expect(response.body).not.toEqual(INDEX_BODY);
     });
 
+    it.each([
+        { Origin: 'http://unrelated.example.test' },
+        { Origin: 'null' },
+        { 'Content-Type': 'text/plain' },
+        { 'Content-Type': '' },
+        { 'Content-Type': 'application/x-www-form-urlencoded' },
+        {
+            Host: 'unrelated.example.test',
+            Origin: 'http://unrelated.example.test',
+        },
+        { 'Sec-Fetch-Site': 'cross-site' },
+    ])('rejects unsafe command headers %j before dispatch', async (headers) => {
+        const handler = jest.fn(
+            (_request: http.IncomingMessage, response: http.ServerResponse) =>
+                response.end()
+        );
+        server.registerRemoteControlHandler(
+            '/api/remote-control/channel/up',
+            handler
+        );
+        const captured = await startServer();
+        const response = await request(
+            getAddress(captured.server).port,
+            '/api/remote-control/channel/up',
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...headers },
+            }
+        );
+        expect(response.statusCode).toBe(403);
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, '127.0.0.1', 'localhost', hostname().toLowerCase()])(
+        'accepts local JSON commands with host %s',
+        async (host) => {
+            const handler = jest.fn(
+                (
+                    _request: http.IncomingMessage,
+                    response: http.ServerResponse
+                ) => response.end()
+            );
+            server.registerRemoteControlHandler(
+                '/api/remote-control/channel/up',
+                handler
+            );
+            const captured = await startServer();
+            const port = getAddress(captured.server).port;
+            const response = await request(
+                port,
+                '/api/remote-control/channel/up',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        ...(host
+                            ? {
+                                  Host: `${host}:${port}`,
+                                  Origin: `http://${host}:${port}`,
+                              }
+                            : {}),
+                    },
+                }
+            );
+            expect(response.statusCode).toBe(200);
+            expect(handler).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('rejects a rebinding Host even when its port and Origin match', async () => {
+        const handler = jest.fn(
+            (_request: http.IncomingMessage, response: http.ServerResponse) =>
+                response.end()
+        );
+        server.registerRemoteControlHandler(
+            '/api/remote-control/channel/up',
+            handler
+        );
+        const captured = await startServer();
+        const port = getAddress(captured.server).port;
+        const response = await request(port, '/api/remote-control/channel/up', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Host: `unrelated.example.test:${port}`,
+                Origin: `http://unrelated.example.test:${port}`,
+            },
+        });
+        expect(response.statusCode).toBe(403);
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('rejects a foreign-origin status read before dispatch', async () => {
+        const handler = jest.fn(
+            (_request: http.IncomingMessage, response: http.ServerResponse) =>
+                response.end()
+        );
+        server.registerRemoteControlHandler(
+            '/api/remote-control/status',
+            handler
+        );
+        const captured = await startServer();
+        const response = await request(
+            getAddress(captured.server).port,
+            '/api/remote-control/status',
+            {
+                headers: { Origin: 'http://unrelated.example.test' },
+            }
+        );
+        expect(response.statusCode).toBe(403);
+        expect(handler).not.toHaveBeenCalled();
+    });
+
     it('returns a JSON 404 for an unknown remote-control API endpoint', async () => {
         const captured = await startServer();
 
@@ -451,7 +569,8 @@ describe('HttpServer', () => {
             await once(client, 'connect');
             client.write(
                 'POST /api/remote-control/pending HTTP/1.1\r\n' +
-                    'Host: localhost\r\nContent-Length: 100\r\n\r\n{'
+                    `Host: 127.0.0.1:${getAddress(captured.server).port}\r\n` +
+                    'Content-Type: application/json\r\nContent-Length: 100\r\n\r\n{'
             );
             await requestStarted;
 
