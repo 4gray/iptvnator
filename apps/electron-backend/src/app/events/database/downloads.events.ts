@@ -12,9 +12,10 @@ import * as schema from '../../database/schema';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import {
     decorateDownloadItemAsync,
-    isAvailableDownloadFile,
+    getDownloadFileAvailabilityWithTimeoutAsync,
 } from './download-file-availability';
 import { updateDownloadMetadataRequest } from './download-metadata-update';
+import { isDownloadMediaFile } from './download-media-file';
 import {
     resumeDownloadRequest,
     retryDownloadRequest,
@@ -232,10 +233,18 @@ ipcMain.handle('DOWNLOADS_SELECT_FOLDER', async () => {
     );
 });
 
+async function isDownloadFileMissing(filePath: string): Promise<boolean> {
+    const availability = await getDownloadFileAvailabilityWithTimeoutAsync({
+        filePath,
+        status: 'completed',
+    });
+    return availability === 'missing';
+}
+
 ipcMain.handle('DOWNLOADS_REVEAL_FILE', async (_event, filePath: string) => {
     if (
         !(await isManagedDownloadFile(filePath)) ||
-        !isAvailableDownloadFile(filePath)
+        (await isDownloadFileMissing(filePath))
     ) {
         return { error: 'File not found', success: false };
     }
@@ -244,9 +253,12 @@ ipcMain.handle('DOWNLOADS_REVEAL_FILE', async (_event, filePath: string) => {
 });
 
 ipcMain.handle('DOWNLOADS_PLAY_FILE', async (_event, filePath: string) => {
+    if (!isDownloadMediaFile(filePath)) {
+        return { error: 'Unsupported download media type', success: false };
+    }
     if (
         !(await isManagedDownloadFile(filePath)) ||
-        !isAvailableDownloadFile(filePath)
+        (await isDownloadFileMissing(filePath))
     ) {
         return { error: 'File not found', success: false };
     }
@@ -254,9 +266,9 @@ ipcMain.handle('DOWNLOADS_PLAY_FILE', async (_event, filePath: string) => {
     if (!error) {
         return { success: true };
     }
-    return isAvailableDownloadFile(filePath)
-        ? { error, success: false }
-        : { error: 'File not found', success: false };
+    return (await isDownloadFileMissing(filePath))
+        ? { error: 'File not found', success: false }
+        : { error, success: false };
 });
 
 ipcMain.handle('DOWNLOADS_CLEAR_COMPLETED', (_event, playlistId?: string) =>

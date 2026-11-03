@@ -10,6 +10,7 @@ import {
     saveSourceDialog,
     sourceRowByTitle,
     test,
+    waitForSourceRowIdle,
 } from './electron-test-fixtures';
 import { startSourceSyncServer } from './source-sync-test-server';
 import {
@@ -51,6 +52,8 @@ for (const retained of [false, true])
             // Stay on the import route until its catalog and activity hold settle.
             await expect(page).toHaveURL(/\/workspace\/xtreams\/[^/]+(?:\/|$)/);
             const id = await waitForNativeXtreamSource(page, title);
+            // An absent overlay can precede the account check/import startup.
+            // Observe native completion before opening the editor.
             await expect
                 .poll(
                     () =>
@@ -68,6 +71,7 @@ for (const retained of [false, true])
                 page.locator('.workspace-loading-overlay')
             ).not.toBeVisible({ timeout: 60000 });
             await openSources(page);
+            await waitForSourceRowIdle(page, title);
             let rememberedMovie: number | undefined;
             if (retained) {
                 await expect

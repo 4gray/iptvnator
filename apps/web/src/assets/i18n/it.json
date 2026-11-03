@@ -483,6 +483,7 @@
         "LANGUAGE": "Lingua",
         "SETTINGS_SAVED": "La configurazione è stata salvata.",
         "SETTINGS_SAVE_FAILED": "Impossibile salvare le impostazioni. Le modifiche andranno perse al riavvio dell'applicazione.",
+        "SETTINGS_RUNTIME_UPDATE_FAILED": "Le impostazioni sono state salvate, ma l’app in esecuzione non ha potuto applicarle. Controlla la porta del telecomando e salva di nuovo.",
         "SETTINGS_LOAD_FAILED": "Impossibile caricare le impostazioni salvate: vengono mostrati i valori predefiniti. Assicurati che non ci sia un'altra copia dell'app in esecuzione.",
         "THEME": "Tema visuale",
         "SHOW_CAPTIONS": "Visualizza sottotitoli",

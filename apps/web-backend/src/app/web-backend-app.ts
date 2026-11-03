@@ -1,8 +1,12 @@
 import { mountTvSetup } from './tv-setup/pairing-router';
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
-import { createHash } from 'node:crypto';
-import zlib from 'node:zlib';
+import { ProviderTargetRegistry } from './provider-target-registry';
+import {
+    decodeProviderGzip,
+    providerResponseLimitBytes,
+    ProviderResponseTooLargeError,
+} from './provider-response';
 import epgParser from 'epg-parser';
 import parser from 'iptv-playlist-parser';
 import {
@@ -77,11 +81,11 @@ export interface WebBackendAppOptions {
     readonly accessToken?: string | null;
     /** Largest accepted playlist document in bytes. */
     readonly maxDocumentBytes?: number;
+    readonly maxProviderResponseBytes?: number;
+    readonly providerTargets?: ProviderTargetRegistry;
     /** Server storage; `null` or absent keeps the backend stateless. */
     readonly storage?: ServerStorage | null;
 }
-
-type ProviderTargetRegistry = Map<string, URL>;
 
 export function createWebBackendApp(
     options: WebBackendAppOptions = {}
@@ -108,11 +112,15 @@ export function createWebBackendApp(
             isPrivateNetworkProxyAllowed(),
         resolveHostname: options.resolveHostname ?? resolveHostname,
     };
+    const maxProviderResponseBytes =
+        options.maxProviderResponseBytes ?? providerResponseLimitBytes();
     const httpClient = new ValidatedHttpClient(
         providerUrlPolicy,
-        options.httpClient
+        options.httpClient,
+        maxProviderResponseBytes
     );
-    const providerTargets: ProviderTargetRegistry = new Map();
+    const providerTargets =
+        options.providerTargets ?? new ProviderTargetRegistry();
 
     const corsMiddleware = cors({
         origin(origin, callback) {
@@ -176,8 +184,7 @@ export function createWebBackendApp(
                 return;
             }
 
-            const targetId = createProviderTargetId(result.url);
-            providerTargets.set(targetId, result.url);
+            const targetId = providerTargets.register(result.url);
             res.json({ targetId });
         }
     );
@@ -250,7 +257,11 @@ export function createWebBackendApp(
 
         // Unguarded for the same reasons as /parse above.
         try {
-            const result = await fetchEpgDataFromUrl(httpClient, url);
+            const result = await fetchEpgDataFromUrl(
+                httpClient,
+                url,
+                maxProviderResponseBytes
+            );
             if (!result) {
                 res.status(500).json({
                     message: 'Error, something went wrong',
@@ -490,15 +501,12 @@ function getRegisteredProviderUrl(
         res.status(404).json({
             message: 'Provider target not found',
             status: 404,
+            code: 'PROVIDER_TARGET_NOT_FOUND',
         });
         return null;
     }
 
     return targetUrl;
-}
-
-function createProviderTargetId(url: URL): string {
-    return createHash('sha256').update(url.href).digest('hex');
 }
 
 function isPrivateNetworkProxyAllowed(): boolean {
@@ -597,6 +605,11 @@ async function handlePlaylistParse(options: {
         };
     } catch (error) {
         logProviderRequestFailure({ error, route: '/parse', url: options.url });
+        if (
+            error instanceof ProviderRequestError &&
+            error.cause instanceof ProviderResponseTooLargeError
+        )
+            return normalizeProviderError(error);
         if (error instanceof ProviderRequestError && error.policyError) {
             return providerUrlErrorBody(error.policyError);
         }
@@ -622,7 +635,8 @@ async function handlePlaylistParse(options: {
 
 async function fetchEpgDataFromUrl(
     httpClient: WebBackendHttpClient,
-    url: URL
+    url: URL,
+    maxBytes: number
 ): Promise<unknown> {
     const href = url.href;
     const response = await httpClient.get<ArrayBuffer | string>(href, {
@@ -632,7 +646,10 @@ async function fetchEpgDataFromUrl(
             : {}),
     });
     const xml = url.pathname.endsWith('.gz')
-        ? zlib.gunzipSync(Buffer.from(response.data as ArrayBuffer)).toString()
+        ? decodeProviderGzip(
+              Buffer.from(response.data as ArrayBuffer),
+              maxBytes
+          )
         : response.data.toString();
     return epgParser.parse(xml);
 }

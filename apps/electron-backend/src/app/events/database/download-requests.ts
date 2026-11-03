@@ -127,6 +127,17 @@ export async function startDownloadRequest(
         }
     }
 
+    if (normalizedMetadataSnapshot && identity.kind !== 'match') {
+        assertDownloadMetadataMatchesContentType(
+            normalizedMetadataSnapshot,
+            data.contentType
+        );
+        assertDownloadMetadataArtworkDiffersFromStream(
+            normalizedMetadataSnapshot,
+            data.url
+        );
+    }
+
     // These checks authorize another remote transfer, not reuse of a proven file.
     const catchup = catchupForDownload(data);
     const directory = await authorizer.requireAuthorized(data.downloadFolder);
@@ -204,16 +215,6 @@ export async function startDownloadRequest(
         return { id: item.id, success: true };
     }
 
-    if (normalizedMetadataSnapshot) {
-        assertDownloadMetadataMatchesContentType(
-            normalizedMetadataSnapshot,
-            data.contentType
-        );
-        assertDownloadMetadataArtworkDiffersFromStream(
-            normalizedMetadataSnapshot,
-            data.url
-        );
-    }
     if (existingPlaylist.length === 0) {
         console.log(
             '[Downloads] Creating playlist entry for:',

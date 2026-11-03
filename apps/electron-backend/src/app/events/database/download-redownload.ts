@@ -13,6 +13,7 @@ import { assertRemoteUrlAllowed } from '../url-safety';
 import { isAvailableDownloadFile } from './download-file-availability';
 import { removePartialDownloadFile } from './download-file-path';
 import { resolveStoredDownloadHeaders } from './download-request-headers';
+import { assertDownloadMediaFile } from './download-media-file';
 import { enqueueDownload } from './download-runtime';
 
 export interface RedownloadMissingResult {
@@ -59,6 +60,7 @@ export async function redownloadMissingRequest(
             success: false,
         };
     }
+    if (item.filePath) assertDownloadMediaFile(item.filePath);
     if (isAvailableDownloadFile(item.filePath)) {
         return { recovered: true, success: true };
     }

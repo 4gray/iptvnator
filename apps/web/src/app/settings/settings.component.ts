@@ -50,7 +50,10 @@ import { SettingsDashboardSectionComponent } from './settings-dashboard-section.
 import { SettingsEmbeddedMpvFacade } from './settings-embedded-mpv.facade';
 import { SettingsEpgFacade } from './settings-epg.facade';
 import { SettingsEpgSectionComponent } from './settings-epg-section.component';
-import { SettingsFormFacade } from './settings-form.facade';
+import {
+    SettingsFormFacade,
+    SettingsRuntimeUpdateError,
+} from './settings-form.facade';
 import { SettingsGeneralSectionComponent } from './settings-general-section.component';
 import { SettingsSection } from './settings.models';
 import {
@@ -458,28 +461,24 @@ export class SettingsComponent
         return false;
     }
 
-    /** @returns whether the write actually landed */
+    /** @returns whether saved/applied settings include every current edit */
     private async persistSettings(): Promise<boolean> {
         try {
             await this.form.save(() => this.applyChangedSettings());
-            return true;
+            return this.settingsForm.pristine;
         } catch (error) {
+            if (error instanceof SettingsRuntimeUpdateError) {
+                this.settingsSnackbar.runtimeUpdateFailure(error.message);
+                return false;
+            }
             if (error instanceof EpgSourceReconciliationError) {
                 this.settingsSnackbar.open(
                     this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
                 );
                 return false;
             }
-            // The store already applied the change in memory, so without
-            // this the save looks successful until the next restart. The
-            // unsaved-changes bar stays visible so it can be retried.
-            //
-            // The Electron-side pushes in SettingsFormFacade.save() stay in
-            // the success branch on purpose: main keeps its own copy of the
-            // player paths and remote-control state, and applying half the
-            // form while telling the user nothing was saved is worse than
-            // applying none of it. Once settings live in the main process
-            // (issue #1273) this split disappears.
+            // A failed storage write still patches the in-memory store. Keep
+            // edits available for retry and explain they will not survive restart.
             this.settingsSnackbar.storageFailure('save');
             return false;
         }

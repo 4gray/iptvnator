@@ -483,6 +483,7 @@
         "LANGUAGE": "Language",
         "SETTINGS_SAVED": "Success! Configuration was saved.",
         "SETTINGS_SAVE_FAILED": "Settings could not be saved. Your changes will be lost when the app is restarted.",
+        "SETTINGS_RUNTIME_UPDATE_FAILED": "Settings were saved, but the running app could not apply them. Check the remote-control port and save again.",
         "SETTINGS_LOAD_FAILED": "Saved settings could not be loaded — showing defaults. Make sure no other copy of the app is running.",
         "THEME": "Visual theme",
         "SHOW_CAPTIONS": "Show subtitles",

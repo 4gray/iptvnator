@@ -483,6 +483,7 @@
         "LANGUAGE": "Nyelv",
         "SETTINGS_SAVED": "A beállítások mentése sikerült.",
         "SETTINGS_SAVE_FAILED": "A beállítások mentése nem sikerült. A módosítások az alkalmazás újraindításakor elvesznek.",
+        "SETTINGS_RUNTIME_UPDATE_FAILED": "A beállítások mentése megtörtént, de a futó alkalmazás nem tudta alkalmazni őket. Ellenőrizd a távirányító portját, majd mentsd újra.",
         "SETTINGS_LOAD_FAILED": "Nem sikerült betölteni a mentett beállításokat, ezért az alapértelmezett értékek jelennek meg. Ellenőrizze, hogy nem fut-e az alkalmazás másik példánya.",
         "THEME": "Megjelenési téma",
         "SHOW_CAPTIONS": "Feliratok megjelenítése",

@@ -51,7 +51,7 @@ interface MpvReuseOptions {
         contentInfo: PlayerContentInfo,
         sessionId: string
     ) => void;
-    stopPositionPolling: () => void;
+    stopPositionPolling: (sessionId: string) => void;
 }
 
 /** Owns the one MPV child/socket retained when instance reuse is enabled. */
@@ -106,7 +106,7 @@ export class MpvReusableProcess {
 
     stopStored(
         reason: string,
-        stopPositionPolling: () => void,
+        stopPositionPolling: (sessionId: string) => void,
         guardFutureLaunches = false
     ): void {
         // A launch still waiting for mpv's reply must not fall back to a
@@ -115,6 +115,7 @@ export class MpvReusableProcess {
         this.stopGeneration += 1;
         const process = this.process;
         if (!process || process.killed) return;
+        const sessionId = this.storedOwnerSessionId();
         traceExternalPlayer(reason);
         if (guardFutureLaunches) {
             externalPlayerProcessTeardownGate.terminateInBackground(process);
@@ -122,7 +123,7 @@ export class MpvReusableProcess {
             process.kill();
         }
         this.clear(process);
-        stopPositionPolling();
+        if (sessionId) stopPositionPolling(sessionId);
     }
 
     async tryReuse(
@@ -238,7 +239,9 @@ export class MpvReusableProcess {
             state.contentMutated = true;
             this.processSessionId = session.id;
             this.processSessionIds.set(reusedProcess, session.id);
-            options.stopPositionPolling();
+            if (reusedProcessSessionId) {
+                options.stopPositionPolling(reusedProcessSessionId);
+            }
         };
 
         try {
@@ -263,7 +266,7 @@ export class MpvReusableProcess {
                     session.id
                 );
             } else {
-                options.stopPositionPolling();
+                options.stopPositionPolling(session.id);
             }
             return externalPlayerSessions.markOpened(session.id) ?? session;
         } catch (error) {
@@ -304,7 +307,11 @@ export class MpvReusableProcess {
                 throw teardownError;
             }
             this.clear(reusedProcess);
-            options.stopPositionPolling();
+            options.stopPositionPolling(
+                state.contentMutated
+                    ? session.id
+                    : (reusedProcessSessionId ?? session.id)
+            );
             if (closeRequested) return await finishRequestedClose();
             // Reuse may have been disabled, or the app may be quitting,
             // while the teardown above waited for the child to exit.
