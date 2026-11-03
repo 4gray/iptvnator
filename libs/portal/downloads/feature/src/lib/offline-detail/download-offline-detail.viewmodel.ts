@@ -245,11 +245,12 @@ function episodeCoordinateFields(
 }
 
 function toSortableOfflineEpisode(
-    item: ReadonlyDownloadItem
+    item: ReadonlyDownloadItem,
+    seasonUnknown: boolean
 ): SortableOfflineEpisode {
     const episodeMetadata = snapshotForKind(item, 'series')?.episode;
     const season = normalizedCoordinate(
-        episodeMetadata?.seasonUnknown ? undefined : item.seasonNumber
+        seasonUnknown ? undefined : item.seasonNumber
     );
     const episode = normalizedCoordinate(item.episodeNumber);
 
@@ -305,8 +306,11 @@ function compareOfflineEpisodes(
 function buildSeasons(
     members: readonly ReadonlyDownloadItem[]
 ): readonly DownloadOfflineSeason[] {
+    const seasonUnknown = members.some(
+        (item) => snapshotForKind(item, 'series')?.episode?.seasonUnknown
+    );
     const episodes = members
-        .map(toSortableOfflineEpisode)
+        .map((item) => toSortableOfflineEpisode(item, seasonUnknown))
         .sort(compareOfflineEpisodes);
     const grouped = new Map<
         number | null,

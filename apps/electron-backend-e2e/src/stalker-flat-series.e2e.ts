@@ -146,6 +146,46 @@ for (const tmdb of [false, true]) {
                 episodeNumber: 189,
                 seasonUnknown: true,
             });
+            // A legacy download has the same storage coordinates but no new flag.
+            const legacy = await app.mainWindow.evaluate(
+                async ({ playlistId, episodeId, downloadsDir, server }) =>
+                    window.electron.downloadsStart({
+                        playlistId,
+                        xtreamId: episodeId,
+                        contentType: 'episode',
+                        seriesXtreamId: 9686,
+                        seasonNumber: 9,
+                        episodeNumber: 1,
+                        episodeIdentityScope: 'stalker-embedded-vod',
+                        title: 'Signal House (1-9 season) - S09E01 - Episode 1',
+                        url: `${server}/stream/issue1844/9686/1.mp4`,
+                        downloadFolder: downloadsDir,
+                        metadataSnapshot: {
+                            version: 1,
+                            language: 'en',
+                            mediaKind: 'series',
+                            title: 'Signal House (1-9 season)',
+                            episode: { seasonNumber: 9, episodeNumber: 1 },
+                        },
+                    }),
+                {
+                    playlistId,
+                    episodeId,
+                    downloadsDir,
+                    server: stalkerMockServer,
+                }
+            );
+            expect(legacy.success).toBe(true);
+            await expect
+                .poll(() =>
+                    app.mainWindow.evaluate(
+                        async () =>
+                            (await window.electron.downloadsGetList()).filter(
+                                (row) => row.status === 'completed'
+                            ).length
+                    )
+                )
+                .toBe(2);
             await app.mainWindow.evaluate(
                 async ({ playlistId, episodeId, watchedId }) => {
                     await window.electron.dbSavePlaybackPosition(playlistId, {
@@ -225,6 +265,25 @@ for (const tmdb of [false, true]) {
             );
             await expect(library).toContainText('Signal House (1-9 season)');
             await expect(library).not.toContainText('Season 9');
+            await library.locator('.download-library__episodes-button').click();
+            await expect(
+                app.mainWindow.locator('.downloaded-series-dialog__number')
+            ).toHaveText(['E01', 'E189']);
+            await app.mainWindow
+                .getByRole('button', { name: 'Close dialog', exact: true })
+                .click();
+            await library
+                .getByRole('button', {
+                    name: 'Open details: Signal House (1-9 season)',
+                    exact: true,
+                })
+                .click();
+            await expect(
+                app.mainWindow.locator('.offline-detail__season-tab')
+            ).toHaveCount(1);
+            await expect(
+                app.mainWindow.locator('.offline-detail__episode')
+            ).toHaveCount(2);
         } finally {
             await closeElectronApp(app);
         }

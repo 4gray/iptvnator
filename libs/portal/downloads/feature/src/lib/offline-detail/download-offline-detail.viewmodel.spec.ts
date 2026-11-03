@@ -28,10 +28,14 @@ it('groups flat collection downloads under unknown seasons despite legacy storag
                     },
                 }),
             }),
+            download(2, { seasonNumber: 9, episodeNumber: 1 }),
         ])
     );
+    expect(detail.seasons).toHaveLength(1);
     expect(detail.seasons[0].seasonNumberState).toBe('unknown');
-    expect(detail.seasons[0].episodes[0].episodeNumber).toBe(189);
+    expect(detail.seasons[0].episodes.map((e) => e.episodeNumber)).toEqual([
+        1, 189,
+    ]);
 });
 
 function deepFreeze<T>(value: T): T {

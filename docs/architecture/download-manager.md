@@ -400,7 +400,9 @@ available after restart and after the source archive expires.
   Each episode row still uses its own stored episode metadata. Flat Stalker
   collections retain `episode.seasonUnknown` in the version-1 JSON snapshot:
   labels omit the internal season number and offline details use the unknown
-  season group. Stored numeric identity coordinates remain unchanged.
+  season group. A flagged member makes the whole collection's season grouping
+  unknown, including legacy downloads without the flag. Stored numeric identity
+  coordinates remain unchanged.
 - Legacy rows and sparse, stale, or wrong-language snapshots are backfilled
   when focused details open: row metadata supplies a safe local fallback,
   provider data is merged when it can be resolved, and opt-in TMDB enrichment
