@@ -134,6 +134,8 @@ function buildNxArgs(project) {
             '--codeCoverage',
             `--coverageDirectory=${coverageDirFor(project, 'workspace')}`,
             `--maxWorkers=${workersPerProject}`,
+            '--reporters=default',
+            '--reporters=jest-junit',
             '--output-style=static',
         ];
     }
@@ -148,6 +150,8 @@ function buildNxArgs(project) {
             '--output-style=static',
             '--',
             `--maxWorkers=${workersPerProject}`,
+            '--reporters=default',
+            '--reporters=jest-junit',
             ...collectCoverageArgs(project, jestRootMode),
         ];
     }
@@ -165,7 +169,7 @@ function buildNxArgs(project) {
  * fast starts nothing new, and a big project with every test failing printed
  * 1.8 MB while its Jest process peaked at 850 MB.
  */
-function spawnCoverage(args, scanner, output) {
+function spawnCoverage(args, scanner, output, project) {
     return new Promise((resolve, reject) => {
         const child = spawn('pnpm', args, {
             cwd: workspaceRoot,
@@ -173,6 +177,13 @@ function spawnCoverage(args, scanner, output) {
                 ...process.env,
                 CI: process.env.CI ?? 'true',
                 NX_TASKS_RUNNER_DYNAMIC_OUTPUT: 'false',
+                JEST_JUNIT_OUTPUT_FILE: path.join(
+                    workspaceRoot,
+                    'coverage',
+                    project.root,
+                    'junit.xml'
+                ),
+                JEST_JUNIT_CLASSNAME: '{filepath}',
             },
             stdio: ['ignore', 'pipe', 'pipe'],
         });
@@ -203,7 +214,7 @@ async function collectProjectCoverage(project, specCount) {
     const lines = [`\n==> Coverage for ${project.name}`, `pnpm ${args.join(' ')}`];
 
     const scanner = createCoverageOutputScanner();
-    const result = await spawnCoverage(args, scanner, output);
+    const result = await spawnCoverage(args, scanner, output, project);
     let failed = result.code !== 0 || result.signal !== null;
 
     const flush = () => {
