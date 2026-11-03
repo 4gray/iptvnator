@@ -280,7 +280,7 @@ public class WebBackend {
         boolean wrongVersion = code.equals("ERR_SSL_WRONG_VERSION_NUMBER");
         boolean tls = code.matches(".*(CERT|TLS|SSL|CRL).*") || code.equals("EPROTO") || code.equals("UNABLE_TO_VERIFY_LEAF_SIGNATURE");
         failure.put("kind", tls ? "tls" : "connection");
-        failure.put("canTryHttp", Boolean.valueOf(code.equals("ECONNREFUSED") || wrongVersion));
+        failure.put("canTryHttp", Boolean.valueOf(!e.initialResponded && (code.equals("ECONNREFUSED") || wrongVersion)));
         return failure;
     }
 

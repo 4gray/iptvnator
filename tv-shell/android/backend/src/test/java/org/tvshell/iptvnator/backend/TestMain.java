@@ -31,7 +31,7 @@ public final class TestMain {
 
     public static void main(String[] args) throws Exception {
         Class<?>[] suites = {
-            DiagnosticRedactorTest.class, JsonTest.class, M3uParserTest.class, KodiPropTest.class, PortalUrlsTest.class,
+            ProtocolDiscoveryTest.class, DiagnosticRedactorTest.class, JsonTest.class, M3uParserTest.class, KodiPropTest.class, PortalUrlsTest.class,
             StalkerIdentityTest.class, WebBackendTest.class, PlaylistRecordTest.class, ShellSiteTest.class, HttpFetcherTest.class
         };
         int passed = 0;

@@ -152,6 +152,11 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 - No LAN server: the backend is embedded in Java (`WebBackend`) with the same
   contract as `apps/web-backend` (provider-targets / parse / xtream / stalker).
   `/parse-xml` deliberately answers 501: the PWA does not show the EPG.
+- Protocol discovery follows the [Xtream contract](../docs/architecture/xtream-portal-compatibility.md#explicit-protocol-discovery).
+  Only an initial refused connection or positively identified TLS wrong-version
+  failure can permit the explicit HTTP probe. Any HTTP response in the redirect
+  chain blocks it; certificate errors and mixed or incomplete TLS evidence never
+  authorize a downgrade. The response exposes only credential-free failure metadata.
 - Fixed origin `http://127.0.0.1:43330`: the PWA's storage belongs to the
   origin, so the port of the first start is remembered and never replaced.
   When another app holds it, the shell retries it briefly, then serves on

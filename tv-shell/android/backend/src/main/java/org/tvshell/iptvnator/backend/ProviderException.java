@@ -15,6 +15,8 @@ public class ProviderException extends Exception {
     public final String statusText;
     /** Node-style network error code (ENOTFOUND, ECONNREFUSED, ...), may be null. */
     public String code;
+    /** Any HTTP response in this request's redirect chain forbids protocol downgrade. */
+    public boolean initialResponded;
 
     public ProviderException(int status, String statusText) {
         super("HTTP " + status + " " + statusText);

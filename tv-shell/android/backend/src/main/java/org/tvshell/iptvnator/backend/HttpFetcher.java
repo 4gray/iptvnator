@@ -11,7 +11,9 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -92,7 +94,21 @@ public class HttpFetcher {
         return a.getProtocol().equalsIgnoreCase(b.getProtocol()) && a.getHost().equalsIgnoreCase(b.getHost()) && portA == portB;
     }
 
+    private static final class RequestProgress {
+        boolean initialResponded;
+    }
+
     public Result get(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
+        RequestProgress progress = new RequestProgress();
+        try {
+            return fetch(url, headers, timeoutMs, progress);
+        } catch (ProviderException failure) {
+            failure.initialResponded |= progress.initialResponded;
+            throw failure;
+        }
+    }
+
+    private Result fetch(String url, Map<String, String> headers, int timeoutMs, RequestProgress progress) throws ProviderException {
         Set<String> visited = new HashSet<String>();
         String current = url;
         for (int redirects = 0; ; redirects++) {
@@ -133,6 +149,7 @@ public class HttpFetcher {
                 int status;
                 try {
                     status = connection.getResponseCode();
+                    if (status >= 100 && status <= 599) progress.initialResponded = true;
                 } catch (IOException e) {
                     throw mapNetworkError(e);
                 }
@@ -237,12 +254,30 @@ public class HttpFetcher {
         return out.toByteArray();
     }
 
+    /** Only exclusive, bounded protocol evidence can authorize an explicit HTTP probe. */
+    private static boolean isWrongVersion(SSLException failure) {
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+        for (Throwable part = failure; part != null; part = part.getCause()) {
+            if (!seen.add(part) || seen.size() > 64 || part.getSuppressed().length != 0) return false;
+            if (!(part instanceof SSLException) || part instanceof SSLPeerUnverifiedException) return false;
+            String message = part.getMessage() == null ? "" : part.getMessage().toLowerCase(Locale.ROOT);
+            if (message.contains("certificate") || message.contains("certpath") || message.contains("pkix")
+                || message.contains("trust anchor") || message.contains("subject alternative") || message.contains("hostname mismatch")) return false;
+            boolean positive = message.replace('_', ' ').contains("wrong version number")
+                || message.contains("unsupported or unrecognized ssl message")
+                || message.contains("unrecognized ssl message, plaintext connection");
+            if (!positive) return false;
+        }
+        return true;
+    }
+
     static String codeOf(IOException e) {
         if (e instanceof UnknownHostException) return "ENOTFOUND";
         if (e instanceof ConnectException) return "ECONNREFUSED";
         if (e instanceof NoRouteToHostException) return "EHOSTUNREACH";
         if (e instanceof SocketTimeoutException) return "ETIMEDOUT";
         if (e instanceof SSLPeerUnverifiedException) return "ERR_TLS_CERT_ALTNAME_INVALID";
+        if (e instanceof SSLException && isWrongVersion((SSLException) e)) return "ERR_SSL_WRONG_VERSION_NUMBER";
         if (e instanceof SSLHandshakeException) return "UNABLE_TO_VERIFY_LEAF_SIGNATURE";
         if (e instanceof SSLException) return "EPROTO";
         String message = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
