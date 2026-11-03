@@ -290,13 +290,14 @@ export function mapRegularSeriesEpisodes(
     fallbackPoster?: string,
     rawTitle?: string | null,
     parentSeriesId?: string | number,
-    activityMode: 'regular' | 'embedded' = 'regular'
+    activityMode: 'regular' | 'embedded' = 'regular',
+    providerTitles: readonly (string | null | undefined)[] = [rawTitle]
 ): Record<string, XtreamSerieEpisode[]> {
     const mapped: Record<string, XtreamSerieEpisode[]> = {};
     const seasonUnknown =
         activityMode === 'embedded' &&
         seasons.length === 1 &&
-        hasSeasonRangeInTitle(rawTitle);
+        providerTitles.some(hasSeasonRangeInTitle);
 
     seasons.forEach((season, index) => {
         const seasonKey = String(

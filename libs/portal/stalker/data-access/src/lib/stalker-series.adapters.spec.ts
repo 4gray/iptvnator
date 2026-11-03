@@ -6,6 +6,7 @@ import {
     mapVodSeriesSeasonsToVm,
 } from './stalker-series.adapters';
 import { StalkerSelectedVodItem } from './models';
+import { pickSeasonMarkedTitle } from '@iptvnator/shared/interfaces';
 
 type EpisodeWithMetadata = {
     custom_sid?: string;
@@ -16,6 +17,36 @@ type EpisodeWithMetadata = {
 };
 
 describe('stalker-series.adapters', () => {
+    it.each([
+        ['Show S01', 'Show (1-9 season)', 1],
+        ['Show Seasons 1-9', 'Show (1-9 season)', 9],
+        ['Show Seasons 1-9', 'Show S01', 1],
+    ] as const)(
+        'detects ranges across titles while preserving historical coordinates: %s / %s',
+        (name, original, season) => {
+            const titles = [name, original];
+            const episodes = mapRegularSeriesEpisodes(
+                [
+                    {
+                        id: '9686',
+                        name: 'Episodes',
+                        cmd: '/media/9686.mpg',
+                        series: [189],
+                    },
+                ],
+                undefined,
+                pickSeasonMarkedTitle(...titles),
+                9686,
+                'embedded',
+                titles
+            );
+            expect(episodes[String(season)][0]).toMatchObject({
+                season,
+                episode_num: 189,
+                seasonUnknown: true,
+            });
+        }
+    );
     it('marks flat range collections without changing playback or episode identities', () => {
         const seasons = [
             {

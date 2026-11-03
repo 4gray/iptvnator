@@ -107,12 +107,11 @@ export function extractSeasonFromTitle(
  * first non-empty one. Providers spread the descriptive title across
  * fields (a generic `name` with the marker only in `o_name`), and the
  * marker must be read from whichever field carries it.
+ * Identity callers rely on this order; detect ranges without reordering it.
  */
 export function pickSeasonMarkedTitle(
     ...titles: readonly (string | null | undefined)[]
 ): string | null {
-    const range = titles.find((title) => hasSeasonRangeInTitle(title));
-    if (range) return range;
     for (const title of titles) {
         if (extractSeasonFromTitle(title) !== null) {
             return title ?? null;

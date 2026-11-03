@@ -76,6 +76,13 @@ function idEpisodes(
 }
 
 describe('download library view model helpers', () => {
+    it('derives the parent title from absolute episode download titles', () => {
+        expect(
+            deriveStandardizedSeriesTitle(
+                download(1, { title: 'Flat collection - E189 - Episode 189' })
+            )
+        ).toBe('Flat collection');
+    });
     it('does not derive a series title from a non-episode item', () => {
         const movie = download(1, {
             contentType: 'vod',

@@ -47,7 +47,7 @@ export type DownloadLibraryEntity =
     | DownloadEpisodeCardViewModel
     | DownloadSeriesCardViewModel;
 
-const STANDARD_EPISODE_TITLE = /^(.+?) - S\d{2}E\d{2} - /;
+const STANDARD_EPISODE_TITLE = /^(.+?) - (?:S\d{2,})?E\d{2,} - /;
 const MALFORMED_DOWNLOAD_ID_CLASS = {
     NAN: '0:nan',
     NEGATIVE_INFINITY: '1:negative-infinity',

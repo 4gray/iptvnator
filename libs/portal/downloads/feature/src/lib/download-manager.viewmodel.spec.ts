@@ -97,6 +97,7 @@ describe('buildDownloadManagerViewModel', () => {
             download(1, {
                 contentType: 'episode',
                 status: 'queued',
+                title: 'Flat collection - E189 - Episode 189',
                 seasonNumber: 9,
                 episodeNumber: 189,
                 metadataSnapshot: {
@@ -113,6 +114,7 @@ describe('buildDownloadManagerViewModel', () => {
             }),
         ]);
         expect(model.active[0].episodeLabel).toBe('E189');
+        expect(model.active[0].seriesTitle).toBe('Flat collection');
     });
     it('supports global and playlist-scoped views with resolved source labels', () => {
         const downloads = [

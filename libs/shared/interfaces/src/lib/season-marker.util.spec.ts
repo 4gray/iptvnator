@@ -75,6 +75,15 @@ describe('extractSeasonFromTitle', () => {
 });
 
 describe('pickSeasonMarkedTitle', () => {
+    it.each([
+        ['Show S01', 'Show (1-9 season)', 'Show S01'],
+        ['Show Seasons 1-9', 'Show (1-9 season)', 'Show (1-9 season)'],
+    ])(
+        'preserves historical numeric title choice for %s / %s',
+        (name, original, expected) => {
+            expect(pickSeasonMarkedTitle(name, original)).toBe(expected);
+        }
+    );
     it('retains a range carried only by the original title', () => {
         expect(
             pickSeasonMarkedTitle('The Office', 'The Office (1-9 season)')

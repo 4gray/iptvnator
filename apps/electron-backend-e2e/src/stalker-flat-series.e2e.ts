@@ -16,6 +16,8 @@ import {
 } from './electron-test-fixtures';
 import type { Page } from '@playwright/test';
 import { applyTheme } from './theme-contrast';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 for (const tmdb of [false, true]) {
     test(`@stalker @electron flat season range preserves episodes and history (TMDB ${tmdb})`, async ({
@@ -47,6 +49,24 @@ for (const tmdb of [false, true]) {
             });
         try {
             await mockTmdb(app.mainWindow);
+            const downloadsDir = join(dataDir, 'flat-series-downloads');
+            mkdirSync(downloadsDir, { recursive: true });
+            await app.electronApp.evaluate(({ dialog }, folder) => {
+                dialog.showOpenDialog = async () =>
+                    ({ canceled: false, filePaths: [folder] }) as Awaited<
+                        ReturnType<typeof dialog.showOpenDialog>
+                    >;
+            }, downloadsDir);
+            await app.mainWindow
+                .getByRole('button', { name: 'Open downloads', exact: true })
+                .click();
+            await app.mainWindow
+                .getByRole('button', { name: 'Change Folder', exact: true })
+                .click();
+            await expect(
+                app.mainWindow.getByTestId('downloads-folder')
+            ).toContainText('flat-series-downloads');
+            await goToDashboard(app.mainWindow);
             if (tmdb) {
                 await openSettings(app.mainWindow);
                 await openSettingsSection(app.mainWindow, 'tmdb');
