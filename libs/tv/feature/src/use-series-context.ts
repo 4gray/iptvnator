@@ -40,6 +40,7 @@ export function useSeriesContext(tv: TvModel) {
             .map((p) => p.item)
             .filter((item) => {
                 if (
+                    item.sourceId !== source.id ||
                     item.kind !== 'episode' ||
                     !item.parentId ||
                     !item.seriesTitle ||

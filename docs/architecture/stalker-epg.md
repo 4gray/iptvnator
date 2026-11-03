@@ -21,10 +21,10 @@ Stalker now uses two EPG paths with different purposes:
 - The active channel EPG panel uses `get_epg_info` as a bulk endpoint, fetches a
   7-day window once per playlist session, caches programs by channel id, and
   renders the selected channel through the shared `app-epg-timeline` component.
-- Channel rows read the bulk cache first. The bulk EPG load is triggered
-  **eagerly when a category's channels first render** (a constructor effect in
+- Channel rows and the all-channels overview read the bulk cache first. The bulk EPG load is triggered
+  **eagerly when the overview cache or a category's channels become available** (a constructor effect in
   `StalkerLiveStreamLayoutComponent` calls `ensureBulkItvEpg(168)` once ITV
-  channels are present) — not only after the first channel is played — so the
+  channels or cached overview channels are present) — not only after the first channel is played — so the
   row "now playing" previews and the EPG panel populate immediately. Rows derive
   their current program and progress bar from the cached bulk map; rows the
   settled bulk guide cannot answer fall back to throttled per-channel
@@ -42,6 +42,31 @@ Stalker now uses two EPG paths with different purposes:
 
 This keeps the live list cheap while giving the active panel the same
 date-navigator UI used in the M3U/Xtream flows.
+
+### All-channels overview
+
+Before category selection, the overview offers grid and list presentations of
+the same filtered, windowed channel source. Grid is the default; the validated
+`stalker-itv-overview-view` local-storage preference remembers list/grid without
+affecting the catalogue or EPG cache. Switching modes keeps the query and render
+window and returns the shared scroll pane to the top.
+The overview retains the stream-on-double-click preference without leaving the
+overview on the first pointer click; double-click and keyboard activation always
+request playback explicitly, including for external players.
+
+The overview emits its rendered window to the live layout's existing preview
+pipeline, including mapped-guide ownership and the throttled short-guide
+fallback. Program/progress maps are replaced on updates so the OnPush overview
+receives new references; the same 30-second clock refreshes programme boundaries
+and progress in both presentations. Scrolling reuses the throttled preview
+refresh, rather than creating a second provider queue. Global EPG opt-out hides
+metadata in both modes and keeps the existing no-request behavior.
+
+The overview owns its restore button in header flow; the floating player restore
+is excluded while this view is displayed. The header button also participates in
+the existing panel focus handoff. Loading uses compact 72px-high logo placeholders
+or the shared channel-row skeleton, with matching EPG space and reduced-motion
+support.
 
 ## Architecture
 

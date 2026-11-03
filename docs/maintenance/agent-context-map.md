@@ -49,6 +49,8 @@ are not prerequisites for reading repository contracts.
 | Timezones, catch-up formatting and EPG display offsets | [Date handling](../architecture/date-handling.md), [Xtream compatibility](../architecture/xtream-portal-compatibility.md), [M3U EPG](../architecture/m3u-playlist-module.md) | Affected provider skill |
 | TV app, live channel drawer/expanded and multi-channel guides, sorted/windowed catalogs, typed favorites, resume artwork, phone settings, provider clients, native video, IndexedDB and webOS IPK; `apps/tv`, `apps/tv-setup`, `libs/tv`, `apps/tv-e2e`, `apps/web-backend/src/app/tv-setup` | [TV architecture](../architecture/tv-application.md), [TV development](../development/tv-development.md) | Nx architecture and affected provider skills |
 | Website, blog and download pages; `apps/website` | [Website README](../../apps/website/README.md) | Use an available website skill |
+| Product README, screenshots, installation and user reference | [Root README](../../README.md), [gallery](../screenshots.md), [features](../features.md), [installation](../installation.md), [troubleshooting](../troubleshooting.md), [shortcuts](../keyboard-shortcuts.md) | Keep the README as a short entry point |
+| Local development setup and diagnostic commands | [Build and develop](../development/README.md), [Electron debugging](../development/electron-debugging.md) | Retain platform limits when moving guidance |
 | Mock servers and fictional release fixtures; `apps/stalker-mock-server`, `apps/xtream-mock-server` | [Stalker mock](../architecture/stalker-mock-server.md), [Xtream mock](../architecture/xtream-mock-server.md), [release screenshot contract](../architecture/release-pipeline.md) | Release-cut for release captures |
 
 ## Maintenance rules

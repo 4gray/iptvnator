@@ -1,4 +1,5 @@
 @use '../../../../../../ui/styles/panel-header' as panel;
+@use '../../../../../../ui/styles/app-controls' as controls;
 
 :host {
     align-self: stretch;
@@ -13,6 +14,8 @@
 .category-content-header {
     @include panel.standard-panel-header($sticky: true);
     flex-wrap: wrap;
+    gap: 8px;
+    padding-block: 8px;
 }
 
 .category-meta {
@@ -21,23 +24,25 @@
 
 .category-title {
     @include panel.standard-panel-title(0.94rem);
-    color: var(--mat-sys-on-surface);
+    color: var(--app-on-surface);
 }
 
 .category-subtitle {
     @include panel.standard-panel-subtitle(
         $font-size: 0.72rem,
         $padding: 2px 8px,
-        $color: var(--mat-sys-on-surface-variant),
-        $background: var(--mat-sys-surface-container)
+        $color: var(--app-muted-color),
+        $background: var(--app-content-bg)
     );
 }
 
 .all-items-progress {
     align-items: center;
-    color: var(--mat-sys-on-surface-variant);
-    display: inline-flex;
-    font-size: 0.72rem;
+    color: var(--app-muted-color);
+    display: flex;
+    flex-shrink: 0;
+    padding: 8px 20px;
+    font-size: 0.8rem;
     gap: 6px;
 
     &__count {
@@ -46,9 +51,7 @@
     }
 }
 
-app-grid-list.all-items-grid {
-    --cover-grid-min-width: 148px;
-
+.all-items-content {
     display: block;
     flex: 1;
     min-height: 0;
@@ -57,6 +60,33 @@ app-grid-list.all-items-grid {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
         transparent;
+}
+
+.all-items-grid {
+    --cover-grid-min-width: 180px;
+}
+
+.overview-restore,
+.view-toggle {
+    flex-shrink: 0;
+    app-region: no-drag;
+}
+
+.view-toggle {
+    @include controls.segmented-control(34px, 16px);
+}
+
+.all-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 960px;
+    margin-inline: auto;
+
+    app-playlist-error-view {
+        display: block;
+        padding: 48px 16px;
+    }
 }
 
 @media (max-width: 640px) {
@@ -68,4 +98,20 @@ app-grid-list.all-items-grid {
         display: none;
     }
 
+    .category-meta {
+        flex-basis: calc(100% - 56px);
+    }
+
+    .view-toggle {
+        margin-inline-start: auto;
+    }
+
+    .all-items-content {
+        padding: 12px;
+    }
+
+    .all-items-grid {
+        --cover-grid-min-width: 150px;
+        --cover-gap: 12px;
+    }
 }

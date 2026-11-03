@@ -292,6 +292,18 @@ export class StalkerLiveStreamLayoutComponent
             (this.stalkerStore.itvFullListActive() ||
                 this.stalkerStore.itvFullListLoading())
     );
+    readonly isItvOverviewVisible = computed(
+        () => !this.stalkerStore.selectedItem() && this.showItvAllItems()
+    );
+    readonly overviewVisibleChannels = linkedSignal({
+        source: () => this.stalkerStore.currentPlaylist()?._id,
+        computation: (): StalkerItvChannel[] => [],
+    });
+    private readonly epgPreviewChannels = computed(() =>
+        this.isItvOverviewVisible()
+            ? this.overviewVisibleChannels()
+            : this.visibleChannels()
+    );
     /** Windowed render limit keeps the DOM bounded for multi-thousand channel lists. */
     private readonly renderLimit = linkedSignal({
         source: () => ({
@@ -532,6 +544,7 @@ export class StalkerLiveStreamLayoutComponent
     private readonly restoreButton = viewChild('restoreButton', {
         read: ElementRef<HTMLElement>,
     });
+    private readonly overview = viewChild(StalkerItvAllItemsComponent);
     // Nested panel levels, category dropdown bridge and focus handoff; the
     // template binds to it directly. The sidebar only renders with a
     // selected category, and the fold rule keys on the same selection.
@@ -541,7 +554,9 @@ export class StalkerLiveStreamLayoutComponent
             () => !!this.stalkerStore.selectedCategoryId()
         ),
         showCategoriesButton: this.showCategoriesButton,
-        restoreButton: this.restoreButton,
+        restoreButton: computed(
+            () => this.overview()?.restoreButton() ?? this.restoreButton()
+        ),
     });
     readonly isSidebarCollapsed = this.livePanels.isSidebarCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
@@ -585,8 +600,8 @@ export class StalkerLiveStreamLayoutComponent
     );
 
     /** Channel list EPG preview */
-    readonly epgPreviewPrograms = new Map<string | number, EpgProgram>();
-    readonly currentProgramsProgress = new Map<string | number, number>();
+    epgPreviewPrograms = new Map<string | number, EpgProgram>();
+    currentProgramsProgress = new Map<string | number, number>();
     private readonly cdr = inject(ChangeDetectorRef);
     /** Short-EPG fallback for rows the bulk guide cannot answer. */
     private readonly epgPreviewQueue = new StalkerEpgPreviewQueue({
@@ -760,7 +775,8 @@ export class StalkerLiveStreamLayoutComponent
 
         // Reset loading state when channels load and keep preview data in sync with bulk EPG.
         effect(() => {
-            const channels = this.visibleChannels();
+            this.epgClockTick();
+            const channels = this.epgPreviewChannels();
             // A page landing ends the in-flight state whether or not the
             // sidebar's search shows any of it — the fullscreen panel's own
             // search may be what asked for that page — and every stamped
@@ -808,7 +824,7 @@ export class StalkerLiveStreamLayoutComponent
             this.stalkerStore.clearBulkItvEpgCache();
         });
 
-        // Load the bulk ITV EPG as soon as a category's channels are available
+        // Load the bulk ITV EPG as soon as overview or category channels exist
         // — not only after the first channel is played — so the per-channel
         // "now playing" previews in the list and the EPG panel populate
         // immediately. Registered AFTER the playlist-change effect above so a
@@ -816,7 +832,10 @@ export class StalkerLiveStreamLayoutComponent
         // ensureBulkItvEpg de-duplicates and reuses the cache, so this is safe
         // to fire on every channel-list change.
         effect(() => {
-            const hasChannels = this.itvChannels().length > 0;
+            const hasChannels =
+                this.itvChannels().length > 0 ||
+                (this.showItvAllItems() &&
+                    this.itvFullChannelList().length > 0);
             const playlistId = this.stalkerStore.currentPlaylist()?._id;
             if (
                 this.isRadioMode() ||
@@ -1447,8 +1466,8 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     private clearEpgPreviewMaps() {
-        this.epgPreviewPrograms.clear();
-        this.currentProgramsProgress.clear();
+        this.epgPreviewPrograms = new Map();
+        this.currentProgramsProgress = new Map();
     }
 
     private syncBulkEpgPreviews(channels: StalkerItvChannel[]): void {
@@ -1532,6 +1551,8 @@ export class StalkerLiveStreamLayoutComponent
             return;
         }
 
+        this.epgPreviewPrograms = new Map(this.epgPreviewPrograms);
+        this.currentProgramsProgress = new Map(this.currentProgramsProgress);
         this.epgPreviewPrograms.set(channelId, currentProgram);
         this.updateProgramProgress(channelId, currentProgram);
         this.cdr.markForCheck();
@@ -1700,7 +1721,7 @@ export class StalkerLiveStreamLayoutComponent
      * fetch the next rows the user is moving toward. Throttled; a fully
      * cached list makes the re-sync a no-op.
      */
-    private scheduleEpgPreviewRefresh(): void {
+    protected scheduleEpgPreviewRefresh(): void {
         if (this.epgPreviewRefreshTimer !== null) {
             return;
         }
@@ -1709,7 +1730,7 @@ export class StalkerLiveStreamLayoutComponent
             if (this.isRadioMode() || !this.supportsProviderEpg) {
                 return;
             }
-            this.syncBulkEpgPreviews(this.visibleChannels());
+            this.syncBulkEpgPreviews(this.epgPreviewChannels());
         }, 300);
     }
 
