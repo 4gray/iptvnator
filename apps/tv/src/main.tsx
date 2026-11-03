@@ -6,7 +6,8 @@ import './programme-guide.css';
 import './grid-guide.css';
 const root = document.getElementById('app');
 if (!root) throw new Error('Missing TV application root');
-render(<TvApp />, root);
+render(<TvApp buildInfo={__TV_BUILD_INFO__} />, root);
 
 import './settings.css';
 import './dialog.css';
+import './about.css';
