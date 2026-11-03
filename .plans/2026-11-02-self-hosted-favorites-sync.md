@@ -251,3 +251,18 @@ checks pass. The existing feature release note covers these pre-release repairs.
 No server, container or packaging behavior changed, so the Docker smoke is not
 repeated in this repair. Physical Synology and packaged Windows/Linux runtimes
 remain unavailable. A fresh committed-branch local review follows.
+
+Round 11 reviewed runtime commit 0a3c348ae8e79d977dd553d053efe4eaadbd1159.
+The two round-10 fixes are accepted; web/services suites pass. Review remains
+non-clean: legacy embedded Stalker episode lists containing nonnumeric values
+still fail local snapshot conversion; unchanged M3U projections repeat URL
+hashing (the already deferred Ponytail finding); and server favorite context
+authorization reads the complete M3U payload instead of metadata. The reviewer
+measured 100,000 hashes on each unchanged 100,000-channel read (971/941 ms),
+and ten full reads of a synthetic 30 MiB source for ten context requests (321 ms).
+Code inspection confirms the archive converter uses unfiltered `map(Number)`
+and server authorization calls the payload-reading `playlists.get()`.
+No findings are declined. No branch push or PR publication is performed while
+these remain open; the repeated M3U finding is recorded under the local-review
+stop/report rule. Greptile CLI remains unavailable. Output is retained outside
+the repository in /tmp/iptvnator-favorites-review-11.out.
