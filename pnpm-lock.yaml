@@ -48,7 +48,7 @@ overrides:
   uuid@8.3.2: 11.1.1
   yaml@1.10.2: 1.10.3
 
-packageExtensionsChecksum: sha256-6DjYvAdT+Lv/4pu048t+fxYoAtP25Fr1lEoYfZ6HV38=
+packageExtensionsChecksum: sha256-xE4BM53+f1sfyPYy41cNryeznVp6K/qlpeuDAUIwAjg=
 
 patchedDependencies:
   app-builder-lib@26.15.7:
@@ -21604,6 +21604,7 @@ snapshots:
 
   videojs-quality-selector-hls@1.1.1:
     dependencies:
+      '@babel/runtime': 7.29.10
       global: 4.4.0
       video.js: 8.24.1
       videojs-contrib-quality-levels: 4.1.0(video.js@8.24.1)
