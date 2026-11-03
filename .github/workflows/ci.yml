@@ -134,6 +134,8 @@ jobs:
         permissions:
             contents: read
             pull-requests: read
+            # Codecov Bundle Analysis authenticates with GitHub OIDC.
+            id-token: write
 
         steps:
             - name: Checkout code
@@ -228,6 +230,19 @@ jobs:
               env:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            # The standalone analyzer supports Angular's esbuild output.
+            # Keep its Linux/macOS-only package out of the workspace install.
+            - name: Upload renderer bundle analysis to Codecov
+              if: >-
+                  github.event_name != 'pull_request' ||
+                  (github.event.pull_request.head.repo.full_name == github.repository &&
+                  github.event.pull_request.user.login != 'dependabot[bot]')
+              continue-on-error: true
+              timeout-minutes: 3
+              run: >-
+                  pnpm dlx @codecov/bundle-analyzer@2.0.1 dist/apps/web
+                  --config-file=tools/performance/codecov-bundle.json
 
             # Fails when renderer.initialBytes exceeds value + slack committed
             # in tools/performance/journey-baselines.json. Baselines only move
