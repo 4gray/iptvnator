@@ -10,7 +10,7 @@
  * move between channels like a remote.
  *
  * Only the first frame ships with a `src`; the inactive panels sit stacked
- * under it with opacity 0, so native lazy loading would fetch all six at
+ * under it with opacity 0, so native lazy loading would fetch all seven at
  * once. The script assigns `src` from `data-src` when a channel is shown and
  * preloads the one after it, so at most two frames are in flight.
  *
@@ -31,10 +31,10 @@ const channels = [
     id: 'dashboard',
     label: 'Dashboard',
     description: 'Continue watching, recent channels and favorites across every source.',
-    image: '/iptvnator/screenshots/dashboard-with-content.webp',
-    alt: 'Dashboard with continue watching, recently watched and global favorites',
-    width: 2072,
-    height: 1602,
+    image: '/iptvnator/screenshots/dashboard-cinematic.webp',
+    alt: 'Dashboard with continue watching, live favorites and favorite movies and series',
+    width: 1600,
+    height: 1100,
     link: { href: '/iptvnator/features/', label: 'Every feature' },
   },
   {
@@ -59,13 +59,23 @@ const channels = [
   },
   {
     id: 'movies',
-    label: 'Movies & series',
-    description: 'Detail pages with cast, seasons and the position you stopped at.',
-    image: '/iptvnator/screenshots/vod-details.webp',
-    alt: 'Movie detail page with poster, cast and play button',
-    width: 2260,
-    height: 1490,
+    label: 'Movies',
+    description: 'Movie details with synopsis, cast and the position you stopped at.',
+    image: '/iptvnator/screenshots/movie-details-cinematic.webp',
+    alt: 'Black Harbor movie details with synopsis, cast, resume position and download actions',
+    width: 1600,
+    height: 1100,
     link: { href: '/iptvnator/features/xtream-codes-player/', label: 'Xtream Codes player' },
+  },
+  {
+    id: 'series',
+    label: 'Series',
+    description: 'Browse seasons and episodes, then continue with the next one.',
+    image: '/iptvnator/screenshots/series-details-cinematic.webp',
+    alt: 'Skyline Sentinels series details with season selection and episode stills',
+    width: 1600,
+    height: 1100,
+    link: { href: '/iptvnator/features/xtream-codes-player/', label: 'Movies and series' },
   },
   {
     id: 'downloads',
@@ -101,7 +111,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
         </h2>
       </div>
       <p class="max-w-sm text-base text-surface-400 sm:text-right">
-        Six screens, one player. Pick a channel or let it run.
+        Seven screens, one player. Pick a channel or let it run.
       </p>
     </div>
 
