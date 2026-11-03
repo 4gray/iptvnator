@@ -56,7 +56,9 @@ test('@stalker @epg overview loads programmes before category selection and shar
 
     await page.evaluate(axe.source);
     const violations = await page.evaluate(async () => {
-        const engine = (window as typeof window & { axe: typeof axe }).axe;
+        const engine = (
+            window as typeof window & { axe: typeof import('axe-core') }
+        ).axe;
         return (await engine.run('app-stalker-itv-all-items')).violations;
     });
     expect(violations).toEqual([]);
@@ -69,7 +71,9 @@ test('@stalker @epg overview loads programmes before category selection and shar
         '68px'
     );
     const listViolations = await page.evaluate(async () => {
-        const engine = (window as typeof window & { axe: typeof axe }).axe;
+        const engine = (
+            window as typeof window & { axe: typeof import('axe-core') }
+        ).axe;
         return (await engine.run('app-stalker-itv-all-items')).violations;
     });
     expect(listViolations).toEqual([]);
