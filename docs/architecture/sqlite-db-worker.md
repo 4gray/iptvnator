@@ -1023,6 +1023,8 @@ covers:
 4. `AbortError` propagation for cancelled work
 5. cancel message routing to the live worker
 6. worker exit recovery and fresh worker startup
+7. stale message/error/exit events cannot change a replacement worker's state;
+   shutdown rejects requests still waiting for readiness
 
 `apps/electron-backend/src/app/events/epg.events.spec.ts` covers:
 

@@ -1440,8 +1440,9 @@ import lowered the counter by 12,565 bytes.
 
 Browser-only Xtream proxy handling lives in
 `apps/web/src/app/services/pwa-xtream-request.ts`, loaded on demand by
-`PwaService`. Its HTTP cancellation, response handling and silent-action policy
-stay outside the initial Electron payload; renderer-local abort signals are
+`PwaService`. Its HTTP cancellation, error normalization, response handling and
+silent-action policy stay outside the initial Electron payload; renderer-local
+abort signals are
 never serialized across IPC. Keep that boundary when adding browser transport
 behavior rather than increasing the initial-byte baseline.
 

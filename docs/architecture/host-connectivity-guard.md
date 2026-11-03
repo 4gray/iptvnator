@@ -57,6 +57,11 @@ stream response, because axios stream mode stops its timeout handler at headers.
 Truncated, malformed and timed-out final bodies retain their received response
 status for reachability classification; cancellation retains its own semantics.
 
+The PWA backend separately caps downloaded and decompressed provider bodies
+(64 MiB by default, configurable with `IPTVNATOR_MAX_PROVIDER_RESPONSE_MB`).
+Exceeding that size does not count as a connection failure: the provider has
+answered. See the [PWA response policy](pwa-self-hosted.md#provider-registration-and-response-limits).
+
 ### Scope: portal calls only
 
 Both runtimes guard the portal API paths and nothing else. Playlist and XMLTV

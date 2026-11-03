@@ -237,6 +237,53 @@ describe('PWA Xtream request cancellation', () => {
         }
     );
 
+    it.each([
+        [{ status: 502 }, 'PORTALS.REQUEST_ERRORS.XTREAM_CONNECTION'],
+        [
+            { message: 'Synthetic provider failure' },
+            'Synthetic provider failure',
+        ],
+        [
+            { message: '[object Object]', error: 'Synthetic nested failure' },
+            'Synthetic nested failure',
+        ],
+        [
+            {
+                message: '[object Object]',
+                error: { message: 'Synthetic nested failure' },
+            },
+            'Synthetic nested failure',
+        ],
+        [
+            { message: '[object Object]', error: { message: 42 } },
+            'PORTALS.REQUEST_ERRORS.XTREAM_CONNECTION',
+        ],
+        [{ statusText: 'Synthetic unavailable' }, 'Synthetic unavailable'],
+    ])(
+        'retains readable provider error text for %j',
+        async (response, message) => {
+            const result = TestBed.inject(PwaService).forwardXtreamRequest({
+                url: credentials.serverUrl,
+                params: { action: 'get_vod_streams' },
+            });
+            await settle();
+            http.expectOne((request) =>
+                request.url.endsWith('/provider-targets')
+            ).flush({ targetId: 'synthetic' });
+            await settle();
+            http.expectOne((request) => request.url.endsWith('/xtream')).flush(
+                response
+            );
+            await expect(result).resolves.toMatchObject({
+                type: ERROR,
+                message,
+            });
+            expect(window.postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({ type: ERROR, message })
+            );
+        }
+    );
+
     it('shows foreground transport errors and allows a failed registration to be retried', async () => {
         const service = TestBed.inject(PwaService);
         const payload = {
@@ -263,6 +310,79 @@ describe('PWA Xtream request cancellation', () => {
             payload: [],
         });
         await expect(retry).resolves.toMatchObject({ payload: [] });
+    });
+
+    it('recovers a missing backend registration before importing categories', async () => {
+        const result = source
+            .getCategories('p', credentials, 'live')
+            .catch((error: unknown) => error);
+        await settle();
+        http.expectOne((request) =>
+            request.url.endsWith('/provider-targets')
+        ).flush({ targetId: 'old' });
+        await settle();
+        http.expectOne((request) => request.url.endsWith('/xtream')).flush(
+            { code: 'PROVIDER_TARGET_NOT_FOUND' },
+            { status: 404, statusText: 'Not Found' }
+        );
+        await settle();
+        http.expectOne((request) =>
+            request.url.endsWith('/provider-targets')
+        ).flush({ targetId: 'new' });
+        await settle();
+        const retry = http.expectOne((request) =>
+            request.url.endsWith('/xtream')
+        );
+        expect(retry.request.params.get('targetId')).toBe('new');
+        retry.flush({
+            payload: [{ category_id: '1', category_name: 'Synthetic' }],
+        });
+        await expect(result).resolves.toHaveLength(1);
+        expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('cancels a registration recovery wait without cancelling its independent reader', async () => {
+        const controller = new AbortController();
+        let settled = false;
+        const importing = source
+            .getCategories('p', credentials, 'live', {
+                signal: controller.signal,
+            })
+            .catch((error: unknown) => {
+                settled = true;
+                return error;
+            });
+        await settle();
+        http.expectOne((request) =>
+            request.url.endsWith('/provider-targets')
+        ).flush({ targetId: 'old' });
+        await settle();
+        http.expectOne((request) => request.url.endsWith('/xtream')).flush(
+            { code: 'PROVIDER_TARGET_NOT_FOUND' },
+            { status: 404, statusText: 'Not Found' }
+        );
+        await settle();
+        const registration = http.expectOne((request) =>
+            request.url.endsWith('/provider-targets')
+        );
+        const independent = source.getCategories('p', credentials, 'vod');
+        await settle();
+        controller.abort();
+        await settle();
+        expect(settled).toBe(true);
+        registration.flush({ targetId: 'new' });
+        await settle();
+        const remaining = http.match((request) =>
+            request.url.endsWith('/xtream')
+        );
+        expect(remaining).toHaveLength(1);
+        expect(remaining[0].request.params.get('action')).toBe(
+            'get_vod_categories'
+        );
+        remaining[0].flush({ payload: [] });
+        await expect(importing).resolves.toMatchObject({ name: 'AbortError' });
+        await expect(independent).resolves.toEqual([]);
+        expect(snackBar.open).not.toHaveBeenCalled();
     });
 
     it('does not abort an independent request sharing the provider-target registration', async () => {

@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { TextDecoder } from 'node:util';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { forwardPwaXtreamRequest } from './pwa-xtream-request';
+import { ProviderTargetClient } from './provider-target-client';
 
 describe('PWA long catalog downloads', () => {
     it('allows a healthy backend transfer to finish after 30 seconds', async () => {
@@ -64,11 +65,13 @@ describe('PWA long catalog downloads', () => {
                 {
                     http: new HttpClient(backend),
                     proxyUrl: '/api',
-                    getTargetId: async () => 'synthetic',
+                    providerTargets: new ProviderTargetClient(
+                        async () => 'synthetic'
+                    ),
                     logger: createLogger('test'),
-                    errorMessage: () => 'Synthetic failure',
+                    translate: { instant: () => 'Synthetic failure' },
+                    snackBar: { open: jest.fn().mockResolvedValue(null) },
                     errorStatus: () => 0,
-                    showError: jest.fn(),
                 },
                 {
                     url: 'https://synthetic.test',

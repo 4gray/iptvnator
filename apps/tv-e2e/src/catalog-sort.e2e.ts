@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { addSource, backend, nav, start } from './helpers';
+import { chooseTv, addSource, backend, nav, start } from './helpers';
 async function xtreamCatalog(page: Page) {
     await start(page);
     await page.route(`${backend}/xtream?**`, async (route) => {
@@ -31,7 +31,10 @@ test('movie and series sorting defaults to recent, survives append/detail/relaun
     page,
 }) => {
     await xtreamCatalog(page);
-    await expect(page.getByLabel('Sort by')).toHaveValue('recent');
+    await expect(page.getByLabel('Sort by')).toHaveAttribute(
+        'data-value',
+        'recent'
+    );
     await expect(title(page)).toHaveText('Title 124');
     await expect(page.locator('.poster-card').first()).toBeVisible();
     await page.locator('main').evaluate((e) => {
@@ -48,26 +51,35 @@ test('movie and series sorting defaults to recent, survives append/detail/relaun
     await page.keyboard.press('Escape');
     await expect(card).toBeFocused();
     await page.getByLabel('Sort by').focus();
-    await page.getByLabel('Sort by').selectOption('title');
+    await chooseTv(page, 'Sort by', 'title');
     await expect(title(page)).toHaveText('Title 000');
     await expect(page.getByLabel('Sort by')).toBeFocused();
     await page.getByLabel('Search this source').fill('Title 01');
     await expect(title(page)).toHaveText('Title 010');
     await nav(page, 'Series');
-    await expect(page.getByLabel('Sort by')).toHaveValue('recent');
+    await expect(page.getByLabel('Sort by')).toHaveAttribute(
+        'data-value',
+        'recent'
+    );
     await expect(title(page)).toHaveText('Title 124');
     await expect(
         page.getByText('Uses update dates when added dates are unavailable.')
     ).toBeVisible();
-    await page.getByLabel('Sort by').selectOption('provider');
+    await chooseTv(page, 'Sort by', 'provider');
     await expect(title(page)).toHaveText('Title 000');
     await page.reload();
     await expect(page.locator('.loading')).toBeHidden();
     await nav(page, 'Movies');
-    await expect(page.getByLabel('Sort by')).toHaveValue('title');
+    await expect(page.getByLabel('Sort by')).toHaveAttribute(
+        'data-value',
+        'title'
+    );
     await expect(title(page)).toHaveText('Title 000');
     await nav(page, 'Series');
-    await expect(page.getByLabel('Sort by')).toHaveValue('provider');
+    await expect(page.getByLabel('Sort by')).toHaveAttribute(
+        'data-value',
+        'provider'
+    );
     await nav(page, 'TV');
     await expect(page.getByLabel('Sort by')).toHaveCount(0);
 });
@@ -94,7 +106,10 @@ test('Stalker sends server sort through append and changing order starts again a
     });
     await addSource(page, 'stalker', { mac: '00:1A:79:00:00:01' });
     await nav(page, 'Movies');
-    await expect(page.getByLabel('Sort by')).toHaveValue('recent');
+    await expect(page.getByLabel('Sort by')).toHaveAttribute(
+        'data-value',
+        'recent'
+    );
     await expect
         .poll(async () => {
             // Each appended page extends the list; keep browsing its new end.
@@ -106,7 +121,7 @@ test('Stalker sends server sort through append and changing order starts again a
             );
         })
         .toBe(true);
-    await page.getByLabel('Sort by').selectOption('title');
+    await chooseTv(page, 'Sort by', 'title');
     await expect
         .poll(() =>
             calls.some(
@@ -117,7 +132,10 @@ test('Stalker sends server sort through append and changing order starts again a
     await expect(page.locator('.loading')).toBeHidden();
     await expect(page.locator('main')).toHaveJSProperty('scrollTop', 0);
     await nav(page, 'Series');
-    await expect(page.getByLabel('Sort by')).toHaveValue('recent');
+    await expect(page.getByLabel('Sort by')).toHaveAttribute(
+        'data-value',
+        'recent'
+    );
     await expect
         .poll(() =>
             calls.some((c) => c.type === 'series' && c.sort === 'added')
@@ -154,7 +172,7 @@ test('changing sort cancels an old append and a late reply cannot mix catalog or
             e.scrollTop = e.scrollHeight;
         });
         await pending;
-        await page.getByLabel('Sort by').selectOption('title');
+        await chooseTv(page, 'Sort by', 'title');
         await expect(title(page)).toHaveText('Title 000');
         release();
         await expect(page.locator('.virtual-collection')).toHaveAttribute(
@@ -177,11 +195,14 @@ test('failed sort persistence leaves the previous order active and exposes the f
             throw new DOMException('Quota exceeded', 'QuotaExceededError');
         };
     });
-    await page.getByLabel('Sort by').selectOption('title');
+    await chooseTv(page, 'Sort by', 'title');
     await expect(page.getByRole('alert')).toContainText(
         'Sort order was not saved'
     );
-    await expect(page.getByLabel('Sort by')).toHaveValue('recent');
+    await expect(page.getByLabel('Sort by')).toHaveAttribute(
+        'data-value',
+        'recent'
+    );
     await expect(title(page)).toHaveText('Title 124');
 });
 test('M3U explains the missing recency dates and offers alphabetical movies', async ({
@@ -212,6 +233,6 @@ test('M3U explains the missing recency dates and offers alphabetical movies', as
     await expect(
         page.getByText('No added dates in M3U; playlist order is used.')
     ).toBeVisible();
-    await page.getByLabel('Sort by').selectOption('title');
+    await chooseTv(page, 'Sort by', 'title');
     await expect(title(page)).toHaveText('A movie');
 });

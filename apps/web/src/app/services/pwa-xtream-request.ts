@@ -1,5 +1,8 @@
 import type { HttpClient } from '@angular/common/http';
-import { firstValueFrom, from, fromEvent, switchMap, takeUntil } from 'rxjs';
+import type { TranslateService } from '@ngx-translate/core';
+import type { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { firstValueFrom, fromEvent, takeUntil } from 'rxjs';
+import type { ProviderTargetClient } from './provider-target-client';
 import {
     ERROR,
     XTREAM_RESPONSE,
@@ -45,11 +48,11 @@ interface PwaErrorResult {
 interface XtreamTransport {
     http: HttpClient;
     proxyUrl: string;
-    getTargetId: (url: string) => Promise<string>;
+    providerTargets: ProviderTargetClient;
     logger: ReturnType<typeof createLogger>;
-    errorMessage: (error: unknown) => string;
+    translate: Pick<TranslateService, 'instant'>;
+    snackBar: Pick<LazySnackBar, 'open'>;
     errorStatus: (error: unknown) => number | undefined;
-    showError: (message: string) => void;
 }
 
 const silentXtreamActions = new Set<string>([
@@ -86,8 +89,9 @@ export async function forwardPwaXtreamRequest(
     try {
         // Registration is shared; unsubscribing cancels this caller's wait and
         // its own GET, without aborting another reader's registration.
-        const request = from(transport.getTargetId(payload.url)).pipe(
-            switchMap((targetId) => {
+        const request = transport.providerTargets.request(
+            payload.url,
+            (targetId) => {
                 signal?.throwIfAborted();
                 const params = {
                     targetId,
@@ -118,7 +122,7 @@ export async function forwardPwaXtreamRequest(
                         ...headers,
                     }
                 );
-            })
+            }
         );
         const response = await firstValueFrom(
             signal
@@ -131,7 +135,12 @@ export async function forwardPwaXtreamRequest(
         let result: PwaErrorResult | PwaXtreamResult;
         if (!response.payload) {
             const action = payload.params.action;
-            const normalizedMessage = transport.errorMessage(response);
+            const normalizedMessage = getReadableXtreamErrorMessage(
+                response,
+                transport.translate.instant(
+                    'PORTALS.REQUEST_ERRORS.XTREAM_CONNECTION'
+                )
+            );
             logPortalDebugEvent(createPortalDebugErrorEvent(context, response));
             if (
                 payload.suppressErrorLog === true ||
@@ -170,7 +179,12 @@ export async function forwardPwaXtreamRequest(
         signal?.throwIfAborted();
         logPortalDebugEvent(createPortalDebugErrorEvent(context, error));
         const action = payload.params.action;
-        const normalizedMessage = transport.errorMessage(error);
+        const normalizedMessage = getReadableXtreamErrorMessage(
+            error,
+            transport.translate.instant(
+                'PORTALS.REQUEST_ERRORS.XTREAM_CONNECTION'
+            )
+        );
         const result: PwaErrorResult = {
             type: ERROR,
             status: transport.errorStatus(error) ?? 500,
@@ -187,7 +201,57 @@ export async function forwardPwaXtreamRequest(
             return result;
         }
         transport.logger.error('Xtream request error:', normalizedMessage);
-        transport.showError(normalizedMessage);
+        void transport.snackBar.open(
+            transport.translate.instant('PORTALS.REQUEST_ERRORS.XTREAM', {
+                message: normalizedMessage,
+            }),
+            transport.translate.instant('CLOSE'),
+            { duration: 5000 }
+        );
         return result;
     }
+}
+
+function getReadableXtreamErrorMessage(
+    error: unknown,
+    fallback: string
+): string {
+    if (!error) {
+        return fallback;
+    }
+
+    const maybeError = error as {
+        message?: unknown;
+        statusText?: unknown;
+        error?: unknown;
+    };
+
+    if (typeof maybeError.message === 'string') {
+        if (maybeError.message.includes('[object Object]')) {
+            if (typeof maybeError.error === 'string') {
+                return maybeError.error;
+            }
+            if (
+                maybeError.error &&
+                typeof maybeError.error === 'object' &&
+                'message' in (maybeError.error as Record<string, unknown>) &&
+                typeof (maybeError.error as Record<string, unknown>).message ===
+                    'string'
+            ) {
+                return (maybeError.error as Record<string, string>).message;
+            }
+            return fallback;
+        }
+        return maybeError.message;
+    }
+
+    if (typeof maybeError.statusText === 'string') {
+        return maybeError.statusText;
+    }
+
+    if (typeof error === 'string') {
+        return error;
+    }
+
+    return fallback;
 }
