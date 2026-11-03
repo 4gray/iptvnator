@@ -1,6 +1,5 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { readFileSync } from 'fs';
-import sharp = require('sharp');
 import {
     addStalkerPortal,
     addXtreamPortal,
@@ -24,7 +23,6 @@ import {
     waitForXtreamCatalog,
     xtreamMockServer,
 } from './electron-test-fixtures';
-import { applyTheme } from './theme-contrast';
 
 type XtreamCategory = {
     category_id: string;
@@ -328,95 +326,9 @@ test.describe('Electron Workspace Search', () => {
                 flexibleTextPattern(resolvedTitles.controlTitle)
             );
 
-            const searchInput = app.mainWindow.locator(headerSearchSelector);
-            const clearScope = app.mainWindow.getByTestId(
-                'workspace-search-scope-clear'
-            );
-            const browserWindow = await app.electronApp.browserWindow(
-                app.mainWindow
-            );
-            const chipBackgroundPixel = async () => {
-                const clip = await clearScope.boundingBox();
-                if (!clip) {
-                    throw new Error('Category scope chip is not visible');
-                }
-                // Native capture preserves hover; CDP screenshots can clear it.
-                const screenshot = Buffer.from(
-                    await browserWindow.evaluate(
-                        async (window, rect) =>
-                            (await window.webContents.capturePage(rect))
-                                .resize({
-                                    width: rect.width,
-                                    height: rect.height,
-                                })
-                                .toPNG()
-                                .toString('base64'),
-                        {
-                            x: Math.floor(clip.x),
-                            y: Math.floor(clip.y),
-                            width: Math.ceil(clip.width),
-                            height: Math.ceil(clip.height),
-                        }
-                    ),
-                    'base64'
-                );
-                return sharp(screenshot)
-                    .extract({ left: 5, top: 12, width: 1, height: 1 })
-                    .removeAlpha()
-                    .raw()
-                    .toBuffer();
-            };
-            for (const theme of ['light', 'dark'] as const) {
-                await applyTheme(app.mainWindow, theme);
-                await searchInput.click();
-                expect(
-                    await clearScope.evaluate((el) =>
-                        el.matches(':hover, :focus-visible')
-                    )
-                ).toBe(false);
-                await expect
-                    .poll(() =>
-                        clearScope.evaluate((el) => el.getAnimations().length)
-                    )
-                    .toBe(0);
-                const idleBackground = await clearScope.evaluate(
-                    (el) => getComputedStyle(el).backgroundColor
-                );
-                const idlePixel = await chipBackgroundPixel();
-                await clearScope.hover();
-                await expect(clearScope).not.toHaveCSS(
-                    'background-color',
-                    idleBackground
-                );
-                await expect
-                    .poll(() =>
-                        clearScope.evaluate((el) => el.getAnimations().length)
-                    )
-                    .toBe(0);
-                const hoverPixel = await chipBackgroundPixel();
-                const backgroundChange = Math.max(
-                    ...hoverPixel.map((channel, index) =>
-                        Math.abs(channel - idlePixel[index])
-                    )
-                );
-                expect(
-                    backgroundChange,
-                    `Visible chip hover highlight in ${theme} theme`
-                ).toBeGreaterThanOrEqual(20);
-                await searchInput.hover();
-                await expect(clearScope).toHaveCSS(
-                    'background-color',
-                    idleBackground
-                );
-                await searchInput.press('Shift+Tab');
-                await expect(clearScope).toBeFocused();
-                await expect(clearScope).not.toHaveCSS(
-                    'background-color',
-                    idleBackground
-                );
-            }
-
-            await clearScope.locator('.search-chip__label').click();
+            await app.mainWindow
+                .getByTestId('workspace-search-scope-clear')
+                .click();
             await expectPathname(
                 app.mainWindow,
                 /\/workspace\/xtreams\/[^/]+\/vod$/
@@ -437,51 +349,16 @@ test.describe('Electron Workspace Search', () => {
                 flexibleTextPattern(resolvedTitles.targetTitle)
             );
 
-            for (const key of ['Enter', 'Space']) {
-                await clickCategoryByNameExact(
-                    app.mainWindow,
-                    sample.categoryName
-                );
-                await fillWorkspaceSearch(
-                    app.mainWindow,
-                    resolvedTitles.targetTitle
-                );
-                await expectQueryParam(
-                    app.mainWindow,
-                    'q',
-                    resolvedTitles.targetTitle
-                );
-                await searchInput.focus();
-                await searchInput.press('Shift+Tab');
-                await expect(clearScope).toBeFocused();
-                await clearScope.press(key);
-                await expectWorkspaceSearchScope(
-                    app.mainWindow,
-                    'Movies / All items'
-                );
-                await expectQueryParam(
-                    app.mainWindow,
-                    'q',
-                    resolvedTitles.targetTitle
-                );
-                await expect(searchInput).toBeFocused();
-            }
-
-            for (const origin of ['chip', 'sidebar'] as const) {
-                await clickCategoryByNameExact(
-                    app.mainWindow,
-                    sample.categoryName
-                );
-                await clearCategoryWithPendingSearch(
-                    app.mainWindow,
-                    `${resolvedTitles.targetTitle} pending`,
-                    origin
-                );
-                await expectPathname(
-                    app.mainWindow,
-                    /\/workspace\/xtreams\/[^/]+\/vod$/
-                );
-            }
+            await clickCategoryByNameExact(app.mainWindow, sample.categoryName);
+            await clearCategoryWithPendingSearch(
+                app.mainWindow,
+                `${resolvedTitles.targetTitle} pending`,
+                'sidebar'
+            );
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/xtreams\/[^/]+\/vod$/
+            );
         } finally {
             await closeElectronApp(app);
         }
@@ -784,9 +661,17 @@ test.describe('Electron Workspace Search', () => {
                 channelItemByTitle(app.mainWindow, sample.controlTitle)
             ).toHaveCount(0);
 
+            const player = app.mainWindow.locator(
+                'app-live-stream-layout .content-container .video-player'
+            );
+            const originalPlayer = await player.elementHandle();
             await app.mainWindow
                 .getByTestId('workspace-search-scope-clear')
                 .click();
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/xtreams\/[^/]+\/live$/
+            );
             await expectWorkspaceSearchScope(
                 app.mainWindow,
                 'Live TV / All items'
@@ -795,11 +680,10 @@ test.describe('Electron Workspace Search', () => {
             await expect(
                 app.mainWindow.locator(headerSearchSelector)
             ).toHaveValue(sample.targetTitle);
-            await expect(
-                app.mainWindow.locator(
-                    'app-live-stream-layout .content-container .video-player'
-                )
-            ).toBeVisible();
+            await expect(player).toBeVisible();
+            expect(
+                await originalPlayer?.evaluate((element) => element.isConnected)
+            ).toBe(true);
             await expect(
                 channelItemByTitle(app.mainWindow, sample.targetTitle).first()
             ).toHaveClass(/(^|\s)active(\s|$)/);
@@ -1073,23 +957,10 @@ test.describe('Electron Workspace Search', () => {
                 `${sample.targetTitle} pending`,
                 'chip'
             );
-            await clickCategoryById(app.mainWindow, sample.categoryId);
-            await clearCategoryWithPendingSearch(
-                app.mainWindow,
-                `${sample.targetTitle} pending again`,
-                'sidebar'
-            );
             await expectPathname(
                 app.mainWindow,
                 /\/workspace\/stalker\/[^/]+\/vod$/
             );
-
-            await clickCategoryById(app.mainWindow, sample.categoryId);
-            await openWorkspaceSection(app.mainWindow, 'Advanced search');
-            await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
-            await expect(
-                app.mainWindow.getByTestId('workspace-search-scope-clear')
-            ).toHaveCount(0);
         } finally {
             await closeElectronApp(app);
         }

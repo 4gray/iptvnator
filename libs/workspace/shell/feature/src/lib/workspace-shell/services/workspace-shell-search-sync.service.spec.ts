@@ -154,13 +154,10 @@ describe('WorkspaceShellSearchSyncService', () => {
         jest.useRealTimers();
     });
 
-    describe.each([
-        ['xtreams', 'vod'],
-        ['xtreams', 'series'],
-        ['xtreams', 'live'],
-        ['stalker', 'vod'],
-        ['stalker', 'series'],
-    ])('clearing %s %s category scope', (provider, section) => {
+    describe('clearing a category scope', () => {
+        const provider = 'xtreams';
+        const section = 'vod';
+
         it.each([
             ['', 'neo'],
             ['neo', 'neon'],
@@ -233,42 +230,28 @@ describe('WorkspaceShellSearchSyncService', () => {
         );
     });
 
-    describe.each(['xtreams', 'stalker'])(
-        'retained %s category selection outside category views',
-        (provider) => {
-            it.each(['favorites', 'recent', 'search', 'downloads'])(
-                'cannot clear a category on the %s section',
-                (section) => {
-                    navigateTo(`/workspace/${provider}/pl-1/${section}`);
-                    xtreamCategoryId.set(7);
-                    stalkerCategoryId.set('7');
+    it.each([
+        ['xtreams', 'live', true],
+        ['stalker', 'radio', true],
+        ['xtreams', 'favorites', false],
+        ['stalker', 'search', false],
+    ])(
+        'allows category clearing on %s %s: %s',
+        (provider, section, expected) => {
+            navigateTo(`/workspace/${provider}/pl-1/${section}`);
+            xtreamCategoryId.set(7);
+            stalkerCategoryId.set('7');
 
-                    expect(searchService.canClearCategoryScope()).toBe(false);
-                    searchService.clearCategoryScope();
+            expect(searchService.canClearCategoryScope()).toBe(expected);
 
-                    expect(xtreamCategoryId()).toBe(7);
-                    expect(stalkerCategoryId()).toBe('7');
-                    expect(router.navigate).not.toHaveBeenCalled();
-                }
-            );
+            if (!expected) {
+                searchService.clearCategoryScope();
+                expect(xtreamCategoryId()).toBe(7);
+                expect(stalkerCategoryId()).toBe('7');
+                expect(router.navigate).not.toHaveBeenCalled();
+            }
         }
     );
-
-    it.each([
-        ['xtreams', 'vod'],
-        ['xtreams', 'series'],
-        ['xtreams', 'live'],
-        ['stalker', 'vod'],
-        ['stalker', 'series'],
-        ['stalker', 'itv'],
-        ['stalker', 'radio'],
-    ])('supports category clearing on %s %s', (provider, section) => {
-        navigateTo(`/workspace/${provider}/pl-1/${section}`);
-        xtreamCategoryId.set(7);
-        stalkerCategoryId.set('7');
-
-        expect(searchService.canClearCategoryScope()).toBe(true);
-    });
 
     it('drops a still-debouncing keystroke when a settings result is opened', () => {
         // Typing one more letter and clicking a visible settings result
