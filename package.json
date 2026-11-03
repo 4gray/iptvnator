@@ -153,6 +153,7 @@
         "@ngrx/signals": "22.0.1",
         "@ngrx/store": "22.0.1",
         "@ngrx/store-devtools": "22.0.1",
+        "@noble/hashes": "2.3.0",
         "@ngx-pwa/local-storage": "22.0.0",
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
         "angularx-qrcode": "22.0.1",

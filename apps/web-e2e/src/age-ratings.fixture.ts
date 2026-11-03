@@ -5,6 +5,7 @@ import { setSwitch } from './e2e-helpers';
 /** Deterministic fictional metadata; never contacts a real metadata service. */
 export async function interceptAgeRatingTmdb(page: Page) {
     let requests = 0;
+    let classificationRequests = 0;
     let searchYear = '2020';
     const mediaTypes: string[] = [];
     await page.route('https://api.themoviedb.org/**', async (route) => {
@@ -12,6 +13,7 @@ export async function interceptAgeRatingTmdb(page: Page) {
         const url = new URL(route.request().url());
         const json = (body: unknown) => route.fulfill({ json: body });
         if (url.pathname.includes('/search/')) {
+            classificationRequests++;
             const title =
                 url.searchParams.get('query') || 'Classification Fixture';
             const year =
@@ -35,6 +37,7 @@ export async function interceptAgeRatingTmdb(page: Page) {
         }
         const match = url.pathname.match(/\/(movie|tv)\/(\d+)$/);
         if (match) {
+            classificationRequests++;
             const mediaType = match[1];
             mediaTypes.push(mediaType);
             return json({
@@ -80,6 +83,7 @@ export async function interceptAgeRatingTmdb(page: Page) {
     });
     return {
         requests: () => requests,
+        classificationRequests: () => classificationRequests,
         mediaTypes,
         setYear: (year: string) => {
             searchYear = year;
@@ -99,7 +103,8 @@ export async function setAgeRatingCountry(
         await page.locator('[data-test-id="settings-section-tmdb"]').click();
     }
     const selector = page.locator('[data-test-id="age-rating-country"]');
-    await expect(selector).toBeVisible();
+    // Cold dev-server settings chunks can arrive after the default 5s assertion.
+    await expect(selector).toBeVisible({ timeout: 15_000 });
     await selector.click();
     await page
         .getByRole('option', { name: new RegExp(`\\(${country}\\)$`) })

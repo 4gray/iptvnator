@@ -305,6 +305,17 @@ for (const portal of ['Xtream', 'Stalker', 'M3U'] as const) {
         else if (portal === 'Stalker') await addStalkerPortal(page);
         else await addM3uPlaylist(page);
         if (portal !== 'M3U') await expect(page.locator('.category-item').first()).toBeVisible();
+        if (portal === 'Xtream') {
+            // Import prefetches the catalog; recover through an uncached detail.
+            await page.getByRole('link', { name: 'Series', exact: true }).click();
+            await expect(
+                page.getByRole('heading', { name: 'Series Categories', exact: true })
+            ).toBeVisible();
+            await page.locator('.category-item').first().click();
+            await expect(
+                page.locator('app-grid-list mat-card').first()
+            ).toBeVisible();
+        }
         const origin = new URL(page.url()).origin;
         const timeOrigin = await page.evaluate(() => performance.timeOrigin);
         const proxy = portal === 'Xtream' ? 'xtream' : portal === 'Stalker' ? 'stalker' : 'parse';
@@ -335,9 +346,14 @@ for (const portal of ['Xtream', 'Stalker', 'M3U'] as const) {
             const row = sourceRowByTitle(page, 'Self-hosted M3U');
             await row.hover();
             await row.locator('.source-row__refresh').click();
+        } else if (portal === 'Xtream') {
+            await page.locator('app-grid-list mat-card').first().click();
         } else {
             await page.getByRole('link', { name: 'Series', exact: true }).click();
             await expect(page).toHaveURL(/\/series(?:\/|$)/);
+            await expect(
+                page.getByRole('heading', { name: 'Series Categories', exact: true })
+            ).toBeVisible();
             await expect(page.locator('.category-item').first()).toBeVisible();
             await page.locator('.category-item').first().click();
         }
