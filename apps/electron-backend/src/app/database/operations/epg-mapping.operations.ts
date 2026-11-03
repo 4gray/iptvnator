@@ -1,6 +1,13 @@
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
+import { chunkValues } from './operation-control';
+
+/**
+ * Max keys per batch-lookup query (one bound parameter each). Playlists can
+ * carry more than SQLite's 32766-variable limit.
+ */
+const MAPPING_LOOKUP_CHUNK_SIZE = 10_000;
 
 /**
  * Get a single EPG channel mapping by lookup key.
@@ -35,17 +42,19 @@ export async function getEpgMappingsBatch(
         return new Map();
     }
 
-    const rows = await db
-        .select({
-            channelKey: schema.epgChannelMappings.channelKey,
-            epgChannelId: schema.epgChannelMappings.epgChannelId,
-        })
-        .from(schema.epgChannelMappings)
-        .where(inArray(schema.epgChannelMappings.channelKey, channelKeys));
-
     const mapping = new Map<string, string>();
-    for (const row of rows) {
-        mapping.set(row.channelKey, row.epgChannelId);
+    for (const chunk of chunkValues(channelKeys, MAPPING_LOOKUP_CHUNK_SIZE)) {
+        const rows = await db
+            .select({
+                channelKey: schema.epgChannelMappings.channelKey,
+                epgChannelId: schema.epgChannelMappings.epgChannelId,
+            })
+            .from(schema.epgChannelMappings)
+            .where(inArray(schema.epgChannelMappings.channelKey, chunk));
+
+        for (const row of rows) {
+            mapping.set(row.channelKey, row.epgChannelId);
+        }
     }
     return mapping;
 }
