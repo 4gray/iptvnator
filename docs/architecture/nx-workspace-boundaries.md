@@ -386,8 +386,8 @@ entries: `@iptvnator/ui/components/window-controls`,
 `@iptvnator/ui/components/confirm-dialog`,
 `@iptvnator/playlist/shared/ui/stalker-connection-editor`,
 `@iptvnator/playlist/shared/util/playlist-file-import` (the barrel would add
-`PlaylistContextFacade`) and `@iptvnator/pipes/date-format` (the barrel would
-add `SafePipe`; the eager EPG progress panel uses it too), like the existing
+`PlaylistContextFacade`) and `@iptvnator/pipes/date-format` (also used by the
+eager EPG progress panel), like the existing
 `@iptvnator/ui/epg/progress-panel`, and loads anything used only on demand
 through a local file it imports dynamically (the Stalker connection editor,
 the release-notes dialog, the external-player info dialog, the parental-lock

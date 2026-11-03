@@ -82,9 +82,6 @@ jobs:
             - name: Install Dependencies
               run: pnpm install --frozen-lockfile
 
-            - name: Build Backend
-              run: pnpm nx build electron-backend
-
             # Window-selection and process-lifecycle checks are independent of the shard split;
             # run them once per OS.
             - name: Verify Electron window readiness and process cleanup
