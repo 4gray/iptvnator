@@ -734,6 +734,26 @@ before any outbound request:
 - `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1` explicitly enables trusted
   local/LAN targets for development, mock servers, or private deployments
 
+### Provider registration and response limits
+
+Registrations are process-local and capped at 1024 URLs. The registry evicts
+the least recently used entry at capacity and lazily expires entries after
+30 minutes without use. Restarted, expired or evicted targets return HTTP 404
+with `code: 'PROVIDER_TARGET_NOT_FOUND'`, before any provider request goes out.
+The browser keeps at most 256 registrations and re-registers a missing target
+once, sharing concurrent registration attempts. M3U, Xtream and Stalker keep
+their request credentials and headers on that retry. Ordinary provider 404s,
+authorization failures and network errors do not trigger this retry. The older
+backend's exact `Provider target not found` message remains compatible.
+
+Final provider response bodies are limited to 64 MiB by default; configure
+`IPTVNATOR_MAX_PROVIDER_RESPONSE_MB` to change the limit. It applies to decoded
+HTTP response chunks and, separately, to decompressed `.gz` XMLTV output.
+Overflow destroys the body stream and returns a size error with status 413 and
+`code: 'PROVIDER_RESPONSE_TOO_LARGE'`; portal routes retain their HTTP 200 error
+envelope. This is not a host-connectivity failure. The limit is per response;
+it is not a total process-memory or concurrent-request budget.
+
 ### Provider redirects and connection policy
 
 `ValidatedHttpClient` applies the registration URL policy again before every
