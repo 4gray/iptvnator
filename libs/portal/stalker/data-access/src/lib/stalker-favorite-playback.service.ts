@@ -8,6 +8,7 @@ import {
 import { StalkerSessionService } from './stalker-session.service';
 import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { executeStalkerRequest } from './stores/utils/stalker-request.utils';
+import { firstNonBlankStalkerId } from './stalker-vod.utils';
 import { StalkerPagedCatalog } from './stalker-paged-client';
 
 /** Resolve commands on the receiving device; commands never enter sync snapshots. */
@@ -33,6 +34,7 @@ export class StalkerFavoritePlaybackResolver {
             throw new Error('nothing_to_play');
         const reference = stalkerFavoriteReference(item);
         if (!reference) throw new Error('nothing_to_play');
+        const expectedKey = favoriteReferenceKey(reference);
         const type =
             reference.kind === 'live'
                 ? 'itv'
@@ -46,12 +48,20 @@ export class StalkerFavoritePlaybackResolver {
                 ...row,
                 favoriteContentType: type,
             } as StalkerPortalItem;
-            const key = stalkerFavoriteReference(candidate);
+            const keys = [
+                candidate,
+                {
+                    ...candidate,
+                    id: firstNonBlankStalkerId(
+                        candidate.stream_id,
+                        candidate.id
+                    ),
+                },
+            ].map(stalkerFavoriteReference);
             if (
-                !key ||
-                favoriteReferenceKey(key) !== favoriteReferenceKey(reference) ||
-                typeof candidate.cmd !== 'string' ||
-                !candidate.cmd.trim()
+                !keys.some(
+                    (key) => key && favoriteReferenceKey(key) === expectedKey
+                )
             )
                 return null;
             const category =
@@ -68,6 +78,44 @@ export class StalkerFavoritePlaybackResolver {
                 throw new Error('nothing_to_play');
             return candidate;
         };
+        const found = new Map<string, StalkerPortalItem>();
+        let canonicalFound = false;
+        let plainFound = false;
+        const command = (row: StalkerPortalItem) =>
+            typeof row.cmd === 'string' ? row.cmd.trim() : '';
+        const collect = (row: Record<string, unknown>) => {
+            const candidate = match(row);
+            if (!candidate) return;
+            const canonical = stalkerFavoriteReference({
+                ...candidate,
+                id: firstNonBlankStalkerId(candidate.stream_id, candidate.id),
+            })!;
+            const key = favoriteReferenceKey(canonical);
+            if (key === expectedKey) canonicalFound = true;
+            if (
+                key === expectedKey &&
+                command(candidate) &&
+                favoriteReferenceKey(stalkerFavoriteReference(candidate)!) ===
+                    key
+            )
+                plainFound = true;
+            const previous = found.get(key);
+            if (
+                (found.size && !previous) ||
+                (previous &&
+                    command(previous) &&
+                    command(candidate) &&
+                    command(previous) !== command(candidate))
+            )
+                throw new Error('nothing_to_play');
+            if (!previous || command(candidate)) found.set(key, candidate);
+        };
+        const selected = () => {
+            const candidate = found.values().next().value;
+            return candidate && command(candidate)
+                ? { ...candidate, id: reference.id }
+                : undefined;
+        };
         if (type === 'itv') {
             const result = await executeStalkerRequest<{ js?: unknown }>(
                 this.deps,
@@ -79,11 +127,12 @@ export class StalkerFavoritePlaybackResolver {
                 : (result?.js as { data?: unknown[] })?.data;
             for (const row of rows ?? []) {
                 if (row && typeof row === 'object') {
-                    const found = match(row as Record<string, unknown>);
-                    if (found) return found;
+                    collect(row as Record<string, unknown>);
                 }
             }
         }
+        const bulk = selected();
+        if (bulk) return bulk;
         const catalog = new StalkerPagedCatalog((params) =>
             executeStalkerRequest(this.deps, playlist, params)
         );
@@ -92,6 +141,7 @@ export class StalkerFavoritePlaybackResolver {
             item.title ?? item.name ?? item.info?.name ?? ''
         ).trim();
         for (const search of title ? [title, ''] : ['']) {
+            let complete = false;
             for (let page = 0; page < 20; page++) {
                 const result = await catalog.load(
                     {
@@ -105,15 +155,22 @@ export class StalkerFavoritePlaybackResolver {
                     signal
                 );
                 for (const row of result.data) {
-                    const found = match(row);
-                    if (found) return found;
+                    collect(row);
                 }
+                const direct = plainFound ? selected() : undefined;
+                if (direct) return direct;
                 if (
                     !result.data.length ||
                     (page + 1) * result.pageSize >= result.total
-                )
+                ) {
+                    complete = true;
                     break;
+                }
             }
+            const resolved = selected();
+            // shortcut: legacy-only aliases need a complete scan within 20 pages; use a direct ID endpoint when available.
+            if (resolved && (canonicalFound || (!search && complete)))
+                return resolved;
         }
         throw new Error('nothing_to_play');
     }

@@ -72,6 +72,67 @@ describe('PwaXtreamDataSource', () => {
         localStorage.clear();
     });
 
+    it.each(['live', 'movie', 'series'] as const)(
+        'resolves cached %s duplicates using metadata hints without provider I/O',
+        async (kind) => {
+            apiService.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Synthetic incompatible',
+                    tmdb_id: 100,
+                    release_year: 2021,
+                },
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Synthetic partial',
+                    tmdb_id: 200,
+                },
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Synthetic confirmed',
+                    tmdb_id: 200,
+                    release_year: 2024,
+                },
+            ]);
+            await dataSource.getContent('synthetic-source', credentials, kind);
+            apiService.getStreams.mockClear();
+            expect(
+                await dataSource.getContentByXtreamId(
+                    42,
+                    'synthetic-source',
+                    kind,
+                    { tmdbId: 200, releaseYear: 2024 }
+                )
+            ).toMatchObject({ title: 'Synthetic confirmed' });
+            expect(
+                await dataSource.getContentByXtreamId(
+                    42,
+                    'synthetic-source',
+                    kind,
+                    { tmdbId: 200, releaseYear: 2025 }
+                )
+            ).toMatchObject({ title: 'Synthetic partial' });
+            expect(
+                await dataSource.getContentByXtreamId(
+                    42,
+                    'synthetic-source',
+                    kind,
+                    { tmdbId: 999 }
+                )
+            ).toBeNull();
+            expect(
+                await dataSource.getContentByXtreamId(
+                    42,
+                    'synthetic-source',
+                    kind
+                )
+            ).toMatchObject({ title: 'Synthetic incompatible' });
+            expect(apiService.getStreams).not.toHaveBeenCalled();
+        }
+    );
     it.each(['favorites', 'recent'] as const)(
         'uses the playlist User-Agent when hydrating %s',
         async (collection) => {

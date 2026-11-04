@@ -2109,6 +2109,13 @@ VOD/radio/series. A title is only a search hint; it never substitutes for ID and
 series-origin equality. Fresh category metadata still passes parental locking.
 Command lookup also reads `info.name` from normalized VOD selections, retaining
 the saved title search before the bounded unfiltered scan.
+It accepts both the persisted stream-first ID and the legacy row ID, preserving
+kind and series-origin checks. Matching rows across the searched pages must agree
+on one provider identity and command; conflicting aliases are unavailable. The
+resolved item retains the requested favorite ID and rechecks local parental locks.
+An ID matching only a legacy row alias cannot be accepted from a title-filtered
+result: its unfiltered scan must finish within the existing 20-page bound. An
+incomplete scan or a conflicting canonical stream identity remains unavailable.
 Resolved commands remain local and never enter a shared snapshot. The global
 collection detail host reuses an open detail for the same item during polling,
 so background membership updates cannot cancel an in-flight playback request.

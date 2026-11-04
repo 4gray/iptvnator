@@ -1177,3 +1177,9 @@ Action/status paths call `getFavorites(playlistId, false)` to read the PWA archi
 without hydrating older unresolved entries. Ordinary collection reads retain
 hydration by default; reference/snapshot conversion stays in the shared provider
 reference adapters used by preview and backup.
+PWA cache-only identity lookup also applies TMDB/year hints, preferring fully
+confirmed duplicates over compatible rows with missing metadata and rejecting
+contradictions. Without hints, the previous first-row/type order is retained.
+The pure lookup lives in the existing metadata module: an empty content cache
+returns immediately, and populated caches have already loaded that module during
+normalization, so membership actions never fetch a new lookup chunk.

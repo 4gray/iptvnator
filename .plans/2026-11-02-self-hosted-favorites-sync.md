@@ -409,6 +409,45 @@ containers are removed. Physical Synology, packaged Windows/Linux and optional
 vendored Embedded MPV remain unavailable. A committed-branch review follows;
 Greptile CLI remains unavailable under the documented exception.
 
+Round 20 reviews 4020931cf and confirms two provider-identity gaps. Stalker saves
+stream-first IDs but receiving command lookup compares only the raw row ID. PWA
+cache lookup ignores TMDB/year hints and chooses an incompatible duplicate even
+after collection hydration chose the right one. Eight focused cases fail before
+the repair: all three Xtream kinds, four Stalker kinds, and an alias collision.
+
+PWA lookup reuses metadata matching in the existing lazy metadata module, keeping
+the legacy type/first-row order, preferring full confirmation, allowing missing
+metadata only as fallback, and rejecting contradictions. A non-empty content
+cache proves normalization already loaded that module; empty caches return null
+without an import. A real PWA integration checks hydrated selection, heart state
+and removal of the compatible duplicate. Commands and credentials stay local.
+
+Stalker lookup accepts both row and persisted stream IDs with unchanged kind and
+series-origin checks, retains the requested favorite ID, and rejects conflicting
+matching provider identities/commands. Matching rows are checked across the
+searched pages. Additional failing-before cases expose an unsafe title-filtered
+legacy alias and a truncated unfiltered scan; legacy-only matches now require a
+complete scan inside the existing 20-page bound. A direct canonical row keeps its
+first-page fast path: its regression drops from 20 requests to one. Canonical
+Stalker and Xtream contracts document the identity rules and the legacy-only
+lookup limit. No reference migration, snapshot mutation or network endpoint is
+introduced; ambiguous old aliases remain unavailable instead of guessing.
+
+Round 21 validation: web 874, Xtream data access 668, Stalker data access 702,
+Stalker feature 564, shared data access 332, shared UI 227, Dashboard data access
+218, Dashboard feature 214 and shared interfaces 848 tests pass. The refreshed
+36-report merge passes unchanged gates at 85.59/77.43/83.88/86.09 percent.
+Application typechecks, all 42 spec programs, owning lint, guidance, eight skills,
+251 release notes, formatting and whitespace pass. Production frontend/Electron/
+workers build; initial bytes are 1,200,291 / 1,200,301 without baseline changes.
+All 25 mixed PWA/Electron flows pass (5.7 minutes); after the final Stalker
+ambiguity/fast-path guards, its mixed flow passes again (51.8 seconds). The final
+20-case resolver spec passes, including title hints on both ID spellings.
+Linux arm64 Docker image f97eee8dd009 builds; final HTTP add/remove/receipt/restart
+smoke passes and the isolated container is removed. The existing feature note covers these fixes. Physical
+Synology, packaged Windows/Linux and optional vendored Embedded MPV remain
+unavailable. Commit and repeat the local review; Greptile remains unavailable.
+
 The next base fetch advances origin/master to 0a5eac1c6, including provider,
 worker, navigation and Nx 23.3.1 changes. The initial round-14 reviewer is stopped
 before further work, and the updated base is merged locally. The only textual

@@ -82,6 +82,133 @@ describe('receiving-device Stalker favorite playback', () => {
             expect(snapshot.cmd).toBeUndefined();
         }
     );
+    it.each(['itv', 'radio', 'vod', 'series'] as const)(
+        'resolves the persisted stream alias for %s while retaining a legacy ID',
+        async (kind) => {
+            const row = {
+                id: '42',
+                stream_id: '84',
+                cmd: 'synthetic-provider-command',
+                category_id: '17',
+            };
+            send.mockResolvedValue({
+                js: { data: [row], total_items: 1, max_page_items: 1 },
+            });
+            for (const id of ['84', '42']) {
+                expect(
+                    await resolver.resolve(playlist, {
+                        id,
+                        favoriteContentType: kind,
+                        title: 'Synthetic alias favorite',
+                    })
+                ).toMatchObject({ id, cmd: row.cmd });
+            }
+        }
+    );
+    it.each([
+        { id: '84', stream_id: '99' },
+        { id: '42', stream_id: '84' },
+    ])(
+        'refuses ambiguous alias commands across search pages (%j)',
+        async (second) => {
+            send.mockImplementation(async (_event, { params }) => ({
+                js: {
+                    data: [
+                        Number(params.p) === 1
+                            ? {
+                                  id: '42',
+                                  stream_id: '84',
+                                  cmd: 'synthetic-first-command',
+                              }
+                            : {
+                                  ...second,
+                                  cmd: 'synthetic-second-command',
+                              },
+                    ],
+                    total_items: 2,
+                    max_page_items: 1,
+                },
+            }));
+            await expect(
+                resolver.resolve(playlist, {
+                    id: '84',
+                    favoriteContentType: 'vod',
+                    title: 'Synthetic ambiguous favorite',
+                })
+            ).rejects.toThrow('nothing_to_play');
+        }
+    );
+    it('does not accept a title-filtered legacy alias before checking the canonical stream identity', async () => {
+        const legacy = {
+            id: '84',
+            stream_id: '99',
+            cmd: 'synthetic-legacy-command',
+        };
+        send.mockImplementation(async (_event, { params }) => ({
+            js: {
+                data: params.search
+                    ? [legacy]
+                    : [
+                          {
+                              id: '42',
+                              stream_id: '84',
+                              cmd: 'synthetic-canonical-command',
+                          },
+                          legacy,
+                      ],
+                total_items: params.search ? 1 : 2,
+                max_page_items: 2,
+            },
+        }));
+        await expect(
+            resolver.resolve(playlist, {
+                id: '84',
+                favoriteContentType: 'vod',
+                title: 'Synthetic older title',
+            })
+        ).rejects.toThrow('nothing_to_play');
+    });
+    it('keeps a legacy-only alias unavailable when the unfiltered lookup reaches its page bound', async () => {
+        const legacy = {
+            id: '84',
+            stream_id: '99',
+            cmd: 'synthetic-legacy-command',
+        };
+        send.mockImplementation(async (_event, { params }) => ({
+            js: {
+                data: [legacy],
+                total_items: params.search ? 1 : 10000,
+                max_page_items: 1,
+            },
+        }));
+        await expect(
+            resolver.resolve(playlist, {
+                id: '84',
+                favoriteContentType: 'vod',
+                title: 'Synthetic older title',
+            })
+        ).rejects.toThrow('nothing_to_play');
+        expect(
+            send.mock.calls.filter(([, request]) => !request.params.search)
+        ).toHaveLength(20);
+    });
+    it('keeps an ordinary canonical favorite on its first matching page', async () => {
+        send.mockResolvedValue({
+            js: {
+                data: [{ id: '42', cmd: 'synthetic-canonical-command' }],
+                total_items: 10000,
+                max_page_items: 1,
+            },
+        });
+        expect(
+            await resolver.resolve(playlist, {
+                id: '42',
+                favoriteContentType: 'vod',
+                title: 'Synthetic canonical favorite',
+            })
+        ).toMatchObject({ id: '42', cmd: 'synthetic-canonical-command' });
+        expect(send).toHaveBeenCalledTimes(1);
+    });
     it('uses the normalized movie title to find an exact ID beyond the unfiltered page bound', async () => {
         const selected = buildStalkerSelectedVodItem({
             id: '42',
@@ -148,24 +275,32 @@ describe('receiving-device Stalker favorite playback', () => {
             })
         ).rejects.toThrow('nothing_to_play');
     });
-    it('rechecks the resolved provider category against local parental locks', async () => {
-        locked.mockReturnValue(true);
-        send.mockResolvedValue({
-            js: {
-                data: [
-                    {
-                        id: '42',
-                        category_id: '17',
-                        cmd: 'synthetic-provider-command',
-                    },
-                ],
-                total_items: 1,
-                max_page_items: 1,
-            },
-        });
-        await expect(
-            resolver.resolve(playlist, { id: '42', favoriteContentType: 'vod' })
-        ).rejects.toThrow('nothing_to_play');
-        expect(locked).toHaveBeenCalledWith('synthetic-source', 'vod', '17');
-    });
+    it.each(['42', '84'])(
+        'rechecks parental locks for resolved provider identity %s',
+        async (id) => {
+            locked.mockReturnValue(true);
+            send.mockResolvedValue({
+                js: {
+                    data: [
+                        {
+                            id: '42',
+                            stream_id: '84',
+                            category_id: '17',
+                            cmd: 'synthetic-provider-command',
+                        },
+                    ],
+                    total_items: 1,
+                    max_page_items: 1,
+                },
+            });
+            await expect(
+                resolver.resolve(playlist, { id, favoriteContentType: 'vod' })
+            ).rejects.toThrow('nothing_to_play');
+            expect(locked).toHaveBeenCalledWith(
+                'synthetic-source',
+                'vod',
+                '17'
+            );
+        }
+    );
 });

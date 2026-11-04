@@ -41,7 +41,6 @@ import {
 
 import {
     CollectionKey,
-    cachedContentIdentity,
     type CollectionIdentity,
     collectionRefIdentity,
     collectionKey,
@@ -1126,27 +1125,19 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getContentByXtreamId(
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch
     ): Promise<XtreamContentItem | null> {
-        const types = contentType
-            ? [contentType]
-            : (['live', 'movie', 'series'] as const);
-
-        for (const type of types) {
-            const cacheKey = `${playlistId}-${type}-content`;
-            const content = this.contentCache.get(cacheKey) || [];
-
-            const found = content.find((item) => {
-                const itemXtreamId = cachedContentIdentity(item, type);
-                return itemXtreamId === xtreamId;
-            });
-
-            if (found) {
-                return found as XtreamContentItem;
-            }
-        }
-
-        return null;
+        if (!this.contentCache.size) return null;
+        // Non-empty caches have already loaded this module through catalog normalization.
+        const { findPwaCachedContent } = await import('./pwa-content-metadata');
+        return findPwaCachedContent(
+            this.contentCache,
+            playlistId,
+            xtreamId,
+            contentType ? [contentType] : ['live', 'movie', 'series'],
+            identity
+        );
     }
 
     /** Enrich the current catalog and compatible snapshots, or independent cold Recent data. */

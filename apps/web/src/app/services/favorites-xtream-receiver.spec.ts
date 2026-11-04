@@ -608,3 +608,90 @@ it('rejects a retired legacy reference before reading its replacement catalog', 
     expect(lookup).not.toHaveBeenCalled();
     expect(f.set).not.toHaveBeenCalled();
 });
+
+it('keeps a received PWA duplicate selected, favorited and removable without identity substitution', async () => {
+    const f = fixture();
+    f.entries[0].record.state.snapshot = {
+        title: 'Synthetic compatible',
+        tmdbId: '200',
+        releaseYear: '2024',
+    };
+    localStorage.clear();
+    TestBed.configureTestingModule({
+        providers: [
+            PwaXtreamDataSource,
+            {
+                provide: XtreamApiService,
+                useValue: {
+                    getStreams: async () => [
+                        {
+                            stream_id: 42,
+                            name: 'Synthetic incompatible',
+                            tmdb_id: 100,
+                            release_year: 2021,
+                        },
+                        {
+                            stream_id: 42,
+                            name: 'Synthetic compatible',
+                            tmdb_id: 200,
+                            release_year: 2024,
+                        },
+                    ],
+                },
+            },
+            {
+                provide: PlaylistsService,
+                useValue: { getPlaylistById: () => of(undefined) },
+            },
+            {
+                provide: ParentalLockService,
+                useValue: { active: () => false, lockedXtreamIds: () => [] },
+            },
+        ],
+    });
+    const raw = TestBed.inject(PwaXtreamDataSource);
+    const credentials = {
+        serverUrl: 'https://synthetic.invalid',
+        username: 'synthetic-user',
+        password: 'synthetic-password',
+    };
+    jest.spyOn(raw, 'getPlaylist').mockResolvedValue({
+        id: 'source',
+        name: 'Synthetic source',
+        type: 'xtream',
+        ...credentials,
+    });
+    try {
+        await raw.getContent('source', credentials, 'movie');
+        const adapter = new FavoritesXtreamAdapter(
+            f.client,
+            () => true,
+            false,
+            unlocked
+        );
+        const target = {
+            id: 42,
+            providerId: 42,
+            type: 'movie',
+            identity: { tmdbId: 200, releaseYear: 2024 },
+        };
+        expect(
+            await adapter.invoke(raw, 'getFavorites', ['source'])
+        ).toMatchObject([
+            { title: 'Synthetic compatible', catalog_status: 'present' },
+        ]);
+        expect(
+            await adapter.invoke(raw, 'isFavorite', [target, 'source'])
+        ).toBe(true);
+        await adapter.invoke(raw, 'removeFavorite', [target, 'source']);
+        expect(f.set).toHaveBeenCalledWith(
+            'source',
+            { provider: 'xtream', kind: 'movie', id: '42' },
+            false,
+            expect.objectContaining({ tmdbId: '200' })
+        );
+    } finally {
+        localStorage.clear();
+        jest.restoreAllMocks();
+    }
+});
