@@ -55,6 +55,20 @@ Ownership follows the workspace boundaries:
 - reusable presentation: `libs/portal/shared/ui`
 - pure provider-neutral contracts/helpers: `libs/portal/shared/util`
 
+Catalog writes belong to the runtime loaders behind `getCategories` and
+`getContent`; `IXtreamDataSource` does not expose separate bulk-save methods.
+Electron loaders keep writing through the worker-backed `DatabaseService`;
+PWA loaders normalize API responses into their session caches. Tests load PWA
+catalogs through those same API-backed readers instead of seeding a second
+public write path.
+
+Content initialization runs one sequential import sequence for enabled live,
+VOD and series types, in that order. Each type persists completion before
+publishing rows or starting the next type. Publication retains its distinct
+state fields and renderer performance phase; cancellation and progress callbacks
+remain scoped to their owning session. Empty-catalog reuse and refill semantics
+are unchanged.
+
 Persisted Xtream identity is playlist-scoped and content-type-aware:
 `playlist_id + content.type + xtream_id`. Mixed collection keys likewise
 include type plus provider ID because live, movie, and series IDs can collide.
