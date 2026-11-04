@@ -60,10 +60,10 @@
             try {
                 return bridge[method].apply(bridge, args);
             } catch (e) {
-                log('bridge.' + method + ' failed: ' + e);
+                log('bridge.' + method + ' failed');
             }
         } else {
-            log('bridge.' + method + '(' + args.map(String).join(', ') + ')');
+            log('bridge.' + method + '()');
         }
         return undefined;
     }
@@ -144,10 +144,13 @@
         return inView(el.getBoundingClientRect()) && isShown(el);
     }
 
-    // Material draws these controls beside a transparent native input. The component is
-    // the visible surface, while the input must retain DOM focus and native activation.
-    function materialControlSurface(el) {
-        if (el.tagName !== 'INPUT' || !/^(checkbox|radio)$/.test(el.type)) return null;
+    // Transparent native inputs retain activation while their component draws the control.
+    function controlSurface(el) {
+        if (el.tagName !== 'INPUT') return null;
+        if (el.type === 'range' && el.classList.contains('player-controls__slider--timeline')) {
+            return el.closest('.player-controls__timeline-bar');
+        }
+        if (!/^(checkbox|radio)$/.test(el.type)) return null;
         return el.closest('mat-checkbox,mat-radio-button');
     }
 
@@ -157,7 +160,7 @@
         var cs = getComputedStyle(el);
         if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none') return false;
         if (cs.opacity !== '0') return true;
-        var surface = materialControlSurface(el);
+        var surface = controlSurface(el);
         return !!surface && isShown(surface);
     }
 
@@ -387,7 +390,8 @@
     // ---------------------------------------------------------------- focus
     function paintFocus(el) {
         el.classList.add(FOCUS_CLASS);
-        var surface = materialControlSurface(el);
+        var surface = controlSurface(el);
+        if (surface && el.type === 'range') surface = surface.querySelector('.player-controls__timeline-track') || surface;
         if (surface) surface.classList.add(FOCUS_CLASS);
     }
 

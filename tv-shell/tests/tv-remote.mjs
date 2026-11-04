@@ -26,8 +26,10 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, hasTouch: false });
 const page = await context.newPage();
 const consoleErrors = [];
+const bridgeLogs = [];
 page.on('console', (msg) => {
     if (msg.type() === 'error') consoleErrors.push(msg.text());
+    if (msg.text().startsWith('[tvshell] bridge.')) bridgeLogs.push(msg.text());
 });
 page.on('pageerror', (err) => consoleErrors.push('pageerror: ' + err.message));
 
@@ -422,6 +424,14 @@ console.log('8. the stream handed to an external player is the source, never a f
     expect('syncRecovery', '/live/user/pass/14.m3u8', 'hls.js recovery (re-attach before the old source closes) keeps the playlist');
     expect('copyAfterTeardown', '/movie/user/pass/13.mkv', 'once the player is gone, a copied URL is the stream');
 }
+await page.evaluate(async (provider) => {
+    await navigator.clipboard.writeText(provider + '/live/synthetic-account/synthetic-bridge-secret/42.ts');
+    window.__tvShell.openExternal();
+}, PROVIDER);
+check(bridgeLogs.some((message) => message.includes('bridge.onUrlCopied')) &&
+    bridgeLogs.some((message) => message.includes('bridge.openExternal')) &&
+    bridgeLogs.every((message) => !/https?:\/\/|synthetic-bridge-secret/.test(message)),
+    'browser-emulation bridge logs retain method names without stream URLs or credentials');
 console.log('9. under the Android bridge: the screen follows playback, error codes, detached players');
 {
     // A second page with a recording stand-in for the Android bridge (window.TvShell).
@@ -493,6 +503,19 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
     check(r.attached === true && r.detached === false, 'a detached player is no longer the media the remote controls');
     check(r.leavingPlaying.includes('setKeepScreenOn true') && r.leavingRemoved.includes('setKeepScreenOn false'),
         'leaving a playing page lets the screen sleep: ' + r.leavingPlaying.join(' | ') + ' then ' + r.leavingRemoved.join(' | '));
+    const bridgeFailures = [];
+    bridged.on('console', (message) => {
+        if (message.text().startsWith('[tvshell]')) bridgeFailures.push(message.text());
+    });
+    await bridged.evaluate(async (provider) => {
+        window.__tvShellDebug = true;
+        await navigator.clipboard.writeText(provider + '/live/synthetic-account/synthetic-bridge-secret/42.ts');
+        window.TvShell.openExternal = () => { throw new Error('synthetic-bridge-secret'); };
+        window.__tvShell.openExternal();
+    }, PROVIDER);
+    check(bridgeFailures.some((message) => message.includes('bridge.openExternal failed')) &&
+        bridgeFailures.every((message) => !message.includes('synthetic-bridge-secret')),
+        'bridge failure logs omit exception text that can contain credentials');
     await bridged.close();
 }
 
@@ -708,6 +731,27 @@ await key('ArrowDown');
 check(await page.evaluate(() => document.querySelector('#synthetic-background').getBoundingClientRect().width > 0 &&
     document.activeElement.id === 'synthetic-trailer'),
     'hidden background frames stay excluded even when CSS gives them visible geometry');
+console.log('13. transparent playback-position inputs retain remote navigation and seeking');
+await page.evaluate(() => {
+    document.body.innerHTML = `<div class="cdk-overlay-pane" style="position:fixed;left:0;top:0;width:640px;height:240px;flex-direction:column">
+        <button id="synthetic-before-seek" style="width:150px;height:40px">Synthetic control</button>
+        <app-player-timeline>
+            <div class="player-controls__timeline-bar" style="position:relative;width:600px;height:28px;margin-top:30px">
+                <div class="player-controls__timeline-track" aria-hidden="true" style="width:600px;height:6px;background:#888"></div>
+                <input id="synthetic-seek" class="player-controls__slider--timeline" type="range" min="0" max="100" value="50" style="position:absolute;inset:0;width:100%;height:100%;opacity:0">
+            </div>
+        </app-player-timeline>
+    </div>`;
+    document.querySelector('#synthetic-before-seek').focus();
+});
+await key('ArrowDown');
+check(await page.locator('#synthetic-seek').evaluate((input) => document.activeElement === input),
+    'Down reaches the transparent playback-position input');
+check(await page.locator('.player-controls__timeline-track').evaluate((track) =>
+    track.classList.contains('tv-focus') && getComputedStyle(track).outlineStyle === 'solid'),
+    'the visible timeline track receives the remote focus ring');
+await key('ArrowRight');
+check(await page.locator('#synthetic-seek').inputValue() === '51', 'Right seeks through the native range input');
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();
