@@ -93,6 +93,23 @@ test('TV metadata errors leave the original provider selection usable', async (t
     assert.equal(result.item, item);
     assert.equal(result.failed, true);
 });
+
+test('TMDB presentation keeps an early release year when the provider omits it', async (t) => {
+    t.mock.method(globalThis, 'fetch', async () =>
+        Response.json({
+            id: 603,
+            title: 'Fixture Movie',
+            release_date: '1895-03-04',
+            original_language: 'en',
+        })
+    );
+    const result = await new TvMetadata({
+        enabled: true,
+        apiKey: 'fixture-key',
+        language: 'en',
+    }).enrich({ ...item, year: undefined }, new AbortController().signal);
+    assert.equal(result.item.metadata?.year, '1895');
+});
 test('provider-neutral movies and series use confident title search without changing source identity', async (t) => {
     const requests: string[] = [];
     t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) => {

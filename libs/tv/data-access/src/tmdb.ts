@@ -23,6 +23,7 @@ import {
 import {
     pickSeasonMarkedTitle,
     resolveEnrichmentSeasonNumber,
+    parseFacetYear,
 } from '@iptvnator/shared/interfaces';
 import {
     artwork,
@@ -161,7 +162,7 @@ export class TvMetadata {
                                 : enrichedCreators(details as TmdbTvDetails),
                         authorRole:
                             item.kind === 'movie' ? 'Directors' : 'Creators',
-                        year: extractYear(
+                        year: parseFacetYear(
                             item.kind === 'movie'
                                 ? (details as TmdbMovieDetails).release_date
                                 : (details as TmdbTvDetails).first_air_date

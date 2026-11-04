@@ -25,6 +25,7 @@ async function setup(page: Page) {
                     stream_id: 41,
                     name: 'Fixture Movie',
                     year: '2020',
+                    country: 'Provider Country',
                     category_id: 'fixture-category',
                     container_extension: 'mkv',
                 },
@@ -263,6 +264,24 @@ test('provider-only details show supplied chips without requesting TMDB or rende
     page,
 }) => {
     await setup(page);
+    await page.route('**/xtream?**', (route) => {
+        if (
+            new URL(route.request().url()).searchParams.get('action') !==
+            'get_vod_info'
+        )
+            return route.fallback();
+        return route.fulfill({
+            json: {
+                payload: {
+                    info: {
+                        releasedate: '1895-03-04',
+                        genre: 'Provider Adventure',
+                        country: 'N/A',
+                    },
+                },
+            },
+        });
+    });
     let requests = 0;
     await page.route('https://api.themoviedb.org/3/**', (route) => {
         requests++;
@@ -273,6 +292,7 @@ test('provider-only details show supplied chips without requesting TMDB or rende
     const chips = page.getByRole('list', { name: 'Title information' });
     await expect(chips).toContainText('Provider Adventure');
     await expect(chips).toContainText('Provider Country');
+    await expect(chips.getByLabel('Year: 1895', { exact: true })).toBeVisible();
     await expect(chips).toContainText('Category · Fixture Collection');
     await expect(page.locator('.metadata-credits')).toHaveCount(0);
     await expect(chips).not.toContainText('TMDB');

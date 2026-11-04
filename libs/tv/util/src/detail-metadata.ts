@@ -1,4 +1,5 @@
 import type { Media } from './index';
+import { parseFacetYear } from '@iptvnator/shared/interfaces';
 
 export function detailPeople(item: Media) {
     const metadata = item.metadata;
@@ -64,19 +65,23 @@ export function detailChips(item: Media) {
         info.releasedate,
         info.releaseDate,
     ]
-        .filter((value): value is string => typeof value === 'string')
-        .map((value) => value.match(/\b(?:19|20)\d{2}\b/)?.[0])
-        .find(Boolean);
-    if (year) add('Year', year);
+        .map((value) =>
+            typeof value === 'string' || typeof value === 'number'
+                ? parseFacetYear(String(value))
+                : null
+        )
+        .find((value) => value !== null);
+    if (year) add('Year', String(year));
     const providerGenres =
         [info.genre, info.genres_str, raw.genre, raw.genres_str]
             .map(values)
             .find((names) => names.length) ?? [];
     for (const genre of genres.length ? genres : providerGenres)
         add('Genre', genre);
-    for (const country of countries.length
-        ? countries
-        : values(info.country ?? raw.country))
+    const providerCountries =
+        [info.country, raw.country].map(values).find((names) => names.length) ??
+        [];
+    for (const country of countries.length ? countries : providerCountries)
         add('Country', country);
     const category = item.categoryName?.trim();
     if (category) add('Playlist category', `Category · ${category}`);

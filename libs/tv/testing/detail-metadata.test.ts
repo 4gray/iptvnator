@@ -167,6 +167,37 @@ test('chips merge TMDB information with provider year and named playlist categor
     );
 });
 
+test('year chips retain early release dates and numeric years while rejecting unknown years', () => {
+    for (const year of ['1895', '1895-03-04', '2101'])
+        assert.deepEqual(detailChips({ ...item, year }), [
+            { label: 'Year', value: year.slice(0, 4) },
+        ]);
+    assert.deepEqual(
+        detailChips({ ...item, metadata: { ...metadata, year: '1895' } }),
+        [{ label: 'Year', value: '1895' }]
+    );
+    assert.deepEqual(
+        detailChips({ ...item, raw: { details: { info: { year: 1895 } } } }),
+        [{ label: 'Year', value: '1895' }]
+    );
+    for (const year of ['0000', 'N/A', 'unknown'])
+        assert.deepEqual(detailChips({ ...item, year }), []);
+});
+
+test('empty detail country never masks an available catalog country', () => {
+    for (const country of ['', 'N/A', 'unknown', null])
+        assert.deepEqual(
+            detailChips({
+                ...item,
+                raw: {
+                    country: 'Fixture Country',
+                    details: { info: { country } },
+                },
+            }),
+            [{ label: 'Country', value: 'Fixture Country' }]
+        );
+});
+
 test('provider-only and historical details omit internal category IDs and unavailable values', () => {
     assert.deepEqual(
         detailChips({
