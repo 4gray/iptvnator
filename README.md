@@ -77,6 +77,9 @@ launching, the download manager or Electron remote-control features.
 See [Docker setup and client connections](docker/README.md) for configuration,
 reverse proxies, playback troubleshooting and platform limits.
 
+Without Docker, [`proxmox/README.md`](./proxmox/README.md) installs the same
+PWA and backend in a Proxmox LXC container with one command.
+
 For the separate experimental webOS TV client, see
 [TV setup](docs/development/tv-development.md) and
 [TV architecture and limitations](docs/architecture/tv-application.md).
