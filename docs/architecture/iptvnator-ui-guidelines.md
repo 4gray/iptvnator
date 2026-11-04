@@ -543,6 +543,17 @@ host by its padding and border on the first move.
   by an ancestor's `overflow: hidden`, at 3:1 where it sits on a flat
   colour, and a click must draw none.
 
+Catalog result counts use an atomic `status` region so search/filter changes
+are announced without moving focus from the search field. Opening a catalog
+card saves its identity in that list's history entry. Returning from details
+restores the card after scroll restoration, or the workspace main landmark
+if the card disappeared; an active input or dialog keeps focus.
+
+Shared season tabs have one Tab stop, wrapping Left/Right navigation
+(following text direction), Home/End, and an associated episode `tabpanel`.
+The dropdown variant keeps Material menu keyboard behavior. Detail and
+fullscreen instances own distinct tab/panel IDs.
+
 ## Keyboard Scrolling and Channel Focus
 
 `ChannelScrollFocusDirective` belongs on the actual channel scroll owner,
@@ -556,7 +567,11 @@ the normal DOM order; Safari's default keyboard preference skips buttons on
 plain Tab, so there the row button is reached with Option+Tab (WebKit E2E
 runs press it through `pressTab` in `apps/web-e2e/src/e2e-helpers.ts`).
 Scrolling from a virtual row moves focus to its viewport
-before CDK can recycle the row; asynchronous data updates never move focus.
+before CDK can recycle the row; asynchronous data updates preserve connected
+focused controls. If the focused row is removed, focus moves to the next row
+at the same index, the previous row at the end, or the empty scroll owner.
+A destroyed pane falls back to its captured workspace main landmark. This
+recovery never takes focus from another active control.
 Xtream aligns a newly selected channel only when it is outside the viewport;
 updates to the same selected ID never re-align it. A smooth scroll to an
 already visible row would otherwise cancel an immediate keyboard scroll.

@@ -8,6 +8,7 @@ import {
     input,
     output,
     signal,
+    viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -96,6 +97,7 @@ export function readSavedEpisodeViewMode(): EpisodeViewMode {
     ],
 })
 export class SeasonContainerComponent implements OnInit {
+    readonly seasonTabs = viewChild(SeasonTabsComponent);
     private readonly dialog = inject(MatDialog);
     private readonly translate = inject(TranslateService);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
