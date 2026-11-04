@@ -104,16 +104,14 @@ export class WorkspaceShellSearchSyncService {
             }
 
             const term = this.appliedSearchQuery();
-            // A scope change can already carry the pending input in q.
-            // Do not overwrite it with the older applied term mid-debounce.
-            if (this.searchDebounceTimeoutId !== null) {
+            const url = this.routeState.currentUrl();
+            const navigation = this.router.currentNavigation();
+            // Wait for typing and navigation to settle: a q write must not
+            // supersede scope clearing or recursively restart its own echo.
+            if (this.searchDebounceTimeoutId !== null || navigation) {
                 return;
             }
-            syncSearchQueryParam(
-                this.router,
-                this.routeState.currentUrl(),
-                term
-            );
+            syncSearchQueryParam(this.router, url, term);
         });
     }
 
@@ -187,8 +185,7 @@ export class WorkspaceShellSearchSyncService {
         // Scope clearing carries the raw input's normalized term, even before
         // its debounce applies. The transient intent never survives history.
         const clearingScope =
-            navigation?.extras.info === CATEGORY_SCOPE_CLEAR_NAVIGATION &&
-            nextTerm.trim() === this.searchQuery().trim();
+            navigation?.extras.info === CATEGORY_SCOPE_CLEAR_NAVIGATION;
         const samePageEcho =
             previousUrl !== null &&
             getRoutePath(url) === getRoutePath(previousUrl) &&

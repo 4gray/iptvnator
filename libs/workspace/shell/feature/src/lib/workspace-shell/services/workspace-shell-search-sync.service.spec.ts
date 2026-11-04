@@ -26,12 +26,14 @@ describe('WorkspaceShellSearchSyncService', () => {
     const stalkerCategoryId = signal<string | null>(null);
     let trigger: 'imperative' | 'popstate';
     let navigationInfo: unknown;
+    const currentNavigation = signal<{ extras: NavigationExtras } | null>(null);
     let router: {
         url: string;
         events: Subject<NavigationEnd>;
         navigate: jest.Mock;
         navigateByUrl: jest.Mock;
         parseUrl: jest.Mock;
+        currentNavigation: typeof currentNavigation;
         lastSuccessfulNavigation: () => {
             trigger: string;
             extras: NavigationExtras;
@@ -48,6 +50,7 @@ describe('WorkspaceShellSearchSyncService', () => {
         origin: 'imperative' | 'popstate' = 'imperative'
     ): void {
         router.url = url;
+        currentNavigation.set(null);
         trigger = origin;
         events.next(new NavigationEnd(1, url, url));
     }
@@ -59,11 +62,13 @@ describe('WorkspaceShellSearchSyncService', () => {
         events = new Subject<NavigationEnd>();
         trigger = 'imperative';
         navigationInfo = undefined;
+        currentNavigation.set(null);
         router = {
             url: DOWNLOADS_URL,
             events,
             navigate: jest.fn().mockResolvedValue(true),
             navigateByUrl: jest.fn().mockResolvedValue(true),
+            currentNavigation,
             lastSuccessfulNavigation: () => ({
                 trigger,
                 extras: { info: navigationInfo },
@@ -249,6 +254,39 @@ describe('WorkspaceShellSearchSyncService', () => {
         );
     });
 
+    it.each([false, true])(
+        'preserves newer typing while scope navigation is pending (debounce settled: %s)',
+        (settled) => {
+            navigateTo('/workspace/xtreams/pl-1/vod/7?q=Alpha');
+            xtreamCategoryId.set(7);
+            TestBed.flushEffects();
+            router.navigateByUrl.mockClear();
+            service.onSearchInput('Alpha ');
+            searchService.clearCategoryScope();
+            const extras: NavigationExtras = router.navigate.mock.calls[0][1];
+            currentNavigation.set({ extras });
+
+            service.onSearchInput('Alpha Beta');
+            if (settled) {
+                jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+            }
+            TestBed.flushEffects();
+            expect(router.navigateByUrl).not.toHaveBeenCalled();
+
+            navigationInfo = extras.info;
+            navigateTo('/workspace/xtreams/pl-1/vod?q=Alpha');
+            TestBed.flushEffects();
+            expect(service.searchQuery()).toBe('Alpha Beta');
+            jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+            TestBed.flushEffects();
+            expect(service.appliedSearchQuery()).toBe('Alpha Beta');
+            expect(router.navigateByUrl).toHaveBeenCalledWith(
+                '/workspace/xtreams/pl-1/vod?q=Alpha+Beta',
+                { replaceUrl: true }
+            );
+        }
+    );
+
     it.each([
         ['xtreams', 'live', true],
         ['stalker', 'radio', true],
@@ -285,6 +323,21 @@ describe('WorkspaceShellSearchSyncService', () => {
         jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
 
         expect(service.appliedSearchQuery()).toBe('');
+    });
+
+    it('waits for its own query navigation instead of starting a duplicate', () => {
+        service.onSearchInput('Alpha');
+        jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+        TestBed.flushEffects();
+        expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
+
+        currentNavigation.set({ extras: { replaceUrl: true } });
+        TestBed.flushEffects();
+        expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
+
+        navigateTo(`${DOWNLOADS_URL}?q=Alpha`);
+        TestBed.flushEffects();
+        expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
     });
 
     it('keeps in-flight typing when the page writes an unrelated query param', () => {
