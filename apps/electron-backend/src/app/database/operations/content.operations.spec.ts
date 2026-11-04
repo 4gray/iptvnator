@@ -1,3 +1,7 @@
+jest.mock('./playlist.operations', () => ({
+    setAppState: jest.fn().mockResolvedValue({ success: true }),
+}));
+
 const andMock = jest.fn((...conditions: unknown[]) => ({
     kind: 'and',
     conditions,

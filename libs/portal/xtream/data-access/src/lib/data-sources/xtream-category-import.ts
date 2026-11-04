@@ -39,10 +39,13 @@ export async function loadRemoteCategories(
     dbType: DbCategoryType,
     options?: XtreamOperationOptions
 ): Promise<XtreamCategoryFromDb[]> {
+    options?.signal?.throwIfAborted();
     options?.onPhaseChange?.('loading-categories');
+    options?.signal?.throwIfAborted();
     const remoteData = await services.api.getCategories(credentials, type, {
         sessionId: options?.sessionId,
     });
+    options?.signal?.throwIfAborted();
     if (remoteData && Array.isArray(remoteData) && remoteData.length > 0) {
         const hidden = services.pending.get(playlistId)?.hiddenCategories;
         const hiddenIds = hidden?.length
@@ -51,6 +54,7 @@ export async function loadRemoteCategories(
                   .map((category) => category.xtreamId)
             : undefined;
         options?.onPhaseChange?.('saving-categories');
+        options?.signal?.throwIfAborted();
         await services.db.saveXtreamCategories(
             playlistId,
             remoteData,

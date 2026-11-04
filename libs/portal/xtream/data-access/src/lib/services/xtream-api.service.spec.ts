@@ -30,6 +30,52 @@ describe('XtreamApiService', () => {
         service = TestBed.inject(XtreamApiService);
     });
 
+    it('passes browser cancellation outside the serializable request payload', async () => {
+        const signal = new AbortController().signal;
+        dataService.sendIpcEvent.mockResolvedValue({ payload: [] });
+        await service.getCategories(credentials, 'live', { signal });
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            XTREAM_REQUEST, expect.not.objectContaining({ signal }), signal
+        );
+        expect(dataService.sendIpcEvent.mock.calls[0][1]).not.toHaveProperty('signal');
+    });
+
+    describe.each(['live', 'vod', 'series'] as const)(
+        '%s catalog validation',
+        (type) => {
+            it.each([
+                { user_info: { auth: 0 } },
+                { error: 'Unavailable' },
+                null,
+                '<html>Failure</html>',
+            ])('rejects a non-array catalog response: %j', async (payload) => {
+                dataService.sendIpcEvent.mockResolvedValue({ payload });
+                await expect(
+                    service.getCategories(credentials, type)
+                ).rejects.toThrow('catalog');
+                await expect(
+                    service.getStreams(
+                        credentials,
+                        type === 'vod' ? 'movie' : type
+                    )
+                ).rejects.toThrow('catalog');
+            });
+
+            it('accepts a genuine empty catalog', async () => {
+                dataService.sendIpcEvent.mockResolvedValue({ payload: [] });
+                await expect(
+                    service.getCategories(credentials, type)
+                ).resolves.toEqual([]);
+                await expect(
+                    service.getStreams(
+                        credentials,
+                        type === 'vod' ? 'movie' : type
+                    )
+                ).resolves.toEqual([]);
+            });
+        }
+    );
+
     it('skips every EPG endpoint while disabled but keeps catalog requests working', async () => {
         await TestBed.inject(EpgPreferencesService).apply(false);
         expect(await service.getShortEpg(credentials, 101)).toEqual([]);

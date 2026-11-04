@@ -1,4 +1,4 @@
-import { SourceActivityService } from '@iptvnator/services';
+import { DataService, SourceActivityService } from '@iptvnator/services';
 import { TestBed } from '@angular/core/testing';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
@@ -112,6 +112,16 @@ describe('ElectronService', () => {
             value: undefined,
         });
         jest.restoreAllMocks();
+    });
+
+    it('does not serialize the renderer abort signal into Electron IPC', async () => {
+        const payload = { url: 'https://synthetic.test', params: {}, connectionTest: true };
+        electronBridge.xtreamRequest.mockResolvedValue({ payload: [] });
+        await (service as DataService).sendIpcEvent(XTREAM_REQUEST, payload, new AbortController().signal);
+        expect(electronBridge.xtreamRequest).toHaveBeenCalledWith({
+            ...payload,
+            requestId: expect.any(String),
+        });
     });
 
     it('protects all startup-refresh sources until the request settles, including failure', async () => {
