@@ -1315,7 +1315,8 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             {
                 authorization: 'Bearer TOKEN99',
                 cookie: 'mac=00:1A:79:00:00:01',
-            }
+            },
+            undefined
         );
 
         const audioPlayer = fixture.debugElement.query(

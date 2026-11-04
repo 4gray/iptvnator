@@ -57,6 +57,69 @@ describe('request header overrides', () => {
         mockOnBeforeSendHeaders.mockClear();
     });
 
+    it.each([undefined, 'https://referer.example/watch'])(
+        'honors explicit Origin with Referer %s without widening the request scope',
+        async (referer) => {
+            const { configureRequestHeaderOverride } =
+                await import('./request-header-overrides.service');
+            configureRequestHeaderOverride(
+                undefined,
+                referer,
+                'https://stream.example/live.m3u8',
+                undefined,
+                ' https://explicit.example '
+            );
+            expect(mockOnBeforeSendHeaders).toHaveBeenCalledTimes(1);
+            const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+            expect(
+                runHeaderListener(
+                    listener,
+                    'https://stream.example/segment.ts',
+                    { origin: 'https://old.example' }
+                )
+            ).toEqual({
+                Origin: 'https://explicit.example',
+                ...(referer ? { Referer: referer } : {}),
+            });
+            expect(
+                runHeaderListener(
+                    listener,
+                    'https://explicit.example/unrelated'
+                )
+            ).toEqual({});
+            configureRequestHeaderOverride(
+                undefined,
+                undefined,
+                'https://stream.example/next.m3u8'
+            );
+            expect(
+                runHeaderListener(listener, 'https://stream.example/segment.ts')
+            ).toEqual({});
+        }
+    );
+
+    it.each(['', 'https://explicit.example\r\nX-Injected: bad'])(
+        'retains the legacy Referer-derived Origin for an unusable explicit value',
+        async (origin) => {
+            const { configureRequestHeaderOverride } =
+                await import('./request-header-overrides.service');
+            configureRequestHeaderOverride(
+                undefined,
+                'https://referer.example/watch',
+                'https://stream.example/live.m3u8',
+                undefined,
+                origin
+            );
+            const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+            expect(
+                runHeaderListener(listener, 'https://stream.example/segment.ts')
+            ).toEqual({
+                Origin: 'https://referer.example',
+                Referer: 'https://referer.example/watch',
+            });
+        }
+    );
+
     it('registers one listener and updates the active scoped headers', async () => {
         const { configureRequestHeaderOverride } =
             await import('./request-header-overrides.service');

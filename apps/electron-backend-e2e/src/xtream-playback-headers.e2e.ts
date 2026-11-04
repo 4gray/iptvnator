@@ -23,11 +23,15 @@ import {
 const playbackHeaders = {
     userAgent: 'SyntheticPlaybackAgent/1.0',
     referrer: 'https://playback.example/watch',
-    origin: 'https://playback.example',
+    origin: 'https://origin.example',
 };
 
 /** Real HTTP: Electron's main-process provider requests bypass page.route(). */
-async function createHeaderGatedPortal() {
+async function createHeaderGatedPortal(expected: {
+    userAgent?: string;
+    referrer?: string;
+    origin: string;
+}) {
     const clip = readFileSync(
         join(__dirname, '../../web-e2e/src/fixtures/playback/episode.webm')
     );
@@ -48,9 +52,11 @@ async function createHeaderGatedPortal() {
             };
             mediaRequests.push(headers);
             if (
-                headers.userAgent !== playbackHeaders.userAgent ||
-                headers.referer !== playbackHeaders.referrer ||
-                headers.origin !== playbackHeaders.origin
+                (expected.userAgent !== undefined &&
+                    headers.userAgent !== expected.userAgent) ||
+                (expected.referrer !== undefined &&
+                    headers.referer !== expected.referrer) ||
+                headers.origin !== expected.origin
             ) {
                 response.writeHead(403).end();
                 return;
@@ -124,15 +130,27 @@ type CaptureGlobal = typeof globalThis & {
     xtreamHeaderLaunches: CapturedLaunch[];
 };
 
-for (const player of ['html5', 'mpv'] as const) {
+for (const { player, originOnly } of [
+    { player: 'html5', originOnly: false },
+    { player: 'mpv', originOnly: false },
+    { player: 'html5', originOnly: true },
+] as const) {
     for (const action of ['movie Play', 'movie Resume', 'episode'] as const) {
-        test(`@electron @xtream configured stream headers reach ${player} ${action}`, async ({
+        if (originOnly && action !== 'movie Play') continue;
+        test(`@electron @xtream configured stream headers reach ${player} ${action}${originOnly ? ' (Origin only)' : ''}`, async ({
             dataDir,
             request,
         }) => {
             test.setTimeout(120_000);
             await resetMockServers(request, ['xtream']);
-            const portal = await createHeaderGatedPortal();
+            const configuredHeaders: {
+                userAgent?: string;
+                referrer?: string;
+                origin: string;
+            } = originOnly
+                ? { origin: playbackHeaders.origin }
+                : playbackHeaders;
+            const portal = await createHeaderGatedPortal(configuredHeaders);
             let app: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
             try {
                 // A permissive fixture cannot make the playback assertion pass.
@@ -170,7 +188,7 @@ for (const player of ['html5', 'mpv'] as const) {
                 const saved = await page.evaluate(
                     ({ id, headers }) =>
                         window.electron.dbUpdatePlaylist(id, headers),
-                    { id: playlistId, headers: playbackHeaders }
+                    { id: playlistId, headers: configuredHeaders }
                 );
                 expect(saved.success).toBe(true);
                 await reloadFromMainProcess(app);
@@ -276,9 +294,14 @@ for (const player of ['html5', 'mpv'] as const) {
                         .poll(() => portal.mediaRequests)
                         .toContainEqual(
                             expect.objectContaining({
-                                userAgent: playbackHeaders.userAgent,
-                                referer: playbackHeaders.referrer,
-                                origin: playbackHeaders.origin,
+                                ...(originOnly
+                                    ? {}
+                                    : {
+                                          userAgent:
+                                              configuredHeaders.userAgent,
+                                          referer: configuredHeaders.referrer,
+                                      }),
+                                origin: configuredHeaders.origin,
                             })
                         );
                     const video = page

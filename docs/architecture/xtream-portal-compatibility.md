@@ -826,6 +826,9 @@ playlist's `userAgent`, `referrer` (as descriptor `referer`), and `origin` into
 that same descriptor; episode navigation resolves the headers again for the
 next episode. Missing overrides remain absent so the transport keeps its
 existing defaults. Multi-source alternatives retain their own source's headers.
+An explicit Origin reaches inline Electron requests even when it differs from
+the Referer's origin or no Referer is configured; the scoped bridge retains its
+Referer-derived fallback when no usable Origin override is supplied.
 The playback service specs and `xtream-playback-headers.e2e.ts` cover this
 handoff, including actual Electron media request headers.
 

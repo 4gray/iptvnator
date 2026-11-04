@@ -29,6 +29,46 @@ describe('ElectronStreamHeadersService', () => {
         delete (window as unknown as { electron?: unknown }).electron;
     });
 
+    it.each<{ origin?: string; headers: Record<string, string> }>([
+        {
+            origin: 'https://explicit.example',
+            headers: { Origin: 'https://fallback.example' },
+        },
+        { headers: { oRiGiN: 'https://explicit.example' } },
+    ])(
+        'forwards an explicit or case-insensitive Origin override',
+        async (metadata) => {
+            await service.apply({
+                streamUrl: STREAM_URL,
+                title: 'Synthetic stream',
+                referer: 'https://referer.example/watch',
+                ...metadata,
+            });
+            expect(setUserAgent).toHaveBeenCalledWith(
+                undefined,
+                'https://referer.example/watch',
+                STREAM_URL,
+                undefined,
+                'https://explicit.example'
+            );
+        }
+    );
+
+    it('forwards an Origin-only override without inventing a Referer', async () => {
+        await service.apply({
+            streamUrl: STREAM_URL,
+            title: 'Synthetic stream',
+            origin: 'https://explicit.example',
+        });
+        expect(setUserAgent).toHaveBeenCalledWith(
+            undefined,
+            undefined,
+            STREAM_URL,
+            undefined,
+            'https://explicit.example'
+        );
+    });
+
     it('returns null without an Electron bridge (PWA)', () => {
         delete (window as unknown as { electron?: unknown }).electron;
 
@@ -46,7 +86,8 @@ describe('ElectronStreamHeadersService', () => {
             {
                 authorization: 'Bearer TOKEN123',
                 cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01; stb_lang=en_US',
-            }
+            },
+            undefined
         );
     });
 
@@ -61,7 +102,8 @@ describe('ElectronStreamHeadersService', () => {
             'ExplicitAgent/1.0',
             'http://explicit.example',
             STREAM_URL,
-            expect.anything()
+            expect.anything(),
+            undefined
         );
     });
 
@@ -76,6 +118,7 @@ describe('ElectronStreamHeadersService', () => {
             'PlainAgent/1.0',
             undefined,
             'https://example.com/live/plain.m3u8',
+            undefined,
             undefined
         );
     });
