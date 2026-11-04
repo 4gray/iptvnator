@@ -14,6 +14,7 @@ export class PwaUpdateService {
     private checking = false;
     private notice = 0;
     private versionEvent = 0;
+    private reloadState?: 'ready' | 'unrecoverable';
 
     reloadWindow = () => window.location.reload();
 
@@ -54,6 +55,8 @@ export class PwaUpdateService {
     private async notify(
         state: 'ready' | 'failed' | 'unrecoverable'
     ): Promise<void> {
+        if (state === 'failed') state = this.reloadState ?? state;
+        else this.reloadState = state;
         const ready = state !== 'failed';
         const notice = ++this.notice;
         const message =

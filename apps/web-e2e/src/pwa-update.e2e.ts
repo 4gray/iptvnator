@@ -116,6 +116,18 @@ test('retains the offline library after failed updates and protects unsaved sett
             .getByRole('button', { name: 'Retry', exact: true })
             .click();
         await expect(notice).toContainText('An update is ready');
+        fixture.state.failManifest = true;
+        await notice.evaluate((element) =>
+            element.setAttribute('data-audit-notice', 'ready')
+        );
+        await page.evaluate(() => window.dispatchEvent(new Event('online')));
+        await expect(
+            page.locator('mat-snack-bar-container[data-audit-notice]')
+        ).toHaveCount(0);
+        await expect(notice).toContainText('An update is ready');
+        fixture.state.failManifest = false;
+        expect(await checkWorker(page)).toBe(false);
+        await expect(notice).toContainText('An update is ready');
         await page.evaluate(() => Reflect.set(window, 'auditDocument', true));
         await page.locator('a[href$="/workspace/settings"]').click();
         await page.getByRole('radio', { name: 'Light', exact: true }).click();

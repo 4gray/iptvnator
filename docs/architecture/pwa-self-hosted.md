@@ -84,7 +84,8 @@ check failures, and rechecks once when the browser returns online. A manifest
 fetch failure resolves false without a version event, so Retry is restored in
 that case; a successful `NO_NEW_VERSION_DETECTED` check stays silent. Refresh is
 explicit, warns that playback stops, and retains the browser's unsaved-settings
-beforeunload confirmation. Unrecoverable cache errors request a reload without
+beforeunload confirmation. Later check or candidate failures retain an already
+pending Refresh action. Unrecoverable cache errors request a reload without
 claiming a new version is ready. Notifications wait for their translations;
 the English fallback dictionary is prefetched with the app shell so a first
 offline reload retains readable recovery controls. Electron does not start

@@ -179,6 +179,36 @@ describe('PwaUpdateService', () => {
         expect(open).not.toHaveBeenCalled();
     });
 
+    it.each([
+        ['ready', 'PWA_UPDATE_READY'],
+        ['unrecoverable', 'PWA_RELOAD_REQUIRED'],
+    ])(
+        'retains the %s reload action across later failures',
+        async (state, message) => {
+            const service = TestBed.inject(PwaUpdateService);
+            service.reloadWindow = jest.fn();
+            if (state === 'ready') ready();
+            else unrecoverable.next({ reason: 'fixture cache missing' });
+            await flush();
+
+            window.dispatchEvent(new Event('online'));
+            await flush();
+            expect(open).toHaveBeenLastCalledWith(message, 'REFRESH', {
+                duration: 0,
+            });
+            versions.next({
+                type: 'VERSION_INSTALLATION_FAILED',
+                version: { hash: 'c' },
+                error: 'fixture unavailable',
+            });
+            await flush();
+            expect(open).toHaveBeenLastCalledWith(message, 'REFRESH', {
+                duration: 0,
+            });
+            expect(service.reloadWindow).not.toHaveBeenCalled();
+        }
+    );
+
     it('explains unavailable application files without claiming a new version is ready', async () => {
         const service = TestBed.inject(PwaUpdateService);
         service.reloadWindow = jest.fn();
