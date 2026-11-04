@@ -113,8 +113,8 @@ export class NativePlayer {
             this.video.src = url;
             return;
         }
-        // webOS 5 can reject signed master playlists when it guesses the
-        // transport from video.src. Select native HLS before the first load.
+        // webOS 5 needs explicit HLS transport selection. Keep the standard
+        // <source> path on Tizen too; native Samsung playback needs device acceptance.
         const source = this.video.ownerDocument.createElement('source');
         source.src = url;
         source.type = 'application/vnd.apple.mpegurl';

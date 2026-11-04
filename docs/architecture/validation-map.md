@@ -32,7 +32,7 @@ using its result as evidence. Docker validation can use
 | EPG data access                    | `pnpm nx test epg-data-access`      |
 | Workspace shell utilities          | `pnpm nx test workspace-shell-util` |
 | Shared SQLite schema/connection    | `pnpm nx test database`             |
-| TV runtime, providers and local storage | `pnpm nx test tv` and `pnpm nx e2e tv-e2e` |
+| TV runtime, providers, local storage and LG/Tizen package inputs | `corepack pnpm nx test tv`, `corepack pnpm nx run tv:verify-build` and `corepack pnpm nx e2e tv-e2e`; Samsung hardware/signing: [Tizen acceptance](../development/tv-tizen-validation.md) |
 | Packaging metadata                 | `pnpm nx test packaging`            |
 
 `typecheck:spec` (`tools/typecheck/spec-typecheck.mjs`) runs `tsc --noEmit`

@@ -96,6 +96,64 @@ pnpm exec ares-launch --device <configured-device> com.iptvnator.tv.prototype
 Do not root, wake, reconfigure or pair a television without appropriate scope.
 Do not copy unrelated credentials into fixtures or diagnostic scripts.
 
+## Samsung Tizen TV
+
+Minimum: Tizen TV 5.5 (2020, Chromium 69), the first Samsung engine above the
+shared Chromium 68 build floor. See the [engine table](https://developer.samsung.com/smarttv/develop/specifications/web-engine-specifications.html).
+No Samsung TV is certified yet; use the [acceptance checklist](tv-tizen-validation.md).
+
+Install Tizen Studio CLI, Samsung TV Extension and Samsung Certificate Extension
+separately. Put `tizen` (`tizen.bat` on Windows) and `sdb` on PATH. Create a
+Samsung TV certificate profile locally using Certificate Manager and authorize
+the intended Developer Mode device. Keep certificates, profiles and DUIDs out
+of this repository. The maintainer owns signing/distribution and may change the
+neutral widget/package/application IDs in `apps/tv/tizen/config.xml` first.
+
+Build and verify without a TV or signing profile:
+
+```sh
+corepack pnpm nx run tv:verify-build
+```
+
+This leaves LG input in `dist/apps/tv` and verified Samsung input in
+`dist/tv-tizen-input`. The latter reuses `icon.png` and the TV version from
+`appinfo.json`, excludes the LG manifest/large icon, and receives `config.xml`.
+The existing LG `package` target is unchanged.
+
+Sign and package with an existing local profile (replace the placeholder):
+
+```sh
+TIZEN_SIGNING_PROFILE='<local-profile>' corepack pnpm nx run tv:package-tizen
+```
+
+On PowerShell set `$env:TIZEN_SIGNING_PROFILE = '<local-profile>'` before running
+that Nx target. It runs `tizen package -t wgt -s <profile> -- dist/tv-tizen-input`.
+The CLI emits its signed WGT in the staging directory; the target copies the
+single emitted WGT to `dist/tv-tizen-package`.
+No profile is selected implicitly; a missing profile stops packaging. The external
+CLI must be installed; it is not an npm dependency. Inspect the emitted WGT as a
+ZIP, including its config/version/icon and absence of `appinfo.json`.
+
+Only with an owner-authorized Developer Mode target and matching certificate:
+
+```sh
+sdb connect <device-host>:26101
+sdb devices
+tizen install -s <device-serial> -n "<emitted-file>.wgt" -- dist/tv-tizen-package
+tizen run -s <device-serial> -p IPTVnatorT.TV
+```
+
+Use the serial printed by `sdb devices` and the actual emitted filename. Samsung
+TV `run -p` takes the application ID. See the [Samsung CLI guide](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/command-line-interface.html)
+and [certificate guide](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/creating-certificates.html).
+Configure the backend's `CLIENT_URL` for the actual packaged Samsung Origin;
+do not assume the webOS Origin applies. Without the webOS network-service API,
+Tizen discovery can probe the existing hostname but cannot derive a subnet;
+manual entry and phone setup remain available. Video remains the shared HTML
+`<video>` adapter; HLS/TS/audio, seek/resume, IME and exit persistence need device
+acceptance. Root Back exits immediately like LG; Store submission's confirmation
+policy is a maintainer follow-up in the checklist.
+
 ## Add sources from a phone
 
 Install the matching TV and backend builds. `pnpm nx build web-backend` first
