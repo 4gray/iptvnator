@@ -511,8 +511,9 @@ Search is shell-owned and route-aware:
     text still waiting for the search debounce, and return to all items in the
     current section. Scope-only navigation uses transient router `info` to keep
     raw whitespace, newer keystrokes and the pending debounce. URL writes wait
-    for that navigation to settle so a debounce cannot supersede it; `q` stays
-    trimmed and history remains authoritative. During live playback the
+    for that navigation to settle so a debounce cannot supersede it. Debounce
+    completion also reconciles `q` when the input returns to the already applied
+    term; `q` stays trimmed and history remains authoritative. During live playback the
     all-channel sidebar stays available after clearing an empty search, without
     remounting the player.
     Clearing an empty input removes `q` while preserving other

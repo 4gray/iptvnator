@@ -25,8 +25,9 @@ export class WorkspaceShellSearchSyncService {
     private readonly destroyRef = inject(DestroyRef);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
 
-    private searchDebounceTimeoutId: ReturnType<typeof setTimeout> | null =
-        null;
+    private readonly searchDebounceTimeoutId = signal<ReturnType<
+        typeof setTimeout
+    > | null>(null);
     private lastSyncedUrl: string | null = null;
 
     readonly searchQuery = signal('');
@@ -108,7 +109,7 @@ export class WorkspaceShellSearchSyncService {
             const navigation = this.router.currentNavigation();
             // Wait for typing and navigation to settle: a q write must not
             // supersede scope clearing or recursively restart its own echo.
-            if (this.searchDebounceTimeoutId !== null || navigation) {
+            if (this.searchDebounceTimeoutId() !== null || navigation) {
                 return;
             }
             syncSearchQueryParam(this.router, url, term);
@@ -202,16 +203,19 @@ export class WorkspaceShellSearchSyncService {
 
     private scheduleSearchApply(value: string): void {
         this.cancelPendingSearchApply();
-        this.searchDebounceTimeoutId = setTimeout(() => {
-            this.searchDebounceTimeoutId = null;
-            this.applySearchQuery(value);
-        }, SEARCH_INPUT_DEBOUNCE_MS);
+        this.searchDebounceTimeoutId.set(
+            setTimeout(() => {
+                this.searchDebounceTimeoutId.set(null);
+                this.applySearchQuery(value);
+            }, SEARCH_INPUT_DEBOUNCE_MS)
+        );
     }
 
     private cancelPendingSearchApply(): void {
-        if (this.searchDebounceTimeoutId !== null) {
-            clearTimeout(this.searchDebounceTimeoutId);
-            this.searchDebounceTimeoutId = null;
+        const timeoutId = this.searchDebounceTimeoutId();
+        if (timeoutId !== null) {
+            clearTimeout(timeoutId);
+            this.searchDebounceTimeoutId.set(null);
         }
     }
 }

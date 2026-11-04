@@ -287,6 +287,34 @@ describe('WorkspaceShellSearchSyncService', () => {
         }
     );
 
+    it.each(['Alpha', 'Alpha '])(
+        'reconciles the URL when typing returns to the applied term: %p',
+        (latest) => {
+            navigateTo('/workspace/xtreams/pl-1/vod/7?q=Alpha');
+            xtreamCategoryId.set(7);
+            TestBed.flushEffects();
+            router.navigateByUrl.mockClear();
+            service.onSearchInput('Beta');
+            searchService.clearCategoryScope();
+            const extras: NavigationExtras = router.navigate.mock.calls[0][1];
+            currentNavigation.set({ extras });
+            service.onSearchInput(latest);
+            navigationInfo = extras.info;
+            navigateTo('/workspace/xtreams/pl-1/vod?q=Beta');
+            TestBed.flushEffects();
+            expect(router.navigateByUrl).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+            TestBed.flushEffects();
+            expect(service.searchQuery()).toBe(latest);
+            expect(service.appliedSearchQuery()).toBe('Alpha');
+            expect(router.navigateByUrl).toHaveBeenCalledWith(
+                '/workspace/xtreams/pl-1/vod?q=Alpha',
+                { replaceUrl: true }
+            );
+        }
+    );
+
     it.each([
         ['xtreams', 'live', true],
         ['stalker', 'radio', true],

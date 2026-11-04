@@ -354,14 +354,21 @@ test.describe('Electron Workspace Search', () => {
             await clickCategoryByNameExact(app.mainWindow, sample.categoryName);
             await clearCategoryWithPendingSearch(
                 app.mainWindow,
-                `${resolvedTitles.targetTitle} `,
-                'sidebar'
+                `${resolvedTitles.targetTitle} draft`,
+                'sidebar',
+                `${resolvedTitles.targetTitle} `
             );
             await expectPathname(
                 app.mainWindow,
                 /\/workspace\/xtreams\/[^/]+\/vod$/
             );
+            await expectQueryParam(
+                app.mainWindow,
+                'q',
+                resolvedTitles.targetTitle
+            );
             const input = app.mainWindow.locator(headerSearchSelector);
+            await expect(input).toHaveValue(`${resolvedTitles.targetTitle} `);
             await input.press('End');
             await input.pressSequentially('Beta');
             await expect(input).toHaveValue(
@@ -1241,7 +1248,8 @@ test.describe('Electron Workspace Search', () => {
 async function clearCategoryWithPendingSearch(
     page: Page,
     term: string,
-    origin: 'chip' | 'sidebar'
+    origin: 'chip' | 'sidebar',
+    continuedTerm?: string
 ): Promise<void> {
     const selector =
         origin === 'chip'
@@ -1264,11 +1272,16 @@ async function clearCategoryWithPendingSearch(
             element.value = options.term;
             element.dispatchEvent(new Event('input', { bubbles: true }));
             target.click();
+            if (options.continuedTerm !== undefined) {
+                element.value = options.continuedTerm;
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+            }
         },
-        { term, selector }
+        { term, selector, continuedTerm }
     );
-    await expectQueryParam(page, 'q', term.trim());
-    await expect(input).toHaveValue(term);
+    const expected = continuedTerm ?? term;
+    await expectQueryParam(page, 'q', expected.trim());
+    await expect(input).toHaveValue(expected);
 }
 
 async function fetchXtreamVodFixture(
