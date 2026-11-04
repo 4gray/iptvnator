@@ -186,6 +186,19 @@ it('leaves omitted local removals intact', async () => {
     expect(f.record().local?.member).toBe(false);
     expect(f.store.mutate).not.toHaveBeenCalled();
 });
+it('uses the canonical restore normalization for malformed legacy Xtream entries', async () => {
+    const f = await fixture('xtream', false);
+    if (f.entry.portalType !== 'xtream')
+        throw new Error('Synthetic fixture type');
+    f.entry.userState.favorites.unshift({ xtreamId: -1, contentType: 'movie' });
+    await createFavoriteBackupRestorer(
+        f.client,
+        f.adapter,
+        async () => f.source
+    )(f.source._id, f.entry);
+    expect(f.record().local?.member).toBe(true);
+    expect(f.request).not.toHaveBeenCalled();
+});
 it.each(['profile', 'consent', 'incarnation'])(
     'rejects a delayed restore after changing %s',
     async (change) => {

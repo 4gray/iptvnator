@@ -485,3 +485,43 @@ The restore hook regression fails before its implementation and passes afterward
 The existing unreleased feature note covers these fixes. Physical Synology,
 packaged Windows/Linux and optional vendored Embedded MPV remain unavailable.
 Commit and repeat the local review; Greptile remains unavailable.
+
+Round 16 reviews d5cf6f307c509b9c6a08d368517bb896326cee76 and reproduces one
+remaining issue: a first offline HTTP/LAN edit may need an unfetched mutation
+chunk or SHA-256 fallback. Existing mixed flows warm these through online edits.
+The repair moves only the small write bridge into its already-eager token module;
+no first local M3U write needs a script fetch, including with sync never enabled.
+Portal favorite reads load sorting and the companion typed removal logic together
+in the renamed private playlist-favorites module before publishing favorites.
+The HTTP hash fallback is prepared before enabling consent and before projecting
+a retained favorite profile. Keep the hash library's lazy ESM boundary for CJS
+consumers and avoid shipping the whole crypto dependency on the initial path.
+The canonical PWA contract records this readiness requirement.
+
+Two isolated PWA regressions disable Service Worker and SubtleCrypto, perform no
+online favorite action, and abort all later scripts plus favorites requests.
+They inspect actual IndexedDB persistence before unblocking the network and
+verify the saved choice after reload. Both pass on the repair and fail on the
+previous bridge/runtime implementation, with no durable record written. The tests
+cover both default-off local favorites and explicit sync. A complete 25-flow mixed
+run follows after restoring the repaired files.
+
+Merge the already-fetched final upstream Stalker season fix at 6bbe0eb09 without
+conflicts; repeat frozen install and discovery. This also adopts the canonical
+synthetic-data guidance. A restore compatibility regression additionally verifies
+that unusable legacy Xtream favorite IDs cannot make sidecar reconciliation fail:
+use canonical restore normalization and ignore IDs that cannot have a valid
+portable sidecar. Existing valid local choices, archives and pending state remain
+protected. The refreshed full 36-project coverage and all 42 spec programs pass.
+
+Round 17 validation: all 25 mixed PWA/Electron cases pass (5.5 minutes), including
+both cold offline regressions after their failing-before run. Full coverage passes
+unchanged gates at 85.56/77.35/83.86/86.06 percent; web has 852 passing tests,
+services 1,409, Electron 3,001 and shared interfaces 848. Application and all 42
+spec-program typechecks, owning lint, formatting, whitespace, three guidance files,
+eight skills and 251 release notes pass. Production frontend/Electron/workers build;
+initial bytes are 1,200,281 / 1,200,301 without baseline changes. Linux arm64 Docker
+image 8d32fe7a4fc2 builds and HTTP add/remove/receipt/restart smoke passes; the
+isolated container is removed. The feature release note remains sufficient.
+Physical Synology, packaged Windows/Linux and optional vendored Embedded MPV are
+still unavailable. Commit the merged repair and repeat the review before any push.

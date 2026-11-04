@@ -48,3 +48,7 @@ export async function m3uFavoriteReference(url: string) {
         ).join(''),
     };
 }
+/** HTTP pages must have the fallback loaded before accepting an offline edit. */
+export async function prepareFavoriteHash(): Promise<void> {
+    if (!crypto.subtle) await import('@noble/hashes/sha2.js');
+}

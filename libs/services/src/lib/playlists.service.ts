@@ -1,4 +1,7 @@
-import { FAVORITES_PLAYLIST_BRIDGE } from '../favorites-events';
+import {
+    FAVORITES_PLAYLIST_BRIDGE,
+    mutateFavoritePlaylist,
+} from '../favorites-events';
 import {
     DatabaseService,
     type DbOperationOptions,
@@ -53,11 +56,7 @@ const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
     'm3u-playlists-stalker-metadata-v1';
 
-type PortalFavoriteItem = StalkerPortalItem & {
-    category_id?: string;
-    raw?: string;
-    [key: string]: unknown;
-};
+import type { PortalFavoriteItem } from './playlist-favorites';
 
 type PlaylistRawItem = {
     raw?: string;
@@ -973,8 +972,6 @@ export class PlaylistsService {
         ) => NonNullable<Playlist['favorites']>
     ): Observable<Playlist> {
         return this.serializePlaylistWrite(id, async () => {
-            const { mutateFavoritePlaylist } =
-                await import('./playlist-favorite-mutation');
             return mutateFavoritePlaylist(
                 await firstValueFrom(this.getPlaylistById(id)),
                 transform,
@@ -1110,18 +1107,13 @@ export class PlaylistsService {
         }
 
         return this.getPlaylistById(portalId).pipe(
-            switchMap((playlist) => this.favoriteSync.project(playlist)),
-            map((item) => {
-                if (!item || !item.favorites) return [];
-                return item.favorites as PortalFavoriteItem[];
-            }),
-            map((favorites) =>
-                favorites.sort(
-                    (a, b) =>
-                        new Date(b.added_at ?? '').getTime() -
-                        new Date(a.added_at ?? '').getTime()
-                )
-            )
+            switchMap(async (playlist) => {
+                const { sortedPortalFavorites } =
+                    await import('./playlist-favorites');
+                return sortedPortalFavorites(
+                    await this.favoriteSync.project(playlist)
+                );
+            })
         );
     }
 
@@ -1134,7 +1126,7 @@ export class PlaylistsService {
         favoriteId: number | string,
         context?: StalkerPortalItem
     ) {
-        return from(import('./playlist-favorite-mutation')).pipe(
+        return from(import('./playlist-favorites')).pipe(
             switchMap(({ removePortalFavorite }) =>
                 this.favoriteMutation(portalId, (current) =>
                     removePortalFavorite(current, favoriteId, context)
@@ -1210,7 +1202,7 @@ export class PlaylistsService {
         return this.getAllData().pipe(
             switchMap(async (rows) => {
                 const { globalFavoritePlaylist } =
-                    await import('./playlist-favorite-mutation');
+                    await import('./playlist-favorites');
                 return globalFavoritePlaylist(
                     await this.projectFavoriteMetas(rows)
                 );

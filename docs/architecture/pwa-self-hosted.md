@@ -1281,6 +1281,10 @@ Native IPC refusal codes and HTTP access/identity responses retain the same gate
 ordinary transport outages still allow cached-context offline edits.
 Malformed successful discovery and HTTP client-error discovery responses are
 incompatibility/refusal evidence too; network failures and HTTP 5xx remain outages.
+The small playlist mutation bridge is available with the initial application;
+portal favorite reads load their companion removal logic before publishing data.
+On HTTP, prepare the SHA-256 fallback before enabling sync or projecting the
+retained library, so a first offline edit does not depend on a new script fetch.
 
 Global collection ordering accepts an old Stalker provider-ID key only when it
 identifies exactly one current item. Exact typed keys take precedence. Reading

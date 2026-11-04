@@ -3,6 +3,7 @@ import { createRandomId } from '@iptvnator/shared/interfaces';
 import { refreshFavoriteViews } from './favorites-view-refresh';
 import { projectFavoriteBackup } from './favorites-backup-projection';
 import { createFavoriteBackupRestorer } from './favorites-backup-restore';
+import { prepareFavoriteHash } from '@iptvnator/shared/interfaces/favorites-sync';
 import {
     previewLocalFavorites,
     importFavoritePreview,
@@ -135,6 +136,7 @@ export class FavoritesSyncRuntime {
                 throw new Error('Favorite profile unavailable');
             const previous = readFavoritesConsent();
             if (enabled) {
+                await prepareFavoriteHash();
                 const response = await requestSourceServer({
                     operation: 'instance',
                 });
@@ -252,6 +254,7 @@ export class FavoritesSyncRuntime {
     }
     async project<T extends Playlist>(playlist: T): Promise<T> {
         if (!playlist) return playlist;
+        await prepareFavoriteHash();
         this.ensureClient();
         return this.playlistAdapter!.project(playlist);
     }

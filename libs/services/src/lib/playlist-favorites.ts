@@ -7,23 +7,12 @@ import {
     favoriteReferenceKey,
     stalkerFavoriteReference,
 } from '@iptvnator/shared/interfaces/favorites-sync';
-import type { FavoritesPlaylistBridge } from '../favorites-events';
 type Favorites = NonNullable<Playlist['favorites']>;
-/** Cold explicit actions only. Refresh/source documents never infer membership intent. */
-export async function mutateFavoritePlaylist(
-    playlist: Playlist,
-    transform: (current: Favorites) => Favorites,
-    bridge: FavoritesPlaylistBridge,
-    persist: (playlist: Playlist) => Promise<Playlist>
-): Promise<Playlist> {
-    if (!playlist) throw new Error('Favorite source unavailable');
-    return (
-        (await bridge.mutate(playlist, transform, async (favorites) => {
-            await persist({ ...playlist, favorites });
-        })) ??
-        persist({ ...playlist, favorites: transform(playlist.favorites ?? []) })
-    );
-}
+export type PortalFavoriteItem = StalkerPortalItem & {
+    category_id?: string;
+    raw?: string;
+    [key: string]: unknown;
+};
 export function removePortalFavorite(
     current: Favorites,
     id: number | string,
@@ -52,4 +41,12 @@ export function removePortalFavorite(
 
 export function globalFavoritePlaylist(playlists: Playlist[]) {
     return createFavoritesPlaylist(aggregateFavoriteChannels(playlists));
+}
+
+export function sortedPortalFavorites(playlist: Playlist) {
+    return ((playlist?.favorites ?? []) as PortalFavoriteItem[]).sort(
+        (a, b) =>
+            new Date(b.added_at ?? '').getTime() -
+            new Date(a.added_at ?? '').getTime()
+    );
 }

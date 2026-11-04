@@ -69,7 +69,7 @@ export function normalizeDownloadFilter(
     }
 }
 
-function episodeLabel(item: DownloadItem): string {
+function episodeLabel(item: DownloadItem, seasonUnknown: boolean): string {
     if (
         item.contentType !== 'episode' ||
         !isUsableDownloadOrderNumber(item.seasonNumber) ||
@@ -80,7 +80,11 @@ function episodeLabel(item: DownloadItem): string {
 
     const season = String(item.seasonNumber).padStart(2, '0');
     const episode = String(item.episodeNumber).padStart(2, '0');
-    return `S${season}E${episode}`;
+    return `${seasonUnknown ? '' : `S${season}`}E${episode}`;
+}
+
+function seriesGroupKey(item: DownloadItem): string {
+    return JSON.stringify([item.playlistId, item.seriesXtreamId]);
 }
 
 function seriesTitle(item: DownloadItem): string {
@@ -180,15 +184,33 @@ export function buildDownloadManagerViewModel({
         (item) =>
             scopePlaylistId === undefined || item.playlistId === scopePlaylistId
     );
-    const scopedRows = scopedItems.map((item) => ({
-        attentionReason: isMissingCompletedFile(item)
-            ? ('file-missing' as const)
-            : ('transfer' as const),
-        item,
-        episodeLabel: episodeLabel(item),
-        seriesTitle: seriesTitle(item),
-        sourceName: sourceNames.get(item.playlistId) ?? '',
-    }));
+    const unknownSeasonGroups = new Set(
+        scopedItems
+            .filter(
+                (item) =>
+                    item.contentType === 'episode' &&
+                    Number.isSafeInteger(item.seriesXtreamId) &&
+                    (item.seriesXtreamId ?? 0) > 0 &&
+                    item.metadataSnapshot?.episode?.seasonUnknown
+            )
+            .map(seriesGroupKey)
+    );
+    const scopedRows = scopedItems.map((item) => {
+        const seasonUnknown =
+            item.contentType === 'episode' &&
+            (!!item.metadataSnapshot?.episode?.seasonUnknown ||
+                unknownSeasonGroups.has(seriesGroupKey(item)));
+        return {
+            attentionReason: isMissingCompletedFile(item)
+                ? ('file-missing' as const)
+                : ('transfer' as const),
+            item,
+            ...(seasonUnknown ? { seasonUnknown: true } : {}),
+            episodeLabel: episodeLabel(item, seasonUnknown),
+            seriesTitle: seriesTitle(item),
+            sourceName: sourceNames.get(item.playlistId) ?? '',
+        };
+    });
     const scopedActive = scopedRows.filter(({ item }) => isActive(item));
     const scopedAttention = scopedRows.filter(
         ({ item }) => needsAttention(item) || isMissingCompletedFile(item)

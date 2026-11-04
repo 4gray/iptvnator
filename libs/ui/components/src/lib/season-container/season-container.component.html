@@ -22,7 +22,7 @@
                       : '')
         "
     >
-        @if (hasSeasons()) {
+        @if (hasSeasons() && !seasonUnknown()) {
             <app-season-tabs
                 section-header-lead
                 class="episodes-header__tabs"

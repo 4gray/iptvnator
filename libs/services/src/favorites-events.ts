@@ -23,3 +23,21 @@ export const FAVORITES_PLAYLIST_BRIDGE =
             mutate: async () => null,
         }),
     });
+
+/** Explicit actions only. Keep this small bridge available for a first offline write. */
+export async function mutateFavoritePlaylist(
+    playlist: Playlist,
+    transform: (
+        current: NonNullable<Playlist['favorites']>
+    ) => NonNullable<Playlist['favorites']>,
+    bridge: FavoritesPlaylistBridge,
+    persist: (playlist: Playlist) => Promise<Playlist>
+): Promise<Playlist> {
+    if (!playlist) throw new Error('Favorite source unavailable');
+    return (
+        (await bridge.mutate(playlist, transform, async (favorites) => {
+            await persist({ ...playlist, favorites });
+        })) ??
+        persist({ ...playlist, favorites: transform(playlist.favorites ?? []) })
+    );
+}

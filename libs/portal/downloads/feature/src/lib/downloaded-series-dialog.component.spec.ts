@@ -125,6 +125,36 @@ describe('DownloadedSeriesDialogComponent', () => {
         expect(rows()[2].textContent).toContain('S02E01');
     });
 
+    it('uses episode-only badges for legacy members of a flat collection', () => {
+        const mixed = MEMBERS.map((member, index) =>
+            index
+                ? member
+                : {
+                      ...member,
+                      metadataSnapshot: {
+                          version: 1 as const,
+                          language: 'en',
+                          mediaKind: 'series' as const,
+                          title: 'Signal House',
+                          episode: {
+                              seasonNumber: 1,
+                              episodeNumber: 1,
+                              seasonUnknown: true,
+                          },
+                      },
+                  }
+        );
+        fixture.componentRef.setInput('members', () => mixed);
+        fixture.detectChanges();
+        expect(
+            rows().map((row) =>
+                row
+                    .querySelector('.downloaded-series-dialog__number')
+                    ?.textContent?.trim()
+            )
+        ).toEqual(['E01', 'E03', 'E01']);
+    });
+
     it('closes through the shell header button, named for assistive tech', () => {
         const closeButton = fixture.nativeElement.querySelector(
             '.app-dialog__close'

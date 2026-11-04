@@ -745,7 +745,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                       displayItem?.info?.movie_image,
                       this.seriesSeasonTitle(),
                       displayItem?.id ?? 0,
-                      this.vodWithSeries() ? 'embedded' : 'regular'
+                      this.vodWithSeries() ? 'embedded' : 'regular',
+                      [displayItem?.info?.name, displayItem?.info?.o_name]
                   );
 
             // Overlay lazily fetched TMDB episode data (real names,

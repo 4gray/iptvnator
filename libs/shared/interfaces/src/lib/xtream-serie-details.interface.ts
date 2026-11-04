@@ -65,6 +65,8 @@ export interface XtreamSerieInfo {
 }
 
 export interface XtreamSerieEpisode {
+    /** Absolute provider numbering; `season` remains an internal grouping key. */
+    seasonUnknown?: boolean;
     activityIdentity?: import('./activity-sync/activity-sync.contract').ActivityContentIdentity;
     id: string;
     episode_num: number;

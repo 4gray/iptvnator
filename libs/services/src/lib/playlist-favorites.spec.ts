@@ -1,7 +1,5 @@
-import {
-    mutateFavoritePlaylist,
-    removePortalFavorite,
-} from './playlist-favorite-mutation';
+import { mutateFavoritePlaylist } from '../favorites-events';
+import { removePortalFavorite } from './playlist-favorites';
 import type { Playlist, StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import type { FavoritesPlaylistBridge } from '../favorites-events';
 describe('explicit favorite mutations', () => {

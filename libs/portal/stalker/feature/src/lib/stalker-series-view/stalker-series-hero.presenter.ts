@@ -61,7 +61,8 @@ export class StalkerSeriesHeroPresenter {
             episodeCode: action
                 ? formatSeriesEpisodeCode(
                       action.episode.season,
-                      action.episode.episode_num
+                      action.episode.episode_num,
+                      action.episode.seasonUnknown
                   )
                 : null,
         };

@@ -3,6 +3,7 @@ import type {
     Playlist,
     PlaylistBackupEntry,
 } from '@iptvnator/shared/interfaces';
+import { normalizeXtreamPendingRestoreState } from '@iptvnator/shared/interfaces';
 import { favoriteReferenceKey } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { FavoritesPlaylistAdapter } from './favorites-playlist-adapter';
 import {
@@ -41,19 +42,25 @@ export function createFavoriteBackupRestorer(
         if (!local.size) return;
         const items =
             entry.portalType === 'xtream'
-                ? entry.userState.favorites.map((item) => ({
-                      reference: xtreamFavoriteReference({
-                          type: item.contentType,
-                          xtream_id: item.xtreamId,
-                      }),
-                      snapshot: xtreamFavoriteSnapshot({
-                          title: item.snapshot?.title ?? '',
-                          tmdb_id: item.snapshot?.tmdbId,
-                          release_year: item.snapshot?.releaseYear,
-                          catalog_missing_reason:
-                              item.snapshot?.catalogMissingReason,
-                      }),
-                  }))
+                ? normalizeXtreamPendingRestoreState(entry.userState)
+                      .favorites.filter(
+                          (item) =>
+                              Number.isSafeInteger(item.xtreamId) &&
+                              item.xtreamId > 0
+                      )
+                      .map((item) => ({
+                          reference: xtreamFavoriteReference({
+                              type: item.contentType,
+                              xtream_id: item.xtreamId,
+                          }),
+                          snapshot: xtreamFavoriteSnapshot({
+                              title: item.snapshot?.title ?? '',
+                              tmdb_id: item.snapshot?.tmdbId,
+                              release_year: item.snapshot?.releaseYear,
+                              catalog_missing_reason:
+                                  item.snapshot?.catalogMissingReason,
+                          }),
+                      }))
                 : (
                       await adapter.local({
                           ...(await read(sourceId)),

@@ -144,10 +144,11 @@ export function createStalkerSeriesDownloadAdapter(
 
                     const info = episodeInfo(episode);
                     const seriesTitle = item.info?.name || 'Series';
-                    const episodeCode = `S${String(seasonNumber).padStart(
-                        2,
-                        '0'
-                    )}E${String(episodeNumber).padStart(2, '0')}`;
+                    const episodeCode = `${
+                        episode.seasonUnknown
+                            ? ''
+                            : `S${String(seasonNumber).padStart(2, '0')}`
+                    }E${String(episodeNumber).padStart(2, '0')}`;
 
                     return {
                         ...identity,
