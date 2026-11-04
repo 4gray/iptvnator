@@ -292,6 +292,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
                 return;
             }
 
+            this.focus.recordReturnTrigger();
             if (
                 this.hasAttemptedScrollRestore ||
                 this.isPaginatedContentLoading() ||
@@ -303,10 +304,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.hasAttemptedScrollRestore = true;
             const scrollTop =
                 this.catalog.consumeSavedScrollPosition?.() ?? null;
-            if (
-                (scrollTop === null || scrollTop <= 0) &&
-                !this.focus.pending()
-            ) {
+            if ((scrollTop ?? 0) <= 0 && !this.focus.pending()) {
                 return;
             }
 

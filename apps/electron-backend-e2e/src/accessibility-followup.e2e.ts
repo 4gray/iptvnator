@@ -205,6 +205,12 @@ test('@electron @a11y catalog search announces counts and deep detail returns fo
         await expect
             .poll(() => grid.evaluate((el) => el.scrollTop))
             .toBeGreaterThan(offset - 2);
+        await card.focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('app-portal-detail-shell h1')).toBeVisible();
+        await page.getByTestId('workspace-header-back').focus();
+        await page.keyboard.press('Enter');
+        await expect(card).toBeFocused();
         await page.getByRole('link', { name: 'Series', exact: true }).click();
         await grid.locator('mat-card').first().click();
         const tabs = page.locator('app-season-tabs [role="tab"]');
@@ -303,6 +309,12 @@ test('@electron @a11y Stalker inline detail restores its card and shares season 
         await page.keyboard.press('Enter');
         await expect(page.locator('app-portal-detail-shell h1')).toBeVisible();
         await page.keyboard.press('Escape');
+        await expect(card).toBeFocused();
+        await card.focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('app-portal-detail-shell h1')).toBeVisible();
+        await page.getByTestId('workspace-header-back').focus();
+        await page.keyboard.press('Enter');
         await expect(card).toBeFocused();
         await page.getByRole('link', { name: 'Series', exact: true }).click();
         await page.locator('.category-item').first().click();

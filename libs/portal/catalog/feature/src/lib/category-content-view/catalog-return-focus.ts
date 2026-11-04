@@ -4,6 +4,7 @@ const STATE_KEY = 'catalogReturnFocus';
 
 /** The list's history entry owns its focus anchor, including inline Stalker details. */
 export function createCatalogReturnFocus(host: HTMLElement) {
+    let returnTrigger: Element | null | undefined;
     const read = (): string | null => {
         const saved = window.history.state?.[STATE_KEY];
         return saved?.url === window.location.href &&
@@ -13,7 +14,16 @@ export function createCatalogReturnFocus(host: HTMLElement) {
     };
     return {
         pending: () => read() !== null,
+        recordReturnTrigger(): void {
+            if (returnTrigger === undefined && read() !== null) {
+                returnTrigger =
+                    document.activeElement?.closest(
+                        '[data-test-id="workspace-header-back"]'
+                    ) ?? null;
+            }
+        },
         capture(): void {
+            returnTrigger = undefined;
             const card = document.activeElement?.closest<HTMLElement>(
                 '[data-catalog-focus-key]'
             );
@@ -45,7 +55,9 @@ export function createCatalogReturnFocus(host: HTMLElement) {
             const active = document.activeElement;
             const main = host.closest<HTMLElement>('main');
             if (
-                (active !== document.body && active !== main) ||
+                (active !== document.body &&
+                    active !== main &&
+                    active !== returnTrigger) ||
                 host.closest('[inert]')
             )
                 return;

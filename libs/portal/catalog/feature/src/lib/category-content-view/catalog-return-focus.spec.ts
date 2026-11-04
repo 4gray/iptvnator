@@ -41,6 +41,33 @@ describe('Catalog return focus', () => {
         expect(document.activeElement).toBe(input);
     });
 
+    it('hands focus back from the initiating header Back control', () => {
+        card.focus();
+        focus.capture();
+        const back = document.createElement('button');
+        back.dataset['testId'] = 'workspace-header-back';
+        main.prepend(back);
+        back.focus();
+        focus.recordReturnTrigger();
+        focus.restore();
+        expect(document.activeElement).toBe(card);
+    });
+
+    it('preserves a control focused after the Back return began loading', () => {
+        card.focus();
+        focus.capture();
+        const back = document.createElement('button');
+        back.dataset['testId'] = 'workspace-header-back';
+        const input = document.createElement('input');
+        main.prepend(back, input);
+        back.focus();
+        focus.recordReturnTrigger();
+        input.focus();
+        focus.recordReturnTrigger();
+        focus.restore();
+        expect(document.activeElement).toBe(input);
+    });
+
     it('falls back to main when filtering removed the saved item', () => {
         card.focus();
         focus.capture();
