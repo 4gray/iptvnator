@@ -1,4 +1,5 @@
 import { prepareRendererReload } from './renderer-reload';
+import { resolveRestoredRendererRoute } from '@iptvnator/shared/interfaces';
 
 const index = 'file:///synthetic/web/index.html';
 const route = 'file:///synthetic/web/workspace/global-favorites?q=synthetic';
@@ -21,7 +22,10 @@ function documentAt(href: string, state: unknown = null) {
             (_type: string, _listener: () => void) => undefined
         ),
     };
-    prepareRendererReload(browser as unknown as Window, index);
+    prepareRendererReload(
+        browser as unknown as Window,
+        resolveRestoredRendererRoute(href, index)
+    );
     return browser;
 }
 
@@ -34,28 +38,27 @@ function recoveryUrl(target = route): string {
     return url.href;
 }
 
-function leave(browser: ReturnType<typeof documentAt>): void {
-    browser.addEventListener.mock.calls[0][1]();
+function seedHandoff(href: string, state: unknown): void {
+    sessionStorage.setItem(
+        'iptvnator:renderer-reload-collection',
+        JSON.stringify({ href, collectionViewState: state })
+    );
 }
 
 beforeEach(() => sessionStorage.clear());
 
 test('carries validated collection fields once across a new recovery document', () => {
-    const old = documentAt(route, {
-        collectionViewState: { ...view, extra: 'discard' },
-        navigationId: 12,
-        ɵrouterPageId: 4,
-        openCollectionDetailItem: { item: 'discard' },
-        openLiveCollectionItem: { item: 'discard' },
-        stalkerReturnTo: '/workspace/dashboard',
-    });
-    leave(old);
-    expect(sessionStorage.length).toBe(1);
-    expect(JSON.parse(sessionStorage.getItem(sessionStorage.key(0)!)!)).toEqual(
-        {
+    sessionStorage.setItem(
+        'iptvnator:renderer-reload-collection',
+        JSON.stringify({
             href: route,
-            collectionViewState: view,
-        }
+            collectionViewState: { ...view, extra: 'discard' },
+            navigationId: 12,
+            ɵrouterPageId: 4,
+            openCollectionDetailItem: { item: 'discard' },
+            openLiveCollectionItem: { item: 'discard' },
+            stalkerReturnTo: '/workspace/dashboard',
+        })
     );
     const fresh = documentAt(recoveryUrl());
     expect(fresh.history.replaceState).toHaveBeenCalledWith(
@@ -76,7 +79,7 @@ test.each([
     ],
     ['no collection state', route, undefined],
 ])('does not restore %s', (_label, href, state) => {
-    leave(documentAt(href, { collectionViewState: state }));
+    seedHandoff(href, state);
     expect(documentAt(recoveryUrl()).history.state).toEqual({});
 });
 
@@ -100,7 +103,7 @@ test('revalidates stored fields and strips playback and router bookkeeping', () 
 });
 
 test('consumes stale state on an ordinary startup without replaying it later', () => {
-    leave(documentAt(route, { collectionViewState: view }));
+    seedHandoff(route, view);
     expect(documentAt(index).history.replaceState).not.toHaveBeenCalled();
     expect(documentAt(recoveryUrl()).history.state).toEqual({});
 });
@@ -117,17 +120,6 @@ test('recovers the URL with corrupt or unavailable storage', () => {
         expect(documentAt(recoveryUrl()).location.href).toBe(route);
     } finally {
         spy.mockRestore();
-    }
-    const writer = documentAt(route, { collectionViewState: view });
-    const writeSpy = jest
-        .spyOn(Storage.prototype, 'setItem')
-        .mockImplementation(() => {
-            throw new Error('Synthetic full storage');
-        });
-    try {
-        expect(() => leave(writer)).not.toThrow();
-    } finally {
-        writeSpy.mockRestore();
     }
 });
 

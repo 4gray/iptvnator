@@ -970,10 +970,13 @@ Reloading the renderer on an in-app route:
    leave that directory (an absolute URL, another scheme, a `..` escape)
    is dropped with only the parameter removed, so the app boots at its
    default route instead of following an arbitrary target.
-   `prepareRendererReload` (`apps/web/src/renderer-reload.ts`) also carries
-   collection tab/scope across that new document: on `pagehide` it writes a
-   single session-storage handoff containing the exact current URL and the
-   validated `collectionViewState` fields. Bootstrap consumes it once, only
+   The lazy collection's `setupCollectionViewStateSync` saves tab/scope on
+   `pagehide` in a single session-storage handoff containing the exact current
+   URL and validated `collectionViewState` fields. Its listener is removed
+   when the collection unmounts. Only an actual restore request loads
+   `prepareRendererReload` (`apps/web/src/renderer-reload.ts`), awaited before
+   Angular bootstraps; ordinary startup never loads collection recovery or
+   its portal dependencies. Bootstrap consumes the handoff once, only
    for a matching recovered `file://` URL, and validates the fields again.
    It never restores Router bookkeeping, inline detail or playback/handoff
    commands. Unavailable storage still permits URL recovery; a missing source

@@ -1,17 +1,28 @@
 import { bootstrapApplication } from '@angular/platform-browser';
-import { prepareRendererReload } from './renderer-reload';
+import { resolveRestoredRendererRoute } from '@iptvnator/shared/interfaces';
 import { registerAppDateLocale } from './app/app-date-locales';
 import { AppComponent } from './app/app.component';
 import { appConfig, getInitialLanguage } from './app/app.config';
 import { prepareSourceConnection } from '@iptvnator/services/source-sync/connection';
 
-prepareRendererReload(window, document.baseURI);
+const restoredHref = resolveRestoredRendererRoute(
+    window.location.href,
+    document.baseURI
+);
+// Collection recovery is needed only on a reload, after the lazy view was open.
+const rendererRecovery =
+    restoredHref === null
+        ? undefined
+        : import('./renderer-reload').then(({ prepareRendererReload }) =>
+              prepareRendererReload(window, restoredHref)
+          );
 
 // Angular ships only English locale data; the preferred language's data is a
 // lazy chunk. It is awaited before bootstrapping because the first route
 // renders dates with that locale, and a locale without data throws. English
 // (the default) resolves immediately.
 Promise.all([
+    rendererRecovery,
     registerAppDateLocale(getInitialLanguage()),
     prepareSourceConnection(window.__IPTVNATOR_CONFIG__?.BACKEND_URL),
 ])
