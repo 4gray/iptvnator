@@ -57,6 +57,8 @@ interface PlayerLaunchPayload {
     readonly url: string;
     readonly ['user-agent']?: string;
     readonly contentInfo?: PlayerContentInfo;
+    readonly audioUrl?: string;
+    readonly audioDelaySeconds?: number;
 }
 
 interface ErrorStatus {
@@ -242,7 +244,9 @@ export class ElectronService extends DataService {
                     data.origin ?? undefined,
                     data.contentInfo,
                     data.startTime,
-                    data.headers ?? undefined
+                    data.headers ?? undefined,
+                    data.audioUrl,
+                    data.audioDelaySeconds
                 )) as T;
             } catch (error: unknown) {
                 this.showPlayerLaunchError('MPV', error);

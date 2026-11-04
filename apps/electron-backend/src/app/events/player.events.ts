@@ -74,7 +74,9 @@ ipcMain.handle(
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        audioUrl?: string,
+        audioDelaySeconds?: number
     ) => {
         await waitForPathIfBareName('mpv', store.get(MPV_PLAYER_PATH));
         return openMpvPlayer({
@@ -87,6 +89,8 @@ ipcMain.handle(
             contentInfo,
             startTime,
             headers,
+            audioUrl,
+            audioDelaySeconds,
         });
     }
 );

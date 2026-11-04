@@ -22,4 +22,16 @@ export interface ResolvedPortalPlayback {
     referer?: string;
     origin?: string;
     drm?: ChannelDrm;
+    /**
+     * Play the video of `streamUrl` but take the audio from another stream
+     * (e.g. another channel's commentary). `delaySeconds` shifts that audio
+     * relative to the video; live streams rarely line up on their own.
+     */
+    audioOverride?: ExternalAudioOverride;
+}
+
+export interface ExternalAudioOverride {
+    streamUrl: string;
+    title?: string;
+    delaySeconds?: number;
 }

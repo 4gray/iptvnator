@@ -58,6 +58,10 @@ export interface OpenExternalPlayerRequest {
     contentInfo?: PlayerContentInfo;
     startTime?: number;
     headers?: Record<string, string>;
+    /** Audio taken from this stream instead of the video's own audio. */
+    audioUrl?: string;
+    /** Shift of that audio against the video, in seconds (mpv --audio-delay). */
+    audioDelaySeconds?: number;
 }
 
 const reusableMpvProcess = new MpvReusableProcess();
@@ -131,6 +135,8 @@ async function launchMpvPlayer(
         contentInfo,
         startTime,
         headers,
+        audioUrl,
+        audioDelaySeconds,
     }: OpenExternalPlayerRequest,
     session: ExternalPlayerSession,
     displacedSessionId: string | null,
@@ -167,10 +173,11 @@ async function launchMpvPlayer(
         );
         const customMpvArguments = store.get(MPV_PLAYER_ARGUMENTS, '');
         const requestedReuseInstance = store.get(MPV_REUSE_INSTANCE, false);
-        const reuseInstance = shouldReuseMpvInstance(
-            requestedReuseInstance,
-            isFlatpak
-        );
+        // A reused instance loads the new file over IPC and cannot carry the
+        // external audio track, so a split-audio launch always starts fresh.
+        const reuseInstance =
+            !audioUrl &&
+            shouldReuseMpvInstance(requestedReuseInstance, isFlatpak);
         const useMpvSocketBridge = shouldUseMpvSocketBridge(isFlatpak);
         const {
             effectiveOrigin,
@@ -250,6 +257,17 @@ async function launchMpvPlayer(
 
         if (title) {
             args.push(`--force-media-title=${title}`);
+        }
+
+        if (audioUrl) {
+            args.push(`--audio-file=${audioUrl}`);
+            if (
+                typeof audioDelaySeconds === 'number' &&
+                Number.isFinite(audioDelaySeconds) &&
+                audioDelaySeconds !== 0
+            ) {
+                args.push(`--audio-delay=${audioDelaySeconds}`);
+            }
         }
 
         if (startTime) {
