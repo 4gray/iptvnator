@@ -2073,6 +2073,8 @@ receiving device before movie/live/radio playback. Live lookup first uses
 `get_all_channels`; bounded paged lookup covers unsupported bulk endpoints and
 VOD/radio/series. A title is only a search hint; it never substitutes for ID and
 series-origin equality. Fresh category metadata still passes parental locking.
+Command lookup also reads `info.name` from normalized VOD selections, retaining
+the saved title search before the bounded unfiltered scan.
 Resolved commands remain local and never enter a shared snapshot. The global
 collection detail host reuses an open detail for the same item during polling,
 so background membership updates cannot cancel an in-flight playback request.

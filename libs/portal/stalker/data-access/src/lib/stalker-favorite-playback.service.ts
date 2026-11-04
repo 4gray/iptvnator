@@ -22,7 +22,7 @@ export class StalkerFavoritePlaybackResolver {
 
     async resolve(
         playlist: PlaylistMeta,
-        item: StalkerPortalItem
+        item: StalkerPortalItem & { info?: { name?: string } }
     ): Promise<StalkerPortalItem> {
         if (item.cmd) return item;
         playlist = {
@@ -88,7 +88,9 @@ export class StalkerFavoritePlaybackResolver {
             executeStalkerRequest(this.deps, playlist, params)
         );
         const signal = new AbortController().signal;
-        const title = String(item.title ?? item.name ?? '').trim();
+        const title = String(
+            item.title ?? item.name ?? item.info?.name ?? ''
+        ).trim();
         for (const search of title ? [title, ''] : ['']) {
             for (let page = 0; page < 20; page++) {
                 const result = await catalog.load(

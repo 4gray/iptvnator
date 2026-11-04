@@ -1227,6 +1227,14 @@ activity itself remains limited to its existing supported provider types.
 Network failures and HTTP 5xx can queue edits against a previously verified source
 context. Without that context, or after a rejected access/source request, no edit
 is queued; consent, profile and source ownership fences still apply.
+The browser transport retains known 401/403, incompatible-discovery and instance
+refusals for the selected connection until successful instance verification. An
+unchecked retry or malformed access-error body cannot turn that refusal into an
+offline edit; a genuine network outage remains eligible for the verified-context queue.
+
+Global collection ordering accepts an old Stalker provider-ID key only when it
+identifies exactly one current item. Exact typed keys take precedence. Reading
+does not rewrite saved ordering; ambiguous IDs do not transfer a position to another kind.
 
 Opt-out stops delivery and remote application, retaining the durable local
 projection and server state. Subsequent local edits remain local. Re-enable uses

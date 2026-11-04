@@ -900,10 +900,25 @@ export class UnifiedFavoritesDataService {
             });
         }
         const orderMap = new Map(savedOrder.map((uid, i) => [uid, i]));
+        const historicalUid = (item: UnifiedCollectionItem) =>
+            item.sourceType === 'stalker' && item.stalkerId
+                ? buildCollectionUid('stalker', item.playlistId, item.stalkerId)
+                : undefined;
+        const historicalCounts = new Map<string, number>();
+        for (const item of items) {
+            const uid = historicalUid(item);
+            if (uid)
+                historicalCounts.set(uid, (historicalCounts.get(uid) ?? 0) + 1);
+        }
         const ordered: UnifiedCollectionItem[] = [];
         const unordered: UnifiedCollectionItem[] = [];
         for (const item of items) {
-            const pos = orderMap.get(item.uid);
+            const historical = historicalUid(item);
+            const pos =
+                orderMap.get(item.uid) ??
+                (historical && historicalCounts.get(historical) === 1
+                    ? orderMap.get(historical)
+                    : undefined);
             if (pos != null) {
                 ordered.push({ ...item, position: pos });
             } else {

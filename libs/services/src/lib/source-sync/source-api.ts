@@ -1,6 +1,8 @@
 import {
     sourceAuthorization,
     assertSourceRequestAllowed,
+    rejectSourceInstance,
+    sourceVerificationRefusal,
 } from './source-authorization';
 import type {
     SourceServerRequest,
@@ -65,6 +67,14 @@ export async function requestSourceServer(
     if (!connection) throw new Error('SOURCE_SYNC.OFFLINE');
     const route = sourceRequestRoute(request);
     const url = `${connection.apiUrl}${route.path}`;
+    const refusal = sourceVerificationRefusal();
+    if (request.operation !== 'instance' && refusal)
+        return {
+            status: refusal,
+            body: {
+                code: refusal === 409 ? 'instance_changed' : 'access_required',
+            },
+        };
     if (request.operation !== 'instance') assertSourceRequestAllowed(url);
     try {
         const response = await fetch(url, {
@@ -102,23 +112,30 @@ export async function requestSourceServer(
         });
         // These routes are server-owned; JSON 5xx responses are outages too.
         if (response.status >= 500) throw new Error('SOURCE_SYNC.OFFLINE');
+        if (response.status === 401 || response.status === 403)
+            rejectSourceInstance(response.status, connection);
         const body =
             response.status === 304 ||
             (request.operation === 'instance' && response.status === 404)
                 ? undefined
                 : await response.json();
         if (
-            response.status === 401 ||
             (request.operation === 'instance' && response.status === 404) ||
             (response.status === 409 && body?.code === 'instance_changed')
         )
-            invalidateSourceVerification();
+            rejectSourceInstance(
+                response.status === 404 ? 409 : response.status,
+                connection
+            );
         return {
             status: response.status,
             etag: response.headers.get('etag') ?? undefined,
             ...(response.status === 304 ? {} : { body }),
         };
     } catch {
+        const refusal = sourceVerificationRefusal();
+        if (refusal && sourceConnection() === connection)
+            return { status: refusal };
         // Covers direct import callers as well as SourceSyncService mutations.
         invalidateSourceVerification();
         throw new Error('SOURCE_SYNC.OFFLINE');

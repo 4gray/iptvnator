@@ -4,6 +4,7 @@ import { PlaylistMeta, StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from './stalker-session.service';
 import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { StalkerFavoritePlaybackResolver } from './stalker-favorite-playback.service';
+import { buildStalkerSelectedVodItem } from './stalker-vod.utils';
 
 const playlist = {
     _id: 'synthetic-source',
@@ -81,6 +82,32 @@ describe('receiving-device Stalker favorite playback', () => {
             expect(snapshot.cmd).toBeUndefined();
         }
     );
+    it('uses the normalized movie title to find an exact ID beyond the unfiltered page bound', async () => {
+        const selected = buildStalkerSelectedVodItem({
+            id: '42',
+            title: 'Synthetic remote movie',
+        });
+        send.mockImplementation(async (_event, { params }) => ({
+            js: {
+                data:
+                    params.search === 'Synthetic remote movie'
+                        ? [{ id: '42', cmd: 'synthetic-provider-command' }]
+                        : [{ id: '43', cmd: 'synthetic-other-command' }],
+                total_items: params.search ? 1 : 10000,
+                max_page_items: 1,
+            },
+        }));
+        expect(
+            await resolver.resolve(playlist, {
+                ...selected,
+                favoriteContentType: 'vod',
+            })
+        ).toMatchObject({ id: '42', cmd: 'synthetic-provider-command' });
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(send.mock.calls[0][1].params.search).toBe(
+            'Synthetic remote movie'
+        );
+    });
     it('falls back to exact-ID paging when bulk live lookup is unsupported', async () => {
         send.mockRejectedValueOnce(
             new Error('Unsupported bulk lookup')

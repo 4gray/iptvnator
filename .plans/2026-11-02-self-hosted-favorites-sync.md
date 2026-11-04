@@ -305,3 +305,39 @@ arm64 build and HTTP add/remove/duplicate-receipt/restart smoke pass for text M3
 Formatting, whitespace, guidance (3) and release-note validation (231) pass.
 Greptile is still unavailable; committed-branch Codex review is next. Physical
 Synology and packaged Windows/Linux Electron remain unavailable.
+
+Round 12 reviews 9cdb6cef8ea4460c0ae0908b81592eef06fe83f5. All three prior
+findings are repaired; the reviewer confirms web (810) and services (1,385) pass.
+Three further findings are accepted and repaired in the same resumed local loop:
+normalized Stalker movie names were lost during command lookup, unverified PWA
+retries could reinterpret known authorization refusal as offline intent, and
+typed Stalker collection UIDs bypassed saved historical global-order keys.
+
+Command lookup now accepts the normalized `info.name`. Browser source proof
+retains a selected-connection refusal across retries and malformed access-error
+bodies until successful instance verification; true outages still permit cached
+offline edits. Global ordering accepts only an unambiguous historical Stalker UID,
+with exact typed keys taking precedence and no rewrite of saved order on read.
+Seven regression cases fail before repair and pass afterward; additional cases
+cover failed instance proof, recovery, ordinary outages and ambiguous provider IDs.
+Canonical PWA and Stalker docs are updated. No findings are declined.
+
+The next repair passes full coverage (85.36% statements, 76.98% branches,
+83.66% functions, 85.85% lines), owning lint and application typechecks, and all
+42 spec programs. Production Electron/frontend/worker build passes; initial bytes
+are 1,199,588 / 1,200,301. The full 23-case mixed source/activity/favorites suite
+is run because the browser transport is shared across those domains.
+
+All 23 mixed flows pass. The final selected-connection fence also has a failing-
+before/passing-after late-401 regression: an old response cannot mark the new
+profile as refused. Unsupported instance discovery blocks later source requests
+as an identity refusal, not a synthetic per-source 404. Its negative regression
+also fails before repair. Four affected mixed favorites/PWA-auth flows are repeated
+successfully after the connection-fence refinement. Services coverage is refreshed
+and merged with the other 35 reports after the final discovery-status repair;
+coverage health remains 85.36/76.98/83.66/85.85 with unchanged gates.
+Final production initial bytes are 1,199,587 / 1,200,301. Docker Linux arm64 build
+and HTTP add/remove/receipt/restart smoke pass. All 42 spec programs, owning lint,
+formatting, guidance, release-note and whitespace checks pass. The existing feature
+note covers this repair. A new committed-branch local review follows; Greptile
+is unavailable. Physical Synology and packaged Windows/Linux remain unchecked.
