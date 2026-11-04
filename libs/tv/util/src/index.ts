@@ -40,6 +40,7 @@ export interface Media {
     backdrop?: string;
     description?: string;
     category?: string;
+    categoryName?: string;
     year?: string;
     season?: number;
     episode?: number;
@@ -63,6 +64,11 @@ export interface Media {
             tmdbPersonId?: number;
         }[];
         authorRole: 'Creators' | 'Directors';
+        year?: string;
+        genres?: string[];
+        countries?: string[];
+        durationMinutes?: number;
+        rating?: number;
     };
     raw: Record<string, unknown>;
 }
@@ -245,3 +251,4 @@ export * from './series-context';
 export * from './programme-guide';
 
 export * from './grid-guide';
+export * from './detail-metadata';

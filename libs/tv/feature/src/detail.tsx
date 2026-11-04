@@ -8,6 +8,7 @@ import { TvModel } from './use-tv';
 import { TvMetadata } from '@iptvnator/tv/data-access';
 import { mediaTitle } from '@iptvnator/tv/util';
 import { MetadataCredits } from './metadata-credits';
+import { MetadataChips } from './metadata-chips';
 import { useEpisodeMetadata } from './use-episode-metadata';
 export function Detail({
     tv,
@@ -48,10 +49,7 @@ export function Detail({
                     )}
                 </div>
                 <div>
-                    <span class="eyebrow">
-                        {item.kind.toUpperCase()}{' '}
-                        {item.year ? `· ${item.year}` : ''}
-                    </span>
+                    <span class="eyebrow">{item.kind.toUpperCase()}</span>
                     <h1>{mediaTitle(item)}</h1>
                     {item.kind === 'episode' ? (
                         <div class="muted">
@@ -59,6 +57,7 @@ export function Detail({
                             {item.title}
                         </div>
                     ) : null}
+                    <MetadataChips item={item} />
                     <TvDescription
                         key={item.id}
                         text={
