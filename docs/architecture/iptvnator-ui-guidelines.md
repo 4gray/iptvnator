@@ -441,7 +441,13 @@ rail, whose heading keeps a trace of it, and reaches the page colour before
 that rail's cards (their scroll-edge fades are drawn in the page colour), with
 no tail in the narrow layout. Series titles drop their season marker (`splitSeasonSuffix`) into a
 "Season N" chip. Rows a provider cannot serve are left out of the menu, never
-disabled. The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
+disabled. The More overlay prefers the trigger's right edge and flips upward;
+when neither position fits, CDK pushes it inside the viewport with a 12px
+margin. The panel keeps its height cap and scrolls its rows; Home/End and
+arrow keys reveal the focused row, and Escape returns focus to the trigger.
+`detail-more-menu.e2e.ts` checks short-window geometry, both themes and real
+pointer handoffs for movie and series menus, including after scrolling.
+The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
 only carries the page shell, meta items and the episodes section.
 
 With `detailTrailerBackdrop` on (Settings → Playback → "Play trailers in
