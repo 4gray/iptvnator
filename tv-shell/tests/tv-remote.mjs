@@ -165,10 +165,50 @@ for (const arrow of ['ArrowDown', 'ArrowUp']) {
         document.getElementById(input.getAttribute('aria-activedescendant'))?.getAttribute('role') === 'option'),
         arrow + ' highlights a source while focus stays in the search field');
 }
+await key('ArrowRight');
+check(await switcherSearch.evaluate((input) => input !== document.activeElement &&
+    !!document.activeElement.closest('app-playlist-switcher-panel')),
+    'Right at the empty search caret boundary reaches another switcher control');
+await switcherSearch.fill('sy');
+await switcherSearch.focus();
+await switcherSearch.evaluate((input) => input.setSelectionRange(1, 1));
+await key('ArrowLeft');
+check(await switcherSearch.evaluate((input) => input === document.activeElement && input.selectionStart === 0),
+    'horizontal arrows still move the caret inside an expanded search');
+await switcherSearch.fill('');
+await key('ArrowDown');
+await key('F10');
+check(await page.locator('.cdk-overlay-pane [role="menu"]').count() === 1,
+    'Menu opens the highlighted source actions from the search field');
+if (await page.locator('.cdk-overlay-pane [role="menu"]').count()) await key('Escape');
+await switcherSearch.focus();
 await key('Enter');
 check(await page.locator('app-playlist-switcher-panel').count() === 0, 'OK selects a source and closes the switcher');
 // Keep subsequent checks useful if the regression is present.
 if (await page.locator('app-playlist-switcher-panel').count()) await key('Escape');
+
+const menuEvents = await page.evaluate(() => {
+    const previous = document.activeElement;
+    const button = document.createElement('button');
+    button.textContent = 'Synthetic context action';
+    document.body.appendChild(button);
+    const events = { keyboard: 0, mouse: 0 };
+    button.addEventListener('keydown', (event) => {
+        if (event.key === 'ContextMenu') {
+            events.keyboard += 1;
+            if (events.keyboard === 1) event.preventDefault();
+        }
+    });
+    button.addEventListener('contextmenu', (event) => { event.preventDefault(); events.mouse += 1; });
+    button.focus();
+    window.__tvShell.menu();
+    window.__tvShell.menu();
+    button.remove();
+    previous.focus();
+    return events;
+});
+check(menuEvents.keyboard === 2 && menuEvents.mouse === 1,
+    'Menu honors keyboard handling and preserves the mouse fallback when unhandled');
 
 console.log('4. browse Live TV with the D-pad');
 f = await reach(/\[Live/i, ['ArrowLeft', 'ArrowDown']);

@@ -551,10 +551,10 @@
         // to the player controls and the rest of the page (the TV remote owns
         // the volume anyway).
         if (tag === 'VIDEO' || tag === 'AUDIO') return horizontal;
-        // Composite widgets own arrow keys even when their focused element is a text input.
-        // The source switcher keeps DOM focus here and uses aria-activedescendant for its rows.
+        // Expanded comboboxes keep Up/Down for their active descendant; horizontal
+        // arrows follow the input caret rule so the remote can reach other controls.
         var role = el.getAttribute('role');
-        if (role === 'combobox' && el.getAttribute('aria-expanded') === 'true') return true;
+        if (role === 'combobox' && el.getAttribute('aria-expanded') === 'true' && !horizontal) return true;
         if (tag === 'INPUT') {
             var type = (el.getAttribute('type') || 'text').toLowerCase();
             if (type === 'range') return horizontal;
@@ -839,9 +839,12 @@
         if (active.tagName === 'VIDEO' || active.tagName === 'AUDIO') {
             return api.openExternal();
         }
-        var r = active.getBoundingClientRect();
-        var ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, button: 2 });
-        active.dispatchEvent(ev);
+        var keyboard = new KeyboardEvent('keydown', { key: 'ContextMenu', code: 'ContextMenu', bubbles: true, cancelable: true });
+        if (active.dispatchEvent(keyboard)) {
+            var r = active.getBoundingClientRect();
+            var ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, button: 2 });
+            active.dispatchEvent(ev);
+        }
         setTimeout(function () {
             var pane = document.querySelector('.cdk-overlay-pane [role="menu"]');
             if (pane) {
