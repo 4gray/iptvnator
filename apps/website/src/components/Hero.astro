@@ -1,6 +1,5 @@
 ---
 import type { ResolvedRelease } from '../lib/downloads';
-import { LATEST_RELEASE_URL } from '../lib/downloads';
 import type { GitHubStats } from '../lib/github-stats';
 import { formatCompactCount } from '../lib/github-stats';
 
@@ -122,16 +121,16 @@ const nowPlaying = {
     <div class="relative mt-16 sm:mt-20">
       <div
         class="pointer-events-none absolute inset-x-6 top-6 bottom-1/3 -z-10 rounded-[3rem] bg-cover bg-center opacity-35 blur-3xl saturate-150"
-        style="background-image: url('/iptvnator/screenshots/screenshot-player.webp')"
+        style="background-image: url('/iptvnator/screenshots/dashboard-themes.webp')"
         aria-hidden="true"
       ></div>
-      <div class="overflow-hidden rounded-t-xl border border-b-0 border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/50">
+      <div class="overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/50">
         <img
-          src="/iptvnator/screenshots/screenshot-player.webp"
-          alt="IPTVnator desktop app: channel list, live player, and EPG guide in the dark theme"
-          width="2442"
-          height="1806"
-          class="h-auto max-h-[36rem] w-full object-cover object-top"
+          src="/iptvnator/screenshots/dashboard-themes.webp"
+          alt="IPTVnator dashboard with continue watching and live favorites, split diagonally between light and dark themes"
+          width="1600"
+          height="1100"
+          class="h-auto w-full"
           loading="eager"
         />
       </div>

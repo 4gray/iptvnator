@@ -1,4 +1,4 @@
-import { Location, NgTemplateOutlet, SlicePipe } from '@angular/common';
+import { NgTemplateOutlet, SlicePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -102,7 +102,6 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
     ],
 })
 export class VodDetailsRouteComponent implements OnInit, OnDestroy {
-    private readonly location = inject(Location);
     private readonly settingsStore = inject(SettingsStore);
     private readonly route = inject(ActivatedRoute);
     private readonly navigation = injectXtreamDetailNavigation('movie');
@@ -566,7 +565,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
     goBack(): void {
         this.playback.closeInlinePlayer();
-        this.location.back();
+        this.navigation.back();
     }
 
     closeInlinePlayer(): void {

@@ -54,6 +54,7 @@ export async function addSource(
     page: Page,
     type: 'xtream' | 'stalker' | 'm3u',
     options: {
+        name?: string;
         url?: string;
         username?: string;
         password?: string;
@@ -68,7 +69,9 @@ export async function addSource(
         .getByRole('button', { name: type.toUpperCase(), exact: true })
         .click();
     await page.getByLabel('IPTVnator backend URL').fill(backend);
-    await page.getByLabel('Name', { exact: true }).fill(`TV ${type}`);
+    await page
+        .getByLabel('Name', { exact: true })
+        .fill(options.name ?? `TV ${type}`);
     await page
         .getByLabel(type === 'm3u' ? 'Playlist URL' : 'Provider URL')
         .fill(
@@ -115,4 +118,31 @@ export async function nav(page: Page, label: string, openAllChannels = true) {
         await expect(page.locator('.channel-pane-header button')).toBeVisible();
         await expect(page.locator('.channel').first()).toBeFocused();
     }
+}
+
+/** Exercise the TV picker instead of bypassing it with selectOption. */
+export async function chooseTv(
+    page: Page,
+    label: string,
+    value: string | { label: string }
+) {
+    await page.getByRole('combobox', { name: label, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: label, exact: true });
+    if (typeof value === 'object') {
+        await dialog
+            .getByRole('option', { name: value.label, exact: true })
+            .click();
+    } else {
+        const options = dialog.getByRole('option');
+        let matched = false;
+        for (const option of await options.all()) {
+            if ((await option.getAttribute('data-value')) === value) {
+                await option.click();
+                matched = true;
+                break;
+            }
+        }
+        expect(matched, `TV option exists in ${label}`).toBe(true);
+    }
+    await expect(dialog).toBeHidden();
 }

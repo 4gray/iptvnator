@@ -408,3 +408,32 @@ HTTP add/remove/idempotency and restart-preservation smoke checks pass. Isolated
 containers are removed. Physical Synology, packaged Windows/Linux and optional
 vendored Embedded MPV remain unavailable. A committed-branch review follows;
 Greptile CLI remains unavailable under the documented exception.
+
+The next base fetch advances origin/master to 0a5eac1c6, including provider,
+worker, navigation and Nx 23.3.1 changes. The initial round-14 reviewer is stopped
+before further work, and the updated base is merged locally. The only textual
+conflict is Hungarian activity copy: retain upstream translations, the new
+favorites section and a Hungarian explanation of separate favorites consent.
+The frozen install and Nx discovery pass with the updated lockfile.
+
+The merged production initial payload reproduces a 404-byte limit violation:
+1,200,705 / 1,200,301. Repository-wide caller searches identify five obsolete
+PlaylistsService favorite APIs with no production callers: updateFavorites,
+setFavorites, setPortalFavorites, getFavoriteChannels and
+getPortalLiveStreamFavorites. Remove those aliases/getters and inline the now
+single-use projection helper. Preserve the serialized-write regression through
+the canonical transformPlaylistFavorites path; remove only the two tests of the
+deleted getters. No runtime path, performance probe, baseline or coverage gate
+is weakened. The rebuilt initial payload is 1,200,164 bytes, down 541 bytes and
+within the unchanged limit.
+
+The merged branch passes full 36-project coverage, all 42 spec programs,
+application typechecks, affected lint (47 tasks), guidance, eight skills and
+250 release notes. All 23 mixed PWA/Electron flows pass. After deleting the unused
+APIs, services coverage is refreshed (1,403 tests), affected spec programs and
+lint pass, and the 36-report merge remains healthy at
+85.56/77.30/83.84/86.05 percent. Same-name-spec warnings cover upstream barrels,
+interfaces and modules with focused coverage; they do not fail the gate.
+The final Linux arm64 Docker image is 5a8a4d8163ec; HTTP add/remove/receipt and
+restart smoke checks pass and the isolated container is removed. Three favorites
+flows pass again after the deletion before committing for a fresh review.

@@ -13,20 +13,29 @@ import type { TvModel } from './use-tv';
 export function useSeriesDetails(tv: TvModel) {
     const lane = useRef(new LatestRequest());
     const playerLookup = useRef<AbortController>();
+    const generation = useRef(0);
     const retryOpen = useRef(open);
     retryOpen.current = open;
     const [busy, setBusy] = useState(false);
+    const cancel = () => {
+        generation.current++;
+        lane.current.cancel();
+        playerLookup.current = undefined;
+        setBusy(false);
+    };
     useLayoutEffect(() => {
         setBusy(false);
         // Obsolete notices must not retain a retry from a previous route/source.
         if (tv.errorRetryLabel === 'Retry series details') tv.setError('');
         return () => {
+            generation.current++;
             lane.current.cancel();
             playerLookup.current = undefined;
         };
     }, [tv.guideClient, tv.data.activeId, tv.route]);
     useLayoutEffect(() => {
         if (playerLookup.current && lane.current.owns(playerLookup.current)) {
+            generation.current++;
             lane.current.cancel();
             playerLookup.current = undefined;
             setBusy(false);
@@ -36,6 +45,7 @@ export function useSeriesDetails(tv: TvModel) {
         // A new play request supersedes Details, including requests from Home.
         // Our own stop clears the request instead, preserving its navigation.
         if (!tv.playbackRequest) return;
+        generation.current++;
         lane.current.cancel();
         playerLookup.current = undefined;
         setBusy(false);
@@ -43,6 +53,7 @@ export function useSeriesDetails(tv: TvModel) {
     async function open(episode: Media, retryOrigin?: NavigationOrigin) {
         if (episode.sourceId !== tv.data.activeId || episode.kind !== 'episode')
             return;
+        const token = ++generation.current;
         const job = lane.current.start();
         playerLookup.current = tv.fullscreen ? job : undefined;
         const origin =
@@ -56,7 +67,10 @@ export function useSeriesDetails(tv: TvModel) {
         const report = () =>
             tv.setError(
                 'Could not find the series details. You can still continue this episode.',
-                () => void retryOpen.current(episode, origin),
+                () => {
+                    if (generation.current === token)
+                        void retryOpen.current(episode, origin);
+                },
                 'Retry series details'
             );
         const timer = setTimeout(() => {
@@ -107,5 +121,5 @@ export function useSeriesDetails(tv: TvModel) {
             if (lane.current.owns(job)) setBusy(false);
         }
     }
-    return { open, busy };
+    return { open, busy, cancel };
 }

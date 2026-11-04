@@ -483,6 +483,7 @@
         "LANGUAGE": "Język",
         "SETTINGS_SAVED": "Sukces! Konfiguracja została zapisana.",
         "SETTINGS_SAVE_FAILED": "Nie udało się zapisać ustawień. Zmiany zostaną utracone po ponownym uruchomieniu aplikacji.",
+        "SETTINGS_RUNTIME_UPDATE_FAILED": "Ustawienia zostały zapisane, ale uruchomiona aplikacja nie mogła ich zastosować. Sprawdź port zdalnego sterowania i zapisz ponownie.",
         "SETTINGS_LOAD_FAILED": "Nie udało się wczytać zapisanych ustawień — wyświetlane są wartości domyślne. Upewnij się, że aplikacja nie jest już uruchomiona.",
         "THEME": "Motyw wizualny",
         "SHOW_CAPTIONS": "Pokaż napisy",

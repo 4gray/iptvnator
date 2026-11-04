@@ -5,7 +5,15 @@ import {
     type Page,
     type APIRequestContext,
 } from '@playwright/test';
-import { addSource, backend, nav, stalker, start, xtream } from './helpers';
+import {
+    chooseTv,
+    addSource,
+    backend,
+    nav,
+    stalker,
+    start,
+    xtream,
+} from './helpers';
 import type { UserData } from '@iptvnator/tv/util';
 const server = tvOrigins.library;
 const headers = { Authorization: 'Bearer tv-library-test' };
@@ -367,9 +375,7 @@ test('explicit source upload uses real server storage, is idempotent and preserv
     await addSource(page, 'm3u');
     const before = await snapshot(page);
     const pane = await connect(page);
-    await pane
-        .getByLabel('Local source to copy to server')
-        .selectOption(before.activeId);
+    await chooseTv(page, 'Local source to copy to server', before.activeId);
     await pane.getByRole('button', { name: 'Copy source to server' }).click();
     await expect(pane.getByRole('status')).toContainText('1 server sources');
     const response = await request.get(`${server}/v1/playlists`, { headers });

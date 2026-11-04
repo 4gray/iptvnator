@@ -176,6 +176,8 @@ export function mapStreamTypeToDbType(
 export type ProgressCallback = (count: number) => void;
 
 export interface XtreamOperationOptions {
+    /** Renderer-local cancellation; never serialized across IPC. */
+    signal?: AbortSignal;
     operationId?: string;
     sessionId?: string;
     onEvent?: (event: DbOperationEvent) => void;
@@ -437,7 +439,9 @@ export interface IXtreamDataSource {
         xtreamId: number,
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
-        identity?: ContentMetadataPatch
+        identity?: ContentMetadataPatch,
+        /** SQLite-only local category restriction when verifying route context. */
+        categoryId?: number
     ): Promise<XtreamContentItem | null>;
 
     /**

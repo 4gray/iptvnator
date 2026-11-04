@@ -33,6 +33,7 @@ export function createDbServiceMock() {
             return true;
         }),
         getXtreamImportStatus: jest.fn().mockResolvedValue('idle'),
+        setXtreamImportStatus: jest.fn().mockResolvedValue(true),
         clearXtreamImportCache: jest.fn().mockResolvedValue(true),
         getPlaylistById: jest.fn().mockResolvedValue(null),
         createPlaylist: jest.fn().mockResolvedValue(undefined),

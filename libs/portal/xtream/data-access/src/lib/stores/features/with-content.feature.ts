@@ -264,6 +264,7 @@ export function withContent() {
             const xtreamApiService = inject(XtreamApiService);
             const importTypes: ContentType[] = ['live', 'vod', 'series'];
             let activeInitializationPromise: Promise<void> | null = null;
+            let activeImportAbortController: AbortController | null = null;
             // Types that actually contacted the provider (or saved remote
             // data) in the current initialization. Cancellation cleanup must
             // only clear these: a type served entirely from the local cache
@@ -764,8 +765,16 @@ export function withContent() {
             };
 
             const publishTypedImportPhase =
-                (type: ContentType) =>
+                (
+                    type: ContentType,
+                    sessionId?: string,
+                    signal?: AbortSignal
+                ) =>
                 (phase: string): void => {
+                    if (
+                        signal?.aborted ||
+                        (sessionId && store.activeImportSessionId() !== sessionId)
+                    ) return;
                     if (phase !== 'loading-cached') {
                         sessionRemoteWorkTypes.add(type);
                     }
@@ -916,6 +925,8 @@ export function withContent() {
                     'xtream-import-session'
                 );
 
+                const importController = new AbortController();
+                activeImportAbortController = importController;
                 sessionRemoteWorkTypes.clear();
                 patchState(store, {
                     isImporting: false,
@@ -966,11 +977,13 @@ export function withContent() {
                     // before content import starts.
                     await methods.fetchAllCategories({
                         sessionId: importSessionId,
+                        signal: importController.signal,
                     });
                     throwIfImportCancelled(importSessionId);
                     await methods.fetchAllContent({
                         importSessionId,
                         sessionId: importSessionId,
+                        signal: importController.signal,
                         completedTypes,
                     });
                     throwIfImportCancelled(importSessionId);
@@ -1087,6 +1100,10 @@ export function withContent() {
                         logger.error('Error initializing content', error);
                     }
                 } finally {
+                    importController.abort();
+                    if (activeImportAbortController === importController) {
+                        activeImportAbortController = null;
+                    }
                     measureRendererPerformancePhase(
                         RENDERER_PERFORMANCE_PHASE.XTREAM_IMPORT_TERMINAL,
                         () =>
@@ -1155,6 +1172,7 @@ export function withContent() {
                  */
                 async fetchAllCategories(options?: {
                     sessionId?: string;
+                    signal?: AbortSignal;
                 }): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
@@ -1162,15 +1180,19 @@ export function withContent() {
                     patchState(store, { isLoadingCategories: true });
 
                     try {
-                        const [live, vod, series] = await Promise.all([
+                        const requests = [
                             dataSource.getCategories(
                                 ctx.playlistId,
                                 ctx.credentials,
                                 'live',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange:
-                                        publishTypedImportPhase('live'),
+                                    signal: options?.signal,
+                                    onPhaseChange: publishTypedImportPhase(
+                                        'live',
+                                        options?.sessionId,
+                                        options?.signal
+                                    ),
                                 }
                             ),
                             dataSource.getCategories(
@@ -1179,8 +1201,12 @@ export function withContent() {
                                 'vod',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange:
-                                        publishTypedImportPhase('vod'),
+                                    signal: options?.signal,
+                                    onPhaseChange: publishTypedImportPhase(
+                                        'vod',
+                                        options?.sessionId,
+                                        options?.signal
+                                    ),
                                 }
                             ),
                             dataSource.getCategories(
@@ -1189,11 +1215,31 @@ export function withContent() {
                                 'series',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange:
-                                        publishTypedImportPhase('series'),
+                                    signal: options?.signal,
+                                    onPhaseChange: publishTypedImportPhase(
+                                        'series',
+                                        options?.sessionId,
+                                        options?.signal
+                                    ),
                                 }
                             ),
-                        ]);
+                        ];
+                        const [live, vod, series] = await Promise.all(requests)
+                            .catch(async (error: unknown) => {
+                                if (
+                                    options?.sessionId &&
+                                    store.activeImportSessionId() === options.sessionId
+                                ) {
+                                    activeImportAbortController?.abort();
+                                    await xtreamApiService.cancelSession(options.sessionId);
+                                }
+                                // Cleanup waits for every category writer in this session.
+                                await Promise.all(requests.map((request) =>
+                                    request.catch(() => undefined)
+                                ));
+                                throw error;
+                            });
+                        throwIfImportCancelled(options?.sessionId);
 
                         // This span ends after synchronous store publication;
                         // the renderer probe owns paint observation.
@@ -1232,6 +1278,7 @@ export function withContent() {
                 async fetchAllContent(options?: {
                     importSessionId?: string;
                     sessionId?: string;
+                    signal?: AbortSignal;
                     completedTypes?: Set<ContentType>;
                 }): Promise<void> {
                     const ctx = getCredentialsFromStore();
@@ -1279,9 +1326,18 @@ export function withContent() {
                                 {
                                     operationId: liveOperationId,
                                     sessionId: options?.sessionId,
-                                    onEvent: trackImportEvent,
-                                    onPhaseChange:
-                                        publishTypedImportPhase('live'),
+                                    signal: options?.signal,
+                                    onEvent: (event) => {
+                                        if (
+                                            !options?.importSessionId ||
+                                            store.activeImportSessionId() === options.importSessionId
+                                        ) trackImportEvent(event);
+                                    },
+                                    onPhaseChange: publishTypedImportPhase(
+                                        'live',
+                                        options?.sessionId,
+                                        options?.signal
+                                    ),
                                 }
                             )) as XtreamLiveStream[];
                             throwIfImportCancelled(options?.importSessionId);
@@ -1321,9 +1377,18 @@ export function withContent() {
                                 {
                                     operationId: vodOperationId,
                                     sessionId: options?.sessionId,
-                                    onEvent: trackImportEvent,
-                                    onPhaseChange:
-                                        publishTypedImportPhase('vod'),
+                                    signal: options?.signal,
+                                    onEvent: (event) => {
+                                        if (
+                                            !options?.importSessionId ||
+                                            store.activeImportSessionId() === options.importSessionId
+                                        ) trackImportEvent(event);
+                                    },
+                                    onPhaseChange: publishTypedImportPhase(
+                                        'vod',
+                                        options?.sessionId,
+                                        options?.signal
+                                    ),
                                 }
                             )) as XtreamVodStream[];
                             throwIfImportCancelled(options?.importSessionId);
@@ -1364,9 +1429,18 @@ export function withContent() {
                                 {
                                     operationId: seriesOperationId,
                                     sessionId: options?.sessionId,
-                                    onEvent: trackImportEvent,
-                                    onPhaseChange:
-                                        publishTypedImportPhase('series'),
+                                    signal: options?.signal,
+                                    onEvent: (event) => {
+                                        if (
+                                            !options?.importSessionId ||
+                                            store.activeImportSessionId() === options.importSessionId
+                                        ) trackImportEvent(event);
+                                    },
+                                    onPhaseChange: publishTypedImportPhase(
+                                        'series',
+                                        options?.sessionId,
+                                        options?.signal
+                                    ),
                                 }
                             )) as XtreamSerieItem[];
                             throwIfImportCancelled(options?.importSessionId);
@@ -1522,6 +1596,7 @@ export function withContent() {
                         return;
                     }
 
+                    activeImportAbortController?.abort();
                     patchState(store, {
                         isCancellingImport: true,
                         contentInitBlockReason: 'cancelled',
@@ -1582,6 +1657,14 @@ export function withContent() {
                 ): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
+                    if (
+                        activeInitializationPromise &&
+                        !store.isContentInitialized()
+                    ) {
+                        reloadAfterInitialization = true;
+                        deferredPublishGuard = shouldPublishArg;
+                        return;
+                    }
                     const shouldPublish = publishWhileCurrent(
                         ctx.playlistId,
                         shouldPublishArg
@@ -1738,6 +1821,7 @@ export function withContent() {
                  * Reset content state
                  */
                 resetContent(): void {
+                    activeImportAbortController?.abort();
                     cachedHydrationGeneration += 1;
                     activeCachedHydrationPromises.clear();
                     patchState(store, initialContentState);

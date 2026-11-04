@@ -421,7 +421,9 @@ describe('PlaylistsService', () => {
 
         const service = createService();
         const write = firstValueFrom(
-            service.updateFavorites('playlist-1', ['channel-1'])
+            service.transformPlaylistFavorites('playlist-1', () => [
+                'channel-1',
+            ])
         );
         const read = firstValueFrom(
             service.getM3uFavoriteChannels('playlist-1')
@@ -1302,39 +1304,6 @@ describe('PlaylistsService', () => {
         expect(dbService.update).not.toHaveBeenCalled();
     });
 
-    it('filters favorite channels from a playlist payload', async () => {
-        const playlist = {
-            _id: 'playlist-favorites',
-            title: 'Favorites',
-            count: 3,
-            importDate: '2026-04-01T00:00:00.000Z',
-            lastUsage: '2026-04-01T00:00:00.000Z',
-            autoRefresh: false,
-            favorites: ['channel-2', 'channel-3'],
-            playlist: {
-                items: [
-                    { id: 'channel-1', name: 'One' },
-                    { id: 'channel-2', name: 'Two' },
-                    { id: 'channel-3', name: 'Three' },
-                ],
-            },
-        } as Playlist;
-        const dbService = {
-            getAll: jest.fn(() => of([])),
-            getByID: jest.fn(() => of(playlist)),
-        };
-        testWindow.electron = undefined;
-
-        const service = createService(dbService);
-
-        await expect(
-            firstValueFrom(service.getFavoriteChannels('playlist-favorites'))
-        ).resolves.toEqual([
-            expect.objectContaining({ id: 'channel-2' }),
-            expect.objectContaining({ id: 'channel-3' }),
-        ]);
-    });
-
     it('sorts portal favorites newest first', async () => {
         const playlist = {
             _id: 'portal-1',
@@ -1362,33 +1331,6 @@ describe('PlaylistsService', () => {
             expect.objectContaining({ id: 'new' }),
             expect.objectContaining({ id: 'old' }),
         ]);
-    });
-
-    it('filters portal live stream favorites', async () => {
-        const playlist = {
-            _id: 'portal-live',
-            title: 'Portal Live',
-            count: 0,
-            importDate: '2026-04-01T00:00:00.000Z',
-            lastUsage: '2026-04-01T00:00:00.000Z',
-            autoRefresh: false,
-            favorites: [
-                { stream_id: 1, title: 'Live', stream_type: 'live' },
-                { movie_id: 2, title: 'Movie', stream_type: 'movie' },
-                { id: 3, title: 'No Type' },
-            ],
-        } as Playlist;
-        const dbService = {
-            getAll: jest.fn(() => of([])),
-            getByID: jest.fn(() => of(playlist)),
-        };
-        testWindow.electron = undefined;
-
-        const service = createService(dbService);
-
-        await expect(
-            firstValueFrom(service.getPortalLiveStreamFavorites('portal-live'))
-        ).resolves.toEqual([expect.objectContaining({ stream_id: 1 })]);
     });
 
     it('removes portal favorites by any supported identity field', async () => {

@@ -483,6 +483,7 @@
         "LANGUAGE": "Langue",
         "SETTINGS_SAVED": "La configuration a été enregistrée avec succès.",
         "SETTINGS_SAVE_FAILED": "Les paramètres n'ont pas pu être enregistrés. Vos modifications seront perdues au redémarrage de l'application.",
+        "SETTINGS_RUNTIME_UPDATE_FAILED": "Les paramètres ont été enregistrés, mais l’application en cours n’a pas pu les appliquer. Vérifiez le port de la télécommande et enregistrez à nouveau.",
         "SETTINGS_LOAD_FAILED": "Les paramètres enregistrés n'ont pas pu être chargés — les valeurs par défaut sont affichées. Vérifiez qu'aucune autre copie de l'application n'est ouverte.",
         "THEME": "Thème",
         "SHOW_CAPTIONS": "Afficher les sous-titres",

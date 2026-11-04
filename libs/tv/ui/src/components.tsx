@@ -5,20 +5,32 @@ export function Poster({
     item,
     open,
     saved,
+    sourceName,
+    focusKey,
     ...attributes
 }: {
     item: Media;
     open: (m: Media) => void;
     saved?: boolean;
+    sourceName?: string;
+    focusKey?: string;
     'data-virtual-index'?: number;
 }) {
     if (item.kind === 'live')
-        return <ChannelCard item={item} open={open} {...attributes} />;
+        return (
+            <ChannelCard
+                item={item}
+                open={open}
+                sourceName={sourceName}
+                focusKey={focusKey}
+                {...attributes}
+            />
+        );
     return (
         <button
             {...attributes}
             class="poster-card"
-            data-focus={item.id}
+            data-focus={focusKey ?? item.id}
             onClick={() => open(item)}
         >
             <span class="poster-art">
@@ -43,7 +55,8 @@ export function Poster({
             </span>
             <strong>{item.title}</strong>
             <span class="muted">
-                {saved ? '♥ Saved' : item.year || 'From your source'}
+                {sourceName ??
+                    (saved ? '♥ Saved' : item.year || 'From your source')}
             </span>
         </button>
     );

@@ -317,6 +317,34 @@ describe('WorkspaceBackNavigationService', () => {
             });
         });
 
+        it.each([
+            { parent: '/workspace/sources' },
+            { parent: ['/workspace', 'sources'] },
+            { parent: null },
+        ])(
+            'discards a delayed parent %j after a newer navigation starts',
+            async ({ parent }) => {
+                const service = createService(new FakeHistory());
+                let resolveParent!: (value: typeof parent) => void;
+                const pending = new Promise<typeof parent>((resolve) => {
+                    resolveParent = resolve;
+                });
+                service.back(() => pending);
+
+                routerEvents.next(
+                    new NavigationStart(2, '/workspace/dashboard')
+                );
+                resolveParent(parent);
+                await Promise.resolve();
+                await Promise.resolve();
+
+                expect(back).not.toHaveBeenCalled();
+                expect(navigate).not.toHaveBeenCalled();
+                expect(navigateByUrl).not.toHaveBeenCalled();
+                expect(routerEvents.observed).toBe(false);
+            }
+        );
+
         it('keeps browser history when the page knows no parent', async () => {
             const service = createService(new FakeHistory());
 

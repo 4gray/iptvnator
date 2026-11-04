@@ -82,7 +82,7 @@ TypeScript 6 migration settings preserve compiler defaults and per-project outpu
 `ignoreDeprecations: "6.0"` temporarily supports legacy Node test configs and
 `baseUrl`, rather than changing the whole workspace to browser resolution.
 
-Two third-party packages need scoped compatibility bridges in
+Third-party packages need scoped compatibility bridges in
 `pnpm-workspace.yaml`:
 
 - `nx-electron@22.0.0` still declares Nx 22 peers. Its existing package-layout
@@ -97,6 +97,10 @@ Two third-party packages need scoped compatibility bridges in
   `iptvnator` v1 database, retains the `_id` key path, and checks reload
   persistence. The shared interfaces package declares the same library version.
   Remove the allowance when upstream includes the installed Angular version.
+- `videojs-quality-selector-hls@1.1.1` imports Babel runtime helpers from its
+  CommonJS entry but lists `@babel/runtime` only as a development dependency.
+  A package extension supplies the existing Babel 7 runtime. Remove it when
+  upstream declares that runtime dependency; player-import unit tests cover it.
 
 Jest uses root Babel 7 while Angular build retains its own Babel 8. The website
 uses Astro 7 with the root TypeScript 6; no Astro-specific compiler package
@@ -386,8 +390,8 @@ entries: `@iptvnator/ui/components/window-controls`,
 `@iptvnator/ui/components/confirm-dialog`,
 `@iptvnator/playlist/shared/ui/stalker-connection-editor`,
 `@iptvnator/playlist/shared/util/playlist-file-import` (the barrel would add
-`PlaylistContextFacade`) and `@iptvnator/pipes/date-format` (the barrel would
-add `SafePipe`; the eager EPG progress panel uses it too), like the existing
+`PlaylistContextFacade`) and `@iptvnator/pipes/date-format` (also used by the
+eager EPG progress panel), like the existing
 `@iptvnator/ui/epg/progress-panel`, and loads anything used only on demand
 through a local file it imports dynamically (the Stalker connection editor,
 the release-notes dialog, the external-player info dialog, the parental-lock

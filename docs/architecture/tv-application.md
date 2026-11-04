@@ -168,6 +168,17 @@ Restoration ignores disabled controls and restores each category's saved scroll
 when its panel becomes visible. Its cancellation and committed-write rules remain
 unchanged. Panel layout uses Chromium-68-compatible flex and explicit dimensions.
 
+Settings > About shows the TV package version, ID and publisher from `appinfo.json`,
+the workspace release, license and project address from package metadata,
+and the build's Git revision, local-change indicator and UTC build time. Vite
+injects these values; the TV runtime never invokes Git or fetches build metadata.
+The build cache includes revision and worktree-wide local-change identity,
+including shared dependencies, so a cached artifact does not claim a different
+revision. Source archives without Git show revision as
+unavailable. Device information is limited to platform, browser engine, viewport
+and system language; credentials and source URLs are not part of About. A static
+panel accepts Right/OK focus, Up/Down scrolling and Left/Back to categories.
+
 Settings has its own purpose-bound QR session for layout, EPG and TMDB
 preferences. The phone receives only nonsecret defaults and a has-key flag.
 An empty key field preserves the saved key; a replacement is visible only to
@@ -226,6 +237,14 @@ service or database. The existing server remains authoritative; the gateway does
 create a second shared database. Electron still does not activate server storage.
 
 ## Playback and local data
+
+TV source, catalog, season and settings choices use the shared `TvSelect`.
+Its large list owns directional and Tab focus; moving focus does not select.
+OK or a pointer click commits, while platform Back cancels and restores the
+trigger. Lists with more than twelve choices offer a text filter. Dialogs use
+`TvDialog` outside scrolling content so settings navigation cannot capture their
+keys. Long detail descriptions expose a full-text dialog whose scroll region
+accepts Up/Down; closing it restores the description action.
 
 One `HTMLVideoElement` exists for preview and fullscreen. Focus movement never
 switches streams. First OK starts live preview; repeated OK opens fullscreen.
@@ -427,8 +446,11 @@ are absent. Favorites separates Movies, Series (including saved episodes) and
 TV within the active source. Movie/series posters retain their proportions;
 channels use horizontal cards. Detail Back restores the selected favorite type,
 item and scroll position. Home Continue watching pairs a 2:3 cover (or local
-fallback icon) with persisted progress and its existing resume action. Available
-parent artwork fills missing episode covers without requesting a new catalog.
+fallback icon) with persisted progress and its existing resume action. The cover
+keeps its 2:3 frame within taller cards and fits the whole image without cropping;
+cards grow to keep episode details and the resume action inside their background.
+Available parent series artwork takes precedence over episode imagery without
+requesting a new catalog.
 Historical Stalker history/favorites recover missing covers from their saved raw
 fields through the provider artwork resolver, without rewriting saved commands,
 positions or credentials.
@@ -442,12 +464,23 @@ repair also updates retained positions without changing seconds or timestamps.
 Parent snapshots retain provider fields needed to reopen regular, embedded and
 lazy series, but exclude cached Xtream episode lists and nested parent snapshots.
 
-Home features up to three recently watched, unfinished titles from the active
-source. A series contributes its latest watched episode; a completed latest
+Home features up to three recently watched, unfinished titles across all TV
+sources. Its saved-title and favorite-channel rails also combine sources, and
+cards and the featured title show the source name. Each saved-title rail previews
+the twelve most recently saved entries; favorite channels remain capped at eight.
+Home focus keys include the rail identity, so copies of a title in different rails
+restore to the initiating placement. Catalog preview rails remain
+explicitly labeled with the selected source; full catalogs stay source-scoped.
+The source picker belongs to catalog/detail/settings screens, while Home displays
+All sources. A series contributes its latest watched episode; a completed latest
 episode does not revive older unfinished episodes. Unknown-duration positions
 remain resumable. The Continue watching rail retains up to eight titles using
 the same grouping. Previous/Next controls wrap on OK or pointer click; there is
-no automatic rotation or playback on focus. Continue watching resolves the
+no automatic rotation or playback on focus. Changing the featured title cancels
+pending Home activation, series details and playback-address resolution before
+updating the visible selection. Home owns resolution retries too; changing title
+retires the previous recovery action. Late responses cannot open or play the
+abandoned title. Continue watching resolves the
 original saved media identity, while Details opens the parent series and episode
 list for an episode. The feature uses the series title, artwork and description;
 episode coordinates and title remain secondary progress information. A saved
@@ -468,11 +501,33 @@ a successful retry retains the original navigation focus and scroll.
 Playback captures its actual initiating control and main scroll position before
 resolution; returning from series details restores
 the hero Continue watching button or resume card that started it.
-Selection survives detail/player Back; source changes and relaunch start at the
-latest unfinished title. With no unfinished history, the first catalog movie
+Selection survives detail/player Back and source activation; relaunch starts at
+the latest unfinished title. With no unfinished history, a saved title or first catalog movie
 (or first available item) remains the featured fallback. Artwork-only parent
 fallbacks and optional TMDB enrichment never replace saved playback commands.
 The hero's title/progress/actions remain usable while metadata loads or fails.
+
+Opening or resuming a Home item activates its exact source before using the
+existing detail/playback paths. Activation waits for the matching provider's
+readiness and preserves the initiating Home control and scroll. A newer Home
+selection queues behind any source save that has already started, even after
+its previous intent is cancelled. Playback waits for the latest source write and
+matching provider readiness instead of trusting a briefly stale active source.
+A newer Home action, navigation away, Back/Cancel, changed source configuration or backend,
+and a 40-second deadline retire the pending intent; late connection completion
+cannot launch it. Failed activation offers Retry Home title. Retained activity
+whose source is no longer available remains visible with an unavailable-source
+label and a recovery message, without borrowing another source's provider.
+Explicit local source removal still removes that source's viewing data.
+Global history is local TV activity, without cross-device synchronization or
+parallel connections to every provider.
+Playback-resolution retries retain the full originating control and scroll,
+including when source activation has reset the visible Home position.
+New Home actions, Cancel and Back also retire an unfinished series-details
+lookup or save before it can navigate. Its retry callback is scoped to that
+request. Background connection notices preserve an existing foreground recovery
+action, so automatic reconnects cannot replace Retry Home title with a generic
+connection retry.
 
 Home and details share a backdrop beginning at the top of the content viewport,
 behind the header. Left and bottom gradients keep text readable and fade into

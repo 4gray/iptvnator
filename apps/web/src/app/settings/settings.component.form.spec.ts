@@ -11,6 +11,8 @@ import {
 import { TranslateService } from '@ngx-translate/core';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { SettingsStore } from '../services/settings-store.service';
+import { SettingsService } from '../services/settings.service';
+import { AppDateLocaleService } from '../app-date-locales';
 import { SettingsComponent } from './settings.component';
 import {
     configureSettingsComponentTestBed,
@@ -343,16 +345,174 @@ describe('SettingsComponent form', () => {
 
         it('hides again after a successful save', async () => {
             settingsStore.updateSettings.mockResolvedValue(undefined);
+            const save = jest.spyOn(component.form, 'save');
             component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
             component.settingsForm.markAsDirty();
             fixture.detectChanges();
 
             component.onSubmit();
+            await save.mock.results[0].value;
             await fixture.whenStable();
             fixture.detectChanges();
 
             expect(component.settingsForm.pristine).toBe(true);
             expect(unsavedBar()).toBeNull();
+        });
+
+        it.each(['storage', 'backend'])(
+            'keeps later edits dirty when the %s save completes',
+            async (pendingStep) => {
+                await fixture.whenStable();
+                let finishSave!: () => void;
+                const pending = new Promise<void>((resolve) => {
+                    finishSave = resolve;
+                });
+                if (pendingStep === 'storage') {
+                    settingsStore.updateSettings.mockReturnValueOnce(pending);
+                } else {
+                    jest.spyOn(
+                        window.electron,
+                        'updateSettings'
+                    ).mockReturnValueOnce(pending);
+                }
+                component.settingsForm.patchValue({
+                    playerAmbientMode: true,
+                    startupWindowMode: 'maximized',
+                });
+                component.settingsForm.markAsDirty();
+                const save = jest.spyOn(component.form, 'save');
+                component.onSubmit();
+                await Promise.resolve();
+
+                component.settingsForm.patchValue({
+                    playerAmbientMode: false,
+                    startupWindowMode: 'normal',
+                });
+                component.settingsForm.markAsDirty();
+                finishSave();
+                await save.mock.results[0].value;
+                await fixture.whenStable();
+
+                expect(component.settingsForm.dirty).toBe(true);
+                expect(component.form.changedPaths()).toEqual([
+                    'playerAmbientMode',
+                    'startupWindowMode',
+                ]);
+                expect(component.form.restartPendingControls()).toEqual([
+                    'startupWindowMode',
+                ]);
+                expect(window.electron.updateSettings).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        playerAmbientMode: true,
+                        startupWindowMode: 'maximized',
+                    })
+                );
+                component.settingsForm.patchValue({
+                    playerAmbientMode: true,
+                    startupWindowMode: 'maximized',
+                });
+                expect(component.form.changedPaths()).toEqual([]);
+            }
+        );
+
+        it.each([
+            { pendingStep: 'storage', failed: false },
+            { pendingStep: 'backend', failed: false },
+            { pendingStep: 'storage', failed: true },
+            { pendingStep: 'backend', failed: true },
+        ])(
+            'ignores an older $pendingStep save after a newer save (failed: $failed)',
+            async ({ pendingStep, failed }) => {
+                await fixture.whenStable();
+                const changeLanguage = jest
+                    .spyOn(TestBed.inject(AppDateLocaleService), 'use')
+                    .mockResolvedValue(undefined);
+                let finishOlderSave!: () => void;
+                let failOlderSave!: (error: Error) => void;
+                const pending = new Promise<void>((resolve, reject) => {
+                    finishOlderSave = resolve;
+                    failOlderSave = reject;
+                });
+                if (pendingStep === 'storage') {
+                    settingsStore.updateSettings.mockReturnValueOnce(pending);
+                } else {
+                    jest.spyOn(
+                        window.electron,
+                        'updateSettings'
+                    ).mockReturnValueOnce(pending);
+                }
+                component.settingsForm.patchValue({
+                    language: Language.GERMAN,
+                    startupWindowMode: 'maximized',
+                });
+                component.settingsForm.markAsDirty();
+                const older = component.form.save(() =>
+                    component.applyChangedSettings()
+                );
+                await Promise.resolve();
+
+                component.settingsForm.patchValue({
+                    language: Language.FRENCH,
+                    startupWindowMode: 'normal',
+                });
+                await component.form.save(() =>
+                    component.applyChangedSettings()
+                );
+                expect(component.settingsForm.pristine).toBe(true);
+
+                if (failed) failOlderSave(new Error('Superseded save failed'));
+                else finishOlderSave();
+                await older;
+                await fixture.whenStable();
+
+                expect(component.settingsForm.pristine).toBe(true);
+                expect(component.form.changedPaths()).toEqual([]);
+                expect(component.form.restartPendingControls()).toEqual([]);
+                expect(changeLanguage).toHaveBeenLastCalledWith(
+                    Language.FRENCH
+                );
+                expect(window.electron.updateSettings).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ language: Language.FRENCH })
+                );
+            }
+        );
+
+        it('preserves a newer theme preview while applying only the submitted language', async () => {
+            await fixture.whenStable();
+            const changeTheme = jest.spyOn(
+                TestBed.inject(SettingsService),
+                'changeTheme'
+            );
+            const changeLanguage = jest
+                .spyOn(TestBed.inject(AppDateLocaleService), 'use')
+                .mockResolvedValue(undefined);
+            let finishUpdate!: () => void;
+            const pending = new Promise<void>((resolve) => {
+                finishUpdate = resolve;
+            });
+            jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+                pending
+            );
+            component.form.selectTheme(Theme.DarkTheme);
+            component.settingsForm.patchValue({ language: Language.GERMAN });
+            const save = jest.spyOn(component.form, 'save');
+            component.onSubmit();
+            await Promise.resolve();
+
+            component.form.selectTheme(Theme.LightTheme);
+            component.settingsForm.patchValue({ language: Language.FRENCH });
+            finishUpdate();
+            await save.mock.results[0].value;
+            await fixture.whenStable();
+
+            expect(changeTheme).toHaveBeenLastCalledWith(Theme.LightTheme);
+            expect(changeLanguage).toHaveBeenLastCalledWith(Language.GERMAN);
+            expect(component.settingsForm.value.theme).toBe(Theme.LightTheme);
+            expect(component.settingsForm.dirty).toBe(true);
+            expect(component.form.changedPaths()).toEqual([
+                'language',
+                'theme',
+            ]);
         });
 
         // The page owns the bar and is OnPush, and Save marks the form
@@ -362,6 +522,7 @@ describe('SettingsComponent form', () => {
         // here, so a regression shows.
         it('hides after a save on a page without a form section', async () => {
             settingsStore.updateSettings.mockResolvedValue(undefined);
+            const save = jest.spyOn(component.form, 'save');
             setSettingsSection('backup');
             fixture.autoDetectChanges();
             component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
@@ -370,6 +531,7 @@ describe('SettingsComponent form', () => {
             expect(unsavedBar()).not.toBeNull();
 
             component.onSubmit();
+            await save.mock.results[0].value;
             await fixture.whenStable();
             // The render the form event scheduled runs in the next macrotask.
             await new Promise((resolve) => setTimeout(resolve));

@@ -41,6 +41,30 @@ describe('DatabaseService browser guards', () => {
         });
     });
 
+    it('forwards a local category selector without fabricating metadata identity', async () => {
+        const lookup = jest.fn().mockResolvedValue({ id: 81, category_id: 8 });
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: { dbGetContentByXtreamId: lookup },
+        });
+        await expect(
+            service.getContentByXtreamId(
+                42,
+                'synthetic-source',
+                'movie',
+                undefined,
+                8
+            )
+        ).resolves.toEqual({ id: 81, category_id: 8 });
+        expect(lookup).toHaveBeenCalledWith(
+            42,
+            'synthetic-source',
+            'movie',
+            undefined,
+            8
+        );
+    });
+
     it('does not report success when the favorites worker rejects a conflicting identity', async () => {
         Object.defineProperty(window, 'electron', {
             configurable: true,

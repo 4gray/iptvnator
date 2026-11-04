@@ -46,6 +46,8 @@ export default {
     '^@package$': '<rootDir>/src/test-stubs/package.mjs',
     '^shaka-player$': '<rootDir>/src/test-stubs/shaka-player.js',
     '^video.js$': '<rootDir>/src/test-stubs/video-js.js',
+    '^videojs-quality-selector-hls$':
+      '<rootDir>/src/test-stubs/videojs-quality-selector-hls.js',
     '^rxjs': '<rootDir>/../../node_modules/rxjs/dist/bundles/rxjs.umd.js',
   },
   transform: angularEsmPreset.transform,

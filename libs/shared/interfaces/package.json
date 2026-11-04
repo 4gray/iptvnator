@@ -6,6 +6,7 @@
     "main": "./src/index.js",
     "types": "./src/index.d.ts",
     "dependencies": {
+        "@noble/hashes": "2.3.0",
         "ngx-indexed-db": "22.0.0",
         "tslib": "^2.3.0"
     }

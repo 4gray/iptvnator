@@ -1,8 +1,12 @@
 import { mountTvSetup } from './tv-setup/pairing-router';
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
-import { createHash } from 'node:crypto';
-import zlib from 'node:zlib';
+import { ProviderTargetRegistry } from './provider-target-registry';
+import {
+    decodeProviderGzip,
+    providerResponseLimitBytes,
+    ProviderResponseTooLargeError,
+} from './provider-response';
 import epgParser from 'epg-parser';
 import parser from 'iptv-playlist-parser';
 import {
@@ -14,8 +18,9 @@ import {
     buildStalkerRequestUrl,
     normalizeXtreamServerUrl,
     describeXtreamConnectionFailure,
+    type ParsedPlaylist,
 } from '@iptvnator/shared/interfaces';
-import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
+import { createPlaylistObject as createM3uPlaylist } from '@iptvnator/shared/m3u-utils';
 import {
     admitProviderRequest,
     observeProviderRequest,
@@ -77,11 +82,11 @@ export interface WebBackendAppOptions {
     readonly accessToken?: string | null;
     /** Largest accepted playlist document in bytes. */
     readonly maxDocumentBytes?: number;
+    readonly maxProviderResponseBytes?: number;
+    readonly providerTargets?: ProviderTargetRegistry;
     /** Server storage; `null` or absent keeps the backend stateless. */
     readonly storage?: ServerStorage | null;
 }
-
-type ProviderTargetRegistry = Map<string, URL>;
 
 export function createWebBackendApp(
     options: WebBackendAppOptions = {}
@@ -108,11 +113,15 @@ export function createWebBackendApp(
             isPrivateNetworkProxyAllowed(),
         resolveHostname: options.resolveHostname ?? resolveHostname,
     };
+    const maxProviderResponseBytes =
+        options.maxProviderResponseBytes ?? providerResponseLimitBytes();
     const httpClient = new ValidatedHttpClient(
         providerUrlPolicy,
-        options.httpClient
+        options.httpClient,
+        maxProviderResponseBytes
     );
-    const providerTargets: ProviderTargetRegistry = new Map();
+    const providerTargets =
+        options.providerTargets ?? new ProviderTargetRegistry();
 
     const corsMiddleware = cors({
         origin(origin, callback) {
@@ -176,8 +185,7 @@ export function createWebBackendApp(
                 return;
             }
 
-            const targetId = createProviderTargetId(result.url);
-            providerTargets.set(targetId, result.url);
+            const targetId = providerTargets.register(result.url);
             res.json({ targetId });
         }
     );
@@ -250,7 +258,11 @@ export function createWebBackendApp(
 
         // Unguarded for the same reasons as /parse above.
         try {
-            const result = await fetchEpgDataFromUrl(httpClient, url);
+            const result = await fetchEpgDataFromUrl(
+                httpClient,
+                url,
+                maxProviderResponseBytes
+            );
             if (!result) {
                 res.status(500).json({
                     message: 'Error, something went wrong',
@@ -490,15 +502,12 @@ function getRegisteredProviderUrl(
         res.status(404).json({
             message: 'Provider target not found',
             status: 404,
+            code: 'PROVIDER_TARGET_NOT_FOUND',
         });
         return null;
     }
 
     return targetUrl;
-}
-
-function createProviderTargetId(url: URL): string {
-    return createHash('sha256').update(url.href).digest('hex');
 }
 
 function isPrivateNetworkProxyAllowed(): boolean {
@@ -583,7 +592,7 @@ async function handlePlaylistParse(options: {
                 ? { headers: { 'User-Agent': options.userAgent } }
                 : {}),
         });
-        const parsedPlaylist = parsePlaylist(response.data);
+        const parsedPlaylist = parser.parse(response.data);
         const title = getLastUrlSegment(options.url);
         return {
             ...createPlaylistObject({
@@ -597,6 +606,11 @@ async function handlePlaylistParse(options: {
         };
     } catch (error) {
         logProviderRequestFailure({ error, route: '/parse', url: options.url });
+        if (
+            error instanceof ProviderRequestError &&
+            error.cause instanceof ProviderResponseTooLargeError
+        )
+            return normalizeProviderError(error);
         if (error instanceof ProviderRequestError && error.policyError) {
             return providerUrlErrorBody(error.policyError);
         }
@@ -622,7 +636,8 @@ async function handlePlaylistParse(options: {
 
 async function fetchEpgDataFromUrl(
     httpClient: WebBackendHttpClient,
-    url: URL
+    url: URL,
+    maxBytes: number
 ): Promise<unknown> {
     const href = url.href;
     const response = await httpClient.get<ArrayBuffer | string>(href, {
@@ -632,7 +647,10 @@ async function fetchEpgDataFromUrl(
             : {}),
     });
     const xml = url.pathname.endsWith('.gz')
-        ? zlib.gunzipSync(Buffer.from(response.data as ArrayBuffer)).toString()
+        ? decodeProviderGzip(
+              Buffer.from(response.data as ArrayBuffer),
+              maxBytes
+          )
         : response.data.toString();
     return epgParser.parse(xml);
 }
@@ -646,51 +664,30 @@ function isPlaylistParseError(
     );
 }
 
-function parsePlaylist(playlist: string): {
-    items: Array<Record<string, unknown>>;
-} {
-    return parser.parse(playlist) as unknown as {
-        items: Array<Record<string, unknown>>;
-    };
-}
-
 function createPlaylistObject(options: {
     readonly guid: () => string;
     readonly now: () => Date;
-    readonly playlist: { items: Array<Record<string, unknown>> };
+    readonly playlist: ParsedPlaylist;
     readonly title: string;
     readonly url: string;
 }): Record<string, unknown> {
     const timestamp = options.now().toISOString();
     const id = options.guid();
+    const playlist = createM3uPlaylist(
+        options.title,
+        options.playlist,
+        options.url,
+        'URL'
+    );
+    for (const item of playlist.playlist.items) {
+        item.id = options.guid();
+    }
     return {
+        ...playlist,
         id,
         _id: id,
-        filename: options.title,
-        title: options.title,
-        count: options.playlist.items.length,
-        playlist: {
-            ...options.playlist,
-            items: options.playlist.items.map((item) => {
-                // Keep this builder aligned with the shared
-                // createPlaylistObject() in @iptvnator/shared/m3u-utils:
-                // KODIPROP ClearKey DRM must survive the /parse URL-import
-                // path too.
-                const drm = extractDrmFromRaw(
-                    typeof item['raw'] === 'string' ? item['raw'] : undefined
-                );
-                return {
-                    id: options.guid(),
-                    ...item,
-                    ...(drm ? { drm } : {}),
-                };
-            }),
-        },
         importDate: timestamp,
         lastUsage: timestamp,
-        favorites: [],
-        autoRefresh: false,
-        url: options.url,
     };
 }
 

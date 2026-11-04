@@ -3,7 +3,7 @@ import { workspaceRoot } from '@nx/devkit';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdir } from 'node:fs/promises';
-import { addSource, nav, start } from './helpers';
+import { chooseTv, addSource, nav, start } from './helpers';
 test('packaged classic script boots and connects from file protocol', async ({
     page,
 }) => {
@@ -63,17 +63,12 @@ test('remote arrows can leave source fields and reach native disclosure controls
     await page.getByRole('tab', { name: 'Appearance', exact: false }).click();
     const layout = page.getByLabel('Home composition');
     await layout.focus();
-    expect(
-        await layout.evaluate((element) => {
-            const event = new KeyboardEvent('keydown', {
-                key: 'ArrowDown',
-                bubbles: true,
-                cancelable: true,
-            });
-            element.dispatchEvent(event);
-            return event.defaultPrevented;
-        })
-    ).toBe(false);
+    await page.keyboard.press('Enter');
+    await expect(
+        page.getByRole('dialog', { name: 'Home composition', exact: true })
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(layout).toBeFocused();
     await page.keyboard.press('ArrowLeft');
     await expect(layout).not.toBeFocused();
 });
@@ -147,7 +142,7 @@ test('cinema/showcase, direct catalog diagnostic and TV layout widths', async ({
         'directly readable'
     );
     await page.getByRole('tab', { name: 'Appearance', exact: false }).click();
-    await page.getByLabel('Home composition').selectOption('shelf');
+    await chooseTv(page, 'Home composition', 'shelf');
     await page.getByRole('button', { name: 'Save settings' }).click();
     await nav(page, 'Home');
     await expect(page.locator('.hero.compact')).toBeVisible();

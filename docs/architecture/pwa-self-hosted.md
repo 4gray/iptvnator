@@ -76,6 +76,22 @@ pnpm nx reset
 pnpm nx build web --configuration=pwa --skip-nx-cache
 ```
 
+## Xtream request cancellation
+
+Xtream import signals travel as a separate, renderer-local argument to
+`DataService.sendIpcEvent`, never inside an IPC or HTTP payload. The PWA's
+on-demand `pwa-xtream-request.ts` transport unsubscribes the caller's pending
+target-registration wait or catalog GET when aborted. A category failure can
+therefore settle sibling requests before releasing the import's busy hold.
+Xtream uses the same bounded `ProviderTargetClient` as M3U and Stalker, so its
+one missing-target recovery attempt is covered by the same abort subscription.
+Provider-target registrations remain shared between independent callers;
+cancelling one reader does not cancel another. Registration POSTs have a 30-second HTTP timeout so an unresponsive backend cannot
+retain an unbounded registration promise. Catalog GETs rely on the backend
+inactivity timeout and caller cancellation, with no browser wall-clock deadline
+that could cut off a healthy large transfer. Cancelled imports do not show error
+toasts.
+
 ## Web Backend
 
 The current self-hosted PWA uses these `apps/web-backend` routes:
@@ -179,6 +195,13 @@ same rule; see [Xtream mock Playwright integration](xtream-mock-server.md#playwr
 The PWA continues to use `PwaService`. A selected source server also supplies
 its backend base URL for browser provider proxy calls. Electron provider
 requests remain owned by the Electron backend and preload bridge.
+
+Stalker authentication also supports LAN HTTP origins without `crypto.subtle`:
+its SHA-1 prehash and optional MAC-derived SHA-256 device IDs use the shared
+protocol hash fallback described in [Stalker contracts](stalker-portal.md).
+HTTPS retains native Web Crypto. This compatibility path does not encrypt
+HTTP or enable browser features that require a secure context, such as service
+worker registration.
 
 ## Shared source library
 
@@ -733,6 +756,26 @@ before any outbound request:
   default
 - `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1` explicitly enables trusted
   local/LAN targets for development, mock servers, or private deployments
+
+### Provider registration and response limits
+
+Registrations are process-local and capped at 1024 URLs. The registry evicts
+the least recently used entry at capacity and lazily expires entries after
+30 minutes without use. Restarted, expired or evicted targets return HTTP 404
+with `code: 'PROVIDER_TARGET_NOT_FOUND'`, before any provider request goes out.
+The browser keeps at most 256 registrations and re-registers a missing target
+once, sharing concurrent registration attempts. M3U, Xtream and Stalker keep
+their request credentials and headers on that retry. Ordinary provider 404s,
+authorization failures and network errors do not trigger this retry. The older
+backend's exact `Provider target not found` message remains compatible.
+
+Final provider response bodies are limited to 64 MiB by default; configure
+`IPTVNATOR_MAX_PROVIDER_RESPONSE_MB` to change the limit. It applies to decoded
+HTTP response chunks and, separately, to decompressed `.gz` XMLTV output.
+Overflow destroys the body stream and returns a size error with status 413 and
+`code: 'PROVIDER_RESPONSE_TOO_LARGE'`; portal routes retain their HTTP 200 error
+envelope. This is not a host-connectivity failure. The limit is per response;
+it is not a total process-memory or concurrent-request budget.
 
 ### Provider redirects and connection policy
 

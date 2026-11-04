@@ -1438,6 +1438,14 @@ replace with
 `performance-build-config.spec.ts` keeps it that way. Removing the static
 import lowered the counter by 12,565 bytes.
 
+Browser-only Xtream proxy handling lives in
+`apps/web/src/app/services/pwa-xtream-request.ts`, loaded on demand by
+`PwaService`. Its HTTP cancellation, error normalization, response handling and
+silent-action policy stay outside the initial Electron payload; renderer-local
+abort signals are
+never serialized across IPC. Keep that boundary when adding browser transport
+behavior rather than increasing the initial-byte baseline.
+
 The bundler keeps each module in one chunk, so one eager import of any
 export carries the module's whole code: providing
 `MAT_FORM_FIELD_DEFAULT_OPTIONS` in `app.config.ts` alone put the 54 KB
@@ -1556,6 +1564,26 @@ rest of that workflow it runs for pull requests that target `master` and for
 pushes to `master`; a stacked PR that targets another branch gets no run until
 it is retargeted, so dispatch one with `gh workflow run ci.yml --ref <branch>`
 when you need the number. A PR that grows the counter fails that job.
+
+The same job uploads the production renderer output to Codecov Bundle Analysis
+as `iptvnator-renderer`, using the pinned standalone analyzer CLI and
+`tools/performance/codecov-bundle.json`. It runs after the existing build,
+before the ratchet, so a size regression still produces a bundle report.
+The analyzer measures all emitted assets, including lazy chunks, by raw size
+and estimates gzip size for compressible formats; source maps are excluded.
+It does not report the modules inside
+each chunk and its total is not the `renderer.initialBytes` startup counter.
+This is informational reporting; upload failures do not fail CI and the
+existing ratchet remains the merge gate. Uploads authenticate through GitHub
+OIDC and run on master, manual dispatches and same-repository PRs; fork and
+Dependabot PRs skip the upload.
+The CLI is installed on demand in that Linux job because its package supports
+only Linux and macOS; it is not a workspace dependency. For a local report
+without uploading, run after a production build:
+
+```bash
+pnpm dlx @codecov/bundle-analyzer@2.0.1 dist/apps/web --config-file=tools/performance/codecov-bundle.json --dry-run
+```
 
 That runner is the canonical measurer: take baseline values from its output,
 not from a local build. A local macOS build of the code before #1695 is 2

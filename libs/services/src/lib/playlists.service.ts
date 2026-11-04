@@ -24,7 +24,6 @@ import {
     tap,
 } from 'rxjs';
 import {
-    Channel,
     DbStores,
     extractStalkerItemId,
     isM3uRecentlyViewedItem,
@@ -985,10 +984,6 @@ export class PlaylistsService {
         });
     }
 
-    updateFavorites(id: string, favorites: string[]) {
-        return this.favoriteMutation(id, () => favorites);
-    }
-
     /** Explicit membership actions; the optional bridge persists projection and intent atomically. */
     transformPlaylistFavorites(
         playlistId: string,
@@ -1078,22 +1073,6 @@ export class PlaylistsService {
         );
     }
 
-    private getFavoritePlaylist(id: string) {
-        return this.getPlaylistById(id).pipe(
-            switchMap((playlist) => this.favoriteSync.project(playlist))
-        );
-    }
-
-    getFavoriteChannels(playlistId: string) {
-        return this.getFavoritePlaylist(playlistId).pipe(
-            map((data) =>
-                (data.playlist?.items ?? []).filter((channel: Channel) =>
-                    data.favorites?.includes(channel.id)
-                )
-            )
-        );
-    }
-
     getM3uFavoriteChannels(
         playlistId: string
     ): Observable<M3uFavoriteChannel[] | null> {
@@ -1130,7 +1109,8 @@ export class PlaylistsService {
             throw new Error('Portal ID is required');
         }
 
-        return this.getFavoritePlaylist(portalId).pipe(
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((playlist) => this.favoriteSync.project(playlist)),
             map((item) => {
                 if (!item || !item.favorites) return [];
                 return item.favorites as PortalFavoriteItem[];
@@ -1145,24 +1125,8 @@ export class PlaylistsService {
         );
     }
 
-    getPortalLiveStreamFavorites(portalId: string) {
-        return this.getFavoritePlaylist(portalId).pipe(
-            map((item) => {
-                if (!item || !item.favorites) return [];
-                return (item.favorites as PortalFavoriteItem[]).filter(
-                    (itm) =>
-                        itm && itm.stream_type && itm.stream_type === 'live'
-                );
-            })
-        );
-    }
-
     addPortalFavorite(portalId: string, item: PortalFavoriteItem) {
         return this.favoriteMutation(portalId, (current) => [...current, item]);
-    }
-
-    setPortalFavorites(portalId: string, favorites: StalkerPortalItem[]) {
-        return this.favoriteMutation(portalId, () => favorites);
     }
 
     removeFromPortalFavorites(
@@ -1286,10 +1250,6 @@ export class PlaylistsService {
                     .map((playlist) => this.toAutoUpdatePlaylistMeta(playlist));
             })
         );
-    }
-
-    setFavorites(playlistId: string, favorites: string[]) {
-        return this.favoriteMutation(playlistId, () => favorites);
     }
 
     getRawPlaylistById(id: string) {

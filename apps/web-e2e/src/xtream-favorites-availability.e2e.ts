@@ -569,7 +569,7 @@ test('@xtream @collections cold shared live playback records the selected favori
     }, id);
     await page.reload();
     await expect(
-        row.getByRole('button', { name: 'Played favorite B', exact: true })
+        row.getByRole('button', { name: /^Played favorite B\b/ })
     ).toHaveAttribute('aria-disabled', 'true');
     await row.click({ button: 'right' });
     await expect(page.getByRole('menuitem')).toHaveCount(1);

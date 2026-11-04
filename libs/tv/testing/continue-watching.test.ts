@@ -112,7 +112,7 @@ test('saved parent context survives JSON storage without copying cached episode 
         episode
     );
 });
-test('continuation is source-scoped, newest first, limited and never mutates saved history', () => {
+test('continuation combines sources, newest first, limited and never mutates saved history', () => {
     const data = initialData();
     data.activeId = 'a';
     const foreign = progress('foreign', 100);
@@ -131,11 +131,11 @@ test('continuation is source-scoped, newest first, limited and never mutates sav
     const saved = JSON.stringify(data);
     assert.deepEqual(
         continueWatching(data, 3).map((p) => p.item.id),
-        ['new', 'unknown-duration', 'old']
+        ['foreign', 'new', 'unknown-duration']
     );
     assert.deepEqual(
         continueWatching(data, 1).map((p) => p.item.id),
-        ['new']
+        ['foreign']
     );
     assert.equal(JSON.stringify(data), saved);
 });
@@ -238,4 +238,38 @@ test('unknown saved fields survive hydration and subsequent progress writes', ()
         saved.retainedExtension
     );
     assert.equal(updated.history[0].item.id, 'movie');
+});
+
+test('global continuation keeps equal provider ids separate across sources', () => {
+    const data = initialData();
+    const first = progress('synthetic-first', 10);
+    const second = progress('synthetic-second', 11);
+    first.item = {
+        ...first.item,
+        kind: 'episode',
+        parentId: 'synthetic-parent',
+        providerId: 'same-provider-id',
+    };
+    second.item = {
+        ...second.item,
+        sourceId: 'b',
+        kind: 'episode',
+        parentId: 'synthetic-parent',
+        providerId: 'same-provider-id',
+    };
+    data.history = [first, second];
+    assert.deepEqual(
+        continueWatching(data).map((p) => p.item.sourceId),
+        ['b', 'a']
+    );
+    data.activeId = 'unrelated';
+    assert.deepEqual(
+        continueWatching(data).map((p) => p.item.sourceId),
+        ['b', 'a']
+    );
+    data.history = [{ ...second, seconds: 3590, updated: 12 }, first, second];
+    assert.deepEqual(
+        continueWatching(data).map((p) => p.item.sourceId),
+        ['a']
+    );
 });

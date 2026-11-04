@@ -1,3 +1,4 @@
+import { TvSelect } from '@iptvnator/tv/ui';
 import { useEffect, useState } from 'preact/hooks';
 import type { TvModel } from './use-tv';
 
@@ -57,22 +58,19 @@ export function SettingsPreferences({
             {field === 'layout' ? (
                 <label>
                     Home composition
-                    <select
-                        name="layout"
-                        data-focus="settings:layout:value"
+                    <TvSelect
+                        label="Home composition"
+                        focusKey="settings:layout:value"
                         value={String(value)}
-                        onChange={(event) => {
-                            setValue(
-                                event.currentTarget.value === 'shelf'
-                                    ? 'shelf'
-                                    : 'cinema'
-                            );
+                        options={[
+                            { value: 'cinema', label: 'Кинозал · Cinema' },
+                            { value: 'shelf', label: 'Витрина · Showcase' },
+                        ]}
+                        onChange={(next) => {
+                            setValue(next === 'shelf' ? 'shelf' : 'cinema');
                             setSaved(false);
                         }}
-                    >
-                        <option value="cinema">Кинозал · Cinema</option>
-                        <option value="shelf">Витрина · Showcase</option>
-                    </select>
+                    />
                 </label>
             ) : (
                 <label class="check">

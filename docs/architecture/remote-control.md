@@ -67,6 +67,15 @@ Registered endpoints:
 - `POST /api/remote-control/volume/toggle-mute`
 - `GET /api/remote-control/status`
 
+Command POSTs require `application/json` (an optional charset is accepted).
+Before dispatching any API request, including status reads, the HTTP server
+rejects cross-site browser requests and origins other than its own
+`http://<host>:<port>`. The Host must name the
+listening interface, localhost, or the machine's hostname/mDNS name at the
+actual listener port; arbitrary DNS aliases are rejected to prevent DNS
+rebinding. JSON clients without an Origin header remain supported on the
+trusted LAN. Rejected requests return JSON HTTP 403 and never reach IPC.
+
 IPC emitted to renderer:
 
 - `CHANNEL_CHANGE` payload: `{ direction: 'up' | 'down' }`
@@ -91,6 +100,19 @@ Status ingestion from renderer:
 - Main handler: `apps/electron-backend/src/app/events/settings.events.ts`
 - On `SETTINGS_UPDATE`, reads `remoteControl` and `remoteControlPort`, persists to store, and calls:
     - `httpServer.updateSettings(enabled, port)`
+- Listener transitions are awaited and serialized. Bind errors reject the
+  settings update without leaving a running listener; subsequent updates can
+  retry. Startup logs an unavailable port without an unhandled rejection.
+  Disabling the server or changing ports closes active HTTP connections so an
+  unfinished request body cannot hold the settings queue open.
+- The settings form awaits the backend update before confirming success. An
+  apply failure keeps the form available for retry and explains that the saved
+  preferences could not be applied, separately from a storage-write failure.
+  Edits made while a save is pending remain dirty after the submitted values
+  are saved; save-and-leave stays on settings when newer changes remain.
+  Overlapping saves use a revision guard: older completions cannot overwrite
+  the latest saved snapshot, mirror older values to Electron after a cleanup
+  wait, or report stale failures after a newer save.
 
 ## Preload Bridge
 

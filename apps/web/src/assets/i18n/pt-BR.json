@@ -483,6 +483,7 @@
         "LANGUAGE": "Idioma",
         "SETTINGS_SAVED": "Configurações salvas.",
         "SETTINGS_SAVE_FAILED": "Não foi possível salvar as configurações. As alterações serão perdidas ao reiniciar o aplicativo.",
+        "SETTINGS_RUNTIME_UPDATE_FAILED": "As configurações foram salvas, mas o aplicativo em execução não conseguiu aplicá-las. Verifique a porta do controle remoto e salve novamente.",
         "SETTINGS_LOAD_FAILED": "Não foi possível carregar as configurações salvas. Os valores padrão estão sendo usados. Verifique se não há outra instância do aplicativo em execução.",
         "THEME": "Tema visual",
         "SHOW_CAPTIONS": "Mostrar legendas",

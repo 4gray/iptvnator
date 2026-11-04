@@ -45,6 +45,7 @@ export type CategoryType = 'live' | 'vod' | 'series';
 export type StreamType = 'live' | 'movie' | 'series';
 
 export interface XtreamRequestOptions {
+    signal?: AbortSignal;
     requestId?: string;
     sessionId?: string;
     suppressErrorLog?: boolean;
@@ -152,7 +153,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     /**
@@ -172,7 +176,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     /**
@@ -195,7 +202,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     async getVodStream(
@@ -233,7 +243,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     /**
@@ -378,6 +391,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         params: Record<string, string | number>,
         options?: XtreamRequestOptions
     ): Promise<TResponse> {
+        options?.signal?.throwIfAborted();
         const normalizedUrl = normalizeXtreamServerUrl(credentials.serverUrl);
         const serializedParams: Record<string, string> = {};
         Object.entries(params).forEach(([key, value]) => {
@@ -389,16 +403,20 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         });
 
         const request = async () =>
-            this.dataService.sendIpcEvent(XTREAM_REQUEST, {
-                url: normalizedUrl,
-                ...(credentials.userAgent?.trim()
-                    ? { userAgent: credentials.userAgent.trim() }
-                    : {}),
-                params: serializedParams,
-                requestId: options?.requestId,
-                sessionId: options?.sessionId,
-                suppressErrorLog: options?.suppressErrorLog,
-            });
+            this.dataService.sendIpcEvent(
+                XTREAM_REQUEST,
+                {
+                    url: normalizedUrl,
+                    ...(credentials.userAgent?.trim()
+                        ? { userAgent: credentials.userAgent.trim() }
+                        : {}),
+                    params: serializedParams,
+                    requestId: options?.requestId,
+                    sessionId: options?.sessionId,
+                    suppressErrorLog: options?.suppressErrorLog,
+                },
+                ...(options?.signal ? ([options.signal] as const) : [])
+            );
         const isEpg = [
             XtreamCodeActions.GetShortEpg,
             XtreamCodeActions.GetSimpleDataTable,

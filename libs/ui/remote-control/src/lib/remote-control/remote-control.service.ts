@@ -1,6 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
+
+const REMOTE_REQUEST_TIMEOUT_MS = 10_000;
 
 export interface RemoteControlStatus {
     portal: 'm3u' | 'xtream' | 'stalker' | 'unknown';
@@ -27,53 +29,46 @@ export class RemoteControlService {
     private readonly apiBaseUrl = '/api/remote-control';
     private readonly http = inject(HttpClient);
 
-    /**
-     * Changes to the previous channel in the playback list
-     */
+    /** Changes to the previous channel in the playback list. */
     async channelUp(): Promise<void> {
-        await firstValueFrom(
-            this.http.post<void>(`${this.apiBaseUrl}/channel/up`, {})
-        );
+        await this.sendCommand('channel/up');
     }
 
-    /**
-     * Changes to the next channel in the playback list
-     */
+    /** Changes to the next channel in the playback list. */
     async channelDown(): Promise<void> {
-        await firstValueFrom(
-            this.http.post<void>(`${this.apiBaseUrl}/channel/down`, {})
-        );
+        await this.sendCommand('channel/down');
     }
 
     async selectChannelByNumber(number: number): Promise<void> {
-        await firstValueFrom(
-            this.http.post<void>(`${this.apiBaseUrl}/channel/select-number`, {
-                number,
-            })
-        );
+        await this.sendCommand('channel/select-number', { number });
     }
 
     async volumeUp(): Promise<void> {
-        await firstValueFrom(
-            this.http.post<void>(`${this.apiBaseUrl}/volume/up`, {})
-        );
+        await this.sendCommand('volume/up');
     }
 
     async volumeDown(): Promise<void> {
-        await firstValueFrom(
-            this.http.post<void>(`${this.apiBaseUrl}/volume/down`, {})
-        );
+        await this.sendCommand('volume/down');
     }
 
     async toggleMute(): Promise<void> {
-        await firstValueFrom(
-            this.http.post<void>(`${this.apiBaseUrl}/volume/toggle-mute`, {})
-        );
+        await this.sendCommand('volume/toggle-mute');
     }
 
     async getStatus(): Promise<RemoteControlStatus> {
         return await firstValueFrom(
-            this.http.get<RemoteControlStatus>(`${this.apiBaseUrl}/status`)
+            this.http
+                .get<RemoteControlStatus>(`${this.apiBaseUrl}/status`)
+                .pipe(timeout(REMOTE_REQUEST_TIMEOUT_MS))
+        );
+    }
+
+    private sendCommand(path: string, body: unknown = {}): Promise<void> {
+        // A stalled request must release the component's command/polling guards.
+        return firstValueFrom(
+            this.http
+                .post<void>(`${this.apiBaseUrl}/${path}`, body)
+                .pipe(timeout(REMOTE_REQUEST_TIMEOUT_MS))
         );
     }
 }

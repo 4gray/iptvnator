@@ -15,8 +15,7 @@ import { TranslateService } from '@ngx-translate/core';
     imports: [RemoteControlComponent],
     selector: 'app-root',
     templateUrl: './app.html',
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './app.scss',
 })
 export class App implements OnInit {

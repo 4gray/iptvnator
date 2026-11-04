@@ -8,6 +8,8 @@ Use it when changing existing views or introducing new list-based UI in the work
 
 1. Prefer shared components over duplicated markup.
    The canonical channel row is `app-channel-list-item`.
+   Its main button takes its accessible name from visible channel and programme
+   text; a name-only `aria-label` hides the programme metadata from that name.
 
 2. Drive emphasis through selection state, not through constant decoration.
    Neutral rows should stay quiet. Only active or current items should pick up strong color.
@@ -439,7 +441,13 @@ rail, whose heading keeps a trace of it, and reaches the page colour before
 that rail's cards (their scroll-edge fades are drawn in the page colour), with
 no tail in the narrow layout. Series titles drop their season marker (`splitSeasonSuffix`) into a
 "Season N" chip. Rows a provider cannot serve are left out of the menu, never
-disabled. The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
+disabled. The More overlay prefers the trigger's right edge and flips upward;
+when neither position fits, CDK pushes it inside the viewport with a 12px
+margin. The panel keeps its height cap and scrolls its rows; Home/End and
+arrow keys reveal the focused row, and Escape returns focus to the trigger.
+`detail-more-menu.e2e.ts` checks short-window geometry, both themes and real
+pointer handoffs for movie and series menus, including after scrolling.
+The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
 only carries the page shell, meta items and the episodes section.
 
 With `detailTrailerBackdrop` on (Settings → Playback → "Play trailers in
@@ -750,8 +758,14 @@ remain local when the meaning is explicit.
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
   `app-grid-list`. Use the grid list's logo-oriented live variant so channel
-  logos stay contained in 16:9 thumbnails instead of being cropped like
-  VOD/series posters. Selecting a channel from that root grid starts playback,
+  logos stay contained in a compact 72px-high region instead of being cropped
+  like VOD/series posters. The outer card owns the rounding; the logo region
+  joins the title and programme area with straight inner corners. Logo loading
+  placeholders reserve the same height, while channel rows remain unchanged.
+  Channel titles use a single 20px line with ellipsis and the full name in the
+  card's native tooltip; programme metadata follows after 8px without a reserved
+  second title line. Keep the title at 14px and programme text at 12px.
+  Selecting a channel from that root grid starts playback,
   selects the channel's category, highlights the active category and channel,
   and scrolls the category rail plus virtual channels list to the selected rows
   when those rails are visible.

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addSource, nav, start, stalker, xtream } from './helpers';
+import { chooseTv, addSource, nav, start, stalker, xtream } from './helpers';
 test('Stalker lazy episodes resolve their own media file when another show owns the episode-number file', async ({
     page,
 }) => {
@@ -169,10 +169,14 @@ test('Stalker lazy Ministra paginates seasons/files and plays a scoped episode',
     await addSource(page, 'stalker', { mac: '00:1a:79:00:00:0b' });
     await nav(page, 'Movies');
     await page.locator('.poster-card').first().click();
+    await page.getByLabel('Season', { exact: true }).click();
     await expect(
-        page.getByLabel('Season', { exact: true }).locator('option')
+        page
+            .getByRole('dialog', { name: 'Season', exact: true })
+            .getByRole('option')
     ).toHaveCount(3);
-    await page.getByLabel('Season', { exact: true }).selectOption('2');
+    await page.keyboard.press('Escape');
+    await chooseTv(page, 'Season', '2');
     await expect(page.locator('.episode')).toHaveCount(3);
     await page.locator('.episode').nth(1).click();
     await expect

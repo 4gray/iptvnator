@@ -525,6 +525,30 @@ save work, retaining pending history. Completed warm caches keep their existing
 read path; cold category-import code is loaded only when needed. Failed-import
 cleanup also loads only on the error path, keeping the startup payload bounded.
 
+The native content saver persists `importing` before its first content commit,
+including a first import with no previous marker. Process exit between commits
+therefore leaves an unfinished type for bootstrap cleanup; unfinished rows do
+not qualify as a usable offline catalog. Warm reads do not change completion.
+Both runtimes reject non-array category/content responses, including account
+error objects; only an actual empty array proves a successful empty response.
+Import options carry a renderer-local abort signal through cache reads, provider
+responses and persistence boundaries. Existing session/operation IPC cancellation
+still interrupts active Electron work. Category failure aborts sibling work and
+waits for every request to settle before cleanup and releasing the source hold.
+Phase callbacks belong to their import session and cannot revive a terminated run.
+Browser imports propagate that signal to their HTTP subscriptions, including
+pending target-registration waits; see [PWA request cancellation](./pwa-self-hosted.md#xtream-request-cancellation).
+Only session-owned bootstrap category loads may clear unfinished cache rows;
+ordinary category/detail readers cannot interpret a live `importing` marker as
+abandoned work. Lock-driven category reloads wait until initialization settles.
+Cancelable or session-owned requests do not share promises with independent
+readers, so cancelling an import cannot cancel a concurrent detail recovery.
+When a completed empty type gains content during a sessionless cache refill,
+the data source records completion after persistence. Cancellation or a failed
+completion write leaves its unfinished marker intact. A refill cannot finalize
+a type already marked unfinished by another owner; bootstrap completion stays
+with the import session.
+
 Fresh desktop backup restores separate dormant catalog-dependent history and
 hidden choices from the active import snapshot. Offline restore readiness checks
 only selected catalogs; completed retained caches can also accept their saved

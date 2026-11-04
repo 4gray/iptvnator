@@ -210,6 +210,18 @@ The merged report is written to `coverage/merged/` as HTML, LCOV, Cobertura,
 and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 `unit` flag and keeps the HTML report as a GitHub artifact.
 
+Each Tier A Jest run also writes `coverage/<projectRoot>/junit.xml` through
+`jest-junit`, with file paths as test class names for Codecov Test Analytics.
+The report lives inside the test target's coverage output so Nx cache restores
+include it, and concurrent projects cannot overwrite one another's results.
+CI uploads available JUnit reports with `codecov-action@v7` and
+`report_type: test_results`, including after test failures, and keeps them in
+the `unit-coverage` artifact. Cancelled runs and runs without reports skip the
+test-results upload. Upload errors are non-blocking for this analytics step;
+test failures and the existing coverage upload remain blocking. Analytics
+covers executed Tier A tests only: projects skipped after the first failure
+and out-of-scope suites do not contribute results.
+
 Passing the local coverage health checks does not guarantee that Codecov's
 `patch` check passes: it separately evaluates changed code, including partially
 covered branches, against the target reported for the current PR head. Inspect
@@ -280,6 +292,10 @@ After an E2E run, generate the semantic summary with:
 pnpm run coverage:e2e:summary
 ```
 
+The `electron-backend-e2e:e2e` target owns its `electron-backend:build-e2e`
+dependency, including renderer and remote-control assets. CI calls that target
+without a separate production build before each shard.
+
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
 by spec file because the suite is sequential): three shards on Ubuntu, four
 on Windows, and two on macOS, whose runners are the scarcest and queued longest.
@@ -293,6 +309,18 @@ directory and runs the summary per OS with `--input=<directory>` and
 `results.json` beneath it and fails when a shard is missing or duplicated, so
 the summary never reports a partial run as complete. Tests for that merge live
 in `tools/coverage/e2e-shard-reports.test.mjs` (`pnpm run coverage:tools:test`).
+
+The shared Electron launcher waits for Playwright's first window and selects a
+non-DevTools URL, including a later renderer when DevTools appears first.
+It then waits for the app root, visible rail, fonts and finite rail entrance
+animations, without a fixed startup sleep. Visibility comes first because
+source inventory loading can hide the workspace. `electron-app-readiness.e2e.ts`
+covers this delayed startup gate and animation completion. A visible startup
+failure alert is also ready for tests: failed migration/recovery scenarios need
+the Electron bridge while the workspace stays hidden. Window-selection and
+process-lifecycle regression tests run once per OS before the E2E suite.
+Every test still owns its temporary profile, and restarts still confirm the
+previous process exited before relaunching.
 
 For local investigation only, Chromium browser V8 coverage can be explored with:
 
