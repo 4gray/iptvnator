@@ -266,10 +266,13 @@ export class AppUpdateService {
             return this.getStatus();
         }
 
+        const sameChannel =
+            !this.status.verdictChannel ||
+            this.status.verdictChannel === this.channel;
         this.setStatus({
             error: undefined,
-            latestVersion: undefined,
-            release: undefined,
+            latestVersion: sameChannel ? this.status.latestVersion : undefined,
+            release: sameChannel ? this.status.release : undefined,
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking,
             verdictChannel: this.channel,
         });
@@ -451,6 +454,8 @@ export class AppUpdateService {
 
         if (!latestRelease) {
             this.setStatus({
+                latestVersion: undefined,
+                release: undefined,
                 status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
             });
             return;

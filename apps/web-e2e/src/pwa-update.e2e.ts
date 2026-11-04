@@ -96,6 +96,21 @@ test('retains the offline library after failed updates and protects unsaved sett
         // Transport emulation is scoped to this context; resume is an explicit DOM signal.
         await page.evaluate(() => window.dispatchEvent(new Event('online')));
         await expect(notice).toContainText('could not be downloaded');
+        fixture.state.failManifest = true;
+        await notice.evaluate((element) =>
+            element.setAttribute('data-audit-notice', 'failed')
+        );
+        await notice
+            .getByRole('button', { name: 'Retry', exact: true })
+            .click();
+        await expect(
+            page.locator('mat-snack-bar-container[data-audit-notice]')
+        ).toHaveCount(0);
+        await expect(notice).toContainText('could not be downloaded');
+        await expect(
+            notice.getByRole('button', { name: 'Retry', exact: true })
+        ).toBeVisible();
+        fixture.state.failManifest = false;
         fixture.state.failIndex = false;
         await notice
             .getByRole('button', { name: 'Retry', exact: true })

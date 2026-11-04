@@ -80,7 +80,9 @@ pnpm nx build web --configuration=pwa --skip-nx-cache
 
 The browser transport creates `PwaUpdateService` once per app lifetime. It
 announces only `VERSION_READY` as ready, offers Retry after installation or
-check failures, and rechecks once when the browser returns online. Refresh is
+check failures, and rechecks once when the browser returns online. A manifest
+fetch failure resolves false without a version event, so Retry is restored in
+that case; a successful `NO_NEW_VERSION_DETECTED` check stays silent. Refresh is
 explicit, warns that playback stops, and retains the browser's unsaved-settings
 beforeunload confirmation. Unrecoverable cache errors request a reload without
 claiming a new version is ready. Notifications wait for their translations;
@@ -99,8 +101,9 @@ passes the same regressions without the patch.
 
 `pnpm nx run web-e2e:test-service-worker` exercises the installed Driver methods.
 `pnpm nx run web-e2e:pwa-updates` builds the production PWA and uses its real
-worker, with isolated HTTP fixtures for 503 and hash mismatch, offline reload,
-successful retry, persisted sources/theme and unsaved-settings cancellation.
+worker, with isolated HTTP fixtures for manifest/candidate 503 and hash mismatch,
+offline reload, successful retry, persisted sources/theme and unsaved-settings
+cancellation.
 The normal dev-server E2E suite is not a substitute for this worker check.
 
 ## Xtream request cancellation

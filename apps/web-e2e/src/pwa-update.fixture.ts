@@ -19,7 +19,12 @@ export async function servePwaUpdateFixture() {
     nextManifest.hashTable['/index.html'] = createHash('sha1')
         .update(updatedIndex)
         .digest('hex');
-    const state = { updated: false, failIndex: false, corrupt: false };
+    const state = {
+        updated: false,
+        failIndex: false,
+        failManifest: false,
+        corrupt: false,
+    };
     const server = createServer(async (request, response) => {
         try {
             const url = new URL(request.url ?? '/', 'http://localhost');
@@ -30,6 +35,10 @@ export async function servePwaUpdateFixture() {
                 return;
             }
             if (url.pathname === '/ngsw.json') {
+                if (state.failManifest) {
+                    response.writeHead(503).end();
+                    return;
+                }
                 const manifest = structuredClone(
                     state.updated ? nextManifest : originalManifest
                 );

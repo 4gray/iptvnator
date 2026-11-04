@@ -13,6 +13,7 @@ export class PwaUpdateService {
     private readonly destroyRef = inject(DestroyRef);
     private checking = false;
     private notice = 0;
+    private versionEvent = 0;
 
     reloadWindow = () => window.location.reload();
 
@@ -21,6 +22,7 @@ export class PwaUpdateService {
         this.updates.versionUpdates
             .pipe(takeUntilDestroyed())
             .subscribe((event) => {
+                this.versionEvent++;
                 if (event.type === 'VERSION_READY') void this.notify('ready');
                 if (event.type === 'VERSION_INSTALLATION_FAILED')
                     void this.notify('failed');
@@ -36,8 +38,12 @@ export class PwaUpdateService {
     private async check(): Promise<void> {
         if (this.checking) return;
         this.checking = true;
+        const versionEvent = this.versionEvent;
         try {
-            await this.updates.checkForUpdate();
+            const found = await this.updates.checkForUpdate();
+            // The worker returns false without an event when the manifest fetch fails.
+            if (!found && versionEvent === this.versionEvent)
+                void this.notify('failed');
         } catch {
             void this.notify('failed');
         } finally {

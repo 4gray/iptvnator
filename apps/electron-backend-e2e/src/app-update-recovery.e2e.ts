@@ -41,7 +41,13 @@ async function installUpdateFixture(
         ipcMain.handle('APP_UPDATE:DOWNLOAD', () =>
             push('error', 'Synthetic update download failed')
         );
-        ipcMain.handle('APP_UPDATE:CHECK', () => push('available'));
+        let checks = 0;
+        ipcMain.handle('APP_UPDATE:CHECK', () => {
+            push('checking');
+            return ++checks === 1
+                ? push('error', 'Synthetic update check failed')
+                : push('available');
+        });
         ipcMain.handle('APP_UPDATE:INSTALL', () => {
             Reflect.set(
                 globalThis,
@@ -68,6 +74,10 @@ test('keeps an update error visible and retries from the notification @electron 
         await page.screenshot({
             path: info.outputPath('update-error-light.png'),
         });
+        await page.getByTestId('app-update-notification-download').click();
+        await expect(
+            page.getByTestId('app-update-notification').getByRole('alert')
+        ).toContainText('Synthetic update check failed');
         await page.getByTestId('app-update-notification-download').click();
         await expect(page.getByTestId('app-update-notification')).toContainText(
             'Version 0.25.1 is available'
@@ -108,6 +118,7 @@ for (const entry of ['panel', 'about'] as const) {
                 path: info.outputPath(`update-${entry}-unsaved-dark.png`),
             });
             await page.getByTestId('unsaved-dialog-stay').click();
+            await expect(page.getByTestId('unsaved-dialog-stay')).toHaveCount(0);
             await expect(page.getByTestId('save-settings')).toBeVisible();
             expect(await calls()).toBe(0);
 

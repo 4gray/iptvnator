@@ -148,6 +148,37 @@ describe('PwaUpdateService', () => {
         });
     });
 
+    it('restores Retry when the worker resolves false without a version event', async () => {
+        TestBed.inject(PwaUpdateService);
+        versions.next({
+            type: 'VERSION_INSTALLATION_FAILED',
+            version: { hash: 'b' },
+            error: 'fixture unavailable',
+        });
+        await flush();
+        action.next();
+        await flush();
+        expect(check).toHaveBeenCalledTimes(1);
+        expect(open).toHaveBeenCalledTimes(2);
+        expect(open).toHaveBeenLastCalledWith('PWA_UPDATE_FAILED', 'RETRY', {
+            duration: 0,
+        });
+    });
+
+    it('keeps a successful no-update check silent', async () => {
+        TestBed.inject(PwaUpdateService);
+        check.mockImplementationOnce(async () => {
+            versions.next({
+                type: 'NO_NEW_VERSION_DETECTED',
+                version: { hash: 'a' },
+            });
+            return false;
+        });
+        window.dispatchEvent(new Event('online'));
+        await flush();
+        expect(open).not.toHaveBeenCalled();
+    });
+
     it('explains unavailable application files without claiming a new version is ready', async () => {
         const service = TestBed.inject(PwaUpdateService);
         service.reloadWindow = jest.fn();
