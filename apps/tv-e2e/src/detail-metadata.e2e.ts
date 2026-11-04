@@ -138,6 +138,7 @@ for (const kind of ['movie', 'series'] as const) {
                             character: 'Fixture Character',
                         },
                         { id: 20, name: author, character: 'Cameo' },
+                        { id: 30, name: author, character: 'Different person' },
                         ...Array.from({ length: 9 }, (_, index) => ({
                             id: 100 + index,
                             name: `Fixture Guest ${index + 1}`,
@@ -179,7 +180,7 @@ for (const kind of ['movie', 'series'] as const) {
         );
         await expect(
             credits.getByRole('button', { name: `View filmography: ${author}` })
-        ).toHaveCount(1);
+        ).toHaveCount(2);
         const chips = page.getByRole('list', { name: 'Title information' });
         await expect(
             chips.getByLabel('Year: 2020', { exact: true })
@@ -275,5 +276,65 @@ test('provider-only details show supplied chips without requesting TMDB or rende
     await expect(chips).toContainText('Category · Fixture Collection');
     await expect(page.locator('.metadata-credits')).toHaveCount(0);
     await expect(chips).not.toContainText('TMDB');
+    expect(requests).toBe(0);
+});
+
+test('provider-only Stalker series displays genres_str with no TMDB requests', async ({
+    page,
+}) => {
+    await start(page);
+    await page.route('**/stalker?**', (route) => {
+        const params = new URL(route.request().url()).searchParams;
+        const action = params.get('action');
+        if (action === 'get_categories')
+            return route.fulfill({
+                json: {
+                    payload: {
+                        js: [{ id: '77', title: 'Fixture Collection' }],
+                    },
+                },
+            });
+        if (action !== 'get_ordered_list') return route.fallback();
+        const data = params.has('movie_id')
+            ? []
+            : [
+                  {
+                      id: '42',
+                      name: 'Fixture Series',
+                      category_id: '77',
+                      genre: '',
+                      genres_str: 'Fixture Adventure, Fixture Drama',
+                      country: 'Fixture Country',
+                      year: '2020',
+                  },
+              ];
+        return route.fulfill({
+            json: {
+                payload: {
+                    js: { data, total_items: data.length, max_page_items: 14 },
+                },
+            },
+        });
+    });
+    let requests = 0;
+    await page.route('https://api.themoviedb.org/3/**', (route) => {
+        requests++;
+        return route.abort();
+    });
+    await addSource(page, 'stalker', { name: 'Fixture Stalker Source' });
+    await nav(page, 'Series');
+    await page.locator('.poster-card').first().click();
+    const chips = page.getByRole('list', { name: 'Title information' });
+    await expect(
+        chips.getByLabel('Genre: Fixture Adventure', { exact: true })
+    ).toBeVisible();
+    await expect(
+        chips.getByLabel('Genre: Fixture Drama', { exact: true })
+    ).toBeVisible();
+    await expect(
+        chips.getByLabel('Playlist category: Category · Fixture Collection', {
+            exact: true,
+        })
+    ).toBeVisible();
     expect(requests).toBe(0);
 });

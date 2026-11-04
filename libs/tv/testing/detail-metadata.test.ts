@@ -60,6 +60,54 @@ test('saved series context keeps its named playlist category for episode-to-seri
     assert.equal(repaired.parentSeries?.category, '99');
     assert.equal(repaired.parentSeries?.categoryName, 'Fixture Collection');
     assert.equal(repaired.id, episode.id);
+    assert.equal(
+        withSeriesContext(saved, {
+            ...parent,
+            category: '88',
+            categoryName: undefined,
+        }).parentSeries?.categoryName,
+        undefined
+    );
+});
+
+test('distinct TMDB identities keep separate filmography controls despite matching display names', () => {
+    const people = detailPeople({
+        ...item,
+        metadata: {
+            ...metadata,
+            authors: [
+                { name: 'Fixture Person', tmdbPersonId: 20, profileUrl: null },
+            ],
+            cast: [
+                { name: 'fixture person', tmdbPersonId: 10, profileUrl: null },
+                { name: 'Fixture Guest', profileUrl: null },
+                { name: ' fixture  guest ', profileUrl: null },
+            ],
+        },
+    });
+    assert.deepEqual(
+        people.map((person) => person.tmdbPersonId),
+        [20, 10, undefined]
+    );
+});
+
+test('Stalker genres_str supplies genre chips when TMDB and generic genre are absent', () => {
+    assert.deepEqual(
+        detailChips({
+            ...item,
+            kind: 'series',
+            raw: {
+                genre: '',
+                genres_str: 'Fixture Adventure, Fixture Drama',
+                country: 'Fixture Country',
+            },
+        }),
+        [
+            { label: 'Genre', value: 'Fixture Adventure' },
+            { label: 'Genre', value: 'Fixture Drama' },
+            { label: 'Country', value: 'Fixture Country' },
+        ]
+    );
 });
 
 test('one credits list puts authors first, keeps roles and removes duplicate people', () => {

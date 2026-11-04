@@ -4,7 +4,6 @@ export function detailPeople(item: Media) {
     const metadata = item.metadata;
     if (!metadata) return [];
     const seen = new Set<string>();
-    const ids = new Set<number>();
     return [
         ...metadata.authors.map((person) => ({
             ...person,
@@ -16,14 +15,11 @@ export function detailPeople(item: Media) {
         })),
     ].filter((person) => {
         const name = person.name.trim().toLowerCase().replace(/\s+/g, ' ');
-        if (
-            !name ||
-            seen.has(name) ||
-            (person.tmdbPersonId && ids.has(person.tmdbPersonId))
-        )
-            return false;
-        seen.add(name);
-        if (person.tmdbPersonId) ids.add(person.tmdbPersonId);
+        const key = person.tmdbPersonId
+            ? `id:${person.tmdbPersonId}`
+            : `name:${name}`;
+        if (!name || seen.has(key)) return false;
+        seen.add(key);
         return true;
     });
 }
@@ -72,9 +68,11 @@ export function detailChips(item: Media) {
         .map((value) => value.match(/\b(?:19|20)\d{2}\b/)?.[0])
         .find(Boolean);
     if (year) add('Year', year);
-    for (const genre of genres.length
-        ? genres
-        : values(info.genre ?? raw.genre))
+    const providerGenres =
+        [info.genre, info.genres_str, raw.genre, raw.genres_str]
+            .map(values)
+            .find((names) => names.length) ?? [];
+    for (const genre of genres.length ? genres : providerGenres)
         add('Genre', genre);
     for (const country of countries.length
         ? countries
