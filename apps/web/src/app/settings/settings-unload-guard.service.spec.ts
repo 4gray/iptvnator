@@ -203,6 +203,86 @@ describe('SettingsUnloadGuardService', () => {
             expect(dispatchBeforeUnload().defaultPrevented).toBe(true);
         });
 
+        it.each([true, false])(
+            'shares the install decision (%s) with competing close/reload requests',
+            async (proceed) => {
+                let decide!: (value: boolean) => void;
+                host.confirmClose.mockReturnValue(
+                    new Promise<boolean>((resolve) => {
+                        decide = resolve;
+                    })
+                );
+                activateInElectron();
+                form.markAsDirty();
+                service.reloadPage = jest.fn();
+                const install = TestBed.inject(
+                    AppUpdateInstallService
+                ).installAppUpdate();
+
+                closeRequestCallback?.(1);
+                dispatchBeforeUnload();
+                await flushAsyncWork();
+                expect(host.confirmClose).toHaveBeenCalledTimes(1);
+                decide(proceed);
+                await install;
+
+                expect(electronStub.cancelWindowClose).toHaveBeenCalledWith(1);
+                expect(electronStub.confirmWindowClose).not.toHaveBeenCalled();
+                expect(service.reloadPage).not.toHaveBeenCalled();
+                expect(electronStub.installAppUpdate).toHaveBeenCalledTimes(
+                    proceed ? 1 : 0
+                );
+            }
+        );
+
+        it('settles every intercepted close cancellation before installing', async () => {
+            const cancelled: (() => void)[] = [];
+            electronStub.cancelWindowClose.mockImplementation(
+                () =>
+                    new Promise<void>((resolve) => {
+                        cancelled.push(resolve);
+                    })
+            );
+            activateInElectron();
+            const install = TestBed.inject(
+                AppUpdateInstallService
+            ).installAppUpdate();
+            closeRequestCallback?.(1);
+            await flushAsyncWork();
+            expect(electronStub.cancelWindowClose).toHaveBeenCalledWith(1);
+            expect(electronStub.installAppUpdate).not.toHaveBeenCalled();
+
+            closeRequestCallback?.(2);
+            cancelled[0]();
+            await flushAsyncWork();
+            expect(electronStub.cancelWindowClose).toHaveBeenLastCalledWith(2);
+            expect(electronStub.installAppUpdate).not.toHaveBeenCalled();
+            cancelled[1]();
+            await install;
+            expect(host.confirmClose).toHaveBeenCalledTimes(1);
+            expect(electronStub.installAppUpdate).toHaveBeenCalledTimes(1);
+            expect(electronStub.confirmWindowClose).not.toHaveBeenCalled();
+        });
+
+        it('does not start an installation while a close decision is already pending', async () => {
+            let decide!: (value: boolean) => void;
+            host.confirmClose.mockReturnValue(
+                new Promise<boolean>((resolve) => {
+                    decide = resolve;
+                })
+            );
+            activateInElectron();
+            closeRequestCallback?.(1);
+            const install = TestBed.inject(
+                AppUpdateInstallService
+            ).installAppUpdate();
+            expect(host.confirmClose).toHaveBeenCalledTimes(1);
+            expect(await install).toBeNull();
+            decide(false);
+            await flushAsyncWork();
+            expect(electronStub.installAppUpdate).not.toHaveBeenCalled();
+        });
+
         it('unregisters from the install service on destroy', async () => {
             const installService = TestBed.inject(AppUpdateInstallService);
             activateInElectron();

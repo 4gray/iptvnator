@@ -1057,11 +1057,14 @@ Both the About action and the global update notification install through
 `AppUpdateInstallService`. Registered settings guards first run the existing
 Save/Discard/Cancel decision; cancellation or a failed save sends no install
 IPC and keeps protection armed. Concurrent install intents share one decision.
+The same unload-guard decision also owns competing native close/reload requests;
+intercepted closes are cancelled before installation can disarm the guard.
 Only after approval are guards suspended, with protection restored on a failed
 install. The global notification retains download errors with an announced
 message and a Check again action instead of disappearing. A retry keeps the
 known release while checking and on failure; a new verdict replaces it, and
-changing channels still clears the previous channel's release.
+changing channels still clears the previous channel's release. A no-update
+verdict is not retained as an available update during another check.
 
 Regression coverage: `app-update-recovery.e2e.ts` uses the real Electron
 renderer/preload/IPC with a disposable updater fixture (no package installation),

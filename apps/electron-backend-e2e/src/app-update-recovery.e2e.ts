@@ -113,12 +113,33 @@ for (const entry of ['panel', 'about'] as const) {
 
             await install.click();
             await expect(page.getByTestId('unsaved-dialog-stay')).toBeVisible();
+            await page.evaluate(() => {
+                const stop = window.electron.onWindowCloseRequested?.(() => {
+                    Reflect.set(window, 'auditCloseRequested', true);
+                    stop?.();
+                });
+            });
+            await app.electronApp.evaluate(({ BrowserWindow }) =>
+                BrowserWindow.getAllWindows()[0].close()
+            );
+            await expect
+                .poll(() =>
+                    page.evaluate(() =>
+                        Reflect.get(window, 'auditCloseRequested')
+                    )
+                )
+                .toBe(true);
+            await expect(page.getByTestId('unsaved-dialog-stay')).toHaveCount(
+                1
+            );
             expect(await calls()).toBe(0);
             await page.screenshot({
                 path: info.outputPath(`update-${entry}-unsaved-dark.png`),
             });
             await page.getByTestId('unsaved-dialog-stay').click();
-            await expect(page.getByTestId('unsaved-dialog-stay')).toHaveCount(0);
+            await expect(page.getByTestId('unsaved-dialog-stay')).toHaveCount(
+                0
+            );
             await expect(page.getByTestId('save-settings')).toBeVisible();
             expect(await calls()).toBe(0);
 

@@ -49,8 +49,9 @@ export class SettingsUnloadGuardService implements OnDestroy {
      * arriving while a reload confirmation is open escalates this to
      * 'close' — the dialog is the same, only the continuation differs, and
      * the user's most recent ask must be the one that completes.
+     * An install decision owns competing close/reload requests until settled.
      */
-    private activeIntent: 'close' | 'reload' | null = null;
+    private activeIntent: 'close' | 'reload' | 'install' | null = null;
     /** True while a Stay's cancelWindowClose acknowledgment is in flight. */
     private cancelling = false;
     /** A close requested during that window, re-asked once the cancel lands. */
@@ -85,8 +86,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
         // stand this guard down before the updater closes the window.
         this.unregisterFromInstallService =
             this.installService.registerUnloadGuard({
-                confirmAppQuit: () =>
-                    this.host?.confirmClose() ?? Promise.resolve(true),
+                confirmAppQuit: () => this.handleCloseRequest('install'),
                 resumeAfterAbortedAppQuit: () =>
                     this.resumeAfterAbortedAppQuit(),
                 suspendForAppQuit: () => this.suspendForAppQuit(),
@@ -165,15 +165,16 @@ export class SettingsUnloadGuardService implements OnDestroy {
     };
 
     private async handleCloseRequest(
-        intent: 'close' | 'reload'
-    ): Promise<void> {
+        intent: 'close' | 'reload' | 'install'
+    ): Promise<boolean> {
         const host = this.host;
 
         if (!host) {
-            return;
+            return intent === 'install';
         }
 
         if (this.confirmationPending) {
+            if (this.activeIntent === 'install') return false;
             if (intent === 'close') {
                 if (this.cancelling) {
                     // The dialog already resolved and Stay's cancellation is
@@ -190,7 +191,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
                     this.activeIntent = 'close';
                 }
             }
-            return;
+            return false;
         }
 
         this.confirmationPending = true;
@@ -202,6 +203,16 @@ export class SettingsUnloadGuardService implements OnDestroy {
             // Re-read after the dialog: a cross-intent request may have
             // escalated it while the user was deciding.
             const finalIntent = this.activeIntent ?? intent;
+
+            if (finalIntent === 'install') {
+                // Disarming with a pending native close would close before the installer runs.
+                let requestId: number | undefined;
+                do {
+                    requestId = this.latestCloseRequestId;
+                    await window.electron?.cancelWindowClose?.(requestId);
+                } while (requestId !== this.latestCloseRequestId);
+                return proceed;
+            }
 
             if (!proceed) {
                 if (finalIntent === 'close') {
@@ -236,6 +247,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
         if (reAskClose) {
             void this.handleCloseRequest('close');
         }
+        return false;
     }
 
     private syncCloseGuard(active: boolean): void {
