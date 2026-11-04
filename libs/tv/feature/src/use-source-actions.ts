@@ -1,3 +1,4 @@
+import { isBackKey } from '@iptvnator/tv/util';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { restoreFocus } from '@iptvnator/tv/ui';
 import type { Media, Source } from '@iptvnator/tv/util';
@@ -267,11 +268,7 @@ export function useSourceActions(
                 (!request.current && !details.current && !playback.current)
             )
                 return;
-            if (
-                event.keyCode !== 461 &&
-                !['Escape', 'BrowserBack', 'Backspace'].includes(event.key)
-            )
-                return;
+            if (!isBackKey(event)) return;
             if (
                 event.key === 'Backspace' &&
                 (event.target as HTMLElement).matches('input,textarea')

@@ -1,3 +1,4 @@
+import { isBackKey } from '@iptvnator/tv/util';
 import { createPortal } from 'preact/compat';
 import type { ComponentChildren } from 'preact';
 import { useLayoutEffect, useRef } from 'preact/hooks';
@@ -66,12 +67,7 @@ export function TvDialog({
                         button.focus({ preventScroll: true });
                 }}
                 onKeyDown={(event) => {
-                    if (
-                        event.keyCode === 461 ||
-                        ['Escape', 'BrowserBack', 'Backspace'].includes(
-                            event.key
-                        )
-                    ) {
+                    if (isBackKey(event)) {
                         if (
                             event.key === 'Backspace' &&
                             (event.target as HTMLElement).matches(

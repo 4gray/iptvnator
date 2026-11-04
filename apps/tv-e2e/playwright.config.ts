@@ -5,6 +5,7 @@ import { nxE2EPreset } from '@nx/playwright/preset';
 export default defineConfig({
     ...nxE2EPreset(__filename, { testDir: './src' }),
     testMatch: '**/*.e2e.ts',
+    tsconfig: './tsconfig.spec.json',
     workers: 1,
     timeout: 45000,
     use: {
