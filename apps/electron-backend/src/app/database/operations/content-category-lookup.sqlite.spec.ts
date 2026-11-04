@@ -41,6 +41,15 @@ it('keeps a typed duplicate inside the requested category and source on SQLite',
             [42, 'synthetic-a', 'movie', undefined],
             [42, 'synthetic-a', 'movie', -1],
         ]) results.push((await lookup(db, id, owner, type, undefined, category))?.id ?? null);
+        const { setParentalLockActive } = await import(${JSON.stringify(moduleUrl('apps/electron-backend/src/app/database/parental-lock-state.ts'))});
+        setParentalLockActive(true);
+        sqlite.exec('UPDATE categories SET locked = 1 WHERE id = 7');
+        results.push((await lookup(db, 42, 'synthetic-a', 'movie', undefined, undefined, true))?.id ?? null);
+        results.push((await lookup(db, 42, 'synthetic-a', 'movie'))?.id ?? null);
+        sqlite.exec('UPDATE categories SET locked = 1 WHERE id = 8');
+        results.push((await lookup(db, 42, 'synthetic-a', 'movie', undefined, undefined, true))?.id ?? null);
+        setParentalLockActive(false);
+        results.push((await lookup(db, 42, 'synthetic-a', 'movie', undefined, undefined, true))?.id ?? null);
         console.log(JSON.stringify(results));
         sqlite.close();
     `;
@@ -62,5 +71,5 @@ it('keeps a typed duplicate inside the requested category and source on SQLite',
             }
         )
     );
-    expect(results).toEqual([81, null, null, null, 71, null]);
+    expect(results).toEqual([81, null, null, null, 71, null, 81, 71, null, 71]);
 });

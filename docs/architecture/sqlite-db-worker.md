@@ -723,6 +723,10 @@ The lookup also accepts an optional local `categoryId` restriction, independent
 of TMDB/year evidence. Cold detail Back uses it to verify route membership before
 recovering another category; duplicate typed provider IDs retain their original
 category context. Omitting the selector preserves existing lookup behavior.
+The optional `excludeLocked` flag is forwarded through the same IPC chain for
+shared-favorite projection. It applies the worker's category-lock condition before
+choosing a duplicate. Omitted flags preserve raw lookups used by the PIN guard.
+The renderer also rejects unreadable or changed lock state around these reads.
 
 `DB_RESTORE_XTREAM_FAVORITES` materializes pending/backup snapshots without an
 online catalog. Inserts and their replay receipt share one synchronous worker

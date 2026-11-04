@@ -72,6 +72,36 @@ async function detail(page: Page, provider: 'xtream' | 'stalker') {
     ).toBeVisible();
     return title;
 }
+async function verifyReceiverCategoryLock(page: Page, title: string) {
+    await openSettings(page);
+    await openSettingsSection(page, 'parental');
+    const toggle = page.locator(
+        '[data-test-id="parental-lock-enabled"] button[role="switch"]'
+    );
+    await toggle.click();
+    await page.getByTestId('parental-lock-pin').fill('2468');
+    await page.getByTestId('parental-lock-pin-confirm').fill('2468');
+    await page.getByTestId('parental-lock-pin-submit').click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await detail(page, 'xtream');
+    await page.getByTestId('context-manage-categories').click();
+    const dialog = page.locator('app-category-management-dialog');
+    await dialog.locator('[data-test-id^="category-lock-"]').first().click();
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await page.getByTestId('header-parental-lock').click();
+    await openGlobalFavorites(page);
+    await expect(page.locator('app-empty-state')).toBeVisible();
+    await expect(contentCardByTitle(page, title)).toHaveCount(0);
+    await openSettings(page);
+    await openSettingsSection(page, 'parental');
+    await toggle.click();
+    await page.getByTestId('parental-lock-pin').fill('2468');
+    await page.getByTestId('parental-lock-pin-submit').click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await openGlobalFavorites(page);
+    await expect(contentCardByTitle(page, title)).toBeVisible();
+}
 for (const provider of ['xtream', 'stalker'] as const)
     test(`syncs synthetic ${provider} favorites across PWA and Electron with opt-in, removal and restart @persistence @web @electron`, async ({
         browser,
@@ -220,6 +250,7 @@ for (const provider of ['xtream', 'stalker'] as const)
                 } finally {
                     await receiverContext.close();
                 }
+                await verifyReceiverCategoryLock(desktop.mainWindow, title!);
                 for (const client of [page, desktop.mainWindow]) {
                     await routePlayableStreams(client);
                     await detail(client, provider);

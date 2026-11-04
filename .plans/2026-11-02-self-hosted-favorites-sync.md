@@ -558,3 +558,49 @@ container is removed. The existing feature note covers these fixes. Physical
 Synology, packaged Windows/Linux and optional vendored Embedded MPV remain
 unavailable. Fetch confirms master remains 6bbe0eb09. Commit and repeat local
 review before any push; Greptile CLI remains unavailable.
+
+Round 18 reviews 3b5514883 and confirms four remaining issues. Shared SQLite
+favorites bypass category locks through the raw identity lookup. Independent
+offline context requests reject all but the latest edit. One Xtream heart check
+resolves the entire received collection, and a playlist-only reorder overwrites
+other sources' saved positions. Each issue has a failing-before regression,
+including real historical-schema SQLite rows for the lock bypass.
+
+The repair forwards an optional excludeLocked flag through the existing lookup
+IPC and applies the worker's category condition before duplicate selection. Raw
+identity lookups retain PIN-guard behavior. The receiving projection fences lock
+versions, unreadable state and unresolved ownership while locked. Single-item
+methods project only their target: the synthetic 100-item heart probe drops from
+100 catalog lookups to one. Offline fallback is fenced by newer accepted context
+requests/forget, not a merely started request; three independent overlapping
+offline removals persist together. Playlist-only portable reorder replaces its
+existing global-order slots, retaining other source positions. Canonical PWA,
+SQLite-worker and Xtream docs record these rules.
+
+The first build exceeds initial bytes by 207 bytes. Removing duplicate lock
+version guards from the data-source forwarding layer (the whole receiving
+projection already guards before/after) and sharing one typed IPC argument tuple
+restores 1,200,287 / 1,200,301 without baseline changes. An attempted conditional
+tuple spread was rejected by application typechecking and replaced by typed
+indexed arguments; no failed build is used as validation. The interrupted E2E
+run left an isolated backend on port 3357, causing startup failures on a retry.
+Confirm its PID, worktree and port, terminate only that process, and rerun with
+clean isolated ports. Developer servers on 3347/4307 remain untouched.
+
+Round 19 validation: web 867, services 1,411, Electron 3,003, portal shared
+data access 332 and portal Xtream data access 665 tests pass. The refreshed
+36-project merge passes unchanged gates at 85.57/77.40/83.87/86.08 percent.
+Application typechecks, all 42 spec programs, seven owning lint targets,
+formatting, whitespace, three guidance files and 251 release notes pass. New
+production files stay below 400 counted lines. Production frontend/Electron/
+workers build; the database-worker artifact is rebuilt and Electron restarted.
+All 25 mixed PWA/Electron flows pass on clean isolated ports (5.6 minutes).
+An additional final Xtream run passes (1.3 minutes), explicitly waiting for the
+loaded empty collection while its received category is locked, then verifying
+restoration after unlocking. This also rechecks the blank PWA receiver's playback.
+Linux arm64 Docker image 5748a0d69389 builds; HTTP add/remove/receipt/restart smoke
+passes and its isolated container is removed. Initial bytes are 1,200,287 /
+1,200,301; no thresholds or baselines change. Existing feature release notes
+cover the repair. Physical Synology, packaged Windows/Linux and optional vendored
+Embedded MPV remain unavailable. Master is still 6bbe0eb09. Commit and repeat
+the local review; Greptile CLI remains unavailable under the documented exception.

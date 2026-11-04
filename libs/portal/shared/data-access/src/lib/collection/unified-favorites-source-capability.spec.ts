@@ -120,4 +120,26 @@ describe('source-scoped Xtream favorite storage after opt-out', () => {
             )
         ).toEqual(rows.map((row) => row.uid));
     });
+    it('keeps other sources in place when reordering one portable playlist', async () => {
+        const a = {
+            ...item('synthetic-known', 1),
+            uid: 'xtream::synthetic-known::movie:41',
+            xtreamId: 41,
+        };
+        const b = item('synthetic-known', 2);
+        const other = item('synthetic-new', 3);
+        const key = 'global-favorites-channel-order-v1';
+        localStorage.setItem(key, JSON.stringify([a.uid, other.uid, b.uid]));
+        await service.reorder([b, a], {
+            scope: 'playlist',
+            playlistId: 'synthetic-known',
+            portalType: 'xtream',
+        });
+        expect(JSON.parse(localStorage.getItem(key)!)).toEqual([
+            b.uid,
+            other.uid,
+            a.uid,
+        ]);
+        expect(reorder).not.toHaveBeenCalled();
+    });
 });

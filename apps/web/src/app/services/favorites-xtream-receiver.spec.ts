@@ -3,6 +3,11 @@ import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { FavoriteEntry } from '@iptvnator/shared/interfaces/favorites-sync';
 
+const unlocked = {
+    active: () => false,
+    withholdsEverything: () => false,
+    version: () => 0,
+};
 const candidate = {
     id: 77,
     xtream_id: 42,
@@ -69,12 +74,20 @@ it('forwards saved identity when projecting a received SQLite favorite', async (
     const rows = await new FavoritesXtreamAdapter(
         f.client,
         () => true,
-        true
+        true,
+        unlocked
     ).project(raw, 'source');
-    expect(lookup).toHaveBeenCalledWith(42, 'source', 'movie', {
-        tmdbId: 100,
-        releaseYear: 2024,
-    });
+    expect(lookup).toHaveBeenCalledWith(
+        42,
+        'source',
+        'movie',
+        {
+            tmdbId: 100,
+            releaseYear: 2024,
+        },
+        undefined,
+        true
+    );
     expect(rows[0]).toMatchObject({ id: 77, catalog_status: 'present' });
 });
 it('forwards selected identity when adding a compatible duplicate SQLite row', async () => {
@@ -87,19 +100,20 @@ it('forwards selected identity when adding a compatible duplicate SQLite row', a
         getFavorites: async () => [],
         getContentByXtreamId: lookup,
     } as unknown as IXtreamDataSource;
-    await new FavoritesXtreamAdapter(f.client, () => true, true).invoke(
-        raw,
-        'addFavorite',
-        [
-            {
-                id: 77,
-                providerId: 42,
-                type: 'movie',
-                identity: { tmdbId: 100, releaseYear: 2024 },
-            },
-            'source',
-        ]
-    );
+    await new FavoritesXtreamAdapter(
+        f.client,
+        () => true,
+        true,
+        unlocked
+    ).invoke(raw, 'addFavorite', [
+        {
+            id: 77,
+            providerId: 42,
+            type: 'movie',
+            identity: { tmdbId: 100, releaseYear: 2024 },
+        },
+        'source',
+    ]);
     expect(f.set).toHaveBeenCalledWith(
         'source',
         { provider: 'xtream', kind: 'movie', id: '42' },
@@ -128,7 +142,12 @@ it('hydrates a cold PWA receiver once per type across concurrent reads', async (
         getContent: load,
         getContentByXtreamId: async () => (loaded ? candidate : null),
     } as unknown as IXtreamDataSource;
-    const adapter = new FavoritesXtreamAdapter(f.client, () => true, false);
+    const adapter = new FavoritesXtreamAdapter(
+        f.client,
+        () => true,
+        false,
+        unlocked
+    );
     const [first, second] = await Promise.all([
         adapter.invoke(raw, 'getFavorites', ['source']),
         adapter.invoke(raw, 'getFavorites', ['source']),
@@ -181,11 +200,12 @@ it('scans a received catalog once for all requested favorites', async () => {
         getContent: async () => rows,
     } as unknown as IXtreamDataSource;
     expect(
-        await new FavoritesXtreamAdapter(f.client, () => true, false).invoke(
-            raw,
-            'getFavorites',
-            ['source']
-        )
+        await new FavoritesXtreamAdapter(
+            f.client,
+            () => true,
+            false,
+            unlocked
+        ).invoke(raw, 'getFavorites', ['source'])
     ).toHaveLength(3);
     expect(inspected).toBeLessThan(rows.length * 2);
 });
@@ -210,7 +230,12 @@ it('retains an offline snapshot and retries hydration when the provider returns'
         getContent: load,
         getContentByXtreamId: async () => (loaded ? candidate : null),
     } as unknown as IXtreamDataSource;
-    const adapter = new FavoritesXtreamAdapter(f.client, () => true, false);
+    const adapter = new FavoritesXtreamAdapter(
+        f.client,
+        () => true,
+        false,
+        unlocked
+    );
     expect(await adapter.invoke(raw, 'getFavorites', ['source'])).toMatchObject(
         [{ id: null, title: candidate.title, catalog_status: 'unknown' }]
     );
@@ -227,11 +252,15 @@ it('keeps offline writes independent of received-favorite catalog hydration', as
         getContentByXtreamId: async () => null,
         getContent: load,
     } as unknown as IXtreamDataSource;
-    await new FavoritesXtreamAdapter(f.client, () => true, false).invoke(
-        raw,
-        'addFavorite',
-        [{ id: 43, providerId: 43, type: 'movie' }, 'source']
-    );
+    await new FavoritesXtreamAdapter(
+        f.client,
+        () => true,
+        false,
+        unlocked
+    ).invoke(raw, 'addFavorite', [
+        { id: 43, providerId: 43, type: 'movie' },
+        'source',
+    ]);
     expect(f.set).toHaveBeenCalledWith(
         'source',
         { provider: 'xtream', kind: 'movie', id: '43' },
@@ -253,11 +282,12 @@ it('does not use a PWA cache lookup to bypass the filtered catalog', async () =>
         getContentByXtreamId: async () => candidate,
     } as unknown as IXtreamDataSource;
     expect(
-        await new FavoritesXtreamAdapter(f.client, () => true, false).invoke(
-            raw,
-            'getFavorites',
-            ['source']
-        )
+        await new FavoritesXtreamAdapter(
+            f.client,
+            () => true,
+            false,
+            unlocked
+        ).invoke(raw, 'getFavorites', ['source'])
     ).toMatchObject([{ id: null, catalog_status: 'unknown' }]);
 });
 it('retains an explicit identity conflict after PWA catalog hydration', async () => {
@@ -285,11 +315,12 @@ it('retains an explicit identity conflict after PWA catalog hydration', async ()
         getContent: async () => [candidate],
     } as unknown as IXtreamDataSource;
     expect(
-        await new FavoritesXtreamAdapter(f.client, () => true, false).invoke(
-            raw,
-            'getFavorites',
-            ['source']
-        )
+        await new FavoritesXtreamAdapter(
+            f.client,
+            () => true,
+            false,
+            unlocked
+        ).invoke(raw, 'getFavorites', ['source'])
     ).toMatchObject([
         { id: null, catalog_missing_reason: 'identity_conflict' },
     ]);
@@ -312,7 +343,8 @@ it('does not republish membership removed while its catalog is loading', async (
     const pending = new FavoritesXtreamAdapter(
         f.client,
         () => true,
-        false
+        false,
+        unlocked
     ).invoke(raw, 'getFavorites', ['source']);
     for (let attempt = 0; attempt < 10 && !load.mock.calls.length; attempt++)
         await Promise.resolve();
@@ -339,7 +371,8 @@ it('rejects catalog results after source incarnation changes', async () => {
     const pending = new FavoritesXtreamAdapter(
         f.client,
         () => true,
-        false
+        false,
+        unlocked
     ).invoke(raw, 'getFavorites', ['source']);
     for (let attempt = 0; attempt < 10 && !load.mock.calls.length; attempt++)
         await Promise.resolve();
@@ -352,3 +385,81 @@ it('rejects catalog results after source incarnation changes', async () => {
     finish([candidate]);
     await expect(pending).rejects.toThrow();
 });
+
+it('resolves only the addressed received favorite for a single heart check', async () => {
+    const f = fixture();
+    const first = f.entries[0];
+    f.entries.splice(
+        0,
+        1,
+        ...Array.from({ length: 100 }, (_, index) => ({
+            ...first,
+            address: {
+                ...first.address,
+                content: { ...first.address.content, id: String(index + 1) },
+            },
+        }))
+    );
+    const lookup = jest.fn(async (id: number) => ({
+        ...candidate,
+        xtream_id: id,
+    }));
+    const raw = {
+        getFavorites: async () => [],
+        getContentByXtreamId: lookup,
+    } as unknown as IXtreamDataSource;
+    expect(
+        await new FavoritesXtreamAdapter(
+            f.client,
+            () => true,
+            true,
+            unlocked
+        ).invoke(raw, 'isFavorite', [
+            { id: 42, providerId: 42, type: 'movie' },
+            'source',
+        ])
+    ).toBe(true);
+    expect(lookup).toHaveBeenCalledTimes(1);
+});
+
+it.each(['locked', 'unresolved', 'loading', 'changed'] as const)(
+    'withholds a SQLite received favorite when its category is %s',
+    async (mode) => {
+        const f = fixture();
+        let version = 0;
+        const locks = {
+            active: () => true,
+            withholdsEverything: () => mode === 'loading',
+            version: () => version,
+        };
+        const lookup = jest.fn(
+            async (
+                _id,
+                _source,
+                _kind,
+                _identity,
+                _category,
+                excludeLocked
+            ) => {
+                if (mode === 'changed') version++;
+                return mode === 'unresolved' ||
+                    (mode === 'locked' && excludeLocked)
+                    ? null
+                    : candidate;
+            }
+        );
+        const raw = {
+            getFavorites: async () => [],
+            getContentByXtreamId: lookup,
+        } as unknown as IXtreamDataSource;
+        expect(
+            await new FavoritesXtreamAdapter(
+                f.client,
+                () => true,
+                true,
+                locks
+            ).project(raw, 'source')
+        ).toEqual([]);
+        if (mode === 'loading') expect(lookup).not.toHaveBeenCalled();
+    }
+);

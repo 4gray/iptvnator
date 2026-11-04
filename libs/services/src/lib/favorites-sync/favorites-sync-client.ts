@@ -115,7 +115,7 @@ export class FavoritesSyncClient {
                 throw error;
             // Offline writes can use a previously verified incarnation, never a guessed one.
             const cached = this.contexts.get(sourceId);
-            if (cached && this.contextRequests.get(sourceId) === owner)
+            if (cached && owner >= (this.acceptedContexts.get(sourceId) ?? 0))
                 return cached;
             throw error;
         }

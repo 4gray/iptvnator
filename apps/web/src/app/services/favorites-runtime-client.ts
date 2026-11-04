@@ -17,7 +17,8 @@ import { FavoritesLocalOrder } from './favorites-local-order';
 export function createFavoritesRuntimeClient(
     capabilities: RuntimeCapabilitiesService,
     readPlaylist: (sourceId: string) => Promise<Playlist>,
-    changed: () => void
+    changed: () => void,
+    locks: ConstructorParameters<typeof FavoritesXtreamAdapter>[3]
 ) {
     const instanceId = sourceConnection()?.instanceId;
     const consent = readFavoritesConsent();
@@ -70,7 +71,8 @@ export function createFavoritesRuntimeClient(
     const xtreamAdapter = new FavoritesXtreamAdapter(
         client,
         favoritesEnabled,
-        capabilities.supportsXtreamSqliteDataSource
+        capabilities.supportsXtreamSqliteDataSource,
+        locks
     );
 
     return { client, playlistAdapter, xtreamAdapter };

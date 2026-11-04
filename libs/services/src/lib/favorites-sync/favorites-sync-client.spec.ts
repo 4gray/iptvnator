@@ -410,6 +410,26 @@ describe('favorites delivery and consent boundaries', () => {
             [...f.states.values()].filter((state) => state.member)
         ).toHaveLength(2);
     });
+    it('persists independent overlapping offline edits against a verified context', async () => {
+        const f = fixture();
+        f.online(false);
+        const results = await Promise.allSettled(
+            [42, 43, 44].map((id) =>
+                f.client.set('source', { ...ref, id: String(id) }, false)
+            )
+        );
+        expect(results.map((result) => result.status)).toEqual([
+            'fulfilled',
+            'fulfilled',
+            'fulfilled',
+        ]);
+        expect(await f.local.pending()).toHaveLength(3);
+        expect(
+            (await f.client.entries('source')).every(
+                (entry) => !entry.record.state.member
+            )
+        ).toBe(true);
+    });
     it('rejects a consent change on a retry before the projection/outbox commit', async () => {
         const f = fixture();
         f.local.beforeMutation = () => f.consent(null);

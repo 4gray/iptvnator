@@ -388,7 +388,13 @@ export class UnifiedFavoritesDataService {
             if (xtreamUpdates.length > 0 && electron) {
                 await electron.dbReorderGlobalFavorites(xtreamUpdates);
             } else {
-                await this.saveOrder(items.map((item) => item.uid));
+                const reordered = items.map((item) => item.uid);
+                const subset = new Set(reordered);
+                let index = 0;
+                const merged = (await this.getSavedOrder()).map((uid) =>
+                    subset.has(uid) ? reordered[index++] : uid
+                );
+                await this.saveOrder([...merged, ...reordered.slice(index)]);
             }
             return;
         }

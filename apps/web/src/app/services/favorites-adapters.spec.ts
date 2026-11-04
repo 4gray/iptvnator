@@ -21,6 +21,11 @@ import type {
     XtreamFavoriteItem,
 } from '@iptvnator/portal/xtream/data-access';
 import { parseFavoriteSnapshot } from '@iptvnator/shared/interfaces/favorites-sync';
+const unlocked = {
+    active: () => false,
+    withholdsEverything: () => false,
+    version: () => 0,
+};
 const playlist = (favorites: Playlist['favorites']) =>
     ({
         _id: 'source',
@@ -174,7 +179,12 @@ describe('favorite provider references and projections', () => {
             getFavorites: async () => [],
             getContentByXtreamId: async () => null,
         } as unknown as IXtreamDataSource;
-        const adapter = new FavoritesXtreamAdapter(client, () => true, true);
+        const adapter = new FavoritesXtreamAdapter(
+            client,
+            () => true,
+            true,
+            unlocked
+        );
         await adapter.invoke(raw, 'addFavorite', [
             {
                 id: 42,
@@ -278,7 +288,12 @@ describe('favorite provider references and projections', () => {
             entries: async () => [],
             set,
         } as unknown as FavoritesSyncClient;
-        const adapter = new FavoritesXtreamAdapter(client, () => true, false);
+        const adapter = new FavoritesXtreamAdapter(
+            client,
+            () => true,
+            false,
+            unlocked
+        );
         const replacement = {
             id: 42,
             providerId: 42,
@@ -444,7 +459,8 @@ describe('favorite provider references and projections', () => {
         const projected = await new FavoritesXtreamAdapter(
             client,
             () => true,
-            true
+            true,
+            unlocked
         ).project(raw, 'source');
         expect(projected[0]).toMatchObject({
             id: null,

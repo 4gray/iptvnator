@@ -1070,18 +1070,21 @@ const electronApi: ElectronBridgeApi = {
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
-        categoryId?: number
+        categoryId?: number,
+        excludeLocked?: boolean
     ) =>
         ipcRenderer.invoke(
             'DB_GET_CONTENT_BY_XTREAM_ID',
             xtreamId,
             playlistId,
             contentType,
-            ...(categoryId !== undefined
-                ? [identity, categoryId]
-                : identity
-                  ? [identity]
-                  : [])
+            ...(excludeLocked
+                ? [identity, categoryId, true]
+                : categoryId !== undefined
+                  ? [identity, categoryId]
+                  : identity
+                    ? [identity]
+                    : [])
         ),
     dbSetContentMetadataIfMissing: (
         contentId: number,

@@ -637,6 +637,7 @@ async function executeRequest(
                 contentType?: 'live' | 'movie' | 'series';
                 identity?: ContentMetadataPatch;
                 categoryId?: number;
+                excludeLocked?: boolean;
             };
             return getContentByXtreamId(
                 db,
@@ -644,7 +645,8 @@ async function executeRequest(
                 payload.playlistId,
                 payload.contentType,
                 payload.identity,
-                payload.categoryId
+                payload.categoryId,
+                payload.excludeLocked === true
             );
         }
 

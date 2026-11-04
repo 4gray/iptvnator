@@ -81,14 +81,27 @@ export class FavoritesXtreamAdapter {
     constructor(
         private readonly client: FavoritesSyncClient,
         private readonly enabled: () => boolean,
-        private readonly sqlite: boolean
+        private readonly sqlite: boolean,
+        private readonly locks: {
+            active(): boolean;
+            withholdsEverything(): boolean;
+            version(): number;
+        }
     ) {}
     async project(
         raw: IXtreamDataSource,
         sourceId: string,
-        hydrate = false
+        hydrate = false,
+        target?: XtreamRef
     ): Promise<XtreamFavoriteItem[]> {
-        const local = await raw.getFavorites(sourceId);
+        if (this.locks.withholdsEverything()) return [];
+        const lockVersion = this.locks.version();
+        const matchesTarget = (ref: XtreamRef) =>
+            !target ||
+            favoriteReferenceKey(ref) === favoriteReferenceKey(target);
+        const local = (await raw.getFavorites(sourceId)).filter((item) =>
+            matchesTarget(xtreamFavoriteReference(item))
+        );
         const catalogs = new Map<XtreamRef['kind'], XtreamContentItem[]>();
         const mapped = new Map(
             local.map((item) => [
@@ -96,7 +109,11 @@ export class FavoritesXtreamAdapter {
                 item,
             ])
         );
-        let entries = await this.client.entries(sourceId);
+        let entries = (await this.client.entries(sourceId)).filter(
+            ({ address }) =>
+                address.content.provider === 'xtream' &&
+                matchesTarget(address.content)
+        );
         if (hydrate && !this.sqlite) {
             const kinds = new Set<XtreamRef['kind']>();
             for (const { address, record } of entries) {
@@ -167,13 +184,6 @@ export class FavoritesXtreamAdapter {
                     : undefined,
             });
             const existing = mapped.get(key);
-            const lookup = () =>
-                raw.getContentByXtreamId(
-                    Number(ref.id),
-                    sourceId,
-                    ref.kind,
-                    ...(identity ? [identity] : [])
-                );
             let candidate = existing ?? null;
             if (!candidate && hydrate && !this.sqlite) {
                 const matches = candidates.get(`${ref.kind}:${ref.id}`) ?? [];
@@ -185,7 +195,25 @@ export class FavoritesXtreamAdapter {
                     matches[0] ??
                     null;
             } else if (!candidate) {
-                candidate = await lookup();
+                candidate = this.sqlite
+                    ? await raw.getContentByXtreamId(
+                          Number(ref.id),
+                          sourceId,
+                          ref.kind,
+                          identity ?? undefined,
+                          undefined,
+                          true
+                      )
+                    : await raw.getContentByXtreamId(
+                          Number(ref.id),
+                          sourceId,
+                          ref.kind,
+                          ...(identity ? [identity] : [])
+                      );
+            }
+            if (!candidate && this.locks.active()) {
+                mapped.delete(key);
+                continue;
             }
             const conflict = hasXtreamFavoriteIdentityConflict(
                 snapshot,
@@ -220,7 +248,10 @@ export class FavoritesXtreamAdapter {
                     : {}),
             });
         }
-        return [...mapped.values()];
+        return this.locks.withholdsEverything() ||
+            this.locks.version() !== lockVersion
+            ? []
+            : [...mapped.values()];
     }
     private async catalog(
         raw: IXtreamDataSource,
@@ -297,7 +328,7 @@ export class FavoritesXtreamAdapter {
             return this.project(raw, String(args[0]), true);
         const [target, sourceId] = args as [XtreamCollectionRef, string];
         const ref = await this.reference(raw, sourceId, target);
-        const rows = await this.project(raw, sourceId);
+        const rows = await this.project(raw, sourceId, false, ref);
         const current = rows.find(
             (item) =>
                 favoriteReferenceKey(xtreamFavoriteReference(item)) ===

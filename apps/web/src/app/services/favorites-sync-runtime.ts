@@ -25,6 +25,7 @@ import { firstValueFrom } from 'rxjs';
 import {
     PlaylistsService,
     RuntimeCapabilitiesService,
+    ParentalLockService,
 } from '@iptvnator/services';
 import {
     requestSourceServer,
@@ -55,6 +56,7 @@ import { FavoritesPlaylistAdapter } from './favorites-playlist-adapter';
 import type { FavoritesXtreamAdapter } from './favorites-xtream-adapter';
 @Injectable({ providedIn: 'root' })
 export class FavoritesSyncRuntime {
+    private readonly locks = inject(ParentalLockService);
     private readonly capabilities = inject(RuntimeCapabilitiesService);
     private readonly playlists = inject(PlaylistsService);
     private readonly sources = inject(SourceSyncService);
@@ -107,7 +109,8 @@ export class FavoritesSyncRuntime {
                 () =>
                     window.dispatchEvent(
                         new Event('iptvnator-favorites-changed')
-                    )
+                    ),
+                this.locks
             );
             this.client = created.client;
             this.playlistAdapter = created.playlistAdapter;
@@ -354,9 +357,7 @@ export class FavoritesSyncRuntime {
         await this.publish();
     }
     private readonly sourceNames = new Map<string, string>();
-    sourceTitle(id: string): string {
-        return this.sourceNames.get(id) ?? id;
-    }
+    sourceTitle = (id: string): string => this.sourceNames.get(id) ?? id;
     private async sourceRows() {
         const instance = sourceConnection()?.instanceId;
         const rows = await firstValueFrom(this.playlists.getAllPlaylists());

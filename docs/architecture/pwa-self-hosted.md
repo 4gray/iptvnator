@@ -1270,6 +1270,9 @@ activity itself remains limited to its existing supported provider types.
 Network failures and HTTP 5xx can queue edits against a previously verified source
 context. Without that context, or after a rejected access/source request, no edit
 is queued; consent, profile and source ownership fences still apply.
+Independent overlapping offline edits can share the verified context. Starting
+another request does not retire it; a newer accepted context or explicit forget
+still fences older fallback attempts.
 The browser transport retains known 401/403, incompatible-discovery and instance
 refusals for the selected connection until successful instance verification. An
 unchecked retry or malformed access-error body cannot turn that refusal into an

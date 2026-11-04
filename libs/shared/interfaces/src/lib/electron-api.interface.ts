@@ -1234,7 +1234,8 @@ export interface ElectronBridgeApi {
         playlistId: string,
         contentType?: ElectronBridgePortalContentType,
         identity?: ContentMetadataPatch,
-        categoryId?: number
+        categoryId?: number,
+        excludeLocked?: boolean
     ) => Promise<ElectronBridgeXtreamContent | null>;
     dbSetContentMetadataIfMissing: (
         contentId: number,

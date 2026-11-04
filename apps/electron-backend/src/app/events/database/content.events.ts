@@ -82,13 +82,15 @@ handleWorkerRequest(
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
-        categoryId?: number
+        categoryId?: number,
+        excludeLocked?: boolean
     ) => ({
         xtreamId,
         playlistId,
         contentType,
         ...(identity ? { identity } : {}),
         ...(categoryId !== undefined ? { categoryId } : {}),
+        ...(excludeLocked === true ? { excludeLocked: true } : {}),
     })
 );
 

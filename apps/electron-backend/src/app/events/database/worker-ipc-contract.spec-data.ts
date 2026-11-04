@@ -288,6 +288,16 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         },
     },
     {
+        operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        args: [42, playlistId, 'movie', undefined, undefined, true],
+        payload: {
+            xtreamId: 42,
+            playlistId,
+            contentType: 'movie',
+            excludeLocked: true,
+        },
+    },
+    {
         operation: 'DB_SET_CONTENT_METADATA_IF_MISSING',
         // Same object on both sides: the patch must cross the boundary
         // unreshaped, or the worker reads fields the caller never sent.

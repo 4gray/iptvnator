@@ -1164,3 +1164,9 @@ failure so a later read can retry. Re-read membership after catalog loading and
 discard results from retired source incarnations. Membership writes stay cache-only.
 SQLite lookups retain saved/requested TMDB and provider-year hints when selecting
 between duplicate rows; a compatible row does not erase an explicit identity conflict.
+Shared SQLite projections request category-lock filtering; ordinary identity
+lookups used by the PIN guard remain unfiltered. While locked, unresolved category
+ownership is withheld too. Unreadable lock state or a lock version change during
+projection returns no rows. Single-item hearts and edits project only their target,
+without catalog lookups for other memberships. A playlist-only portable reorder
+replaces its existing global-order slots and preserves other sources' positions.
