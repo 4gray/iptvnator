@@ -432,7 +432,9 @@ export interface IXtreamDataSource {
         xtreamId: number,
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
-        identity?: ContentMetadataPatch
+        identity?: ContentMetadataPatch,
+        /** SQLite-only local category restriction when verifying route context. */
+        categoryId?: number
     ): Promise<XtreamContentItem | null>;
 
     /**

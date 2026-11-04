@@ -13,13 +13,18 @@ export async function getContentByXtreamId(
     xtreamId: number,
     playlistId: string,
     contentType?: 'live' | 'movie' | 'series',
-    identity?: ContentMetadataPatch
+    identity?: ContentMetadataPatch,
+    categoryId?: number
 ) {
     const conditions = [
         eq(schema.content.xtreamId, xtreamId),
         eq(schema.categories.playlistId, playlistId),
     ];
     if (contentType) conditions.push(eq(schema.content.type, contentType));
+    if (categoryId !== undefined) {
+        if (!Number.isSafeInteger(categoryId) || categoryId <= 0) return null;
+        conditions.push(eq(schema.content.categoryId, categoryId));
+    }
     const patch = identity ? normalizeContentMetadataPatch(identity) : null;
     if (patch?.tmdbId != null)
         conditions.push(

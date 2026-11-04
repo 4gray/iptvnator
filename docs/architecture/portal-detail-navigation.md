@@ -93,6 +93,18 @@ handler as the header Back.
 ## Summary
 
 - Xtream category browsing uses a route-first detail model.
+- Xtream movie/series detail Back uses `WorkspaceBackNavigationService.back()`.
+  With no same-document predecessor (a direct link or renderer reload), it
+  replaces the detail entry with its route's source, content section and
+  category, preserving query parameters. Collection-owned details keep their
+  history return behavior; the active source store does not choose the parent.
+  On the SQLite runtime, the owning typed content row supplies the local
+  category ID: a cross-portal link can carry a provider category ID that
+  differs from, or collides with, a SQLite row ID. A category-qualified typed
+  lookup first verifies the route's local category, preserving it when the
+  same provider ID occurs in several categories. Only a missing membership
+  triggers category recovery. An unavailable item lookup
+  returns to the catalog section root instead of guessing the category.
 - Stalker uses an inline/store-state detail model.
 - Detail pages themselves are two-state (browse ↔ watch) inside
   `PortalDetailShellComponent`; entering/leaving watch is a layout state,

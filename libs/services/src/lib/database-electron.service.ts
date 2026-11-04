@@ -1123,7 +1123,8 @@ export class DatabaseService {
         xtreamId: number,
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
-        identity?: ContentMetadataPatch
+        identity?: ContentMetadataPatch,
+        categoryId?: number
     ): Promise<XtreamContent | null> {
         if (typeof window.electron?.dbGetContentByXtreamId !== 'function') {
             return null;
@@ -1143,6 +1144,15 @@ export class DatabaseService {
                   }
                 : undefined;
         try {
+            if (categoryId !== undefined) {
+                return await window.electron.dbGetContentByXtreamId(
+                    xtreamId,
+                    playlistId,
+                    contentType,
+                    selector,
+                    categoryId
+                );
+            }
             return await window.electron.dbGetContentByXtreamId(
                 xtreamId,
                 playlistId,

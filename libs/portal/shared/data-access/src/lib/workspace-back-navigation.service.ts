@@ -7,7 +7,7 @@ import {
     InjectionToken,
     signal,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { NavigationStart, Router } from '@angular/router';
 import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
 import { trackRouterHistoryDepth } from './router-history-depth';
 
@@ -150,13 +150,22 @@ export class WorkspaceBackNavigationService {
     private async openParent(
         resolveParent: () => WorkspaceBackParent | Promise<WorkspaceBackParent>
     ): Promise<void> {
-        const parent = await resolveParent();
-        if (parent === null) {
-            this.location.back();
-        } else if (typeof parent === 'string') {
-            await this.router.navigateByUrl(parent, { replaceUrl: true });
-        } else {
-            await this.router.navigate([...parent], { replaceUrl: true });
+        let superseded = false;
+        const navigation = this.router.events.subscribe((event) => {
+            if (event instanceof NavigationStart) superseded = true;
+        });
+        try {
+            const parent = await resolveParent();
+            if (superseded) return;
+            if (parent === null) {
+                this.location.back();
+            } else if (typeof parent === 'string') {
+                await this.router.navigateByUrl(parent, { replaceUrl: true });
+            } else {
+                await this.router.navigate([...parent], { replaceUrl: true });
+            }
+        } finally {
+            navigation.unsubscribe();
         }
     }
 }
