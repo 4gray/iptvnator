@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "バージョン {{version}} をダウンロード中…",
         "APP_UPDATE_DOWNLOADED": "バージョン {{version}} をインストールできます",
         "APP_UPDATE_MANUAL_AVAILABLE": "バージョン {{version}} は手動インストールで利用できます",
-        "APP_UPDATE_ERROR": "更新の確認に失敗しました",
+        "APP_UPDATE_ERROR": "アプリの更新に失敗しました",
         "APP_UPDATE_CHECK": "もう一度確認",
         "APP_UPDATE_DOWNLOAD": "更新",
         "APP_UPDATE_INSTALL": "アプリを再起動",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "Twitter でシェア"
     },
     "UPDATE_AVAILABLE": "アップデートが利用可能",
+    "PWA_UPDATE_READY": "更新の準備ができました。再読み込みすると再生が停止します。",
+    "PWA_UPDATE_FAILED": "アプリの更新をダウンロードできませんでした。このバージョンを引き続き使用できます。",
+    "PWA_RELOAD_REQUIRED": "アプリのファイルを利用できません。オンラインに戻ってから再読み込みしてください。再生は停止します。",
     "REFRESH": "更新",
     "XTREAM": {
         "PLAY": "再生",

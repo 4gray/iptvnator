@@ -188,6 +188,45 @@ describe('AppUpdateNotificationPanelComponent', () => {
         );
     });
 
+    it('keeps a failed download visible and retries the check from the card', async () => {
+        await showUpdate({
+            ...availableStatus,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
+            error: 'Synthetic update download failed',
+        });
+        window.electron.checkForAppUpdate = jest
+            .fn()
+            .mockResolvedValue(availableStatus);
+
+        expect(
+            fixture.nativeElement.querySelector('[role="alert"]').textContent
+        ).toContain('Synthetic update download failed');
+        const button = fixture.nativeElement.querySelector(
+            '[data-test-id="app-update-notification-download"]'
+        ) as HTMLButtonElement;
+        expect(button.textContent).toContain('SETTINGS.APP_UPDATE_CHECK');
+        button.click();
+        await fixture.whenStable();
+        expect(window.electron.checkForAppUpdate).toHaveBeenCalledTimes(1);
+        expect(window.electron.downloadAppUpdate).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.status()).toEqual(availableStatus);
+    });
+
+    it('keeps the known update visible and disables actions while checking again', async () => {
+        await showUpdate({
+            ...availableStatus,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking,
+        });
+        expect(card()).toBeDefined();
+        expect(
+            (
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="app-update-notification-download"]'
+                ) as HTMLButtonElement
+            ).disabled
+        ).toBe(true);
+    });
+
     it('tells the user when the card chunk cannot be loaded', async () => {
         fixture.destroy();
         TestBed.resetTestingModule();

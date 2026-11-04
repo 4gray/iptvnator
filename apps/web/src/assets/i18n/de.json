@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "Version {{version}} wird heruntergeladen…",
         "APP_UPDATE_DOWNLOADED": "Version {{version}} ist bereit zur Installation",
         "APP_UPDATE_MANUAL_AVAILABLE": "Version {{version}} ist für die manuelle Installation verfügbar",
-        "APP_UPDATE_ERROR": "Update-Prüfung fehlgeschlagen",
+        "APP_UPDATE_ERROR": "App-Update fehlgeschlagen",
         "APP_UPDATE_CHECK": "Erneut prüfen",
         "APP_UPDATE_DOWNLOAD": "Aktualisieren",
         "APP_UPDATE_INSTALL": "Anwendung neu starten",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "Auf Twitter teilen"
     },
     "UPDATE_AVAILABLE": "Update verfügbar",
+    "PWA_UPDATE_READY": "Ein Update ist bereit. Beim Neuladen wird die Wiedergabe beendet.",
+    "PWA_UPDATE_FAILED": "Das App-Update konnte nicht geladen werden. Diese Version bleibt verfügbar.",
+    "PWA_RELOAD_REQUIRED": "App-Dateien sind nicht verfügbar. Laden Sie die App wieder online neu. Die Wiedergabe wird beendet.",
     "REFRESH": "Aktualisieren",
     "XTREAM": {
         "PLAY": "Abspielen",

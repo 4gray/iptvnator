@@ -328,6 +328,12 @@ For local investigation only, Chromium browser V8 coverage can be explored with:
 pnpm run coverage:e2e:v8:web
 ```
 
+Production PWA update checks use `pnpm nx run web-e2e:pwa-updates`; its
+`web:build-pwa` dependency builds the matching service-worker output first.
+`pnpm nx run web-e2e:test-service-worker` validates the pinned worker behavior
+without a browser. Both are required after changes to update recovery or its
+Angular worker patch; ordinary dev-server browser flows do not exercise it.
+
 ## I18n
 
 ```bash

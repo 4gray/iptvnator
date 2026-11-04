@@ -427,6 +427,9 @@ jobs:
             - name: Validate electron-builder keychain password patch
               run: pnpm run deps:electron-builder:test
 
+            - name: Validate service worker update recovery
+              run: pnpm nx run web-e2e:test-service-worker
+
             - name: Validate mpegts.js loader abort patch
               run: pnpm run deps:mpegts:test
 

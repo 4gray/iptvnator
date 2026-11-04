@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "جارٍ تنزيل الإصدار {{version}}…",
         "APP_UPDATE_DOWNLOADED": "الإصدار {{version}} جاهز للتثبيت",
         "APP_UPDATE_MANUAL_AVAILABLE": "الإصدار {{version}} متاح للتثبيت اليدوي",
-        "APP_UPDATE_ERROR": "فشل التحقق من التحديث",
+        "APP_UPDATE_ERROR": "فشل تحديث التطبيق",
         "APP_UPDATE_CHECK": "تحقق مرة أخرى",
         "APP_UPDATE_DOWNLOAD": "تحديث",
         "APP_UPDATE_INSTALL": "إعادة تشغيل التطبيق",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "مشاركة على Twitter"
     },
     "UPDATE_AVAILABLE": "تحديث متاح",
+    "PWA_UPDATE_READY": "التحديث جاهز. ستؤدي إعادة التحميل إلى إيقاف التشغيل.",
+    "PWA_UPDATE_FAILED": "تعذّر تنزيل تحديث التطبيق. يمكنك الاستمرار باستخدام هذا الإصدار.",
+    "PWA_RELOAD_REQUIRED": "ملفات التطبيق غير متاحة. أعد التحميل عند الاتصال بالإنترنت للاستعادة. سيتوقف التشغيل.",
     "REFRESH": "تحديث",
     "XTREAM": {
         "PLAY": "تشغيل",

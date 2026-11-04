@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "كيتم تحميل الإصدار {{version}}…",
         "APP_UPDATE_DOWNLOADED": "الإصدار {{version}} واجد للتثبيت",
         "APP_UPDATE_MANUAL_AVAILABLE": "الإصدار {{version}} متوفر للتثبيت اليدوي",
-        "APP_UPDATE_ERROR": "فشل التحقق من التحديث",
+        "APP_UPDATE_ERROR": "فشل تحديث التطبيق",
         "APP_UPDATE_CHECK": "عاود تحقق",
         "APP_UPDATE_DOWNLOAD": "حدّث",
         "APP_UPDATE_INSTALL": "عاود شعل التطبيق",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "شارك على تويتر"
     },
     "UPDATE_AVAILABLE": "تحديث متوفر",
+    "PWA_UPDATE_READY": "التحديث واجد. إعادة التحميل غادي توقف التشغيل.",
+    "PWA_UPDATE_FAILED": "ما قدرناش نحمّلو تحديث التطبيق. تقدر تبقى تستعمل هاد النسخة.",
+    "PWA_RELOAD_REQUIRED": "ملفات التطبيق ما متوفراش. عاود حمّل التطبيق ملي يرجع الإنترنت. التشغيل غادي يوقف.",
     "REFRESH": "حدث",
     "XTREAM": {
         "PLAY": "شغل",

@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "{{version}} verzió letöltése…",
         "APP_UPDATE_DOWNLOADED": "{{version}} verzió telepíthető",
         "APP_UPDATE_MANUAL_AVAILABLE": "{{version}} verzió kézi telepítéssel érhető el",
-        "APP_UPDATE_ERROR": "Nem sikerült ellenőrizni a frissítéseket",
+        "APP_UPDATE_ERROR": "Az alkalmazás frissítése sikertelen",
         "APP_UPDATE_CHECK": "Újbóli ellenőrzés",
         "APP_UPDATE_DOWNLOAD": "Frissítés",
         "APP_UPDATE_INSTALL": "Alkalmazás újraindítása",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "Megosztás a Twitteren"
     },
     "UPDATE_AVAILABLE": "Frissítés érhető el",
+    "PWA_UPDATE_READY": "Frissítés érhető el. Az újratöltés leállítja a lejátszást.",
+    "PWA_UPDATE_FAILED": "Az alkalmazás frissítését nem sikerült letölteni. Ez a verzió továbbra is használható.",
+    "PWA_RELOAD_REQUIRED": "Az alkalmazás fájljai nem érhetők el. A kapcsolat helyreállása után töltse újra. A lejátszás leáll.",
     "REFRESH": "Frissítés",
     "XTREAM": {
         "PLAY": "Lejátszás",

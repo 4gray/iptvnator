@@ -6,6 +6,7 @@ import {
 
 /** What an unload guard must offer to survive an updater-driven quit. */
 export interface AppQuitUnloadGuardHooks {
+    confirmAppQuit(): Promise<boolean>;
     suspendForAppQuit(): void;
     resumeAfterAbortedAppQuit(): void;
 }
@@ -18,7 +19,7 @@ export interface AppQuitUnloadGuardHooks {
  * window while the settings form may be dirty, and only a root service can
  * reach the settings-scoped unload guard from both.
  *
- * The choreography: suspend every registered guard, invoke the updater,
+ * The choreography: confirm saved/discarded edits, suspend the guards, invoke the updater,
  * and restore the protection whenever the promised quit provably did not
  * happen — a non-'downloaded' reply, a rejected IPC, or a later
  * error-status push (electron-updater reports install failures that way
@@ -31,6 +32,8 @@ export interface AppQuitUnloadGuardHooks {
 export class AppUpdateInstallService {
     private readonly guards = new Set<AppQuitUnloadGuardHooks>();
     private installQuitPending = false;
+    private installPromise: Promise<ElectronBridgeAppUpdateStatus | null> | null =
+        null;
 
     constructor() {
         // App-lifetime subscription on purpose: the failure push can arrive
@@ -62,9 +65,20 @@ export class AppUpdateInstallService {
     /**
      * @returns the updater's reply, or null when the bridge is unavailable
      */
-    async installAppUpdate(): Promise<ElectronBridgeAppUpdateStatus | null> {
-        if (!window.electron?.installAppUpdate) {
-            return null;
+    installAppUpdate(): Promise<ElectronBridgeAppUpdateStatus | null> {
+        if (this.installPromise) return this.installPromise;
+        if (this.installQuitPending || !window.electron?.installAppUpdate)
+            return Promise.resolve(null);
+
+        this.installPromise = this.confirmAndInstall().finally(() => {
+            this.installPromise = null;
+        });
+        return this.installPromise;
+    }
+
+    private async confirmAndInstall(): Promise<ElectronBridgeAppUpdateStatus | null> {
+        for (const guard of this.guards) {
+            if (!(await guard.confirmAppQuit())) return null;
         }
 
         this.guards.forEach((guard) => guard.suspendForAppQuit());

@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "Versie {{version}} downloaden…",
         "APP_UPDATE_DOWNLOADED": "Versie {{version}} is klaar om te installeren",
         "APP_UPDATE_MANUAL_AVAILABLE": "Versie {{version}} is beschikbaar voor handmatige installatie",
-        "APP_UPDATE_ERROR": "Updatecontrole mislukt",
+        "APP_UPDATE_ERROR": "App-update mislukt",
         "APP_UPDATE_CHECK": "Opnieuw controleren",
         "APP_UPDATE_DOWNLOAD": "Bijwerken",
         "APP_UPDATE_INSTALL": "Applicatie opnieuw starten",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "Delen op Twitter"
     },
     "UPDATE_AVAILABLE": "Update beschikbaar",
+    "PWA_UPDATE_READY": "Er staat een update klaar. Opnieuw laden stopt het afspelen.",
+    "PWA_UPDATE_FAILED": "De app-update kon niet worden gedownload. Je kunt deze versie blijven gebruiken.",
+    "PWA_RELOAD_REQUIRED": "App-bestanden zijn niet beschikbaar. Laad opnieuw zodra de verbinding terug is. Het afspelen stopt.",
     "REFRESH": "Ververs",
     "XTREAM": {
         "PLAY": "Afspelen",

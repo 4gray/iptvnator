@@ -61,6 +61,8 @@ export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
 
         return (
             status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available ||
+            status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking ||
+            status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error ||
             status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading ||
             status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         );

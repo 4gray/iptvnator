@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "Pobieranie wersji {{version}}…",
         "APP_UPDATE_DOWNLOADED": "Wersja {{version}} jest gotowa do instalacji",
         "APP_UPDATE_MANUAL_AVAILABLE": "Wersja {{version}} jest dostępna do ręcznej instalacji",
-        "APP_UPDATE_ERROR": "Sprawdzanie aktualizacji nie powiodło się",
+        "APP_UPDATE_ERROR": "Aktualizacja aplikacji nie powiodła się",
         "APP_UPDATE_CHECK": "Sprawdź ponownie",
         "APP_UPDATE_DOWNLOAD": "Aktualizuj",
         "APP_UPDATE_INSTALL": "Uruchom aplikację ponownie",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "Udostępnij na Twitterze"
     },
     "UPDATE_AVAILABLE": "Dostępna aktualizacja",
+    "PWA_UPDATE_READY": "Aktualizacja jest gotowa. Ponowne wczytanie zatrzyma odtwarzanie.",
+    "PWA_UPDATE_FAILED": "Nie udało się pobrać aktualizacji. Możesz nadal korzystać z tej wersji.",
+    "PWA_RELOAD_REQUIRED": "Pliki aplikacji są niedostępne. Wczytaj ponownie po przywróceniu połączenia. Odtwarzanie zostanie zatrzymane.",
     "REFRESH": "Odśwież",
     "XTREAM": {
         "PLAY": "Odtwórz",

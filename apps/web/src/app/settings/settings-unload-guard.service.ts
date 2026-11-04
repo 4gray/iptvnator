@@ -85,6 +85,8 @@ export class SettingsUnloadGuardService implements OnDestroy {
         // stand this guard down before the updater closes the window.
         this.unregisterFromInstallService =
             this.installService.registerUnloadGuard({
+                confirmAppQuit: () =>
+                    this.host?.confirmClose() ?? Promise.resolve(true),
                 resumeAfterAbortedAppQuit: () =>
                     this.resumeAfterAbortedAppQuit(),
                 suspendForAppQuit: () => this.suspendForAppQuit(),

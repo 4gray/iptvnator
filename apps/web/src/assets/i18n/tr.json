@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "{{version}} sürümü indiriliyor…",
         "APP_UPDATE_DOWNLOADED": "{{version}} sürümü yüklenmeye hazır",
         "APP_UPDATE_MANUAL_AVAILABLE": "{{version}} sürümü el ile kurulum için mevcut",
-        "APP_UPDATE_ERROR": "Güncelleme denetimi başarısız oldu",
+        "APP_UPDATE_ERROR": "Uygulama güncellemesi başarısız",
         "APP_UPDATE_CHECK": "Tekrar denetle",
         "APP_UPDATE_DOWNLOAD": "Güncelle",
         "APP_UPDATE_INSTALL": "Uygulamayı yeniden başlat",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "Twitter’da paylaş"
     },
     "UPDATE_AVAILABLE": "Güncelleme mevcut",
+    "PWA_UPDATE_READY": "Bir güncelleme hazır. Yeniden yüklemek oynatmayı durdurur.",
+    "PWA_UPDATE_FAILED": "Uygulama güncellemesi indirilemedi. Bu sürümü kullanmaya devam edebilirsiniz.",
+    "PWA_RELOAD_REQUIRED": "Uygulama dosyalarına erişilemiyor. Bağlantı geldiğinde yeniden yükleyin. Oynatma duracaktır.",
     "REFRESH": "Yenile",
     "XTREAM": {
         "PLAY": "Oynat",

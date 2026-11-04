@@ -352,7 +352,8 @@
             "nx-electron@22.0.0": "patches/nx-electron@22.0.0.patch",
             "app-builder-lib@26.15.7": "patches/app-builder-lib@26.15.7.patch",
             "vite@8.1.5": "patches/vite@8.1.5.patch",
-            "mpegts.js@1.8.2": "patches/mpegts.js@1.8.2.patch"
+            "mpegts.js@1.8.2": "patches/mpegts.js@1.8.2.patch",
+            "@angular/service-worker@22.2.2": "patches/@angular__service-worker@22.2.2.patch"
         }
     }
 }

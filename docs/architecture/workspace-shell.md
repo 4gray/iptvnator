@@ -1051,6 +1051,20 @@ Known caveats:
    Electron/Chromium; on Linux the exact behavior depends on the window
    manager.
 
+## Update restart and unsaved settings
+
+Both the About action and the global update notification install through
+`AppUpdateInstallService`. Registered settings guards first run the existing
+Save/Discard/Cancel decision; cancellation or a failed save sends no install
+IPC and keeps protection armed. Concurrent install intents share one decision.
+Only after approval are guards suspended, with protection restored on a failed
+install. The global notification retains download errors with an announced
+message and a Check again action instead of disappearing.
+
+Regression coverage: `app-update-recovery.e2e.ts` uses the real Electron
+renderer/preload/IPC with a disposable updater fixture (no package installation),
+checks both install entry points and verifies saved settings after restart.
+
 ## Maintenance Guidance
 
 Use this document as the source of truth when changing workspace shell behavior.

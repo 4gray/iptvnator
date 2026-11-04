@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "正在下载版本 {{version}}…",
         "APP_UPDATE_DOWNLOADED": "版本 {{version}} 已准备好安装",
         "APP_UPDATE_MANUAL_AVAILABLE": "版本 {{version}} 可手动安装",
-        "APP_UPDATE_ERROR": "检查更新失败",
+        "APP_UPDATE_ERROR": "应用更新失败",
         "APP_UPDATE_CHECK": "再次检查",
         "APP_UPDATE_DOWNLOAD": "更新",
         "APP_UPDATE_INSTALL": "重启应用",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "分享到 Twitter"
     },
     "UPDATE_AVAILABLE": "可用更新",
+    "PWA_UPDATE_READY": "更新已就绪。重新加载将停止播放。",
+    "PWA_UPDATE_FAILED": "无法下载应用更新。您可以继续使用当前版本。",
+    "PWA_RELOAD_REQUIRED": "应用文件不可用。请在网络恢复后重新加载以恢复应用。播放将停止。",
     "REFRESH": "刷新",
     "XTREAM": {
         "PLAY": "播放",

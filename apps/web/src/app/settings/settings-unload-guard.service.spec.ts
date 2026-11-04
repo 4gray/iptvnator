@@ -191,6 +191,18 @@ describe('SettingsUnloadGuardService', () => {
             expect(event.defaultPrevented).toBe(true);
         });
 
+        it('uses the existing settings decision before suspending protections', async () => {
+            const installService = TestBed.inject(AppUpdateInstallService);
+            activateInElectron();
+            form.markAsDirty();
+            host.confirmClose.mockResolvedValue(false);
+
+            expect(await installService.installAppUpdate()).toBeNull();
+            expect(host.confirmClose).toHaveBeenCalledTimes(1);
+            expect(electronStub.installAppUpdate).not.toHaveBeenCalled();
+            expect(dispatchBeforeUnload().defaultPrevented).toBe(true);
+        });
+
         it('unregisters from the install service on destroy', async () => {
             const installService = TestBed.inject(AppUpdateInstallService);
             activateInElectron();
