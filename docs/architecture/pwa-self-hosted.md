@@ -1279,6 +1279,8 @@ HTTP-200 identity/incompatibility failures. The request refusal gate runs before
 choosing browser fetch or Electron IPC, so neither transport bypasses a recorded rejection.
 Native IPC refusal codes and HTTP access/identity responses retain the same gate;
 ordinary transport outages still allow cached-context offline edits.
+Malformed successful discovery and HTTP client-error discovery responses are
+incompatibility/refusal evidence too; network failures and HTTP 5xx remain outages.
 
 Global collection ordering accepts an old Stalker provider-ID key only when it
 identifies exactly one current item. Exact typed keys take precedence. Reading

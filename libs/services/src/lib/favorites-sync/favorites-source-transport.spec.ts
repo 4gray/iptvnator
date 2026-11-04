@@ -69,6 +69,36 @@ afterEach(async () => {
     globalThis.fetch = originalFetch;
 });
 describe('favorites through the real browser source transport', () => {
+    it.each([
+        { status: 200, invalidBody: true },
+        { status: 204, invalidBody: true },
+        { status: 400 },
+        { status: 409 },
+    ])(
+        'does not cache incompatible discovery as an outage (%j)',
+        async ({ status, invalidBody }) => {
+            const f = fixture();
+            globalThis.fetch = jest
+                .fn()
+                .mockRejectedValue(new TypeError('Synthetic later outage'))
+                .mockResolvedValueOnce({
+                    status,
+                    headers: new Headers(),
+                    json: async () => {
+                        if (invalidBody)
+                            throw new SyntaxError(
+                                'Synthetic malformed discovery'
+                            );
+                        return {};
+                    },
+                });
+            await requestSourceServer({ operation: 'instance' }).catch(
+                () => undefined
+            );
+            await expect(f.client.set('source', ref, true)).rejects.toThrow();
+            expect(await f.store.pending()).toHaveLength(0);
+        }
+    );
     it.each(['browser', 'native'])(
         'does not revoke a new profile after a late %s access rejection',
         async (transport) => {
@@ -175,6 +205,21 @@ describe('favorites through the real browser source transport', () => {
 });
 
 describe('favorites through the native source transport', () => {
+    it.each([400, 409])(
+        'retains a native discovery rejection (%s)',
+        async (status) => {
+            const f = fixture();
+            window.electron = {
+                sourceSyncRequest: jest
+                    .fn()
+                    .mockRejectedValue(new Error('SOURCE_SYNC.OFFLINE'))
+                    .mockResolvedValueOnce({ status, body: {} }),
+            } as unknown as typeof window.electron;
+            await requestSourceServer({ operation: 'instance' });
+            await expect(f.client.set('source', ref, true)).rejects.toThrow();
+            expect(await f.store.pending()).toHaveLength(0);
+        }
+    );
     it.each([
         new Error('Error invoking remote method: SOURCE_SYNC.LOCKED'),
         new Error('Error invoking remote method: SOURCE_SYNC.INSTANCE_CHANGED'),

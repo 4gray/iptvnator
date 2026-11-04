@@ -55,8 +55,16 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         (
             manifest.playlists[0] as XtreamPlaylistBackupEntry
         ).userState.lockedCategories = [];
-        const summary = await service.importBackup(JSON.stringify(manifest));
+        const restoreFavorites = jest.fn(async () => undefined);
+        const summary = await service.importBackup(
+            JSON.stringify(manifest),
+            restoreFavorites
+        );
         expect(summary).toMatchObject({ merged: 1, failed: 0 });
+        expect(restoreFavorites).toHaveBeenCalledWith(
+            'canonical',
+            manifest.playlists[0]
+        );
         expect(
             collaborators.playlistsService.restorePlaylist
         ).toHaveBeenLastCalledWith(

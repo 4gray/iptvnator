@@ -8,6 +8,8 @@ it.each([
     [{ status: 401 }, 'LOCKED'],
     [{ status: 403 }, 'LOCKED'],
     [{ status: 404 }, 'INCOMPATIBLE'],
+    [{ status: 400 }, 'INCOMPATIBLE'],
+    [{ status: 204 }, 'INCOMPATIBLE'],
     [
         { status: 200, body: { instanceId: 'selected', storage: 'none' } },
         'INCOMPATIBLE',

@@ -47,9 +47,9 @@ export class SourceServerTransport {
                             ? 'SOURCE_SYNC.INSTANCE_CHANGED'
                             : probe.status === 401 || probe.status === 403
                               ? 'SOURCE_SYNC.LOCKED'
-                              : probe.status === 200 || probe.status === 404
-                                ? 'SOURCE_SYNC.INCOMPATIBLE'
-                                : 'SOURCE_SYNC.OFFLINE'
+                              : probe.status >= 500
+                                ? 'SOURCE_SYNC.OFFLINE'
+                                : 'SOURCE_SYNC.INCOMPATIBLE'
                     );
                 }
             }

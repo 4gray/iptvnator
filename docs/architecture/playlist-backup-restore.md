@@ -456,3 +456,7 @@ reading/uploading the NAS as part of export. Original raw archives remain retain
 for explicit favorites preview/import. Archive restore updates local legacy data;
 it does not implicitly authorize per-item NAS writes. Use the independent
 favorites preview/import action to publish restored local memberships.
+After a successful entry restore, Settings reconciles matching retained local
+favorite choices against the restored memberships. An older opted-out removal
+cannot hide a restored item from preview. Omitted choices, server revisions and
+queued operations remain intact; restoration itself sends no favorites writes.

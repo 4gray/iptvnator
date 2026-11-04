@@ -34,7 +34,12 @@ export function xtreamFavoriteReference(
         id: String(item.xtream_id),
     };
 }
-export function xtreamFavoriteSnapshot(item: XtreamFavoriteItem) {
+export function xtreamFavoriteSnapshot(
+    item: Pick<
+        XtreamFavoriteItem,
+        'title' | 'tmdb_id' | 'release_year' | 'catalog_missing_reason'
+    >
+) {
     return parseFavoriteSnapshot({
         title: normalizeFavoriteTitle(item.title),
         ...(item.tmdb_id == null ? {} : { tmdbId: String(item.tmdb_id) }),

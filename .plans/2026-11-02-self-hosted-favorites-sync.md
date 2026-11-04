@@ -437,3 +437,51 @@ interfaces and modules with focused coverage; they do not fail the gate.
 The final Linux arm64 Docker image is 5a8a4d8163ec; HTTP add/remove/receipt and
 restart smoke checks pass and the isolated container is removed. Three favorites
 flows pass again after the deletion before committing for a fresh review.
+
+Round 15 reviews 1f6e103bb2326b6eec4aa652aeae00d3b6221dd4 and reports two
+boundaries. The Dashboard removal method routes a context-free native source
+incorrectly, but a repository-wide caller trace shows this obsolete method has
+no production caller: Dashboard favorite cards navigate to the common collection.
+Remove that duplicate API and its private metadata helper rather than maintain
+a second mutation path. Keep read/navigation coverage and the actual collection
+removal regressions. The review's runtime-impact premise is declined for this
+method; its faulty, unused implementation is removed.
+
+Backup restore does have a live failure: opted-out negative local sidecars can
+hide a restored membership from the separate favorites preview. Settings now
+supplies an optional post-entry restoration callback, capturing the original
+client/consent/context. It reconciles only restored keys with existing local
+choices, using the client's guarded local-write path. Enabled shared state,
+base revisions, conflicts and pending operations remain intact; no favorites
+request is authorized by restoring. Omitted choices are untouched. The callback
+uses the accepted source ID after inventory deduplication and runs only after
+local user-state restore succeeds. Its failing-before/passing-after regression
+checks that actual hook; adapter integration covers M3U, Xtream and Stalker,
+enabled/disabled state, parked queue retention and expired ownership. The canonical
+backup contract is updated. The mixed M3U flow restores a synthetic backup through
+Settings in PWA and Electron, then uses preview/import and explicit conflict choice.
+
+Independent boundary checks also reproduce malformed successful discovery being
+treated as an outage. Discovery client errors and malformed success now retain
+refusal evidence; native probes classify non-outage incompatible responses too.
+Network/5xx outages remain queueable, with regression coverage for later outages
+after both renderer transports reject discovery. The PWA contract is updated.
+Finally, upstream now supplies @noble/hashes directly to shared interfaces; use
+its lazy SHA-256 fallback and delete the duplicate hand-written implementation.
+Exact UTF-8 URL and block-boundary vectors continue to match Node SHA-256.
+
+Round 16 validation refreshes the five affected coverage projects: web 851,
+services 1,409, Electron 3,000 tests; shared interfaces and Dashboard pass too.
+The 36-report merge passes unchanged gates at 85.54/77.30/83.84/86.04 percent.
+The extended full mixed PWA/Electron suite passes all 23 cases (5.4 minutes),
+including real Settings restoration, preview and conflict resolution on both
+platforms. All 42 spec programs, application typechecks, owning lint, formatting,
+whitespace, guidance and 250 release notes pass. Production frontend/Electron/
+workers build; initial bytes are 1,200,152 / 1,200,301. Linux arm64 Docker image
+eb055070a05d builds, and HTTP add/remove/receipt/restart smoke passes. Isolated
+containers are removed. The eight discovery regressions also fail against the
+previous implementations and pass after restoring the fixes (30 focused tests).
+The restore hook regression fails before its implementation and passes afterward.
+The existing unreleased feature note covers these fixes. Physical Synology,
+packaged Windows/Linux and optional vendored Embedded MPV remain unavailable.
+Commit and repeat the local review; Greptile remains unavailable.

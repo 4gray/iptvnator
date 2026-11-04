@@ -144,8 +144,14 @@ export class SettingsBackupFacade {
             this.importFailed.set(false);
 
             try {
+                const restoreFavorites = favoritesProfileUsed()
+                    ? (
+                          await loadFavoritesRuntime(this.environment)
+                      ).backupRestorer()
+                    : undefined;
                 const summary = await this.playlistBackupService.importBackup(
-                    await file.text()
+                    await file.text(),
+                    ...(restoreFavorites ? [restoreFavorites] : [])
                 );
                 this.injector
                     .get(XtreamStore, null)

@@ -1,4 +1,3 @@
-import { sha256 } from './favorites-sha256';
 import type {
     FavoriteState,
     FavoriteOperation,
@@ -40,7 +39,7 @@ export async function m3uFavoriteReference(url: string) {
     const bytes = new TextEncoder().encode(url);
     const hash = crypto.subtle
         ? new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
-        : sha256(bytes);
+        : (await import('@noble/hashes/sha2.js')).sha256(bytes);
     return {
         provider: 'm3u' as const,
         version: 1 as const,

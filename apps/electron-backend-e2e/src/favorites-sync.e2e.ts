@@ -555,6 +555,8 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
         })
     );
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-favorites-m3u-'));
+    const rawM3u =
+        '#EXTM3U\n#EXTINF:-1,Synthetic first\nhttps://fixture.invalid/one\n#EXTINF:-1,Synthetic duplicate\nhttps://fixture.invalid/one\n#EXTINF:-1,Synthetic second\nhttps://fixture.invalid/two';
     let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
     try {
         const page = await context.newPage();
@@ -573,9 +575,7 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
         await dialog.locator('input[type="file"]').setInputFiles({
             name: 'Synthetic favorites.m3u',
             mimeType: 'audio/x-mpegurl',
-            buffer: Buffer.from(
-                '#EXTM3U\n#EXTINF:-1,Synthetic first\nhttps://fixture.invalid/one\n#EXTINF:-1,Synthetic duplicate\nhttps://fixture.invalid/one\n#EXTINF:-1,Synthetic second\nhttps://fixture.invalid/two'
-            ),
+            buffer: Buffer.from(rawM3u),
         });
         await dialog.getByRole('button', { name: /add playlist/i }).click();
         await expect(dialog).toHaveCount(0);
@@ -596,7 +596,7 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
                 ).json()
             ).entries as {
                 address: { content: unknown };
-                state: { member: boolean };
+                state: { member: boolean; revision: number };
             }[];
         const open = async (client: Page) => {
             await openSources(client);
@@ -824,6 +824,98 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
             .getByTestId('favorites-sync-enabled')
             .getByRole('checkbox')
             .uncheck();
+        await page.setViewportSize({ width: 1280, height: 800 });
+        const backupPath = join(directory, 'synthetic-favorites-backup.json');
+        writeFileSync(
+            backupPath,
+            JSON.stringify({
+                kind: 'iptvnator-playlist-backup',
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                includeSecrets: true,
+                playlists: [
+                    {
+                        portalType: 'm3u',
+                        exportedId: sourceId,
+                        title: 'Synthetic favorites',
+                        autoRefresh: false,
+                        source: { kind: 'text', rawM3u },
+                        userState: {
+                            favorites: ['https://fixture.invalid/two'],
+                            recentlyViewed: [],
+                            hiddenGroupTitles: [],
+                        },
+                    },
+                ],
+            })
+        );
+        for (const [index, client] of [page, desktop.mainWindow].entries()) {
+            for (const entry of (await list()).filter(
+                (entry) => entry.state.member
+            ))
+                expect(
+                    (
+                        await fetch(
+                            `${server.apiUrl}/v1/favorites/operations`,
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-IPTVnator-Instance-Id': instanceId,
+                                },
+                                body: JSON.stringify({
+                                    address: entry.address,
+                                    operation: {
+                                        operationId: `synthetic-backup-clear-${index}`,
+                                        deviceId: 'fixture',
+                                        expectedRevision: entry.state.revision,
+                                        member: false,
+                                    },
+                                }),
+                            }
+                        )
+                    ).status
+                ).toBe(200);
+            await settings(client, false);
+            await open(client);
+            const heart = client
+                .getByTestId('channel-item')
+                .nth(2)
+                .locator('.favorite-button');
+            if ((await heart.getAttribute('aria-pressed')) === 'true')
+                await heart.click();
+            await expect(heart).toHaveAttribute('aria-pressed', 'false');
+            const serverBefore = JSON.stringify(await list());
+            await openSettings(client);
+            await openSettingsSection(client, 'backup');
+            const chooser = client.waitForEvent('filechooser');
+            await client
+                .locator('#backup')
+                .getByRole('button', { name: 'Import', exact: true })
+                .click();
+            await (await chooser).setFiles(backupPath);
+            await expect(
+                client.getByText(/Backup import finished: 0 imported, 1 merged/)
+            ).toBeVisible({ timeout: 15000 });
+            expect(JSON.stringify(await list())).toBe(serverBefore);
+            await settings(client, true);
+            await client.getByTestId('favorites-import-preview').click();
+            await expect(
+                client.getByTestId('favorites-sync-settings')
+            ).toContainText('1 favorites from 1 sources. Unresolved: 0.');
+            await client.getByTestId('favorites-import-confirm').click();
+            await expect(
+                client.getByTestId('favorites-use-local')
+            ).toBeVisible();
+            await client.getByTestId('favorites-use-local').click();
+            await expect
+                .poll(
+                    async () =>
+                        (await list()).filter((entry) => entry.state.member)
+                            .length
+                )
+                .toBe(1);
+        }
     } finally {
         if (desktop) await closeElectronApp(desktop);
         await context.close();

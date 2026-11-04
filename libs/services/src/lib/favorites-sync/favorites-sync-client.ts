@@ -1,4 +1,7 @@
-import { latestFavoriteBase } from './favorites-client-state';
+import {
+    latestFavoriteBase,
+    localFavoriteRecord,
+} from './favorites-client-state';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import { deliverFavorites } from './favorites-sync-delivery';
 import {
@@ -151,7 +154,8 @@ export class FavoritesSyncClient {
         sourceId: string,
         content: FavoriteReference,
         member: boolean,
-        snapshot?: FavoriteSnapshot
+        snapshot?: FavoriteSnapshot,
+        preserveSharedState = false
     ): Promise<void> {
         const currentAction = this.action(sourceId, content);
         const source = this.contexts.get(sourceId);
@@ -167,18 +171,12 @@ export class FavoritesSyncClient {
                     source.sourceIncarnation
             )
                 throw new FavoriteSupersededError();
-            const state = {
-                revision: current?.state.revision ?? 0,
+            return localFavoriteRecord(
+                current,
                 member,
-                ...(snapshot ? { snapshot } : {}),
-            };
-            return {
-                ...current,
-                state,
-                local: state,
-                base: current?.base ?? emptyFavoriteState(),
-                pending: current?.pending ?? [],
-            };
+                snapshot,
+                preserveSharedState
+            );
         });
         this.options.changed();
     }

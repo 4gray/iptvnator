@@ -2,6 +2,7 @@ import { readFavoriteSummary } from './favorites-runtime-summary';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import { refreshFavoriteViews } from './favorites-view-refresh';
 import { projectFavoriteBackup } from './favorites-backup-projection';
+import { createFavoriteBackupRestorer } from './favorites-backup-restore';
 import {
     previewLocalFavorites,
     importFavoritePreview,
@@ -307,6 +308,13 @@ export class FavoritesSyncRuntime {
             this.playlistAdapter!,
             playlist,
             entry
+        );
+    }
+    backupRestorer() {
+        return createFavoriteBackupRestorer(
+            this.ensureClient(),
+            this.playlistAdapter!,
+            (id) => firstValueFrom(this.playlists.getPlaylistById(id))
         );
     }
     async previewImport(): Promise<FavoritesImportPreview> {

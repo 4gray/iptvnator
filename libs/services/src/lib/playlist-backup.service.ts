@@ -78,6 +78,10 @@ export class PlaylistBackupError extends Error {
 }
 
 type PlaylistPortalType = 'm3u' | 'xtream' | 'stalker';
+export type BackupFavoriteRestorer = (
+    sourceId: string,
+    entry: PlaylistBackupEntry
+) => Promise<void>;
 
 @Injectable({
     providedIn: 'root',
@@ -153,9 +157,12 @@ export class PlaylistBackupService {
         };
     }
 
-    importBackup(json: string): Promise<PlaylistBackupImportSummary> {
+    importBackup(
+        json: string,
+        restoreFavorites?: BackupFavoriteRestorer
+    ): Promise<PlaylistBackupImportSummary> {
         const importResult = (this.backupImportTail ?? Promise.resolve()).then(
-            () => this.executeImportBackup(json)
+            () => this.executeImportBackup(json, restoreFavorites)
         );
         this.backupImportTail = importResult.then(
             () => undefined,
@@ -165,7 +172,8 @@ export class PlaylistBackupService {
     }
 
     private async executeImportBackup(
-        json: string
+        json: string,
+        restoreFavorites?: BackupFavoriteRestorer
     ): Promise<PlaylistBackupImportSummary> {
         const manifest = this.parseManifest(json);
         // A backup carrying lock lists REPLACES the matching playlists'
@@ -281,6 +289,8 @@ export class PlaylistBackupService {
                             positions
                         );
                 }
+
+                await restoreFavorites?.(targetId, entry);
 
                 // Last: a failed Xtream restore above must leave the
                 // playlist's previous locks in place rather than commit the

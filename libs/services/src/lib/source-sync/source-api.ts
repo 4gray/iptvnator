@@ -79,10 +79,14 @@ export async function requestSourceServer(
                 (response.status === 409 &&
                     (response.body as { code?: string })?.code ===
                         'instance_changed') ||
-                (request.operation === 'instance' && response.status === 404)
+                (request.operation === 'instance' &&
+                    response.status >= 400 &&
+                    response.status < 500)
             )
                 rejectSourceInstance(
-                    response.status === 404 ? 409 : response.status,
+                    response.status === 401 || response.status === 403
+                        ? response.status
+                        : 409,
                     connection
                 );
             return response;
@@ -152,19 +156,26 @@ export async function requestSourceServer(
         if (response.status >= 500) throw new Error('SOURCE_SYNC.OFFLINE');
         if (response.status === 401 || response.status === 403)
             rejectSourceInstance(response.status, connection);
+        else if (request.operation === 'instance' && response.status >= 400)
+            rejectSourceInstance(409, connection);
         const body =
             response.status === 304 ||
             (request.operation === 'instance' && response.status === 404)
                 ? undefined
-                : await response.json();
+                : await response.json().catch((error) => {
+                      if (
+                          request.operation === 'instance' &&
+                          response.status < 400
+                      )
+                          rejectSourceInstance(409, connection);
+                      throw error;
+                  });
         if (
-            (request.operation === 'instance' && response.status === 404) ||
-            (response.status === 409 && body?.code === 'instance_changed')
+            request.operation !== 'instance' &&
+            response.status === 409 &&
+            body?.code === 'instance_changed'
         )
-            rejectSourceInstance(
-                response.status === 404 ? 409 : response.status,
-                connection
-            );
+            rejectSourceInstance(409, connection);
         return {
             status: response.status,
             etag: response.headers.get('etag') ?? undefined,
