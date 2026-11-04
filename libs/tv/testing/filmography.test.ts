@@ -205,10 +205,13 @@ test('several matching portal versions require a choice; absent or contradicted 
     assert.deepEqual(
         await findFilmographyTitle(
             catalog([
-                item('2049', { title: 'Blade Runner 2049', year: undefined }),
+                item('2049', {
+                    title: 'Synthetic Voyage 2049',
+                    year: undefined,
+                }),
             ]),
             'source',
-            { ...credit, title: 'Blade Runner', year: 1982 },
+            { ...credit, title: 'Synthetic Voyage', year: 1982 },
             signal()
         ),
         { status: 'missing' }
@@ -240,7 +243,7 @@ test('cancellation before a lookup or after an ignored transport abort cannot pu
 
 test('canonical numeric titles are not release tags, while TV season-year tags may follow the premiere', async () => {
     const numeric = item('numeric', {
-        title: 'Blade Runner 2049',
+        title: 'Synthetic Voyage 2049',
         year: undefined,
     });
     const catalog = (value: Media) =>
@@ -253,19 +256,24 @@ test('canonical numeric titles are not release tags, while TV season-year tags m
     const result = await findFilmographyTitle(
         catalog(numeric),
         'source',
-        { ...credit, title: 'Blade Runner 2049', year: 2017 },
+        { ...credit, title: 'Synthetic Voyage 2049', year: 2017 },
         signal()
     );
     assert.equal(result.status === 'found' && result.item, numeric);
     const series = item('show', {
         kind: 'series',
-        title: 'Ted Lasso s04 (2026)',
+        title: 'Synthetic Series Beta s04 (2026)',
         year: '2026',
     });
     const tv = await findFilmographyTitle(
         catalog(series),
         'source',
-        { ...credit, title: 'Ted Lasso', mediaType: 'tv', year: 2020 },
+        {
+            ...credit,
+            title: 'Synthetic Series Beta',
+            mediaType: 'tv',
+            year: 2020,
+        },
         signal()
     );
     assert.equal(tv.status === 'found' && tv.item, series);
@@ -273,12 +281,17 @@ test('canonical numeric titles are not release tags, while TV season-year tags m
         catalog(
             item('remake', {
                 kind: 'series',
-                title: 'The Office',
+                title: 'Synthetic Series Alpha',
                 year: '2005',
             })
         ),
         'source',
-        { ...credit, title: 'The Office', mediaType: 'tv', year: 2001 },
+        {
+            ...credit,
+            title: 'Synthetic Series Alpha',
+            mediaType: 'tv',
+            year: 2001,
+        },
         signal()
     );
     assert.equal(remake.status, 'missing');

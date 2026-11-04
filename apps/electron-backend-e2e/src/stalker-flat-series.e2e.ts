@@ -31,7 +31,7 @@ for (const tmdb of [false, true]) {
             name: 'Signal House',
             original_name: 'Signal House',
             original_language: 'en',
-            first_air_date: '2005-01-01',
+            first_air_date: '2021-01-01',
             overview: 'Fictional show-level description.',
             vote_count: 500,
             vote_average: 7,
@@ -154,12 +154,12 @@ for (const tmdb of [false, true]) {
                         playlistId,
                         xtreamId: episodeId,
                         contentType: 'episode',
-                        seriesXtreamId: 9686,
+                        seriesXtreamId: 900001,
                         seasonNumber: 9,
                         episodeNumber: 1,
                         episodeIdentityScope: 'stalker-embedded-vod',
                         title: 'Signal House (1-9 season) - S09E01 - Episode 1',
-                        url: `${server}/stream/issue1844/9686/1.mp4`,
+                        url: `${server}/stream/issue1844/900001/1.mp4`,
                         downloadFolder: downloadsDir,
                         metadataSnapshot: {
                             version: 1,
@@ -192,7 +192,7 @@ for (const tmdb of [false, true]) {
                     await window.electron.dbSavePlaybackPosition(playlistId, {
                         contentXtreamId: episodeId,
                         contentType: 'episode',
-                        seriesXtreamId: 9686,
+                        seriesXtreamId: 900001,
                         seasonNumber: 9,
                         episodeNumber: 1,
                         positionSeconds: 120,
@@ -201,7 +201,7 @@ for (const tmdb of [false, true]) {
                     await window.electron.dbSavePlaybackPosition(playlistId, {
                         contentXtreamId: watchedId,
                         contentType: 'episode',
-                        seriesXtreamId: 9686,
+                        seriesXtreamId: 900001,
                         seasonNumber: 9,
                         episodeNumber: 2,
                         positionSeconds: 1200,
@@ -249,7 +249,7 @@ for (const tmdb of [false, true]) {
                         )
                 )
                 .toContain(
-                    `${stalkerMockServer}/stream/issue1844/9686/189.mp4`
+                    `${stalkerMockServer}/stream/issue1844/900001/189.mp4`
                 );
             await expect(
                 app.mainWindow.locator('app-portal-inline-player')

@@ -28,15 +28,15 @@ describe('stalker-series.adapters', () => {
             const episodes = mapRegularSeriesEpisodes(
                 [
                     {
-                        id: '9686',
+                        id: '900001',
                         name: 'Episodes',
-                        cmd: '/media/9686.mpg',
+                        cmd: '/media/900001.mpg',
                         series: [189],
                     },
                 ],
                 undefined,
                 pickSeasonMarkedTitle(...titles),
-                9686,
+                900001,
                 'embedded',
                 titles
             );
@@ -50,9 +50,9 @@ describe('stalker-series.adapters', () => {
     it('marks flat range collections without changing playback or episode identities', () => {
         const seasons = [
             {
-                id: '9686',
+                id: '900001',
                 name: 'Episodes',
-                cmd: '/media/9686.mpg',
+                cmd: '/media/900001.mpg',
                 series: [1, 2, 189],
             },
         ];
@@ -60,15 +60,15 @@ describe('stalker-series.adapters', () => {
             seasons,
             undefined,
             'Show (9 season)',
-            9686,
+            900001,
             'embedded'
         )['9'];
         const episodes = Object.values(
             mapRegularSeriesEpisodes(
                 seasons,
                 undefined,
-                'The Office (1-9 season)',
-                9686,
+                'Synthetic Series Alpha (1-9 season)',
+                900001,
                 'embedded'
             )
         )[0];
@@ -85,7 +85,7 @@ describe('stalker-series.adapters', () => {
             seasons,
             undefined,
             'Show (1-9 season)',
-            9686,
+            900001,
             'regular'
         );
         expect(Object.values(structured)[0].some((e) => e.seasonUnknown)).toBe(
@@ -93,10 +93,10 @@ describe('stalker-series.adapters', () => {
         );
     });
     it.each([
-        'The Gentlemen s02',
-        'The Gentlemen season2',
-        'The Gentlemen (s02)',
-        'The Gentlemen (season 2)',
+        'Synthetic Series Beta s02',
+        'Synthetic Series Beta season2',
+        'Synthetic Series Beta (s02)',
+        'Synthetic Series Beta (season 2)',
         'Пример (2 сезон)',
         'Пример (сезон 2)',
         'Пример s02',

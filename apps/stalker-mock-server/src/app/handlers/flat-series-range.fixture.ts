@@ -14,12 +14,12 @@ export function handleFlatSeriesRange(req: Request, res: Response): boolean {
             q['type'] === 'vod' && !q['movie_id']
                 ? [
                       {
-                          id: '9686',
+                          id: '900001',
                           name: 'Signal House (1-9 season)',
                           o_name: 'Signal House (1-9 season)',
-                          year: '2005',
+                          year: '2021',
                           category_id: '2001',
-                          cmd: '/media/9686.mpg',
+                          cmd: '/media/900001.mpg',
                           series: Array.from(
                               { length: 189 },
                               (_, index) => index + 1
@@ -33,7 +33,7 @@ export function handleFlatSeriesRange(req: Request, res: Response): boolean {
     } else if (q['action'] === 'create_link') {
         res.json({
             js: {
-                cmd: `http://${req.headers.host}/stream/issue1844/9686/${q['series']}.mp4`,
+                cmd: `http://${req.headers.host}/stream/issue1844/900001/${q['series']}.mp4`,
                 error: '',
             },
         });
