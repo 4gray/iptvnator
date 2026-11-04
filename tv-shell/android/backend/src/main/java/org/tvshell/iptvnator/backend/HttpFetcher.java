@@ -271,9 +271,22 @@ public class HttpFetcher {
         return true;
     }
 
+    private static boolean isConnectionRefused(ConnectException failure) {
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+        for (Throwable part = failure; part != null; part = part.getCause()) {
+            if (!seen.add(part) || seen.size() > 64 || part.getSuppressed().length != 0) return false;
+            if (!(part instanceof ConnectException) && !part.getClass().getName().equals("android.system.ErrnoException")) return false;
+            String message = part.getMessage() == null ? "" : part.getMessage().toLowerCase(Locale.ROOT);
+            if (message.contains("unreachable") || message.contains("enetunreach") || message.contains("ehostunreach")
+                || message.contains("econnreset") || message.contains("etimedout") || message.contains("timed out")) return false;
+            if (!message.matches("(?s).*\\b(econnrefused|connection refused)\\b.*")) return false;
+        }
+        return true;
+    }
+
     static String codeOf(IOException e) {
         if (e instanceof UnknownHostException) return "ENOTFOUND";
-        if (e instanceof ConnectException) return "ECONNREFUSED";
+        if (e instanceof ConnectException && isConnectionRefused((ConnectException) e)) return "ECONNREFUSED";
         if (e instanceof NoRouteToHostException) return "EHOSTUNREACH";
         if (e instanceof SocketTimeoutException) return "ETIMEDOUT";
         if (e instanceof SSLPeerUnverifiedException) return "ERR_TLS_CERT_ALTNAME_INVALID";
@@ -282,7 +295,6 @@ public class HttpFetcher {
         if (e instanceof SSLException) return "EPROTO";
         String message = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
         if (message.contains("reset")) return "ECONNRESET";
-        if (message.contains("refused")) return "ECONNREFUSED";
         if (message.contains("unreachable")) return "ENETUNREACH";
         return "EIO";
     }

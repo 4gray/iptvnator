@@ -166,7 +166,7 @@
     }
 
     var CANDIDATE_SELECTOR = [
-        'a[href]', 'button', 'input', 'select', 'textarea', 'summary', 'video', 'audio[controls]',
+        'a[href]', 'button', 'input', 'select', 'textarea', 'summary', 'video', 'audio[controls]', 'iframe',
         '[tabindex]', '[contenteditable="true"]',
         '[role="button"]', '[role="link"]', '[role="option"]', '[role="menuitem"]', '[role="menuitemcheckbox"]',
         '[role="menuitemradio"]', '[role="tab"]', '[role="checkbox"]', '[role="radio"]', '[role="switch"]',

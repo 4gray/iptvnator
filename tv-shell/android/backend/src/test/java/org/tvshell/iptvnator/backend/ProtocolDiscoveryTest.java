@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.net.ConnectException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -117,6 +118,37 @@ public class ProtocolDiscoveryTest {
                 assertEquals("initial wrong version permits explicit probe", Boolean.TRUE,
                     WebBackend.describeConnectionFailure(HttpFetcher.mapNetworkError(error)).get("canTryHttp"));
             }
+        }
+    }
+
+    public void testOnlyPositiveConnectionRefusalAllowsHttp() {
+        for (String message : new String[] { "Connection refused", "isConnected failed: ECONNREFUSED (Connection refused)" }) {
+            assertEquals("explicit refusal permits probe", Boolean.TRUE,
+                WebBackend.describeConnectionFailure(HttpFetcher.mapNetworkError(new ConnectException(message))).get("canTryHttp"));
+        }
+        for (String message : new String[] { "Network is unreachable", "isConnected failed: ENETUNREACH", "Connection timed out", "", "notECONNREFUSED", "ENETUNREACH (Connection refused)" }) {
+            assertEquals("other connection failures cannot permit probe", Boolean.FALSE,
+                WebBackend.describeConnectionFailure(HttpFetcher.mapNetworkError(new ConnectException(message))).get("canTryHttp"));
+        }
+        assertEquals("generic I/O text is insufficient", Boolean.FALSE,
+            WebBackend.describeConnectionFailure(HttpFetcher.mapNetworkError(new IOException("Connection refused"))).get("canTryHttp"));
+    }
+
+    public void testMixedAndUnboundedConnectionFailuresCannotAuthorizeHttp() {
+        ConnectException mixed = new ConnectException("Connection refused");
+        mixed.initCause(new ConnectException("ENETUNREACH"));
+        ConnectException suppressed = new ConnectException("Connection refused");
+        suppressed.addSuppressed(new SocketTimeoutException("synthetic timeout"));
+        ConnectException cycle = new ConnectException("Connection refused"), other = new ConnectException("Connection refused");
+        cycle.initCause(other); other.initCause(cycle);
+        ConnectException deep = new ConnectException("Connection refused");
+        for (int i = 0; i < 65; i++) {
+            ConnectException wrapper = new ConnectException("Connection refused");
+            wrapper.initCause(deep); deep = wrapper;
+        }
+        for (ConnectException error : new ConnectException[] { mixed, suppressed, cycle, deep }) {
+            assertEquals("ambiguous connection evidence fails closed", Boolean.FALSE,
+                WebBackend.describeConnectionFailure(HttpFetcher.mapNetworkError(error)).get("canTryHttp"));
         }
     }
 

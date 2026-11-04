@@ -683,6 +683,31 @@ await page.keyboard.press('ArrowDown');
 check(await page.locator('#tv-after-radio').evaluate((button) => button === document.activeElement),
     'Down leaves a native radio group instead of trapping the remote');
 check(await page.locator('#tv-radio-b').isChecked(), 'leaving the radio group keeps its selection');
+console.log('12. visible trailer frames receive remote focus; hidden embeds stay excluded');
+await page.evaluate(() => {
+    document.body.innerHTML = `<div class="cdk-overlay-pane" style="position:fixed;left:0;top:0;width:640px;height:500px;flex-direction:column">
+        <button id="synthetic-trailer-close" style="display:block;width:150px;height:40px">Close synthetic trailer</button>
+        <iframe id="synthetic-trailer" title="Synthetic trailer" style="display:block;width:600px;height:400px"></iframe>
+        <iframe id="synthetic-background" title="Synthetic background embed" hidden style="display:block;position:absolute;top:60px;left:0;width:600px;height:40px"></iframe>
+    </div>`;
+    const frame = document.querySelector('#synthetic-trailer');
+    window.syntheticFrameArrows = 0;
+    frame.contentDocument.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight') window.syntheticFrameArrows += 1;
+    });
+    document.querySelector('#synthetic-trailer-close').focus();
+});
+await key('ArrowDown');
+check(await page.locator('#synthetic-trailer').evaluate((frame) => frame === document.activeElement),
+    'Down enters the visible trailer frame');
+await key('ArrowRight');
+check(await page.evaluate(() => window.syntheticFrameArrows === 1),
+    'keys inside the frame reach its player document');
+await page.locator('#synthetic-trailer-close').focus();
+await key('ArrowDown');
+check(await page.evaluate(() => document.querySelector('#synthetic-background').getBoundingClientRect().width > 0 &&
+    document.activeElement.id === 'synthetic-trailer'),
+    'hidden background frames stay excluded even when CSS gives them visible geometry');
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();
