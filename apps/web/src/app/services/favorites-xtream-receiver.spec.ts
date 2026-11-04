@@ -1,5 +1,15 @@
+import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
+import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
+import {
+    PwaXtreamDataSource,
+    XtreamApiService,
+} from '@iptvnator/portal/xtream/data-access';
 import { FavoritesXtreamAdapter } from './favorites-xtream-adapter';
-import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
+import {
+    FavoriteSupersededError,
+    type FavoritesSyncClient,
+} from '@iptvnator/services/favorites-sync';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { FavoriteEntry } from '@iptvnator/shared/interfaces/favorites-sync';
 
@@ -47,6 +57,7 @@ function fixture() {
     ];
     const set = jest.fn();
     const client = {
+        options: { consent: () => 'consent', profileActive: () => true },
         contexts: new Map([
             [
                 'source',
@@ -463,3 +474,137 @@ it.each(['locked', 'unresolved', 'loading', 'changed'] as const)(
         if (mode === 'loading') expect(lookup).not.toHaveBeenCalled();
     }
 );
+
+it.each(['source', 'profile', 'consent'] as const)(
+    'retires native catalog results after %s ownership changes',
+    async (change) => {
+        const f = fixture();
+        const raw = {
+            getFavorites: async () => [],
+            getContentByXtreamId: async () => {
+                if (change === 'source')
+                    f.client.contexts.set('source', {
+                        ...f.client.contexts.get('source')!,
+                        sourceIncarnation: 'second',
+                    });
+                if (change === 'profile')
+                    f.client.options.profileActive = () => false;
+                if (change === 'consent')
+                    f.client.options.consent = () => 'second';
+                return candidate;
+            },
+        } as unknown as IXtreamDataSource;
+        await expect(
+            new FavoritesXtreamAdapter(
+                f.client,
+                () => true,
+                true,
+                unlocked
+            ).project(raw, 'source')
+        ).rejects.toThrow(FavoriteSupersededError);
+    }
+);
+it('retires an action whose source changes during its final catalog lookup', async () => {
+    const f = fixture();
+    f.entries.length = 0;
+    const raw = {
+        getFavorites: async () => [],
+        getContentByXtreamId: async () => {
+            f.client.contexts.set('source', {
+                ...f.client.contexts.get('source')!,
+                sourceIncarnation: 'second',
+            });
+            return candidate;
+        },
+    } as unknown as IXtreamDataSource;
+    await expect(
+        new FavoritesXtreamAdapter(f.client, () => true, true, unlocked).invoke(
+            raw,
+            'addFavorite',
+            [{ id: 77, providerId: 42, type: 'movie' }, 'source']
+        )
+    ).rejects.toThrow(FavoriteSupersededError);
+    expect(f.set).not.toHaveBeenCalled();
+});
+it('commits through the real PWA archive read without fetching an unresolved older catalog', async () => {
+    const f = fixture();
+    f.entries.length = 0;
+    localStorage.setItem(
+        'xtream-favorites',
+        JSON.stringify({ source: ['series:99'] })
+    );
+    TestBed.configureTestingModule({
+        providers: [
+            PwaXtreamDataSource,
+            { provide: XtreamApiService, useValue: {} },
+            {
+                provide: PlaylistsService,
+                useValue: { getPlaylistById: () => of(undefined) },
+            },
+            {
+                provide: ParentalLockService,
+                useValue: { active: () => false, lockedXtreamIds: () => [] },
+            },
+        ],
+    });
+    const raw = TestBed.inject(PwaXtreamDataSource);
+    jest.spyOn(raw, 'getPlaylist').mockResolvedValue({
+        id: 'source',
+        name: 'Synthetic source',
+        type: 'xtream',
+        serverUrl: 'https://synthetic.invalid',
+        username: 'synthetic-user',
+        password: 'synthetic-password',
+    });
+    const network = jest
+        .spyOn(raw, 'getContent')
+        .mockRejectedValue(new Error('Synthetic offline provider'));
+    try {
+        await new FavoritesXtreamAdapter(
+            f.client,
+            () => true,
+            false,
+            unlocked
+        ).invoke(raw, 'addFavorite', [
+            { id: 42, providerId: 42, type: 'movie' },
+            'source',
+        ]);
+        expect(network).not.toHaveBeenCalled();
+        expect(f.set).toHaveBeenCalledWith(
+            'source',
+            { provider: 'xtream', kind: 'movie', id: '42' },
+            true,
+            undefined
+        );
+        expect(JSON.parse(localStorage.getItem('xtream-favorites')!)).toEqual({
+            source: ['series:99'],
+        });
+    } finally {
+        localStorage.clear();
+        jest.restoreAllMocks();
+    }
+});
+
+it('rejects a retired legacy reference before reading its replacement catalog', async () => {
+    const f = fixture();
+    const lookup = jest.fn();
+    const raw = {
+        getFavorites: async () => {
+            f.client.contexts.set('source', {
+                ...f.client.contexts.get('source')!,
+                sourceIncarnation: 'second',
+            });
+            return [candidate];
+        },
+        getContentByXtreamId: lookup,
+    } as unknown as IXtreamDataSource;
+    await expect(
+        new FavoritesXtreamAdapter(f.client, () => true, true, unlocked).invoke(
+            raw,
+            'removeFavorite',
+            [77, 'source']
+        )
+    ).rejects.toThrow(FavoriteSupersededError);
+    expect(lookup).not.toHaveBeenCalled();
+    expect(f.set).not.toHaveBeenCalled();
+});

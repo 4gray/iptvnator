@@ -654,12 +654,17 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // Favorites Operations (user data storage)
     // =========================================================================
 
-    async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
+    async getFavorites(
+        playlistId: string,
+        hydrate = true
+    ): Promise<XtreamContentItem[]> {
         await this.userDataRead();
-        await this.getCollectionItemsWithHydration(
-            playlistId,
-            this.collectionStorage.getFavoritesFromStorage()[playlistId] || []
-        );
+        if (hydrate)
+            await this.getCollectionItemsWithHydration(
+                playlistId,
+                this.collectionStorage.getFavoritesFromStorage()[playlistId] ||
+                    []
+            );
         return this.collectionStorage.getLocalFavorites(playlistId);
     }
 

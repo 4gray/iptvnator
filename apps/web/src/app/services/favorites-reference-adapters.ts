@@ -1,3 +1,7 @@
+import type {
+    XtreamContentItem,
+    XtreamFavoriteItem,
+} from '@iptvnator/portal/xtream/data-access';
 import type { Playlist, StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import {
     m3uFavoriteReference,
@@ -135,3 +139,57 @@ export function stalkerFavorite(
 }
 export const favoriteKey = (item: LocalFavorite) =>
     favoriteReferenceKey(item.reference);
+
+type XtreamRef = Extract<FavoriteReference, { provider: 'xtream' }>;
+export function xtreamFavoriteReference(
+    item: Pick<XtreamContentItem, 'type' | 'xtream_id'>
+): XtreamRef {
+    const kind = item.type === 'vod' ? 'movie' : item.type;
+    if (
+        !['live', 'movie', 'series'].includes(kind) ||
+        !Number.isSafeInteger(item.xtream_id) ||
+        item.xtream_id <= 0
+    )
+        throw new Error('Unresolved favorite identity');
+    return {
+        provider: 'xtream',
+        kind: kind as XtreamRef['kind'],
+        id: String(item.xtream_id),
+    };
+}
+export function xtreamFavoriteSnapshot(
+    item: Pick<
+        XtreamFavoriteItem,
+        'title' | 'tmdb_id' | 'release_year' | 'catalog_missing_reason'
+    >
+) {
+    return parseFavoriteSnapshot({
+        title: normalizeFavoriteTitle(item.title),
+        ...(item.tmdb_id == null ? {} : { tmdbId: String(item.tmdb_id) }),
+        ...(item.release_year == null
+            ? {}
+            : { releaseYear: String(item.release_year) }),
+        ...(item.catalog_missing_reason === 'identity_conflict'
+            ? { identityConflict: true }
+            : {}),
+    });
+}
+/** Shared identity guards also apply when exporting a retained local backup. */
+export function hasXtreamFavoriteIdentityConflict(
+    snapshot: FavoriteSnapshot | undefined,
+    candidate?: Pick<
+        XtreamFavoriteItem,
+        'tmdb_id' | 'release_year' | 'catalog_missing_reason'
+    > | null
+): boolean {
+    return !!(
+        snapshot?.identityConflict ||
+        candidate?.catalog_missing_reason === 'identity_conflict' ||
+        (snapshot?.tmdbId &&
+            candidate?.tmdb_id != null &&
+            snapshot.tmdbId !== String(candidate.tmdb_id)) ||
+        (snapshot?.releaseYear &&
+            candidate?.release_year != null &&
+            snapshot.releaseYear !== String(candidate.release_year))
+    );
+}

@@ -604,3 +604,36 @@ passes and its isolated container is removed. Initial bytes are 1,200,287 /
 cover the repair. Physical Synology, packaged Windows/Linux and optional vendored
 Embedded MPV remain unavailable. Master is still 6bbe0eb09. Commit and repeat
 the local review; Greptile CLI remains unavailable under the documented exception.
+
+Round 19 reviews 46570d956 and confirms two remaining Xtream gaps: a pending
+native catalog lookup can publish after source replacement, and PWA getFavorites
+hydrates unrelated unresolved archives before a membership edit. Five new
+regressions fail before the repair, including the real PWA data source rather
+than a cache-only stub. The native cases cover source, profile and consent
+changes; action coverage also checks a final lookup after projection completes.
+
+Capture and recheck ownership around projection and the whole membership action,
+including legacy reference resolution. A sixth regression rejects an expired
+legacy reference before any replacement-catalog lookup. PWA getFavorites gains
+an explicit cache-only read; the default still hydrates ordinary collection
+reads. Actions and legacy reference lookup pass false, preserving the archive
+without provider requests. Move the already-shared pure Xtream reference,
+snapshot and identity-conflict helpers into the existing provider-reference
+adapter module; preview/backup consumers import them directly. This keeps the
+I/O adapter and pure conversion jobs distinct without adding a new module or
+dependency. The canonical Xtream contract records both ownership and archive-read
+behavior. Application typechecks, all 42 spec programs, affected lint and the
+873 web / 665 Xtream data-access tests pass; the refreshed 36-project coverage
+passes unchanged gates at 85.58/77.41/83.88/86.09 percent. Production builds pass;
+initial bytes are 1,200,291 / 1,200,301. A full mixed E2E run follows.
+
+Round 20 validation: all 25 mixed PWA/Electron flows pass (5.7 minutes), including
+source/profile changes, real playback and category-lock withholding/restoration.
+The final 21-case receiving spec and 17-case provider-adapter spec also pass.
+Production frontend/Electron/workers and Linux arm64 Docker image 1176b4d81f3e
+build; HTTP add/remove/receipt/restart smoke passes and its isolated container is
+removed. Guidance, release notes, formatting and whitespace pass. No thresholds,
+baselines, dependencies or archive data change; the existing unreleased feature
+note covers these fixes. Physical Synology, packaged Windows/Linux and optional
+vendored Embedded MPV remain unavailable. Commit and repeat the local review;
+Greptile CLI remains unavailable under the documented exception.

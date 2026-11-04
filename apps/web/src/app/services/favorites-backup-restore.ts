@@ -9,7 +9,7 @@ import type { FavoritesPlaylistAdapter } from './favorites-playlist-adapter';
 import {
     xtreamFavoriteReference,
     xtreamFavoriteSnapshot,
-} from './favorites-xtream-adapter';
+} from './favorites-reference-adapters';
 
 /** A restore replaces matching local choices, never queued/shared server state. */
 export function createFavoriteBackupRestorer(

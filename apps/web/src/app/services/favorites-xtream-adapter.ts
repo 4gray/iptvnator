@@ -8,71 +8,22 @@ import {
     favoriteReferenceKey,
     parseFavoriteSnapshot,
     type FavoriteReference,
-    type FavoriteSnapshot,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import {
     FavoriteSupersededError,
     type FavoritesSyncClient,
 } from '@iptvnator/services/favorites-sync';
-import { normalizeFavoriteTitle } from './favorites-reference-adapters';
+import {
+    xtreamFavoriteReference,
+    xtreamFavoriteSnapshot,
+    hasXtreamFavoriteIdentityConflict,
+} from './favorites-reference-adapters';
 import {
     normalizeContentMetadataPatch,
     XTREAM_FAVORITE_IDENTITY_CONFLICT,
 } from '@iptvnator/shared/interfaces';
 
 type XtreamRef = Extract<FavoriteReference, { provider: 'xtream' }>;
-export function xtreamFavoriteReference(
-    item: Pick<XtreamContentItem, 'type' | 'xtream_id'>
-): XtreamRef {
-    const kind = item.type === 'vod' ? 'movie' : item.type;
-    if (
-        !['live', 'movie', 'series'].includes(kind) ||
-        !Number.isSafeInteger(item.xtream_id) ||
-        item.xtream_id <= 0
-    )
-        throw new Error('Unresolved favorite identity');
-    return {
-        provider: 'xtream',
-        kind: kind as XtreamRef['kind'],
-        id: String(item.xtream_id),
-    };
-}
-export function xtreamFavoriteSnapshot(
-    item: Pick<
-        XtreamFavoriteItem,
-        'title' | 'tmdb_id' | 'release_year' | 'catalog_missing_reason'
-    >
-) {
-    return parseFavoriteSnapshot({
-        title: normalizeFavoriteTitle(item.title),
-        ...(item.tmdb_id == null ? {} : { tmdbId: String(item.tmdb_id) }),
-        ...(item.release_year == null
-            ? {}
-            : { releaseYear: String(item.release_year) }),
-        ...(item.catalog_missing_reason === 'identity_conflict'
-            ? { identityConflict: true }
-            : {}),
-    });
-}
-/** Shared identity guards also apply when exporting a retained local backup. */
-export function hasXtreamFavoriteIdentityConflict(
-    snapshot: FavoriteSnapshot | undefined,
-    candidate?: Pick<
-        XtreamFavoriteItem,
-        'tmdb_id' | 'release_year' | 'catalog_missing_reason'
-    > | null
-): boolean {
-    return !!(
-        snapshot?.identityConflict ||
-        candidate?.catalog_missing_reason === 'identity_conflict' ||
-        (snapshot?.tmdbId &&
-            candidate?.tmdb_id != null &&
-            snapshot.tmdbId !== String(candidate.tmdb_id)) ||
-        (snapshot?.releaseYear &&
-            candidate?.release_year != null &&
-            snapshot.releaseYear !== String(candidate.release_year))
-    );
-}
 export class FavoritesXtreamAdapter {
     private readonly hydrating = new Map<
         string,
@@ -94,13 +45,14 @@ export class FavoritesXtreamAdapter {
         hydrate = false,
         target?: XtreamRef
     ): Promise<XtreamFavoriteItem[]> {
+        const assertCurrent = this.owner(sourceId);
         if (this.locks.withholdsEverything()) return [];
         const lockVersion = this.locks.version();
         const matchesTarget = (ref: XtreamRef) =>
             !target ||
             favoriteReferenceKey(ref) === favoriteReferenceKey(target);
-        const local = (await raw.getFavorites(sourceId)).filter((item) =>
-            matchesTarget(xtreamFavoriteReference(item))
+        const local = (await raw.getFavorites(sourceId, hydrate)).filter(
+            (item) => matchesTarget(xtreamFavoriteReference(item))
         );
         const catalogs = new Map<XtreamRef['kind'], XtreamContentItem[]>();
         const mapped = new Map(
@@ -129,8 +81,6 @@ export class FavoritesXtreamAdapter {
                     kinds.add(address.content.kind);
             }
             if (kinds.size) {
-                const incarnation =
-                    this.client.contexts.get(sourceId)?.sourceIncarnation;
                 await Promise.all(
                     [...kinds].map(async (kind) =>
                         catalogs.set(
@@ -139,11 +89,7 @@ export class FavoritesXtreamAdapter {
                         )
                     )
                 );
-                if (
-                    this.client.contexts.get(sourceId)?.sourceIncarnation !==
-                    incarnation
-                )
-                    throw new FavoriteSupersededError();
+                assertCurrent();
                 entries = await this.client.entries(sourceId);
             }
         }
@@ -248,10 +194,27 @@ export class FavoritesXtreamAdapter {
                     : {}),
             });
         }
+        assertCurrent();
         return this.locks.withholdsEverything() ||
             this.locks.version() !== lockVersion
             ? []
             : [...mapped.values()];
+    }
+    private owner(sourceId: string): () => void {
+        const incarnation =
+            this.client.contexts.get(sourceId)?.sourceIncarnation;
+        const consent = this.client.options.consent();
+        const assertCurrent = () => {
+            if (
+                this.client.options.profileActive?.() === false ||
+                this.client.options.consent() !== consent ||
+                this.client.contexts.get(sourceId)?.sourceIncarnation !==
+                    incarnation
+            )
+                throw new FavoriteSupersededError();
+        };
+        assertCurrent();
+        return assertCurrent;
     }
     private async catalog(
         raw: IXtreamDataSource,
@@ -301,7 +264,7 @@ export class FavoritesXtreamAdapter {
                 xtream_id: target.id,
             });
         const id = typeof target === 'number' ? target : target.id;
-        const candidates = (await raw.getFavorites(sourceId)).filter(
+        const candidates = (await raw.getFavorites(sourceId, false)).filter(
             (item) =>
                 item.id === id &&
                 (typeof target === 'number' || item.type === target.type)
@@ -327,8 +290,11 @@ export class FavoritesXtreamAdapter {
         if (method === 'getFavorites')
             return this.project(raw, String(args[0]), true);
         const [target, sourceId] = args as [XtreamCollectionRef, string];
+        const assertCurrent = this.owner(sourceId);
         const ref = await this.reference(raw, sourceId, target);
+        assertCurrent();
         const rows = await this.project(raw, sourceId, false, ref);
+        assertCurrent();
         const current = rows.find(
             (item) =>
                 favoriteReferenceKey(xtreamFavoriteReference(item)) ===
@@ -365,6 +331,7 @@ export class FavoritesXtreamAdapter {
             ref.kind,
             ...(identity ? [identity] : [])
         );
+        assertCurrent();
         if (
             member &&
             (current?.catalog_missing_reason === 'identity_conflict' ||

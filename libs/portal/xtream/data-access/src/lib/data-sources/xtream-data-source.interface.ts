@@ -366,7 +366,11 @@ export interface IXtreamDataSource {
     /**
      * Get all favorites for a playlist
      */
-    getFavorites(playlistId: string): Promise<XtreamFavoriteItem[]>;
+    /** Cache-only archive reads keep membership actions independent of provider availability. */
+    getFavorites(
+        playlistId: string,
+        hydrate?: boolean
+    ): Promise<XtreamFavoriteItem[]>;
 
     /**
      * Add content to favorites.

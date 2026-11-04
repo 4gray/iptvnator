@@ -4,12 +4,10 @@ import { webcrypto } from 'node:crypto';
 import {
     playlistFavorite,
     stalkerFavorite,
+    xtreamFavoriteSnapshot,
 } from './favorites-reference-adapters';
 import { FavoritesPlaylistAdapter } from './favorites-playlist-adapter';
-import {
-    FavoritesXtreamAdapter,
-    xtreamFavoriteSnapshot,
-} from './favorites-xtream-adapter';
+import { FavoritesXtreamAdapter } from './favorites-xtream-adapter';
 import type { Playlist, StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
 import type {
@@ -172,6 +170,8 @@ describe('favorite provider references and projections', () => {
     it('preserves requested identity when a sparse Xtream favorite has no catalog row', async () => {
         const set = jest.fn(async () => undefined);
         const client = {
+            contexts: new Map(),
+            options: { consent: () => 'consent' },
             entries: async () => [],
             set,
         } as unknown as FavoritesSyncClient;
@@ -285,6 +285,8 @@ describe('favorite provider references and projections', () => {
         } as unknown as IXtreamDataSource;
         const set = jest.fn(async () => undefined);
         const client = {
+            contexts: new Map(),
+            options: { consent: () => 'consent' },
             entries: async () => [],
             set,
         } as unknown as FavoritesSyncClient;
@@ -440,6 +442,8 @@ describe('favorite provider references and projections', () => {
             },
         };
         const client = {
+            contexts: new Map(),
+            options: { consent: () => 'consent' },
             entries: async () => [entry],
         } as unknown as FavoritesSyncClient;
         const raw = {

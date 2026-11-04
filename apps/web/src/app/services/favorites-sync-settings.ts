@@ -6,7 +6,7 @@ import type { FavoritesPlaylistAdapter } from './favorites-playlist-adapter';
 import {
     xtreamFavoriteReference,
     xtreamFavoriteSnapshot,
-} from './favorites-xtream-adapter';
+} from './favorites-reference-adapters';
 import type { LocalFavorite } from './favorites-reference-adapters';
 export interface FavoritesImportPreview {
     instanceId: string;

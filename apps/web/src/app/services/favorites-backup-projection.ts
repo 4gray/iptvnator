@@ -1,4 +1,4 @@
-import { hasXtreamFavoriteIdentityConflict } from './favorites-xtream-adapter';
+import { hasXtreamFavoriteIdentityConflict } from './favorites-reference-adapters';
 import type {
     Playlist,
     PlaylistBackupEntry,
