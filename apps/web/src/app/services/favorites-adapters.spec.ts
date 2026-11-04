@@ -51,6 +51,64 @@ beforeAll(() =>
 );
 describe('favorite provider references and projections', () => {
     it.each([
+        { series: ['x'] },
+        { series: 'invalid-series' },
+        { series: Array.from({ length: 2001 }, (_, n) => n + 1) },
+    ])(
+        'retains unsupported embedded episode archives as unresolved (%#)',
+        async ({ series }) => {
+            const item = {
+                id: '42',
+                favoriteContentType: 'vod',
+                series,
+            } as unknown as StalkerPortalItem;
+            const source = { ...playlist([item]), macAddress: 'synthetic-mac' };
+            const adapter = new FavoritesPlaylistAdapter(
+                { entries: async () => [] } as unknown as FavoritesSyncClient,
+                () => true,
+                undefined,
+                {
+                    read: () => ['local-order'],
+                } as unknown as FavoritesLocalOrder
+            );
+            expect(await adapter.local(source)).toEqual({
+                items: [],
+                unresolved: 1,
+            });
+            expect((await adapter.project(source)).favorites).toEqual([item]);
+        }
+    );
+    it('normalizes legacy embedded episode hints while retaining the archive and strict wire validation', async () => {
+        const item = {
+            id: '42',
+            favoriteContentType: 'vod',
+            title: 'Synthetic series',
+            series: ['1', 2, 'x', -1, 1.5, Number.MAX_SAFE_INTEGER + 1],
+        } as unknown as StalkerPortalItem;
+        const source = { ...playlist([item]), macAddress: 'synthetic-mac' };
+        const adapter = new FavoritesPlaylistAdapter(
+            { entries: async () => [] } as unknown as FavoritesSyncClient,
+            () => true,
+            undefined,
+            { read: () => ['local-order'] } as unknown as FavoritesLocalOrder
+        );
+        expect(
+            (await adapter.local(source)).items[0].snapshot.episodes
+        ).toEqual([1, 2]);
+        expect((await adapter.project(source)).favorites).toEqual([item]);
+        expect(item.series).toEqual([
+            '1',
+            2,
+            'x',
+            -1,
+            1.5,
+            Number.MAX_SAFE_INTEGER + 1,
+        ]);
+        expect(() => parseFavoriteSnapshot({ episodes: [NaN] })).toThrow(
+            'Invalid favorite episodes'
+        );
+    });
+    it.each([
         [
             'Synthetic ' + 'x'.repeat(513),
             ('Synthetic ' + 'x'.repeat(513)).slice(0, 512),

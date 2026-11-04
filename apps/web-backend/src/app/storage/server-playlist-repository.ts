@@ -94,6 +94,19 @@ export class ServerPlaylistRepository {
         return row ? parseAppPlaylist(row) : null;
     }
 
+    getMeta(playlistId: string): PlaylistDocument | null {
+        const row = this.db
+            .select({ ...metaColumns, payload: serverPlaylistMeta.document })
+            .from(playlists)
+            .leftJoin(
+                serverPlaylistMeta,
+                eq(serverPlaylistMeta.playlistId, playlists.id)
+            )
+            .where(eq(playlists.id, playlistId))
+            .get();
+        return row ? parseAppPlaylist(row as PlaylistRow) : null;
+    }
+
     upsert(
         document: PlaylistDocument,
         options: { readonly keepPayload: boolean }

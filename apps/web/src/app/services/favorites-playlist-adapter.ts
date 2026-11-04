@@ -15,6 +15,14 @@ import {
 
 /** Legacy documents remain the original archive; the sidecar owns only explicitly changed keys. */
 export class FavoritesPlaylistAdapter {
+    private readonly urlIndexes = new Map<
+        string,
+        {
+            stamp: string;
+            channels?: object;
+            value: Promise<Map<string, string>>;
+        }
+    >();
     constructor(
         private readonly client: FavoritesSyncClient,
         private readonly enabled: () => boolean,
@@ -52,19 +60,12 @@ export class FavoritesPlaylistAdapter {
             (original) =>
                 !local.items.some((item) => item.original === original)
         );
-        const channels = (source.playlist?.items ?? source.items ?? []) as {
-            url?: string;
-        }[];
-        const urls = new Map<string, string>();
-        if (entries.some((entry) => entry.address.content.provider === 'm3u'))
-            for (const channel of channels)
-                if (channel.url)
-                    urls.set(
-                        favoriteReferenceKey(
-                            await m3uFavoriteReference(channel.url)
-                        ),
-                        channel.url
-                    );
+        const m3u = entries.find(
+            (entry) => entry.address.content.provider === 'm3u'
+        );
+        const urls = m3u
+            ? await this.m3uUrls(source, m3u.address.sourceIncarnation)
+            : new Map<string, string>();
         for (const entry of entries) {
             const ref = entry.address.content;
             const key = favoriteReferenceKey(ref);
@@ -89,6 +90,52 @@ export class FavoritesPlaylistAdapter {
             )
             .map(([, item]) => item);
         return { ...playlist, favorites: [...favorites, ...unresolved] };
+    }
+    private m3uUrls(
+        source: Playlist,
+        incarnation: string
+    ): Promise<Map<string, string>> {
+        const channels = (source.playlist?.items ?? source.items ?? []) as {
+            url?: string;
+        }[];
+        const stamp = JSON.stringify([
+            source._id,
+            source.sourceSyncRevision,
+            source.updateDate,
+            source.count,
+            incarnation,
+        ]);
+        const versioned =
+            source.sourceSyncRevision !== undefined ||
+            source.updateDate !== undefined;
+        const cached = this.urlIndexes.get(source._id);
+        if (
+            cached?.stamp === stamp &&
+            (versioned || cached.channels === channels)
+        )
+            return cached.value;
+        const value = (async () => {
+            const urls = new Map<string, string>();
+            for (const channel of channels)
+                if (channel.url)
+                    urls.set(
+                        favoriteReferenceKey(
+                            await m3uFavoriteReference(channel.url)
+                        ),
+                        channel.url
+                    );
+            return urls;
+        })();
+        this.urlIndexes.set(source._id, {
+            stamp,
+            value,
+            ...(!versioned ? { channels } : {}),
+        });
+        value.catch(() => {
+            if (this.urlIndexes.get(source._id)?.value === value)
+                this.urlIndexes.delete(source._id);
+        });
+        return value;
     }
     visible(entry: FavoriteEntry) {
         return entry.record.localOnly && entry.record.local

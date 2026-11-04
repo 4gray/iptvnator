@@ -266,3 +266,42 @@ No findings are declined. No branch push or PR publication is performed while
 these remain open; the repeated M3U finding is recorded under the local-review
 stop/report rule. Greptile CLI remains unavailable. Output is retained outside
 the repository in /tmp/iptvnator-favorites-review-11.out.
+
+On 2026-11-04 the user authorizes repair of all three remaining findings and a
+new review. Legacy embedded episode hints now filter positive safe integers;
+non-array, empty-after-filtering and oversized archives remain unresolved locally.
+Original records and strict incoming wire validation are preserved.
+
+The M3U URL index keeps one build per source version/update/count/incarnation.
+Versioned payload clones reuse it; unversioned legacy payloads also require the
+same array. Concurrent reads share the promise, failures evict only their own
+entry, and changed versions replace the index. Server favorite authorization uses
+the existing payload-free metadata table. A missing text-M3U lifecycle context
+still reads the payload once; transactional source writes and deletion retire it.
+Regression tests cover projection/preview, invalid archives, overlapping reads,
+version/date/count/incarnation changes, cloned payloads, retry, authorization,
+source replacement and deletion. The three initial regressions fail before repair.
+
+Matching synthetic probes on Node 24.22.1/macOS arm64 (local evidence, with other
+checks running; timings are single samples, not journey/CI baseline measurements):
+
+| Probe | Before | After |
+| --- | --- | --- |
+| 100,000-channel first projection | 100,000 hashes / 1,125 ms | 100,000 hashes / 951 ms |
+| Same unchanged projection again | 100,000 hashes / 966 ms | 0 hashes / under 1 ms |
+| Ten verified contexts, 30 MiB source | 10 full payload reads / 334 ms | 0 full payload reads / 21 ms |
+
+No performance ratchet or UX behavior is changed. Canonical PWA and Stalker docs
+describe the cache, lifecycle and legacy-archive rules. The existing unreleased
+feature note covers these repairs; no duplicate release note is added.
+
+Final repair checks pass: adapter regressions (19), server storage/router checks
+(20), full 36-project coverage gates (85.33% statements, 76.93% branches,
+83.65% functions, 85.83% lines), owning lint, application types including the
+web backend, and all 42 spec programs. Production Electron/frontend/worker builds
+pass; initial bytes are 1,199,594 / 1,200,301. Three mixed favorites E2E flows
+pass, with M3U repeated after the cloned-payload cache refinement. Docker Linux
+arm64 build and HTTP add/remove/duplicate-receipt/restart smoke pass for text M3U.
+Formatting, whitespace, guidance (3) and release-note validation (231) pass.
+Greptile is still unavailable; committed-branch Codex review is next. Physical
+Synology and packaged Windows/Linux Electron remain unavailable.

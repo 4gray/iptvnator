@@ -2062,6 +2062,10 @@ display metadata and embedded episode numbers. They never transport cmd or sessi
 credentials. New local favorites record `favoriteContentType` independently of a
 numeric provider category ID; ambiguous historical rows stay local for preview.
 Projection reconstructs route/type hints without inventing playback coordinates.
+Legacy embedded episode hints accept positive safe integers and numeric strings,
+skipping invalid values without changing the archive. An empty, non-array or oversized
+result (more than 2,000 episodes) remains unresolved locally; incoming snapshots
+continue to use strict validation.
 
 Received shared favorites contain no command. `StalkerFavoritePlaybackResolver`
 looks up the exact typed provider ID through `executeStalkerRequest` on the

@@ -1203,6 +1203,13 @@ snapshots do not bypass known catalog identity conflicts.
 Local display titles replace control characters with spaces and are capped at
 512 characters when creating a shared snapshot; the retained archive is unchanged.
 Incoming wire snapshots still use strict validation.
+M3U projections reuse one URL/hash index per source revision, update timestamp,
+count and incarnation, including cloned payloads read from storage. Unversioned
+legacy rows also require the same catalog array. Concurrent reads share one build;
+failed builds are retried and a new version replaces the old index.
+Server favorite authorization reads payload-free source metadata. Text-M3U sources
+read the full payload only to establish a missing lifecycle context; source writes
+retire changed identities inside their existing transaction, including A → B → A.
 
 First enable receives server state without uploading the older local archive.
 For matching keys, shared state projects over local favorites; local-only entries

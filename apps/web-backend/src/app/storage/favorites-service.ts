@@ -25,7 +25,7 @@ export class ServerFavoriteService {
     }
 
     context(id: string): FavoriteSourceContext {
-        const document = this.storage.playlists.get(id);
+        const document = this.storage.playlists.getMeta(id);
         if (!document)
             throw new StorageRequestError(
                 404,
@@ -34,7 +34,7 @@ export class ServerFavoriteService {
             );
         const source = sourceFromPlaylist(
             document as unknown as Playlist,
-            true
+            false
         );
         const provider = source.kind.startsWith('m3u-') ? 'm3u' : source.kind;
         if (
@@ -48,13 +48,26 @@ export class ServerFavoriteService {
                 'This source does not support favorites.'
             );
         }
-        const fingerprint = activitySourceFingerprint(source);
         const existing = this.storage.database.sqlite
             .prepare(
                 'SELECT fingerprint, incarnation FROM activity_source_context WHERE source_id = ?'
             )
             .get(id) as
             { fingerprint: string; incarnation: string } | undefined;
+        // Source writes retire text identities transactionally; only a cold context needs the payload.
+        if (source.kind === 'm3u-text') {
+            if (existing)
+                return {
+                    sourceId: id,
+                    provider,
+                    sourceIncarnation: existing.incarnation,
+                };
+            source.rawM3u = sourceFromPlaylist(
+                this.storage.playlists.get(id) as unknown as Playlist,
+                true
+            ).rawM3u;
+        }
+        const fingerprint = activitySourceFingerprint(source);
         if (existing?.fingerprint === fingerprint) {
             return {
                 sourceId: id,

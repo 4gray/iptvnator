@@ -30,6 +30,23 @@ export async function playlistFavorite(
         if (typeof original !== 'object' || !original) return null;
         const reference = stalkerFavoriteReference(original);
         if (!reference) return null;
+        if (reference.mode === 'embedded' && !Array.isArray(original.series))
+            return null;
+        const episodes =
+            reference.mode === 'embedded'
+                ? original.series
+                      ?.filter(
+                          (value) =>
+                              typeof value === 'string' ||
+                              typeof value === 'number'
+                      )
+                      .map(Number)
+                      .filter(
+                          (value) => Number.isSafeInteger(value) && value > 0
+                      )
+                : undefined;
+        if (episodes && (!episodes.length || episodes.length > 2000))
+            return null;
         const category =
             original.favoriteContentType ?? String(original.category_id ?? '');
         return {
@@ -38,9 +55,7 @@ export async function playlistFavorite(
             snapshot: parseFavoriteSnapshot({
                 title: normalizeFavoriteTitle(original.title ?? original.name),
                 ...(category ? { categoryId: category } : {}),
-                ...(reference.mode === 'embedded'
-                    ? { episodes: original.series?.map(Number) }
-                    : {}),
+                ...(episodes ? { episodes } : {}),
             }),
         };
     }
