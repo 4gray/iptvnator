@@ -103,10 +103,16 @@ export class WorkspaceShellSearchSyncService {
                 return;
             }
 
+            const term = this.appliedSearchQuery();
+            // A scope change can already carry the pending input in q.
+            // Do not overwrite it with the older applied term mid-debounce.
+            if (this.searchDebounceTimeoutId !== null) {
+                return;
+            }
             syncSearchQueryParam(
                 this.router,
                 this.routeState.currentUrl(),
-                this.appliedSearchQuery()
+                term
             );
         });
     }

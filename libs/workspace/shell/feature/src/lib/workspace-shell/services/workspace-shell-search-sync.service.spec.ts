@@ -221,6 +221,7 @@ describe('WorkspaceShellSearchSyncService', () => {
                 stalkerCategoryId.set('7');
                 TestBed.flushEffects();
                 router.navigate.mockClear();
+                router.navigateByUrl.mockClear();
 
                 service.onSearchInput(pending);
                 searchService.clearCategoryScope();
@@ -238,6 +239,8 @@ describe('WorkspaceShellSearchSyncService', () => {
                 );
                 expect(service.searchQuery()).toBe(pending);
                 expect(service.appliedSearchQuery()).toBe(previous);
+                TestBed.flushEffects();
+                expect(router.navigateByUrl).not.toHaveBeenCalled();
                 jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
 
                 expect(service.searchQuery()).toBe(pending);
