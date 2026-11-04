@@ -263,6 +263,7 @@ export function useSourceActions(
         const back = (event: KeyboardEvent) => {
             if (
                 latest.current.tv.fullscreen ||
+                document.querySelector('[data-tv-modal]') ||
                 (!request.current && !details.current && !playback.current)
             )
                 return;

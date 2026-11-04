@@ -466,3 +466,44 @@ test('removing a playing favorite preserves the same provider ID in another sour
     await expect(savedChannel(page, sourceB)).toBeVisible();
     await expect(page.locator('.catalog-count')).toHaveText('1 channel');
 });
+
+test('the favorite scope picker owns Back before a pending activation', async ({
+    page,
+}) => {
+    await favorites(page);
+    await page.locator('[data-focus="favorites:live"]').click();
+    let held = false;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    await page.route('**/xtream?**', async (route) => {
+        const action =
+            new URL(route.request().url()).searchParams.get('action') ?? '';
+        if (held || !['get_account_info', '', 'get_profile'].includes(action))
+            return route.fallback();
+        held = true;
+        await gate;
+        await route.fallback().catch(() => undefined);
+    });
+    try {
+        await savedChannel(page, sourceA).click();
+        await expect.poll(() => held).toBe(true);
+        await page.getByRole('combobox', { name: 'Favorite sources' }).click();
+        const picker = page.getByRole('dialog', { name: 'Favorite sources' });
+        await expect(picker).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(picker).toBeHidden();
+        await expect(
+            page.getByRole('button', { name: 'Cancel opening title' })
+        ).toBeVisible();
+        await expect(
+            page.getByRole('combobox', { name: 'Favorite sources' })
+        ).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(savedChannel(page, sourceA)).toBeFocused();
+        release();
+        await expect(page.locator('.loading')).toBeHidden();
+        await expect(page.locator('video[src],video source')).toHaveCount(0);
+    } finally {
+        release();
+    }
+});
