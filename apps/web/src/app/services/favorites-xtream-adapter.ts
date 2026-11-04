@@ -10,7 +10,10 @@ import {
     type FavoriteReference,
     type FavoriteSnapshot,
 } from '@iptvnator/shared/interfaces/favorites-sync';
-import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
+import {
+    FavoriteSupersededError,
+    type FavoritesSyncClient,
+} from '@iptvnator/services/favorites-sync';
 import { normalizeFavoriteTitle } from './favorites-reference-adapters';
 import {
     normalizeContentMetadataPatch,
@@ -71,6 +74,10 @@ export function hasXtreamFavoriteIdentityConflict(
     );
 }
 export class FavoritesXtreamAdapter {
+    private readonly hydrating = new Map<
+        string,
+        Promise<XtreamContentItem[]>
+    >();
     constructor(
         private readonly client: FavoritesSyncClient,
         private readonly enabled: () => boolean,
@@ -78,16 +85,71 @@ export class FavoritesXtreamAdapter {
     ) {}
     async project(
         raw: IXtreamDataSource,
-        sourceId: string
+        sourceId: string,
+        hydrate = false
     ): Promise<XtreamFavoriteItem[]> {
         const local = await raw.getFavorites(sourceId);
+        const catalogs = new Map<XtreamRef['kind'], XtreamContentItem[]>();
         const mapped = new Map(
             local.map((item) => [
                 favoriteReferenceKey(xtreamFavoriteReference(item)),
                 item,
             ])
         );
-        for (const { address, record } of await this.client.entries(sourceId)) {
+        let entries = await this.client.entries(sourceId);
+        if (hydrate && !this.sqlite) {
+            const kinds = new Set<XtreamRef['kind']>();
+            for (const { address, record } of entries) {
+                const state =
+                    record.localOnly && record.local
+                        ? record.local
+                        : record.state;
+                if (
+                    address.content.provider === 'xtream' &&
+                    state.member &&
+                    !mapped.has(favoriteReferenceKey(address.content))
+                )
+                    kinds.add(address.content.kind);
+            }
+            if (kinds.size) {
+                const incarnation =
+                    this.client.contexts.get(sourceId)?.sourceIncarnation;
+                await Promise.all(
+                    [...kinds].map(async (kind) =>
+                        catalogs.set(
+                            kind,
+                            await this.catalog(raw, sourceId, kind)
+                        )
+                    )
+                );
+                if (
+                    this.client.contexts.get(sourceId)?.sourceIncarnation !==
+                    incarnation
+                )
+                    throw new FavoriteSupersededError();
+                entries = await this.client.entries(sourceId);
+            }
+        }
+        const candidates = new Map<string, XtreamContentItem[]>();
+        if (catalogs.size) {
+            const wanted = new Set(
+                entries.map(({ address }) =>
+                    address.content.provider === 'xtream'
+                        ? Number(address.content.id)
+                        : 0
+                )
+            );
+            for (const [kind, rows] of catalogs) {
+                for (const row of rows) {
+                    if (!wanted.has(row.xtream_id)) continue;
+                    const key = `${kind}:${row.xtream_id}`;
+                    const matches = candidates.get(key);
+                    if (matches) matches.push(row);
+                    else candidates.set(key, [row]);
+                }
+            }
+        }
+        for (const { address, record } of entries) {
             const ref = address.content;
             if (ref.provider !== 'xtream') continue;
             const key = favoriteReferenceKey(ref);
@@ -98,14 +160,33 @@ export class FavoritesXtreamAdapter {
                 continue;
             }
             const snapshot = state.snapshot;
+            const identity = normalizeContentMetadataPatch({
+                tmdbId: snapshot?.tmdbId ? Number(snapshot.tmdbId) : undefined,
+                releaseYear: snapshot?.releaseYear
+                    ? Number(snapshot.releaseYear)
+                    : undefined,
+            });
             const existing = mapped.get(key);
-            const candidate =
-                existing ??
-                (await raw.getContentByXtreamId(
+            const lookup = () =>
+                raw.getContentByXtreamId(
                     Number(ref.id),
                     sourceId,
-                    ref.kind
-                ));
+                    ref.kind,
+                    ...(identity ? [identity] : [])
+                );
+            let candidate = existing ?? null;
+            if (!candidate && hydrate && !this.sqlite) {
+                const matches = candidates.get(`${ref.kind}:${ref.id}`) ?? [];
+                candidate =
+                    matches.find(
+                        (row) =>
+                            !hasXtreamFavoriteIdentityConflict(snapshot, row)
+                    ) ??
+                    matches[0] ??
+                    null;
+            } else if (!candidate) {
+                candidate = await lookup();
+            }
             const conflict = hasXtreamFavoriteIdentityConflict(
                 snapshot,
                 candidate
@@ -140,6 +221,38 @@ export class FavoritesXtreamAdapter {
             });
         }
         return [...mapped.values()];
+    }
+    private async catalog(
+        raw: IXtreamDataSource,
+        sourceId: string,
+        kind: XtreamRef['kind']
+    ): Promise<XtreamContentItem[]> {
+        const key = JSON.stringify([
+            sourceId,
+            kind,
+            this.client.contexts.get(sourceId)?.sourceIncarnation,
+        ]);
+        let pending = this.hydrating.get(key);
+        if (!pending) {
+            pending = (async () => {
+                const source = await raw.getPlaylist(sourceId);
+                if (!source) return [];
+                return (await raw.getContent(
+                    sourceId,
+                    {
+                        serverUrl: source.serverUrl,
+                        username: source.username,
+                        password: source.password,
+                        userAgent: source.userAgent?.trim() || undefined,
+                    },
+                    kind
+                )) as XtreamContentItem[];
+            })()
+                .catch(() => [])
+                .finally(() => this.hydrating.delete(key));
+            this.hydrating.set(key, pending);
+        }
+        return pending;
     }
     async reference(
         raw: IXtreamDataSource,
@@ -181,7 +294,7 @@ export class FavoritesXtreamAdapter {
     }
     async invoke(raw: IXtreamDataSource, method: string, args: unknown[]) {
         if (method === 'getFavorites')
-            return this.project(raw, String(args[0]));
+            return this.project(raw, String(args[0]), true);
         const [target, sourceId] = args as [XtreamCollectionRef, string];
         const ref = await this.reference(raw, sourceId, target);
         const rows = await this.project(raw, sourceId);
@@ -218,7 +331,8 @@ export class FavoritesXtreamAdapter {
         const candidate = await raw.getContentByXtreamId(
             Number(ref.id),
             sourceId,
-            ref.kind
+            ref.kind,
+            ...(identity ? [identity] : [])
         );
         if (
             member &&

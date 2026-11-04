@@ -186,6 +186,40 @@ for (const provider of ['xtream', 'stalker'] as const)
                 desktop.mainWindow.getByText(title!, { exact: true }).first()
             ).toBeVisible({ timeout: 30000 });
             if (provider === 'xtream') {
+                const receiverContext = await browser.newContext({
+                    serviceWorkers: 'block',
+                });
+                try {
+                    const receiver = await receiverContext.newPage();
+                    await receiver.route('**/assets/app-config.js', (route) =>
+                        route.fulfill({
+                            contentType: 'application/javascript',
+                            body: `window.__IPTVNATOR_CONFIG__ = ${JSON.stringify({ BACKEND_URL: server.apiUrl })};`,
+                        })
+                    );
+                    await receiver.goto(`${frontendUrl}/workspace/sources`);
+                    await routePlayableStreams(receiver);
+                    await settings(receiver, true);
+                    await openGlobalFavorites(receiver);
+                    await expect(
+                        contentCardByTitle(receiver, title!)
+                    ).toBeVisible();
+                    await startAndConfirmPlayback(
+                        receiver,
+                        async () => {
+                            await receiver
+                                .getByText(title!, { exact: true })
+                                .first()
+                                .click();
+                            await receiver
+                                .locator('[data-testid="vod-primary-action"]')
+                                .click();
+                        },
+                        0.75
+                    );
+                } finally {
+                    await receiverContext.close();
+                }
                 for (const client of [page, desktop.mainWindow]) {
                     await routePlayableStreams(client);
                     await detail(client, provider);

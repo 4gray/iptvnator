@@ -1156,3 +1156,11 @@ for each source. After opt-out, a new/restored source without a verified favorit
 context keeps ordinary SQLite behavior, including favorite-ID removal of unlinked
 rows. Bulk removal shares the single-item path; mixed collection reordering updates
 only native source positions while retaining the complete local collection order.
+Received PWA references resolve through the needed typed catalogs before their
+collection cards become playable. Reuse the data source's cache and visibility
+filtering, share concurrent loads, index requested rows once per typed catalog,
+and keep snapshots unavailable on provider
+failure so a later read can retry. Re-read membership after catalog loading and
+discard results from retired source incarnations. Membership writes stay cache-only.
+SQLite lookups retain saved/requested TMDB and provider-year hints when selecting
+between duplicate rows; a compatible row does not erase an explicit identity conflict.

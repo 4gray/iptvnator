@@ -525,3 +525,36 @@ image 8d32fe7a4fc2 builds and HTTP add/remove/receipt/restart smoke passes; the
 isolated container is removed. The feature release note remains sufficient.
 Physical Synology, packaged Windows/Linux and optional vendored Embedded MPV are
 still unavailable. Commit the merged repair and repeat the review before any push.
+
+Round 17 reviews 84eb26ba5 and reproduces two Xtream issues: a fresh PWA receiver
+cannot resolve received favorites before browsing its catalog, and SQLite lookup
+drops saved/requested identity hints when duplicate provider IDs exist. The repair
+loads only needed typed catalogs on collection reads, reuses normal PWA caching
+and visibility filtering, shares pending loads, and retains unavailable snapshots
+for retry after provider failure. Writes remain cache-only. Re-read membership
+after loading and reject retired source incarnations; pending loads are keyed by
+incarnation. SQLite lookups forward normalized saved/requested TMDB and year hints.
+Compatible duplicate rows never clear an explicit retained identity conflict.
+
+The original receiver regression set fails four cases before the repair. Ten
+focused cases now cover both lookups, fresh/concurrent PWA reads, retry, filtered
+visibility, offline writes, retained conflicts and ownership/membership changes.
+The added catalog scan guard fails at 3,003 property reads for three favorites in
+1,000 rows before indexing; one pass now indexes only requested IDs and passes
+the unchanged linear bound. The mixed Xtream flow adds an isolated blank PWA
+receiver, which plays a received favorite without first browsing its provider.
+The canonical Xtream contract records the receiving behavior and identity hints.
+
+Round 18 validation: all 862 web tests pass; the refreshed report merges with
+the other 35 passing project reports at 85.57/77.39/83.86/86.07 percent, unchanged
+gates. Application typechecks, all 42 spec programs, owning lint, formatting,
+whitespace, three guidance files and 251 release notes pass. Production frontend,
+Electron and workers build; initial bytes remain 1,200,281 / 1,200,301. The three
+affected mixed flows pass (1.3 minutes), including the blank receiver's decoded
+playback and both cold offline edits. The complete 25-flow suite passed at the
+preceding commit; unchanged flows are not repeated. Linux arm64 Docker image
+0c4d84258928 builds; HTTP add/remove/receipt/restart smoke passes, and the isolated
+container is removed. The existing feature note covers these fixes. Physical
+Synology, packaged Windows/Linux and optional vendored Embedded MPV remain
+unavailable. Fetch confirms master remains 6bbe0eb09. Commit and repeat local
+review before any push; Greptile CLI remains unavailable.
