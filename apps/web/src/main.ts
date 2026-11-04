@@ -1,21 +1,11 @@
 import { bootstrapApplication } from '@angular/platform-browser';
-import { resolveRestoredRendererRoute } from '@iptvnator/shared/interfaces';
+import { prepareRendererReload } from './renderer-reload';
 import { registerAppDateLocale } from './app/app-date-locales';
 import { AppComponent } from './app/app.component';
 import { appConfig, getInitialLanguage } from './app/app.config';
 import { prepareSourceConnection } from '@iptvnator/services/source-sync/connection';
 
-// A reloaded packaged renderer arrives on index.html with the route it was
-// on carried in the query string (the Electron main process recovers the
-// file:// reload that way). Put that route back before the router reads the
-// URL for its initial navigation.
-const restoredHref = resolveRestoredRendererRoute(
-    window.location.href,
-    document.baseURI
-);
-if (restoredHref !== null) {
-    window.history.replaceState(window.history.state, '', restoredHref);
-}
+prepareRendererReload(window, document.baseURI);
 
 // Angular ships only English locale data; the preferred language's data is a
 // lazy chunk. It is awaited before bootstrapping because the first route

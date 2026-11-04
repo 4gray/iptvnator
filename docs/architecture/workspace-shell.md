@@ -970,6 +970,16 @@ Reloading the renderer on an in-app route:
    leave that directory (an absolute URL, another scheme, a `..` escape)
    is dropped with only the parameter removed, so the app boots at its
    default route instead of following an arbitrary target.
+   `prepareRendererReload` (`apps/web/src/renderer-reload.ts`) also carries
+   collection tab/scope across that new document: on `pagehide` it writes a
+   single session-storage handoff containing the exact current URL and the
+   validated `collectionViewState` fields. Bootstrap consumes it once, only
+   for a matching recovered `file://` URL, and validates the fields again.
+   It never restores Router bookkeeping, inline detail or playback/handoff
+   commands. Unavailable storage still permits URL recovery; a missing source
+   follows the collection's existing all-playlists/empty-state fallback.
+   Browser/PWA routing is unchanged. This is reload recovery, not startup
+   preference or general collection persistence.
 4. Zoom persistence is unaffected: the failed reload's
    `did-start-navigation` already saved the level and released ownership,
    the recovery load's `did-start-navigation` is then a no-op, and the new
@@ -984,7 +994,10 @@ Reloading the renderer on an in-app route:
    since the URL alone is identical before and after);
    `window-zoom-level.e2e.ts` reloads the same way. Unit coverage:
    `renderer-reload-fallback.spec.ts`, `renderer-reload-route.util.spec.ts`,
-   `app.spec.ts` ("renderer reload recovery").
+   `app.spec.ts` ("renderer reload recovery"), `renderer-reload.spec.ts`.
+   `navigation-context.e2e.ts` additionally checks Favorites/Recent tab and
+   scope through both reload paths, a new document, subsequent Back/Forward,
+   an offline source and a removed source.
 
 Layout integration:
 
