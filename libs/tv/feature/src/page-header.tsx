@@ -1,7 +1,13 @@
 import { TvSelect } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
-import { favoritesFor } from './favorites';
-export function PageHeader({ tv }: { tv: TvModel }) {
+import { FavoriteSources, favoritesFor } from './favorites';
+export function PageHeader({
+    tv,
+    cancelOpening,
+}: {
+    tv: TvModel;
+    cancelOpening: () => void;
+}) {
     const view = tv.route.view;
     const title = {
         movies: 'Movies',
@@ -46,6 +52,8 @@ export function PageHeader({ tv }: { tv: TvModel }) {
             )}
             {view === 'home' ? (
                 <span class="home-scope">All sources</span>
+            ) : view === 'favorites' ? (
+                <FavoriteSources tv={tv} cancel={cancelOpening} />
             ) : (
                 <TvSelect
                     label="Active source"

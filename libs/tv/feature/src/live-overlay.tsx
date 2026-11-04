@@ -129,6 +129,11 @@ export function LiveOverlay({
                     <ProgrammeGuide
                         programs={tv.epg}
                         channel={tv.selected}
+                        sourceName={
+                            tv.data.sources.find(
+                                (source) => source.id === tv.selected?.sourceId
+                            )?.name ?? 'Source unavailable'
+                        }
                         enabled={tv.data.epg}
                         error={tv.epgError}
                         close={overlay.close}

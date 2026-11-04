@@ -58,6 +58,13 @@ export function Live({
                 </div>
                 <div class="section-title">
                     <h2>{selected?.title ?? 'Programme guide'}</h2>
+                    <p class="muted source-name">
+                        {
+                            tv.data.sources.find(
+                                (source) => source.id === selected?.sourceId
+                            )?.name
+                        }
+                    </p>
                     <div class="actions">
                         <button data-focus="live-grid-guide" onClick={openGrid}>
                             TV Guide

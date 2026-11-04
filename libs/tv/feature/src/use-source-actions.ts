@@ -22,7 +22,7 @@ const connection = (s: Source) =>
         s.origin,
         s.m3uItems,
     ]);
-interface HomeRequest {
+interface SourceRequest {
     item: Media;
     intent: 'open' | 'play';
     origin: NavigationOrigin;
@@ -30,10 +30,12 @@ interface HomeRequest {
     backend: string;
     activated: boolean;
     generation: number;
+    context: string;
+    retryLabel: string;
 }
 
-/** Only a deliberate Home action may activate another source and launch a title. */
-export function useHomeActions(
+/** Saved items activate their exact source before opening or playing. */
+export function useSourceActions(
     tv: TvModel,
     series: {
         open: (item: Media, origin?: NavigationOrigin) => Promise<void>;
@@ -41,18 +43,23 @@ export function useHomeActions(
         busy: boolean;
     }
 ) {
-    const [pending, setPending] = useState<HomeRequest>();
-    const request = useRef<HomeRequest>();
-    const details = useRef<HomeRequest>();
+    const context = JSON.stringify([
+        tv.route.view,
+        tv.route.kind,
+        tv.data.favoriteScope,
+    ]);
+    const [pending, setPending] = useState<SourceRequest>();
+    const request = useRef<SourceRequest>();
+    const details = useRef<SourceRequest>();
     const playback = useRef<{
-        job: HomeRequest;
+        job: SourceRequest;
         controller: AbortController;
     }>();
     const generation = useRef(0);
     const sourceSave = useRef<{ done: boolean }>();
     const [, flushSourceSave] = useState(0);
-    const latest = useRef({ tv, series });
-    latest.current = { tv, series };
+    const latest = useRef({ tv, series, context });
+    latest.current = { tv, series, context };
     const cancel = (restore = false) => {
         const job = request.current;
         request.current = undefined;
@@ -67,9 +74,11 @@ export function useHomeActions(
         playing?.controller.abort();
         if (playing) latest.current.tv.stop();
         if (
-            ['Retry Home title', 'Retry series details'].includes(
-                latest.current.tv.errorRetryLabel ?? ''
-            )
+            [
+                'Retry Home title',
+                'Retry favorite',
+                'Retry series details',
+            ].includes(latest.current.tv.errorRetryLabel ?? '')
         )
             latest.current.tv.setError('');
         if (restore && playing)
@@ -85,9 +94,12 @@ export function useHomeActions(
             restoreFocus(detail.origin.focus, 'hero', detail.origin.scroll);
         cancel(restore);
     };
-    const perform = (job: HomeRequest) => {
+    const perform = (job: SourceRequest) => {
         const current = latest.current;
-        if (job.intent === 'play') {
+        if (
+            job.intent === 'play' ||
+            (job.item.kind === 'live' && current.tv.route.view === 'favorites')
+        ) {
             const owned = { job, controller: new AbortController() };
             playback.current = owned;
             setPending(job);
@@ -110,7 +122,7 @@ export function useHomeActions(
             });
         } else current.tv.open(job.item, job.origin);
     };
-    const fail = (job: HomeRequest) => {
+    const fail = (job: SourceRequest) => {
         if (request.current !== job) return;
         cancel(true);
         latest.current.tv.setError(
@@ -119,16 +131,20 @@ export function useHomeActions(
                 if (generation.current === job.generation)
                     start(job.item, job.intent, job.origin);
             },
-            'Retry Home title'
+            job.retryLabel
         );
     };
     function start(
         item: Media,
-        intent: HomeRequest['intent'],
+        intent: SourceRequest['intent'],
         origin = navigationOrigin()
     ) {
         const current = latest.current.tv;
-        if (current.route.view !== 'home' || current.fullscreen) return;
+        if (
+            !['home', 'favorites'].includes(current.route.view) ||
+            current.fullscreen
+        )
+            return;
         abortIntent();
         const source = current.data.sources.find((s) => s.id === item.sourceId);
         if (!source) {
@@ -138,7 +154,7 @@ export function useHomeActions(
             return;
         }
         current.setError('');
-        const job: HomeRequest = {
+        const job: SourceRequest = {
             item,
             intent,
             origin,
@@ -149,6 +165,11 @@ export function useHomeActions(
             ]),
             activated: false,
             generation: generation.current,
+            context,
+            retryLabel:
+                current.route.view === 'home'
+                    ? 'Retry Home title'
+                    : 'Retry favorite',
         };
         if (
             item.sourceId === current.data.activeId &&
@@ -171,7 +192,7 @@ export function useHomeActions(
                     item.sourceId,
                     () =>
                         request.current === job &&
-                        latest.current.tv.route.view === 'home'
+                        latest.current.context === job.context
                 )
                 .then((success) => {
                     save.done = true;
@@ -189,12 +210,22 @@ export function useHomeActions(
         }
     }
     useLayoutEffect(() => {
+        const launched = playback.current;
+        if (
+            launched &&
+            tv.fullscreen &&
+            tv.playing?.id === launched.job.item.id
+        ) {
+            // The player now owns native loading, errors and Back.
+            playback.current = undefined;
+            setPending(undefined);
+        }
         if (sourceSave.current?.done) sourceSave.current = undefined;
         const job = request.current;
         if (!job) return;
         const source = tv.data.sources.find((s) => s.id === job.item.sourceId);
         if (
-            tv.route.view !== 'home' ||
+            context !== job.context ||
             !source ||
             connection(source) !== job.source ||
             JSON.stringify([tv.data.backend, tv.data.backendToken]) !==
@@ -221,7 +252,7 @@ export function useHomeActions(
     const waitingDetails =
         series.busy &&
         !!details.current &&
-        tv.route.view === 'home' &&
+        ['home', 'favorites'].includes(tv.route.view) &&
         !tv.fullscreen;
     useEffect(() => {
         if (!pending && !waitingDetails) return;
@@ -266,8 +297,10 @@ export function useHomeActions(
     );
     useEffect(() => {
         if (
-            tv.errorRetryLabel === 'Retry Home title' &&
-            tv.route.view !== 'home'
+            ['Retry Home title', 'Retry favorite'].includes(
+                tv.errorRetryLabel ?? ''
+            ) &&
+            !['home', 'favorites'].includes(tv.route.view)
         )
             tv.setError('');
     }, [tv.route.view, tv.errorRetryLabel]);
@@ -275,6 +308,11 @@ export function useHomeActions(
         open: (item: Media) => start(item, 'open'),
         play: (item: Media) => start(item, 'play'),
         pending: !!pending,
+        sourceName: pending
+            ? tv.data.sources.find(
+                  (source) => source.id === pending.item.sourceId
+              )?.name
+            : undefined,
         cancel: () => abortIntent(true),
         leave: () => abortIntent(),
     };
