@@ -1231,6 +1231,11 @@ The browser transport retains known 401/403, incompatible-discovery and instance
 refusals for the selected connection until successful instance verification. An
 unchecked retry or malformed access-error body cannot turn that refusal into an
 offline edit; a genuine network outage remains eligible for the verified-context queue.
+Normal `SourceSyncService.refresh()` discovery uses that same verifier, including
+HTTP-200 identity/incompatibility failures. The request refusal gate runs before
+choosing browser fetch or Electron IPC, so neither transport bypasses a recorded rejection.
+Native IPC refusal codes and HTTP access/identity responses retain the same gate;
+ordinary transport outages still allow cached-context offline edits.
 
 Global collection ordering accepts an old Stalker provider-ID key only when it
 identifies exactly one current item. Exact typed keys take precedence. Reading

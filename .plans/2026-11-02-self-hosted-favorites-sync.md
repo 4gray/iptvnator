@@ -362,3 +362,49 @@ All requested initial three repairs remain committed, together with the subseque
 normalized-title/global-order fixes and refusal guards. This repeat shows that
 the actual discovery rejection still needs integration coverage. Greptile remains
 unavailable. Review outputs remain in /tmp/iptvnator-favorites-review-13.out/.log.
+
+The user explicitly resumes repairs and reviews until the branch reaches a good
+state, with no PR while it remains unready. This authorizes continuing beyond the
+previous repeated-finding stop. The next repair moves ordinary discovery validation
+into the common verifier and checks recorded refusal before either renderer transport.
+The pending-browser adoption branch retains its shape validation and reload semantics.
+Four integration regressions exercise actual `SourceSyncService.refresh()` with a
+changed HTTP-200 instance or incompatible storage in browser and Electron paths;
+rejected edits do not touch projection/outbox, and valid refresh restores proof.
+
+Xtream collection operations now select native/portable behavior per source. Native
+unlinked records retain their favorite ID for removal. Bulk clear delegates to the
+single-item path, and mixed reordering writes only native source positions while
+keeping the full local UID order. New tests reproduce failed removal, clear and
+mixed ordering after opt-out. The mixed Xtream E2E adds a second source after opt-out,
+restores a synthetic unlinked favorite through real worker IPC, and removes it from
+the global collection UI, checking actual persisted rows. Canonical PWA and Xtream
+contracts are updated. The existing unreleased feature note covers these repairs.
+
+The same refusal boundary also covers native transport exceptions. Wrapped IPC
+`LOCKED`, `INSTANCE_CHANGED` and `INCOMPATIBLE` errors now remain hard refusals,
+as do native HTTP access/identity responses; a later outage cannot turn them into
+queued intent. Native instance probes distinguish incompatible metadata/404 from
+network/5xx outages and reject 403 without reading the token. Six renderer and
+three main-process regression cases fail before repair and pass afterward.
+Late access rejection from either transport cannot revoke a newer profile.
+
+Round 14 validation: services 1,404 tests and Electron 2,890 tests pass with
+coverage; collection regression checks pass (29 tests). The refreshed 36-project
+merge passes unchanged gates: 85.37/77.02/83.69/85.87 percent. Coverage health's
+same-name-spec warning for source authorization is covered by the actual transport
+and refresh integration specs. Application typechecks pass. All 42 spec programs
+are checked; two test-double casts initially fail in services/web and their
+corrected programs pass on rerun. Owning lint, formatting, whitespace, guidance
+(3 files) and release notes (231) pass. Production Electron/frontend/workers build;
+initial payload is 1,199,588 / 1,200,301 bytes, with no baseline changes.
+
+The first full 23-flow run has 22 passes and one new test-selector failure: the
+movies-only collection has no Movies switch. Removing that redundant test step
+and extending the regression to bulk clear passes the focused Xtream run. After
+the final native refusal repair, all six affected favorites/authentication/identity
+PWA/Electron flows pass again. Linux arm64 Docker build a17d41c433c0 succeeds;
+HTTP add/remove/idempotency and restart-preservation smoke checks pass. Isolated
+containers are removed. Physical Synology, packaged Windows/Linux and optional
+vendored Embedded MPV remain unavailable. A committed-branch review follows;
+Greptile CLI remains unavailable under the documented exception.

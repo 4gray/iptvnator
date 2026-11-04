@@ -170,13 +170,14 @@ export class SourceSyncService {
                         )
                     )
                         return;
-                    assertSourceInstance(probe.body);
-                    if (probe.body.instanceId !== this.connection!.instanceId) {
+                    if (
+                        this.connection!.instanceId.startsWith('pending:') &&
+                        !window.electron?.sourceSyncConnection
+                    ) {
+                        assertSourceInstance(probe.body);
                         if (
-                            this.connection!.instanceId.startsWith(
-                                'pending:'
-                            ) &&
-                            !window.electron?.sourceSyncConnection
+                            probe.body.instanceId !==
+                            this.connection!.instanceId
                         ) {
                             saveBrowserSourceConnection(
                                 {
@@ -191,7 +192,6 @@ export class SourceSyncService {
                             location.reload();
                             return;
                         }
-                        throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
                     }
                     verifySourceInstance(probe.body, this.connection, epoch);
                     const response = await this.request({

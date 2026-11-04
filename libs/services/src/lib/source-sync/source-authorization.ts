@@ -16,7 +16,7 @@ export function rejectSourceInstance(
     status: number,
     connection = sourceConnection()
 ): void {
-    if (connection !== sourceConnection()) return;
+    if (!connection || connection !== sourceConnection()) return;
     refusal = { connection, status };
     invalidateSourceVerification();
 }

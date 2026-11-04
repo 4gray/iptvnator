@@ -1127,3 +1127,8 @@ existing local row ID, including removal of a retained row with no catalog link.
 The shared snapshot cannot turn a known TMDB/year conflict into a playable catalog
 row. Global collections and dashboard use the same projection when this profile
 has used favorites sync; recently viewed and collection order stay local.
+Native collection actions select storage with `supportsPortableFavorites(playlistId)`
+for each source. After opt-out, a new/restored source without a verified favorites
+context keeps ordinary SQLite behavior, including favorite-ID removal of unlinked
+rows. Bulk removal shares the single-item path; mixed collection reordering updates
+only native source positions while retaining the complete local collection order.

@@ -20,6 +20,8 @@ import {
     waitForStalkerCatalog,
     openGlobalFavorites,
     switchUnifiedCollectionContent,
+    contentCardByTitle,
+    clearCurrentUnifiedCollection,
 } from './electron-test-fixtures';
 const frontendUrl = `http://localhost:${process.env['SOURCE_SYNC_WEB_PORT'] ?? '4317'}`;
 test.skip(
@@ -443,6 +445,96 @@ for (const provider of ['xtream', 'stalker'] as const)
                 await settings(page, false);
             }
             await settings(desktop.mainWindow, false);
+            if (provider === 'xtream') {
+                const native = desktop.mainWindow;
+                await openSources(native);
+                await addXtreamPortal(native, {
+                    name: 'Synthetic local source after opt-out',
+                    username: 'marketing2',
+                    password: 'marketing2',
+                });
+                const entries = (
+                    await (await fetch(`${server.apiUrl}/v1/sources`)).json()
+                ).entries;
+                const id = entries.find(
+                    (entry: { source: { title: string } }) =>
+                        entry.source.title ===
+                        'Synthetic local source after opt-out'
+                )?.source.id;
+                expect(id).toBeTruthy();
+                await native.evaluate(async (id) => {
+                    const restored =
+                        await window.electron.dbRestoreXtreamFavorites(id, [
+                            {
+                                xtreamId: 99999990,
+                                contentType: 'movie',
+                                snapshot: {
+                                    title: 'Synthetic local unlinked favorite',
+                                },
+                            },
+                        ]);
+                    if (!restored.success)
+                        throw new Error('Synthetic favorite restore failed');
+                    const [row] =
+                        await window.electron.dbGetFavoritesForBackup(id);
+                    if (row.id !== null || !row.favorite_id)
+                        throw new Error(
+                            'Expected a synthetic unlinked SQLite favorite'
+                        );
+                }, id);
+                await openGlobalFavorites(native);
+                const card = contentCardByTitle(
+                    native,
+                    'Synthetic local unlinked favorite'
+                );
+                await expect(card).toBeVisible();
+                await card
+                    .getByRole('button', { name: /remove from favorites/i })
+                    .click();
+                await expect(card).toHaveCount(0);
+                expect(
+                    await native.evaluate(
+                        (id) => window.electron.dbGetFavoritesForBackup(id),
+                        id
+                    )
+                ).toHaveLength(0);
+                await openSources(native);
+                await native.evaluate(async (id) => {
+                    const result =
+                        await window.electron.dbRestoreXtreamFavorites(id, [
+                            {
+                                xtreamId: 99999990,
+                                contentType: 'movie',
+                                snapshot: {
+                                    title: 'Synthetic local unlinked favorite',
+                                },
+                            },
+                            {
+                                xtreamId: 99999991,
+                                contentType: 'movie',
+                                snapshot: {
+                                    title: 'Synthetic second unlinked favorite',
+                                },
+                            },
+                        ]);
+                    if (!result.success)
+                        throw new Error('Synthetic favorite restore failed');
+                }, id);
+                await openGlobalFavorites(native);
+                await expect(
+                    contentCardByTitle(
+                        native,
+                        'Synthetic second unlinked favorite'
+                    )
+                ).toBeVisible();
+                await clearCurrentUnifiedCollection(native);
+                expect(
+                    await native.evaluate(
+                        (id) => window.electron.dbGetFavoritesForBackup(id),
+                        id
+                    )
+                ).toHaveLength(0);
+            }
         } finally {
             if (desktop) await closeElectronApp(desktop);
             await context.close();

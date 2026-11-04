@@ -1,6 +1,7 @@
 import {
     sourceAuthorization,
     assertSourceRequestAllowed,
+    sourceVerificationRefusal,
 } from './source-authorization';
 import { saveBrowserSourceConnection } from './source-browser-settings';
 import { TestBed } from '@angular/core/testing';
@@ -21,6 +22,11 @@ import { requestSourceServer } from './source-api';
 import { sourceConnection, prepareSourceConnection } from './source-connection';
 import { SourceSyncService } from './source-sync.service';
 import type { SyncedPlaylistStore } from './synced-playlist-store';
+import { FavoritesSyncClient } from '../favorites-sync/favorites-sync-client';
+import type {
+    FavoriteLocalRecord,
+    FavoriteLocalStore,
+} from '@iptvnator/shared/interfaces/favorites-sync';
 import { sourceProfileStorageKey } from './source-profile-storage';
 
 jest.mock('./source-api', () => ({ requestSourceServer: jest.fn() }));
@@ -153,6 +159,103 @@ describe('source synchronization lifecycle', () => {
         service = TestBed.inject(SourceSyncService);
     });
     afterEach(() => TestBed.resetTestingModule());
+
+    it.each([
+        {
+            rejected: { ...instance, instanceId: 'synthetic-replacement' },
+            native: false,
+        },
+        { rejected: { ...instance, storage: 'none' }, native: false },
+        {
+            rejected: { ...instance, instanceId: 'synthetic-replacement' },
+            native: true,
+        },
+        { rejected: { ...instance, storage: 'none' }, native: true },
+    ])(
+        'blocks cached favorite edits after refresh rejects discovery (%j)',
+        async ({ rejected, native }) => {
+            const originalElectron = window.electron;
+            try {
+                Reflect.deleteProperty(window, 'electron');
+                const bridge = jest.fn(async () => {
+                    throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
+                });
+                if (native)
+                    Object.defineProperty(window, 'electron', {
+                        configurable: true,
+                        writable: true,
+                        value: {
+                            sourceSyncRequest: bridge,
+                            sourceSyncConnection: () => sourceConnection(),
+                        },
+                    });
+                saveBrowserSourceConnection(
+                    sourceConnection()!,
+                    'synthetic-token'
+                );
+                await prepareSourceConnection();
+                inventory = [source];
+                await service.initialize();
+                await service.refresh();
+                request.mockResolvedValueOnce({ status: 200, body: rejected });
+                await service.refresh();
+                expect(service.errorKey()).toMatch(
+                    /SOURCE_SYNC\.(INSTANCE_CHANGED|INCOMPATIBLE)/
+                );
+                let record: FavoriteLocalRecord | null = null;
+                const mutate = jest.fn(
+                    async (
+                        _address: unknown,
+                        change: (
+                            current: FavoriteLocalRecord | null
+                        ) => FavoriteLocalRecord
+                    ) => (record = change(record))
+                );
+                const favorites: FavoriteLocalStore = {
+                    read: async () => record,
+                    entries: async () => [],
+                    pending: async () => record?.pending ?? [],
+                    mutate,
+                };
+                const client = new FavoritesSyncClient(favorites, {
+                    instanceId: 'nas',
+                    deviceId: 'synthetic-device',
+                    consent: () => 'generation',
+                    contexts: [
+                        {
+                            sourceId: 'a',
+                            sourceIncarnation: 'first',
+                            provider: 'xtream',
+                        },
+                    ],
+                    request:
+                        jest.requireActual('./source-api').requestSourceServer,
+                    changed: () => undefined,
+                    remember: () => undefined,
+                });
+                await expect(
+                    client.set(
+                        'a',
+                        { provider: 'xtream', kind: 'movie', id: '42' },
+                        true
+                    )
+                ).rejects.toThrow();
+                expect(mutate).not.toHaveBeenCalled();
+                expect(await favorites.pending()).toHaveLength(0);
+                expect(bridge).not.toHaveBeenCalled();
+                await service.refresh();
+                expect(sourceVerificationRefusal()).toBeUndefined();
+                expect(() =>
+                    assertSourceRequestAllowed('https://nas.test/api/xtream')
+                ).not.toThrow();
+            } finally {
+                window.electron = originalElectron;
+                sessionStorage.clear();
+                localStorage.clear();
+                await prepareSourceConnection();
+            }
+        }
+    );
 
     it.each(['created', 'replaced'] as const)(
         'does not prune a source %s by another tab while an older inventory materializes',

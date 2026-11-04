@@ -61,12 +61,6 @@ export function sourceRequestRoute(request: SourceServerRequest): {
 export async function requestSourceServer(
     request: SourceServerRequest
 ): Promise<SourceServerResponse> {
-    if (window.electron?.sourceSyncRequest)
-        return window.electron.sourceSyncRequest(request);
-    const connection = sourceConnection();
-    if (!connection) throw new Error('SOURCE_SYNC.OFFLINE');
-    const route = sourceRequestRoute(request);
-    const url = `${connection.apiUrl}${route.path}`;
     const refusal = sourceVerificationRefusal();
     if (request.operation !== 'instance' && refusal)
         return {
@@ -75,6 +69,50 @@ export async function requestSourceServer(
                 code: refusal === 409 ? 'instance_changed' : 'access_required',
             },
         };
+    const connection = sourceConnection();
+    if (window.electron?.sourceSyncRequest) {
+        try {
+            const response = await window.electron.sourceSyncRequest(request);
+            if (
+                response.status === 401 ||
+                response.status === 403 ||
+                (response.status === 409 &&
+                    (response.body as { code?: string })?.code ===
+                        'instance_changed') ||
+                (request.operation === 'instance' && response.status === 404)
+            )
+                rejectSourceInstance(
+                    response.status === 404 ? 409 : response.status,
+                    connection
+                );
+            return response;
+        } catch (error) {
+            const code =
+                error instanceof Error
+                    ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0]
+                    : undefined;
+            const status =
+                code === 'SOURCE_SYNC.LOCKED'
+                    ? 401
+                    : code === 'SOURCE_SYNC.INSTANCE_CHANGED' ||
+                        code === 'SOURCE_SYNC.INCOMPATIBLE'
+                      ? 409
+                      : undefined;
+            if (!status) throw error;
+            rejectSourceInstance(status, connection);
+            if (request.operation === 'instance') throw error;
+            return {
+                status,
+                body: {
+                    code:
+                        status === 409 ? 'instance_changed' : 'access_required',
+                },
+            };
+        }
+    }
+    if (!connection) throw new Error('SOURCE_SYNC.OFFLINE');
+    const route = sourceRequestRoute(request);
+    const url = `${connection.apiUrl}${route.path}`;
     if (request.operation !== 'instance') assertSourceRequestAllowed(url);
     try {
         const response = await fetch(url, {
