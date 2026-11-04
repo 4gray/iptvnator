@@ -752,6 +752,33 @@ check(await page.locator('.player-controls__timeline-track').evaluate((track) =>
     'the visible timeline track receives the remote focus ring');
 await key('ArrowRight');
 check(await page.locator('#synthetic-seek').inputValue() === '51', 'Right seeks through the native range input');
+console.log('14. structural dashboard cards delegate remote focus to their links');
+await page.evaluate(() => {
+    document.body.innerHTML = `<div class="cdk-overlay-pane" style="position:fixed;left:0;top:0;width:640px;height:400px;flex-direction:column">
+        <button id="synthetic-before-card" style="width:150px;height:40px">Synthetic control</button>
+        <div id="synthetic-card" class="rail__card" role="listitem" style="width:200px;height:200px;margin-top:20px">
+            <a id="synthetic-card-link" href="#synthetic-title" style="display:block;width:100%;height:100%">Synthetic title</a>
+        </div>
+    </div>`;
+    window.syntheticCardActivations = 0;
+    document.querySelector('#synthetic-card-link').addEventListener('click', (event) => {
+        event.preventDefault(); window.syntheticCardActivations += 1;
+    });
+    document.querySelector('#synthetic-before-card').focus();
+});
+await key('ArrowDown');
+check(await page.locator('#synthetic-card-link').evaluate((link) => document.activeElement === link),
+    'Down selects the dashboard link rather than its structural list-item wrapper');
+await key('Enter');
+check(await page.evaluate(() => window.syntheticCardActivations === 1), 'OK activates the dashboard link once');
+await page.evaluate(() => {
+    const card = document.querySelector('#synthetic-card');
+    card.setAttribute('tabindex', '-1');
+    card.focus();
+});
+await key('ArrowDown');
+check(await page.locator('#synthetic-card-link').evaluate((link) => document.activeElement === link),
+    'a programmatic landing on a structural card enters its actionable child');
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();

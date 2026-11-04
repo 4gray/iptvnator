@@ -173,9 +173,11 @@
         '[tabindex]', '[contenteditable="true"]',
         '[role="button"]', '[role="link"]', '[role="option"]', '[role="menuitem"]', '[role="menuitemcheckbox"]',
         '[role="menuitemradio"]', '[role="tab"]', '[role="checkbox"]', '[role="radio"]', '[role="switch"]',
-        '[role="treeitem"]', '[role="gridcell"]', '[role="slider"]', '[role="combobox"]', '[role="listitem"]',
+        '[role="treeitem"]', '[role="gridcell"]', '[role="slider"]', '[role="combobox"]',
         '.mat-mdc-list-item', '.mat-mdc-card', '.mat-mdc-chip', 'mat-chip', 'mat-card', '[mat-ripple]', '[matripple]', '.mat-mdc-tab'
     ].join(',');
+
+    var INTERACTIVE_ROLE = /^(button|link|option|menuitem|menuitemcheckbox|menuitemradio|tab|checkbox|radio|switch|treeitem|gridcell|slider|combobox|textbox|searchbox|spinbutton)$/;
 
     var NATIVE_FOCUSABLE = /^(a|button|input|select|textarea|summary|iframe)$/i;
 
@@ -189,15 +191,14 @@
     /** Elements with an interactive role but no tabindex are made focusable. */
     function ensureFocusable(el) {
         if (isNativelyFocusable(el)) return true;
+        var role = el.getAttribute('role');
+        var clickable = INTERACTIVE_ROLE.test(role || '') || el.tagName === 'VIDEO' || /mat-mdc-list-item|mat-mdc-card|mat-mdc-chip|mat-mdc-tab/.test(el.className || '') ||
+            /^(mat-chip|mat-card)$/i.test(el.tagName) || el.hasAttribute('mat-ripple') || el.hasAttribute('matripple');
         var tabindex = el.getAttribute('tabindex');
         if (tabindex !== null) {
-            // tabindex=-1: programmatic focus target (menu items, options, scroll
-            // owners). Only keep the ones that are real actions.
-            return !!el.getAttribute('role') || el.tagName === 'VIDEO' || el.hasAttribute(MADE_FOCUSABLE);
+            // Negative tabindex is a landing zone unless the element is an action.
+            return clickable || el.hasAttribute(MADE_FOCUSABLE);
         }
-        var role = el.getAttribute('role');
-        var clickable = role || el.tagName === 'VIDEO' || /mat-mdc-list-item|mat-mdc-card|mat-mdc-chip|mat-mdc-tab/.test(el.className || '') ||
-            /^(mat-chip|mat-card)$/i.test(el.tagName) || el.hasAttribute('mat-ripple') || el.hasAttribute('matripple');
         if (!clickable) return false;
         el.setAttribute('tabindex', '-1');
         el.setAttribute(MADE_FOCUSABLE, '');
@@ -432,7 +433,6 @@
         return { left: -1, top: -1, right: 0, bottom: 0, width: 1, height: 1 };
     }
 
-    var INTERACTIVE_ROLE = /^(button|link|option|menuitem|menuitemcheckbox|menuitemradio|tab|checkbox|radio|switch|treeitem|gridcell|slider|combobox|textbox|searchbox|spinbutton|listitem)$/;
 
     /** A focus landing zone (dialog container, scroll owner, detail page) rather than an action. */
     function isContainerFocus(el) {
