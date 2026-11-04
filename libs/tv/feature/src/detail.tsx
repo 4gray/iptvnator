@@ -1,3 +1,4 @@
+import { useEffect } from 'preact/hooks';
 import {
     Empty,
     VirtualCollection,
@@ -13,11 +14,13 @@ import { useEpisodeMetadata } from './use-episode-metadata';
 export function Detail({
     tv,
     metadataClient,
+    metadataLoading,
     season,
     selectSeason,
 }: {
     tv: TvModel;
     metadataClient: TvMetadata;
+    metadataLoading: boolean;
     season?: number;
     selectSeason: (season: number) => void;
 }) {
@@ -33,6 +36,10 @@ export function Detail({
         currentSeason,
         metadataClient
     );
+    useEffect(() => {
+        if (!tv.busy && !metadataLoading && tv.restoreKey.startsWith('person:'))
+            tv.finishFocus();
+    }, [tv.busy, metadataLoading, tv.restoreKey, item?.metadata]);
     if (!item || item.sourceId !== tv.data.activeId) return null;
     const episodes = metadata.items.filter(
         (e) => (e.season ?? 1) === currentSeason

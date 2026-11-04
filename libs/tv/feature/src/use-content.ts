@@ -139,7 +139,12 @@ export function useContent(
                     .finally(() => {
                         if (lane.owns(job)) {
                             setBusy(false);
-                            finishFocus();
+                            // Person controls are supplied by optional metadata after provider details.
+                            if (
+                                route.view !== 'detail' ||
+                                !pendingFocus.current.startsWith('person:')
+                            )
+                                finishFocus();
                         }
                     });
             },
