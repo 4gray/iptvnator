@@ -341,3 +341,24 @@ and HTTP add/remove/receipt/restart smoke pass. All 42 spec programs, owning lin
 formatting, guidance, release-note and whitespace checks pass. The existing feature
 note covers this repair. A new committed-branch local review follows; Greptile
 is unavailable. Physical Synology and packaged Windows/Linux remain unchecked.
+
+Round 13 reviews runtime commit 82927a02f3de74950e36ef2630416a48ee286fc0.
+The reviewer reruns services (1,392 tests) and web (810 tests) successfully, then
+reproduces two open boundary cases. The instance-refusal finding repeats: the
+actual `SourceSyncService.refresh()` discovery-validation path rejects a changed
+HTTP-200 instance before `verifySourceInstance()` can record refusal, so a later
+cached-context edit is still queued. The probe records one pending intent after
+`SOURCE_SYNC.INSTANCE_CHANGED`, with the refusal marker absent.
+
+The second finding affects Electron opt-out: a new/restored source without a
+favorites context uses raw SQLite favorites, but the profile-wide `active()` gate
+disables native favorite-ID removal. A retained row with no catalog link is sent
+through the raw data source with ID zero, losing its valid favorite ID; individual
+removal and bulk clear do not delete it. Code inspection confirms both paths.
+
+No findings are declined. The loop stops under the repeated-finding rule in
+`docs/development/agent-workflow.md`; the branch is not pushed and no PR is opened.
+All requested initial three repairs remain committed, together with the subsequent
+normalized-title/global-order fixes and refusal guards. This repeat shows that
+the actual discovery rejection still needs integration coverage. Greptile remains
+unavailable. Review outputs remain in /tmp/iptvnator-favorites-review-13.out/.log.
