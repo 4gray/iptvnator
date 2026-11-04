@@ -33,6 +33,43 @@ describe('StalkerSeriesTmdbSeasonsService', () => {
         service = TestBed.inject(StalkerSeriesTmdbSeasonsService);
     });
 
+    it('settles flat collections without fetching or applying a season', async () => {
+        const episodes = episodesOfSeason(1).map((e) => ({
+            ...e,
+            seasonUnknown: true,
+        }));
+        await service.fetchSeason(82856, '1', episodes);
+        expect(getSeason).not.toHaveBeenCalled();
+        expect(service.isSeasonSettled(82856, '1')).toBe(true);
+        expect(service.overlay({ '1': episodes }, 82856)['1']).toBe(episodes);
+    });
+
+    it('discards cached and in-flight season metadata when a flat collection reuses the key', async () => {
+        const episodes = episodesOfSeason(9);
+        await service.fetchSeason(82856, '9', episodes);
+        const unknown = episodes.map((e) => ({ ...e, seasonUnknown: true }));
+        expect(service.overlay({ '9': unknown }, 82856)['9']).toBe(unknown);
+        await service.fetchSeason(82856, '9', unknown);
+        expect(service.descriptions(82856)).toEqual({});
+        let finish!: (value: unknown) => void;
+        getSeason.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
+        );
+        const pending = service.fetchSeason(82856, '9', episodes);
+        await service.fetchSeason(82856, '9', unknown);
+        finish({
+            overview: 'Wrong season',
+            episodes: [{ episode_number: 1, name: 'Wrong title' }],
+        });
+        await pending;
+        expect(service.isSeasonSettled(82856, '9')).toBe(true);
+        expect(service.descriptions(82856)).toEqual({});
+        expect(service.overlay({ '9': unknown }, 82856)['9']).toBe(unknown);
+    });
+
     it.each([
         'The Gentlemen s02',
         'The Gentlemen season2',

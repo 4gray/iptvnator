@@ -108,6 +108,11 @@ function normalizeEpisode(value: unknown): DownloadEpisodeMetadata | undefined {
         return undefined;
     }
     const episode = asRecord(value);
+    if (
+        episode.seasonUnknown !== undefined &&
+        typeof episode.seasonUnknown !== 'boolean'
+    )
+        return invalidSnapshot();
     const title = optionalString(episode.title);
     const plot = optionalString(episode.plot);
     const stillUrl = normalizeDownloadArtworkUrl(episode.stillUrl);
@@ -120,6 +125,7 @@ function normalizeEpisode(value: unknown): DownloadEpisodeMetadata | undefined {
         ...(title === undefined ? {} : { title }),
         ...(plot === undefined ? {} : { plot }),
         ...(stillUrl === undefined ? {} : { stillUrl }),
+        ...(episode.seasonUnknown === true ? { seasonUnknown: true } : {}),
         seasonNumber,
         episodeNumber,
     };

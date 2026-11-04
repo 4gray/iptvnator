@@ -31,7 +31,7 @@ export function buildEpisodeInfoDialogData(
     const seasonNumber = Number(episode.season || fallbackSeasonKey || 1);
     const episodeNumber = Number(episode.episode_num || 1);
     return {
-        episodeLabel: `S${String(seasonNumber).padStart(2, '0')}E${String(
+        episodeLabel: `${episode.seasonUnknown ? '' : `S${String(seasonNumber).padStart(2, '0')}`}E${String(
             episodeNumber
         ).padStart(2, '0')}`,
         title: episode.title,

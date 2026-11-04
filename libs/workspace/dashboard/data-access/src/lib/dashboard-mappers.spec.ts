@@ -7,7 +7,7 @@ describe('buildStalkerFavoriteItems', () => {
             [
                 {
                     _id: 'portal-1',
-                    title: 'RUcolor.tv',
+                    title: 'Synthetic portal',
                     macAddress: '00:1A:79:00:00:01',
                     favorites: [favorite],
                 } as unknown as PlaylistMeta,
@@ -20,12 +20,12 @@ describe('buildStalkerFavoriteItems', () => {
         // Stalker items never reach the `content` table, so the enriched
         // backdrop travels inside the stored favorite itself.
         const [item] = favoritesOf({
-            id: '17573',
+            id: '900201',
             category_id: '7',
-            title: 'Холод (10 серий)',
+            title: 'Тестовый сериал Альфа (10 серий)',
             cover: 'https://image.tmdb.org/t/p/w500/poster.jpg',
             info: {
-                name: 'Холод (10 серий)',
+                name: 'Тестовый сериал Альфа (10 серий)',
                 tmdb_backdrop: 'https://image.tmdb.org/t/p/w1280/backdrop.jpg',
             },
         });
@@ -40,8 +40,8 @@ describe('buildStalkerFavoriteItems', () => {
 
     it('leaves the backdrop undefined for an entry saved without enrichment', () => {
         const [item] = favoritesOf({
-            id: '17573',
-            title: 'Холод (10 серий)',
+            id: '900201',
+            title: 'Тестовый сериал Альфа (10 серий)',
             cover: 'https://image.tmdb.org/t/p/w500/poster.jpg',
         });
 

@@ -245,11 +245,14 @@ function episodeCoordinateFields(
 }
 
 function toSortableOfflineEpisode(
-    item: ReadonlyDownloadItem
+    item: ReadonlyDownloadItem,
+    seasonUnknown: boolean
 ): SortableOfflineEpisode {
-    const season = normalizedCoordinate(item.seasonNumber);
-    const episode = normalizedCoordinate(item.episodeNumber);
     const episodeMetadata = snapshotForKind(item, 'series')?.episode;
+    const season = normalizedCoordinate(
+        seasonUnknown ? undefined : item.seasonNumber
+    );
+    const episode = normalizedCoordinate(item.episodeNumber);
 
     return {
         season,
@@ -301,10 +304,11 @@ function compareOfflineEpisodes(
 }
 
 function buildSeasons(
-    members: readonly ReadonlyDownloadItem[]
+    members: readonly ReadonlyDownloadItem[],
+    seasonUnknown: boolean
 ): readonly DownloadOfflineSeason[] {
     const episodes = members
-        .map(toSortableOfflineEpisode)
+        .map((item) => toSortableOfflineEpisode(item, seasonUnknown))
         .sort(compareOfflineEpisodes);
     const grouped = new Map<
         number | null,
@@ -344,24 +348,27 @@ function buildSeriesDetail(
         return undefined;
     }
 
-    const members =
+    const collection =
         seriesXtreamId === undefined
             ? [representative]
             : downloads.filter(
                   (item) =>
                       isPositiveSafeInteger(item.id) &&
-                      isLocallyAvailable(item) &&
                       item.contentType === 'episode' &&
                       item.playlistId === representative.playlistId &&
                       item.seriesXtreamId === seriesXtreamId
               );
+    const members = collection.filter(isLocallyAvailable);
+    const seasonUnknown = collection.some(
+        (item) => snapshotForKind(item, 'series')?.episode?.seasonUnknown
+    );
     const snapshot = selectSeriesSnapshot(members);
 
     return {
         kind: 'series',
         representative,
         ...(snapshot === undefined ? {} : { snapshot }),
-        seasons: buildSeasons(members),
+        seasons: buildSeasons(members, seasonUnknown),
     };
 }
 

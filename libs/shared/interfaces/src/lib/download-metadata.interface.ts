@@ -6,6 +6,7 @@ export interface DownloadMetadataPerson {
 }
 
 export interface DownloadEpisodeMetadata {
+    seasonUnknown?: boolean;
     title?: string;
     plot?: string;
     stillUrl?: string;

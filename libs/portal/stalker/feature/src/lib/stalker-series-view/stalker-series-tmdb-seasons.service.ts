@@ -64,9 +64,11 @@ export class StalkerSeriesTmdbSeasonsService {
         const merged: Record<string, XtreamSerieEpisode[]> = {};
         for (const [seasonKey, episodes] of Object.entries(seasons)) {
             const forSeason = fetched.get(`${tmdbId}|${seasonKey}`)?.episodes;
-            merged[seasonKey] = forSeason?.length
-                ? mergeEpisodesWithTmdb(episodes, forSeason)
-                : episodes;
+            merged[seasonKey] =
+                !episodes.some((episode) => episode.seasonUnknown) &&
+                forSeason?.length
+                    ? mergeEpisodesWithTmdb(episodes, forSeason)
+                    : episodes;
         }
         return merged;
     }
@@ -146,6 +148,14 @@ export class StalkerSeriesTmdbSeasonsService {
         context?: { rawTitle?: string | null; seasonCount?: number }
     ): Promise<void> {
         if (!tmdbId) {
+            return;
+        }
+
+        if (episodes?.some((episode) => episode.seasonUnknown)) {
+            const key = `${tmdbId}|${seasonKey}`;
+            this.pending.delete(key);
+            if (this.seasonsByKey().has(key)) this.deleteEntry(key);
+            this.markSettled(key);
             return;
         }
 

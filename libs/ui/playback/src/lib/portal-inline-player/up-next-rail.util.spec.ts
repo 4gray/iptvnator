@@ -1,5 +1,9 @@
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { buildUpNextRailItems } from './up-next-rail.util';
+import {
+    resolveSeriesPlaybackEpisodeState,
+    getSeriesEpisodeMetadata,
+} from './series-playback-navigation';
 
 interface TestEpisode {
     id: string;
@@ -44,6 +48,27 @@ const EPISODES_BY_SEASON = {
 };
 
 describe('buildUpNextRailItems', () => {
+    it('keeps flat episodes numbered without a false season in the player and rail', () => {
+        const episodesBySeason = {
+            '9': [{ ...episode(189, 9, 189), seasonUnknown: true }],
+        };
+        const items = buildUpNextRailItems({
+            episodesBySeason,
+            currentEpisodeId: 189,
+        });
+        expect(items[0].label).toBe('E189');
+        const state = resolveSeriesPlaybackEpisodeState({
+            episodesBySeason,
+            currentEpisodeId: 189,
+        });
+        expect(getSeriesEpisodeMetadata(state)).toEqual(
+            expect.objectContaining({
+                label: 'E189',
+                seasonNumber: 9,
+                episodeNumber: 189,
+            })
+        );
+    });
     it('starts at the playing episode and spills over into the next season', () => {
         const items = buildUpNextRailItems({
             episodesBySeason: EPISODES_BY_SEASON,

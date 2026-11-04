@@ -56,7 +56,7 @@ Favorites        <- local (M3U)
 Settings         <- global
 ```
 
-**Issue:** The dynamic links change silently. There's no label like "rucolor.tv" or "clean.m3u" above the provider links to indicate *which* playlist these links belong to. Users who switch playlists via the header dropdown may not immediately notice the rail updated.
+**Issue:** The dynamic links change silently. There's no label like "portal.example.test" or "clean.m3u" above the provider links to indicate *which* playlist these links belong to. Users who switch playlists via the header dropdown may not immediately notice the rail updated.
 
 **Severity:** Medium.
 
@@ -90,7 +90,7 @@ The search bar disables itself on some routes and changes behavior on others. Th
 
 ### Quick Wins (Low Effort, High Impact)
 
-1. **Add a playlist name label above the dynamic rail links.** Small, muted text showing "clean.m3u" or "rucolor.tv" above the provider-specific navigation.
+1. **Add a playlist name label above the dynamic rail links.** Small, muted text showing "clean.m3u" or "portal.example.test" above the provider-specific navigation.
 2. **Keep Global Favorites as a single left-rail destination.** Avoid reintroducing a second header shortcut for the same global destination; reserve header actions for contextual controls.
 3. **Add a scope label to the search bar** when active: "Searching in Live TV" or "Searching in clean.m3u" instead of generic "Search in this section..."
 

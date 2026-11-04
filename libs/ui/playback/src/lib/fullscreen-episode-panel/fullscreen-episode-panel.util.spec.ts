@@ -34,6 +34,16 @@ function position(
 }
 
 describe('buildFullscreenEpisodePanelSeasons', () => {
+    it('keeps unknown seasons flat and labels episodes without season coordinates', () => {
+        const [season] = buildFullscreenEpisodePanelSeasons({
+            episodesBySeason: {
+                '9': [{ ...episode(11, 9, 189), seasonUnknown: true }],
+            },
+            currentEpisodeId: 11,
+        });
+        expect(season.seasonUnknown).toBe(true);
+        expect(season.episodes[0].label).toBe('E189');
+    });
     it('returns nothing without seasons', () => {
         expect(
             buildFullscreenEpisodePanelSeasons({

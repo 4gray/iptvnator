@@ -213,6 +213,9 @@ export class SeasonContainerComponent implements OnInit {
      */
     readonly selectedSeason = signal<string | undefined>(undefined);
 
+    readonly seasonUnknown = computed(() =>
+        this.selectedSeasonEpisodes().some((episode) => episode.seasonUnknown)
+    );
     readonly selectedSeasonEpisodes = computed(() => {
         const selected = this.selectedSeason();
         return selected ? (this.seasons()[selected] ?? []) : [];

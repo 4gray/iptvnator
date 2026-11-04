@@ -92,6 +92,7 @@ export function createStalkerSeriesDownloadSnapshot(
     return createSeriesEpisodeDownloadSnapshot({
         ...common,
         episode: {
+            ...(input.episode.seasonUnknown ? { seasonUnknown: true } : {}),
             seasonNumber,
             episodeNumber,
             title: input.episode.title,

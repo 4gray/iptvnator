@@ -71,7 +71,11 @@ export function buildUpNextRailItems<TEpisode extends UpNextEpisodeLike>({
         .slice(currentIndex, currentIndex + limit)
         .map(({ episode, seasonNumber, episodeNumber }, index) => ({
             id: Number(episode.id),
-            label: formatSeriesEpisodeLabel(seasonNumber, episodeNumber),
+            label: formatSeriesEpisodeLabel(
+                seasonNumber,
+                episodeNumber,
+                episode.seasonUnknown
+            ),
             title: episode.title ?? '',
             thumbnailUrl: getEpisodeThumbnail(episode),
             progressPercent: getProgressPercent(

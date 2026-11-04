@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { handleIssue1844 } from '../handlers/issue1844.fixture.js';
 import { handleIssue1844Pagination } from '../handlers/issue1844-pagination.fixture.js';
+import { handleFlatSeriesRange } from '../handlers/flat-series-range.fixture.js';
 import { checkRequestAuthorization } from '../auth-store.js';
 import { handleHandshake } from '../handlers/handshake.handler.js';
 import { handleDoAuth } from '../handlers/do-auth.handler.js';
@@ -51,6 +52,7 @@ export default function dispatchPortalAction(
 
     if (handleIssue1844(req, res)) return;
     if (handleIssue1844Pagination(req, res)) return;
+    if (handleFlatSeriesRange(req, res)) return;
 
     switch (action) {
         case 'handshake':

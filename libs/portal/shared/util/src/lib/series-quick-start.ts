@@ -1,4 +1,7 @@
-import { PlaybackPositionData, XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    XtreamSerieEpisode,
+} from '@iptvnator/shared/interfaces';
 import { isPortalPlaybackInProgress } from './portal-playback-positions';
 import {
     getSeriesNextUp,
@@ -117,7 +120,8 @@ function createQuickStartAction(
 function getEpisodeLabel(episode: XtreamSerieEpisode): string {
     const episodeCode = formatSeriesEpisodeCode(
         episode.season,
-        episode.episode_num
+        episode.episode_num,
+        episode.seasonUnknown
     );
     const title = episode.title.trim();
 
@@ -126,12 +130,13 @@ function getEpisodeLabel(episode: XtreamSerieEpisode): string {
 
 export function formatSeriesEpisodeCode(
     seasonNumber: number,
-    episodeNumber: number
+    episodeNumber: number,
+    seasonUnknown = false
 ): string {
     const safeSeasonNumber = getPositiveInteger(seasonNumber) ?? 1;
     const safeEpisodeNumber = getPositiveInteger(episodeNumber) ?? 1;
 
-    return `S${padEpisodePart(safeSeasonNumber)}E${padEpisodePart(
+    return `${seasonUnknown ? '' : `S${padEpisodePart(safeSeasonNumber)}`}E${padEpisodePart(
         safeEpisodeNumber
     )}`;
 }
