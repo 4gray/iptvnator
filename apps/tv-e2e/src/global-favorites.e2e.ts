@@ -507,3 +507,22 @@ test('the favorite scope picker owns Back before a pending activation', async ({
         release();
     }
 });
+
+test('showing all playlists from an empty scope restores remote focus within Favorites', async ({
+    page,
+}) => {
+    await favorites(page);
+    await addSource(page, 'xtream', { name: 'Synthetic empty playlist' });
+    await nav(page, 'Favorites');
+    await chooseTv(page, 'Favorite sources', 'current');
+    const showAll = page.getByRole('button', { name: 'Show all playlists' });
+    await showAll.focus();
+    await page.keyboard.press('Enter');
+    await expect(showAll).toHaveCount(0);
+    await expect(page.locator('.poster-card')).toHaveCount(2);
+    await expect(
+        page.getByRole('combobox', { name: 'Favorite sources' })
+    ).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('main :focus')).toHaveCount(1);
+});

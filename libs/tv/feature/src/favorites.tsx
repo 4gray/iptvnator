@@ -1,5 +1,11 @@
 import { storedMediaPoster } from '@iptvnator/tv/data-access';
-import { Empty, Poster, TvSelect, VirtualCollection } from '@iptvnator/tv/ui';
+import {
+    Empty,
+    Poster,
+    TvSelect,
+    VirtualCollection,
+    restoreFocus,
+} from '@iptvnator/tv/ui';
 import { Kind, Media } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
 export function favoritesFor(tv: TvModel, kind: Kind) {
@@ -22,10 +28,22 @@ async function saveScope(
     cancel: () => void
 ) {
     cancel();
+    const picker = document.querySelector<HTMLElement>(
+        '[data-focus="favorite-sources"]'
+    );
     try {
         await tv.update((data) => ({ ...data, favoriteScope: value }));
         tv.clearError('Retry favorite filter');
         document.querySelector('main')?.scrollTo(0, 0);
+        restoreFocus(
+            'favorite-sources',
+            '',
+            undefined,
+            () =>
+                !!picker?.isConnected &&
+                document.activeElement === document.body &&
+                !document.querySelector('[data-tv-modal]')
+        );
     } catch {
         tv.setError(
             'Favorite filter was not saved. Free TV storage and retry.',
