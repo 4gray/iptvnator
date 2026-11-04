@@ -6,7 +6,10 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { parseWorkspaceShellRoute } from '@iptvnator/workspace/shell/util';
 import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
-import { SEARCH_INPUT_DEBOUNCE_MS } from './helpers/workspace-shell-constants';
+import {
+    CATEGORY_SCOPE_CLEAR_NAVIGATION,
+    SEARCH_INPUT_DEBOUNCE_MS,
+} from './helpers/workspace-shell-constants';
 import {
     getRoutePath,
     getRouteQueryParam,
@@ -174,11 +177,19 @@ export class WorkspaceShellSearchSyncService {
         // The comparison trims `nextTerm` because adoption would too: a URL
         // still carrying a not-yet-rewritten untrimmed `q` adopts to exactly
         // the applied state, so syncing could only cancel a pending debounce.
-        if (
+        const navigation = this.router.lastSuccessfulNavigation();
+        // Scope clearing carries the raw input's normalized term, even before
+        // its debounce applies. The transient intent never survives history.
+        const clearingScope =
+            navigation?.extras.info === CATEGORY_SCOPE_CLEAR_NAVIGATION &&
+            nextTerm.trim() === this.searchQuery().trim();
+        const samePageEcho =
             previousUrl !== null &&
             getRoutePath(url) === getRoutePath(previousUrl) &&
-            nextTerm.trim() === this.appliedSearchQuery() &&
-            this.router.lastSuccessfulNavigation()?.trigger === 'imperative'
+            nextTerm.trim() === this.appliedSearchQuery();
+        if (
+            navigation?.trigger === 'imperative' &&
+            (clearingScope || samePageEcho)
         ) {
             return;
         }

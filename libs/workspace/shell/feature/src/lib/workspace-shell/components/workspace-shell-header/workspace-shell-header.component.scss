@@ -142,6 +142,9 @@
                 var(--app-on-surface) 14%,
                 var(--mat-sys-surface-container-high)
             );
+        }
+
+        &:hover {
             border-color: color-mix(
                 in srgb,
                 var(--app-on-surface) 38%,
@@ -150,6 +153,7 @@
         }
 
         &:focus-visible {
+            border-color: var(--app-focus-ring);
             @include focus-ring.focus-ring-declarations($offset: 1px);
         }
     }
@@ -241,6 +245,7 @@
         }
 
         &:focus-visible {
+            border-color: var(--app-focus-ring);
             @include focus-ring.focus-ring-declarations($offset: 1px);
         }
     }

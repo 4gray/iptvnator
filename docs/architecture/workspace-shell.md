@@ -509,7 +509,11 @@ Search is shell-owned and route-aware:
     the header scope chip or by clicking the selected sidebar category again.
     Both actions merge the current input into the destination URL, including
     text still waiting for the search debounce, and return to all items in the
-    current section. Clearing an empty input removes `q` while preserving other
+    current section. Scope-only navigation uses transient router `info` to keep
+    raw whitespace and the pending debounce; URL `q` stays trimmed and history
+    remains authoritative. During live playback the all-channel sidebar stays
+    available after clearing an empty search, without remounting the player.
+    Clearing an empty input removes `q` while preserving other
     query parameters. The clear control and action are limited to Xtream
     `live`/`vod`/`series` and Stalker `itv`/`radio`/`vod`/`series`; retained
     category state must not make collection or advanced-search scopes

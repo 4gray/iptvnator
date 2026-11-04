@@ -25,13 +25,17 @@ describe('WorkspaceShellSearchSyncService', () => {
     const xtreamCategoryId = signal<number | null>(null);
     const stalkerCategoryId = signal<string | null>(null);
     let trigger: 'imperative' | 'popstate';
+    let navigationInfo: unknown;
     let router: {
         url: string;
         events: Subject<NavigationEnd>;
         navigate: jest.Mock;
         navigateByUrl: jest.Mock;
         parseUrl: jest.Mock;
-        lastSuccessfulNavigation: () => { trigger: string };
+        lastSuccessfulNavigation: () => {
+            trigger: string;
+            extras: NavigationExtras;
+        };
     };
 
     /**
@@ -54,12 +58,16 @@ describe('WorkspaceShellSearchSyncService', () => {
         stalkerCategoryId.set(null);
         events = new Subject<NavigationEnd>();
         trigger = 'imperative';
+        navigationInfo = undefined;
         router = {
             url: DOWNLOADS_URL,
             events,
             navigate: jest.fn().mockResolvedValue(true),
             navigateByUrl: jest.fn().mockResolvedValue(true),
-            lastSuccessfulNavigation: () => ({ trigger }),
+            lastSuccessfulNavigation: () => ({
+                trigger,
+                extras: { info: navigationInfo },
+            }),
             parseUrl: jest.fn((url: string) => {
                 const parsed = new URL(url, 'http://localhost');
                 const queryParams: Record<string, string> = {};
@@ -154,14 +162,19 @@ describe('WorkspaceShellSearchSyncService', () => {
         jest.useRealTimers();
     });
 
-    describe('clearing a category scope', () => {
-        const provider = 'xtreams';
-        const section = 'vod';
-
+    describe.each([
+        ['xtreams', 'live'],
+        ['xtreams', 'vod'],
+        ['xtreams', 'series'],
+        ['stalker', 'vod'],
+        ['stalker', 'series'],
+    ])('clearing a %s %s category scope', (provider, section) => {
         it.each([
             ['', 'neo'],
             ['neo', 'neon'],
             ['neo', ''],
+            ['Alpha', 'Alpha '],
+            ['', 'Alpha '],
         ])(
             'preserves pending search changes from "%s" to "%s"',
             (previous, pending) => {
@@ -183,6 +196,7 @@ describe('WorkspaceShellSearchSyncService', () => {
                 });
                 router.navigate.mockImplementation(
                     (commands: string[], extras: NavigationExtras) => {
+                        navigationInfo = extras.info;
                         const nextUrl = new URL(router.url, 'http://localhost');
                         nextUrl.pathname = commands.join('/');
                         if (extras.queryParamsHandling !== 'preserve') {
@@ -215,17 +229,19 @@ describe('WorkspaceShellSearchSyncService', () => {
                     ['/workspace', provider, 'pl-1', section],
                     expect.objectContaining({
                         queryParamsHandling: 'merge',
-                        queryParams: { q: pending || null },
+                        queryParams: { q: pending.trim() || null },
                     })
                 );
-                const query = pending ? `&q=${pending}` : '';
+                const query = pending.trim() ? `&q=${pending.trim()}` : '';
                 expect(router.url).toBe(
                     `/workspace/${provider}/pl-1/${section}?sort=name${query}`
                 );
+                expect(service.searchQuery()).toBe(pending);
+                expect(service.appliedSearchQuery()).toBe(previous);
                 jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
 
                 expect(service.searchQuery()).toBe(pending);
-                expect(service.appliedSearchQuery()).toBe(pending);
+                expect(service.appliedSearchQuery()).toBe(pending.trim());
             }
         );
     });

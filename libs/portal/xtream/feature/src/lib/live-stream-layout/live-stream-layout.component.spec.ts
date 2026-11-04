@@ -626,6 +626,23 @@ describe('LiveStreamLayoutComponent', () => {
         ).not.toBeNull();
     });
 
+    it('keeps all-channel browsing and the mounted player when the category is cleared', () => {
+        component.playLive(sampleChannel);
+        fixture.detectChanges();
+        const root: HTMLElement = fixture.nativeElement;
+        const player = root.querySelector('app-web-player-view');
+        const playback = component.activePlayback();
+
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+
+        expect(
+            root.querySelector('.sidebar app-portal-channels-list')
+        ).not.toBeNull();
+        expect(root.querySelector('app-web-player-view')).toBe(player);
+        expect(component.activePlayback()).toBe(playback);
+    });
+
     it('shows embedded playback after selecting a channel from live root search results', () => {
         const searchResultChannel = {
             ...sampleChannel,

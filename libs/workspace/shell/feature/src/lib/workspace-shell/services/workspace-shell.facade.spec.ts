@@ -224,7 +224,10 @@ describe('WorkspaceShellFacade', () => {
             parseUrl: jest.fn((url: string) => createParseUrl(url)),
             createUrlTree: jest.fn(),
             isActive: jest.fn(),
-            lastSuccessfulNavigation: () => ({ trigger: navigationTrigger }),
+            lastSuccessfulNavigation: () => ({
+                trigger: navigationTrigger,
+                extras: {},
+            }),
         };
         workspaceActions = {
             openAddPlaylistDialog: jest.fn(),

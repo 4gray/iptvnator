@@ -83,6 +83,7 @@ describe('clearCategoryScope', () => {
                 expect(router.navigate).toHaveBeenCalledWith(
                     ['/workspace', provider, 'playlist-1', section],
                     {
+                        info: 'clear-category-scope',
                         queryParamsHandling: 'merge',
                         queryParams: { q: 'pending query' },
                     }
@@ -112,6 +113,7 @@ describe('clearCategoryScope', () => {
             expect(router.navigate).toHaveBeenCalledWith(
                 ['/workspace', 'xtreams', 'playlist-1', 'vod'],
                 {
+                    info: 'clear-category-scope',
                     queryParamsHandling: 'merge',
                     queryParams: { q: expectedQuery },
                 }

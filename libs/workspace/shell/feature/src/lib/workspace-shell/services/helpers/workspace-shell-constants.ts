@@ -9,6 +9,9 @@ import { PortalRailSection } from '@iptvnator/portal/shared/util';
  */
 export const SEARCH_INPUT_DEBOUNCE_MS = 300;
 
+/** Transient router intent: changing scope keeps the raw input and debounce. */
+export const CATEGORY_SCOPE_CLEAR_NAVIGATION = 'clear-category-scope';
+
 /**
  * How long a purely local Xtream load (reading the saved catalog from SQLite)
  * may run before the full-screen import overlay appears. A warm catalog

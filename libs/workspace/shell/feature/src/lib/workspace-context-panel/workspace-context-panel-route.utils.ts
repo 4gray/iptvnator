@@ -6,6 +6,8 @@ import type {
 import type { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import type { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
+import { CATEGORY_SCOPE_CLEAR_NAVIGATION } from '../workspace-shell/services/helpers/workspace-shell-constants';
+
 type ClearCategoryScopeOptions = {
     router: Router;
     playlistId: string;
@@ -42,6 +44,7 @@ export function clearCategoryScope(options: ClearCategoryScopeOptions): void {
     const { router, provider, store, playlistId, section, searchQuery } =
         options;
     const navigationExtras: NavigationExtras = {
+        info: CATEGORY_SCOPE_CLEAR_NAVIGATION,
         queryParamsHandling: 'merge',
         queryParams: { q: searchQuery.trim() || null },
     };
