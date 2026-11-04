@@ -292,6 +292,10 @@ After an E2E run, generate the semantic summary with:
 pnpm run coverage:e2e:summary
 ```
 
+The `electron-backend-e2e:e2e` target owns its `electron-backend:build-e2e`
+dependency, including renderer and remote-control assets. CI calls that target
+without a separate production build before each shard.
+
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
 by spec file because the suite is sequential): three shards on Ubuntu, four
 on Windows, and two on macOS, whose runners are the scarcest and queued longest.

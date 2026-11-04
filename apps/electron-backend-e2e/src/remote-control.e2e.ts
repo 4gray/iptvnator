@@ -34,6 +34,38 @@ type RemoteControlStatus = {
 };
 
 test.describe('Electron Remote Control', () => {
+    test('@remote-control @electron rejects foreign-origin commands and keeps local JSON commands working', async ({
+        dataDir,
+        request,
+    }) => {
+        const remotePort = await reserveFreePort();
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await enableRemoteControl(app.mainWindow, remotePort);
+            await saveSettings(app.mainWindow);
+            await waitForRemoteControlServer(request, remotePort);
+            const forbiddenHeaders: Record<string, string>[] = [
+                { Origin: 'http://unrelated.example.test' },
+                { Origin: 'null' },
+                { 'Content-Type': 'text/plain' },
+            ];
+            for (const headers of forbiddenHeaders) {
+                const response = await request.post(
+                    remoteControlUrl(remotePort, '/channel/up'),
+                    {
+                        headers,
+                        data: {},
+                    }
+                );
+                expect(response.status()).toBe(403);
+            }
+            await postRemoteCommand(request, remotePort, '/channel/up');
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     for (const mode of ['xtream', 'stalker', 'radio'] as const) {
         test(`@remote-control @electron ${mode} keeps playback order while browsing and reveals the playing channel`, async ({
             dataDir,

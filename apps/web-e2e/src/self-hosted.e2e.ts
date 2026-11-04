@@ -299,6 +299,74 @@ test('@self-hosted M3U URL loads through web-backend proxy', async ({
     expectRequestsUseTargetId(parseRequests, '/parse');
 });
 
+test('@self-hosted @m3u @epg URL imports retain header guide links through the real backend and reload', async ({
+    page,
+}) => {
+    const provider = createServer((req, res) => {
+        if (req.url === '/guide.xml') {
+            res.writeHead(200, { 'Content-Type': 'application/xml' });
+            res.end('<?xml version="1.0"?><tv></tv>');
+        } else {
+            res.writeHead(200, {
+                'Content-Type': 'application/vnd.apple.mpegurl',
+            });
+            res.end(
+                `#EXTM3U x-tvg-url="http://${req.headers.host}/guide.xml"\n#EXTINF:-1,Synthetic guide channel\nhttps://media.example.test/live`
+            );
+        }
+    });
+    await new Promise<void>((resolve) =>
+        provider.listen(0, '127.0.0.1', resolve)
+    );
+    const address = provider.address();
+    if (!address || typeof address === 'string')
+        throw new Error('Missing provider port');
+    const origin = `http://127.0.0.1:${address.port}`;
+    try {
+        await page.getByRole('button', { name: 'Add playlist' }).click();
+        const dialog = page.getByRole('dialog');
+        await dialog
+            .getByRole('textbox', { name: /Playlist URL/ })
+            .fill(`${origin}/playlist.m3u`);
+        await dialog
+            .getByRole('textbox', { name: 'Playlist title' })
+            .fill('Synthetic guide source');
+        const parsed = page.waitForResponse((response) =>
+            response.url().startsWith(`${WEB_BACKEND_URL}/parse?`)
+        );
+        await dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click();
+        await expect((await parsed).json()).resolves.toMatchObject({
+            detectedEpgUrls: [`${origin}/guide.xml`],
+            epgUrls: [`${origin}/guide.xml`],
+        });
+        await page.waitForURL(/playlists.*all/);
+        for (let attempt = 0; attempt < 2; attempt++) {
+            await page.goto('/workspace/sources');
+            const editor = await openSourceEditor(
+                page,
+                'Synthetic guide source'
+            );
+            await expect(
+                editor.locator('[data-test-id="playlist-epg-detected-count"]')
+            ).toHaveText('From playlist: 1 of 1 enabled.');
+            await expect(
+                editor.locator('[data-epg-source-state="enabled"]')
+            ).toHaveCount(1);
+            await editor
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
+            if (attempt === 0) await page.reload();
+        }
+    } finally {
+        provider.closeAllConnections();
+        await new Promise<void>((resolve, reject) =>
+            provider.close((error) => (error ? reject(error) : resolve()))
+        );
+    }
+});
+
 for (const portal of ['Xtream', 'Stalker', 'M3U'] as const) {
     test(`@self-hosted ${portal} recovers a forgotten provider target without a page reload`, async ({ page }) => {
         if (portal === 'Xtream') await addXtreamPortal(page);

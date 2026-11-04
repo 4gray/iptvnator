@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as http from 'http';
+import { hostname } from 'node:os';
 import * as path from 'path';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 
@@ -234,6 +235,11 @@ export class HttpServer {
 
         // Handle API requests
         if (url.startsWith('/api/remote-control/')) {
+            if (!this.isAllowedApiRequest(req)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden remote request' }));
+                return;
+            }
             const handler = this.remoteControlHandlers.get(url);
             if (handler) {
                 handler(req, res);
@@ -247,6 +253,41 @@ export class HttpServer {
 
         // Serve static files from the remote-control-web app
         this.serveStaticFile(url, res);
+    }
+
+    private isAllowedApiRequest(req: http.IncomingMessage): boolean {
+        const contentType = req.headers['content-type']
+            ?.split(';')[0]
+            .trim()
+            .toLowerCase();
+        if (
+            (req.method === 'POST' && contentType !== 'application/json') ||
+            !req.headers.host ||
+            req.headers['sec-fetch-site'] === 'cross-site'
+        ) {
+            return false;
+        }
+        try {
+            const url = new URL(`http://${req.headers.host}`);
+            const machine = hostname()
+                .toLowerCase()
+                .replace(/\.local$/, '');
+            // An arbitrary reflected Host would let DNS rebinding bypass the Origin check.
+            const allowedHosts = [
+                'localhost',
+                machine,
+                `${machine}.local`,
+                req.socket.localAddress?.replace(/^::ffff:/, ''),
+            ];
+            return (
+                allowedHosts.includes(url.hostname.replace(/^\[|\]$/g, '')) &&
+                Number(url.port || 80) === req.socket.localPort &&
+                (req.headers.origin === undefined ||
+                    req.headers.origin === url.origin)
+            );
+        } catch {
+            return false;
+        }
     }
 
     /**
