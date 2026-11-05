@@ -1,3 +1,4 @@
+import { XtreamCollectionCatalog } from './xtream-collection-catalog';
 import type {
     IXtreamDataSource,
     XtreamCollectionRef,
@@ -25,10 +26,9 @@ import {
 
 type XtreamRef = Extract<FavoriteReference, { provider: 'xtream' }>;
 export class FavoritesXtreamAdapter {
-    private readonly hydrating = new Map<
-        string,
-        Promise<XtreamContentItem[]>
-    >();
+    private readonly catalogs = new XtreamCollectionCatalog(
+        (id) => this.client.contexts.get(id)?.sourceIncarnation
+    );
     constructor(
         private readonly client: FavoritesSyncClient,
         private readonly enabled: () => boolean,
@@ -85,7 +85,7 @@ export class FavoritesXtreamAdapter {
                     [...kinds].map(async (kind) =>
                         catalogs.set(
                             kind,
-                            await this.catalog(raw, sourceId, kind)
+                            await this.catalogs.load(raw, sourceId, kind)
                         )
                     )
                 );
@@ -207,38 +207,6 @@ export class FavoritesXtreamAdapter {
             this.locks.version() !== lockVersion
             ? []
             : [...mapped.values()];
-    }
-    private async catalog(
-        raw: IXtreamDataSource,
-        sourceId: string,
-        kind: XtreamRef['kind']
-    ): Promise<XtreamContentItem[]> {
-        const key = JSON.stringify([
-            sourceId,
-            kind,
-            this.client.contexts.get(sourceId)?.sourceIncarnation,
-        ]);
-        let pending = this.hydrating.get(key);
-        if (!pending) {
-            pending = (async () => {
-                const source = await raw.getPlaylist(sourceId);
-                if (!source) return [];
-                return (await raw.getContent(
-                    sourceId,
-                    {
-                        serverUrl: source.serverUrl,
-                        username: source.username,
-                        password: source.password,
-                        userAgent: source.userAgent?.trim() || undefined,
-                    },
-                    kind
-                )) as XtreamContentItem[];
-            })()
-                .catch(() => [])
-                .finally(() => this.hydrating.delete(key));
-            this.hydrating.set(key, pending);
-        }
-        return pending;
     }
     async reference(
         raw: IXtreamDataSource,

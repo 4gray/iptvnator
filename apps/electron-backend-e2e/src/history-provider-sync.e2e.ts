@@ -128,6 +128,19 @@ for (const provider of ['xtream', 'stalker'] as const)
             const first = (await read()).state;
             expect(first.items[0].reference.provider).toBe(provider);
             const title = first.items[0].snapshot.title;
+            if (provider === 'xtream') {
+                await openSources(page);
+                await page.reload();
+                await page
+                    .getByRole('link', { name: 'Recently viewed', exact: true })
+                    .click();
+                await page.waitForURL(/\/workspace\/global-recent$/);
+                await contentCardByTitle(page, title).click();
+                await expect(
+                    page.getByRole('button', { name: /^(Play|Resume)\b/ })
+                ).toBeEnabled();
+                expect((await read()).state.revision).toBe(first.revision);
+            }
             await openGlobalRecent(native);
             await expect(contentCardByTitle(native, title)).toBeVisible({
                 timeout: 30000,
@@ -205,6 +218,7 @@ for (const provider of ['xtream', 'stalker'] as const)
                     )[0].reference.kind
                 ).toBe('live');
             }
+            await openSources(page);
             await openGlobalRecent(page);
             await expect(contentCardByTitle(page, title)).toHaveCount(0, {
                 timeout: 30000,

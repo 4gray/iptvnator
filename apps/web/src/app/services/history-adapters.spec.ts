@@ -194,6 +194,19 @@ describe('history provider projections', () => {
         expect(await adapter.project(raw, 'source')).toEqual([]);
         (
             raw as { getContentByXtreamId: jest.Mock }
+        ).getContentByXtreamId.mockResolvedValue({
+            id: 99,
+            xtream_id: 42,
+            type: 'movie',
+        });
+        expect(
+            await new HistoryXtreamAdapter(f.client, true, {
+                ...locks,
+                active: () => true,
+            }).project(raw, 'source')
+        ).toEqual([]);
+        (
+            raw as { getContentByXtreamId: jest.Mock }
         ).getContentByXtreamId.mockResolvedValue(null);
         expect(
             await new HistoryXtreamAdapter(f.client, true, {
@@ -331,5 +344,81 @@ describe('history provider projections', () => {
         const lazy = rows.find((item) => item.is_series)!;
         await adapter.mutate(source, { kind: 'remove', identities: [lazy] });
         expect((await adapter.project(source)).recentlyViewed).toHaveLength(2);
+    });
+    it('hydrates only the missing typed PWA catalog and discards history removed during hydration', async () => {
+        const f = fixture('xtream');
+        const reference = {
+            provider: 'xtream',
+            kind: 'movie',
+            id: '42',
+        } as const;
+        f.read().base = applyHistoryOperation(f.read().base, {
+            kind: 'touch',
+            reference,
+            snapshot: { title: 'Synthetic remote' },
+            operationId: 'remote',
+            deviceId: 'remote',
+            baseRevision: 0,
+            viewedAt: 1,
+        }).state;
+        let warm = false;
+        const row = {
+            id: 42,
+            xtream_id: 42,
+            type: 'movie',
+            title: 'Synthetic remote',
+            catalog_status: 'present',
+        };
+        const raw = {
+            getRecentItems: jest.fn().mockResolvedValue([]),
+            getContentByXtreamId: jest.fn(async () => (warm ? row : null)),
+            getPlaylist: jest.fn().mockResolvedValue({
+                serverUrl: 'https://synthetic.invalid',
+                username: 'synthetic',
+                password: 'synthetic',
+            }),
+            getContent: jest.fn(async () => {
+                warm = true;
+                return [row];
+            }),
+        };
+        const adapter = new HistoryXtreamAdapter(f.client, false, locks);
+        expect(await adapter.project(raw as never, 'source')).toEqual([
+            expect.objectContaining({
+                xtream_id: 42,
+                catalog_status: 'present',
+            }),
+        ]);
+        expect(raw.getContent.mock.calls).toHaveLength(1);
+        await adapter.project(raw as never, 'source');
+        expect(raw.getContent.mock.calls).toHaveLength(1);
+        warm = false;
+        raw.getContent.mockImplementation(async () => {
+            warm = true;
+            f.read().base = applyHistoryOperation(f.read().base, {
+                kind: 'remove',
+                reference,
+                operationId: 'remove',
+                deviceId: 'other',
+                baseRevision: 1,
+                viewedAt: 2,
+            }).state;
+            return [row];
+        });
+        expect(await adapter.project(raw as never, 'source')).toEqual([]);
+    });
+    it('advertises portable native history only for a verified source', async () => {
+        const f = fixture('xtream');
+        const adapter = new HistoryXtreamAdapter(f.client, true, locks);
+        expect(
+            await adapter.invoke({} as never, 'supportsPortableHistory', [
+                'source',
+            ])
+        ).toBe(true);
+        expect(
+            await adapter.invoke({} as never, 'supportsPortableHistory', [
+                'unverified',
+            ])
+        ).toBe(false);
     });
 });

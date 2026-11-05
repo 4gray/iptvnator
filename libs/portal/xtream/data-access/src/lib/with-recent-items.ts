@@ -1,3 +1,5 @@
+import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { inject, Signal } from '@angular/core';
 import {
     patchState,
@@ -113,6 +115,11 @@ export const withRecentItems = function () {
                                               undefined,
                                       })
                                     : null;
+                                const current = captureHistoryOwner(
+                                    sourceConnection()?.instanceId,
+                                    playlistId,
+                                    () => sourceConnection()?.instanceId
+                                );
                                 const content =
                                     await dataSource.getContentByXtreamId(
                                         normalizedXtreamId,
@@ -125,10 +132,14 @@ export const withRecentItems = function () {
                                     );
                                 const contentId =
                                     content?.id ??
-                                    (!runtime.supportsXtreamSqliteDataSource
+                                    (!runtime.supportsXtreamSqliteDataSource ||
+                                    (await dataSource.supportsPortableHistory?.(
+                                        playlistId
+                                    ))
                                         ? normalizedXtreamId
                                         : null);
 
+                                if (!current()) return;
                                 if (contentId != null) {
                                     await dataSource.addRecentItem(
                                         {

@@ -28,3 +28,28 @@ it('removes shared native Dashboard history through its typed data source', asyn
     );
     expect(nativeRemove).not.toHaveBeenCalled();
 });
+
+it('retains catalog identity in native history projected for Dashboard', () => {
+    const service = Object.create(DashboardDataService.prototype) as {
+        mapPwaXtreamRecentItem: (item: unknown, playlist: unknown) => unknown;
+    };
+    const projected = service.mapPwaXtreamRecentItem(
+        {
+            id: 1,
+            xtream_id: 42,
+            type: 'movie',
+            title: 'Synthetic title',
+            tmdb_id: 100,
+            release_year: 2024,
+            original_title: '  Synthetic original  ',
+        },
+        { _id: 'source', title: 'Synthetic source' }
+    );
+    expect(projected).toEqual(
+        expect.objectContaining({
+            tmdb_id: 100,
+            release_year: 2024,
+            original_title: 'Synthetic original',
+        })
+    );
+});

@@ -21,6 +21,16 @@ export function activityDataSourceFactory(): IXtreamDataSource {
     const injector = inject(EnvironmentInjector);
     return new Proxy(xtreamDataSourceFactory(), {
         get(target, key) {
+            if (key === 'supportsPortableHistory')
+                return (sourceId: string) =>
+                    historyProfileUsed()
+                        ? invokeHistory(
+                              injector,
+                              target,
+                              'supportsPortableHistory',
+                              [sourceId]
+                          )
+                        : false;
             if (key === 'supportsPortableFavorites')
                 return (sourceId: string) =>
                     favoritesProfileUsed()

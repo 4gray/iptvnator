@@ -1235,4 +1235,14 @@ local. Both data-source and global/Dashboard consumers read the sidecar overlay;
 remove/batch/current-tab clear use that same path on Electron and PWA. Series
 history keeps the existing parent-series row. Remote progress does not create it.
 Known catalog identity conflicts and parental locks remain enforced when resolving
-received entries; history metadata never supplies playback URLs.
+received entries; history metadata never supplies playback URLs. The data source's
+`supportsPortableHistory(playlistId)` permits confirmed provider-only starts on
+verified history sources, including native playback without a SQLite content row.
+Ordinary native sources still require that row; metadata backfill remains row-only.
+Both active-store and late-confirmation writers recheck source ownership after
+asynchronous lookups. Shared native Dashboard rows retain TMDB, year and original
+title hints. Cold PWA history reuses the favorites typed-catalog loader and
+rechecks history and locks before publication; membership writes remain cache-only.
+PWA cache lookups honor the existing `excludeLocked` collection flag, filtering
+candidate duplicates before identity selection and withholding unknown category
+ownership. Default lookups remain unfiltered for the PIN guard.

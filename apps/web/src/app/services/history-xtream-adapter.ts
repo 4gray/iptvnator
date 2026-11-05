@@ -1,3 +1,4 @@
+import { XtreamCollectionCatalog } from './xtream-collection-catalog';
 import type {
     IXtreamDataSource,
     XtreamContentItem,
@@ -16,6 +17,9 @@ import {
     hasXtreamFavoriteIdentityConflict,
 } from './favorites-reference-adapters';
 export class HistoryXtreamAdapter {
+    private readonly catalogs = new XtreamCollectionCatalog(
+        (id) => this.client.contexts.get(id)?.sourceIncarnation
+    );
     constructor(
         private readonly client: HistorySyncClient,
         private readonly sqlite: boolean,
@@ -33,8 +37,42 @@ export class HistoryXtreamAdapter {
         if (this.locks.withholdsEverything()) return [];
         const lockVersion = this.locks.version();
         const local = await raw.getRecentItems(id);
-        const state = await this.client.state(id);
-        if (!state) return local;
+        let state = await this.client.state(id);
+        if (!state)
+            return this.locks.withholdsEverything() ||
+                this.locks.version() !== lockVersion
+                ? []
+                : local;
+        if (!this.sqlite) {
+            const missing = new Set<'live' | 'movie' | 'series'>();
+            const checked = new Set<'live' | 'movie' | 'series'>();
+            for (const { reference } of visibleHistory(state).slice(0, 100)) {
+                if (
+                    reference.provider !== 'xtream' ||
+                    checked.has(reference.kind)
+                )
+                    continue;
+                checked.add(reference.kind);
+                if (
+                    !(await raw.getContentByXtreamId(
+                        Number(reference.id),
+                        id,
+                        reference.kind
+                    ))
+                )
+                    missing.add(reference.kind);
+            }
+            if (missing.size) {
+                await Promise.all(
+                    [...missing].map((kind) =>
+                        this.catalogs.load(raw, id, kind)
+                    )
+                );
+                this.client.current(scope);
+                state = await this.client.state(id);
+                if (!state) return local;
+            }
+        }
         const mapped = new Map(
             state.hideArchive
                 ? []
@@ -78,7 +116,8 @@ export class HistoryXtreamAdapter {
                     true
                 ));
             if (
-                (!candidate && this.locks.active()) ||
+                ((!candidate || !String(candidate.category_id ?? '').trim()) &&
+                    this.locks.active()) ||
                 hasXtreamFavoriteIdentityConflict(item.snapshot, candidate)
             ) {
                 mapped.delete(key);
@@ -154,12 +193,23 @@ export class HistoryXtreamAdapter {
     ): Promise<unknown> {
         const id = String(
             args[
-                method === 'getRecentItems' || method === 'clearRecentItems'
+                method === 'getRecentItems' ||
+                method === 'clearRecentItems' ||
+                method === 'supportsPortableHistory'
                     ? 0
                     : 1
             ]
         );
         if (method === 'getRecentItems') return this.project(raw, id);
+        if (method === 'supportsPortableHistory') {
+            try {
+                await this.client.scope(id);
+                return true;
+            } catch {
+                this.client.current();
+                return false;
+            }
+        }
         const generation = this.client.options.consent();
         let scope;
         try {

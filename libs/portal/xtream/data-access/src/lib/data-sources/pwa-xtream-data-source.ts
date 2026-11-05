@@ -348,7 +348,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const categories = await this.apiService.getCategories(
             credentials,
             type,
-            ...(options?.signal ? [{ signal: options.signal }] as const : [])
+            ...(options?.signal ? ([{ signal: options.signal }] as const) : [])
         );
         options?.signal?.throwIfAborted();
 
@@ -523,7 +523,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             await this.apiService.getStreams(
                 credentials,
                 type,
-                ...(options?.signal ? [{ signal: options.signal }] as const : [])
+                ...(options?.signal
+                    ? ([{ signal: options.signal }] as const)
+                    : [])
             ),
             type
         );
@@ -930,15 +932,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
 
         const { removePwaRecentItem } = await import('./pwa-recent-write');
-        removePwaRecentItem(
-            this.collectionStorage,
-            playlistId,
-            (ids) =>
-                this.getMatchingCollectionKeys(
-                    playlistId,
-                    ids,
-                    normalizedContentId
-                )
+        removePwaRecentItem(this.collectionStorage, playlistId, (ids) =>
+            this.getMatchingCollectionKeys(playlistId, ids, normalizedContentId)
         );
     }
 
@@ -1078,9 +1073,15 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         xtreamId: number,
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
-        identity?: ContentMetadataPatch
+        identity?: ContentMetadataPatch,
+        _categoryId?: number,
+        excludeLocked = false
     ): Promise<XtreamContentItem | null> {
-        if (!this.contentCache.size) return null;
+        if (
+            !this.contentCache.size ||
+            (excludeLocked && this.parentalLock.withholdsEverything?.())
+        )
+            return null;
         // Non-empty caches have already loaded this module through catalog normalization.
         const { findPwaCachedContent } = await import('./pwa-content-metadata');
         return findPwaCachedContent(
@@ -1088,7 +1089,25 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             playlistId,
             xtreamId,
             contentType ? [contentType] : ['live', 'movie', 'series'],
-            identity
+            identity,
+            excludeLocked
+                ? (item) => {
+                      if (
+                          this.parentalLock.active() &&
+                          !canonicalCategoryId(item.category_id)
+                      )
+                          return false;
+                      const kind =
+                          contentType ??
+                          (item.type === 'live' || item.type === 'series'
+                              ? item.type
+                              : 'movie');
+                      return (
+                          this.withoutLockedContent(playlistId, kind, [item])
+                              .length > 0
+                      );
+                  }
+                : undefined
         );
     }
 
@@ -1133,12 +1152,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     ): Promise<void> {
         const { enrichPwaCatalogCache } =
             await import('./pwa-content-metadata');
-        enrichPwaCatalogCache(
-            this.contentCache,
-            playlistId,
-            key,
-            patch
-        );
+        enrichPwaCatalogCache(this.contentCache, playlistId, key, patch);
     }
 
     // =========================================================================

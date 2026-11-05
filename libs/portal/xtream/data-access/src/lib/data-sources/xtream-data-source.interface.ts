@@ -173,6 +173,8 @@ export interface XtreamOperationOptions {
  * Allows different implementations for Electron (DB-first) and PWA (API-only).
  */
 export interface IXtreamDataSource {
+    /** Verified source history accepts provider IDs without a local catalog row. */
+    supportsPortableHistory?(playlistId: string): boolean | Promise<boolean>;
     /** Only the consent-aware adapter may handle provider references without SQLite rows. */
     supportsPortableFavorites?(playlistId: string): boolean | Promise<boolean>;
 

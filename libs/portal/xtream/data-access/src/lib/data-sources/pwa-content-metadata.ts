@@ -25,7 +25,8 @@ export function findPwaCachedContent(
     playlistId: string,
     xtreamId: number,
     types: readonly ('live' | 'movie' | 'series')[],
-    identity?: ContentMetadataPatch
+    identity?: ContentMetadataPatch,
+    accept?: (item: XtreamContentItem) => boolean
 ): XtreamContentItem | null {
     const expected = {
         tmdb_id: identity?.tmdbId,
@@ -36,6 +37,7 @@ export function findPwaCachedContent(
         for (const item of cache.get(`${playlistId}-${type}-content`) ?? []) {
             if (cachedContentIdentity(item, type) !== xtreamId) continue;
             const candidate = item as XtreamContentItem;
+            if (accept && !accept(candidate)) continue;
             if (collectionSnapshotMatchesContent(expected, candidate))
                 return candidate;
             if (

@@ -1,3 +1,5 @@
+import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
@@ -99,13 +101,24 @@ async function saveWithoutListRefresh(
               releaseYear: playedContent.releaseYear ?? undefined,
           })
         : null;
+    const current = captureHistoryOwner(
+        sourceConnection()?.instanceId,
+        playlistId,
+        () => sourceConnection()?.instanceId
+    );
     const content = await dataSource.getContentByXtreamId(
         id,
         playlistId,
         contentType,
         ...(!keysByXtreamId && identity ? [identity] : [])
     );
-    const contentId = content?.id ?? (keysByXtreamId ? id : null);
+    const contentId =
+        content?.id ??
+        (keysByXtreamId ||
+        (await dataSource.supportsPortableHistory?.(playlistId))
+            ? id
+            : null);
+    if (!current()) return;
     if (contentId != null) {
         await dataSource.addRecentItem(
             { id: contentId, type: contentType, providerId: id },

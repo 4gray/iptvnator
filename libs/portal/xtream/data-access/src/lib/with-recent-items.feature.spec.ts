@@ -13,6 +13,7 @@ describe('withRecentItems', () => {
     let store: InstanceType<typeof TestRecentItemsStore>;
     let dataSource: {
         addRecentItem: jest.Mock;
+        supportsPortableHistory: jest.Mock;
         clearRecentItems: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getRecentItems: jest.Mock;
@@ -29,6 +30,7 @@ describe('withRecentItems', () => {
 
         dataSource = {
             addRecentItem: jest.fn().mockResolvedValue(undefined),
+            supportsPortableHistory: jest.fn().mockResolvedValue(false),
             clearRecentItems: jest.fn().mockResolvedValue(undefined),
             getContentByXtreamId: jest.fn(),
             getRecentItems: jest.fn().mockResolvedValue([
@@ -68,6 +70,31 @@ describe('withRecentItems', () => {
         });
     });
 
+    it.each([false, true])(
+        'records a provider-only native start only for a verified portable source (%s)',
+        async (portable) => {
+            runtime.supportsXtreamSqliteDataSource = true;
+            dataSource.getContentByXtreamId.mockResolvedValue(null);
+            dataSource.supportsPortableHistory.mockResolvedValue(portable);
+            store.addRecentItem({
+                xtreamId: 42,
+                contentType: 'movie',
+                playlist: signal({ id: 'synthetic-source' }),
+                playedContent: { title: 'Synthetic movie' },
+            });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(dataSource.addRecentItem).toHaveBeenCalledTimes(
+                portable ? 1 : 0
+            );
+            if (portable)
+                expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+                    { id: 42, type: 'movie', providerId: 42 },
+                    'synthetic-source',
+                    undefined,
+                    { title: 'Synthetic movie' }
+                );
+        }
+    );
     it('records the played SQLite duplicate using its displayed identity', async () => {
         runtime.supportsXtreamSqliteDataSource = true;
         dataSource.getContentByXtreamId.mockImplementation(
