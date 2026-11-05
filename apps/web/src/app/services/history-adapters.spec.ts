@@ -183,7 +183,7 @@ describe('history provider projections', () => {
         });
         const raw = {
             getRecentItems: jest.fn().mockResolvedValue([]),
-            getCachedCategories: jest.fn().mockResolvedValue([]),
+            getAllCategories: jest.fn().mockResolvedValue([]),
             getContentByXtreamId: jest.fn().mockResolvedValue({
                 id: 99,
                 type: 'movie',
@@ -538,9 +538,9 @@ describe('history provider projections', () => {
             all: true,
         });
     });
-    it('filters complete native archives through cached allowed categories', async () => {
+    it('retains hidden unlocked archives while withholding locked or unknown categories', async () => {
         const f = fixture('xtream');
-        const rows = [7, 8].map((category_id) => ({
+        const rows = [7, 8, 9, 10].map((category_id) => ({
             id: category_id,
             xtream_id: category_id,
             type: 'movie',
@@ -549,7 +549,11 @@ describe('history provider projections', () => {
         }));
         const raw = {
             getRecentItems: jest.fn().mockResolvedValue(rows),
-            getCachedCategories: jest.fn().mockResolvedValue([{ id: 7 }]),
+            getAllCategories: jest.fn().mockResolvedValue([
+                { id: 7, hidden: false, locked: false },
+                { id: 8, hidden: true, locked: false },
+                { id: 9, hidden: false, locked: true },
+            ]),
         };
         let withholding = false;
         const adapter = new HistoryXtreamAdapter(f.client, true, {
@@ -559,10 +563,11 @@ describe('history provider projections', () => {
         });
         expect(await adapter.project(raw as never, 'source')).toEqual([
             rows[0],
+            rows[1],
         ]);
-        expect(raw.getCachedCategories.mock.calls).toEqual([
+        expect(raw.getAllCategories.mock.calls).toEqual([
             ['source', 'live'],
-            ['source', 'vod'],
+            ['source', 'movies'],
             ['source', 'series'],
         ]);
         withholding = true;

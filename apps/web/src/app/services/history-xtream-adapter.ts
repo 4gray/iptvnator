@@ -42,13 +42,14 @@ export class HistoryXtreamAdapter {
         );
         if (this.sqlite && this.locks.active()) {
             const categories = await Promise.all(
-                (['live', 'vod', 'series'] as const).map((kind) =>
-                    raw.getCachedCategories(id, kind)
+                (['live', 'movies', 'series'] as const).map((kind) =>
+                    raw.getAllCategories(id, kind)
                 )
             );
             const allowed = new Set<number>();
             for (const rows of categories)
-                for (const row of rows) allowed.add(row.id);
+                for (const row of rows)
+                    if (row.locked === false) allowed.add(row.id);
             local = local.filter((row) => allowed.has(Number(row.category_id)));
         }
         let state = await this.client.state(id);
