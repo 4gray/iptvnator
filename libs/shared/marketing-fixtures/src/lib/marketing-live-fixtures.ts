@@ -82,7 +82,7 @@ export function marketingSlug(value: string): string {
     return value
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
+        .replace(/^-|-$/g, '');
 }
 
 /** Inverse of `marketingSlug` for rendering initials back out of a URL. */
