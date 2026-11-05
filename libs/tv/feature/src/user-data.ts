@@ -4,13 +4,22 @@ import {
     UserDataRepository,
     UserDataStorage,
 } from '@iptvnator/tv/data-access';
-import { initialData, recordProgress, UserData } from '@iptvnator/tv/util';
+import {
+    initialData,
+    recordProgress,
+    UserData,
+    Media,
+} from '@iptvnator/tv/util';
 /** Persisted state is published only after its transaction commits. */
 export function useUserData(
     video: { current: HTMLVideoElement | null },
     report: (message: string) => void,
     tick: () => void,
-    saveFailure: (message: string, retry: () => Promise<void>) => void
+    saveFailure: (message: string, retry: () => Promise<void>) => void,
+    favoriteNotice: {
+        setError: (message: string, retry?: () => void, label?: string) => void;
+        clearError: (label: string) => void;
+    }
 ) {
     const [data, setData] = useState(initialData);
     const [storageReady, setStorageReady] = useState(false);
@@ -59,6 +68,23 @@ export function useUserData(
             storage.current.close();
         };
     }, []);
+    async function favorite(item: Media) {
+        try {
+            await update((d) => ({
+                ...d,
+                favorites: d.favorites.some((m) => m.id === item.id)
+                    ? d.favorites.filter((m) => m.id !== item.id)
+                    : [...d.favorites, item],
+            }));
+            favoriteNotice.clearError('Retry saving favorite');
+        } catch {
+            favoriteNotice.setError(
+                'Favorite was not saved. Free TV storage and retry.',
+                () => void favorite(item),
+                'Retry saving favorite'
+            );
+        }
+    }
     return {
         data,
         storageReady,
@@ -67,5 +93,6 @@ export function useUserData(
         repo,
         player,
         update,
+        favorite,
     };
 }

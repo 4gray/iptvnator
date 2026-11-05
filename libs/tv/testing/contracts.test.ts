@@ -182,3 +182,29 @@ test('additive TV data reads recover historical positions without mutating the o
     assert.equal(data.positions.old.seconds, 5);
     assert.equal('positions' in old, false);
 });
+
+test('historical TV favorites gain an all-source view without changing saved identities or order', () => {
+    const old = initialData();
+    const items = ['a', 'b'].map((sourceId) => ({
+        id: identity({ ...source, id: sourceId }, 'live', '1'),
+        sourceId,
+        providerId: '1',
+        kind: 'live' as const,
+        title: 'Synthetic channel',
+        raw: {},
+    }));
+    const { favoriteScope: _scope, ...historical } = {
+        ...old,
+        favorites: items,
+    };
+    const hydrated = hydrateUserData(historical);
+    assert.equal(hydrated.favoriteScope, 'all');
+    assert.equal(hydrated.favorites, items);
+    assert.notEqual(hydrated.favorites[0].id, hydrated.favorites[1].id);
+    assert.equal('favoriteScope' in historical, false);
+    assert.equal(
+        hydrateUserData({ ...historical, favoriteScope: 'current' })
+            .favoriteScope,
+        'current'
+    );
+});

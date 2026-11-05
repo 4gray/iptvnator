@@ -36,15 +36,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const playingCategory = useRef('');
     const pendingFocus = useRef('');
     const pendingScroll = useRef<number>();
-    const {
-        data,
-        storageReady,
-        storageError,
-        retryStorage,
-        repo,
-        player,
-        update,
-    } = useUserData(
+    const user = useUserData(
         video,
         (message) => setError(message, retryPlayback, 'Retry playback'),
         () => tick((t) => t + 1),
@@ -57,8 +49,10 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                         .catch(() => undefined);
                 },
                 'Retry saving progress'
-            )
+            ),
+        { setError, clearError }
     );
+    const { data, storageReady, repo, player, update } = user;
     useSourceNavigation(data.activeId, route, setRoute, () => {
         stack.current = [];
         pendingFocus.current = '';
@@ -202,8 +196,18 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             if (!lane.owns(job)) return false;
             playerOrigin.remember(originAtStart);
             setPlaying(item);
-            if (item.kind === 'live') playingCategory.current = category;
-            if (item.kind !== 'live') {
+            if (item.kind === 'live') {
+                playingCategory.current = category;
+                if (route.view === 'favorites') {
+                    setSelected(item);
+                    visit(
+                        { ...firstRoute(), view: 'live', kind: 'live' },
+                        item.id,
+                        originAtStart
+                    );
+                }
+            }
+            if (item.kind !== 'live' || route.view === 'favorites') {
                 setFullscreen(true);
                 restoreFocus('player-toggle');
             }
@@ -276,15 +280,23 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     }
     function back() {
         if (fullscreen) {
+            const favoriteLive =
+                playing?.kind === 'live' &&
+                stack.current[stack.current.length - 1]?.route.view ===
+                    'favorites';
             setFullscreen(false);
-            if (playing?.kind !== 'live') stop();
-            playerOrigin.restore();
-            return;
+            if (playing?.kind !== 'live' || favoriteLive) stop();
+            if (!favoriteLive) {
+                playerOrigin.restore();
+                return;
+            }
         }
         playback.current.cancel();
         const previous = stack.current.pop();
         if (previous || route.view !== 'home') content.cancelBrowse();
         if (previous) {
+            if (route.view === 'live' && previous.route.view === 'favorites')
+                stop();
             pendingFocus.current = previous.focus;
             pendingScroll.current = previous.scroll;
             setSelected(previous.route.item);
@@ -305,27 +317,20 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         fullscreen,
         player: player.current,
     });
-    async function favorite(item: Media) {
-        try {
-            await update((d) => ({
-                ...d,
-                favorites: d.favorites.some((m) => m.id === item.id)
-                    ? d.favorites.filter((m) => m.id !== item.id)
-                    : [...d.favorites, item],
-            }));
-            clearError('Retry saving favorite');
-        } catch {
-            setError(
-                'Favorite was not saved. Free TV storage and retry.',
-                () => void favorite(item),
-                'Retry saving favorite'
-            );
-        }
-    }
     const switchSource = createSourceSwitcher({
         stop,
         update,
-        selected: () => navigate('home'),
+        selected: () => {
+            if (route.view === 'sources') navigate('home');
+            else if (route.view === 'detail' || route.view === 'person') {
+                navigate(
+                    (route.item?.kind ?? route.kind) === 'movie'
+                        ? 'movies'
+                        : 'series'
+                );
+                restoreFocus('source-picker');
+            }
+        },
         clearError,
         setError,
     });
@@ -352,9 +357,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         }
     }
     return {
-        storageReady,
-        storageError,
-        retryStorage,
+        ...user,
         library,
         guideClient: ready ? provider.current : undefined,
         retryPlayback,
@@ -363,7 +366,6 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         restoreKey: pendingFocus.current,
         restoreScroll: pendingScroll.current,
         backend,
-        data,
         route,
         setRoute,
         error,
@@ -371,6 +373,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         errorRetryLabel,
         reconnectStatus: recovery.reconnectStatus,
         setError,
+        clearError,
         ready,
         ...content,
         busy: busy || content.busy,
@@ -380,17 +383,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         playingCategory: playingCategory.current,
         fullscreen,
         setFullscreen,
-        player,
         navigate,
         open,
         openPerson,
         play,
         back,
         stop,
-        favorite,
         saveSource,
         switchSource,
-        update,
         playbackRequest: playback.current.signal,
     };
 }

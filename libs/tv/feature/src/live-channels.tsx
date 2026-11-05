@@ -11,7 +11,6 @@ export function LiveChannels({
     browse: ReturnType<typeof useLiveBrowse>;
 }) {
     const pinned =
-        overlay &&
         tv.playing &&
         tv.route.category === tv.playingCategory &&
         !tv.catalog.items.some((item) => item.id === tv.playing?.id)
@@ -109,7 +108,11 @@ export function LiveChannels({
                                                   ?.hasConfirmedPlayback
                                                 ? '● Playing'
                                                 : 'Starting / paused'
-                                            : 'Live channel'}
+                                            : (tv.data.sources.find(
+                                                  (source) =>
+                                                      source.id ===
+                                                      item.sourceId
+                                              )?.name ?? 'Source unavailable')}
                                     </small>
                                 </span>
                             </button>
