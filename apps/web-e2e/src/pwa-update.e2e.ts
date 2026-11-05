@@ -165,6 +165,14 @@ test('retains the offline library after failed updates and protects unsaved sett
         await page.screenshot({
             path: info.outputPath('hash-mismatch-retains-library-light.png'),
         });
+        await context.setOffline(false);
+        await page.evaluate(() => window.dispatchEvent(new Event('online')));
+        await expect(notice).toContainText('could not be downloaded');
+        fixture.state.corrupt = false;
+        await notice
+            .getByRole('button', { name: 'Retry', exact: true })
+            .click();
+        await expect(notice).toBeHidden();
     } finally {
         if (!page.isClosed()) await context.setOffline(false);
         await fixture.close();

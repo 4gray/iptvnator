@@ -214,7 +214,11 @@ export class SettingsUnloadGuardService implements OnDestroy {
             if (finalIntent === 'install' && proceed) return true;
 
             if (!proceed) {
-                if (finalIntent === 'close' || finalIntent === 'install') {
+                if (
+                    finalIntent === 'close' ||
+                    (finalIntent === 'install' &&
+                        this.latestCloseRequestId !== undefined)
+                ) {
                     // Staying must clear the intent the main process
                     // remembered, or a later close attempt would replay a
                     // stale quit — and the clearing must be AWAITED, or a

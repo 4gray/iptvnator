@@ -202,6 +202,21 @@ describe('SettingsUnloadGuardService', () => {
             expect(dispatchBeforeUnload().defaultPrevented).toBe(true);
         });
 
+        it('does not cancel an unseen native quit when the first install decision is cancelled', async () => {
+            activateInElectron();
+            host.confirmClose
+                .mockResolvedValueOnce(false)
+                .mockResolvedValueOnce(true);
+            expect(
+                await TestBed.inject(AppUpdateInstallService).installAppUpdate()
+            ).toBeNull();
+            expect(electronStub.cancelWindowClose).not.toHaveBeenCalled();
+            closeRequestCallback?.(1);
+            await flushAsyncWork();
+            expect(host.confirmClose).toHaveBeenCalledTimes(2);
+            expect(electronStub.confirmWindowClose).toHaveBeenCalledTimes(1);
+        });
+
         it.each([true, false])(
             'shares the install decision (%s) with competing close/reload requests',
             async (proceed) => {

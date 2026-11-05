@@ -82,7 +82,8 @@ The global update panel loads `PwaUpdateService` once per enabled browser app li
 announces only `VERSION_READY` as ready, offers Retry after installation or
 check failures, and rechecks once when the browser returns online. A manifest
 fetch failure resolves false without a version event, so Retry is restored in
-that case; a successful `NO_NEW_VERSION_DETECTED` check stays silent. Refresh is
+that case; a successful `NO_NEW_VERSION_DETECTED` clears an obsolete failure
+notice while preserving pending reloads. Refresh is
 explicit, warns that playback stops, and retains the browser's unsaved-settings
 beforeunload confirmation. Later check or candidate failures retain an already
 pending Refresh action. The deferred card uses the desktop notification's layout

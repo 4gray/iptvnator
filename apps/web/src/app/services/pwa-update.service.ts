@@ -24,6 +24,11 @@ export class PwaUpdateService {
                 if (event.type === 'VERSION_READY') this.notify('ready');
                 if (event.type === 'VERSION_INSTALLATION_FAILED')
                     this.notify('failed');
+                if (
+                    event.type === 'NO_NEW_VERSION_DETECTED' &&
+                    this.notice() === 'failed'
+                )
+                    this.notice.set(null);
             });
         this.updates.unrecoverable
             .pipe(takeUntilDestroyed())

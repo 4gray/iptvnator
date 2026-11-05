@@ -1073,6 +1073,7 @@ Both the About action and the global update notification install through
 `AppUpdateInstallService`. Registered settings guards first run the existing
 Save/Discard/Cancel decision; cancellation or a failed save sends no install
 IPC and keeps protection armed. Concurrent install intents share one decision.
+Cancelling an install never sends an unscoped cancellation for an unseen native close.
 The same unload-guard decision also owns competing native close/reload requests.
 After approval only DOM unload protection is suspended; the main-process guard
 stays armed until install IPC atomically clears pending closes and prepares the

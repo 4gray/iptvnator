@@ -112,8 +112,10 @@ describe('PwaUpdateService', () => {
         expect(service.notice()).toBe('failed');
     });
 
-    it('keeps a successful no-update check silent', async () => {
+    it('clears a recovered failure when a successful retry finds no update', async () => {
         const service = TestBed.inject(PwaUpdateService);
+        failed();
+        expect(service.notice()).toBe('failed');
         check.mockImplementationOnce(async () => {
             versions.next({
                 type: 'NO_NEW_VERSION_DETECTED',
